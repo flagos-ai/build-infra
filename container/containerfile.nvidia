@@ -1,3 +1,6 @@
+ARG PYTHON_VERSION=3.10
+ARG TORCH_VERSION=2.7.0
+
 FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 # noninteractive to make apt-get work
@@ -7,9 +10,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # todo as python3 3.x specific version as build args later
 RUN apt-get update -y && \
     apt-get install -y --allow-change-held-packages \
-    python3 \
+    python${PYTHON_VERSION} \
     python3-pip \
-    python3-venv \
+    python${PYTHON_VERSION}-venv \
     git \
     autotools-dev \
     wget \
@@ -18,7 +21,9 @@ RUN apt-get update -y && \
     build-essential \
     cmake && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
 # device specific with clean up
 RUN apt-get install -y --allow-change-held-packages \
@@ -32,4 +37,4 @@ WORKDIR /workspace
 
 # build
 RUN pip install -U scikit-build-core>=0.11 pybind11 ninja cmake
-RUN pip install -U torch>=2.2.0
+RUN pip install -U torch==${TORCH_VERSION}

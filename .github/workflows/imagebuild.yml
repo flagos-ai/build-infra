@@ -90,3 +90,4 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ inputs.tag }}:latest
           labels: ${{ inputs.label }}
+          no-cache: true
