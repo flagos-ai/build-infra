@@ -12,7 +12,7 @@ pipeline as code, and code as document.
 
 | xPU | driver version | python | ubuntu | torch | file | image name | 
 | --- | --- | --- | --- | --- | --- | --- |
-| nv | 12.4.1 | latest | 22.04 | latest | container/containerfile.nvidia | todo |
+| nv | 12.4.1 | latest | 22.04 | latest | container/containerfile.nvidia | harbor.baai.ac.cn/flagbase/flagbase-nvidia:latest |
 
 ## pipeline as code interface
 
