@@ -3,9 +3,11 @@ ARG TORCH_VERSION=latest
 
 FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
 
+ARG PYTHON_VERSION
+ARG TORCH_VERSION
 # noninteractive to make apt-get work
 ENV DEBIAN_FRONTEND=noninteractive
-
+RUN set -x
 # base dependencies
 # todo as python3 3.x specific version as build args later
 RUN apt-get update -y && \
@@ -21,8 +23,11 @@ RUN apt-get update -y && \
     build-essential \
     cmake && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN if [ "$PYTHON_VERSION" != "3" ]; then \
+        ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3; \
+    fi && \
     ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
 # device specific with clean up
