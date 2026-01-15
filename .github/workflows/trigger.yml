@@ -50,6 +50,7 @@ jobs:
       label: ${{ matrix.label }}
       runson: ${{ matrix.runson }}
       build-args: ${{ matrix.build-args }}
+      image_prefix: 'flagbase'
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
