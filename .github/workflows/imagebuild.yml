@@ -23,6 +23,14 @@ on:
         description: 'runner'
         type: string
         default: 'ubuntu-latest'
+      build-args:
+        description: 'docker/build-push-action@v5 build arguments'
+        type: string
+        default: ''
+      image_prefix:
+        description: 'image prefix'
+        type: string
+        default: 'flagbase'
     secrets:
       CONTAINER_REGISTRY:
         description: 'Docker Registry Token'
@@ -33,12 +41,20 @@ on:
 
 env:
   REGISTRY: harbor.baai.ac.cn
-  IMAGE_PREFIX: flagbase
 
 jobs:
   build-image:
     runs-on: ${{ inputs.runson }}
     steps:
+      - name: Debug all inputs
+        run: |
+          echo "push: ${{ inputs.push }}"
+          echo "containerfile: ${{ inputs.containerfile }}"
+          echo "tag: ${{ inputs.tag }}"
+          echo "label: ${{ inputs.label }}"
+          echo "runson: ${{ inputs.runson }}"
+          echo "build-args: '${{ inputs.build-args }}'"
+
       - name: Checkout Code
         id: checkout1
         uses: actions/checkout@v6
@@ -88,5 +104,7 @@ jobs:
           push: ${{ inputs.push }}
           file: container/${{ inputs.containerfile }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ inputs.tag }}:latest
+            ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.tag }}:latest
           labels: ${{ inputs.label }}
+          no-cache: true
+          build-args: ${{ inputs.build-args }}
