@@ -24,7 +24,7 @@ on:
         type: string
         default: 'ubuntu-latest'
       build-args:
-        description: 'Docker build arguments in key=value format, one per line'
+        description: 'docker/build-push-action@v5 build arguments'
         type: string
         default: ''
     secrets:

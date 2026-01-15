@@ -1,10 +1,7 @@
-ARG PYTHON_VERSION=3
-ARG TORCH_VERSION=latest
-
 FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
 
-ARG PYTHON_VERSION
-ARG TORCH_VERSION
+ARG PYTHON_VERSION=3
+ARG TORCH_VERSION=latest
 # noninteractive to make apt-get work
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -x
