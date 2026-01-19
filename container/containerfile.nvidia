@@ -32,7 +32,7 @@ RUN if [ "$PYTHON_VERSION" != "3" ]; then \
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
     apt-get update -y && \ 
-    apt-get install -y cuda-drivers cuda-toolkit libnccl2 libnccl-dev && \
+    apt-get install -y cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf cuda-keyring_1.1-1_all.deb
