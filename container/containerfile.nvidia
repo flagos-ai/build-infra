@@ -28,9 +28,10 @@ RUN if [ "$PYTHON_VERSION" != "3" ]; then \
     ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
 # device specific with clean up
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-RUN dpkg -i cuda-keyring_1.1-1_all.deb
-RUN apt-get update -y && \ 
+# ref https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#network-repo-installation-for-ubuntu
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    apt-get update -y && \ 
     apt-get install -y cuda-drivers cuda-toolkit libnccl2 libnccl-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
@@ -40,9 +41,9 @@ RUN apt-get update -y && \
 WORKDIR /workspace
 
 # build
-RUN pip install -U scikit-build-core>=0.11 pybind11 ninja cmake
+RUN pip install -U scikit-build-core>=0.11 pybind11 ninja cmake --break-system-packages
 RUN if [ "$TORCH_VERSION" = "latest" ]; then \
-        pip install -U torch; \
+        pip install -U torch --break-system-packages; \
     else \
-        pip install -U torch==$TORCH_VERSION; \
+        pip install -U torch==$TORCH_VERSION --break-system-packages; \
     fi
