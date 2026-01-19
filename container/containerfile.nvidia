@@ -41,7 +41,7 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86
 WORKDIR /workspace
 
 # build
-RUN pip install -U scikit-build-core>=0.11 pybind11 ninja cmake --break-system-packages
+RUN pip install -U scikit-build-core>=0.11 pybind11 --break-system-packages
 RUN if [ "$TORCH_VERSION" = "latest" ]; then \
         pip install -U torch --break-system-packages; \
     else \
