@@ -31,7 +31,7 @@ jobs:
             runson: 'h20'
             build-args: ''
           # GHA default instance will meet no space left on device issue
-          - job_name: build-nvidia-image-py311torch2.8
+          - job_name: build-nvidia-image-py312torch2.8
             push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             containerfile: 'containerfile.nvidia'
             tag: 'flagbase-nvidia'
