@@ -29,6 +29,17 @@ jobs:
             tag: 'flagbase-nvidia'
             label: 'latest'
             runson: 'h20'
+            build-args: ''
+          # GHA default instance will meet no space left on device issue
+          - job_name: build-nvidia-image-py312torch2.8
+            push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
+            containerfile: 'containerfile.nvidia'
+            tag: 'flagbase-nvidia'
+            label: 'py312torch2.8'
+            runson: 'h20'
+            build-args: |
+              PYTHON_VERSION=3.12
+              TORCH_VERSION=2.8
     
     name: ${{ matrix.job_name }}
     uses: ./.github/workflows/imagebuild.yml
@@ -38,6 +49,8 @@ jobs:
       tag: ${{ matrix.tag }}
       label: ${{ matrix.label }}
       runson: ${{ matrix.runson }}
+      build-args: ${{ matrix.build-args }}
+      image_prefix: 'flagbase'
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}

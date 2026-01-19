@@ -1,15 +1,17 @@
-FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM ubuntu:24.04
 
+ARG PYTHON_VERSION=3
+ARG TORCH_VERSION=latest
 # noninteractive to make apt-get work
 ENV DEBIAN_FRONTEND=noninteractive
-
+RUN set -x
 # base dependencies
 # todo as python3 3.x specific version as build args later
 RUN apt-get update -y && \
     apt-get install -y --allow-change-held-packages \
-    python3 \
+    python${PYTHON_VERSION} \
     python3-pip \
-    python3-venv \
+    python${PYTHON_VERSION}-venv \
     git \
     autotools-dev \
     wget \
@@ -20,16 +22,28 @@ RUN apt-get update -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN if [ "$PYTHON_VERSION" != "3" ]; then \
+        ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3; \
+    fi && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
+
 # device specific with clean up
-RUN apt-get install -y --allow-change-held-packages \
-    libnccl2 \
-    libnccl-dev && \
+# ref https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#network-repo-installation-for-ubuntu
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    apt-get update -y && \ 
+    apt-get install -y cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf cuda-keyring_1.1-1_all.deb
 
 # workdir
 WORKDIR /workspace
 
 # build
-RUN pip install -U scikit-build-core>=0.11 pybind11 ninja cmake
-RUN pip install -U torch>=2.2.0
+RUN pip install -U scikit-build-core>=0.11 pybind11 --break-system-packages
+RUN if [ "$TORCH_VERSION" = "latest" ]; then \
+        pip install -U torch --break-system-packages; \
+    else \
+        pip install -U torch==$TORCH_VERSION --break-system-packages; \
+    fi
