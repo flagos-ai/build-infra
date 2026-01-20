@@ -37,7 +37,7 @@ RUN curl -fsSL https://repos.metax-tech.com/public.gpg.key | apt-key add - && \
 
 # Install MetaX SDK
 RUN apt-get update && apt-get install -y \
-    maca_sdk \
+    maca_sdk=3.3.0.15 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
