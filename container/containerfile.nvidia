@@ -1,9 +1,7 @@
-ARG ubuntu_version=24.04
-FROM ubuntu:${ubuntu_version}
+FROM ubuntu:24.04
 
 ARG PYTHON_VERSION=3
 ARG TORCH_VERSION=latest
-ARG GPU_TYPE=none
 # noninteractive to make apt-get work
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -x
@@ -30,27 +28,15 @@ RUN if [ "$PYTHON_VERSION" != "3" ]; then \
     ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
 # device specific with clean up
-ARG GPU_TYPE=nvidia  # 默认值可以是 "nvidia", "metax", 或 "none"
-
-RUN if [ "$GPU_TYPE" = "metax" ]; then \
-    curl -fsSL https://repos.metax-tech.com/public.gpg.key | apt-key add - && \
-    echo "deb [arch=$(dpkg --print-architecture)] https://repos.metax-tech.com/r/maca-sdk-deb/ stable main" | \
-    tee /etc/apt/sources.list.d/maca-sdk-deb.list && \
-    apt-get update && apt-get install -y \
-        maca_sdk \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    ; fi
-
-RUN if [ "$GPU_TYPE" = "nvidia" ]; then \
-    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+# ref https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#network-repo-installation-for-ubuntu
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
     apt-get update -y && \ 
     apt-get install -y cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    rm -rf cuda-keyring_1.1-1_all.deb \
-    ; fi
+    rm -rf cuda-keyring_1.1-1_all.deb
+
 # workdir
 WORKDIR /workspace
 
