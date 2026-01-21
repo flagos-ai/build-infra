@@ -108,7 +108,7 @@ jobs:
           push: ${{ inputs.push }}
           file: container/${{ inputs.containerfile }}
           tags: |
-            ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.tag }}:latest
+            ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.tag }}:${{ inputs.label }}
           labels: ${{ inputs.label }}
           no-cache: ${{ inputs.no-cache }}
           build-args: ${{ inputs.build-args }}
