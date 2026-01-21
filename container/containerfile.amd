@@ -1,0 +1,68 @@
+FROM ubuntu:24.04
+
+MAINTAINER "flagos contributors"
+
+ARG PYTHON_VERSION=3
+ARG TORCH_VERSION=latest
+# noninteractive to make apt-get work
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -x
+
+# base dependencies
+# todo as python3 3.x specific version as build args later
+RUN apt-get update -y && \
+    apt-get install -y \
+    python${PYTHON_VERSION} \
+    python3-pip \
+    python${PYTHON_VERSION}-venv \
+    git \
+    autotools-dev \
+    wget \
+    gcc \
+    g++ \
+    build-essential \
+    cmake \
+    curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN if [ "$PYTHON_VERSION" != "3" ]; then \
+        ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3; \
+    fi && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
+
+# device specific
+# Add AMD APT repository (public, no authentication needed)
+RUN mkdir --parents --mode=0755 /etc/apt/keyrings && \
+    curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor | tee /etc/apt/keyrings/rocm.gpg > /dev/null
+    
+# 修复：将heredoc分成独立的命令
+RUN echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.1.1 jammy main' > /etc/apt/sources.list.d/rocm.list && \
+    echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/graphics/7.1.1/ubuntu jammy main' >> /etc/apt/sources.list.d/rocm.list
+
+RUN echo 'Package: *' > /etc/apt/preferences.d/rocm-pin-600 && \
+    echo 'Pin: release o=repo.radeon.com' >> /etc/apt/preferences.d/rocm-pin-600 && \
+    echo 'Pin-Priority: 600' >> /etc/apt/preferences.d/rocm-pin-600
+# Install AMD SDK
+RUN apt-get update -y && \
+    apt-get install -y \ 
+    rocm-hip-libraries=7.1.1.70101-38~22.04 \
+    rocm-hip-runtime=7.1.1.70101-38~22.04 \
+    rocm-language-runtime=7.1.1.70101-38~22.04 \
+    rocm-hip-sdk=7.1.1.70101-38~22.04 \
+    rocm-opencl-runtime=7.1.1.70101-38~22.04 \
+    rocm-developer-tools=7.1.1.70101-38~22.04 \
+    rocm-opencl-sdk=7.1.1.70101-38~22.04 && \
+    apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# workdir
+WORKDIR /workspace
+
+# build
+RUN pip install -U scikit-build-core>=0.11 pybind11 --break-system-packages
+RUN if [ "$TORCH_VERSION" = "latest" ]; then \
+        pip install -U torch --break-system-packages; \
+    else \
+        pip install -U torch==$TORCH_VERSION --break-system-packages; \
+    fi

@@ -1,0 +1,76 @@
+name: Scheduled Docker Image Build Orchestrator 
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      push_images:
+        description: 'push image or not'
+        type: boolean
+        default: false
+
+jobs:
+  set-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - id: set-matrix
+        run: |
+          echo 'matrix={ "include": [ 
+            { 
+              "job_name": "build-base-nvidia-image", 
+              "push": "false",
+              "containerfile": "containerfile.nvidia",
+              "tag": "flagbase-nvidia",
+              "label": "latest",
+              "runson": "h20",
+              "build-args": ""
+            }, 
+            {
+              "job_name": "build-base-nvidia-image-py312torch2.8",
+              "push": "false",
+              "containerfile": "containerfile.nvidia",
+              "tag": "flagbase-nvidia",
+              "label": "py312torch2.8",
+              "runson": "h20",
+              "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
+            },
+            {
+              "job_name": "build-base-metax-image",
+              "push": true,
+              "containerfile": "containerfile.metax",
+              "tag": "flagbase-metax",
+              "label": "latest",
+              "runson": "h20",
+              "build_args": ""
+            },
+            {
+              "job_name": "build-base-amd-image",
+              "push": true,
+              "containerfile": "containerfile.amd",
+              "tag": "flagbase-amd",
+              "label": "latest",
+              "runson": "h20",
+              "build_args": ""
+            },
+          ] }' >> "$GITHUB_OUTPUT"
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+  build-matrix:
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    name: ${{ matrix.job_name }}
+    uses: ./.github/workflows/imagebuild.yml
+    with:
+      push: ${{ matrix.push }}
+      containerfile: ${{ matrix.containerfile }}
+      tag: ${{ matrix.tag }}
+      label: ${{ matrix.label }}
+      runson: ${{ matrix.runson }}
+      build-args: ${{ matrix.build-args }}
+      image_prefix: 'flagbase'
+    secrets:
+      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}

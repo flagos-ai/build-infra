@@ -1,5 +1,7 @@
 FROM ubuntu:24.04
 
+MAINTAINER "flagos contributors"
+
 ARG PYTHON_VERSION=3
 ARG TORCH_VERSION=latest
 # noninteractive to make apt-get work
