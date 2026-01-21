@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-MAINTAINER "flagos contributors"
+MAINTAINER "FlagOS contributors"
 
 ARG PYTHON_VERSION=3
 ARG TORCH_VERSION=latest
