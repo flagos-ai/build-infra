@@ -68,6 +68,7 @@ jobs:
         shell: bash
 
   build-matrix:
+    needs: set-matrix
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
