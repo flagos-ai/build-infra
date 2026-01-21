@@ -19,6 +19,10 @@ on:
         description: 'image label'
         type: string
         default: ''
+      no-cache:
+        description: 'docker/build-push-action@v5 no-cache option'
+        type: boolean
+        default: false
       runson:
         description: 'runner'
         type: string
@@ -106,5 +110,5 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.tag }}:latest
           labels: ${{ inputs.label }}
-          no-cache: true
+          no-cache: ${{ inputs.no-cache }}
           build-args: ${{ inputs.build-args }}
