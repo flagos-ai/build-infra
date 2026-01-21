@@ -1,0 +1,53 @@
+FROM ubuntu:24.04
+
+ARG PYTHON_VERSION=3
+ARG TORCH_VERSION=latest
+# noninteractive to make apt-get work
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -x
+
+# base dependencies
+# todo as python3 3.x specific version as build args later
+RUN apt-get update -y && \
+    apt-get install -y \
+    python${PYTHON_VERSION} \
+    python3-pip \
+    python${PYTHON_VERSION}-venv \
+    git \
+    autotools-dev \
+    wget \
+    gcc \
+    g++ \
+    build-essential \
+    cmake \
+    curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN if [ "$PYTHON_VERSION" != "3" ]; then \
+        ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3; \
+    fi && \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
+
+# device specific
+# Add MetaX APT repository (public, no authentication needed)
+RUN curl -fsSL https://repos.metax-tech.com/public.gpg.key | apt-key add - && \
+    echo "deb [arch=$(dpkg --print-architecture)] https://repos.metax-tech.com/r/maca-sdk-deb/ stable main" | \
+    tee /etc/apt/sources.list.d/maca-sdk-deb.list
+
+# Install MetaX SDK
+RUN apt-get update && apt-get install -y \
+    maca_sdk=3.3.0.15 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# workdir
+WORKDIR /workspace
+
+# build
+RUN pip install -U scikit-build-core>=0.11 pybind11 --break-system-packages
+RUN if [ "$TORCH_VERSION" = "latest" ]; then \
+        pip install -U torch --break-system-packages; \
+    else \
+        pip install -U torch==$TORCH_VERSION --break-system-packages; \
+    fi
