@@ -26,8 +26,8 @@ jobs:
           - job_name: build-base-nvidia-image
             push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             containerfile: 'containerfile.nvidia'
-            tag: 'flagbase-nvidia'
-            label: 'latest'
+            image_name: 'flagbase-nvidia'
+            tag: 'latest'
             runson: 'h20'
             build-args: |
               GPU_TYPE=nvidia
@@ -35,8 +35,8 @@ jobs:
           - job_name: build-base-nvidia-image-py312torch2.8
             push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             containerfile: 'containerfile.nvidia'
-            tag: 'flagbase-nvidia'
-            label: 'py312torch2.8'
+            image_name: 'flagbase-nvidia'
+            tag: 'py312torch2.8'
             runson: 'h20'
             build-args: |
               PYTHON_VERSION=3.12
@@ -46,8 +46,8 @@ jobs:
           - job_name: build-base-metax-image
             push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             containerfile: 'containerfile.metax'
-            tag: 'flagbase-metax'
-            label: 'latest'
+            image_name: 'flagbase-metax'
+            tag: 'latest'
             runson: 'h20'
             build-args: |
               ubuntu_version=22.04
@@ -58,8 +58,8 @@ jobs:
     with:
       push: ${{ matrix.push }}
       containerfile: ${{ matrix.containerfile }}
+      image_name: ${{ matrix.image_name }}
       tag: ${{ matrix.tag }}
-      label: ${{ matrix.label }}
       runson: ${{ matrix.runson }}
       build-args: ${{ matrix.build-args }}
       image_prefix: 'flagbase'

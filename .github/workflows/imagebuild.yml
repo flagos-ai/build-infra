@@ -11,12 +11,12 @@ on:
         description: 'Dockerfile path'
         type: string
         default: 'Dockerfile'
-      tag:
+      image_name:
         description: 'image name'
         type: string
         required: true
-      label:
-        description: 'image label'
+      tag:
+        description: 'image tag'
         type: string
         default: ''
       no-cache:
@@ -54,8 +54,8 @@ jobs:
         run: |
           echo "push: ${{ inputs.push }}"
           echo "containerfile: ${{ inputs.containerfile }}"
+          echo "image_name: ${{ inputs.image_name }}"
           echo "tag: ${{ inputs.tag }}"
-          echo "label: ${{ inputs.label }}"
           echo "runson: ${{ inputs.runson }}"
           echo "build-args: '${{ inputs.build-args }}'"
 
@@ -108,7 +108,7 @@ jobs:
           push: ${{ inputs.push }}
           file: container/${{ inputs.containerfile }}
           tags: |
-            ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.tag }}:${{ inputs.label }}
-          labels: ${{ inputs.label }}
+            ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.image_name }}:${{ inputs.tag }}
+          labels: ${{ inputs.tag }}
           no-cache: ${{ inputs.no-cache }}
           build-args: ${{ inputs.build-args }}
