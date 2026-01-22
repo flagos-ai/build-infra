@@ -29,6 +29,7 @@ jobs:
             image_name: 'flagbase-nvidia'
             tag: 'latest'
             runson: 'h20'
+            no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             build-args: |
               GPU_TYPE=nvidia
           # GHA default instance will meet no space left on device issue
@@ -38,6 +39,7 @@ jobs:
             image_name: 'flagbase-nvidia'
             tag: 'py312torch2.8'
             runson: 'h20'
+            no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             build-args: |
               PYTHON_VERSION=3.12
               TORCH_VERSION=2.8
@@ -49,6 +51,7 @@ jobs:
             image_name: 'flagbase-metax'
             tag: 'latest'
             runson: 'h20'
+            no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
             build-args: |
               ubuntu_version=22.04
               GPU_TYPE=metax
@@ -63,6 +66,7 @@ jobs:
       runson: ${{ matrix.runson }}
       build-args: ${{ matrix.build-args }}
       image_prefix: 'flagbase'
+      no-cache: ${{ matrix.no-cache }}
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
