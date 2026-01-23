@@ -16,6 +16,9 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      - id: checkout_code
+        name: Checkout Code
+        uses: actions/checkout@v6
       - id: set-matrix
         run: |
           # 使用动态生成的矩阵从 vendor_json 目录
