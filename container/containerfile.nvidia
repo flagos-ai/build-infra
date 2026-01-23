@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-MAINTAINER "FlagOS contributors"
+LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 ARG PYTHON_VERSION=3
 ARG TORCH_VERSION=latest
@@ -8,17 +8,11 @@ ARG TORCH_VERSION=latest
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -x
 # base dependencies
-# todo as python3 3.x specific version as build args later
 RUN apt-get update -y && \
     apt-get install -y --allow-change-held-packages \
     python${PYTHON_VERSION} \
     python3-pip \
-    wget \
-    autotools-dev \
-    gcc \
-    g++ \
-    build-essential \
-    cmake && \
+    wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -27,7 +21,13 @@ RUN if [ "$PYTHON_VERSION" != "3" ]; then \
     fi && \
     ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
-# device specific with clean up
+RUN if [ "$TORCH_VERSION" = "latest" ]; then \
+        pip install -U torch --break-system-packages; \
+    else \
+        pip install -U torch==$TORCH_VERSION --break-system-packages; \
+    fi
+
+# vendor specific
 # ref https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#network-repo-installation-for-ubuntu
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
     dpkg -i cuda-keyring_1.1-1_all.deb && \
@@ -40,10 +40,14 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86
 # workdir
 WORKDIR /workspace
 
-# build
+# tool chain, todo we will splitting this into a builder image later
+RUN apt-get update -y && \
+    apt-get install -y --allow-change-held-packages \
+    autotools-dev \
+    gcc \
+    g++ \
+    build-essential \
+    cmake && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 RUN pip install -U scikit-build-core>=0.11 pybind11 --break-system-packages
-RUN if [ "$TORCH_VERSION" = "latest" ]; then \
-        pip install -U torch --break-system-packages; \
-    else \
-        pip install -U torch==$TORCH_VERSION --break-system-packages; \
-    fi

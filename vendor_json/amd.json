@@ -1,0 +1,10 @@
+[
+              {
+                "job_name": "build-base-amd-image",
+                "containerfile": "containerfile.amd",
+                "image_name": "flagbase-amd",
+                "tag": "latest",
+                "runson": "h20",
+                "build-args": ""
+              }
+            ]

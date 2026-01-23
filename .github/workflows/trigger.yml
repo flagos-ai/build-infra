@@ -20,53 +20,8 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          # 使用 heredoc 创建有效的 JSON
-          cat > matrix.json << 'EOF'
-          {
-            "include": [
-              {
-                "job_name": "build-base-nvidia-image",
-                "push": false,
-                "containerfile": "containerfile.nvidia",
-                "image_name": "flagbase-nvidia",
-                "tag": "latest",
-                "runson": "h20",
-                "no-cache": false,
-                "build-args": ""
-              },
-              {
-                "job_name": "build-base-nvidia-image-py312torch2.8",
-                "push": false,
-                "containerfile": "containerfile.nvidia",
-                "image_name": "flagbase-nvidia",
-                "tag": "py312torch2.8",
-                "runson": "h20",
-                "no-cache": false,
-                "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
-              },
-              {
-                "job_name": "build-base-metax-image",
-                "push": false,
-                "containerfile": "containerfile.metax",
-                "image_name": "flagbase-metax",
-                "tag": "latest",
-                "runson": "h20",
-                "no-cache": false,
-                "build-args": "ubuntu_version=22.04"
-              },
-              {
-                "job_name": "build-base-amd-image",
-                "push": false,
-                "containerfile": "containerfile.amd",
-                "image_name": "flagbase-amd",
-                "tag": "latest",
-                "runson": "h20",
-                "no-cache": false,
-                "build-args": ""
-              }
-            ]
-          }
-          EOF
+          # 使用动态生成的矩阵从 vendor_json 目录
+          ./generate_matrix.sh false false > matrix.json
           
           # 读取 JSON 文件并输出
           MATRIX_CONTENT=$(cat matrix.json | jq -c .)
@@ -81,14 +36,14 @@ jobs:
     name: ${{ matrix.job_name }}
     uses: ./.github/workflows/imagebuild.yml
     with:
-      push: ${{ matrix.push }}
+      push: false
       containerfile: ${{ matrix.containerfile }}
       image_name: ${{ matrix.image_name }}
       tag: ${{ matrix.tag }}
       runson: ${{ matrix.runson }}
       build-args: ${{ matrix.build-args }}
       image_prefix: 'flagbase'
-      no-cache: ${{ matrix.no-cache }}
+      no-cache: false
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}

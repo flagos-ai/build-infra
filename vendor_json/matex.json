@@ -1,0 +1,10 @@
+[
+              {
+                "job_name": "build-base-metax-image",
+                "containerfile": "containerfile.metax",
+                "image_name": "flagbase-metax",
+                "tag": "latest",
+                "runson": "h20",
+                "build-args": ""
+              }
+            ]

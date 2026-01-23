@@ -18,53 +18,8 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          # 使用 heredoc 创建有效的 JSON
-          cat > matrix.json << 'EOF'
-          {
-            "include": [
-              {
-                "job_name": "build-base-nvidia-image",
-                "push": true,
-                "containerfile": "containerfile.nvidia",
-                "image_name": "flagbase-nvidia",
-                "tag": "latest",
-                "runson": "h20",
-                "no-cache": true,
-                "build-args": ""
-              },
-              {
-                "job_name": "build-base-nvidia-image-py312torch2.8",
-                "push": true,
-                "containerfile": "containerfile.nvidia",
-                "image_name": "flagbase-nvidia",
-                "tag": "py312torch2.8",
-                "runson": "h20",
-                "no-cache": true,
-                "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
-              },
-              {
-                "job_name": "build-base-metax-image",
-                "push": true,
-                "containerfile": "containerfile.metax",
-                "image_name": "flagbase-metax",
-                "tag": "latest",
-                "runson": "h20",
-                "no-cache": true,
-                "build-args": "ubuntu_version=22.04"
-              },
-              {
-                "job_name": "build-base-amd-image",
-                "push": true,
-                "containerfile": "containerfile.amd",
-                "image_name": "flagbase-amd",
-                "tag": "latest",
-                "runson": "h20",
-                "no-cache": true,
-                "build-args": ""
-              }
-            ]
-          }
-          EOF
+          # 使用动态生成的矩阵从 vendor_json 目录
+          ./generate_matrix.sh true true > matrix.json
           
           # 读取 JSON 文件并输出
           MATRIX_CONTENT=$(cat matrix.json | jq -c .)
@@ -79,14 +34,14 @@ jobs:
     name: ${{ matrix.job_name }}
     uses: ./.github/workflows/imagebuild.yml
     with:
-      push: ${{ matrix.push }}
+      push: true
       containerfile: ${{ matrix.containerfile }}
       image_name: ${{ matrix.image_name }}
       tag: ${{ matrix.tag }}
       runson: ${{ matrix.runson }}
       build-args: ${{ matrix.build-args }}
       image_prefix: 'flagbase'
-      no-cache: ${{ matrix.no-cache }}
+      no-cache: true
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}

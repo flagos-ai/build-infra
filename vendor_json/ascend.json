@@ -1,0 +1,10 @@
+[
+              {
+                "job_name": "build-base-ascend-image",
+                "containerfile": "containerfile.ascend",
+                "image_name": "flagbase-ascend",
+                "tag": "latest",
+                "runson": "h20",
+                "build-args": ""
+              }
+            ]
