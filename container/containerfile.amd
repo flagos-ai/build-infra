@@ -14,14 +14,6 @@ RUN apt-get update -y && \
     apt-get install -y \
     python${PYTHON_VERSION} \
     python3-pip \
-    python${PYTHON_VERSION}-venv \
-    git \
-    autotools-dev \
-    wget \
-    gcc \
-    g++ \
-    build-essential \
-    cmake \
     curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -66,3 +58,13 @@ RUN if [ "$TORCH_VERSION" = "latest" ]; then \
     else \
         pip install -U torch==$TORCH_VERSION --break-system-packages; \
     fi
+
+# Tool chain at end
+RUN apt-get install -y \
+    autotools-dev \
+    gcc \
+    g++ \
+    build-essential \
+    cmake && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

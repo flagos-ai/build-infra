@@ -28,36 +28,40 @@ jobs:
                 "job_name": "build-base-nvidia-image",
                 "push": false,
                 "containerfile": "containerfile.nvidia",
-                "tag": "flagbase-nvidia",
-                "label": "latest",
+                "image_name": "flagbase-nvidia",
+                "tag": "latest",
                 "runson": "h20",
+                "no-cache": false,
                 "build-args": ""
               },
               {
                 "job_name": "build-base-nvidia-image-py312torch2.8",
                 "push": false,
                 "containerfile": "containerfile.nvidia",
-                "tag": "flagbase-nvidia",
-                "label": "py312torch2.8",
+                "image_name": "flagbase-nvidia",
+                "tag": "py312torch2.8",
                 "runson": "h20",
+                "no-cache": false,
                 "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
               },
               {
                 "job_name": "build-base-metax-image",
                 "push": true,
                 "containerfile": "containerfile.metax",
-                "tag": "flagbase-metax",
-                "label": "latest",
+                "image_name": "flagbase-metax",
+                "tag": "latest",
                 "runson": "h20",
+                "no-cache": false,
                 "build-args": "ubuntu_version=22.04"
               },
               {
                 "job_name": "build-base-amd-image",
                 "push": true,
                 "containerfile": "containerfile.amd",
-                "tag": "flagbase-amd",
-                "label": "latest",
+                "image_name": "flagbase-amd",
+                "tag": "latest",
                 "runson": "h20",
+                "no-cache": false,
                 "build-args": ""
               }
             ]
@@ -73,42 +77,6 @@ jobs:
     needs: set-matrix
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # GHA default instance will meet no space left on device issue
-          - job_name: build-base-nvidia-image
-            push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
-            containerfile: 'containerfile.nvidia'
-            image_name: 'flagbase-nvidia'
-            tag: 'latest'
-            runson: 'h20'
-            no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
-            build-args: |
-              GPU_TYPE=nvidia
-          # GHA default instance will meet no space left on device issue
-          - job_name: build-base-nvidia-image-py312torch2.8
-            push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
-            containerfile: 'containerfile.nvidia'
-            image_name: 'flagbase-nvidia'
-            tag: 'py312torch2.8'
-            runson: 'h20'
-            no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
-            build-args: |
-              PYTHON_VERSION=3.12
-              TORCH_VERSION=2.8
-              GPU_TYPE=nvidia
-          # GHA default instance will meet no space left on device issue
-          - job_name: build-base-metax-image
-            push: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
-            containerfile: 'containerfile.metax'
-            image_name: 'flagbase-metax'
-            tag: 'latest'
-            runson: 'h20'
-            no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.push_images }}
-            build-args: |
-              ubuntu_version=22.04
-              GPU_TYPE=metax
-    
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
     name: ${{ matrix.job_name }}
     uses: ./.github/workflows/imagebuild.yml
