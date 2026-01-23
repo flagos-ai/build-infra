@@ -46,7 +46,7 @@ jobs:
               },
               {
                 "job_name": "build-base-metax-image",
-                "push": true,
+                "push": false,
                 "containerfile": "containerfile.metax",
                 "image_name": "flagbase-metax",
                 "tag": "latest",
@@ -56,7 +56,7 @@ jobs:
               },
               {
                 "job_name": "build-base-amd-image",
-                "push": true,
+                "push": false,
                 "containerfile": "containerfile.amd",
                 "image_name": "flagbase-amd",
                 "tag": "latest",
