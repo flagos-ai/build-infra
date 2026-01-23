@@ -1,16 +1,14 @@
-name: Docker Image Build Orchestrator
+name: Scheduled Docker Image Build Orchestrator 
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '*.md'
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - '*.md'
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      push_images:
+        description: 'push image or not'
+        type: boolean
+        default: false
 
 jobs:
   set-matrix:
@@ -26,42 +24,42 @@ jobs:
             "include": [
               {
                 "job_name": "build-base-nvidia-image",
-                "push": false,
+                "push": true,
                 "containerfile": "containerfile.nvidia",
                 "image_name": "flagbase-nvidia",
                 "tag": "latest",
                 "runson": "h20",
-                "no-cache": false,
+                "no-cache": true,
                 "build-args": ""
               },
               {
                 "job_name": "build-base-nvidia-image-py312torch2.8",
-                "push": false,
+                "push": true,
                 "containerfile": "containerfile.nvidia",
                 "image_name": "flagbase-nvidia",
                 "tag": "py312torch2.8",
                 "runson": "h20",
-                "no-cache": false,
+                "no-cache": true,
                 "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
               },
               {
                 "job_name": "build-base-metax-image",
-                "push": false,
+                "push": true,
                 "containerfile": "containerfile.metax",
                 "image_name": "flagbase-metax",
                 "tag": "latest",
                 "runson": "h20",
-                "no-cache": false,
+                "no-cache": true,
                 "build-args": "ubuntu_version=22.04"
               },
               {
                 "job_name": "build-base-amd-image",
-                "push": false,
+                "push": true,
                 "containerfile": "containerfile.amd",
                 "image_name": "flagbase-amd",
                 "tag": "latest",
                 "runson": "h20",
-                "no-cache": false,
+                "no-cache": true,
                 "build-args": ""
               }
             ]

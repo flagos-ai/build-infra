@@ -1,5 +1,7 @@
 FROM ubuntu:24.04
 
+MAINTAINER "FlagOS contributors"
+
 ARG PYTHON_VERSION=3
 ARG TORCH_VERSION=latest
 # noninteractive to make apt-get work
@@ -12,15 +14,12 @@ RUN apt-get update -y && \
     apt-get install -y \
     python${PYTHON_VERSION} \
     python3-pip \
-    python${PYTHON_VERSION}-venv \
-    git \
+    curl \
     autotools-dev \
-    wget \
     gcc \
     g++ \
     build-essential \
-    cmake \
-    curl && \
+    cmake && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
