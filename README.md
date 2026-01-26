@@ -16,6 +16,7 @@ pipeline as code, and code as document.
 | nvidia | cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 | 3.12 | 24.04 | 2.8 | container/containerfile.nvidia | harbor.baai.ac.cn/flagbase/flagbase-nvidia:py312torch2.8 |
 | metax | maca_sdk=3.3.0.15 | latest | 22.04 | latest | container/containerfile.metax | harbor.baai.ac.cn/flagbase/flagbase-metax:latest |
 | amd | rocm-hip-libraries=7.1.1.70101-38~22.04 rocm-hip-runtime=7.1.1.70101-38~22.04 rocm-language-runtime=7.1.1.70101-38~22.04 rocm-hip-sdk=7.1.1.70101-38~22.04 rocm-opencl-runtime=7.1.1.70101-38~22.04 rocm-developer-tools=7.1.1.70101-38~22.04 rocm-opencl-sdk=7.1.1.70101-38~22.04 | latest | 24.04 | latest | container/containerfile.amd | harbor.baai.ac.cn/flagbase/flagbase-amd:latest |
+| ascend | cann:8.2.rc2-910(from base image) | 3.11 | 22.04 | 2.6 | container/containerfile.ascend | harbor.baai.ac.cn/flagbase/flagbase-ascend:py311torch2.6 |
 
 ## pipeline as code interface
 
