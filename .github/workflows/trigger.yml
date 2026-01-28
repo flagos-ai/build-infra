@@ -21,12 +21,49 @@ jobs:
       - id: checkout_code
         name: Checkout Code
         uses: actions/checkout@v6
+
+      - name: Get Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v42
+        with:
+          files: |
+            vendor_json/**
+            container/**
+
       - id: set-matrix
         run: |
-          # 使用动态生成的矩阵从 vendor_json 目录
-          ./generate_matrix.sh false false > matrix.json
+          if [[ "${{ steps.changed-files.outputs.any_changed }}" == "true" ]]; then
+            # Extract vendor names from changed files
+            VENDOR_LIST=""
+            for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+              # Extract vendor from container file changes (e.g., container/containerfile.amd -> amd)
+              if [[ "$file" =~ ^container/containerfile\. ]]; then
+                vendor=$(echo "$file" | sed 's/^container\/containerfile\.//')
+                VENDOR_LIST="$VENDOR_LIST $vendor"
+              # Extract vendor from vendor_json file changes (e.g., vendor_json/amd.json -> amd)
+              elif [[ "$file" =~ ^vendor_json/ ]]; then
+                vendor=$(echo "$file" | sed 's/^vendor_json\///' | sed 's/\.json$//')
+                VENDOR_LIST="$VENDOR_LIST $vendor"
+              fi
+            done
+            
+            # Remove duplicates and leading/trailing spaces
+            VENDOR_LIST=$(echo "$VENDOR_LIST" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ \| $//g')
+            
+            # Generate matrix with specific vendors if any were detected, otherwise generate all
+            if [[ -n "$VENDOR_LIST" ]]; then
+              echo "Detected changes for vendors: $VENDOR_LIST"
+              ./generate_matrix.sh $VENDOR_LIST > matrix.json
+            else
+              # Fallback to all vendors if no specific vendor was detected
+              ./generate_matrix.sh > matrix.json
+            fi
+          else
+            # No changes detected, generate matrix for all vendors
+            ./generate_matrix.sh > matrix.json
+          fi
           
-          # 读取 JSON 文件并输出
+          # Read JSON file and output
           MATRIX_CONTENT=$(cat matrix.json | jq -c .)
           echo "matrix=$MATRIX_CONTENT" >> $GITHUB_OUTPUT
         shell: bash

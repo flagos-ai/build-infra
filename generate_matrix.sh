@@ -1,10 +1,25 @@
 #!/bin/bash
 
 # Script to generate a GitHub Actions matrix from vendor JSON files
+# Dynamically discover vendors from vendor_json directory
+vendors_default=()
+for json_file in vendor_json/*.json; do
+    if [[ -f "$json_file" ]]; then
+        vendor_name=$(basename "$json_file" .json)
+        vendors_default+=("$vendor_name")
+    fi
+done
+
+# Function to generate matrix with given vendors
 generate_matrix() {
-    local vendors=("amd" "ascend" "matex" "nvidia")
-    local all_objects=()
+    # Use command-line arguments if provided, otherwise use default vendors
+    if [ $# -gt 0 ]; then
+        local vendors=("$@")
+    else
+        local vendors=("${vendors_default[@]}")
+    fi
     
+    local all_objects=()
 
     # Loop through each vendor and collect all JSON objects
     for vendor in "${vendors[@]}"; do
@@ -57,5 +72,5 @@ generate_matrix() {
 
 # Main execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    generate_matrix
+    generate_matrix "$@"
 fi

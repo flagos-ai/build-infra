@@ -22,7 +22,7 @@ jobs:
       - id: set-matrix
         run: |
           # 使用动态生成的矩阵从 vendor_json 目录
-          ./generate_matrix.sh true true > matrix.json
+          ./generate_matrix.sh > matrix.json
           
           # 读取 JSON 文件并输出
           MATRIX_CONTENT=$(cat matrix.json | jq -c .)
