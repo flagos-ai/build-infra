@@ -4,7 +4,7 @@
                 "containerfile": "containerfile.ascend",
                 "image_name": "flagbase-ascend",
                 "tag": "py311torch2.6",
-                "runson": "h20",
+                "runson": "ascend",
                 "build-args": ""
               }
             ]
