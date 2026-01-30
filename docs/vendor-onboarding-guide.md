@@ -2,8 +2,8 @@
 
 This document describes how hardware vendors can integrate with the unified container image **build and push pipeline** by providing:
 
-* a vendor configuration file (`vendor_json/<vendor>.json`)
-* a container build file (`container/containerfile.<vendor>`)
+* A vendor configuration file (`vendor_json/<vendor>.json`)
+* A container build file (`container/containerfile.<vendor>`)
 
 Once submitted, CI automatically builds and publishes images to the centralized registry.
 
@@ -15,46 +15,32 @@ Once submitted, CI automatically builds and publishes images to the centralized 
 
 The image lifecycle is fully automated through CI:
 
-1. Define a **configuration file** (`vendor_json/<vendor>.json`)
-2. Provide a **Containerfile** (`container/containerfile.<vendor>`)
-3. Submit a **PR or push**
-4. CI **detects changes and builds**
-5. Images are **automatically pushed** to the registry
+1. Define a configuration file (`vendor_json/<vendor>.json`).
+2. Provide a containerfile (`container/containerfile.<vendor>`).
+3. Submit a PR.
+4. CI detects changes and builds images.
+5. Images are automatically pushed to the registry (<https://harbor.baai.ac.cn>)
 
-Registry:
+## Repository structure & naming conventions
 
-```
-https://harbor.baai.ac.cn
-```
+### Configuration file (JSON)
 
-## Repository Structure & Naming Conventions
-
-### Configuration File (JSON)
-
-| Item       | Requirement                                     |
-| ---------- | ----------------------------------------------- |
-| Path       | `vendor_json/<vendor>.json`                     |
-| File name  | Must match vendor name (e.g., `nvidia.json`)    |
-| image_name | `flagbase-<vendor>`                             |
-| tag        | Semantic tags (e.g., `latest`, `py311torch2.6`) |
+| Item      | Requirement                                         |
+|-----------|-----------------------------------------------------|
+| Path      | `vendor_json/<vendor>.json`                         |
+| File name | Must match vendor name (for example, `nvidia.json`) |
 
 ### Containerfile
 
-| Item             | Requirement                        |
-| ---------------- | ---------------------------------- |
-| Path             | `container/containerfile.<vendor>` |
-| Maintainer label | Required                           |
-| Vendor name      | Must match JSON file               |
+| Item             | Requirement                                                              |
+|------------------|--------------------------------------------------------------------------|
+| Path             | `container/containerfile.<vendor>`                                       |
+| File name        | Must match vendor name (for example, `container/containerfile.<vendor>`) |
+| Maintainer label | `LABEL org.opencontainers.image.authors="FlagOS contributors"`           |
 
-Required label:
+## Consistency requirement
 
-```dockerfile
-LABEL org.opencontainers.image.authors="FlagOS contributors"
-```
-
-### Consistency Requirement
-
-The following must use the **same vendor identifier**:
+The following must use the same vendor identifier:
 
 ```
 vendor_json/<vendor>.json
@@ -68,208 +54,119 @@ vendor_json/nvidia.json
 container/containerfile.nvidia
 ```
 
-## Step 1 — Define Configuration File
+## Define configuration file
 
-Create:
+1. Create the `<vendor>.json` file under `vendor_json/`.
 
-```
-vendor_json/<vendor>.json
-```
+    This file defines the build matrix. Multiple jobs are supported.
 
-This file defines the **build matrix**. Multiple jobs are supported.
+    **Example: Configuration file (NVIDIA)**
 
-### Example (NVIDIA)
+    ```json
+    [
+    {
+        "job_name": "build-base-nvidia-image",
+        "containerfile": "containerfile.nvidia",
+        "image_name": "flagbase-nvidia",
+        "tag": "latest",
+        "runson": "h20",
+        "build-args": ""
+    },
+    {
+        "job_name": "build-base-nvidia-image-py312torch2.8",
+        "containerfile": "containerfile.nvidia",
+        "image_name": "flagbase-nvidia",
+        "tag": "py312torch2.8",
+        "runson": "h20",
+        "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
+    }
+    ]
+    ```
 
-```json
-[
-  {
-    "job_name": "build-base-nvidia-image",
-    "containerfile": "containerfile.nvidia",
-    "image_name": "flagbase-nvidia",
-    "tag": "latest",
-    "runson": "h20",
-    "build-args": ""
-  },
-  {
-    "job_name": "build-base-nvidia-image-py312torch2.8",
-    "containerfile": "containerfile.nvidia",
-    "image_name": "flagbase-nvidia",
-    "tag": "py312torch2.8",
-    "runson": "h20",
-    "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
-  }
-]
-```
+2. Specify the following fields as needed.
 
-### Field Definitions
+    | Field         | Description                                                    | Example                     |
+    |---------------|----------------------------------------------------------------|-----------------------------|
+    | job_name      | CI job name. Recommended: `build-base-<vendor>-<tag>`          | `build-base-nvidia-latest`  |
+    | containerfile | Containerfile name under `container/`                          | `containerfile.nvidia`      |
+    | image_name    | Image name. Recommended: `flagbase-<vendor>`                   | `flagbase-nvidia`           |
+    | tag           | Image tag                                                      | `latest` or `py312torch2.8` |
+    | runson        | GitHub runner label                                            | `h20`                       |
+    | build-args    | Build arguments. Use newline (`\n`) separated KEY=VALUE pairs | `PYTHON_VERSION=3.12`       |
 
-| Field         | Description                           | Example                  |
-| ------------- | ------------------------------------- | ------------------------ |
-| job_name      | CI job name                           | build-base-nvidia-latest |
-| containerfile | Containerfile name under `container/` | containerfile.nvidia     |
-| image_name    | Image name                            | flagbase-nvidia          |
-| tag           | Image tag                             | latest                   |
-| runson        | GitHub runner label                   | h20      |
-| build-args    | Build arguments (newline separated)   | PYTHON_VERSION=3.12      |
+## Define containerfile
 
-### Naming Recommendation
+1. Create the `containerfile.<vendor>` file under `container/.`
 
-```
-job_name = build-base-<vendor>-<tag>
-image_name = flagbase-<vendor>
-```
+    **Example: Containerfile (NVIDIA)**
 
-## Step 2 — Define Containerfile
+    ```dockerfile
+    FROM ubuntu:24.04
 
-Create:
+    LABEL org.opencontainers.image.authors="FlagOS contributors"
 
-```
-container/containerfile.<vendor>
-```
+    ARG PYTHON_VERSION=3
+    ARG TORCH_VERSION=latest
 
-### Example (NVIDIA)
+    ENV DEBIAN_FRONTEND=noninteractive
 
-```dockerfile
-FROM ubuntu:24.04
+    # Base dependencies
+    RUN apt-get update -y && \
+        apt-get install -y \
+        python${PYTHON_VERSION} \
+        python3-pip \
+        wget && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
 
-LABEL org.opencontainers.image.authors="FlagOS contributors"
+    # Python symlink
+    RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
 
-ARG PYTHON_VERSION=3
-ARG TORCH_VERSION=latest
+    # PyTorch installation
+    RUN if [ "$TORCH_VERSION" = "latest" ]; then \
+            pip install -U torch --break-system-packages; \
+        else \
+            pip install -U torch==$TORCH_VERSION --break-system-packages; \
+        fi
 
-ENV DEBIAN_FRONTEND=noninteractive
+    # NVIDIA drivers & CUDA
+    RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+        dpkg -i cuda-keyring_1.1-1_all.deb && \
+        apt-get update -y && \
+        apt-get install -y cuda-drivers cuda-toolkit libnccl2 libnccl-dev
 
-# Base dependencies
-RUN apt-get update -y && \
-    apt-get install -y \
-    python${PYTHON_VERSION} \
-    python3-pip \
-    wget && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    WORKDIR /workspace
 
-# Python symlink
-RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
+    # Toolchain
+    RUN apt-get update -y && \
+        apt-get install -y \
+        autotools-dev gcc g++ build-essential cmake && \
+        pip install -U scikit-build-core>=0.11 pybind11
+    ```
 
-# PyTorch installation
-RUN if [ "$TORCH_VERSION" = "latest" ]; then \
-        pip install -U torch --break-system-packages; \
-    else \
-        pip install -U torch==$TORCH_VERSION --break-system-packages; \
-    fi
+2. Specify the following information as needed.
 
-# NVIDIA drivers & CUDA
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
-    dpkg -i cuda-keyring_1.1-1_all.deb && \
-    apt-get update -y && \
-    apt-get install -y cuda-drivers cuda-toolkit libnccl2 libnccl-dev
+    * **Label**
 
-WORKDIR /workspace
+        Must be `FlagOS contributors`.
 
-# Toolchain
-RUN apt-get update -y && \
-    apt-get install -y \
-    autotools-dev gcc g++ build-essential cmake && \
-    pip install -U scikit-build-core>=0.11 pybind11
-```
+        ```dockerfile
+        LABEL org.opencontainers.image.authors="FlagOS contributors"
+        ```
 
-### Required Components
+    * **General configuration**
 
-#### Mandatory
+        All vendor images should include:
 
-```dockerfile
-LABEL org.opencontainers.image.authors="FlagOS contributors"
-```
+        * Base image: **Ubuntu 24.04** (or compatible official image)
+        * Python and pip
+        * PyTorch
+        * `/workspace` as working directory
+        * Build toolchain
 
-#### General Requirements
+    * **Vendor-specific configuration**
 
-All vendor images should:
+      * GPU drivers
+      * SDKs
 
-* Use **Ubuntu 24.04** (or compatible official image)
-* Install Python and pip
-* Install PyTorch
-* Use `/workspace` as working directory
-* Provide build toolchain
-
-#### Version Control via Build Args
-
-| Arg            | Purpose         |
-| -------------- | --------------- |
-| PYTHON_VERSION | Python version  |
-| TORCH_VERSION  | PyTorch version |
-
-#### Vendor Requirements
-
-Install vendor-specific:
-
-* GPU drivers
-* SDKs
-* runtime libraries
-
-> Note: Official vendor base images may already include these components.
-
-## CI Trigger & Push Strategy
-
-### Push / PR
-
-When files change:
-
-```
-vendor_json/**
-container/**
-```
-
-CI will:
-
-* detect affected vendors
-* build only related jobs
-* NOT push images (validation only)
-
-### Scheduled Build
-
-Daily:
-
-```
-01:00
-```
-
-Behavior:
-
-* full rebuild
-* push images
-* no cache
-
-Parameters:
-
-```
-push=true
-no-cache=true
-```
-
-Used to refresh base images.
-
-### Image Registry
-
-Registry:
-
-```
-harbor.baai.ac.cn
-```
-
-Image naming format:
-
-```
-${REGISTRY}/${image_prefix}/${image_name}:${tag}
-```
-
-Default:
-
-```
-image_prefix = flagbase
-```
-
-Example:
-
-```
-harbor.baai.ac.cn/flagbase/flagbase-nvidia:latest
-```
+       > Note: Official vendor base images may already include these components.
