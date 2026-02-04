@@ -19,12 +19,15 @@ jobs:
       - id: checkout_code
         name: Checkout Code
         uses: actions/checkout@v6
+        with:
+          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
+
       - id: set-matrix
         run: |
-          # 使用动态生成的矩阵从 vendor_json 目录
+          # Generate matrix for vendors
           ./generate_matrix.sh > matrix.json
           
-          # 读取 JSON 文件并输出
+          # Dump matrix to job output
           MATRIX_CONTENT=$(cat matrix.json | jq -c .)
           echo "matrix=$MATRIX_CONTENT" >> $GITHUB_OUTPUT
         shell: bash
@@ -48,3 +51,4 @@ jobs:
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+      RUNNER_SSH_KEY: ${{ secrets.RUNNER_SSH_KEY }}

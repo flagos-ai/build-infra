@@ -21,6 +21,8 @@ jobs:
       - id: checkout_code
         name: Checkout Code
         uses: actions/checkout@v6
+        with:
+          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
 
       - name: Get Changed Files
         id: changed-files
@@ -87,3 +89,4 @@ jobs:
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+      RUNNER_SSH_KEY: ${{ secrets.RUNNER_SSH_KEY }}

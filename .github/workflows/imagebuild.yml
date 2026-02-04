@@ -42,6 +42,9 @@ on:
       REGISTRY_USERNAME:
         description: 'Docker Registry username'
         required: true
+      RUNNER_SSH_KEY:
+        description: 'SSH Private key for CI Runners'
+        required: true
 
 env:
   REGISTRY: harbor.baai.ac.cn
@@ -63,6 +66,7 @@ jobs:
         id: checkout1
         uses: actions/checkout@v6
         with:
+          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
           submodules: true
         continue-on-error: true
 
@@ -77,6 +81,7 @@ jobs:
         if: steps.checkout1.outcome == 'failure'
         uses: actions/checkout@v6
         with:
+          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
           submodules: true
         continue-on-error: true
 
@@ -90,6 +95,7 @@ jobs:
         if: steps.checkout1.outcome == 'failure' && steps.checkout2.outcome == 'failure'
         uses: actions/checkout@v6
         with:
+          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
           submodules: true
 
       - name: Log in to the Container registry
