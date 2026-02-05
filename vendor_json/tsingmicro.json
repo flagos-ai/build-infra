@@ -1,0 +1,10 @@
+[
+              {
+                "job_name": "build-base-tsingmicro-image",
+                "containerfile": "containerfile.tsingmicro",
+                "image_name": "flagbase-tsingmicro",
+                "tag": "latest",
+                "runson": "tsingmicro",
+                "build-args": ""
+              }
+            ]
