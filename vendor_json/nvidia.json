@@ -4,7 +4,7 @@
                 "containerfile": "containerfile.nvidia",
                 "image_name": "flagbase-nvidia",
                 "tag": "latest",
-                "runson": "h20",
+                "runson": "arc-runner-set-build-infra-v1.3",
                 "build-args": ""
               },
               {
@@ -12,7 +12,7 @@
                 "containerfile": "containerfile.nvidia",
                 "image_name": "flagbase-nvidia",
                 "tag": "py312torch2.8",
-                "runson": "h20",
+                "runson": "arc-runner-set-build-infra-v1.3",
                 "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
               }
             ]
