@@ -1,0 +1,58 @@
+ARG OSTAG=focal
+ 
+FROM ubuntu:${OSTAG}
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+ 
+ENV DEBIAN_FRONTEND=noninteractive
+ 
+ARG PYTHON_VERSION=3
+ 
+RUN apt-get update -y \
+  && apt-get install -y --allow-change-held-packages \
+  python${PYTHON_VERSION} \
+  python3-pip \
+  wget \
+  && apt-get -y clean \
+  && rm -rf /var/lib/apt/lists/*
+ 
+RUN if [ "$PYTHON_VERSION" != "3" ]; then \
+    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3; \
+  fi && \
+  ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
+ 
+# vendor specific
+ARG OSTAG
+ARG RUN_ENV=/usr/local/kuiper
+ARG RELEASE_SITE=http://101.201.108.229:8080
+ARG RELEASE_VER=5.5.0.260107221208
+ARG PROC_TYPE=x86_64
+ARG PACKAGE_NAME="Tsm_validation_suite Tsm_profiler Tsm_runtime Tsm_ccl"
+ 
+RUN apt-get update -y \
+  && apt-get install -y --allow-change-held-packages \
+  libopenmpi3 \
+  sudo \
+  && apt-get -y clean \
+  && rm -rf /var/lib/apt/lists/*
+ 
+RUN mkdir -p /lib/firmware
+WORKDIR /lib/firmware
+ 
+RUN set -eux ; \
+  for pkg in ${PACKAGE_NAME}; do \
+    wget ${RELEASE_SITE}/${OSTAG}/${pkg}_${RELEASE_VER}_${PROC_TYPE}_installer.run; \
+    chmod +x ${pkg}_${RELEASE_VER}_${PROC_TYPE}_installer.run; \
+  done && \
+  for run_pkg in ${PACKAGE_NAME}; do \
+    ./"$run_pkg"_${RELEASE_VER}_${PROC_TYPE}_installer.run || { echo "Failed to execute $file"; exit 1; }; \
+  done
+ 
+ENV PATH=${RUN_ENV}/bin:$PATH
+ARG LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=${RUN_ENV}/lib:$LD_LIBRARY_PATH
+
+# Install Tsingmicro SDK
+
+# workdir
+WORKDIR /workspace
+
