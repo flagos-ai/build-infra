@@ -17,6 +17,7 @@ pipeline as code, and code as document.
 | metax | maca_sdk=3.3.0.15 | latest | 22.04 | latest | container/containerfile.metax | harbor.baai.ac.cn/flagbase/flagbase-metax:latest |
 | amd | rocm-hip-libraries=7.1.1.70101-38~22.04 rocm-hip-runtime=7.1.1.70101-38~22.04 rocm-language-runtime=7.1.1.70101-38~22.04 rocm-hip-sdk=7.1.1.70101-38~22.04 rocm-opencl-runtime=7.1.1.70101-38~22.04 rocm-developer-tools=7.1.1.70101-38~22.04 rocm-opencl-sdk=7.1.1.70101-38~22.04 | latest | 24.04 | latest | container/containerfile.amd | harbor.baai.ac.cn/flagbase/flagbase-amd:latest |
 | ascend | cann:8.2.rc2-910(from base image) | 3.11 | 22.04 | 2.6 | container/containerfile.ascend | harbor.baai.ac.cn/flagbase/flagbase-ascend:py311torch2.6 |
+| tsingmicro | Tsm_validation_suite=5.5.0.260107221208 Tsm_profiler=5.5.0.260107221208 Tsm_runtime=5.5.0.260107221208 Tsm_ccl=5.5.0.260107221208 | latest | 20.04 | N/A | container/containerfile.tsingmicro | harbor.baai.ac.cn/flagbase/flagbase-tsingmicro:latest |
 
 ## pipeline as code interface
 
