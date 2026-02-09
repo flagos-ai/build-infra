@@ -16,10 +16,10 @@ Once submitted, CI automatically builds and publishes images to the centralized 
 The image lifecycle is fully automated through CI:
 
 1. Define a configuration file (`vendor_json/<vendor>.json`).
-2. Provide a containerfile (`container/containerfile.<vendor>`).
-3. Submit a PR.
-4. The CI detects changes and builds images.
-5. Images are automatically pushed to the registry (<https://harbor.baai.ac.cn>)
+1. Provide a containerfile (`container/containerfile.<vendor>`).
+1. Submit a PR.
+1. The CI detects changes and builds images.
+1. Images are automatically pushed to the registry (<https://harbor.baai.ac.cn>).
 
 ## Repository structure & naming conventions
 
@@ -53,120 +53,73 @@ vendor_json/nvidia.json
 container/containerfile.nvidia
 ```
 
-## Define configuration file
+## Define the Configuration File
 
-1. Create a `<vendor>.json` file under `vendor_json/`.
+1. Navigate to the [vendor_json](../vendor_json) directory where all configuration files are located.
+1. In your AI assistant chat window, perform the following steps:
 
-   This file defines the build matrix. Multiple jobs are supported.
+    1. Copy the content of an existing vendor configuration file (for example, `nvidia.json`) into the chat.
+    2. Use the following prompt template, amended with your vendor details, to generate a new configuration file:
 
-   **Example: Configuration file (NVIDIA)**
+        ```
+        I am a developer for <vendor> graphics cards. Please reference the provided NVIDIA configuration file to write a configuration file for <vendor> graphics cards.
 
-   ```json
-   [
-   {
-      "job_name": "build-base-nvidia-image",
-      "containerfile": "containerfile.nvidia",
-      "image_name": "flagbase-nvidia",
-      "tag": "latest",
-      "runson": "h20",
-      "build-args": ""
-   },
-   {
-      "job_name": "build-base-nvidia-image-py312torch2.8",
-      "containerfile": "containerfile.nvidia",
-      "image_name": "flagbase-nvidia",
-      "tag": "py312torch2.8",
-      "runson": "h20",
-      "build-args": "PYTHON_VERSION=3.12\nTORCH_VERSION=2.8"
-   }
-   ]
-   ```
+        Required Python versions are 3.10 to 3.12. Required PyTorch versions are 2.8 to 2.9.
 
-2. Specify the following fields as needed.
+        The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
+        ```
 
-   | Field         | Description                                                    | Example                     |
-   |---------------|----------------------------------------------------------------|-----------------------------|
-   | job_name      | CI job name. Recommended: `build-base-<vendor>-<tag>`          | `build-base-nvidia-latest`  |
-   | containerfile | Containerfile name under `container/`                          | `containerfile.nvidia`      |
-   | image_name    | Image name. Recommended: `flagbase-<vendor>`                   | `flagbase-nvidia`           |
-   | tag           | Image tag                                                      | `latest` or `py312torch2.8` |
-   | runson        | GitHub runner label                                            | `h20`                       |
-   | build-args    | Build arguments. Use newline (`\n`) separated KEY=VALUE pairs | `PYTHON_VERSION=3.12`       |
+        **Example for generating an `amd.json` file based on `nvidia.json`:**
 
-## Define containerfile
+        ```
+        *[Pasted content of nvidia.json]*
 
-1. Create the `containerfile.<vendor>` file under `container/.`
+        I am a developer for AMD graphics cards. Please reference the provided NVIDIA configuration file to write a configuration file for AMD graphics cards.
 
-   **Example: Containerfile (NVIDIA)**
+        Required Python versions are 3.10 to 3.12. Required PyTorch versions are 2.8 to 2.9.
 
-   ```dockerfile
-   FROM ubuntu:24.04
+        The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
+        ```
 
-   LABEL org.opencontainers.image.authors="FlagOS contributors"
+1. Create a new file `vendor_json/<vendor>.json` and paste the generated configuration content into it.
 
-   ARG PYTHON_VERSION=3
-   ARG TORCH_VERSION=latest
+## Define the Containerfile
 
-   ENV DEBIAN_FRONTEND=noninteractive
+1. Navigate to the [container](../container) directory where all containerfiles are located.
+1. In your AI assistant chat window, perform the following steps:
 
-   # Base dependencies
-   RUN apt-get update -y && \
-      apt-get install -y \
-      python${PYTHON_VERSION} \
-      python3-pip \
-      wget && \
-      apt-get clean && \
-      rm -rf /var/lib/apt/lists/*
+    1. Copy the content of an **existing containerfile** (for example, `containerfile.nvidia`) into the chat.
+    1. Use the following prompt template, amended with your vendor's specific download URLs, to generate a new containerfile:
 
-   # Python symlink
-   RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
+        ```
+        I am a developer for <vendor> graphics cards. Please reference the provided NVIDIA containerfile to write a containerfile for <vendor> graphics cards.
 
-   # PyTorch installation
-   RUN if [ "$TORCH_VERSION" = "latest" ]; then \
-         pip install -U torch --break-system-packages; \
-      else \
-         pip install -U torch==$TORCH_VERSION --break-system-packages; \
-      fi
+        Required Python versions are 3.10 to 3.12.
+        Required PyTorch versions are 2.8 to 2.9.
+        The driver download URL is: https://<vendor>.com/<vendor>_driver.tar
+        The SDK download URL is: https://<vendor>.com/<vendor>_sdk.tar
 
-   # NVIDIA drivers & CUDA
-   RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
-      dpkg -i cuda-keyring_1.1-1_all.deb && \
-      apt-get update -y && \
-      apt-get install -y cuda-drivers cuda-toolkit libnccl2 libnccl-dev
+        The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
+        ```
 
-   WORKDIR /workspace
+        **Example for generating a `containerfile.amd` based on `containerfile.nvidia`:**
 
-   # Toolchain
-   RUN apt-get update -y && \
-      apt-get install -y \
-      autotools-dev gcc g++ build-essential cmake && \
-      pip install -U scikit-build-core>=0.11 pybind11
-   ```
+        ```
+        *[Pasted content of containerfile.nvidia]*
 
-2. Specify the following information as needed.
+        I am a developer for AMD graphics cards. Please reference the provided NVIDIA containerfile to write a containerfile for AMD graphics cards.
 
-   - **Label**
+        Required Python versions are 3.10 to 3.12.
+        Required PyTorch versions are 2.8 to 2.9.
+        The driver download URL is: https://amd.com/amd_driver.tar
+        The SDK download URL is: https://amd.com/amd_sdk.tar
 
-      Must be `FlagOS contributors`.
+        The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
+        ```
 
-      ```dockerfile
-      LABEL org.opencontainers.image.authors="FlagOS contributors"
-      ```
+1. Create a new file `container/containerfile.<vendor>` and paste the generated containerfile content into it.
 
-   - **General configuration**
-
-      All vendor images should include the following:
-
-      - Base image: **Ubuntu 24.04** (or compatible official image)
-      - Python and pip
-      - PyTorch
-      - `/workspace` as working directory
-      - Build toolchain
-
-   - **Vendor-specific configuration**
-
-     - GPU drivers
-     - SDKs
-
-   > ![Note]
-   > Official vendor base images may already include these components.
+   > ![Important]
+   > Ensure the generated containerfile includes the following label:
+   > 
+   > The `LABEL` directive `org.opencontainers.image.authors` must be set to `FlagOS contributors`.
