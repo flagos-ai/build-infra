@@ -1,0 +1,16 @@
+name: Test SCA network
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+
+jobs:
+  sca:
+    runs-on: tsingmicro
+    steps:
+      - name: Test networking
+        run: |
+          ping -c 10 10.1.2.10

@@ -1,6 +1,11 @@
-name: Scheduled Docker Image Build Orchestrator 
+name: Push and Scheduled Docker Image Build Orchestrator 
 
 on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
   schedule:
     - cron: '0 1 * * *'
   workflow_dispatch:
@@ -8,7 +13,7 @@ on:
       push_images:
         description: 'push image or not'
         type: boolean
-        default: false
+        default: true
 
 jobs:
   set-matrix:
