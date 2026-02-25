@@ -1,0 +1,19 @@
+name: SCA Trigger
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  call-sca:
+    uses: ./.github/workflows/sca.yaml
+    with:
+      custom_product: build-infra-main
+      data_filename: data.tar.gz
+      server_url: http://10.6.212.22:38008
+      runson: tsingmicro
+    secrets:
+      SCA_TOKEN: ${{ secrets.SCA_TOKEN }}
+      RUNNER_SSH_KEY: ${{ secrets.RUNNER_SSH_KEY }}
