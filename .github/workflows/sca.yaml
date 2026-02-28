@@ -16,5 +16,6 @@ jobs:
           ip addr show
           ping -c 10 10.1.2.10 || true
           ping -c 10 10.6.212.22 || true
-          no_proxy=10.6.212.22:38008 
+          no_proxy=http://10.6.212.22:38008 
+          unset http_proxy
           curl -vvv -w "\nHTTP Status: %{http_code}\nTime Total: %{time_total}s\n" -o curl_output.txt -sS http://10.6.212.22:38008/cleansourcesca/api/v2/file/multipart_upload/create || echo "curl failed with $?"; echo "=== Curl Output ==="; cat curl_output.txt; echo "=== End Output ==="
