@@ -67,8 +67,9 @@ jobs:
               echo "On Ubuntu/Debian: sudo apt-get install jq" >&2
               exit 1
           fi
-          
-          tar -czvf "$DATA_FILENAME" .
+
+          find . -type f -print > filelist.txt
+          tar -czvf "$DATA_FILENAME" -T filelist.txt
           
           # Step 1: Create multipart upload and get upload URL
           response=$(curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file/multipart_upload/create -d "{\"object_name\": \"$DATA_FILENAME\", \"chunk_size\": 1}")
