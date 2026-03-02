@@ -65,6 +65,7 @@ jobs:
               echo "Error: jq is not installed. Please install jq to parse JSON responses." >&2
               echo "On macOS: brew install jq" >&2
               echo "On Ubuntu/Debian: sudo apt-get install jq" >&2
+              sudo apt-get install jq -y
               exit 1
           fi
 
