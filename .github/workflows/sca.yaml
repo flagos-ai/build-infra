@@ -82,10 +82,12 @@ jobs:
           
           # Step 2: Upload the file using the obtained URL
           ## put $SERVER_URL/task-migration/data.tar.gz?uploadId=952a7be4-924f-4232-b174-0561accc7641&partNumber=1&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260302T020601Z&X-Amz-SignedHeaders=host&X-Amz-Expires=259200&X-Amz-Credential=sectrend%2F20260302%2F%2Fs3%2Faws4_request&X-Amz-Signature=98811c4264d32bb9ee92c637409c18900a7d4ba4ebea3bc4a07d0ce2de81b304
+          # Extract the path from upload_url and prepend SERVER_URL
+          upload_path=$(echo "$upload_url" | sed 's|^[^/]*//[^/]*||')
           curl -X PUT -v \
           -H sourceType:"3" -H Token:"$TOKEN" \
           -T ./$DATA_FILENAME \
-          "$upload_url"
+          "$SERVER_URL$upload_path"
           
           # Step 3: Complete the multipart upload
           curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file/multipart_upload/complete -d "{\"object_name\":\"$DATA_FILENAME\",\"upload_id\":\"$upload_id\"}"
