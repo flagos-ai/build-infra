@@ -38,33 +38,27 @@ jobs:
           SERVER_URL: ${{ inputs.server_url }}
           CUSTOM_PRODUCT: ${{ inputs.custom_product }}
           DATA_FILENAME: ${{ inputs.data_filename }}
-        run: |
-          #!/bin/bash
-          
+        run: |          
           set -e  # Exit on any error
-          
+          unset http_proxy
           # Check if required environment variables are set
           if [[ -z "$TOKEN" ]]; then
-              echo "Error: TOKEN environment variable is not set" >&2
-              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              echo "Error: TOKEN environment variable is not set"
               exit 1
           fi
           
           if [[ -z "$SERVER_URL" ]]; then
-              echo "Error: SERVER_URL environment variable is not set" >&2
-              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              echo "Error: SERVER_URL environment variable is not set"
               exit 1
           fi
           
           if [[ -z "$DATA_FILENAME" ]]; then
-              echo "Error: DATA_FILENAME environment variable is not set" >&2
-              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              echo "Error: DATA_FILENAME environment variable is not set"
               exit 1
           fi
           
           if [[ -z "$CUSTOM_PRODUCT" ]]; then
-              echo "Error: CUSTOM_PRODUCT environment variable is not set" >&2
-              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              echo "Error: CUSTOM_PRODUCT environment variable is not set"
               exit 1
           fi
           
