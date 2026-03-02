@@ -29,8 +29,6 @@ jobs:
       - id: checkout_code
         name: Checkout Code
         uses: actions/checkout@v6
-        with:
-          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
 
       - name: Run SCA Test Script
         env:
