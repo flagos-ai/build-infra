@@ -62,10 +62,8 @@ jobs:
           
           # Check if jq is installed
           if ! command -v jq &> /dev/null; then
-              echo "Error: jq is not installed. Please install jq to parse JSON responses." >&2
-              echo "Try Ubuntu/Debian: sudo apt-get install jq" >&2
-              sudo apt-get update -y
-              sudo apt-get install -y jq
+              echo "Error: jq is not installed. Please install jq to parse JSON responses."
+              exit 1
           fi
 
           find . -type f -print > filelist.txt
@@ -105,6 +103,40 @@ jobs:
           
           echo "Task ID: $task_id"
           echo "Task Instance ID: $task_instance_id"
-          
           # Step 5: Get task details using the obtained task IDs
-          curl -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS "$SERVER_URL/cleansourcesca/api/v2/task/detail/select?task_id=$task_id&task_instance_id=$task_instance_id"
+          # Loop until success is true or max attempts reached
+          count=0
+          max_attempts=3
+          while [ $count -lt $max_attempts ]; do
+            response=$(curl -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS "$SERVER_URL/cleansourcesca/api/v2/task/detail/select?task_id=$task_id&task_instance_id=$task_instance_id")
+            echo "Task detail response (attempt $((count+1))): $response"
+            
+            # Check if the response contains success=true
+            success_status=$(echo "$response" | jq -r ".success // false" 2>/dev/null)
+            
+            if [ "$success_status" = "true" ]; then
+              echo "Task detail request successful on attempt $((count+1))"
+              break
+            else
+              echo "Task detail request not successful, waiting 30 seconds before retry..."
+              sleep 30
+              count=$((count+1))
+            fi
+          done
+
+          if [ "$success_status" != "true" ]; then
+            echo "Error: Maximum attempts reached and task detail request was not successful"
+            exit 1
+          fi
+
+          echo "\ncheck unconfirmed_source/count"
+          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file_component/unconfirmed_source/count -d "task_id=$task_id&task_instance_id=$task_instance_id"
+
+          echo "\ncheck vulnerability/summary"
+          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/vulnerability/sum -d "task_id=$task_id&task_instance_id=$task_instance_id"
+
+          echo "\ncheck alert_result_count_statistics"
+          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/strategy/alert_result_count_statistics/query -d "task_id=$task_id&task_instance_id=$task_instance_id"
+
+          echo "\ncheck license_count_statistics_in_task"
+          curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS "$SERVER_URL/cleansourcesca/api/v2/license/license_count_statistics_in_task/get?task_id=$task_id&task_instance_id=$task_instance_id"
