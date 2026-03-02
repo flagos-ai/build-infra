@@ -18,4 +18,93 @@ jobs:
           ping -c 10 10.6.212.22 || true
           no_proxy=http://10.6.212.22:38008 
           unset http_proxy
-          curl -vvv -w "\nHTTP Status: %{http_code}\nTime Total: %{time_total}s\n" -o curl_output.txt -sS http://10.6.212.22:38008/cleansourcesca/api/v2/file/multipart_upload/create || echo "curl failed with $?"; echo "=== Curl Output ==="; cat curl_output.txt; echo "=== End Output ==="
+
+      - id: checkout_code
+        name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
+
+      - name: Run SCA Test Script
+        env:
+          TOKEN: ${{ secrets.SCA_TOKEN }}
+          SERVER_URL: http://10.6.212.22:38008
+          CUSTOM_PRODUCT: build-infra-main
+          DATA_FILENAME: data.tar.gz
+        run: |
+          #!/bin/bash
+          
+          set -e  # Exit on any error
+          
+          # Check if required environment variables are set
+          if [[ -z "$TOKEN" ]]; then
+              echo "Error: TOKEN environment variable is not set" >&2
+              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              exit 1
+          fi
+          
+          if [[ -z "$SERVER_URL" ]]; then
+              echo "Error: SERVER_URL environment variable is not set" >&2
+              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              exit 1
+          fi
+          
+          if [[ -z "$DATA_FILENAME" ]]; then
+              echo "Error: DATA_FILENAME environment variable is not set" >&2
+              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              exit 1
+          fi
+          
+          if [[ -z "$CUSTOM_PRODUCT" ]]; then
+              echo "Error: CUSTOM_PRODUCT environment variable is not set" >&2
+              echo "Usage: TOKEN=your_token_here SERVER_URL=http://10.1.2.10:19778 CUSTOM_PRODUCT=build-infra-main DATA_FILENAME=data.tar.gz ./test.sh" >&2
+              exit 1
+          fi
+          
+          # Check if jq is installed
+          if ! command -v jq &> /dev/null; then
+              echo "Error: jq is not installed. Please install jq to parse JSON responses." >&2
+              echo "On macOS: brew install jq" >&2
+              echo "On Ubuntu/Debian: sudo apt-get install jq" >&2
+              exit 1
+          fi
+          
+          tar -czvf "$DATA_FILENAME" .
+          
+          # Step 1: Create multipart upload and get upload URL
+          response=$(curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file/multipart_upload/create -d "{\"object_name\": \"$DATA_FILENAME\", \"chunk_size\": 1}")
+          echo "Create upload response: $response"
+          
+          # Extract upload URL from response
+          upload_url=$(echo "$response" | jq -r '.data.uploadUrlList[0]')
+          upload_id=$(echo "$response" | jq -r '.data.uploadId')
+          
+          echo "Upload URL: $upload_url"
+          echo "Upload ID: $upload_id"
+          
+          # Step 2: Upload the file using the obtained URL
+          ## put $SERVER_URL/task-migration/data.tar.gz?uploadId=952a7be4-924f-4232-b174-0561accc7641&partNumber=1&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260302T020601Z&X-Amz-SignedHeaders=host&X-Amz-Expires=259200&X-Amz-Credential=sectrend%2F20260302%2F%2Fs3%2Faws4_request&X-Amz-Signature=98811c4264d32bb9ee92c637409c18900a7d4ba4ebea3bc4a07d0ce2de81b304
+          curl -X PUT -v \
+          -H sourceType:"3" -H Token:"$TOKEN" \
+          -T ./$DATA_FILENAME \
+          "$upload_url"
+          
+          # Step 3: Complete the multipart upload
+          curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file/multipart_upload/complete -d "{\"object_name\":\"$DATA_FILENAME\",\"upload_id\":\"$upload_id\"}"
+          ## {"code":"100000","message":"操作成功","data":true,"success":true}
+          
+          # Step 4: Create task and get task IDs
+          ## {"code":"100000","message":"操作成功","data":{"task_id":1,"task_instance_id":6,"content":"build-infra-main/build-infra-main/defaultVersion","increment_msg":null},"success":true}
+          # Use environment variable CUSTOM_PRODUCT if set, otherwise default to "build-infra-main"
+          task_response=$(curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/task/create -d "{\"scan_config\":{\"remarks\":\"\",\"is_increment\":1,\"is_save_source_file\":0,\"snippet_flag\":1,\"is_unzip\":0,\"detect_reachable\":0,\"attribution_flag\":0,\"matched\":50,\"matching_auto_confirm\":0,\"is_open_candidate_pool\":0,\"license_flag\":1,\"copyright_flag\":1,\"vulnerability_flag\":1,\"cryptography_flag\":1,\"com_dependency_level\":0,\"excluding_scan_path_rules\":[],\"build_scan_type\":3,\"build_depend\":0,\"package_manager_types\":\"\",\"scan_jira_config\":{},\"inherit_configs\":[]},\"scan_type\":\"sourceCode\",\"department_id\":1001,\"build_file\":\"\",\"build_file_object_name\":\"\",\"file_name\":\"$DATA_FILENAME\",\"object_name\":\"$DATA_FILENAME\",\"scheduler_type\":0,\"caller_type\":\"web\",\"knowledge_base_type\":\"open_source\",\"scan_way\":1,\"queue_priority\":4,\"strategy_id\":\"\",\"notification_email\":\"\",\"custom_project\":\"$CUSTOM_PRODUCT\",\"custom_product\":\"$CUSTOM_PRODUCT\",\"custom_version\":\"defaultVersion\",\"license_name\":\"\",\"distribution\":\"outside\",\"stage\":\"developing\"}")
+          echo "Task create response: $task_response"
+          
+          # Extract task IDs from response
+          task_id=$(echo "$task_response" | jq -r '.data.task_id')
+          task_instance_id=$(echo "$task_response" | jq -r '.data.task_instance_id')
+          
+          echo "Task ID: $task_id"
+          echo "Task Instance ID: $task_instance_id"
+          
+          # Step 5: Get task details using the obtained task IDs
+          curl -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS "$SERVER_URL/cleansourcesca/api/v2/task/detail/select?task_id=$task_id&task_instance_id=$task_instance_id"
