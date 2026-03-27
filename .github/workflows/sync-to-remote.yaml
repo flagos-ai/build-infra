@@ -16,6 +16,10 @@ on:
         # TODO(Qiming): make this a choice
         type: string
         default: 'gitcode.com' 
+    secrets:
+      GITCODE_SSH_KEY:
+        description: 'SSH private key for gitcode'
+        required: true
 
   workflow_call:
     inputs:
@@ -31,6 +35,10 @@ on:
         description: 'Name of remote site'
         type: string
         default: 'gitcode.com'
+    secrets:
+      GITCODE_SSH_KEY:
+        description: 'SSH private key for gitcode'
+        required: true
 
 permissions:
   contents: read
