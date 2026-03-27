@@ -64,7 +64,7 @@ jobs:
         run: |
           git clone git@${REMOTE}:flagos-ai/${REPO}.git ${REPO}
 
-      - id: rebase
+      - id: rebase-and-push
         run: |
           cd ${REPO}
           git checkout ${BRANCH}
@@ -72,9 +72,6 @@ jobs:
           git fetch github
           git status
           git rebase github/${BRANCH}
-
-      - id: push
-        run: |
           git config --global user.name weixin_39841130
           git config --global user.email weixin_39841130@noreply.gitcode.com
           git push -u origin ${BRANCH} -f
