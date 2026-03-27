@@ -57,8 +57,6 @@ jobs:
           git clone git@${REMOTE}:flagos-ai/${REPO}.git ${REPO}
 
       - id: rebase
-        env:
-
         run: |
           cd ${REPO}
           git checkout ${BRANCH}
