@@ -55,14 +55,14 @@ jobs:
       - id: rebase
         run: |
           cd ${{ inputs.repository }}
-          git checkout ${{ branch }}
+          git checkout ${{ inputs.branch }}
           git remote add github https://github.com/flagos-ai/${{ repository }}.git
           git fetch github
           git status
-          git rebase github/${{ branch }}
+          git rebase github/${{ inputs.branch }}
 
       - id: push
         run: |
           git config --global user.name weixin_39841130
           git config --global user.email weixin_39841130@noreply.gitcode.com
-          git push -u origin ${{ branch }} -f
+          git push -u origin ${{ inputs.branch }} -f
