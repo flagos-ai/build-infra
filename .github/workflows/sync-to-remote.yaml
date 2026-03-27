@@ -38,6 +38,10 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      REMOTE: ${{ inputs.remote }}
+      REPO: ${{ inputs.repository }}
+      BRANCH: ${{ inputs.branch }}
     steps:
       - id: setup-ssh-agent
         uses: webfactory/ssh-agent@v0.8.0
@@ -46,23 +50,25 @@ jobs:
 
       - id: add-know-hosts
         run: |
-          ssh-keyscan ${{ inputs.remote }} >> ~/.ssh/known_hosts
+          ssh-keyscan ${REMOTE} >> ~/.ssh/known_hosts
 
-      - id: checkout
+      - id: clone
         run: |
-          git clone git@${{ inputs.remote }}:flagos-ai/${{ inputs.repository }}.git ${{ inputs.repository }}
+          git clone git@${REMOTE}:flagos-ai/${REPO}.git ${REPO}
 
       - id: rebase
+        env:
+
         run: |
-          cd ${{ inputs.repository }}
-          git checkout ${{ inputs.branch }}
-          git remote add github https://github.com/flagos-ai/${{ repository }}.git
+          cd ${REPO}
+          git checkout ${BRANCH}
+          git remote add github https://github.com/flagos-ai/${REPO}.git
           git fetch github
           git status
-          git rebase github/${{ inputs.branch }}
+          git rebase github/${BRANCH}
 
       - id: push
         run: |
           git config --global user.name weixin_39841130
           git config --global user.email weixin_39841130@noreply.gitcode.com
-          git push -u origin ${{ inputs.branch }} -f
+          git push -u origin ${BRANCH} -f
