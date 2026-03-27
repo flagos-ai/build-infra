@@ -1,0 +1,68 @@
+name: Sync code to GitCode
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Name of repository'
+        type: string
+        required: true
+      branch:
+        description: 'Name of default branch'
+        type: string
+        default: 'main'
+      remote:
+        description: 'Name of remote site'
+        # TODO(Qiming): make this a choice
+        type: string
+        default: 'gitcode.com' 
+
+  workflow_call:
+    inputs:
+      repository:
+        description: 'Name of repository'
+        type: string
+        required: true
+      branch:
+        description: 'Name of default branch'
+        type: string
+        default: 'main'
+      remote:
+        description: 'Name of remote site'
+        type: string
+        default: 'gitcode.com'
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - id: setup-ssh-agent
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.GITCODE_SSH_KEY }}
+
+      - id: add-know-hosts
+        run: |
+          ssh-keyscan ${{ inputs.remote }} >> ~/.ssh/known_hosts
+
+      - id: checkout
+        run: |
+          git clone git@${{ inputs.remote }}:flagos-ai/${{ inputs.repository }}.git ${{ inputs.repository }}
+
+      - id: rebase
+        run: |
+          cd ${{ inputs.repository }}
+          git checkout ${{ branch }}
+          git remote add github https://github.com/flagos-ai/${{ repository }}.git
+          git fetch github
+          git status
+          git rebase github/${{ branch }}
+
+      - id: push
+        run: |
+          git config --global user.name weixin_39841130
+          git config --global user.email weixin_39841130@noreply.gitcode.com
+          git push -u origin ${{ branch }} -f
