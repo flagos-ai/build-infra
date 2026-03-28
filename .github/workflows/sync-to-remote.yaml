@@ -72,6 +72,6 @@ jobs:
           git fetch github
           git status
           git rebase github/${BRANCH}
-          git config --global user.name weixin_39841130
-          git config --global user.email weixin_39841130@noreply.gitcode.com
+          git config --global user.name flagos-bot
+          git config --global user.email github@flagos.io
           git push -u origin ${BRANCH} -f
