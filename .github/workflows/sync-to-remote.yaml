@@ -52,7 +52,7 @@ jobs:
       BRANCH: ${{ inputs.branch }}
     steps:
       - id: setup-ssh-agent
-        uses: webfactory/ssh-agent@v0.8.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.GITCODE_SSH_KEY }}
 
