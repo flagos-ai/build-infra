@@ -1,4 +1,4 @@
-ARG OSTAG=focal
+ARG OSTAG=jammy
  
 FROM ubuntu:${OSTAG}
 LABEL org.opencontainers.image.authors="FlagOS contributors"
@@ -24,7 +24,7 @@ RUN if [ "$PYTHON_VERSION" != "3" ]; then \
 ARG OSTAG
 ARG RUN_ENV=/usr/local/kuiper
 ARG RELEASE_SITE=http://101.201.108.229:8080
-ARG RELEASE_VER=5.5.0.260107221208
+ARG RELEASE_VER=5.6.0.260331221212
 ARG PROC_TYPE=x86_64
 ARG PACKAGE_NAME="Tsm_validation_suite Tsm_profiler Tsm_runtime Tsm_ccl"
  
