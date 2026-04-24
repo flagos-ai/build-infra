@@ -75,3 +75,4 @@ jobs:
           git config --global user.name flagos-bot
           git config --global user.email github@flagos.io
           git push -u origin ${BRANCH} -f
+          git push -u origin --tags ${BRANCH} -f
