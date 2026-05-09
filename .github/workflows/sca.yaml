@@ -1,0 +1,144 @@
+name: SCA workflow impl
+
+on:
+  workflow_call:
+    inputs:
+      custom_product:
+        required: true
+        type: string
+      data_filename:
+        required: true
+        type: string
+        default: data.tar.gz
+      server_url:
+        required: true
+        type: string
+      runson:
+        required: true
+        type: string
+    secrets:
+      SCA_TOKEN:
+        required: true
+      RUNNER_SSH_KEY:
+        required: false
+
+jobs:
+  sca:
+    runs-on:  ${{ inputs.runson }}
+    steps:
+      - id: checkout_code
+        name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Run SCA Test Script
+        env:
+          TOKEN: ${{ secrets.SCA_TOKEN }}
+          SERVER_URL: ${{ inputs.server_url }}
+          CUSTOM_PRODUCT: ${{ inputs.custom_product }}
+          DATA_FILENAME: ${{ inputs.data_filename }}
+        run: |          
+          set -e  # Exit on any error
+          unset http_proxy
+          # Check if required environment variables are set
+          if [[ -z "$TOKEN" ]]; then
+              echo "Error: TOKEN environment variable is not set"
+              exit 1
+          fi
+          
+          if [[ -z "$SERVER_URL" ]]; then
+              echo "Error: SERVER_URL environment variable is not set"
+              exit 1
+          fi
+          
+          if [[ -z "$DATA_FILENAME" ]]; then
+              echo "Error: DATA_FILENAME environment variable is not set"
+              exit 1
+          fi
+          
+          if [[ -z "$CUSTOM_PRODUCT" ]]; then
+              echo "Error: CUSTOM_PRODUCT environment variable is not set"
+              exit 1
+          fi
+          
+          # Check if jq is installed
+          if ! command -v jq &> /dev/null; then
+              echo "Error: jq is not installed. Please install jq to parse JSON responses."
+              exit 1
+          fi
+
+          find . -type f -print > filelist.txt
+          tar -czvf "$DATA_FILENAME" -T filelist.txt
+          
+          # Step 1: Create multipart upload and get upload URL
+          response=$(curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file/multipart_upload/create -d "{\"object_name\": \"$DATA_FILENAME\", \"chunk_size\": 1}")
+          echo "Create upload response: $response"
+          
+          # Extract upload URL from response
+          upload_url=$(echo "$response" | jq -r '.data.uploadUrlList[0]')
+          upload_id=$(echo "$response" | jq -r '.data.uploadId')
+          
+          echo "Upload URL: $upload_url"
+          echo "Upload ID: $upload_id"
+          
+          # Step 2: Upload the file using the obtained URL
+          ## put $SERVER_URL/task-migration/data.tar.gz?uploadId=952a7be4-924f-4232-b174-0561accc7641&partNumber=1&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260302T020601Z&X-Amz-SignedHeaders=host&X-Amz-Expires=259200&X-Amz-Credential=sectrend%2F20260302%2F%2Fs3%2Faws4_request&X-Amz-Signature=98811c4264d32bb9ee92c637409c18900a7d4ba4ebea3bc4a07d0ce2de81b304
+          # Extract the path from upload_url and prepend SERVER_URL
+          upload_path=$(echo "$upload_url" | sed 's|^[^/]*//[^/]*||')
+          curl -X PUT -v \
+          -H sourceType:"3" -H Token:"$TOKEN" \
+          -T ./$DATA_FILENAME \
+          "$SERVER_URL$upload_path"
+          
+          # Step 3: Complete the multipart upload
+          curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file/multipart_upload/complete -d "{\"object_name\":\"$DATA_FILENAME\",\"upload_id\":\"$upload_id\"}"
+          ## {"code":"100000","message":"操作成功","data":true,"success":true}
+          
+          # Step 4: Create task and get task IDs
+          ## {"code":"100000","message":"操作成功","data":{"task_id":1,"task_instance_id":6,"content":"build-infra-main/build-infra-main/defaultVersion","increment_msg":null},"success":true}
+          # Use environment variable CUSTOM_PRODUCT if set, otherwise default to "build-infra-main"
+          task_response=$(curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/task/create -d "{\"scan_config\":{\"remarks\":\"\",\"is_increment\":1,\"is_save_source_file\":0,\"snippet_flag\":1,\"is_unzip\":0,\"detect_reachable\":0,\"attribution_flag\":0,\"matched\":50,\"matching_auto_confirm\":0,\"is_open_candidate_pool\":0,\"license_flag\":1,\"copyright_flag\":1,\"vulnerability_flag\":1,\"cryptography_flag\":1,\"com_dependency_level\":0,\"excluding_scan_path_rules\":[],\"build_scan_type\":3,\"build_depend\":0,\"package_manager_types\":\"\",\"scan_jira_config\":{},\"inherit_configs\":[]},\"scan_type\":\"sourceCode\",\"department_id\":1001,\"build_file\":\"\",\"build_file_object_name\":\"\",\"file_name\":\"$DATA_FILENAME\",\"object_name\":\"$DATA_FILENAME\",\"scheduler_type\":0,\"caller_type\":\"web\",\"knowledge_base_type\":\"open_source\",\"scan_way\":1,\"queue_priority\":4,\"strategy_id\":\"\",\"notification_email\":\"\",\"custom_project\":\"$CUSTOM_PRODUCT\",\"custom_product\":\"$CUSTOM_PRODUCT\",\"custom_version\":\"defaultVersion\",\"license_name\":\"\",\"distribution\":\"outside\",\"stage\":\"developing\"}")
+          echo "Task create response: $task_response"
+          
+          # Extract task IDs from response
+          task_id=$(echo "$task_response" | jq -r '.data.task_id')
+          task_instance_id=$(echo "$task_response" | jq -r '.data.task_instance_id')
+          
+          echo "Task ID: $task_id"
+          echo "Task Instance ID: $task_instance_id"
+          # Step 5: Get task details using the obtained task IDs
+          # Loop until success is true or max attempts reached
+          count=0
+          max_attempts=3
+          while [ $count -lt $max_attempts ]; do
+            response=$(curl -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS "$SERVER_URL/cleansourcesca/api/v2/task/detail/select?task_id=$task_id&task_instance_id=$task_instance_id")
+            echo "Task detail response (attempt $((count+1))): $response"
+            
+            # Check if the response contains success=true
+            success_status=$(echo "$response" | jq -r ".success // false" 2>/dev/null)
+            
+            if [ "$success_status" = "true" ]; then
+              echo "Task detail request successful on attempt $((count+1))"
+              break
+            else
+              echo "Task detail request not successful, waiting 30 seconds before retry..."
+              sleep 30
+              count=$((count+1))
+            fi
+          done
+
+          if [ "$success_status" != "true" ]; then
+            echo "Error: Maximum attempts reached and task detail request was not successful"
+            exit 1
+          fi
+
+          echo "\ncheck unconfirmed_source/count"
+          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/file_component/unconfirmed_source/count -d "task_id=$task_id&task_instance_id=$task_instance_id"
+
+          echo "\ncheck vulnerability/summary"
+          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/vulnerability/sum -d "task_id=$task_id&task_instance_id=$task_instance_id"
+
+          echo "\ncheck alert_result_count_statistics"
+          curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -H sourceType:"3" -H Token:"$TOKEN" -sS $SERVER_URL/cleansourcesca/api/v2/strategy/alert_result_count_statistics/query -d "task_id=$task_id&task_instance_id=$task_instance_id"
+
+          echo "\ncheck license_count_statistics_in_task"
+          curl -X POST -H "Content-Type: application/json" -H sourceType:"3" -H Token:"$TOKEN" -sS "$SERVER_URL/cleansourcesca/api/v2/license/license_count_statistics_in_task/get?task_id=$task_id&task_instance_id=$task_instance_id"
