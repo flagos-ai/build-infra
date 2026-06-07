@@ -1,0 +1,36 @@
+# ============================================================
+# Base image for Iluvatar Corex 4.4.0 on Ubuntu 24.04
+# ============================================================
+# History:
+# - 20260605: Initial version
+FROM ubuntu:24.04 AS builder
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
+ARG SDK_INSTALLER=corex-installer-linux64-4.4.0_x86_64_10.2.run
+ARG CUDA_HEADER=cuda-header-260604.zip
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common curl unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install CUDA header
+RUN curl -o /cuda-header.zip ${FILE_STORE}/iluvatar/${CUDA_HEADER} \
+    && unzip /cuda-header.zip -d /tmp \
+    && bash /tmp/partial_install_cuda_header/install-cuda-header.sh \
+    && rm -fr /tmp/partial_install_cuda_header \
+    && rm /cuda-header.zip
+
+# Install SDK
+RUN curl -o corex-installer.run ${FILE_STORE}/iluvatar/${SDK_INSTALLER} \
+  && bash /corex-installer.run --silent --toolkit \
+  && rm /corex-installer.run
+
+ENV COREX_ROOT=/usr/local/corex
+ENV PATH="${COREX_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV LD_LIBRARY_PATH=${COREX_ROOT}/lib
