@@ -1,0 +1,30 @@
+# ============================================================
+# Base image for Hygon DTK 26.04 on Ubuntu 22.04
+# ============================================================
+# History:
+# - 20260607: Initial version, DTK 26.04 only support Ubuntu 22.04
+
+FROM ubuntu:22.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
+ARG SDK_PACKAGE=DTK-26.04-Ubuntu22.04-x86_64.tar.gz
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gcc g++ build-essential cmake \
+        pciutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Install DTK ────────────────────────────────────────────────
+RUN curl -o /dtk.tar.gz ${FILE_STORE}/hygon/${SDK_PACKAGE} \
+    && tar xzf /dtk.tar.gz -C /opt \
+    && rm /dtk.tar.gz
+
+# NOTE: The /opt/dtk-26.04/env.sh needs to be sourced before using
