@@ -1,0 +1,42 @@
+# ============================================================
+# Base image for Enflame 1.9.10 on Ubuntu 24.04
+# ============================================================
+# History:
+# - 20260607: Initial version
+
+FROM ubuntu:24.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/enflame
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates \
+        gcc g++ build-essential cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Enflame Runtime packages ───────────────────────────────────
+RUN curl -fsSL -o enflame.run \
+      ${FILE_STORE}/enflame-x86_64-gcc-1.9.10-20260520104313.run \
+    && chmod +x enflame.run \
+    && ./enflame.run --no-kernel-modules \
+    && rm -f enflame.run
+
+# TODO(Qiming): Replace topstx with a higher version
+RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.9.10-1_amd64.deb \
+      -O ${FILE_STORE}/topscc_1.9.10-1_amd64.deb \
+      -O ${FILE_STORE}/efml_1.9.10-1_amd64.deb \
+      -O ${FILE_STORE}/topspti_1.9.10-1_amd64.deb \
+      -O ${FILE_STORE}/gculare-perftest_1.9.10-1_amd64.deb \
+      -O ${FILE_STORE}/topsaten_3.7.20260514-1_amd64.deb \
+      -O ${FILE_STORE}/eccl_3.6.3.11-1_amd64.deb \
+      -O ${FILE_STORE}/triton-gcu_3.6.0+1.0.20260521.cc.1.9.10-1_amd64.deb \
+      -O ${FILE_STORE}/topstx_1.7.2.2402-2_amd64.deb \
+    && dpkg -i *.deb || true \
+    && apt-get install -yf 2>/dev/null || true \
+    && rm -f *.deb
+
