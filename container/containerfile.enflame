@@ -26,7 +26,6 @@ RUN curl -fsSL -o enflame.run \
     && ./enflame.run --no-kernel-modules \
     && rm -f enflame.run
 
-# TODO(Qiming): Replace topstx with a higher version
 RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.9.10-1_amd64.deb \
       -O ${FILE_STORE}/topscc_1.9.10-1_amd64.deb \
       -O ${FILE_STORE}/efml_1.9.10-1_amd64.deb \
@@ -35,7 +34,7 @@ RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.9.10-1_amd64.deb \
       -O ${FILE_STORE}/topsaten_3.7.20260514-1_amd64.deb \
       -O ${FILE_STORE}/eccl_3.6.3.11-1_amd64.deb \
       -O ${FILE_STORE}/triton-gcu_3.6.0+1.0.20260521.cc.1.9.10-1_amd64.deb \
-      -O ${FILE_STORE}/topstx_1.7.2.2402-2_amd64.deb \
+      -O ${FILE_STORE}/topstx_1.9.10-1_amd64.deb \
     && dpkg -i *.deb || true \
     && apt-get install -yf 2>/dev/null || true \
     && rm -f *.deb
