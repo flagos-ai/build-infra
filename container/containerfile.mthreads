@@ -1,0 +1,48 @@
+# ============================================================
+# Base image for MooreThreads MUSA 4.3.6 on Ubuntu 22.04
+# ============================================================
+FROM ubuntu:22.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/mthreads
+ARG TOOKIT_PKG=musa_toolkits_rc4.3.6.tar.gz
+ARG MCCL_PKG=mccl_rc2.1.6.PH1.tar.gz
+ARG MUDNN_PKG=mudnn_rc3.1.6.PH1.tar.gz
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates \
+        gcc g++ build-essential cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Toolkit
+RUN curl -o /toolkits.tar.gz ${FILE_STORE}/${TOOKIT_PKG} \
+    && tar xzvf /toolkits.tar.gz -C /tmp \
+    && cd /tmp/musa_toolkits_install \
+    && ./install.sh \
+    && rm -fr /tmp/* \
+    && rm /toolkits.tar.gz
+
+ENV MUSA_HOME=/usr/local/musa
+ENV PATH="${MUSA_HOME}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${MUSA_HOME}/lib:${LD_LIBRARY_PATH}"
+
+# Install MCCL
+RUN curl -o /mccl.tar.gz ${FILE_STORE}/${MCCL_PKG} \
+  && tar xzf /mccl.tar.gz -C /tmp \
+  && cd /tmp/mccl \
+  && ./install.sh \
+  && rm -fr /tmp/* \
+  && rm /mccl.tar.gz
+
+# Install MuDNN
+RUN curl -o /mudnn.tar.gz ${FILE_STORE}/${MUDNN_PKG} \
+  && tar xzvf /mudnn.tar.gz -C /tmp \
+  && cd /tmp/mudnn \
+  && ./install_mudnn.sh \
+  && rm -fr /tmp/* \
+  && rm /mudnn.tar.gz
