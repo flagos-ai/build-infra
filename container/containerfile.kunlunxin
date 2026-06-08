@@ -1,0 +1,48 @@
+# ============================================================
+# Base image for Kunlunxin XPU 5.29 on Ubuntu 22.04
+# ============================================================
+# History:
+# - 20260608: Initial version
+
+FROM ubuntu:22.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
+ARG CUDA_PACKAGE=cuda_12.9.0_575.51.03_linux.run
+ARG XRE_PACKAGE=xre-Linux-x86_64-cuda12-5.29.0.0.run
+ARG XCUDART_PACKAGE=xcudart-5.13.0_amd64.deb
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+       ca-certificates \
+       curl \
+       gcc g++ build-essential cmake \
+       pciutils \
+       kmod \
+   && rm -rf /var/lib/apt/lists/*
+
+# ── Install CUDA ────────────────────────────────────────────────
+RUN curl -o /cuda.run ${FILE_STORE}/cuda/${CUDA_PACKAGE} \
+    && bash cuda.run --toolkit --silent \
+    && rm /cuda.run
+
+# ── Install XRE ────────────────────────────────────────────────
+RUN curl -o /tmp/xre.run ${FILE_STORE}/kunlunxin/${XRE_PACKAGE} \
+    && cd /tmp \
+    && bash xre.run --extract-only \
+    && cd /tmp/xre-Linux-x86_64 \
+    && ./xpu-installer --no-kernel-modules --skip-module-load --no-kunlun-modprobe --no-peermem --no-dkms --no-questions \
+    && rm -fr /tmp/*
+
+# ── Install XCUDART ────────────────────────────────────────────
+RUN curl -o /xcudart.deb ${FILE_STORE}/kunlunxin/${XCUDART_PACKAGE} \
+    && dpkg -i --instdir /usr/local /xcudart.deb \
+    && rm /xcudart.deb
+
+ENV LD_LIBRARY_PATH="/usr/local/xpu/lib:/usr/local/xcudart/lib"
+ENV PATH="/usr/local/xpu/bin:$PATH"
+
