@@ -1,16 +1,18 @@
 # build-infra
 
+<!--
 [![Latest build status](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml/badge.svg?branch=main&event=push)](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml)
 
 [![Schedule build status](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml/badge.svg?branch=main&event=schedule)](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml)
+-->
 
-This repo, currently is experiment for 
+This repo contains containerfiles for building the base image for various vendors.
 
 ## base image
 
-pipeline as code, and code as document.
+*Under Construction, to be revised*
 
-| xPU | driver version | python | ubuntu | torch | file | image name | 
+| Backend | driver version | python | ubuntu | torch | file | image name | 
 | --- | --- | --- | --- | --- | --- | --- |
 | nvidia | cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 | latest | 24.04 | latest | container/containerfile.nvidia | harbor.baai.ac.cn/flagbase/flagbase-nvidia:latest |
 | nvidia | cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 | 3.12 | 24.04 | 2.8 | container/containerfile.nvidia | harbor.baai.ac.cn/flagbase/flagbase-nvidia:py312torch2.8 |
