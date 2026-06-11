@@ -1,6 +1,4 @@
-# Reusable Nexus upload workflow for FlagOS component repos.
-#
-# Component repos reference it with a thin caller workflow:
+# Reusable Nexus upload workflow. Component repos call it with:
 #
 #   jobs:
 #     upload:
@@ -9,25 +7,8 @@
 #         run_id: ${{ github.event.inputs.run_id }}
 #       secrets: inherit
 #
-# One workflow, one secret. Org-level secrets (configured once on the
-# flagos-ai org, reaching this workflow via the caller's
-# `secrets: inherit`):
-#   NEXUS_TOKEN      "user:token" pair for curl -u. The single
-#                    credential identifying this shared workflow.
-#   NEXUS_CA_CERT    optional - PEM CA certificate; when set it is
-#                    installed into the runner trust store before
-#                    upload. Not needed while the endpoint serves a
-#                    publicly-signed certificate.
-#
-# Upload methods follow the Sonatype-documented per-format commands:
-#   apt hosted: POST the package bytes to the repository ROOT
-#               (Content-Type: multipart/form-data, --data-binary);
-#               Nexus derives the pool/ path from the deb metadata.
-#   yum hosted: PUT the package to <repo-url>/<filename>.
-#
-# The artifact download targets the CALLER's repository (reusable
-# workflows run in the caller's context), so this single file serves
-# every component repo without per-repo configuration.
+# Secrets (org-level): NEXUS_TOKEN  - "user:token" for curl -u (required)
+#                      NEXUS_CA_CERT - PEM, only for non-public CA endpoints
 
 name: Upload to Nexus Repository (reusable)
 
@@ -92,8 +73,6 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset"
             exit 1
           fi
-          # apt hosted: POST the bytes to the repository root; Nexus
-          # derives the pool/ path from the package's control fields.
           found=0
           uploaded=0
           while IFS= read -r deb; do
@@ -124,7 +103,6 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset"
             exit 1
           fi
-          # yum hosted: PUT to <repo-url>/<filename>.
           found=0
           uploaded=0
           while IFS= read -r rpm; do
