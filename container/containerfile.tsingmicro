@@ -24,10 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── TsingMicro Runtime packages ───────────────────────────────────
-ENV PACKAGE_NAME="Tsm_validation_suite Tsm_runtime Tsm_ccl"
-
-RUN mkdir -p /lib/firmware
-WORKDIR /lib/firmware
+ENV PACKAGE_NAME="Tsm_validation_suite Tsm_runtime Tsm_ccl Tsm_profiler"
 
 RUN set -eux ; \
   for pkg in ${PACKAGE_NAME}; do \
@@ -39,4 +36,5 @@ RUN set -eux ; \
   done
 
 ENV PATH="/usr/local/kuiper/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/kuiper/lib"
+ENV LD_LIBRARY_PATH="/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib"
+
