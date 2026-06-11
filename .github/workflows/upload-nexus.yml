@@ -41,7 +41,7 @@ jobs:
           fi
 
       - name: Download deb build artifacts
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v16
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build-deb.yml
@@ -50,7 +50,7 @@ jobs:
           path: packages/
 
       - name: Download rpm build artifacts
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v16
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build-rpm.yml
