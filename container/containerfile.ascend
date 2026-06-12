@@ -19,11 +19,15 @@ ENV OPS_PACKAGE=Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
+# python are required by the CANN toolkit/ops installer
+# libelf1 and libpython3-dev are required by the runtime.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl unzip net-tools pciutils\
         gcc g++ build-essential make \
         python${PYTHON_VERSION} python3-pip python${PYTHON_VERSION}-dev \
+        libelf1 \
+        libpython3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install CANN toolkit ──────────────────────────────────────
