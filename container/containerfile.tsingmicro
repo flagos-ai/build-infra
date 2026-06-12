@@ -16,10 +16,15 @@ ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/tsingmicr
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# libfmt, libunwind8, libopenmpi3 are depdencies for torch_txda;
+# clang is dendency from triton;
+# sudo is hardcoded dependency from TSM installers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates \
-      gcc g++ build-essential cmake \
+      gcc g++ build-essential cmake clang \
       libopenmpi3 sudo \
+      libfmt-dev libunwind8 \
+      libpython3-dev \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/*
 
