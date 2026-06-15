@@ -11,10 +11,11 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 # ── Build arguments ────────────────────────────────────────────
 ARG PYTHON_VERSION=3.11
 ARG ARCH=aarch64
+ARG PRODUCT=910b
 
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ENV CANN_PACKAGE=Ascend-cann-toolkit_8.5.0_linux-aarch64.run
-ENV OPS_PACKAGE=Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
+ENV OPS_PACKAGE=Ascend-cann-${PRODUCT}-ops_8.5.0_linux-aarch64.run
 
 ENV DEBIAN_FRONTEND=noninteractive
 
