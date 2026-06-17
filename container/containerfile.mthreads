@@ -6,10 +6,10 @@ FROM ubuntu:22.04
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────
-ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/mthreads
-ARG TOOKIT_PKG=musa_toolkits_rc4.3.6.tar.gz
-ARG MCCL_PKG=mccl_rc2.1.6.PH1.tar.gz
-ARG MUDNN_PKG=mudnn_rc3.1.6.PH1.tar.gz
+ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/mthreads
+ENV TOOKIT_PKG=musa_toolkits_rc4.3.6.tar.gz
+ENV MCCL_PKG=mccl_rc2.1.6.PH1.tar.gz
+ENV MUDNN_PKG=mudnn_rc3.1.6.PH1.tar.gz
 
 ARG DEBIAN_FRONTEND=noninteractive
 
