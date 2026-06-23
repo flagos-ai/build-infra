@@ -1,0 +1,76 @@
+# ============================================================
+# Base image for Cambricon Neuware 4.4.3 Ubuntu 22.04
+# ============================================================
+# History:
+# - 20260622: Initial version
+
+FROM ubuntu:22.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/cambricon
+ARG SDK_PACKAGE=DTK-26.04-Ubuntu22.04-x86_64.tar.gz
+ARG CNMON_PKG=cnmon-6.2.15-x86_64.zip
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# RUN sed -i 's|http://archive.ubuntu.com/ubuntu|http://apt.ksyun.cn/ubuntu|g' /etc/apt/sources.list \
+#  && sed -i 's|http://security.ubuntu.com/ubuntu|http://apt.ksyun.cn/ubuntu|g' /etc/apt/sources.list
+
+# ── System packages ────────────────────────────────────────────
+
+# RUN  apt-get install -y tzdata aptitude  curl sudo numactl\
+#   && aptitude -y install zlib1g-dev libffi-dev libssl-dev libncurses-dev libbz2-dev \
+#       libxml2-dev libxslt1-dev libgdbm-dev libreadline-dev liblzma-dev -libsqllite3-dev \
+#       libibverbs-dev libboost-all-dev libgflags-dev libgoogle-glog-dev \
+#       libopencv-dev libsndfile1 gpg-agent apt-transport-https \
+#       libeigen3-dev libjpeg62 \
+#   && apt-get install -y --no-install-recommends ibverbs-providers ibverbs-utils libibmad-dev \
+#       libibmad5 libibumad-dev libibumad3 libibverbs-dev libibverbs1 librdmacm-dev librdmacm1
+
+RUN apt-get update \
+  && apt-get install -f -y pciutils curl ca-certificates unzip\
+    gcc g++ build-essential cmake make \
+  && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# ── Install Neuware ────────────────────────────────────────────────
+ENV PKGS="cnlicense_1.2.0-1.ubuntu22.04_amd64.deb \
+  cndev_6.5.25-1.ubuntu22.04_amd64.deb \
+  cnbin_2.4.2-1.ubuntu22.04_amd64.deb \
+  cndrv_3.4.3-1.ubuntu22.04_amd64.deb \
+  cndev-compat_6.5.25-1.ubuntu22.04_amd64.deb \
+  cnrt_7.4.0-1.ubuntu22.04_amd64.deb \
+  cnas_5.4.3-1.ubuntu22.04_amd64.deb \
+  cnpx_1.6.0-1.ubuntu22.04_amd64.deb \
+  cnpapi_4.4.2-1.ubuntu22.04_amd64.deb \
+  cnjpeg_0.5.1-1.ubuntu22.04_amd64.deb \
+  cncodec3_2.4.1-1.ubuntu22.04_amd64.deb \
+  cnsanitizer_0.12.3-1.ubuntu22.04_amd64.deb \
+  cntoolkit-cloud_4.4.3-1.ubuntu22.04_amd64.deb \
+  cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb \
+  cnnl_2.1.829-20251127_150207-v2.1.12-0.rc0-3-g54aaee8.ubuntu22.04_amd64.deb \
+  cnnlextra_2.2.7-1.ubuntu22.04_amd64.deb \
+  mluops_1.8.1-1.ubuntu22.04_amd64.deb \
+  cncl_1.29.4-1.ubuntu22.04_amd64.deb \
+  cnclep_1.1.1-1.ubuntu22.04_amd64.deb"
+
+RUN set -eux ; \
+  for pkg in ${PKGS}; do \
+    curl -o ${pkg} ${FILE_STORE}/${pkg}; \
+    dpkg -i ${pkg} || true \
+    rm -f ${pkg}; \
+  done \
+  && apt-get install -yf 2>/dev/null || true \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -o ${CNMON_PKG} ${FILE_STORE}/${CNMON_PKG}; \
+  unzip ${CNMON_PKG} -d /usr/bin; \
+  rm -f ${CNMON_PKG}
+
+ENV PATH="/usr/local/neuware/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/neuware/lib64"
+
