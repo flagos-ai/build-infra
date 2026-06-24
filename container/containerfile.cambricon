@@ -2,7 +2,7 @@
 # Base image for Cambricon Neuware 4.4.3 Ubuntu 22.04
 # ============================================================
 # History:
-# - 20260622: Initial version
+# - 20260624: Initial version
 
 FROM ubuntu:22.04
 
@@ -31,7 +31,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
   && apt-get install -f -y pciutils curl ca-certificates unzip\
-    gcc g++ build-essential cmake make \
+    gcc g++ gdb build-essential cmake make \
+    libncurses5 libtinfo5 libc6-dev-i386 \
   && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -46,21 +47,26 @@ ENV PKGS="cnlicense_1.2.0-1.ubuntu22.04_amd64.deb \
   cnas_5.4.3-1.ubuntu22.04_amd64.deb \
   cnpx_1.6.0-1.ubuntu22.04_amd64.deb \
   cnpapi_4.4.2-1.ubuntu22.04_amd64.deb \
+  cnperf_6.4.3-1.ubuntu22.04_amd64.deb \
+  cngdb_4.4.2-1.ubuntu22.04_amd64.deb \
+  cncc_5.4.3-1.ubuntu22.04_amd64.deb \
+  cnrtc_0.7.4-1.ubuntu22.04_amd64.deb \
   cnjpeg_0.5.1-1.ubuntu22.04_amd64.deb \
   cncodec3_2.4.1-1.ubuntu22.04_amd64.deb \
   cnsanitizer_0.12.3-1.ubuntu22.04_amd64.deb \
-  cntoolkit-cloud_4.4.3-1.ubuntu22.04_amd64.deb \
   cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb \
   cnnl_2.1.829-20251127_150207-v2.1.12-0.rc0-3-g54aaee8.ubuntu22.04_amd64.deb \
   cnnlextra_2.2.7-1.ubuntu22.04_amd64.deb \
   mluops_1.8.1-1.ubuntu22.04_amd64.deb \
   cncl_1.29.4-1.ubuntu22.04_amd64.deb \
+  cnstudio_1.2.1-1.ubuntu22.04_amd64.deb \
+  cntoolkit-cloud_4.4.3-1.ubuntu22.04_amd64.deb \
   cnclep_1.1.1-1.ubuntu22.04_amd64.deb"
 
 RUN set -eux ; \
   for pkg in ${PKGS}; do \
     curl -o ${pkg} ${FILE_STORE}/${pkg}; \
-    dpkg -i ${pkg} || true \
+    dpkg -i ${pkg}; \
     rm -f ${pkg}; \
   done \
   && apt-get install -yf 2>/dev/null || true \
