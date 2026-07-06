@@ -5,7 +5,7 @@ FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 LABEL org.opencontainers.image.version="2.1.0"
-LABEL org.opencontainers.image.revision="0"
+LABEL org.opencontainers.image.revision="1"
 
 # ── Build arguments ────────────────────────────────────────────
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/mthreads
@@ -19,6 +19,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl ca-certificates \
         gcc g++ build-essential cmake \
+        libelf1 libnuma-dev libgfortran5 libpython3-dev \
+        libopenmpi-dev openmpi-bin \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Toolkit
