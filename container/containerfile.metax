@@ -1,6 +1,7 @@
 FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.version="2.1.0"
 
 ARG PYTHON_VERSION=3
 ARG TORCH_VERSION=latest
