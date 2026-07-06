@@ -20,7 +20,7 @@ jobs:
     steps:
       - id: checkout_code
         name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
 

@@ -63,7 +63,7 @@ jobs:
           echo "build-args: '${{ inputs.build-args }}'"
 
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
           submodules: true
