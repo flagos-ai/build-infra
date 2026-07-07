@@ -1,57 +1,47 @@
+# ============================================================
+# Base image for MetaX MACA 3.7.2.0 on Ubuntu 24.04
+# ============================================================
+# History:
+# - 20260707: Initial version
+
 FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 LABEL org.opencontainers.image.version="2.1.0"
-LABEL org.opencontainers.image.revision="0"
+LABEL org.opencontainers.image.revision="1"
 
-ARG PYTHON_VERSION=3
-ARG TORCH_VERSION=latest
+ARG SDK_VERSION=3.7.2.0
+ARG DRIVER_VERSION=3.7.2.30
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/metax
+ARG DRIVER_PACKAGE=metax-driver-${DRIVER_VERSION}-deb-x86_64.run
+ARG SDK_PACKAGE=maca-sdk-${SDK_VERSION}-deb-x86_64.tar.xz
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN set -x
 
 # base dependencies
-RUN apt-get update -y && \
-    apt-get install -y \
-    python${PYTHON_VERSION} \
-    python3-pip \
-    curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN if [ "$PYTHON_VERSION" != "3" ]; then \
-        ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3; \
-    fi && \
-    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python
-
-RUN if [ "$TORCH_VERSION" = "latest" ]; then \
-        pip install -U torch --break-system-packages; \
-    else \
-        pip install -U torch==$TORCH_VERSION --break-system-packages; \
-    fi
-# vendor specific
-# Add MetaX APT repository (public, no authentication needed)
-RUN curl -fsSL https://repos.metax-tech.com/public.gpg.key | apt-key add - && \
-    echo "deb [arch=$(dpkg --print-architecture)] https://repos.metax-tech.com/r/maca-sdk-deb/ stable main" | \
-    tee /etc/apt/sources.list.d/maca-sdk-deb.list
-
-# Install MetaX SDK
-RUN apt-get update && apt-get install -y \
-    maca_sdk=3.3.0.15 \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      curl build-essential ca-certificates libnuma1 libelf1 \
+      gcc g++ cmake make build-essential libpython3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# workdir
-WORKDIR /workspace
+# Install MetaX SDK
+RUN curl -fsSL -o /metax-driver.run ${FILE_STORE}/${DRIVER_PACKAGE} \
+    && chmod +x /metax-driver.run \
+    && ./metax-driver.run -- -f \
+    && rm -f /metax-driver.run
 
-# tool chain
-RUN apt-get update -y && \
-    apt-get install -y \
-    autotools-dev \
-    gcc \
-    g++ \
-    build-essential \
-    cmake && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-RUN pip install -U scikit-build-core>=0.11 pybind11 --break-system-packages
+# Install MetaX SDK
+RUN curl -fsSL -o /maca-sdk.tar.xz ${FILE_STORE}/${SDK_PACKAGE} \
+    && tar xf /maca-sdk.tar.xz -C /tmp \
+    && cd /tmp/maca-sdk-${SDK_VERSION} \
+    && ./mxmaca-sdk-install.sh -f \
+    && rm -fr /tmp/maca-sdk-${SDK_VERSION}  \
+    && rm -f /maca-sdk.tar.xz
+
+ENV PATH="/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}" \
+    MACA_PATH="/opt/maca" \
+    LD_LIBRARY_PATH="/opt/maca/lib:/opt/maca/mxgpu_llvm/lib"
