@@ -1,0 +1,27 @@
+# ============================================================
+# Base image for NVIDIA CUDA 13.3.0 on Ubuntu 24.04
+# ============================================================
+# Note:
+# - The image has builtin python 3.12
+# History:
+# - 20260708: Initial version
+
+FROM nvcr.io/cuda:13.3.0-runtime-ubuntu24.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.version="2.1.0"
+LABEL org.opencontainers.image.revision="0"
+
+# ── Build arguments ────────────────────────────────────────────
+ENV DEBIAN_FRONTEND=noninteractive
+
+# base dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      curl ca-certificates libnuma1 libelf1 \
+      gcc g++ cmake make build-essential libpython3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV NVIDIA_VISIBLE_DEVICES="all" \
+    NVIDIA_DRIVER_CAPABILITIES="compute,utility"
