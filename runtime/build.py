@@ -73,11 +73,11 @@ def resolve_backend(backend_arg: str, configs: dict):
     sys.exit(f"Error: '{backend_arg}' not found in configs.yaml backends")
 
 
-def resolve_base_image(variant: str, configs: dict) -> str:
-    """Derive base image name: {prefix}-{variant}:{tag}."""
+def resolve_base_image(vendor: str, variant: str, configs: dict) -> str:
+    """Derive base image name: {prefix}-{vendor}-{variant}:{tag}."""
     prefix = configs.get("base_image_prefix", "flagos-base")
     tag = configs.get("base_image_tag", "latest")
-    return f"{prefix}-{variant}:{tag}"
+    return f"{prefix}-{vendor}-{variant}:{tag}"
 
 
 def resolve_build_args(
@@ -101,7 +101,7 @@ def resolve_build_args(
     mirror = backends.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
     args = {
-        "BASE_IMAGE": base_image_override or resolve_base_image(variant, configs),
+        "BASE_IMAGE": base_image_override or resolve_base_image(vendor, variant, configs),
         "PYTHON_VERSION": backend_info.get("python", "3.12"),
         "FLAGOS_PYPI": pypi_base.format(vendor=vendor) if pypi_base else "",
         "EXTRA_PYPI": extra_pypi_override or mirror,
