@@ -6,7 +6,7 @@
 # History:
 # - 20260708: Initial version
 
-FROM nvcr.io/cuda:12.8.0-runtime-ubuntu24.04
+FROM nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 LABEL org.opencontainers.image.version="2.1.0"
