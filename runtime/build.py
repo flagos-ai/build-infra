@@ -183,7 +183,9 @@ def main():
         include_tests_override=args.include_tests,
     )
 
-    image_name = f"flaggems-{backend_key}"
+    vendor = backend_key.split("-")[0]
+    image_suffix = f"{vendor}-{variant}"
+    image_name = f"flagos-runtime-{image_suffix}"
 
     if args.tag:
         tag = args.tag
