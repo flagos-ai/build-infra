@@ -56,6 +56,10 @@ def main():
         "name",
         help="Base containerfile name (e.g. nvidia-cuda12.8, ascend-cann9.0.0)",
     )
+    parser.add_argument(
+        "--registry",
+        help="Container registry prefix (e.g. harbor.baai.ac.cn/flagos21-base)",
+    )
     parser.add_argument("--tag", "-t", help="Override image tag")
     parser.add_argument("--push", action="store_true", help="Push after building")
     parser.add_argument(
@@ -87,7 +91,15 @@ def main():
             f"Error: no LABEL org.opencontainers.image.revision found in {containerfile}"
         )
 
-    tag = args.tag or f"{IMAGE_PREFIX}-{args.name}:{version}-{revision}"
+    image_name = f"{IMAGE_PREFIX}-{args.name}"
+    image_tag = f"{version}-{revision}"
+
+    if args.tag:
+        tag = args.tag
+    elif args.registry:
+        tag = f"{args.registry}/{image_name}:{image_tag}"
+    else:
+        tag = f"{image_name}:{image_tag}"
 
     cmd = ["docker", "build", "-f", str(containerfile), "-t", tag, str(repo_root)]
 
