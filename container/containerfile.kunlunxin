@@ -7,8 +7,8 @@
 FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.version="2.1.0"
-LABEL org.opencontainers.image.revision="0"
 LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.revision="1"
 
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
@@ -20,11 +20,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-       ca-certificates \
-       curl \
+       ca-certificates curl \
        gcc g++ build-essential cmake \
-       pciutils \
-       kmod \
+       pciutils kmod \
    && rm -rf /var/lib/apt/lists/*
 
 # ── Install CUDA ────────────────────────────────────────────────
