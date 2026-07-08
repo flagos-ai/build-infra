@@ -1,0 +1,58 @@
+# ============================================================
+# Base image for Sunrise TangRT 1.2.0 on Ubuntu 24.04
+# ============================================================
+# History:
+# - 20260708: Initial version
+
+FROM ubuntu:24.04
+
+LABEL org.opencontainers.image.version="2.1.0"
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.revision="0"
+
+ARG TANGRT_VERSION=v1.2.0
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/sunrise
+ARG RT_PACKAGE=tangtk-${TANGRT_VERSION}-linux-x86_64.run
+ARG PCCL_PACKAGE=pccl-${TANGRT_VERSION}-linux_x86_64.run
+ARG TADNN_PACKAGE=tadnn-${TANGRT_VERSION}-linux-x86_64.tar.gz
+ARG TABLAS_PACKAGE=tablas-${TANGRT_VERSION}-linux-x86_64.tar.gz
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl \
+        gcc g++ build-essential cmake pciutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Install TangTK ─────────────────────────────────────────────
+RUN curl -o /tangtk.run ${FILE_STORE}/${RT_PACKAGE} \
+    && bash /tangtk.run -y --toolkit \
+    && rm -f /tangtk.run
+
+# ── Install PCCL ─────────────────────────────────────────────
+RUN curl -o /pccl.run ${FILE_STORE}/${PCCL_PACKAGE} \
+    && bash /pccl.run \
+    && rm -f /pccl.run
+
+# ── Install TADNN ─────────────────────────────────────────────
+RUN curl -o /tadnn.tar.gz ${FILE_STORE}/${TADNN_PACKAGE} \
+    && tar xf /tadnn.tar.gz -C /tmp \
+    && cd /tmp/tadnn-${TANGRT_VERSION}-linux-x86_64 \
+    && ./install_tadnn.sh \
+    && rm -fr /tmp/tadnn-${TANGRT_VERSION}-linux-x86_64 \
+    && rm -f /tadnn.tar.gz
+
+# ── Install TABLAS ─────────────────────────────────────────────
+RUN curl -o /tablas.tar.gz ${FILE_STORE}/${TABLAS_PACKAGE} \
+    && tar xf /tablas.tar.gz -C /tmp \
+    && cd /tmp/tablas-${TANGRT_VERSION}-linux-x86_64 \
+    && ./install_blas.sh \
+    && rm -fr /tmp/tablas-${TANGRT_VERSION}-linux-x86_64 \
+    && rm -f /tablas.tar.gz
+
+ENV TANGRT_ROOT="/usr/local/tangrt"
+ENV LIBRARY_PATH="${TANGRT_ROOT}/targets/linux-x86_64/lib:${TANGRT_ROOT}/lib/linux-x86_64" \
+    LD_LIBRARY_PATH="${TANGRT_ROOT}/targets/linux-x86_64/lib:${TANGRT_ROOT}/lib/linux-x86_64"
