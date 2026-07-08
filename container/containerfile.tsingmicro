@@ -7,8 +7,8 @@
 FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.version="2.1.0"
-LABEL org.opencontainers.image.revision="0"
 LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.revision="1"
 
 ARG PYTHON_VERSION=3.10
 ARG SDK_RELEASE=260604163331
@@ -42,6 +42,22 @@ RUN set -eux ; \
     rm -f "${fn}"; \
   done
 
-ENV PATH="/usr/local/kuiper/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib"
+# ── TsingMicro Compiler depdendencies ─────────────────────────────
+RUN curl -o /tmp/tx8.tar.gz ${FILESTORE}/tx8_depends_dev_20260507_104051.tar.gz \
+    && tar xf /tmp/tx8.tar.gz -C /usr/local \
+    && rm /tmp/tx8.tar.gz
+RUN curl -o /tmp/llvm.tar.gz ${FILESTORE}/llvm-a66376b0-ubuntu-x64.tgz \
+    && tar xf /tmp/llvm.tar.gz -C /usr/local \
+    && rm /tmp/llvm.tar.gz
+ 
+ENV KUIPER_PATH="/usr/local/kuiper" \
+    TX8_DEPS_ROOT="/usr/local/tx8_deps" \
+    LLVM_SYSPATH="/usr/local/llvm"
 
+ENV PATH="${KUIPER_PATH}/bin:${PATH}" \
+    LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin" \
+    PYTHONPATH="${LLVM_SYSPATH}/python_packages/mlir_core" \
+    LD_LIBRARY_PATH="${TX8_DEPS_ROOT}/lib:${KUIPER_PATH}/lib:${KUIPER_PATH}/tsm8-profiler/lib"
+
+ENV USE_TORCH_XLA="0" \
+    TORCH_COMPILE_DISABLE="1"
