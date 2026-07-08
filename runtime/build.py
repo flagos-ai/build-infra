@@ -142,7 +142,11 @@ def main():
         choices=["true", "false"],
         help="Override whether to include tests",
     )
-    parser.add_argument("--tag", "-t", help="Image tag")
+    parser.add_argument(
+        "--registry",
+        help="Container registry prefix (e.g. harbor.baai.ac.cn/flagos21)",
+    )
+    parser.add_argument("--tag", "-t", help="Override image tag")
     parser.add_argument("--push", action="store_true", help="Push after building")
     parser.add_argument(
         "--dry-run", action="store_true", help="Print command without executing"
@@ -179,7 +183,14 @@ def main():
         include_tests_override=args.include_tests,
     )
 
-    tag = args.tag or f"flaggems-{backend_key}:latest"
+    image_name = f"flaggems-{backend_key}"
+
+    if args.tag:
+        tag = args.tag
+    elif args.registry:
+        tag = f"{args.registry}/{image_name}:latest"
+    else:
+        tag = f"{image_name}:latest"
 
     cmd = ["docker", "build"]
     for key, value in build_args.items():
