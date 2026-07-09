@@ -1,0 +1,49 @@
+# FlagOS build configuration.
+#
+# Defines the supported vendors and their SDK variants.
+# Used by both base/build.py and runtime/build.py.
+#
+# Base image naming convention:
+#   {base_image_prefix}-{vendor}-{variant}:{base_image_tag}
+#   e.g. flagos-base-nvidia-cuda12.8:2.1.0-0
+#
+# Runtime image naming convention:
+#   flagos-runtime-{vendor}-{variant}:latest
+#   e.g. flagos-runtime-nvidia-cuda12.8:latest
+#
+# The "backends" section maps vendor → list of SDK variants.
+# For multi-variant vendors (nvidia, ascend), the FlagGems
+# backend key is "{vendor}-{variant_no_dots}"
+# (e.g. "nvidia-cuda128"). For single-variant vendors, the
+# backend key is just the vendor name (e.g. "cambricon").
+
+base_image_prefix: "flagos-base"
+base_image_tag: "2.1.0-0"
+
+backends:
+  nvidia:
+    - cuda12.8
+    - cuda13.3
+  ascend:
+    - cann8.5.0
+    - cann9.0.0
+  cambricon:
+    - neuware4.4.3
+  enflame:
+    - tops1.9.10
+  hygon:
+    - dtk26.04
+  iluvatar:
+    - corex4.4.0
+  kunlunxin:
+    - xre5.29.0
+  metax:
+    - maca3.7.2.1
+  mthreads:
+    - musa4.3.6
+  sunrise:
+    - tangrt1.2.0
+  thead:
+    - ppu2.0.0
+  tsingmicro:
+    - tsm260604
