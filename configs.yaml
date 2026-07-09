@@ -17,6 +17,10 @@
 # backend key is "{vendor}-{variant_no_dots}"
 # (e.g. "nvidia-cuda128"). For single-variant vendors, the
 # backend key is just the vendor name (e.g. "cambricon").
+#
+# "runtime_env" defines environment variables to set in runtime
+# containers. These are container-specific and not used for
+# bare-metal/VM installations (see FlagGems tools/env.sh for that).
 
 base_image_prefix: "flagos-base"
 
@@ -47,3 +51,29 @@ backends:
     - ppu2.0.0
   tsingmicro:
     - tsm260604
+
+runtime_env:
+  nvidia-cuda12.8:
+    NVIDIA_VISIBLE_DEVICES: "all"
+    NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+  nvidia-cuda13.3:
+    NVIDIA_VISIBLE_DEVICES: "all"
+    NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+  metax:
+    MACA_PATH: "/opt/maca"
+    LD_LIBRARY_PATH: "$MACA_PATH/lib:$MACA_PATH/mxgpu_llvm/lib:$LD_LIBRARY_PATH"
+  mthreads:
+    MUSA_HOME: "/usr/local/musa"
+    MTHREADS_VISIBLE_DEVICES: "all"
+    LD_LIBRARY_PATH: "${VIRTUAL_ENV}/lib:${MUSA_HOME}/lib:${LD_LIBRARY_PATH}"
+    GEMS_VENDOR: "mthreads"
+  sunrise:
+    LD_LIBRARY_PATH: "/usr/local/tangrt/targets/linux-x86_64/lib"
+  tsingmicro:
+    TX8_DEPS_ROOT: "/usr/local/tx8_deps"
+    LLVM_SYSPATH: "/usr/local/llvm"
+    LLVM_BINARY_DIR: "${LLVM_SYSPATH}/bin"
+    PYTHONPATH: "${LLVM_SYSPATH}/python_packages/mlir_core"
+    LD_LIBRARY_PATH: "${TX8_DEPS_ROOT}/lib:${LD_LIBRARY_PATH}"
+    USE_TORCH_XLA: "0"
+    TORCH_COMPILE_DISABLE: "1"
