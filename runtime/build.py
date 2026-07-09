@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build FlagGems runtime container images.
 
-Reads runtime/configs.yaml and FlagGems's src/flag_gems/backends.yaml to
-resolve build arguments, then invokes `docker build` with the appropriate
+Reads configs.yaml and FlagGems's src/flag_gems/backends.yaml to resolve
+build arguments, then invokes `docker build` with the appropriate
 --build-arg values.
 
 Usage:
@@ -47,9 +47,9 @@ def get_flaggems_version(flaggems_dir: Path) -> str:
             desc = result.stdout.strip().lstrip("v")
             parts = desc.split("-")
             if len(parts) >= 3:
-                tag = parts[0]           # "5.4.0.dev0"
-                distance = parts[-2]     # "528"
-                commit = parts[-1]       # "g0283c119d"
+                tag = parts[0]  # "5.4.0.dev0"
+                distance = parts[-2]  # "528"
+                commit = parts[-1]  # "g0283c119d"
                 # Replace ".dev0" with ".dev{distance}"
                 if ".dev" in tag:
                     tag = tag[: tag.index(".dev")]
@@ -63,49 +63,46 @@ def get_flaggems_version(flaggems_dir: Path) -> str:
 
 
 def resolve_backend(backend_arg: str, configs: dict):
-    """Resolve user input to (backends_yaml_key, variant).
+    """Resolve user input to (backends_yaml_key, vendor, backend).
 
-    configs.yaml maps vendor → [variants]. The variant uses human-readable
-    names (e.g. "cuda12.8"), while backends.yaml keys strip dots
-    (e.g. "nvidia-cuda128").
+    configs.yaml maps vendor → {backends: [...], env: {...}}.
 
     Accepts input in either form:
       - configs.yaml style: "nvidia-cuda12.8"
-      - backends.yaml style: "nvidia-cuda128"
-      - vendor shorthand: "metax" (if single variant)
+      - FlagGems backends.yaml style: "nvidia-cuda128" (dots stripped)
+      - vendor shorthand: "metax" (if single backend)
 
-    Returns (backends_yaml_key, variant_suffix) where:
-      - backends_yaml_key is the key in backends.yaml (dots stripped)
-      - variant_suffix is the configs.yaml variant (for base image name)
+    Returns (flaggems_key, vendor, backend) where:
+      - flaggems_key is the key in FlagGems backends.yaml (dots stripped)
+      - vendor is the vendor name
+      - backend is the configs.yaml backend name (for base image name)
     """
-    cfg_backends = configs.get("backends", {})
+    vendors = configs.get("vendors", {})
 
     def strip_dots(s):
         return s.replace(".", "")
 
-    # Try matching against all vendor-variant combinations
-    for vendor, variants in cfg_backends.items():
-        for variant in variants:
-            full_dotted = f"{vendor}-{variant}"
-            full_stripped = f"{vendor}-{strip_dots(variant)}"
+    for vendor, info in vendors.items():
+        backends = info.get("backends", [])
+        for backend in backends:
+            full_dotted = f"{vendor}-{backend}"
+            full_stripped = f"{vendor}-{strip_dots(backend)}"
             if backend_arg in (full_dotted, full_stripped):
-                # Multi-variant: backends.yaml key has dots stripped
-                return full_stripped, variant
-            if backend_arg == vendor and len(variants) == 1:
-                # Single-variant shorthand
-                return vendor, variant
+                return full_stripped, vendor, backend
+            if backend_arg == vendor and len(backends) == 1:
+                return vendor, vendor, backend
 
-    # Try matching vendor name with multiple variants
-    if backend_arg in cfg_backends:
-        variants = cfg_backends[backend_arg]
-        if len(variants) > 1:
-            names = [f"{backend_arg}-{v}" for v in variants]
+    # Vendor name with multiple backends
+    if backend_arg in vendors:
+        backends = vendors[backend_arg].get("backends", [])
+        if len(backends) > 1:
+            names = [f"{backend_arg}-{b}" for b in backends]
             sys.exit(
-                f"Error: '{backend_arg}' has multiple variants: "
+                f"Error: '{backend_arg}' has multiple backends: "
                 f"{', '.join(names)}"
             )
 
-    sys.exit(f"Error: '{backend_arg}' not found in configs.yaml backends")
+    sys.exit(f"Error: '{backend_arg}' not found in configs.yaml vendors")
 
 
 def parse_labels(containerfile: Path) -> dict[str, str]:
@@ -121,13 +118,15 @@ def parse_labels(containerfile: Path) -> dict[str, str]:
     return labels
 
 
-def resolve_base_image(vendor: str, variant: str, configs: dict, repo_root: Path) -> str:
+def resolve_base_image(
+    vendor: str, backend: str, configs: dict, repo_root: Path
+) -> str:
     """Derive base image name by reading version/revision from the base containerfile.
 
-    Image name: {prefix}-{vendor}-{variant}:{version}-{revision}
+    Image name: {prefix}-{vendor}-{backend}:{version}-{revision}
     """
     prefix = configs.get("base_image_prefix", "flagos-base")
-    base_file = repo_root / "base" / f"{vendor}-{variant}"
+    base_file = repo_root / "base" / f"{vendor}-{backend}"
 
     if base_file.exists():
         labels = parse_labels(base_file)
@@ -135,16 +134,17 @@ def resolve_base_image(vendor: str, variant: str, configs: dict, repo_root: Path
         revision = labels.get("revision", "0")
         tag = f"{version}-{revision}"
     else:
-        tag = configs.get("base_image_tag", "latest")
+        tag = "latest"
 
-    return f"{prefix}-{vendor}-{variant}:{tag}"
+    return f"{prefix}-{vendor}-{backend}:{tag}"
 
 
 def resolve_build_args(
-    backend_key: str,
-    variant: str,
+    flaggems_key: str,
+    vendor: str,
+    backend: str,
     configs: dict,
-    backends: dict,
+    backends_yaml: dict,
     repo_root: Path,
     *,
     base_image_override: str | None = None,
@@ -153,20 +153,20 @@ def resolve_build_args(
 ) -> dict[str, str]:
     """Resolve all docker build-arg values for a given backend."""
 
-    backend_info = backends.get("backends", {}).get(backend_key)
+    backend_info = backends_yaml.get("backends", {}).get(flaggems_key)
     if backend_info is None:
-        sys.exit(f"Error: '{backend_key}' not found in backends.yaml")
+        sys.exit(f"Error: '{flaggems_key}' not found in backends.yaml")
 
-    vendor = backend_key.split("-")[0]
-    pypi_base = backends.get("pypi_base", "")
-    mirror = backends.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
+    pypi_base = backends_yaml.get("pypi_base", "")
+    mirror = backends_yaml.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
     args = {
-        "BASE_IMAGE": base_image_override or resolve_base_image(vendor, variant, configs, repo_root),
+        "BASE_IMAGE": base_image_override
+        or resolve_base_image(vendor, backend, configs, repo_root),
         "PYTHON_VERSION": backend_info.get("python", "3.12"),
         "FLAGOS_PYPI": pypi_base.format(vendor=vendor) if pypi_base else "",
         "EXTRA_PYPI": extra_pypi_override or mirror,
-        "EXTRAS_GROUP": backend_key,
+        "EXTRAS_GROUP": flaggems_key,
         "INCLUDE_TESTS": include_tests_override or "true",
     }
 
@@ -230,20 +230,19 @@ def main():
         sys.exit(f"Error: {containerfile} not found")
 
     configs = load_yaml(configs_path)
-    backends = load_yaml(backends_path)
+    backends_yaml = load_yaml(backends_path)
 
     # TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
-    # Needed because buildkit excludes .git from the build context, so
-    # setuptools-scm cannot detect the version automatically.
     flaggems_version = get_flaggems_version(flaggems_dir)
 
-    backend_key, variant = resolve_backend(args.backend, configs)
+    flaggems_key, vendor, backend = resolve_backend(args.backend, configs)
 
     build_args = resolve_build_args(
-        backend_key,
-        variant,
+        flaggems_key,
+        vendor,
+        backend,
         configs,
-        backends,
+        backends_yaml,
         repo_root,
         base_image_override=args.base_image,
         extra_pypi_override=args.extra_pypi,
@@ -251,9 +250,7 @@ def main():
     )
     build_args["FLAGGEMS_VERSION"] = flaggems_version
 
-    vendor = backend_key.split("-")[0]
-    image_suffix = f"{vendor}-{variant}"
-    image_name = f"flagos-runtime-{image_suffix}"
+    image_name = f"flagos-runtime-{vendor}-{backend}"
 
     if args.tag:
         tag = args.tag
