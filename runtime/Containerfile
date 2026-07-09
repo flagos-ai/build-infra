@@ -1,9 +1,9 @@
 # ============================================================
-# FlagGems — unified container image
+# FlagOS runtime image
 #
 # A single Containerfile for all backends. Backend-specific
-# settings are passed as --build-arg by container/build.py,
-# which reads container/configs.yaml and backends.yaml.
+# settings are passed as --build-arg by runtime/build.py,
+# which reads configs.yaml and FlagGems's backends.yaml.
 # ============================================================
 
 ARG BASE_IMAGE
@@ -16,6 +16,11 @@ ARG FLAGOS_PYPI=""
 ARG EXTRAS_GROUP=""
 ARG POST_INSTALL=""
 ARG PRE_INSTALL=""
+# TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
+# Buildkit excludes .git from the build context, so setuptools-scm
+# cannot detect the version. build.py reads it from git describe and
+# passes it here.
+ARG FLAGGEMS_VERSION=0.0.0
 
 
 # ════════════════════════════════════════════════════════════════
@@ -29,6 +34,7 @@ ARG EXTRA_PYPI
 ARG EXTRAS_GROUP
 ARG POST_INSTALL
 ARG INCLUDE_TESTS
+ARG FLAGGEMS_VERSION
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ── Install uv ────────────────────────────────────────────────
@@ -42,6 +48,7 @@ ENV VIRTUAL_ENV=/flagos \
 
 # ── Python build dependencies ─────────────────────────────────
 RUN uv pip install --no-cache-dir \
+        --index ${EXTRA_PYPI} \
         "setuptools>=64.0,<80.0" \
         "scikit-build-core==0.12.2" \
         "pybind11==3.0.3" \
@@ -53,6 +60,10 @@ RUN uv pip install --no-cache-dir \
 WORKDIR /build
 COPY . /build/FlagGems
 WORKDIR /build/FlagGems
+
+# TODO: Remove SETUPTOOLS_SCM_PRETEND_VERSION once we switch to
+# wheel-based install. See FLAGGEMS_VERSION ARG for details.
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${FLAGGEMS_VERSION}
 
 RUN uv pip install --no-cache-dir ".[$EXTRAS_GROUP]" \
       --default-index ${FLAGOS_PYPI} \

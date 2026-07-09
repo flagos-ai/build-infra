@@ -27,6 +27,40 @@ def load_yaml(path: Path) -> dict:
         return yaml.safe_load(f)
 
 
+def get_flaggems_version(flaggems_dir: Path) -> str:
+    """Get FlagGems version from git describe.
+
+    TODO: Remove once we switch to wheel-based install — the wheel
+    will carry the correct version and setuptools-scm won't be needed.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--tags"],
+            cwd=flaggems_dir,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            # Convert git describe output to setuptools-scm format:
+            #   "v5.4.0.dev0-528-g0283c119d" → "5.4.0.dev528+g0283c119d"
+            desc = result.stdout.strip().lstrip("v")
+            parts = desc.split("-")
+            if len(parts) >= 3:
+                tag = parts[0]           # "5.4.0.dev0"
+                distance = parts[-2]     # "528"
+                commit = parts[-1]       # "g0283c119d"
+                # Replace ".dev0" with ".dev{distance}"
+                if ".dev" in tag:
+                    tag = tag[: tag.index(".dev")]
+                return f"{tag}.dev{distance}+{commit}"
+            else:
+                # Exact tag, no commits after
+                return parts[0]
+    except FileNotFoundError:
+        pass
+    return "0.0.0"
+
+
 def resolve_backend(backend_arg: str, configs: dict):
     """Resolve user input to (backends_yaml_key, variant).
 
@@ -172,6 +206,11 @@ def main():
     configs = load_yaml(configs_path)
     backends = load_yaml(backends_path)
 
+    # TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
+    # Needed because buildkit excludes .git from the build context, so
+    # setuptools-scm cannot detect the version automatically.
+    flaggems_version = get_flaggems_version(flaggems_dir)
+
     backend_key, variant = resolve_backend(args.backend, configs)
 
     build_args = resolve_build_args(
@@ -183,6 +222,7 @@ def main():
         extra_pypi_override=args.extra_pypi,
         include_tests_override=args.include_tests,
     )
+    build_args["FLAGGEMS_VERSION"] = flaggems_version
 
     vendor = backend_key.split("-")[0]
     image_suffix = f"{vendor}-{variant}"
