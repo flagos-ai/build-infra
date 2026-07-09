@@ -15,6 +15,7 @@ Examples:
 """
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -107,10 +108,35 @@ def resolve_backend(backend_arg: str, configs: dict):
     sys.exit(f"Error: '{backend_arg}' not found in configs.yaml backends")
 
 
-def resolve_base_image(vendor: str, variant: str, configs: dict) -> str:
-    """Derive base image name: {prefix}-{vendor}-{variant}:{tag}."""
+def parse_labels(containerfile: Path) -> dict[str, str]:
+    """Extract OCI LABEL values from a containerfile."""
+    labels = {}
+    with open(containerfile) as f:
+        for line in f:
+            m = re.match(
+                r'LABEL\s+org\.opencontainers\.image\.(\w+)\s*=\s*"([^"]*)"', line
+            )
+            if m:
+                labels[m.group(1)] = m.group(2)
+    return labels
+
+
+def resolve_base_image(vendor: str, variant: str, configs: dict, repo_root: Path) -> str:
+    """Derive base image name by reading version/revision from the base containerfile.
+
+    Image name: {prefix}-{vendor}-{variant}:{version}-{revision}
+    """
     prefix = configs.get("base_image_prefix", "flagos-base")
-    tag = configs.get("base_image_tag", "latest")
+    base_file = repo_root / "base" / f"{vendor}-{variant}"
+
+    if base_file.exists():
+        labels = parse_labels(base_file)
+        version = labels.get("version", "latest")
+        revision = labels.get("revision", "0")
+        tag = f"{version}-{revision}"
+    else:
+        tag = configs.get("base_image_tag", "latest")
+
     return f"{prefix}-{vendor}-{variant}:{tag}"
 
 
@@ -119,6 +145,7 @@ def resolve_build_args(
     variant: str,
     configs: dict,
     backends: dict,
+    repo_root: Path,
     *,
     base_image_override: str | None = None,
     extra_pypi_override: str | None = None,
@@ -135,7 +162,7 @@ def resolve_build_args(
     mirror = backends.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
     args = {
-        "BASE_IMAGE": base_image_override or resolve_base_image(vendor, variant, configs),
+        "BASE_IMAGE": base_image_override or resolve_base_image(vendor, variant, configs, repo_root),
         "PYTHON_VERSION": backend_info.get("python", "3.12"),
         "FLAGOS_PYPI": pypi_base.format(vendor=vendor) if pypi_base else "",
         "EXTRA_PYPI": extra_pypi_override or mirror,
@@ -218,6 +245,7 @@ def main():
         variant,
         configs,
         backends,
+        repo_root,
         base_image_override=args.base_image,
         extra_pypi_override=args.extra_pypi,
         include_tests_override=args.include_tests,
