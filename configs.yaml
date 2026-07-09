@@ -1,67 +1,83 @@
 # FlagOS build configuration.
 #
-# Defines the supported vendors and their SDK variants.
+# Defines the supported vendors and their backends.
 # Used by both base/build.py and runtime/build.py.
 #
 # Base image naming convention:
-#   {base_image_prefix}-{vendor}-{variant}:{version}-{revision}
+#   {base_image_prefix}-{vendor}-{backend}:{version}-{revision}
 #   e.g. flagos-base-nvidia-cuda12.8:2.1.0-0
-#   Version and revision are read from OCI LABELs in base/{vendor}-{variant}.
+#   Version and revision are read from OCI LABELs in base/{vendor}-{backend}.
 #
 # Runtime image naming convention:
-#   flagos-runtime-{vendor}-{variant}:latest
+#   flagos-runtime-{vendor}-{backend}:latest
 #   e.g. flagos-runtime-nvidia-cuda12.8:latest
 #
-# The "backends" section maps vendor → list of SDK variants.
-# For multi-variant vendors (nvidia, ascend), the FlagGems
-# backend key is "{vendor}-{variant_no_dots}"
-# (e.g. "nvidia-cuda128"). For single-variant vendors, the
-# backend key is just the vendor name (e.g. "cambricon").
+# For multi-backend vendors (nvidia, ascend), the FlagGems pyproject
+# extras key is "{vendor}-{backend_no_dots}" (e.g. "nvidia-cuda128").
+# For single-backend vendors, it is just the vendor name (e.g. "cambricon").
 #
-# "runtime_env" defines environment variables to set in runtime
-# containers. These are container-specific and not used for
-# bare-metal/VM installations (see FlagGems tools/env.sh for that).
+# "env" defines environment variables to set in runtime containers.
+# These are container-specific and not used for bare-metal/VM
+# installations (see FlagGems backends.yaml env/env_source for that).
 
 base_image_prefix: "flagos-base"
 
-backends:
+vendors:
   nvidia:
-    - cuda12.8
-    - cuda13.3
-  ascend:
-    - cann8.5.0
-    - cann9.0.0
-  cambricon:
-    - neuware4.4.3
-  enflame:
-    - tops1.9.10
-  hygon:
-    - dtk26.04
-  iluvatar:
-    - corex4.4.0
-  kunlunxin:
-    - xre5.29.0
-  metax:
-    - maca3.7.2.1
-  mthreads:
-    - musa4.3.6
-  sunrise:
-    - tangrt1.2.0
-  thead:
-    - ppu2.0.0
-  tsingmicro:
-    - tsm260604
+    backends:
+      - cuda12.8
+      - cuda13.3
+    env:
+      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
 
-runtime_env:
-  nvidia-cuda12.8:
-    NVIDIA_VISIBLE_DEVICES: "all"
-    NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
-  nvidia-cuda13.3:
-    NVIDIA_VISIBLE_DEVICES: "all"
-    NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+  ascend:
+    backends:
+      - cann8.5.0
+      - cann9.0.0
+
+  cambricon:
+    backends:
+      - neuware4.4.3
+
+  enflame:
+    backends:
+      - tops1.9.10
+
+  hygon:
+    backends:
+      - dtk26.04
+
+  iluvatar:
+    backends:
+      - corex4.4.0
+
+  kunlunxin:
+    backends:
+      - xre5.29.0
+
+  metax:
+    backends:
+      - maca3.7.2.1
+
   mthreads:
-    MTHREADS_VISIBLE_DEVICES: "all"
-    LD_LIBRARY_PATH: "${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}"
+    backends:
+      - musa4.3.6
+    env:
+      MTHREADS_VISIBLE_DEVICES: "all"
+      LD_LIBRARY_PATH: "${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}"
+
+  sunrise:
+    backends:
+      - tangrt1.2.0
+
+  thead:
+    backends:
+      - ppu2.0.0
+
   tsingmicro:
-    USE_TORCH_XLA: "0"
-    TORCH_COMPILE_DISABLE: "1"
+    backends:
+      - tsm260604
+    env:
+      USE_TORCH_XLA: "0"
+      TORCH_COMPILE_DISABLE: "1"
