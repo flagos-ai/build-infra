@@ -6,7 +6,7 @@
 # which reads configs.yaml and FlagGems's backends.yaml.
 # ============================================================
 
-ARG BASE_IMAGE
+ARG BASE_IMAGE=scratch
 ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
 ARG INCLUDE_TESTS=true
 
