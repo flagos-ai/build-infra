@@ -4,8 +4,9 @@
 # Used by both base/build.py and runtime/build.py.
 #
 # Base image naming convention:
-#   {base_image_prefix}-{vendor}-{variant}:{base_image_tag}
+#   {base_image_prefix}-{vendor}-{variant}:{version}-{revision}
 #   e.g. flagos-base-nvidia-cuda12.8:2.1.0-0
+#   Version and revision are read from OCI LABELs in base/{vendor}-{variant}.
 #
 # Runtime image naming convention:
 #   flagos-runtime-{vendor}-{variant}:latest
@@ -18,7 +19,6 @@
 # backend key is just the vendor name (e.g. "cambricon").
 
 base_image_prefix: "flagos-base"
-base_image_tag: "2.1.0-0"
 
 backends:
   nvidia:
