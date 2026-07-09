@@ -9,8 +9,8 @@ Usage:
     python runtime/build.py <backend-key> --flaggems-dir <path> [options]
 
 Examples:
-    python runtime/build.py nvidia-cuda128 --flaggems-dir ../FlagGems --dry-run
-    python runtime/build.py ascend-cann900 --flaggems-dir ../FlagGems --tag latest
+    python runtime/build.py nvidia-cuda12.8 --flaggems-dir ../FlagGems --dry-run
+    python runtime/build.py ascend-cann9.0.0 --flaggems-dir ../FlagGems --tag latest
     python runtime/build.py metax --flaggems-dir ../FlagGems --push
 """
 
@@ -63,14 +63,13 @@ def get_flaggems_version(flaggems_dir: Path) -> str:
 
 
 def resolve_backend(backend_arg: str, configs: dict):
-    """Resolve user input to (backends_yaml_key, vendor, backend).
+    """Resolve user input to (flaggems_key, vendor, backend).
 
     configs.yaml maps vendor → {backends: [...], env: {...}}.
 
-    Accepts input in either form:
-      - configs.yaml style: "nvidia-cuda12.8"
-      - FlagGems backends.yaml style: "nvidia-cuda128" (dots stripped)
-      - vendor shorthand: "metax" (if single backend)
+    Accepts:
+      - "nvidia-cuda12.8" (vendor-backend)
+      - "metax" (vendor shorthand, if single backend)
 
     Returns (flaggems_key, vendor, backend) where:
       - flaggems_key is the key in FlagGems backends.yaml (dots stripped)
@@ -79,16 +78,12 @@ def resolve_backend(backend_arg: str, configs: dict):
     """
     vendors = configs.get("vendors", {})
 
-    def strip_dots(s):
-        return s.replace(".", "")
-
     for vendor, info in vendors.items():
         backends = info.get("backends", [])
         for backend in backends:
-            full_dotted = f"{vendor}-{backend}"
-            full_stripped = f"{vendor}-{strip_dots(backend)}"
-            if backend_arg in (full_dotted, full_stripped):
-                return full_stripped, vendor, backend
+            if backend_arg == f"{vendor}-{backend}":
+                flaggems_key = f"{vendor}-{backend.replace('.', '')}"
+                return flaggems_key, vendor, backend
             if backend_arg == vendor and len(backends) == 1:
                 return vendor, vendor, backend
 
@@ -188,7 +183,7 @@ def main():
     )
     parser.add_argument(
         "backend",
-        help="Backend key (e.g. nvidia-cuda128, ascend-cann900, metax)",
+        help="Backend key (e.g. nvidia-cuda12.8, ascend-cann9.0.0, metax)",
     )
     parser.add_argument(
         "--flaggems-dir",
