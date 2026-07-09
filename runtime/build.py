@@ -170,13 +170,12 @@ def resolve_build_args(
         "INCLUDE_TESTS": include_tests_override or "true",
     }
 
-    # Optional hooks from backends.yaml
-    for key in ("pre_install", "post_install"):
-        val = backend_info.get(key, "")
-        if isinstance(val, str):
-            val = val.strip()
-        if val:
-            args[key.upper()] = val
+    # Optional post-install hook from backends.yaml
+    post_install = backend_info.get("post_install", "")
+    if isinstance(post_install, str):
+        post_install = post_install.strip()
+    if post_install:
+        args["POST_INSTALL"] = post_install
 
     return args
 

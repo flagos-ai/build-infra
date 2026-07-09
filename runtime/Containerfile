@@ -15,7 +15,6 @@ ARG PYTHON_VERSION=3.12
 ARG FLAGOS_PYPI=""
 ARG EXTRAS_GROUP=""
 ARG POST_INSTALL=""
-ARG PRE_INSTALL=""
 # TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
 # Buildkit excludes .git from the build context, so setuptools-scm
 # cannot detect the version. build.py reads it from git describe and
@@ -95,13 +94,7 @@ RUN mkdir -p /app && \
 # ════════════════════════════════════════════════════════════════
 FROM ${BASE_IMAGE} AS runtime
 
-ARG PRE_INSTALL
 ARG DEBIAN_FRONTEND=noninteractive
-
-# ── Pre-install (e.g. SDK tarballs) ────────────────────────────
-RUN if [ -n "${PRE_INSTALL}" ]; then \
-      sh -c "${PRE_INSTALL}"; \
-    fi
 
 # ── Copy uv and venv from builder ─────────────────────────────
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
