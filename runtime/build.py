@@ -155,9 +155,10 @@ def main():
     args = parser.parse_args()
 
     script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent
     flaggems_dir = Path(args.flaggems_dir).resolve()
 
-    configs_path = script_dir / "configs.yaml"
+    configs_path = repo_root / "configs.yaml"
     backends_path = flaggems_dir / "src" / "flag_gems" / "backends.yaml"
     containerfile = script_dir / "Containerfile"
 
