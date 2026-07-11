@@ -14,7 +14,7 @@ ARG INCLUDE_TESTS=true
 ARG PYTHON_VERSION=3.12
 ARG FLAGOS_PYPI=""
 ARG EXTRAS_GROUP=""
-ARG POST_INSTALL=""
+ARG TRITON_POST_INSTALL=""
 # TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
 # Buildkit excludes .git from the build context, so setuptools-scm
 # cannot detect the version. build.py reads it from git describe and
@@ -31,7 +31,7 @@ ARG PYTHON_VERSION
 ARG FLAGOS_PYPI
 ARG EXTRA_PYPI
 ARG EXTRAS_GROUP
-ARG POST_INSTALL
+ARG TRITON_POST_INSTALL
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
 ARG DEBIAN_FRONTEND=noninteractive
@@ -70,9 +70,9 @@ RUN uv pip install --no-cache-dir ".[$EXTRAS_GROUP]" \
       --trusted-host resource.flagos.net \
       --trusted-host mirrors.aliyun.com
 
-# ── Post-install (e.g. triton_ascend) ──────────────────────────
-RUN if [ -n "${POST_INSTALL}" ]; then \
-      sh -c "${POST_INSTALL}"; \
+# ── Triton post-install (e.g. triton_ascend) ─────────────────
+RUN if [ -n "${TRITON_POST_INSTALL}" ]; then \
+      sh -c "${TRITON_POST_INSTALL}"; \
     fi
 
 # ── Test dependencies ──────────────────────────────────────────
