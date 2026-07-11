@@ -165,12 +165,20 @@ def resolve_build_args(
         "INCLUDE_TESTS": include_tests_override or "true",
     }
 
-    # Optional post-install hook from backends.yaml
-    post_install = backend_info.get("post_install", "")
-    if isinstance(post_install, str):
-        post_install = post_install.strip()
-    if post_install:
-        args["POST_INSTALL"] = post_install
+    # Optional triton-specific post-install packages from backends.yaml
+    # These are only needed when using triton (not flagtree).
+    triton_post = backend_info.get("triton_post_install", [])
+    if isinstance(triton_post, list) and triton_post:
+        pkgs = " ".join(triton_post)
+        flagos_pypi = args["FLAGOS_PYPI"]
+        extra_pypi = args["EXTRA_PYPI"]
+        cmd = (
+            f"uv pip install --no-cache-dir"
+            f" --default-index {flagos_pypi}"
+            f" --index {extra_pypi}"
+            f" {pkgs}"
+        )
+        args["TRITON_POST_INSTALL"] = cmd
 
     return args
 
