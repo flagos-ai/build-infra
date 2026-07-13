@@ -33,7 +33,7 @@ RUN curl -o /toolkits.tar.gz ${FILE_STORE}/${TOOKIT_PKG} \
 
 ENV MUSA_HOME=/usr/local/musa
 ENV PATH="${MUSA_HOME}/bin:${PATH}"
-ENV LD_LIBRARY_PATH="${MUSA_HOME}/lib:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="${MUSA_HOME}/lib"
 
 # Install MCCL
 RUN curl -o /mccl.tar.gz ${FILE_STORE}/${MCCL_PKG} \
