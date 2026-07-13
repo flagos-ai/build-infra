@@ -1,4 +1,4 @@
-baseURL: https://flagos-ai.github.io/build-infra/
+baseURL: https://flagos-ai.github.io/release-info/
 title: build-infra
 languageCode: en-us
 theme:

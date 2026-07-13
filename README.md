@@ -4,7 +4,7 @@ FlagOS container image build infrastructure. This repo defines and builds the
 **base images** — a vendor's SDK and toolchain on an OS base — that FlagOS
 runtime images are built on.
 
-📖 **Documentation: https://flagos-ai.github.io/build-infra/**
+📖 **Documentation: https://flagos-ai.github.io/release-info/**
 
 The docs (supported backends, per-image environment, dependencies) are generated
 from `configs.yaml` + `base/`, so they can't drift from the source.
@@ -35,4 +35,4 @@ In CI, base images are built on demand via the **Base Image Build (manual)**
 workflow (`workflow_dispatch`) — pick a backend (or `all`) and whether to push.
 
 To add a vendor/backend, see the
-[onboarding guide](https://flagos-ai.github.io/build-infra/contribution/onboarding/).
+[onboarding guide](https://flagos-ai.github.io/release-info/contribution/onboarding/).

@@ -1,6 +1,8 @@
 name: Docs site
 
-# Build the Hugo docs site and deploy it to GitHub Pages. The catalog / per-image
+# Build the Hugo docs site and publish it to the flagos-ai/release-info repo,
+# which serves it at https://flagos-ai.github.io/release-info/ (release-info's
+# Pages is set to "Deploy from a branch" -> gh-pages). The catalog / per-image
 # tables are generated from configs.yaml + base/ by docs/gen_data.py before build,
 # so the published docs always match the source.
 
@@ -18,19 +20,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 defaults:
   run:
     shell: bash
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     env:
       HUGO_VERSION: 0.157.0
@@ -40,10 +36,6 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-
-      - name: Setup Pages
-        id: pages
-        uses: actions/configure-pages@v5
 
       - name: Install Hugo (extended)
         run: |
@@ -61,20 +53,14 @@ jobs:
       - name: Build the site
         run: |
           cd docs
-          hugo build --gc --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
+          hugo build --gc --minify
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to flagos-ai/release-info
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./docs/public
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          # FLAGOS_RELEASE_INFO is an SSH deploy key for flagos-ai/release-info.
+          # If it is a PAT instead, replace `deploy_key` with `personal_token`.
+          deploy_key: ${{ secrets.FLAGOS_RELEASE_INFO }}
+          external_repository: flagos-ai/release-info
+          publish_branch: gh-pages
+          publish_dir: ./docs/public
