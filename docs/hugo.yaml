@@ -47,7 +47,7 @@ languages:
     weight: 1
     languagedirection: ltr
   zh-cn:
-    title: Release Info
+    title: 发布信息
     languageName: 简体中文
     contentDir: content/zh-cn
     weight: 2
