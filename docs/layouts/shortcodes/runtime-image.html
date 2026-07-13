@@ -5,14 +5,14 @@
 
 <h3>{{ T "contents" }}</h3>
 <ul>
-  <li><strong>{{ T "image" }}:</strong> <tt>{{ $r.image }}</tt> <em>({{ T "runtime_tag_note" }})</em></li>
+  <li><strong>{{ T "image" }}:</strong> <code class="plain">{{ $r.image }}</code> <em>({{ T "runtime_tag_note" }})</em></li>
   <li><strong>{{ T "python" }}:</strong> {{ $r.python }}</li>
 </ul>
 
 <h4>{{ T "stack" }}</h4>
 <ul>
 {{- range $r.stack }}
-  <li><tt>{{ . }}</tt></li>
+  <li><code class="plain">{{ . }}</code></li>
 {{- end }}
 </ul>
 
@@ -22,7 +22,7 @@
 <thead><tr><th>{{ T "env_var" }}</th><th>{{ T "env_value" }}</th></tr></thead>
 <tbody>
 {{- range $k, $v := . }}
-  <tr><td><tt>{{ $k }}</tt></td><td><tt>{{ $v }}</tt></td></tr>
+  <tr><td><code class="plain">{{ $k }}</code></td><td><code class="plain">{{ $v }}</code></td></tr>
 {{- end }}
 </tbody>
 </table>
@@ -32,7 +32,7 @@
 <table>
 <tbody>
 {{- range $r.deps }}
-  <tr><td><tt>{{ . }}</tt></td></tr>
+  <tr><td><code class="plain">{{ . }}</code></td></tr>
 {{- end }}
 </tbody>
 </table>
@@ -44,5 +44,5 @@
 {{- end }}
 
 {{- else -}}
-<p><strong>Unknown backend: <tt>{{ $name }}</tt></strong></p>
+<p><strong>Unknown backend: <code class="plain">{{ $name }}</code></strong></p>
 {{- end -}}
