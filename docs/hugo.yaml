@@ -1,5 +1,5 @@
 baseURL: https://flagos-ai.github.io/release-info/
-title: build-infra
+title: Release Info
 languageCode: en-us
 theme:
   - hugo-book
@@ -41,13 +41,13 @@ menus:
 # Chinese later is purely additive (translate content/zh-cn + i18n/zh-cn.toml).
 languages:
   en:
-    title: build-infra
+    title: Release Info
     languageName: English
     contentDir: content/en
     weight: 1
     languagedirection: ltr
   zh-cn:
-    title: build-infra
+    title: Release Info
     languageName: 简体中文
     contentDir: content/zh-cn
     weight: 2

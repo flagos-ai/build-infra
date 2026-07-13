@@ -1,9 +1,9 @@
 ---
-title: build-infra
+title: Release Info
 type: docs
 ---
 
-# build-infra
+# Release Info
 
 FlagOS 容器镜像构建基础设施。FlagOS 的镜像是分层发布的——厂商 **base** 镜像、
 其上的 FlagGems **runtime** 镜像，以及（即将推出的）**application** 镜像。
