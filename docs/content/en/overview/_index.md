@@ -16,14 +16,14 @@ A vendor's SDK/toolkit installed on an OS base. A base image is **only** about:
 - the **supported SDK version** (the backend name, e.g. `cuda12.8`, `cann9.0.0`),
 - and the **contents** installed on top (system packages + vendor SDK packages).
 
-It has **nothing to do** with Python, torch, or triton versions — those are a
+It has **nothing to do** with Python, Torch, or Triton versions — those are a
 runtime concern. Built from `base/<vendor>-<backend>` by `base/build.py`, tagged
 `flagos-base-<vendor>-<backend>:<version>-<revision>`.
 
 ## runtime
 
 Built on a base image; adds the **Python interpreter** and the **software stack**
-(torch, triton, flagtree, FlagGems). Built by `runtime/build.py`, image
+(Torch, Triton, FlagTree, FlagGems). Built by `runtime/build.py`, image
 `flagos-runtime-<vendor>-<backend>`.
 
 ## application (future)

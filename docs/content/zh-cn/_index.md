@@ -10,7 +10,7 @@ FlagOS 容器镜像构建基础设施。FlagOS 的镜像是分层发布的——
 
 - **[概览]({{< relref "overview" >}})** —— 各镜像层如何关联与命名。
 - **[基础镜像]({{< relref "base" >}})** —— 操作系统 + 厂商 SDK。每个后端的内容与运行命令。
-- **[运行时镜像]({{< relref "runtime" >}})** —— Python + 软件栈（torch、triton、flagtree、FlagGems）。
+- **[运行时镜像]({{< relref "runtime" >}})** —— Python + 软件栈（Torch、Triton、FlagTree、FlagGems）。
 - **[应用镜像]({{< relref "application" >}})** —— vLLM、Megatron-LM、SGLang（规划中）。
 - **[使用]({{< relref "usage" >}})** · **[贡献]({{< relref "contribution/onboarding" >}})**
 
