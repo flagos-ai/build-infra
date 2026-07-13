@@ -1,0 +1,73 @@
+# Build a FlagTree 0.6.0 wheel on Ubuntu 22.04 (glibc 2.35) so the resulting
+# libtriton.so links against an older glibc and loads on older-glibc nodes
+# (e.g. the h100 CI runner, ubuntu 22.04 / glibc 2.35). Output wheel -> /wheels.
+#
+# Build:
+#   podman build -t flagtree-build:0.6.0 -f nvidia-cuda .
+#   # behind a proxy:
+#   podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+#                -t flagtree-build:0.6.0 -f nvidia-cuda .
+#
+# Extract the wheel:
+#   id=$(podman create flagtree-build:0.6.0); podman cp $id:/wheels ./wheels; podman rm $id
+FROM ubuntu:22.04
+
+# Proxy is only consumed during build (predefined ARG, not persisted in the image).
+ARG http_proxy=
+ARG https_proxy=
+ARG FLAGTREE_REF=0.6.0
+# Clean version + lean build, matching FlagTree's official nv-delivery CI:
+#  - FLAGTREE_WHEEL_VERSION sets the wheel version; a clean (no +git<sha>) version
+#    also requires the secret FLAGTREE_PYPI_KEY (md5-gated in setup.py). Without the
+#    key you get "<ver>.git<sha>"; with nothing set you get "0.6.0+git<sha>".
+#  - Release build type strips the .so and drops asserts (fixes the ~840 MB
+#    unstripped libtriton.so -> ~150 MB).
+ARG FLAGTREE_WHEEL_VERSION=0.6.0
+ARG FLAGTREE_PYPI_KEY=
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
+# gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common ca-certificates gnupg dirmngr \
+        git wget curl \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build \
+        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
+        libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+        libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+        python3.12 python3.12-venv python3.12-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# pip for python3.12 (deadsnakes ships ensurepip via the python3.12-venv package).
+RUN python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools
+
+# Build the FlagTree wheel from source.
+# Unconditionally use the proxy (passed as build-args, applied to every RUN,
+# not persisted in the image). Force HTTP/1.1 for git, and retry the flaky
+# network-heavy steps.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${FLAGTREE_REF}" --depth 1 \
+           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
+         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/flagtree; sleep 5; \
+       done \
+    && test -d /opt/flagtree/.git \
+    && cd /opt/flagtree \
+    && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
+    && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
+    && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
+    && for i in 1 2 3 4 5; do \
+         python3.12 -m pip wheel . --no-build-isolation -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# Smoke test: install the freshly built wheel and import it (fails the build if broken).
+RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
+    && python3.12 -c "import triton; print('OK triton', triton.__version__)"
