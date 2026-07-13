@@ -3,7 +3,7 @@
 #
 # A single Containerfile for all backends. Backend-specific
 # settings are passed as --build-arg by runtime/build.py,
-# which reads configs.yaml and FlagGems's backends.yaml.
+# which reads configs.yaml.
 # ============================================================
 
 ARG BASE_IMAGE

@@ -1,7 +1,7 @@
 # FlagOS build configuration.
 #
-# Defines the supported vendors and their backends.
-# Used by both base/build.py and runtime/build.py.
+# Single source of truth for all vendor/backend dependencies and build
+# settings. Used by base/build.py and runtime/build.py.
 #
 # Base image naming convention:
 #   {base_image_prefix}-{vendor}-{backend}:{version}-{revision}
@@ -12,72 +12,294 @@
 #   flagos-runtime-{vendor}-{backend}:latest
 #   e.g. flagos-runtime-nvidia-cuda12.8:latest
 #
-# For multi-backend vendors (nvidia, ascend), the FlagGems pyproject
-# extras key is "{vendor}-{backend_no_dots}" (e.g. "nvidia-cuda128").
-# For single-backend vendors, it is just the vendor name (e.g. "cambricon").
+# The PyPI index URL is auto-generated: pypi_base.format(vendor=<vendor>).
+# Override per-backend with an explicit "index:" field if needed.
 #
-# "env" defines environment variables to set in runtime containers.
-# These are container-specific and not used for bare-metal/VM
-# installations (see FlagGems backends.yaml env/env_source for that).
+# Vendor entry:
+#   "env:"      — environment variables set in the *runtime container*.
+#                 Container-specific; not used for bare-metal/VM installs.
+#   "backends:" — mapping of backend name → backend spec (see below).
+#                 The backend name (e.g. "cuda12.8") matches base/{vendor}-{backend}.
+#
+# Backend spec fields:
+#   "extras:"          — FlagGems pyproject extra name, passed verbatim as the
+#                        EXTRAS_GROUP build-arg (`pip install ".[<extras>]"`).
+#                        Opaque to build-infra; the naming is owned by FlagGems.
+#   "python:"          — Python version for the venv.
+#   "cmake_backend:"   — FLAGGEMS_BACKEND for C++ extensions (only where supported).
+#   "triton:"          — vendor Triton package(s).
+#   "flagtree:"        — FlagTree package (preferred compiler).
+#   "triton_post_install:" — extra packages installed after Triton (COMPILER=triton).
+#   "env:"             — environment for *bare-metal/VM* installs. Same field name
+#                        as the vendor-level container env but a different concept;
+#                        distinguished by nesting level.
+#   "env_source:"      — vendor scripts to source on bare-metal installs.
+#   "deps:"            — Python dependencies (torch stack, etc.).
 
 base_image_prefix: "flagos-base"
 
+pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"
+mirror: "https://mirrors.aliyun.com/pypi/simple"
+
 vendors:
   nvidia:
-    backends:
-      - cuda12.8
-      - cuda13.3
     env:
       NVIDIA_VISIBLE_DEVICES: "all"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+    backends:
+      cuda12.8:
+        extras: nvidia-cuda128
+        python: "3.12"
+        cmake_backend: CUDA
+        triton: triton==3.6.0
+        flagtree: flagtree==0.6.0
+        env:
+          PATH: /usr/local/cuda/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.10.0+cu128
+          - torchaudio==2.10.0+cu128
+          - torchvision==0.25.0+cu128
+
+      cuda13.3:
+        extras: nvidia-cuda133
+        python: "3.12"
+        cmake_backend: CUDA
+        triton: triton==3.6.0
+        flagtree: flagtree==0.6.0
+        env:
+          PATH: /usr/local/cuda/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.11.0+cu130
+          - torchaudio==2.11.0+cu130
+          - torchvision==0.26.0+cu130
 
   ascend:
     backends:
-      - cann8.5.0
-      - cann9.0.0
+      cann8.5.0:
+        extras: ascend-cann850
+        python: "3.11"
+        cmake_backend: NPU
+        triton: triton-ascend==3.2.0
+        flagtree: flagtree==0.6.0+ascend3.2
+        env_source:
+          - /usr/local/Ascend/cann/set_env.sh
+        deps:
+          - torch==2.9.0+cpu
+          - torch-npu==2.9.0
+
+      cann9.0.0:
+        extras: ascend-cann900
+        python: "3.11"
+        cmake_backend: NPU
+        triton: triton==3.5.0
+        flagtree: flagtree==0.6.0+ascend3.5
+        env_source:
+          - /usr/local/Ascend/cann/set_env.sh
+        triton_post_install:
+          - triton_ascend==3.2.1
+        deps:
+          - torch==2.10.0+cpu
+          - torch-npu==2.10.0
 
   cambricon:
     backends:
-      - neuware4.4.3
+      neuware4.4.3:
+        extras: cambricon
+        python: "3.10"
+        triton: triton==3.2.0+mlu1.7.2
+        env:
+          PATH: /usr/local/neuware/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/neuware/lib64:$LD_LIBRARY_PATH
+        deps:
+          - cambricon_dali==0.13.0
+          - torch==2.7.1+cpu
+          - torch-mlu==1.29.2+torch2.7.1
+          - torch-mlu-ops==1.8.0+torch2.7.1
 
   enflame:
     backends:
-      - tops1.9.10
+      tops1.9.10:
+        extras: enflame
+        python: "3.12"
+        cmake_backend: GCU
+        triton: triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
+        flagtree: flagtree==0.6.0+enflame3.6
+        env:
+          LD_LIBRARY_PATH: /opt/OpenCloudOS/gcc-toolset-14/root/usr/lib64:$LD_LIBRARY_PATH
+        deps:
+          - pyefml==1.9.10
+          - torch==2.10.0+cpu
+          - torchaudio==2.10.0+cpu
+          - torchvision==0.25.0+cpu
+          - torch-gcu==2.10.0+3.7.20260408
+          - flash-attn==2.7.2+torch.2.9.1.gcu.3.4.20260323
 
   hygon:
     backends:
-      - dtk26.04
+      dtk26.04:
+        extras: hygon
+        python: "3.10"
+        triton: triton==3.3.0+das.opt1.dtk2604.torch290
+        flagtree: flagtree==0.5.1+hcu3.1
+        env_source:
+          - /opt/dtk-26.04/env.sh
+        deps:
+          - torch==2.9.0+das.opt1.dtk2604
 
   iluvatar:
     backends:
-      - corex4.4.0
+      corex4.4.0:
+        extras: iluvatar
+        python: "3.10"
+        cmake_backend: IX
+        triton: triton==3.1.0+corex.4.4.0
+        # flagtree==0.5.1+iluvatar3.1 — plugin loading bug in venv, disabled for now
+        env:
+          COREX_ROOT: /usr/local/corex
+          PATH: $COREX_ROOT/bin:$PATH
+          LD_LIBRARY_PATH: $COREX_ROOT/lib:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.7.1+corex.4.4.0
+          - torchaudio==2.7.1+corex.4.4.0
+          - torchvision==0.22.1+corex.4.4.0
 
   kunlunxin:
     backends:
-      - xre5.29.0
+      xre5.29.0:
+        extras: kunlunxin
+        python: "3.10"
+        triton: triton==3.0.0+a48aedef
+        flagtree: flagtree==0.5.1+xpu3.0
+        env:
+          LD_LIBRARY_PATH: /xcudart/lib:/usr/local/cuda/lib64
+        deps:
+          - apex==0.1
+          - benchflow==1.0.0
+          - colorama==0.4.6
+          - flash_attn==2.4.2+7e2dd4d
+          - hydrax==0.1.0
+          - hyperparameter==0.5.6
+          - psutil==6.1.0
+          - regex==2026.4.4
+          - torch==2.9.0+cu129
+          - torchaudio==2.9.0+cu129
+          - torchvision==0.24.0+cu129
+          - torch_plugin==0.1.0
+          - torch_xray==2.0.4
+          - xformers==0.0.29+1e7a8ec.d20260114
+          - xmlir==1.0.0.1
 
   metax:
     backends:
-      - maca3.7.2.1
+      maca3.7.2.1:
+        extras: metax
+        python: "3.12"
+        triton: triton==3.0.0+metax3.7.2.0
+        flagtree: flagtree==3.1.0+metax3.7.2.0
+        env:
+          MACA_PATH: /opt/maca
+          LD_LIBRARY_PATH: $MACA_PATH/lib:$MACA_PATH/mxgpu_llvm/lib:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.8.0+metax3.7.2.0
+          - torchaudio==2.4.1+metax3.7.2.0
+          - torchvision==0.15.1+metax3.7.2.0
+          - flash_attn==2.6.3+metax3.7.2.0torch2.8
 
   mthreads:
-    backends:
-      - musa4.3.6
     env:
       MTHREADS_VISIBLE_DEVICES: "all"
       LD_LIBRARY_PATH: "${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}"
+    backends:
+      musa4.3.6:
+        extras: mthreads-musa436
+        python: "3.10"
+        cmake_backend: MUSA
+        triton: triton==3.6.0+git89458660
+        flagtree: flagtree==0.6.0+mthreads3.6
+        env:
+          MUSA_HOME: /usr/local/musa
+          PATH: $MUSA_HOME/bin:$PATH
+          LD_LIBRARY_PATH: $VIRTUAL_ENV/lib:$MUSA_HOME/lib:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.9.0+musa.4.3.6
+          - torch_musa==2.9.0
+          - mkl==2024.0.0
+
+      # No base image yet — dependency spec kept as source of truth.
+      musa5.2.0:
+        extras: mthreads-musa520
+        python: "3.10"
+        cmake_backend: MUSA
+        triton: triton==3.6.0
+        flagtree: flagtree==0.6.0+mthreads3.6
+        env:
+          MUSA_HOME: /usr/local/musa
+          PATH: $MUSA_HOME/bin:$PATH
+          LD_LIBRARY_PATH: $VIRTUAL_ENV/lib:$MUSA_HOME/lib:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.9.0+musa5.2.0
+          - torch_musa==2.9.1
+          - mkl==2024.0.0
+
+  # No base image yet — dependency spec kept as source of truth.
+  spacemit:
+    backends:
+      spacemit:
+        extras: spacemit
+        python: "3.12"
+        triton: triton==3.6.0+spacemit.a5
+        deps:
+          - torch==2.8.0+spacemit.0
 
   sunrise:
     backends:
-      - tangrt1.2.0
+      tangrt1.2.0:
+        extras: sunrise
+        python: "3.10"
+        triton: triton==3.4.0.6+gite4f6d6e4
+        # flagtree==0.4.0+sunrise3.4 — requires GLIBC_2.39, unavailable on current system
+        env:
+          LD_LIBRARY_PATH: /usr/local/tangrt/targets/linux-x86_64/lib:$LD_LIBRARY_PATH
+        deps:
+          - torch==2.11.0+cpu
+          - torchaudio==2.11.0+cpu
+          - torchvision==0.26.0+cpu
+          - torch-ptpu==0.2.3+torch2.11
 
   thead:
     backends:
-      - ppu2.0.0
+      ppu2.0.0:
+        extras: thead
+        python: "3.12"
+        triton: triton==3.5.0+ppu2.0.0.oe
+        env_source:
+          - /usr/local/PPU_SDK/envsetup.sh
+        deps:
+          - torch==2.9.0+ppu2.0.0.oe
 
   tsingmicro:
-    backends:
-      - tsm260604
     env:
       USE_TORCH_XLA: "0"
       TORCH_COMPILE_DISABLE: "1"
+    backends:
+      tsm260604:
+        extras: tsingmicro
+        python: "3.10"
+        triton: triton==3.3.0+gitfe2a28fa
+        flagtree: flagtree==0.5.0.post20260612+git705a4064
+        env:
+          TX8_DEPS_ROOT: /opt/tx8_deps
+          LLVM_SYSPATH: /opt/llvm
+          LLVM_BINARY_DIR: ${LLVM_SYSPATH}/bin
+          PYTHONPATH: ${LLVM_SYSPATH}/python_packages/mlir_core
+          LD_LIBRARY_PATH: /usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib:${TX8_DEPS_ROOT}/lib:${LD_LIBRARY_PATH}
+          USE_TORCH_XLA: "0"
+          TORCH_COMPILE_DISABLE: "1"
+        deps:
+          - torch==2.7.0+cpu
+          - torchvision==0.22.0+cpu
+          - torchaudio==2.7.0+cpu
+          - torch_txda==0.1.0+20260615.37ba6bbd
+          - txops==0.1.0+20260508.60287151
