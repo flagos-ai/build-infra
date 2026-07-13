@@ -46,4 +46,4 @@ RUN curl -o /ops.run ${FILE_STORE}/ascend/${OPS_PACKAGE} \
 
 ENV ASCEND_HOME=/usr/local/Ascend/ascend-toolkit/latest
 ENV PATH="${ASCEND_HOME}/bin:${ASCEND_HOME}/compiler/ccec_compiler/bin:${PATH}"
-ENV LD_LIBRARY_PATH="${ASCEND_HOME}/lib64:/usr/local/Ascend/driver/lib64:${ASCEND_HOME}/lib64/plugin/opskernel:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="${ASCEND_HOME}/lib64:/usr/local/Ascend/driver/lib64:${ASCEND_HOME}/lib64/plugin/opskernel"
