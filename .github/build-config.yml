@@ -1,0 +1,31 @@
+# Global build configuration, shared across image layers (base / runtime / app).
+#
+# Read by base/generate_matrix.py (runners) and base/build.py (registry).
+# Keep globally-shared build settings here instead of threading them through
+# workflow inputs.
+
+# Container registry — same server for every layer, differing only by the path
+# prefix on that server.
+registry:
+  host: harbor.baai.ac.cn
+  prefixes:
+    base: flagbase
+    # runtime: <prefix>   # TODO: fill in when runtime image CI lands
+    # app: <prefix>       # TODO: fill in when app image CI lands
+
+# Which runner builds each image (base containerfile name -> runs-on).
+# Backends not listed under `overrides` use `default`.
+#
+# TODO: base images may not need to build on separate machines at all — the only
+# real constraint is CPU arch (x86_64 vs arm64), not vendor hardware. Revisit
+# whether this can collapse to an arch-based rule instead of per-vendor entries.
+# Exact runner labels still need confirmation (only ascend/nvidia are set).
+runners:
+  default: ubuntu-latest
+  overrides:
+    # aarch64 — CANN toolkit/ops packages are linux-aarch64
+    ascend-cann8.5.0: [self-hosted, ascend, arm64]
+    ascend-cann9.0.0: [self-hosted, ascend, arm64]
+    # nvidia base builds ran on the h20 runner in the previous setup
+    nvidia-cuda12.8: [self-hosted, h20]
+    nvidia-cuda13.3: [self-hosted, h20]

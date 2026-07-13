@@ -1,16 +1,21 @@
-name: Docker Image Build Orchestrator
+name: Base Image Build (manual)
+
+# Base images are built on demand, not on every push/PR. Vendor SDKs change
+# rarely, so with 10+ backends auto-building on each change is more noise than
+# value at the current maturity. Trigger this manually to build a backend (or
+# all). A future job may detect configs.yaml drift and remind maintainers.
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '*.md'
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - '*.md'
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend to build = base/<name> (e.g. nvidia-cuda12.8), or "all"'
+        type: string
+        default: all
+      push:
+        description: 'push image(s) to the registry'
+        type: boolean
+        default: false
 
 jobs:
   set-matrix:
@@ -18,75 +23,33 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - id: checkout_code
-        name: Checkout Code
+      - name: Checkout Code
         uses: actions/checkout@v7
-        with:
-          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
 
-      - name: Get Changed Files
-        id: changed-files
-        uses: tj-actions/changed-files@v47
-        with:
-          files: |
-            vendor_json/**
-            container/**
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
 
       - id: set-matrix
-        run: |
-          if [[ "${{ steps.changed-files.outputs.any_changed }}" == "true" ]]; then
-            # Extract vendor names from changed files
-            VENDOR_LIST=""
-            for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-              # Extract vendor from container file changes (e.g., container/containerfile.amd -> amd)
-              if [[ "$file" =~ ^container/containerfile\. ]]; then
-                vendor=$(echo "$file" | sed 's/^container\/containerfile\.//')
-                VENDOR_LIST="$VENDOR_LIST $vendor"
-              # Extract vendor from vendor_json file changes (e.g., vendor_json/amd.json -> amd)
-              elif [[ "$file" =~ ^vendor_json/ ]]; then
-                vendor=$(echo "$file" | sed 's/^vendor_json\///' | sed 's/\.json$//')
-                VENDOR_LIST="$VENDOR_LIST $vendor"
-              fi
-            done
-            
-            # Remove duplicates and leading/trailing spaces
-            VENDOR_LIST=$(echo "$VENDOR_LIST" | tr ' ' '\n' | sort -u | tr '\n' ' ' | sed 's/^ \| $//g')
-            
-            # Generate matrix with specific vendors if any were detected, otherwise generate all
-            if [[ -n "$VENDOR_LIST" ]]; then
-              echo "Detected changes for vendors: $VENDOR_LIST"
-              ./generate_matrix.sh $VENDOR_LIST > matrix.json
-            else
-              # Fallback to all vendors if no specific vendor was detected
-              ./generate_matrix.sh > matrix.json
-            fi
-          else
-            # No changes detected, generate matrix for all vendors
-            ./generate_matrix.sh > matrix.json
-          fi
-          
-          # Read JSON file and output
-          MATRIX_CONTENT=$(cat matrix.json | jq -c .)
-          echo "matrix=$MATRIX_CONTENT" >> $GITHUB_OUTPUT
         shell: bash
+        run: |
+          if [[ "${{ inputs.backend }}" == "all" ]]; then
+            python3 base/generate_matrix.py > matrix.json
+          else
+            python3 base/generate_matrix.py "${{ inputs.backend }}" > matrix.json
+          fi
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 
   build-matrix:
     needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
-    name: ${{ matrix.job_name }}
+    name: build-${{ matrix.name }}
     uses: ./.github/workflows/imagebuild.yml
     with:
-      push: false
-      containerfile: ${{ matrix.containerfile }}
-      image_name: ${{ matrix.image_name }}
-      tag: ${{ matrix.tag }}
+      name: ${{ matrix.name }}
       runson: ${{ matrix.runson }}
-      build-args: ${{ matrix.build-args }}
-      image_prefix: 'flagbase'
-      no-cache: false
-    secrets:
-      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-      CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
-      RUNNER_SSH_KEY: ${{ secrets.RUNNER_SSH_KEY }}
+      push: ${{ inputs.push }}
+    secrets: inherit

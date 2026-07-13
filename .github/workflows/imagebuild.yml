@@ -1,89 +1,43 @@
-name: Build and Push Docker Image
+name: Build and Push Base Image
 
 on:
   workflow_call:
     inputs:
+      name:
+        description: 'Base image name = base/ containerfile (e.g. nvidia-cuda12.8)'
+        type: string
+        required: true
       push:
         description: 'push image or not'
         type: boolean
         default: false
-      containerfile:
-        description: 'Dockerfile path'
-        type: string
-        default: 'Dockerfile'
-      image_name:
-        description: 'image name'
-        type: string
-        required: true
-      tag:
-        description: 'image tag'
-        type: string
-        default: ''
-      no-cache:
-        description: 'docker/build-push-action@v5 no-cache option'
-        type: boolean
-        default: false
       runson:
-        description: 'runner'
+        description: 'runner, JSON-encoded array (e.g. ["ubuntu-latest"])'
         type: string
-        default: 'ubuntu-latest'
-      build-args:
-        description: 'docker/build-push-action@v5 build arguments'
-        type: string
-        default: ''
-      image_prefix:
-        description: 'image prefix'
-        type: string
-        default: 'flagbase'
-    secrets:
-      CONTAINER_REGISTRY:
-        description: 'Docker Registry Token'
-        required: true
-      REGISTRY_USERNAME:
-        description: 'Docker Registry username'
-        required: true
-      RUNNER_SSH_KEY:
-        description: 'SSH Private key for CI Runners'
-        required: true
-
-env:
-  REGISTRY: harbor.baai.ac.cn
+        default: '["ubuntu-latest"]'
 
 jobs:
   build-image:
-    runs-on: ${{ inputs.runson }}
+    runs-on: ${{ fromJSON(inputs.runson) }}
     steps:
-      - name: Debug all inputs
-        run: |
-          echo "push: ${{ inputs.push }}"
-          echo "containerfile: ${{ inputs.containerfile }}"
-          echo "image_name: ${{ inputs.image_name }}"
-          echo "tag: ${{ inputs.tag }}"
-          echo "runson: ${{ inputs.runson }}"
-          echo "build-args: '${{ inputs.build-args }}'"
-
       - name: Checkout Code
         uses: actions/checkout@v7
-        with:
-          ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
-          submodules: true
+
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
 
       - name: Log in to the Container registry
         if: ${{ inputs.push }}
-        uses: docker/login-action@v4.4.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.CONTAINER_REGISTRY }}
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+        run: |
+          # registry host = build-config.yml registry.host
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          echo "Logging in to ${host}"
+          echo "${CONTAINER_REGISTRY}" | docker login "${host}" \
+            -u "${REGISTRY_USERNAME}" --password-stdin
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: ${{ inputs.push }}
-          file: container/${{ inputs.containerfile }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ inputs.image_prefix }}/${{ inputs.image_name }}:${{ inputs.tag }}
-          labels: ${{ inputs.tag }}
-          no-cache: ${{ inputs.no-cache }}
-          build-args: ${{ inputs.build-args }}
+      - name: Build base image
+        run: |
+          python3 base/build.py "${{ inputs.name }}" ${{ inputs.push && '--push' || '' }}
