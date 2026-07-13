@@ -65,7 +65,7 @@ def get_flaggems_version(flaggems_dir: Path) -> str:
 def resolve_backend(backend_arg: str, configs: dict):
     """Resolve user input to (backend_info, vendor, backend).
 
-    configs.yaml maps vendor → {env: {...}, backends: {backend: {spec}}}.
+    configs.yaml maps vendor → {backend: {spec}}.
 
     Accepts:
       - "nvidia-cuda12.8" (vendor-backend)
@@ -78,8 +78,7 @@ def resolve_backend(backend_arg: str, configs: dict):
     """
     vendors = configs.get("vendors", {})
 
-    for vendor, info in vendors.items():
-        backends = info.get("backends", {})
+    for vendor, backends in vendors.items():
         for backend, backend_info in backends.items():
             if backend_arg == f"{vendor}-{backend}":
                 return backend_info, vendor, backend
@@ -88,7 +87,7 @@ def resolve_backend(backend_arg: str, configs: dict):
 
     # Vendor name with multiple backends
     if backend_arg in vendors:
-        backends = vendors[backend_arg].get("backends", {})
+        backends = vendors[backend_arg]
         if len(backends) > 1:
             names = [f"{backend_arg}-{b}" for b in backends]
             sys.exit(
