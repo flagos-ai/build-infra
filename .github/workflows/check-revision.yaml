@@ -1,9 +1,10 @@
-name: Check containerfile revision
+name: Check base image revision
 
 on:
   pull_request:
     paths:
-      - 'container/containerfile.*'
+      - 'base/*'
+      - '!base/*.py'
 
 jobs:
   check-revision-bump:
@@ -18,18 +19,21 @@ jobs:
           BASE=${{ github.event.pull_request.base.sha }}
           HEAD=${{ github.event.pull_request.head.sha }}
 
-          changed_files=$(git diff --name-only "$BASE" "$HEAD" -- 'container/containerfile.*')
+          changed_files=$(git diff --name-only "$BASE" "$HEAD" -- 'base/*')
           if [ -z "$changed_files" ]; then
-            echo "No containerfiles changed."
+            echo "No base containerfiles changed."
             exit 0
           fi
 
           failed=0
           for f in $changed_files; do
-            # Skip deleted files
+            # Skip deleted files and non-containerfiles (scripts, etc.)
             if [ ! -f "$f" ]; then
               continue
             fi
+            case "$f" in
+              *.py) continue ;;
+            esac
 
             old_rev=$(git show "${BASE}:${f}" 2>/dev/null \
               | grep -oP 'org\.opencontainers\.image\.revision="\K[^"]+' || echo "")
@@ -50,6 +54,6 @@ jobs:
 
           if [ "$failed" -eq 1 ]; then
             echo ""
-            echo "::error::One or more containerfiles were modified without bumping org.opencontainers.image.revision"
+            echo "::error::One or more base containerfiles were modified without bumping org.opencontainers.image.revision"
             exit 1
           fi

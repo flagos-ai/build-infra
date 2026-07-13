@@ -33,6 +33,30 @@ def find_repo_root() -> Path:
     sys.exit("Error: cannot locate repository root (base/ not found)")
 
 
+def default_registry(repo_root: Path) -> str | None:
+    """Registry prefix for base images from .github/build-config.yml.
+
+    Returns "{host}/{prefixes.base}" (the single source of truth for the
+    registry) or None when unavailable — e.g. a local build with no config or
+    no PyYAML installed, in which case the image is tagged without a registry.
+    """
+    config_path = repo_root / ".github" / "build-config.yml"
+    if not config_path.exists():
+        return None
+    try:
+        import yaml
+    except ImportError:
+        return None
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f) or {}
+    reg = cfg.get("registry") or {}
+    host = reg.get("host")
+    prefix = (reg.get("prefixes") or {}).get("base")
+    if host and prefix:
+        return f"{host}/{prefix}"
+    return host or None
+
+
 def parse_labels(containerfile: Path) -> dict[str, str]:
     """Extract OCI LABEL values from a containerfile."""
     labels = {}
@@ -58,7 +82,7 @@ def main():
     )
     parser.add_argument(
         "--registry",
-        help="Container registry prefix (e.g. harbor.baai.ac.cn/flagos21-base)",
+        help="Container registry prefix (default: from .github/build-config.yml)",
     )
     parser.add_argument("--tag", "-t", help="Override image tag")
     parser.add_argument("--push", action="store_true", help="Push after building")
@@ -94,10 +118,11 @@ def main():
     image_name = f"{IMAGE_PREFIX}-{args.name}"
     image_tag = f"{version}-{revision}"
 
+    registry = args.registry or default_registry(repo_root)
     if args.tag:
         tag = args.tag
-    elif args.registry:
-        tag = f"{args.registry}/{image_name}:{image_tag}"
+    elif registry:
+        tag = f"{registry}/{image_name}:{image_tag}"
     else:
         tag = f"{image_name}:{image_tag}"
 

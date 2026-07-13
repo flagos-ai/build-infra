@@ -1,125 +1,98 @@
 # Vendor Onboarding Guide
 
-This document describes how hardware vendors can integrate with the unified container image **build and push pipeline** by providing the following:
+This document describes how hardware vendors integrate with the FlagOS **base
+image** build-and-push pipeline.
 
-- A vendor configuration file (`vendor_json/<vendor>.json`)
-- A container build file (`container/containerfile.<vendor>`)
+To add a new vendor/backend you provide:
 
-Once submitted, CI automatically builds and publishes images to the centralized registry.
+1. A **base containerfile** — `base/<vendor>-<backend>`
+2. A **backend entry** in `configs.yaml` (dependencies / build settings)
+3. *(optional)* a **runner override** in `.github/build-config.yml`
+
+Once merged to `main`, the image is built on demand (a maintainer runs the build
+workflow). No per-vendor JSON or matrix scripting is needed — the matrix is
+derived from `configs.yaml` + `base/`.
 
 ## Audience
 
-**Target users:** GPU/accelerator/chip vendors who need to provide base runtime images.
+GPU/accelerator/chip vendors who need to provide a FlagOS base runtime image.
 
-## Overview
+## How the pipeline works
 
-The image lifecycle is fully automated through CI:
+- `base/generate_matrix.py` reads `configs.yaml` and emits one matrix entry per
+  backend that has a `base/<vendor>-<backend>` file (backends without one are
+  skipped). `runson` and the registry come from `.github/build-config.yml`.
+- `.github/workflows/trigger.yml` is a **manual** (`workflow_dispatch`) build:
+  pick a backend (or `all`) and whether to push. Base images aren't rebuilt on
+  every change — vendor SDKs change rarely.
+- Each entry runs `python base/build.py <vendor>-<backend> [--push]`, which reads
+  the registry from `.github/build-config.yml`, the image version/revision from
+  the containerfile's OCI labels, and tags the image
+  `flagos-base-<vendor>-<backend>:<version>-<revision>`.
+- Images are pushed to <https://harbor.baai.ac.cn>.
 
-1. Define a configuration file (`vendor_json/<vendor>.json`).
-1. Provide a containerfile (`container/containerfile.<vendor>`).
-1. Submit a PR.
-1. The CI detects changes and builds images.
-1. Images are automatically pushed to the registry (<https://harbor.baai.ac.cn>).
+## Naming
 
-## Repository structure & naming conventions
+| Item              | Convention                                              |
+|-------------------|---------------------------------------------------------|
+| Base containerfile| `base/<vendor>-<backend>` (e.g. `base/nvidia-cuda12.8`) |
+| Image tag         | `flagos-base-<vendor>-<backend>:<version>-<revision>`   |
+| configs.yaml key  | `vendors.<vendor>.<backend>` (backend == the file's `<backend>`) |
 
-### Configuration file (JSON)
+The `<backend>` segment is the SDK/toolkit version (e.g. `cuda12.8`,
+`cann9.0.0`, `neuware4.4.3`) and must match between the `base/` filename and the
+`configs.yaml` key.
 
-| Item      | Requirement                                         |
-|-----------|-----------------------------------------------------|
-| Path      | `vendor_json/<vendor>.json`                         |
-| File name | Must match vendor name (for example, `nvidia.json`) |
+## Step 1 — add the base containerfile
 
-### Containerfile
+Create `base/<vendor>-<backend>`, modelled on an existing one (e.g.
+`base/nvidia-cuda12.8`). It **must** include these OCI labels:
 
-| Item             | Requirement                                                              |
-|------------------|--------------------------------------------------------------------------|
-| Path             | `container/containerfile.<vendor>`                                       |
-| File name        | Must match vendor name (for example, `container/containerfile.<vendor>`) |
-
-## Consistency requirement
-
-You must use the same vendor identifier when naming the configuration file and the containerfile:
-
-```
-vendor_json/<vendor>.json
-container/containerfile.<vendor>
-```
-
-Example:
-
-```
-vendor_json/nvidia.json
-container/containerfile.nvidia
+```dockerfile
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.version="<version>"
+LABEL org.opencontainers.image.revision="<revision>"
 ```
 
-## Define the Configuration File
+- `version` / `revision` produce the image tag `…:<version>-<revision>`.
+- **Bump `revision` on every change** to an existing containerfile — a PR that
+  edits a `base/` file without bumping it fails the `check-revision` check. New
+  files start at `revision="0"`.
+- Prefer baking the vendor SDK env directly with `ENV` (do not require users to
+  `source` a script). Only append `:${LD_LIBRARY_PATH}` when the `FROM` image
+  already sets `LD_LIBRARY_PATH` (e.g. `nvcr.io/nvidia/cuda`); a plain
+  `ubuntu:*` base has none, so no append is needed.
 
-1. Navigate to the [vendor_json](../vendor_json) directory where all configuration files are located.
-1. In your AI assistant chat window, perform the following steps:
+## Step 2 — add the configs.yaml entry
 
-   1. Copy the content of an existing vendor configuration file (for example, `nvidia.json`) into the chat.
-   2. Use the following prompt template, amended with your vendor details, to generate a new configuration file:
+Add the backend under its vendor in `configs.yaml`. See the header comment in
+that file for the full field reference. Minimal shape:
 
-      ```
-      I am a developer for <vendor> graphics cards. Please reference the provided NVIDIA configuration file to write a configuration file for <vendor> graphics cards.
+```yaml
+vendors:
+  <vendor>:
+    <backend>:
+      extras: <flaggems-pyproject-extra>   # e.g. nvidia-cuda128
+      python: "3.12"
+      triton: triton==...
+      # flagtree / cmake_backend / deps / env as applicable
+```
 
-      Required Python versions are 3.10 to 3.12. Required PyTorch versions are 2.8 to 2.9.
+## Step 3 — runner (only if needed)
 
-      The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
-      ```
+Base images build on `ubuntu-latest` by default. If a backend needs a specific
+arch or hardware (e.g. `ascend` packages are `aarch64`), add an override under
+`runners.overrides` in `.github/build-config.yml`:
 
-      **Example for generating an `amd.json` file based on `nvidia.json`:**
+```yaml
+runners:
+  overrides:
+    <vendor>-<backend>: [self-hosted, <label>...]
+```
 
-      ```
-      *[Pasted content of nvidia.json]*
+## Step 4 — open a PR, then build
 
-      I am a developer for AMD graphics cards. Please reference the provided NVIDIA configuration file to write a configuration file for AMD graphics cards.
-
-      Required Python versions are 3.10 to 3.12. Required PyTorch versions are 2.8 to 2.9.
-
-      The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
-      ```
-
-1. Create a new file `vendor_json/<vendor>.json` and paste the generated configuration content into it.
-
-## Define the Containerfile
-
-1. Navigate to the [container](../container) directory where all containerfiles are located.
-1. In your AI assistant chat window, perform the following steps:
-
-   1. Copy the content of an **existing containerfile** (for example, `containerfile.nvidia`) into the chat.
-   1. Use the following prompt template, amended with your vendor's specific download URLs, to generate a new containerfile:
-
-      ```
-      I am a developer for <vendor> graphics cards. Please reference the provided NVIDIA containerfile to write a containerfile for <vendor> graphics cards.
-
-      Required Python versions are 3.10 to 3.12.
-      Required PyTorch versions are 2.8 to 2.9.
-      The driver download URL is: https://<vendor>.com/<vendor>_driver.tar
-      The SDK download URL is: https://<vendor>.com/<vendor>_sdk.tar
-
-      The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
-      ```
-
-      **Example for generating a `containerfile.amd` based on `containerfile.nvidia`:**
-
-      ```
-      *[Pasted content of containerfile.nvidia]*
-
-      I am a developer for AMD graphics cards. Please reference the provided NVIDIA containerfile to write a containerfile for AMD graphics cards.
-
-      Required Python versions are 3.10 to 3.12.
-      Required PyTorch versions are 2.8 to 2.9.
-      The driver download URL is: https://amd.com/amd_driver.tar
-      The SDK download URL is: https://amd.com/amd_sdk.tar
-
-      The containerfile must strictly follow the original containerfile structure. Keep it concise without extra configuration.
-      ```
-
-1. Create a new file `container/containerfile.<vendor>` and paste the generated containerfile content into it.
-
-   > ![Important]
-   > Ensure the generated containerfile includes the following label:
-   > 
-   > The `LABEL` directive `org.opencontainers.image.authors` must be set to `FlagOS contributors`.
+Open a PR with the new `base/` file and `configs.yaml` entry. After it merges, a
+maintainer builds the image on demand via the **Base Image Build (manual)**
+workflow (`workflow_dispatch`) — choosing your backend and whether to push.
+Base images aren't built automatically on every change.

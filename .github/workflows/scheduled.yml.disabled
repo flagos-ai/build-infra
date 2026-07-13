@@ -1,4 +1,4 @@
-name: Scheduled Docker Image Build Orchestrator 
+name: Scheduled Base Image Build Orchestrator
 
 on:
   schedule:
@@ -16,38 +16,34 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - id: checkout_code
-        name: Checkout Code
+      - name: Checkout Code
         uses: actions/checkout@v7
         with:
           ssh-key: ${{ secrets.RUNNER_SSH_KEY }}
 
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+
       - id: set-matrix
-        run: |
-          # Generate matrix for vendors
-          ./generate_matrix.sh > matrix.json
-          
-          # Dump matrix to job output
-          MATRIX_CONTENT=$(cat matrix.json | jq -c .)
-          echo "matrix=$MATRIX_CONTENT" >> $GITHUB_OUTPUT
         shell: bash
+        run: |
+          python3 base/generate_matrix.py > matrix.json
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 
   build-matrix:
     needs: set-matrix
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
-    name: ${{ matrix.job_name }}
+    name: build-${{ matrix.name }}
     uses: ./.github/workflows/imagebuild.yml
     with:
-      push: true
-      containerfile: ${{ matrix.containerfile }}
-      image_name: ${{ matrix.image_name }}
-      tag: ${{ matrix.tag }}
+      name: ${{ matrix.name }}
       runson: ${{ matrix.runson }}
-      build-args: ${{ matrix.build-args }}
-      image_prefix: 'flagbase'
-      no-cache: true
+      # scheduled cron pushes; manual runs honour the push_images input
+      push: ${{ github.event_name != 'workflow_dispatch' || inputs.push_images }}
+      no_cache: true
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
