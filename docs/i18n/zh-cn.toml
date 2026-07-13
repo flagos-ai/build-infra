@@ -1,24 +1,22 @@
-# Chinese translations for the docs shortcode headers.
-# Placeholder (English values) until translated — keeps the reserved zh-cn
-# language building cleanly.
+# Chinese translations for the docs shortcode table headers.
 
 [vendor]
-other = "Vendor"
+other = "厂商"
 
 [backend]
-other = "Backend"
+other = "后端"
 
 [image]
-other = "Image"
+other = "镜像"
 
 [base_os]
-other = "Base OS"
+other = "基础系统"
 
 [python]
 other = "Python"
 
 [compiler]
-other = "Compiler"
+other = "编译器"
 
 [torch]
 other = "Torch"
@@ -27,10 +25,10 @@ other = "Torch"
 other = "Extras"
 
 [env_var]
-other = "Variable"
+other = "变量"
 
 [env_value]
-other = "Value"
+other = "值"
 
 [dependency]
-other = "Dependency"
+other = "依赖"
