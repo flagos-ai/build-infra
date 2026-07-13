@@ -1,0 +1,35 @@
+# Table headers used by the build-infra docs shortcodes.
+# zh-cn.toml mirrors these keys; translate its values when adding Chinese.
+
+[vendor]
+other = "Vendor"
+
+[backend]
+other = "Backend"
+
+[image]
+other = "Image"
+
+[base_os]
+other = "Base OS"
+
+[python]
+other = "Python"
+
+[compiler]
+other = "Compiler"
+
+[torch]
+other = "Torch"
+
+[extras]
+other = "Extras"
+
+[env_var]
+other = "Variable"
+
+[env_value]
+other = "Value"
+
+[dependency]
+other = "Dependency"

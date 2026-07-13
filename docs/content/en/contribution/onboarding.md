@@ -1,47 +1,43 @@
-# Vendor Onboarding Guide
+---
+title: Vendor onboarding
+weight: 10
+---
 
-This document describes how hardware vendors integrate with the FlagOS **base
-image** build-and-push pipeline.
+# Vendor onboarding
 
-To add a new vendor/backend you provide:
+How to add a new vendor/backend to the FlagOS base image pipeline. You provide:
 
 1. A **base containerfile** — `base/<vendor>-<backend>`
 2. A **backend entry** in `configs.yaml` (dependencies / build settings)
 3. *(optional)* a **runner override** in `.github/build-config.yml`
 
-Once merged to `main`, the image is built on demand (a maintainer runs the build
-workflow). No per-vendor JSON or matrix scripting is needed — the matrix is
-derived from `configs.yaml` + `base/`.
-
-## Audience
-
-GPU/accelerator/chip vendors who need to provide a FlagOS base runtime image.
+After it merges, a maintainer builds the image on demand. No per-vendor JSON or
+matrix scripting is needed — the build matrix is derived from `configs.yaml` +
+`base/`.
 
 ## How the pipeline works
 
-- `base/generate_matrix.py` reads `configs.yaml` and emits one matrix entry per
-  backend that has a `base/<vendor>-<backend>` file (backends without one are
+- `base/generate_matrix.py` reads `configs.yaml` and emits one build-matrix entry
+  per backend that has a `base/<vendor>-<backend>` file (backends without one are
   skipped). `runson` and the registry come from `.github/build-config.yml`.
-- `.github/workflows/trigger.yml` is a **manual** (`workflow_dispatch`) build:
-  pick a backend (or `all`) and whether to push. Base images aren't rebuilt on
-  every change — vendor SDKs change rarely.
+- `.github/workflows/trigger.yml` is a **manual** (`workflow_dispatch`) build: pick
+  a backend (or `all`) and whether to push.
 - Each entry runs `python base/build.py <vendor>-<backend> [--push]`, which reads
-  the registry from `.github/build-config.yml`, the image version/revision from
-  the containerfile's OCI labels, and tags the image
+  the registry from `.github/build-config.yml`, the version/revision from the
+  containerfile's OCI labels, and tags the image
   `flagos-base-<vendor>-<backend>:<version>-<revision>`.
-- Images are pushed to <https://harbor.baai.ac.cn>.
 
 ## Naming
 
-| Item              | Convention                                              |
-|-------------------|---------------------------------------------------------|
-| Base containerfile| `base/<vendor>-<backend>` (e.g. `base/nvidia-cuda12.8`) |
-| Image tag         | `flagos-base-<vendor>-<backend>:<version>-<revision>`   |
-| configs.yaml key  | `vendors.<vendor>.<backend>` (backend == the file's `<backend>`) |
+| Item               | Convention                                              |
+|--------------------|---------------------------------------------------------|
+| Base containerfile | `base/<vendor>-<backend>` (e.g. `base/nvidia-cuda12.8`) |
+| Image tag          | `flagos-base-<vendor>-<backend>:<version>-<revision>`   |
+| configs.yaml key   | `vendors.<vendor>.<backend>`                            |
 
-The `<backend>` segment is the SDK/toolkit version (e.g. `cuda12.8`,
-`cann9.0.0`, `neuware4.4.3`) and must match between the `base/` filename and the
-`configs.yaml` key.
+The `<backend>` segment is the SDK/toolkit version (e.g. `cuda12.8`, `cann9.0.0`,
+`neuware4.4.3`) and must match between the `base/` filename and the `configs.yaml`
+key.
 
 ## Step 1 — add the base containerfile
 
@@ -60,13 +56,13 @@ LABEL org.opencontainers.image.revision="<revision>"
   files start at `revision="0"`.
 - Prefer baking the vendor SDK env directly with `ENV` (do not require users to
   `source` a script). Only append `:${LD_LIBRARY_PATH}` when the `FROM` image
-  already sets `LD_LIBRARY_PATH` (e.g. `nvcr.io/nvidia/cuda`); a plain
-  `ubuntu:*` base has none, so no append is needed.
+  already sets `LD_LIBRARY_PATH` (e.g. `nvcr.io/nvidia/cuda`); a plain `ubuntu:*`
+  base has none, so no append is needed.
 
 ## Step 2 — add the configs.yaml entry
 
-Add the backend under its vendor in `configs.yaml`. See the header comment in
-that file for the full field reference. Minimal shape:
+Add the backend under its vendor in `configs.yaml`. See the header comment in that
+file for the full field reference. Minimal shape:
 
 ```yaml
 vendors:
@@ -94,5 +90,5 @@ runners:
 
 Open a PR with the new `base/` file and `configs.yaml` entry. After it merges, a
 maintainer builds the image on demand via the **Base Image Build (manual)**
-workflow (`workflow_dispatch`) — choosing your backend and whether to push.
-Base images aren't built automatically on every change.
+workflow (`workflow_dispatch`) — choosing your backend and whether to push. Base
+images aren't built automatically on every change.

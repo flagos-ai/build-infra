@@ -1,0 +1,48 @@
+{{- /* Per-image reference: every backend's image tag, baked-in env, and deps.
+       Rendered from docs/data/images.yaml (gen_data.py). */ -}}
+{{- range site.Data.images.backends }}
+<h2 id="{{ .name }}">{{ .name }}</h2>
+
+<p><strong>{{ T "image" }}:</strong> <tt>{{ .image }}</tt><br>
+<strong>{{ T "base_os" }}:</strong> <tt>{{ .base_os }}</tt> &nbsp;·&nbsp;
+<strong>{{ T "python" }}:</strong> {{ .python }} &nbsp;·&nbsp;
+<strong>{{ T "extras" }}:</strong> <tt>{{ .extras }}</tt></p>
+
+<h4>Base image environment</h4>
+{{- if .env_base }}
+<table>
+<thead><tr><th>{{ T "env_var" }}</th><th>{{ T "env_value" }}</th></tr></thead>
+<tbody>
+{{- range $k, $v := .env_base }}
+  <tr><td><tt>{{ $k }}</tt></td><td><tt>{{ $v }}</tt></td></tr>
+{{- end }}
+</tbody>
+</table>
+{{- else }}
+<p><em>No extra environment (inherited from the base OS).</em></p>
+{{- end }}
+
+<h4>Runtime image environment (additional)</h4>
+{{- if .env_runtime }}
+<table>
+<thead><tr><th>{{ T "env_var" }}</th><th>{{ T "env_value" }}</th></tr></thead>
+<tbody>
+{{- range $k, $v := .env_runtime }}
+  <tr><td><tt>{{ $k }}</tt></td><td><tt>{{ $v }}</tt></td></tr>
+{{- end }}
+</tbody>
+</table>
+{{- else }}
+<p><em>None beyond the base image.</em></p>
+{{- end }}
+
+<h4>{{ T "dependency" }} list</h4>
+<table>
+<tbody>
+{{- range .deps }}
+  <tr><td><tt>{{ . }}</tt></td></tr>
+{{- end }}
+</tbody>
+</table>
+
+{{- end }}

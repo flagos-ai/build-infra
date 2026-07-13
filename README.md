@@ -1,46 +1,38 @@
 # build-infra
 
-<!--
-[![Latest build status](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml/badge.svg?branch=main&event=push)](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml)
+FlagOS container image build infrastructure. This repo defines and builds the
+**base images** — a vendor's SDK and toolchain on an OS base — that FlagOS
+runtime images are built on.
 
-[![Schedule build status](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml/badge.svg?branch=main&event=schedule)](https://github.com/flagos-ai/build-infra/actions/workflows/trigger.yml)
--->
+📖 **Documentation: https://flagos-ai.github.io/release-info/**
 
-This repo contains containerfiles for building the base image for various vendors.
+The docs (supported backends, per-image environment, dependencies) are generated
+from `configs.yaml` + `base/`, so they can't drift from the source.
 
-## base image
+## Layout
 
-*Under Construction, to be revised*
+| Path                        | What                                                        |
+|-----------------------------|-------------------------------------------------------------|
+| `configs.yaml`              | Source of truth: per-backend deps, versions, image env      |
+| `base/<vendor>-<backend>`   | Base image containerfiles                                   |
+| `base/build.py`             | Build a base image (reads OCI labels + registry)            |
+| `base/generate_matrix.py`   | Emit the CI build matrix from `configs.yaml`                |
+| `.github/build-config.yml`  | Global build config: registry + per-backend runners         |
+| `runtime/`                  | FlagGems runtime image build system                         |
+| `flagtree-builder/`         | Low-glibc FlagTree wheel builders                           |
+| `docs/`                     | Hugo docs site (data-driven from the files above)           |
 
-| Backend | driver version | python | ubuntu | torch | file | image name | 
-| --- | --- | --- | --- | --- | --- | --- |
-| nvidia | cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 | latest | 24.04 | latest | container/containerfile.nvidia | harbor.baai.ac.cn/flagbase/flagbase-nvidia:latest |
-| nvidia | cuda-drivers=590.48.01-0ubuntu1 cuda-toolkit=13.1.1-1 libnccl2=2.29.2-1+cuda13.1 libnccl-dev=2.29.2-1+cuda13.1 | 3.12 | 24.04 | 2.8 | container/containerfile.nvidia | harbor.baai.ac.cn/flagbase/flagbase-nvidia:py312torch2.8 |
-| metax | maca_sdk=3.3.0.15 | latest | 22.04 | latest | container/containerfile.metax | harbor.baai.ac.cn/flagbase/flagbase-metax:latest |
-| amd | rocm-hip-libraries=7.1.1.70101-38~22.04 rocm-hip-runtime=7.1.1.70101-38~22.04 rocm-language-runtime=7.1.1.70101-38~22.04 rocm-hip-sdk=7.1.1.70101-38~22.04 rocm-opencl-runtime=7.1.1.70101-38~22.04 rocm-developer-tools=7.1.1.70101-38~22.04 rocm-opencl-sdk=7.1.1.70101-38~22.04 | latest | 24.04 | latest | container/containerfile.amd | harbor.baai.ac.cn/flagbase/flagbase-amd:latest |
-| ascend | cann:8.2.rc2-910(from base image) | 3.11 | 22.04 | 2.6 | container/containerfile.ascend | harbor.baai.ac.cn/flagbase/flagbase-ascend:py311torch2.6 |
-| tsingmicro | Tsm_validation_suite=5.5.0.260107221208 Tsm_profiler=5.5.0.260107221208 Tsm_runtime=5.5.0.260107221208 Tsm_ccl=5.5.0.260107221208 | latest | 20.04 | N/A | container/containerfile.tsingmicro | harbor.baai.ac.cn/flagbase/flagbase-tsingmicro:latest |
+## Quick start
 
-## pipeline as code interface
+Build a base image locally:
 
-Image and code build, basic CI to ensure the code works.
-
-ref https://docs.github.com/zh/actions/how-tos/reuse-automations/reuse-workflows
-
+```bash
+python base/build.py nvidia-cuda12.8 --dry-run   # preview
+python base/build.py nvidia-cuda12.8 --push      # build + push
 ```
-jobs:
-  call-workflow-passing-data:
-    uses: flagos-ai/build-infra/.github/workflows/imagebuild.yml@main
-    with:
-      push: ${{ matrix.push }}
-      containerfile: ${{ matrix.containerfile }}
-      image_name: ${{ matrix.image_name }}
-      tag: ${{ matrix.tag }}
-      runson: ${{ matrix.runson }}
-      build-args: ${{ matrix.build-args }}
-      image_prefix: 'flagbase'
-      no-cache: ${{ matrix.no-cache }}
-    secrets:
-      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-      CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
-```
+
+In CI, base images are built on demand via the **Base Image Build (manual)**
+workflow (`workflow_dispatch`) — pick a backend (or `all`) and whether to push.
+
+To add a vendor/backend, see the
+[onboarding guide](https://flagos-ai.github.io/release-info/contribution/onboarding/).

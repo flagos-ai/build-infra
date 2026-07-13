@@ -1,0 +1,36 @@
+# Chinese translations for the docs shortcode headers.
+# Placeholder (English values) until translated — keeps the reserved zh-cn
+# language building cleanly.
+
+[vendor]
+other = "Vendor"
+
+[backend]
+other = "Backend"
+
+[image]
+other = "Image"
+
+[base_os]
+other = "Base OS"
+
+[python]
+other = "Python"
+
+[compiler]
+other = "Compiler"
+
+[torch]
+other = "Torch"
+
+[extras]
+other = "Extras"
+
+[env_var]
+other = "Variable"
+
+[env_value]
+other = "Value"
+
+[dependency]
+other = "Dependency"
