@@ -5,23 +5,23 @@
 
 <h3>{{ T "contents" }}</h3>
 <ul>
-  <li><strong>{{ T "image" }}:</strong> <tt>{{ $b.image }}</tt></li>
-  <li><strong>{{ T "base_os" }}:</strong> <tt>{{ $b.os }}</tt></li>
-  <li><strong>{{ T "sdk_version" }}:</strong> <tt>{{ .sdk_version }}</tt></li>
+  <li><strong>{{ T "image" }}:</strong> <code class="plain">{{ $b.image }}</code></li>
+  <li><strong>{{ T "base_os" }}:</strong> <code class="plain">{{ $b.os }}</code></li>
+  <li><strong>{{ T "sdk_version" }}:</strong> <code class="plain">{{ .sdk_version }}</code></li>
 </ul>
 
 {{- with $b.sdk_packages }}
 <h4>{{ T "sdk_packages" }}</h4>
 <ul>
 {{- range . }}
-  <li><tt>{{ . }}</tt></li>
+  <li><code class="plain">{{ . }}</code></li>
 {{- end }}
 </ul>
 {{- end }}
 
 {{- with $b.system_packages }}
 <h4>{{ T "system_packages" }}</h4>
-<p>{{ range $i, $p := . }}{{ if $i }}, {{ end }}<tt>{{ $p }}</tt>{{ end }}</p>
+<p>{{ range $i, $p := . }}{{ if $i }}, {{ end }}<code class="plain">{{ $p }}</code>{{ end }}</p>
 {{- end }}
 
 {{- with $b.env }}
@@ -30,7 +30,7 @@
 <thead><tr><th>{{ T "env_var" }}</th><th>{{ T "env_value" }}</th></tr></thead>
 <tbody>
 {{- range $k, $v := . }}
-  <tr><td><tt>{{ $k }}</tt></td><td><tt>{{ $v }}</tt></td></tr>
+  <tr><td><code class="plain">{{ $k }}</code></td><td><code class="plain">{{ $v }}</code></td></tr>
 {{- end }}
 </tbody>
 </table>
@@ -43,5 +43,5 @@
 {{- end }}
 
 {{- else -}}
-<p><strong>Unknown backend: <tt>{{ $name }}</tt></strong></p>
+<p><strong>Unknown backend: <code class="plain">{{ $name }}</code></strong></p>
 {{- end -}}

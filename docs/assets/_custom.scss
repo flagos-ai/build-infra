@@ -1,0 +1,13 @@
+// Site custom styles (overrides the theme's empty _custom.scss).
+
+// Plain monospace: an inline <code> without the "chip" — monospace at the same
+// size as inline code, but no background/border/padding and inheriting the
+// surrounding text color. Used for data values in the image tables and lists,
+// where a wall of gray code-chips reads poorly. Bare <code> keeps the theme's
+// chip (and remains available where colored/emphasised code is wanted).
+code.plain {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}

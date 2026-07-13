@@ -5,7 +5,7 @@
 {{- range site.Data.images.backends }}
   <tr>
     <td>{{ .vendor }}</td>
-    <td><a href="{{ $.Page.RelPermalink }}{{ .name }}/"><tt>{{ .backend }}</tt></a></td>
+    <td><a href="{{ $.Page.RelPermalink }}{{ .name }}/"><code class="plain">{{ .backend }}</code></a></td>
   </tr>
 {{- end }}
 </tbody>
