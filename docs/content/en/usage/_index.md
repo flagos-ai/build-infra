@@ -1,13 +1,15 @@
 ---
 title: Usage
-weight: 30
+weight: 50
 ---
 
 # Using the images
 
 ## Pull
 
-Image names and tags are in the [catalog]({{< relref "images" >}}). For example:
+Image names and tags are on each backend's page under
+[Base images]({{< relref "/base" >}}) and [Runtime images]({{< relref "/runtime" >}}).
+For example:
 
 ```bash
 docker pull harbor.baai.ac.cn/flagbase/flagos-base-nvidia-cuda12.8:2.1.0-0
@@ -17,8 +19,8 @@ docker pull harbor.baai.ac.cn/flagbase/flagos-base-nvidia-cuda12.8:2.1.0-0
 
 Each base image bakes the vendor SDK environment (`PATH`, `LD_LIBRARY_PATH`, and
 vendor-specific variables) directly as `ENV` — you don't need to source any
-script. The exact variables per image are in the
-[per-image reference]({{< relref "images/reference" >}}).
+script. The exact variables, and a ready-to-copy `docker run` command, are on each
+image's page.
 
 ## Building on demand
 

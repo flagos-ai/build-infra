@@ -1,6 +1,6 @@
 ---
 title: 贡献
-weight: 40
+weight: 60
 bookCollapseSection: true
 ---
 

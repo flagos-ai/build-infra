@@ -1,6 +1,6 @@
 ---
 title: Contribution
-weight: 40
+weight: 60
 bookCollapseSection: true
 ---
 

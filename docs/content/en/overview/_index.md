@@ -5,23 +5,35 @@ weight: 10
 
 # Overview
 
-## Image layers
+FlagOS images are layered. Each layer builds on the one below it and has a
+distinct concern.
 
-- **base** — a vendor's SDK/toolkit + Python toolchain on an OS base. Built from
-  `base/<vendor>-<backend>` by `base/build.py`, and tagged
-  `flagos-base-<vendor>-<backend>:<version>-<revision>` (version/revision come
-  from the containerfile's OCI labels).
-- **runtime** — FlagGems installed on top of a base image (a separate flow).
-- **app** — application layer (future).
+## base
 
-## Naming & registry
+A vendor's SDK/toolkit installed on an OS base. A base image is **only** about:
+
+- the **base operating system** (the containerfile's `FROM`),
+- the **supported SDK version** (the backend name, e.g. `cuda12.8`, `cann9.0.0`),
+- and the **contents** installed on top (system packages + vendor SDK packages).
+
+It has **nothing to do** with Python, torch, or triton versions — those are a
+runtime concern. Built from `base/<vendor>-<backend>` by `base/build.py`, tagged
+`flagos-base-<vendor>-<backend>:<version>-<revision>`.
+
+## runtime
+
+Built on a base image; adds the **Python interpreter** and the **software stack**
+(torch, triton, flagtree, FlagGems). Built by `runtime/build.py`, image
+`flagos-runtime-<vendor>-<backend>`.
+
+## application (future)
+
+Built on a runtime image; packages a ready-to-run application (vLLM, Megatron-LM,
+SGLang, …).
+
+## Registry & source of truth
 
 All images go to a single registry configured in `.github/build-config.yml`,
-differing only by a path prefix per layer (base images use `flagbase`).
-
-## Source of truth
-
-`configs.yaml` holds every backend's dependencies and image environment; each
-`base/<name>` containerfile carries the OS + SDK install and the OCI
-version/revision labels. The catalog and per-image reference in these docs are
-generated from those files, so they always match what is built.
+differing only by a path prefix per layer. `configs.yaml` holds each backend's
+dependencies and environment; the `base/<name>` containerfiles carry the OS + SDK.
+The catalogs and per-image pages here are generated from those files.

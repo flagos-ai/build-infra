@@ -1,4 +1,4 @@
-# Chinese translations for the docs shortcode table headers.
+# 文档 shortcode 用到的表格/分节标签的中文翻译。
 
 [vendor]
 other = "厂商"
@@ -12,17 +12,26 @@ other = "镜像"
 [base_os]
 other = "基础系统"
 
+[sdk_version]
+other = "SDK 版本"
+
+[sdk_packages]
+other = "SDK 包"
+
+[system_packages]
+other = "系统包"
+
 [python]
 other = "Python"
 
-[compiler]
-other = "编译器"
+[stack]
+other = "软件栈"
 
-[torch]
-other = "Torch"
+[contents]
+other = "内容"
 
-[extras]
-other = "Extras"
+[environment]
+other = "环境变量"
 
 [env_var]
 other = "变量"
@@ -32,3 +41,12 @@ other = "值"
 
 [dependency]
 other = "依赖"
+
+[run]
+other = "运行"
+
+[run_todo]
+other = "该厂商的设备标志尚未最终确定——这条通用命令可能需要补充厂商特定的 --device / --gpus 标志。"
+
+[runtime_tag_note]
+other = "tag 方案待定"

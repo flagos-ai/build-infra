@@ -29,3 +29,25 @@ runners:
     # nvidia base builds ran on the h20 runner in the previous setup
     nvidia-cuda12.8: [self-hosted, h20]
     nvidia-cuda13.3: [self-hosted, h20]
+
+# `docker run` flags needed to expose each vendor's accelerator to a container.
+# Used by the docs to render a concrete run command per image. Vendors not
+# listed use `default` (a plain `docker run`).
+#
+# TODO: confirm the exact device flags for each vendor. Only nvidia is filled in;
+# the rest are placeholders — replace the TODO strings with the real flags.
+run:
+  default: ""
+  vendors:
+    nvidia: "--gpus all"
+    ascend: ""        # TODO: e.g. --device /dev/davinci0 --device /dev/davinci_manager ...
+    cambricon: ""     # TODO
+    enflame: ""       # TODO
+    hygon: ""         # TODO
+    iluvatar: ""      # TODO
+    kunlunxin: ""     # TODO
+    metax: ""         # TODO
+    mthreads: ""      # TODO
+    sunrise: ""       # TODO
+    tsingmicro: ""    # TODO
+
