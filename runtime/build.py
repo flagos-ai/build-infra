@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Build FlagGems runtime container images.
 
-Reads configs.yaml and FlagGems's src/flag_gems/backends.yaml to resolve
-build arguments, then invokes `docker build` with the appropriate
---build-arg values.
+Reads configs.yaml (the single source of truth for vendor/backend
+dependencies) to resolve build arguments, then invokes `docker build`
+with the appropriate --build-arg values.
 
 Usage:
     python runtime/build.py <backend-key> --flaggems-dir <path> [options]
@@ -63,33 +63,32 @@ def get_flaggems_version(flaggems_dir: Path) -> str:
 
 
 def resolve_backend(backend_arg: str, configs: dict):
-    """Resolve user input to (flaggems_key, vendor, backend).
+    """Resolve user input to (backend_info, vendor, backend).
 
-    configs.yaml maps vendor → {backends: [...], env: {...}}.
+    configs.yaml maps vendor → {env: {...}, backends: {backend: {spec}}}.
 
     Accepts:
       - "nvidia-cuda12.8" (vendor-backend)
       - "metax" (vendor shorthand, if single backend)
 
-    Returns (flaggems_key, vendor, backend) where:
-      - flaggems_key is the key in FlagGems backends.yaml (dots stripped)
+    Returns (backend_info, vendor, backend) where:
+      - backend_info is the backend spec dict from configs.yaml
       - vendor is the vendor name
-      - backend is the configs.yaml backend name (for base image name)
+      - backend is the configs.yaml backend name (for base/runtime image names)
     """
     vendors = configs.get("vendors", {})
 
     for vendor, info in vendors.items():
-        backends = info.get("backends", [])
-        for backend in backends:
+        backends = info.get("backends", {})
+        for backend, backend_info in backends.items():
             if backend_arg == f"{vendor}-{backend}":
-                flaggems_key = f"{vendor}-{backend.replace('.', '')}"
-                return flaggems_key, vendor, backend
+                return backend_info, vendor, backend
             if backend_arg == vendor and len(backends) == 1:
-                return vendor, vendor, backend
+                return backend_info, vendor, backend
 
     # Vendor name with multiple backends
     if backend_arg in vendors:
-        backends = vendors[backend_arg].get("backends", [])
+        backends = vendors[backend_arg].get("backends", {})
         if len(backends) > 1:
             names = [f"{backend_arg}-{b}" for b in backends]
             sys.exit(
@@ -135,11 +134,10 @@ def resolve_base_image(
 
 
 def resolve_build_args(
-    flaggems_key: str,
+    backend_info: dict,
     vendor: str,
     backend: str,
     configs: dict,
-    backends_yaml: dict,
     repo_root: Path,
     *,
     base_image_override: str | None = None,
@@ -148,12 +146,8 @@ def resolve_build_args(
 ) -> dict[str, str]:
     """Resolve all docker build-arg values for a given backend."""
 
-    backend_info = backends_yaml.get("backends", {}).get(flaggems_key)
-    if backend_info is None:
-        sys.exit(f"Error: '{flaggems_key}' not found in backends.yaml")
-
-    pypi_base = backends_yaml.get("pypi_base", "")
-    mirror = backends_yaml.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
+    pypi_base = configs.get("pypi_base", "")
+    mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
     args = {
         "BASE_IMAGE": base_image_override
@@ -161,11 +155,11 @@ def resolve_build_args(
         "PYTHON_VERSION": backend_info.get("python", "3.12"),
         "FLAGOS_PYPI": pypi_base.format(vendor=vendor) if pypi_base else "",
         "EXTRA_PYPI": extra_pypi_override or mirror,
-        "EXTRAS_GROUP": flaggems_key,
+        "EXTRAS_GROUP": backend_info.get("extras", ""),
         "INCLUDE_TESTS": include_tests_override or "true",
     }
 
-    # Optional triton-specific post-install packages from backends.yaml
+    # Optional triton-specific post-install packages from configs.yaml.
     # These are only needed when using triton (not flagtree).
     triton_post = backend_info.get("triton_post_install", [])
     if isinstance(triton_post, list) and triton_post:
@@ -196,7 +190,7 @@ def main():
     parser.add_argument(
         "--flaggems-dir",
         required=True,
-        help="Path to FlagGems source tree (used as build context and for backends.yaml)",
+        help="Path to FlagGems source tree (used as the docker build context)",
     )
     parser.add_argument("--base-image", help="Override base image")
     parser.add_argument("--extra-pypi", help="Override extra PyPI mirror URL")
@@ -222,30 +216,25 @@ def main():
     flaggems_dir = Path(args.flaggems_dir).resolve()
 
     configs_path = repo_root / "configs.yaml"
-    backends_path = flaggems_dir / "src" / "flag_gems" / "backends.yaml"
     containerfile = script_dir / "Containerfile"
 
     if not configs_path.exists():
         sys.exit(f"Error: {configs_path} not found")
-    if not backends_path.exists():
-        sys.exit(f"Error: {backends_path} not found")
     if not containerfile.exists():
         sys.exit(f"Error: {containerfile} not found")
 
     configs = load_yaml(configs_path)
-    backends_yaml = load_yaml(backends_path)
 
     # TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
     flaggems_version = get_flaggems_version(flaggems_dir)
 
-    flaggems_key, vendor, backend = resolve_backend(args.backend, configs)
+    backend_info, vendor, backend = resolve_backend(args.backend, configs)
 
     build_args = resolve_build_args(
-        flaggems_key,
+        backend_info,
         vendor,
         backend,
         configs,
-        backends_yaml,
         repo_root,
         base_image_override=args.base_image,
         extra_pypi_override=args.extra_pypi,
