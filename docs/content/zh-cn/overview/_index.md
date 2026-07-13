@@ -5,22 +5,31 @@ weight: 10
 
 # 概览
 
-## 镜像分层
+FlagOS 镜像是分层的。每一层都构建在下一层之上，各有其关注点。
 
-- **base** —— 在操作系统之上叠加厂商 SDK/工具链 + Python 工具链。由
-  `base/build.py` 从 `base/<vendor>-<backend>` 构建，打标签为
-  `flagos-base-<vendor>-<backend>:<version>-<revision>`（version/revision 取自
-  containerfile 的 OCI label）。
-- **runtime** —— 在 base 镜像之上安装 FlagGems（单独的流程）。
-- **app** —— 应用层（未来）。
+## base（基础镜像）
 
-## 命名与镜像仓库
+在操作系统之上安装厂商的 SDK/工具链。基础镜像**只**关乎：
 
-所有镜像推送到 `.github/build-config.yml` 里配置的**同一个镜像仓库**，各层之间只在
-服务器上的**路径前缀**不同（base 镜像用 `flagbase`）。
+- **基础操作系统**（containerfile 的 `FROM`），
+- **支持的 SDK 版本**（后端名，如 `cuda12.8`、`cann9.0.0`），
+- 以及其上安装的**内容**（系统包 + 厂商 SDK 包）。
 
-## 事实源
+它与 Python、torch、triton 的版本**毫无关系**——那是运行时的事。由
+`base/build.py` 从 `base/<vendor>-<backend>` 构建，打标签为
+`flagos-base-<vendor>-<backend>:<version>-<revision>`。
 
-`configs.yaml` 保存每个后端的依赖和镜像环境；每个 `base/<name>` containerfile 承载
-操作系统 + SDK 安装以及 OCI version/revision label。本文档里的目录和每镜像参考都由
-这些文件生成，因此始终与实际构建一致。
+## runtime（运行时镜像）
+
+构建在基础镜像之上；加入 **Python 解释器**与**软件栈**（torch、triton、flagtree、
+FlagGems）。由 `runtime/build.py` 构建，镜像 `flagos-runtime-<vendor>-<backend>`。
+
+## application（应用镜像，未来）
+
+构建在运行时镜像之上；打包一个开箱即用的应用（vLLM、Megatron-LM、SGLang……）。
+
+## 镜像仓库与事实源
+
+所有镜像推送到 `.github/build-config.yml` 里配置的同一个镜像仓库，各层只在路径
+前缀上不同。`configs.yaml` 保存每个后端的依赖和环境；`base/<name>` containerfile
+承载操作系统 + SDK。本文档里的目录和每镜像页都由这些文件生成。

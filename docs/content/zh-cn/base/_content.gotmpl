@@ -1,0 +1,8 @@
+{{ range site.Data.images.backends }}
+{{ $.AddPage (dict
+  "path" .name
+  "title" .name
+  "kind" "page"
+  "content" (dict "mediaType" "text/markdown" "value" (printf "{{< base-image name=%q >}}" .name))
+) }}
+{{ end }}

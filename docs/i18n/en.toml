@@ -1,4 +1,4 @@
-# Table headers used by the build-infra docs shortcodes.
+# Table/section labels used by the build-infra docs shortcodes.
 # zh-cn.toml mirrors these keys; translate its values when adding Chinese.
 
 [vendor]
@@ -13,17 +13,26 @@ other = "Image"
 [base_os]
 other = "Base OS"
 
+[sdk_version]
+other = "SDK version"
+
+[sdk_packages]
+other = "SDK packages"
+
+[system_packages]
+other = "System packages"
+
 [python]
 other = "Python"
 
-[compiler]
-other = "Compiler"
+[stack]
+other = "Software stack"
 
-[torch]
-other = "Torch"
+[contents]
+other = "Contents"
 
-[extras]
-other = "Extras"
+[environment]
+other = "Environment"
 
 [env_var]
 other = "Variable"
@@ -32,4 +41,13 @@ other = "Variable"
 other = "Value"
 
 [dependency]
-other = "Dependency"
+other = "Dependencies"
+
+[run]
+other = "Run"
+
+[run_todo]
+other = "Device flags for this vendor aren't finalized yet — this generic command may need vendor-specific --device / --gpus flags."
+
+[runtime_tag_note]
+other = "tag scheme being finalized"

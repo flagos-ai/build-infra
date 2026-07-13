@@ -1,0 +1,12 @@
+{{- /* Simple runtime-image catalog: vendor + backend linking to its image page. */ -}}
+<table>
+<thead><tr><th>{{ T "vendor" }}</th><th>{{ T "backend" }}</th></tr></thead>
+<tbody>
+{{- range site.Data.images.backends }}
+  <tr>
+    <td>{{ .vendor }}</td>
+    <td><a href="{{ $.Page.RelPermalink }}{{ .name }}/"><tt>{{ .backend }}</tt></a></td>
+  </tr>
+{{- end }}
+</tbody>
+</table>
