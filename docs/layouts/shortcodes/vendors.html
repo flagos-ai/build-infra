@@ -1,0 +1,21 @@
+{{- /* Vendor correspondence table (slug + English + Chinese), from
+       docs/data/vendors.yaml. Shows all vendors, including any without a
+       base image yet. */ -}}
+<table>
+<thead>
+  <tr>
+    <th>{{ T "vendor" }}</th>
+    <th>{{ T "name_en" }}</th>
+    <th>{{ T "name_zh" }}</th>
+  </tr>
+</thead>
+<tbody>
+{{- range $slug, $v := site.Data.vendors.vendors }}
+  <tr>
+    <td><code class="plain">{{ $slug }}</code></td>
+    <td>{{ $v.en }}</td>
+    <td>{{ $v.zh }}</td>
+  </tr>
+{{- end }}
+</tbody>
+</table>

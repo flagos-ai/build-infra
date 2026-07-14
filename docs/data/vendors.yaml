@@ -1,0 +1,19 @@
+# Vendor display names — hand-maintained docs metadata (not build config).
+# Keyed by the vendor slug used in configs.yaml / image names.
+# `en` = brand name in English, `zh` = Chinese name. Rendered by the vendors
+# shortcode (correspondence table) and the base/runtime catalog name column.
+
+vendors:
+  nvidia:     { en: NVIDIA,          zh: 英伟达 }
+  ascend:     { en: Ascend,          zh: 昇腾 }
+  cambricon:  { en: Cambricon,       zh: 寒武纪 }
+  enflame:    { en: Enflame,         zh: 燧原 }
+  hygon:      { en: Hygon,           zh: 海光 }
+  iluvatar:   { en: Iluvatar CoreX,  zh: 天数智芯 }
+  kunlunxin:  { en: Kunlunxin,       zh: 昆仑芯 }
+  metax:      { en: MetaX,           zh: 沐曦 }
+  mthreads:   { en: Moore Threads,   zh: 摩尔线程 }
+  spacemit:   { en: SpacemiT,        zh: 进迭时空 }
+  sunrise:    { en: Sunrise,         zh: 曦望 }
+  thead:      { en: T-Head,          zh: 平头哥 }
+  tsingmicro: { en: TsingMicro,      zh: 清微智能 }

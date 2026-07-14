@@ -51,3 +51,12 @@ other = "Device flags for this vendor aren't finalized yet — this generic comm
 
 [runtime_tag_note]
 other = "tag scheme being finalized"
+
+[name]
+other = "Name"
+
+[name_en]
+other = "English"
+
+[name_zh]
+other = "中文"

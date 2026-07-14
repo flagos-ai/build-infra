@@ -1,10 +1,13 @@
-{{- /* Simple base-image catalog: vendor + backend linking to its image page. */ -}}
+{{- /* Simple base-image catalog: vendor slug + name + backend link. */ -}}
+{{- $zh := eq site.Language.Lang "zh-cn" -}}
 <table>
-<thead><tr><th>{{ T "vendor" }}</th><th>{{ T "backend" }}</th></tr></thead>
+<thead><tr><th>{{ T "vendor" }}</th><th>{{ T "name" }}</th><th>{{ T "backend" }}</th></tr></thead>
 <tbody>
 {{- range site.Data.images.backends }}
+{{- $v := index site.Data.vendors.vendors .vendor }}
   <tr>
-    <td>{{ .vendor }}</td>
+    <td><code class="plain">{{ .vendor }}</code></td>
+    <td>{{ if $zh }}{{ $v.zh }}{{ else }}{{ $v.en }}{{ end }}</td>
     <td><a href="{{ $.Page.RelPermalink }}{{ .name }}/"><code class="plain">{{ .backend }}</code></a></td>
   </tr>
 {{- end }}
