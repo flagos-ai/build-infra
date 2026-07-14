@@ -44,83 +44,9 @@ def _dedup(seq):
     return out
 
 
-PKG_RE = re.compile(r"\.(?:run|deb|tar\.gz|tar\.xz|tgz|zip|whl)$")
-
-
-def _resolve_vars(s: str, varmap: dict, depth: int = 0) -> str:
-    """Substitute ${VAR}/$VAR from varmap, iteratively (handles nesting)."""
-    if depth > 10 or "$" not in s:
-        return s
-    new = re.sub(
-        r"\$\{(\w+)\}|\$(\w+)",
-        lambda m: varmap.get(m.group(1) or m.group(2), m.group(0)),
-        s,
-    )
-    return new if new == s else _resolve_vars(new, varmap, depth + 1)
-
-
-def extract_sdk_packages(logical: list) -> list:
-    """Vendor SDK package files actually downloaded from the file store.
-
-    Captures the token after `${FILE_STORE}/` (the real package), resolving
-    ARG/ENV vars, `for X in ${LIST}` loops, and `fn="...${X}..."` constructions.
-    Avoids `curl -o <localname>` targets and unused/stray ARG declarations.
-    """
-    # ARG/ENV variable values (values may reference other vars).
-    varmap = {}
-    for ll in logical:
-        m = re.match(r"\s*(?:ARG|ENV)\s+(.*)", ll)
-        if not m:
-            continue
-        for km, qv, uv in re.findall(r'(\w+)=(?:"([^"]*)"|(\S+))', m.group(1)):
-            varmap[km] = qv or uv
-    for k in list(varmap):
-        varmap[k] = _resolve_vars(varmap[k], varmap)
-
-    # `for X in ${LIST}` → X ranges over the (space-split) resolved list.
-    loopvars = {}
-    for ll in logical:
-        for lm in re.finditer(r"for\s+(\w+)\s+in\s+\$\{(\w+)\}", ll):
-            loopvars[lm.group(1)] = _resolve_vars(
-                "${" + lm.group(2) + "}", varmap
-            ).split()
-
-    # `fn="...${X}..."` filename constructions.
-    fnvars = {}
-    for ll in logical:
-        for fm in re.finditer(r'(\w+)="([^"]*\$\{?\w+\}?[^"]*)"', ll):
-            fnvars.setdefault(fm.group(1), fm.group(2))
-
-    def expand(base: str) -> list:
-        m = re.fullmatch(r"\$\{?(\w+)\}?", base)
-        if not m:
-            return [base]
-        name = m.group(1)
-        if name in loopvars:
-            return list(loopvars[name])
-        if name in fnvars:
-            tmpl = fnvars[name]
-            for lv, vals in loopvars.items():
-                if re.search(r"\$\{?" + lv + r"\}?", tmpl):
-                    return [re.sub(r"\$\{?" + lv + r"\}?", v, tmpl) for v in vals]
-            return [tmpl]
-        return [varmap.get(name, base)]
-
-    found = []
-    for ll in logical:
-        for fm in re.finditer(r"\$\{FILE_?STORE\}/(\S+)", ll):
-            raw = fm.group(1).strip("\"';\\")
-            base = raw.split("/")[-1]
-            for cand in expand(base):
-                c = _resolve_vars(cand, varmap)
-                if "$" not in c and PKG_RE.search(c):
-                    found.append(c)
-    return _dedup(found)
-
-
 def parse_containerfile(path: Path) -> dict:
     """Summarize a base containerfile: base OS, OCI labels, and installed
-    system (apt) + vendor SDK packages — so docs readers needn't open it."""
+    system (apt) packages — so docs readers needn't open it."""
     # Join line-continuations into logical lines.
     logical, buf = [], ""
     for line in path.read_text().splitlines():
@@ -156,7 +82,6 @@ def parse_containerfile(path: Path) -> dict:
         "base_os": base_os,
         "labels": labels,
         "system_packages": _dedup(system_packages),
-        "sdk_packages": extract_sdk_packages(logical),
     }
 
 
@@ -218,7 +143,6 @@ def main():
             version = meta["labels"].get("version", "latest")
             revision = meta["labels"].get("revision", "0")
             env = spec.get("env") or {}
-            bsdk = spec.get("sdk") or {}  # per-backend package descriptions
 
             backends.append(
                 {
@@ -231,10 +155,7 @@ def main():
                         "image": image(base_prefix, "base", name, f"{version}-{revision}"),
                         "os": meta["base_os"] or "",
                         "system_packages": meta["system_packages"],
-                        "sdk_packages": [
-                            {"file": p, "desc": bsdk.get(p, "")}
-                            for p in meta["sdk_packages"]
-                        ],
+                        "sdk": spec.get("sdk") or [],
                         "env": env.get("base") or {},
                     },
                     "runtime": {

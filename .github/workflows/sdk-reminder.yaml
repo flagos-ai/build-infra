@@ -1,0 +1,34 @@
+name: SDK section reminder
+
+# When a PR changes a base containerfile, leave a one-time comment reminding
+# the maintainer to update that backend's `sdk:` list in configs.yaml if the
+# installed SDK packages changed. The decision is left to a human — no automated
+# package tracking.
+
+on:
+  pull_request:
+    paths:
+      - 'base/**'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- sdk-reminder -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments(
+              { owner, repo, issue_number });
+            if (comments.some(c => c.body.includes(marker))) return;
+            const body = marker + '\n'
+              + 'This PR changes a base containerfile. If its installed SDK '
+              + 'packages changed, remember to update that backend\'s `sdk:` '
+              + 'list in `configs.yaml`.';
+            await github.rest.issues.createComment(
+              { owner, repo, issue_number, body });

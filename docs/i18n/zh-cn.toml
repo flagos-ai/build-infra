@@ -59,9 +59,3 @@ other = "English"
 
 [name_zh]
 other = "中文"
-
-[package]
-other = "软件包"
-
-[description]
-other = "描述"
