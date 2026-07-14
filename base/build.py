@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Build FlagOS base container images.
 
-Reads the version and revision from LABEL directives in the containerfile,
-then invokes `docker build` with the derived image tag.
+The image version comes from the build-infra Git tag (`git describe --tags`) —
+there is no version stored in the containerfiles. A tagged release commit builds
+a clean version (`2.1.0`); commits after a tag build `2.1.0-<n>-g<sha>`, which
+is self-evidently a dev build. The version, source commit, and build time are
+stamped onto the image as OCI labels.
 
 Image tag convention:
-    flagos-base-{name}:{version}-{revision}
+    flagos-base-{name}:{version}       (version = git describe, "v" stripped)
 
 Usage:
     python base/build.py <name> [options]
@@ -17,7 +20,6 @@ Examples:
 """
 
 import argparse
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +33,36 @@ def find_repo_root() -> Path:
     if (d / "base").is_dir():
         return d
     sys.exit("Error: cannot locate repository root (base/ not found)")
+
+
+def git(repo_root: Path, *args: str) -> str | None:
+    """Run a git command in repo_root; return stripped stdout or None."""
+    try:
+        r = subprocess.run(
+            ["git", *args], cwd=repo_root, capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def git_version(repo_root: Path) -> str:
+    """Release version from the build-infra Git tag via `git describe --tags`.
+
+    "v2.1.0" -> "2.1.0"; "v2.1.0-3-gabc123" -> "2.1.0-3-gabc123". Both are valid
+    Docker tag strings. Falls back to "0.0.0" with a warning when no tag is
+    reachable (e.g. a shallow CI checkout without tags — use fetch-depth: 0).
+    """
+    desc = git(repo_root, "describe", "--tags", "--always")
+    if not desc:
+        print(
+            "warning: no git tag reachable (shallow checkout?) — version=0.0.0",
+            file=sys.stderr,
+        )
+        return "0.0.0"
+    if desc and desc[0] == "v" and desc[1:2].isdigit():
+        desc = desc[1:]
+    return desc
 
 
 def default_registry(repo_root: Path) -> str | None:
@@ -55,19 +87,6 @@ def default_registry(repo_root: Path) -> str | None:
     if host and prefix:
         return f"{host}/{prefix}"
     return host or None
-
-
-def parse_labels(containerfile: Path) -> dict[str, str]:
-    """Extract OCI LABEL values from a containerfile."""
-    labels = {}
-    with open(containerfile) as f:
-        for line in f:
-            m = re.match(
-                r'LABEL\s+org\.opencontainers\.image\.(\w+)\s*=\s*"([^"]*)"', line
-            )
-            if m:
-                labels[m.group(1)] = m.group(2)
-    return labels
 
 
 def main():
@@ -102,38 +121,40 @@ def main():
             f"Available: {', '.join(available)}"
         )
 
-    labels = parse_labels(containerfile)
-    version = labels.get("version")
-    revision = labels.get("revision")
-
-    if not version:
-        sys.exit(
-            f"Error: no LABEL org.opencontainers.image.version found in {containerfile}"
-        )
-    if revision is None:
-        sys.exit(
-            f"Error: no LABEL org.opencontainers.image.revision found in {containerfile}"
-        )
+    version = git_version(repo_root)
+    commit = git(repo_root, "rev-parse", "HEAD") or ""
+    created = git(repo_root, "show", "-s", "--format=%cI", "HEAD") or ""
 
     image_name = f"{IMAGE_PREFIX}-{args.name}"
-    image_tag = f"{version}-{revision}"
 
     registry = args.registry or default_registry(repo_root)
     if args.tag:
         tag = args.tag
     elif registry:
-        tag = f"{registry}/{image_name}:{image_tag}"
+        tag = f"{registry}/{image_name}:{version}"
     else:
-        tag = f"{image_name}:{image_tag}"
+        tag = f"{image_name}:{version}"
 
-    cmd = ["docker", "build", "-f", str(containerfile), "-t", tag, str(repo_root)]
+    # OCI provenance stamped onto the built image (git is the source of truth).
+    labels = {
+        "org.opencontainers.image.version": version,
+        "org.opencontainers.image.revision": commit,
+        "org.opencontainers.image.created": created,
+        "org.opencontainers.image.source": "https://github.com/flagos-ai/build-infra",
+    }
+
+    cmd = ["docker", "build", "-f", str(containerfile)]
+    for k, v in labels.items():
+        if v:
+            cmd += ["--label", f"{k}={v}"]
+    cmd += ["-t", tag, str(repo_root)]
 
     if args.dry_run:
         print("Would run:")
         print("  " + " \\\n    ".join(cmd))
         print()
         print(f"Image tag: {tag}")
-        print(f"  version={version}, revision={revision}")
+        print(f"  version={version}, revision={commit[:12]}")
         return
 
     print(f"Building {tag}...")

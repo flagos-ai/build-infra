@@ -16,6 +16,7 @@ section (the software stack from configs.yaml).
 """
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +28,28 @@ def find_repo_root() -> Path:
     if (d / "base").is_dir() and (d / "configs.yaml").is_file():
         return d
     sys.exit("Error: cannot locate repository root (base/ + configs.yaml)")
+
+
+def git_version(repo_root: Path) -> str:
+    """Release version from the build-infra Git tag (`git describe --tags`).
+
+    Matches base/build.py: "v2.1.0" -> "2.1.0", commits after -> "2.1.0-3-gsha".
+    Falls back to "latest" when no tag is reachable (e.g. a shallow checkout —
+    the docs workflow uses fetch-depth: 0).
+    """
+    try:
+        r = subprocess.run(
+            ["git", "describe", "--tags", "--always"],
+            cwd=repo_root, capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        return "latest"
+    desc = r.stdout.strip() if r.returncode == 0 else ""
+    if not desc:
+        return "latest"
+    if desc[0] == "v" and desc[1:2].isdigit():
+        desc = desc[1:]
+    return desc
 
 
 def load_yaml(path: Path) -> dict:
@@ -159,6 +182,7 @@ def main():
     configs = load_yaml(repo_root / "configs.yaml")
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
 
+    version = git_version(repo_root)  # release version, all base images share it
     base_prefix = prefix_for(build_config, "base")
     runtime_prefix = prefix_for(build_config, "runtime")
     run_cfg = build_config.get("run") or {}
@@ -178,8 +202,6 @@ def main():
             if not cf.is_file():
                 continue  # not buildable — no base image
             meta = parse_containerfile(cf, {"PYTHON_VERSION": spec.get("python", "")})
-            version = meta["labels"].get("version", "latest")
-            revision = meta["labels"].get("revision", "0")
             env = spec.get("env") or {}
 
             backends.append(
@@ -189,7 +211,7 @@ def main():
                     "backend": backend,
                     "run": run_vendors.get(vendor, run_default),
                     "base": {
-                        "image": image(base_prefix, "base", name, f"{version}-{revision}"),
+                        "image": image(base_prefix, "base", name, version),
                         "os": meta["base_os"] or "",
                         "system_packages": meta["system_packages"],
                         "sdk": spec.get("sdk") or [],

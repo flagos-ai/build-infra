@@ -6,8 +6,6 @@
 
 FROM ubuntu:24.04
 
-LABEL org.opencontainers.image.version="2.1.0"
-LABEL org.opencontainers.image.revision="0"
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────

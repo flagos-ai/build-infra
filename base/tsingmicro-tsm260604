@@ -6,9 +6,7 @@
 
 FROM ubuntu:22.04
 
-LABEL org.opencontainers.image.version="2.1.0"
 LABEL org.opencontainers.image.authors="FlagOS contributors"
-LABEL org.opencontainers.image.revision="1"
 
 ARG PYTHON_VERSION=3.10
 ARG SDK_RELEASE=260604163331
