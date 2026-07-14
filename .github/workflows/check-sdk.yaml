@@ -1,0 +1,23 @@
+name: SDK dict check
+
+# When a base containerfile changes, verify each backend's `sdk:` map in
+# configs.yaml still covers every SDK package it installs (so package
+# descriptions don't silently go missing).
+
+on:
+  pull_request:
+    paths:
+      - 'base/**'
+      - 'configs.yaml'
+      - 'docs/gen_data.py'
+      - 'docs/check_sdk.py'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+      - name: Check sdk: maps cover all base-image packages
+        run: python3 docs/check_sdk.py

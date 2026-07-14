@@ -12,11 +12,14 @@
 
 {{- with $b.sdk_packages }}
 <h4>{{ T "sdk_packages" }}</h4>
-<ul>
+<table>
+<thead><tr><th>{{ T "package" }}</th><th>{{ T "description" }}</th></tr></thead>
+<tbody>
 {{- range . }}
-  <li><code class="plain">{{ . }}</code></li>
+  <tr><td><code class="plain">{{ .file }}</code></td><td>{{ .desc }}</td></tr>
 {{- end }}
-</ul>
+</tbody>
+</table>
 {{- end }}
 
 {{- with $b.system_packages }}
