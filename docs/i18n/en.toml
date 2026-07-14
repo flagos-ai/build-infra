@@ -7,41 +7,41 @@ other = "Vendor"
 [backend]
 other = "Backend"
 
+[code]
+other = "Code"
+
+[name_en]
+other = "English"
+
+[name_zh]
+other = "中文"
+
 [image]
 other = "Image"
 
 [base_os]
 other = "Base OS"
 
-[sdk_version]
-other = "SDK version"
-
-[sdk_packages]
-other = "SDK packages"
+[contents]
+other = "Contents"
 
 [system_packages]
 other = "System packages"
 
+[sdk_packages]
+other = "SDK packages"
+
 [python]
 other = "Python"
 
-[stack]
-other = "Software stack"
+[major_packages]
+other = "Major Python packages"
 
-[contents]
-other = "Contents"
+[triton_fallback_note]
+other = "Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable)."
 
 [environment]
 other = "Environment"
-
-[env_var]
-other = "Variable"
-
-[env_value]
-other = "Value"
-
-[dependency]
-other = "Dependencies"
 
 [run]
 other = "Run"
@@ -51,12 +51,3 @@ other = "Device flags for this vendor aren't finalized yet — this generic comm
 
 [runtime_tag_note]
 other = "tag scheme being finalized"
-
-[code]
-other = "Code"
-
-[name_en]
-other = "English"
-
-[name_zh]
-other = "中文"

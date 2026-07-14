@@ -11,3 +11,10 @@ code.plain {
   padding: 0;
   color: inherit;
 }
+
+// Muted / de-emphasised entries, e.g. the fallback triton compiler in the
+// runtime package list when a flagtree is used by default.
+.muted,
+.muted code.plain {
+  opacity: 0.5;
+}
