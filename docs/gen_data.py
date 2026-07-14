@@ -202,10 +202,6 @@ def main():
     run_default = run_cfg.get("default", "")
     run_vendors = run_cfg.get("vendors") or {}
 
-    # Hand-filled, frozen package descriptions (docs/data/sdk.yaml).
-    sdk_path = repo_root / "docs" / "data" / "sdk.yaml"
-    sdk_desc = (load_yaml(sdk_path).get("packages") or {}) if sdk_path.exists() else {}
-
     def image(prefix, kind, name, tag):
         base = f"flagos-{kind}-{name}"
         base = f"{prefix}/{base}" if prefix else base
@@ -222,6 +218,7 @@ def main():
             version = meta["labels"].get("version", "latest")
             revision = meta["labels"].get("revision", "0")
             env = spec.get("env") or {}
+            bsdk = spec.get("sdk") or {}  # per-backend package descriptions
 
             backends.append(
                 {
@@ -235,7 +232,7 @@ def main():
                         "os": meta["base_os"] or "",
                         "system_packages": meta["system_packages"],
                         "sdk_packages": [
-                            {"file": p, "desc": sdk_desc.get(p, "")}
+                            {"file": p, "desc": bsdk.get(p, "")}
                             for p in meta["sdk_packages"]
                         ],
                         "env": env.get("base") or {},
