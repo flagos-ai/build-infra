@@ -10,6 +10,15 @@
   <li><strong>{{ T "sdk_version" }}:</strong> <code class="plain">{{ .sdk_version }}</code></li>
 </ul>
 
+{{- with $b.system_packages }}
+<h4>{{ T "system_packages" }}</h4>
+<ul>
+{{- range sort . }}
+  <li><code class="plain">{{ . }}</code></li>
+{{- end }}
+</ul>
+{{- end }}
+
 {{- with $b.sdk }}
 <h4>{{ T "sdk_packages" }}</h4>
 <ul>
@@ -17,11 +26,6 @@
   <li>{{ . }}</li>
 {{- end }}
 </ul>
-{{- end }}
-
-{{- with $b.system_packages }}
-<h4>{{ T "system_packages" }}</h4>
-<p>{{ range $i, $p := . }}{{ if $i }}, {{ end }}<code class="plain">{{ $p }}</code>{{ end }}</p>
 {{- end }}
 
 {{- with $b.env }}
