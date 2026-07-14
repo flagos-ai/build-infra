@@ -1,0 +1,76 @@
+name: FlagGems daily wheel
+
+# Build the pure-Python flag_gems wheel from FlagGems source and (optionally)
+# upload it to the internal PyPI. The wheel is versioned by FlagGems'
+# setuptools_scm (git tags): a dev build looks like 5.4.0.dev580+gb89e0aeb8.
+#
+# NOTE: FLAGGEMS_REF defaults to the under-review wheel-packaging-split branch,
+# which carries the pure-Python setuptools packaging. Change the default to the
+# FlagGems default branch once that branch merges.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flaggems_ref:
+        description: 'FlagGems git ref to build'
+        type: string
+        default: wheel-packaging-split
+      upload:
+        description: 'upload the wheel to the internal PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI-hosted repo to upload to'
+        type: string
+        default: flagos-pypi-daily
+  schedule:
+    # Daily at 01:17 UTC. Builds + uploads (see the guard in the upload step).
+    - cron: '17 1 * * *'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FLAGGEMS_REPO: https://github.com/flagos-ai/FlagGems.git
+      FLAGGEMS_REF: ${{ inputs.flaggems_ref || 'wheel-packaging-split' }}
+      PYPI_REPO: ${{ inputs.pypi_repo || 'flagos-pypi-daily' }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the wheel
+        run: OUTDIR="${GITHUB_WORKSPACE}/wheels" bash flaggems-builder/build.sh
+
+      - name: Upload wheel as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flag_gems-wheel
+          path: wheels/*.whl
+
+      # Upload to the internal PyPI on the schedule, or when manually requested.
+      # Manual dispatch defaults upload=false so building from a branch is safe.
+      - name: Upload to internal PyPI
+        if: ${{ github.event_name == 'schedule' || inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          python3 -m pip install --quiet twine
+          python3 -m twine upload \
+            --repository-url "https://resource.flagos.net/repository/${PYPI_REPO}/" \
+            -u "${NEXUS_TOKEN%%:*}" -p "${NEXUS_TOKEN#*:}" \
+            --non-interactive \
+            wheels/*.whl
