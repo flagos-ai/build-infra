@@ -44,7 +44,21 @@ def _dedup(seq):
     return out
 
 
-def parse_containerfile(path: Path) -> dict:
+def _resolve(tok: str, varmap: dict) -> str:
+    """Substitute ${VAR}/$VAR from varmap, iteratively (handles nesting)."""
+    for _ in range(6):
+        new = re.sub(
+            r"\$\{(\w+)\}|\$(\w+)",
+            lambda m: varmap.get(m.group(1) or m.group(2), m.group(0)),
+            tok,
+        )
+        if new == tok:
+            break
+        tok = new
+    return tok
+
+
+def parse_containerfile(path: Path, extra_vars: dict | None = None) -> dict:
     """Summarize a base containerfile: base OS, OCI labels, and installed
     system (apt) packages — so docs readers needn't open it."""
     # Join line-continuations into logical lines.
@@ -59,9 +73,22 @@ def parse_containerfile(path: Path) -> dict:
     if buf:
         logical.append(buf)
 
+    # Variable values: extra_vars (e.g. PYTHON_VERSION from configs) win, then
+    # ARG/ENV defaults from the containerfile.
+    varmap = dict(extra_vars or {})
+    for ll in logical:
+        m = re.match(r"\s*(?:ARG|ENV)\s+(.*)", ll)
+        if m:
+            for k, qv, uv in re.findall(r'(\w+)=(?:"([^"]*)"|(\S+))', m.group(1)):
+                varmap.setdefault(k, qv or uv)
+    for k in list(varmap):
+        varmap[k] = _resolve(varmap[k], varmap)
+
     base_os, labels, system_packages = None, {}, []
     for ll in logical:
         st = ll.strip()
+        if st.startswith("#"):
+            continue  # commented-out line — not actually installed
         m = re.match(r"FROM\s+(\S+)", st)
         if m and base_os is None:
             base_os = m.group(1)
@@ -69,14 +96,15 @@ def parse_containerfile(path: Path) -> dict:
             r'LABEL\s+org\.opencontainers\.image\.(\w+)\s*=\s*"([^"]*)"', ll
         ):
             labels[lm.group(1)] = lm.group(2)
-        # apt packages
+        # apt packages: take valid package tokens only (skip flags, redirects,
+        # operators, comments), with ${VAR} resolved.
         am = re.search(r"apt-get\s+install\s+(.*)", st)
         if am:
             frag = re.split(r"&&|\|\||;", am.group(1))[0]
             for tok in frag.split():
-                if tok.startswith("-") or tok in ("apt-get", "install"):
-                    continue
-                system_packages.append(tok)
+                tok = _resolve(tok, varmap)
+                if re.fullmatch(r"[a-z0-9][a-z0-9+.:-]*", tok):
+                    system_packages.append(tok)
 
     return {
         "base_os": base_os,
@@ -101,19 +129,29 @@ def pick(deps, name):
     return ""
 
 
-def software_stack(spec: dict) -> list:
-    """The runtime software stack: torch + compiler + FlagGems."""
-    deps = spec.get("deps") or []
-    stack = []
-    torch = pick(deps, "torch==")
-    if torch:
-        stack.append(torch)
-    if spec.get("triton"):
-        stack.append(spec["triton"])
-    if spec.get("flagtree"):
-        stack.append(spec["flagtree"])
-    stack.append("flag_gems")  # installed at runtime; version not pinned in configs
-    return stack
+def runtime_packages(spec: dict) -> list:
+    """Merged, sorted 'Major Python packages' list for the runtime image:
+    deps + the compiler (flagtree and/or triton) + FlagGems.
+
+    triton and its triton_post_install (e.g. triton_ascend) are one compiler
+    entry. When a usable flagtree is present, the triton entry is `muted`
+    (flagtree is the default; triton is the fallback).
+    """
+    items = [{"pkg": d, "muted": False} for d in (spec.get("deps") or [])]
+
+    flagtree = spec.get("flagtree")
+    if flagtree:
+        items.append({"pkg": flagtree, "muted": False})
+
+    triton = spec.get("triton")
+    if triton:
+        post = spec.get("triton_post_install") or []
+        label = f"{triton} (+ {', '.join(post)})" if post else triton
+        items.append({"pkg": label, "muted": bool(flagtree)})
+
+    items.append({"pkg": "flag_gems", "muted": False})
+    items.sort(key=lambda x: x["pkg"].lower())
+    return items
 
 
 def main():
@@ -139,7 +177,7 @@ def main():
             cf = repo_root / "base" / name
             if not cf.is_file():
                 continue  # not buildable — no base image
-            meta = parse_containerfile(cf)
+            meta = parse_containerfile(cf, {"PYTHON_VERSION": spec.get("python", "")})
             version = meta["labels"].get("version", "latest")
             revision = meta["labels"].get("revision", "0")
             env = spec.get("env") or {}
@@ -149,7 +187,6 @@ def main():
                     "name": name,
                     "vendor": vendor,
                     "backend": backend,
-                    "sdk_version": backend,
                     "run": run_vendors.get(vendor, run_default),
                     "base": {
                         "image": image(base_prefix, "base", name, f"{version}-{revision}"),
@@ -161,8 +198,7 @@ def main():
                     "runtime": {
                         "image": image(runtime_prefix, "runtime", name, "latest"),
                         "python": spec.get("python", ""),
-                        "stack": software_stack(spec),
-                        "deps": spec.get("deps") or [],
+                        "packages": runtime_packages(spec),
                         "env": env.get("runtime") or {},
                     },
                 }
