@@ -30,6 +30,7 @@
 
 <h3>{{ T "run" }}</h3>
 <pre><code>docker run --rm -it {{ with .run }}{{ . }} {{ end }}{{ $r.image }} bash</code></pre>
+<p><em>{{ T "run_prereq" }}</em></p>
 {{- if not .run }}
 <p><em>{{ T "run_todo" }}</em></p>
 {{- end }}

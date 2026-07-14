@@ -43,6 +43,9 @@ other = "Greyed = fallback compiler (flagtree is the default; triton is used onl
 [environment]
 other = "Environment"
 
+[run_prereq]
+other = "Requires the vendor driver and container runtime/toolkit installed on the host (e.g. nvidia-container-toolkit for NVIDIA; ix-container-toolkit >= 1.1.0 for Iluvatar)."
+
 [run]
 other = "Run"
 

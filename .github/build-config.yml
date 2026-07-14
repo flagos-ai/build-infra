@@ -72,7 +72,8 @@ run:
     enflame: "--device /dev/gcu"
     # DOC: MThreads uses its container runtime + env var; tool is mthreads-gmi
     mthreads: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
-    # DOC: Iluvatar uses its container runtime + env var; tool is ixsmi
+    # VERIFIED: Iluvatar container runtime + env var; tool is ixsmi.
+    # Host prerequisite: ix-container-toolkit >= 1.1.0.
     iluvatar: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
     # DOC: Tsingmicro TX8 — vendor docs only show a permissive privileged launch;
     # a tighter set of device nodes is TBD (verify on hardware)
