@@ -9,7 +9,7 @@ vendors:
   cambricon:  { en: Cambricon,       zh: 寒武纪 }
   enflame:    { en: Enflame,         zh: 燧原 }
   hygon:      { en: Hygon,           zh: 海光 }
-  iluvatar:   { en: Iluvatar CoreX,  zh: 天数智芯 }
+  iluvatar:   { en: Iluvatar,        zh: 天数智芯 }
   kunlunxin:  { en: Kunlunxin,       zh: 昆仑芯 }
   metax:      { en: MetaX,           zh: 沐曦 }
   mthreads:   { en: Moore Threads,   zh: 摩尔线程 }
