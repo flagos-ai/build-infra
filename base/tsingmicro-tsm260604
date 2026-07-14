@@ -41,10 +41,10 @@ RUN set -eux ; \
   done
 
 # ── TsingMicro Compiler depdendencies ─────────────────────────────
-RUN curl -o /tmp/tx8.tar.gz ${FILESTORE}/tx8_depends_dev_20260507_104051.tar.gz \
+RUN curl -o /tmp/tx8.tar.gz ${FILE_STORE}/tx8_depends_dev_20260507_104051.tar.gz \
     && tar xf /tmp/tx8.tar.gz -C /usr/local \
     && rm /tmp/tx8.tar.gz
-RUN curl -o /tmp/llvm.tar.gz ${FILESTORE}/llvm-a66376b0-ubuntu-x64.tgz \
+RUN curl -o /tmp/llvm.tar.gz ${FILE_STORE}/llvm-a66376b0-ubuntu-x64.tgz \
     && tar xf /tmp/llvm.tar.gz -C /usr/local \
     && rm /tmp/llvm.tar.gz
  
