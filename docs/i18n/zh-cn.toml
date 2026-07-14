@@ -16,10 +16,10 @@ other = "基础系统"
 other = "SDK 版本"
 
 [sdk_packages]
-other = "SDK 包"
+other = "SDK 软件包"
 
 [system_packages]
-other = "系统包"
+other = "系统软件包"
 
 [python]
 other = "Python"
