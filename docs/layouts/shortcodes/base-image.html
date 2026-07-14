@@ -10,16 +10,13 @@
   <li><strong>{{ T "sdk_version" }}:</strong> <code class="plain">{{ .sdk_version }}</code></li>
 </ul>
 
-{{- with $b.sdk_packages }}
+{{- with $b.sdk }}
 <h4>{{ T "sdk_packages" }}</h4>
-<table>
-<thead><tr><th>{{ T "package" }}</th><th>{{ T "description" }}</th></tr></thead>
-<tbody>
+<ul>
 {{- range . }}
-  <tr><td><code class="plain">{{ .file }}</code></td><td>{{ .desc }}</td></tr>
+  <li>{{ . }}</li>
 {{- end }}
-</tbody>
-</table>
+</ul>
 {{- end }}
 
 {{- with $b.system_packages }}

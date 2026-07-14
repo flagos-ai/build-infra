@@ -60,9 +60,3 @@ other = "English"
 
 [name_zh]
 other = "中文"
-
-[package]
-other = "Package"
-
-[description]
-other = "Description"
