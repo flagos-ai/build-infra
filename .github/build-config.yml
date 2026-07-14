@@ -70,7 +70,8 @@ run:
     kunlunxin: "--device /dev/xpu0 --device /dev/xpuctrl"
     # DOC: Enflame GCU device node; efsmi ships in the runtime stack
     enflame: "--device /dev/gcu"
-    # DOC: MThreads uses its container runtime + env var; tool is mthreads-gmi
+    # DOC: MThreads uses its container runtime + env var; tool is mthreads-gmi.
+    # Host prerequisite: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0.
     mthreads: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
     # VERIFIED: Iluvatar container runtime + env var; tool is ixsmi.
     # Host prerequisite: ix-container-toolkit >= 1.1.0.
