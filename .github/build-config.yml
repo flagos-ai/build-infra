@@ -36,18 +36,47 @@ runners:
 #
 # TODO: confirm the exact device flags for each vendor. Only nvidia is filled in;
 # the rest are placeholders — replace the TODO strings with the real flags.
+# `docker run` flags needed to expose each vendor's accelerator to a container.
+# Used by the docs to render a concrete run command per image, and to launch a
+# base image for verification (e.g. `docker run <run> <image> <smi-tool>`).
+#
+# GOAL: the *minimal* flags per vendor — avoid the broad hammer
+# (`--privileged --cap-add=ALL -v /dev:/dev -v /lib/modules:/lib/modules
+# --pid=host --network host`), which works but is over-permissive.
+#
+# STATUS: VERIFIED = tried on real hardware here; DOC = from vendor/community
+# docs, confirm on hardware once the images exist. A vendor's smi tool needs a
+# host bind-mount ONLY when it's host-provided (from the driver, e.g. ascend
+# npu-smi); when it's baked into the base image (kunlunxin xpu-smi, metax
+# mx-smi) no mount is needed. Vendors with a container runtime (iluvatar,
+# mthreads) use that runtime + an env var, not raw --device flags (like NVIDIA).
 run:
   default: ""
   vendors:
+    # VERIFIED: nvidia-container-runtime exposes GPUs + driver + nvidia-smi
     nvidia: "--gpus all"
-    ascend: ""        # TODO: e.g. --device /dev/davinci0 --device /dev/davinci_manager ...
-    cambricon: ""     # TODO
-    enflame: ""       # TODO
-    hygon: ""         # TODO
-    iluvatar: ""      # TODO
-    kunlunxin: ""     # TODO
-    metax: ""         # TODO
-    mthreads: ""      # TODO
-    sunrise: ""       # TODO
-    tsingmicro: ""    # TODO
+    # VERIFIED on metax124 (8x C550): /dev/mxcd + /dev/dri, mx-smi baked in (umd)
+    metax: "--device /dev/mxcd --device /dev/dri --group-add video"
+    # DOC: Ascend passthrough; npu-smi + driver are host-provided → bind-mount
+    ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi"
+    # DOC + maintainer: hygon DCU is ROCm/HIP-based → kfd + dri; also needs the
+    # host /opt/hyhal mounted (maintainer-confirmed; exact purpose TBD)
+    hygon: "--device /dev/kfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
+    # DOC: Cambricon MLU device + control node; cnmon is host-provided → mount
+    cambricon: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl -v /usr/bin/cnmon:/usr/bin/cnmon"
+    # DOC + maintainer: Kunlunxin XPU device + control node; xpu-smi is baked in
+    # the base image (no mount needed). NOTE: vendor docs claim --privileged is
+    # also required to enumerate devices — verify whether --device alone suffices.
+    kunlunxin: "--device /dev/xpu0 --device /dev/xpuctrl"
+    # DOC: Enflame GCU device node; efsmi ships in the runtime stack
+    enflame: "--device /dev/gcu"
+    # DOC: MThreads uses its container runtime + env var; tool is mthreads-gmi
+    mthreads: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
+    # DOC: Iluvatar uses its container runtime + env var; tool is ixsmi
+    iluvatar: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
+    # DOC: Tsingmicro TX8 — vendor docs only show a permissive privileged launch;
+    # a tighter set of device nodes is TBD (verify on hardware)
+    tsingmicro: "--privileged --ipc=host -v /dev:/dev -v /lib/modules:/lib/modules"
+    # sunrise PTPU: device node unknown — no public docs found
+    sunrise: ""       # TODO: confirm device node / launch method on hardware
 

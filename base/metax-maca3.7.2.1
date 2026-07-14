@@ -26,10 +26,15 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install MetaX SDK
+# Install the MetaX driver in UMD (userspace) mode: this installs the userspace
+# package (mxsmt, which provides `mx-smi`) WITHOUT building the kernel module.
+# The kernel driver belongs on the host (like NVIDIA), so the base image only
+# needs userspace + the mx-smi verify tool. `--mode=umd` lets the image build
+# headless (no device, no DKMS); full mode tries to DKMS-build metax-linux and
+# fails in a container.
 RUN curl -fsSL -o /metax-driver.run ${FILE_STORE}/${DRIVER_PACKAGE} \
     && chmod +x /metax-driver.run \
-    && ./metax-driver.run -- -f \
+    && ./metax-driver.run -- --mode=umd -f \
     && rm -f /metax-driver.run
 
 # Install MetaX SDK
