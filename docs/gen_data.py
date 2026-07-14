@@ -44,6 +44,80 @@ def _dedup(seq):
     return out
 
 
+PKG_RE = re.compile(r"\.(?:run|deb|tar\.gz|tar\.xz|tgz|zip|whl)$")
+
+
+def _resolve_vars(s: str, varmap: dict, depth: int = 0) -> str:
+    """Substitute ${VAR}/$VAR from varmap, iteratively (handles nesting)."""
+    if depth > 10 or "$" not in s:
+        return s
+    new = re.sub(
+        r"\$\{(\w+)\}|\$(\w+)",
+        lambda m: varmap.get(m.group(1) or m.group(2), m.group(0)),
+        s,
+    )
+    return new if new == s else _resolve_vars(new, varmap, depth + 1)
+
+
+def extract_sdk_packages(logical: list) -> list:
+    """Vendor SDK package files actually downloaded from the file store.
+
+    Captures the token after `${FILE_STORE}/` (the real package), resolving
+    ARG/ENV vars, `for X in ${LIST}` loops, and `fn="...${X}..."` constructions.
+    Avoids `curl -o <localname>` targets and unused/stray ARG declarations.
+    """
+    # ARG/ENV variable values (values may reference other vars).
+    varmap = {}
+    for ll in logical:
+        m = re.match(r"\s*(?:ARG|ENV)\s+(.*)", ll)
+        if not m:
+            continue
+        for km, qv, uv in re.findall(r'(\w+)=(?:"([^"]*)"|(\S+))', m.group(1)):
+            varmap[km] = qv or uv
+    for k in list(varmap):
+        varmap[k] = _resolve_vars(varmap[k], varmap)
+
+    # `for X in ${LIST}` → X ranges over the (space-split) resolved list.
+    loopvars = {}
+    for ll in logical:
+        for lm in re.finditer(r"for\s+(\w+)\s+in\s+\$\{(\w+)\}", ll):
+            loopvars[lm.group(1)] = _resolve_vars(
+                "${" + lm.group(2) + "}", varmap
+            ).split()
+
+    # `fn="...${X}..."` filename constructions.
+    fnvars = {}
+    for ll in logical:
+        for fm in re.finditer(r'(\w+)="([^"]*\$\{?\w+\}?[^"]*)"', ll):
+            fnvars.setdefault(fm.group(1), fm.group(2))
+
+    def expand(base: str) -> list:
+        m = re.fullmatch(r"\$\{?(\w+)\}?", base)
+        if not m:
+            return [base]
+        name = m.group(1)
+        if name in loopvars:
+            return list(loopvars[name])
+        if name in fnvars:
+            tmpl = fnvars[name]
+            for lv, vals in loopvars.items():
+                if re.search(r"\$\{?" + lv + r"\}?", tmpl):
+                    return [re.sub(r"\$\{?" + lv + r"\}?", v, tmpl) for v in vals]
+            return [tmpl]
+        return [varmap.get(name, base)]
+
+    found = []
+    for ll in logical:
+        for fm in re.finditer(r"\$\{FILE_?STORE\}/(\S+)", ll):
+            raw = fm.group(1).strip("\"';\\")
+            base = raw.split("/")[-1]
+            for cand in expand(base):
+                c = _resolve_vars(cand, varmap)
+                if "$" not in c and PKG_RE.search(c):
+                    found.append(c)
+    return _dedup(found)
+
+
 def parse_containerfile(path: Path) -> dict:
     """Summarize a base containerfile: base OS, OCI labels, and installed
     system (apt) + vendor SDK packages — so docs readers needn't open it."""
@@ -59,7 +133,7 @@ def parse_containerfile(path: Path) -> dict:
     if buf:
         logical.append(buf)
 
-    base_os, labels, system_packages, sdk_packages = None, {}, [], []
+    base_os, labels, system_packages = None, {}, []
     for ll in logical:
         st = ll.strip()
         m = re.match(r"FROM\s+(\S+)", st)
@@ -77,20 +151,14 @@ def parse_containerfile(path: Path) -> dict:
                 if tok.startswith("-") or tok in ("apt-get", "install"):
                     continue
                 system_packages.append(tok)
-        # SDK package filenames from ENV *_PACKAGE / *_PKG / PKGS
-        if st.startswith("ENV "):
-            for km, vm in re.findall(r'([A-Z0-9_]+)=("[^"]*"|\S+)', st[4:]):
-                if km.endswith(("_PACKAGE", "_PKG")) or km == "PKGS":
-                    for v in vm.strip('"').split():
-                        if v:
-                            sdk_packages.append(v)
 
     return {
         "base_os": base_os,
         "labels": labels,
         "system_packages": _dedup(system_packages),
-        "sdk_packages": _dedup(sdk_packages),
+        "sdk_packages": extract_sdk_packages(logical),
     }
+
 
 
 def prefix_for(config: dict, layer: str) -> str:
@@ -134,6 +202,10 @@ def main():
     run_default = run_cfg.get("default", "")
     run_vendors = run_cfg.get("vendors") or {}
 
+    # Hand-filled, frozen package descriptions (docs/data/sdk.yaml).
+    sdk_path = repo_root / "docs" / "data" / "sdk.yaml"
+    sdk_desc = (load_yaml(sdk_path).get("packages") or {}) if sdk_path.exists() else {}
+
     def image(prefix, kind, name, tag):
         base = f"flagos-{kind}-{name}"
         base = f"{prefix}/{base}" if prefix else base
@@ -162,7 +234,10 @@ def main():
                         "image": image(base_prefix, "base", name, f"{version}-{revision}"),
                         "os": meta["base_os"] or "",
                         "system_packages": meta["system_packages"],
-                        "sdk_packages": meta["sdk_packages"],
+                        "sdk_packages": [
+                            {"file": p, "desc": sdk_desc.get(p, "")}
+                            for p in meta["sdk_packages"]
+                        ],
                         "env": env.get("base") or {},
                     },
                     "runtime": {
