@@ -36,18 +36,37 @@ runners:
 #
 # TODO: confirm the exact device flags for each vendor. Only nvidia is filled in;
 # the rest are placeholders — replace the TODO strings with the real flags.
+# `docker run` flags needed to expose each vendor's accelerator to a container.
+# Used by the docs to render a concrete run command per image, and to launch a
+# base image for verification (e.g. `docker run <run> <image> <smi-tool>`).
+#
+# STATUS: initial best-effort values — UNVERIFIED except where noted. Confirm
+# each on real hardware once the base images exist (run the vendor smi tool and
+# adjust). Confidence is annotated per line. Some vendors also need host driver/
+# tool bind-mounts (e.g. ascend's npu-smi), noted inline.
 run:
   default: ""
   vendors:
+    # verified: nvidia-container-runtime exposes GPUs + driver + nvidia-smi
     nvidia: "--gpus all"
-    ascend: ""        # TODO: e.g. --device /dev/davinci0 --device /dev/davinci_manager ...
-    cambricon: ""     # TODO
-    enflame: ""       # TODO
-    hygon: ""         # TODO
-    iluvatar: ""      # TODO
-    kunlunxin: ""     # TODO
-    metax: ""         # TODO
-    mthreads: ""      # TODO
-    sunrise: ""       # TODO
-    tsingmicro: ""    # TODO
+    # verified on metax124 (8x C550): /dev/mxcd + /dev/dri present, mx-smi baked in
+    metax: "--device /dev/mxcd --device /dev/dri --group-add video"
+    # well-documented Ascend passthrough; npu-smi/driver are host-provided → bind-mount
+    ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi"
+    # hygon DCU is ROCm/HIP-based → kfd + dri, like AMD
+    hygon: "--device /dev/kfd --device /dev/dri --group-add video --security-opt seccomp=unconfined"
+    # cambricon MLU: control + device nodes (unverified)
+    cambricon: "--device /dev/cambricon_ctl --device /dev/cambricon_dev0 --device /dev/commu0"
+    # kunlunxin XPU: device + control nodes (unverified)
+    kunlunxin: "--device /dev/xpu0 --device /dev/xpuctrl"
+    # enflame GCU (unverified — confirm the exact /dev node)
+    enflame: "--device /dev/gcu"
+    # mthreads MTT: has an nvidia-like container runtime; env-based (unverified)
+    mthreads: "--env MTHREADS_VISIBLE_DEVICES=all"
+    # iluvatar BI: device node uncertain
+    iluvatar: ""      # TODO: confirm device node (likely --device /dev/iluvatar0 or CUDA-compat)
+    # sunrise PTPU: device node unknown
+    sunrise: ""       # TODO: confirm device node on hardware
+    # tsingmicro TX8: device node unknown
+    tsingmicro: ""    # TODO: confirm device node on hardware
 
