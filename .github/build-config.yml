@@ -55,7 +55,10 @@ run:
   vendors:
     # VERIFIED: nvidia-container-runtime exposes GPUs + driver + nvidia-smi
     nvidia: "--gpus all"
-    # VERIFIED on metax124 (8x C550): /dev/mxcd + /dev/dri, mx-smi baked in (umd)
+    # VERIFIED on metax124 (8x C550): umd base builds headless, and these
+    # confined flags run mx-smi in-container listing the devices. (The very
+    # first `mx-smi` run hung, then worked on subsequent runs — a transient
+    # cold-device first-touch init, not a flag problem.)
     metax: "--device /dev/mxcd --device /dev/dri --group-add video"
     # DOC: Ascend passthrough; npu-smi + driver are host-provided → bind-mount
     ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi"
