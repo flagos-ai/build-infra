@@ -44,7 +44,7 @@ other = "Greyed = fallback compiler (flagtree is the default; triton is used onl
 other = "Environment"
 
 [run_prereq]
-other = "Requires the vendor driver and container runtime/toolkit installed on the host (e.g. nvidia-container-toolkit for NVIDIA; ix-container-toolkit >= 1.1.0 for Iluvatar; KUAE Cloud Native Toolkits >= 2.1.0 for MThreads)."
+other = "Host prerequisite:"
 
 [run]
 other = "Run"

@@ -85,3 +85,13 @@ run:
     # sunrise PTPU: device node unknown — no public docs found
     sunrise: ""       # TODO: confirm device node / launch method on hardware
 
+  # Host prerequisite for the run command, per vendor — listed ONLY when there is
+  # a specific, non-obvious requirement. Vendors using --gpus/--runtime need a
+  # container toolkit installed on the host (named + versioned here). The
+  # --device-passthrough vendors need only the vendor driver + the device nodes
+  # already shown in the run flags, so they carry no prereq (nothing rendered).
+  prereq:
+    nvidia: "nvidia-container-toolkit"
+    mthreads: "KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0"
+    iluvatar: "ix-container-toolkit >= 1.1.0"
+
