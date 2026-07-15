@@ -44,14 +44,13 @@ jobs:
           cat > /tmp/runtime.Dockerfile <<EOF
           FROM $BASE_TAG
           ENV DEBIAN_FRONTEND=noninteractive
-          RUN apt-get update && apt-get install -y --no-install-recommends python3 curl ca-certificates && rm -rf /var/lib/apt/lists/*
-          RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
-          RUN uv venv /flagos --python 3.12 --relocatable
-          ENV VIRTUAL_ENV=/flagos PATH=/flagos/bin:\$PATH
-          # uv first-index resolution: flag_gems/cpp from daily (--index, higher
-          # priority), torch/triton/transitive-deps from nvidia (--default-index).
-          # Hermetic: only resource.flagos.net, no external mirror.
-          RUN uv pip install --no-cache-dir --prerelease=allow "flag_gems[nvidia-cuda133,cpp-cuda]==$PYVER" "triton==3.6.0" --default-index $NVIDIA --index $DAILY --trusted-host resource.flagos.net
+          RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv python3-pip && rm -rf /var/lib/apt/lists/*
+          RUN python3 -m venv /flagos
+          ENV PATH=/flagos/bin:\$PATH
+          # Plain pip across our two FlagOS indexes only (no uv first-index magic,
+          # no external mirror): flag_gems/cpp resolve from daily, torch/triton/
+          # transitive (pyyaml==6.0.1 etc.) from nvidia; exact pins pick the version.
+          RUN pip install --pre "flag_gems[nvidia-cuda133,cpp-cuda]==$PYVER" "triton==3.6.0" --index-url $NVIDIA --extra-index-url $DAILY --trusted-host resource.flagos.net
           ENV COMPILER=triton USE_C_EXTENSION=1 NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
           WORKDIR /app
           ENTRYPOINT ["bash"]
