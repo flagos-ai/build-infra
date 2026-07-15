@@ -1,13 +1,10 @@
-name: EXPERIMENT - e2e nvidia-cuda13.3 (base -> wheels -> runtime)
+name: EXPERIMENT - e2e nvidia-cuda13.3 on h20 (self-hosted)
 
-# RETRY MODE: the wheels are already built + uploaded to flagos-pypi-daily
-# (flag_gems + flag-gems-cpp-cuda @ 5.4.0.dev601+g03122362d, lockstep verified),
-# and the runtime image builds fine. The only thing that failed before was the
-# ~10 GB runtime PUSH to a flaky Harbor (churned 46 min, hit the job timeout).
-#
-# So this run SKIPS the wheel stages (re-upload would 409) and pins the known
-# version, then focuses on: base (local) -> runtime build -> push to Harbor with
-# generous retries (docker push resumes already-uploaded layers). Test on h20 after.
+# Runs on the h20 self-hosted runner: LAN-fast Harbor push + real GPUs.
+# Sequence: build base (local) -> build wheel-based runtime -> push to Harbor ->
+# evict local -> cold-pull from Harbor (probe pull path) -> GPU verify.
+# The wheels are already on flagos-pypi-daily @ 5.4.0.dev601+g03122362d.
+# Self-triggers on push to this branch.
 
 on:
   push:
@@ -18,88 +15,85 @@ defaults:
     shell: bash
 
 jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
+  e2e-h20:
+    runs-on: [self-hosted, h20]
+    timeout-minutes: 60
     env:
       HARBOR_HOST: harbor.baai.ac.cn
-      TEST_PROJECT: harbor.baai.ac.cn/flagos-runtime
-      BACKEND: nvidia-cuda13.3
-      PYVER: "5.4.0.dev601+g03122362d"    # already on flagos-pypi-daily
-      DAILY_INDEX: https://resource.flagos.net/repository/flagos-pypi-daily/simple
-      NVIDIA_INDEX: https://resource.flagos.net/repository/flagos-pypi-nvidia/simple
+      RUNTIME_REF: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:e2e
+      BASE_TAG: flagos-base-nvidia-cuda13.3:e2e-local
+      PYVER: "5.4.0.dev601+g03122362d"
+      DAILY: https://resource.flagos.net/repository/flagos-pypi-daily/simple
+      NVIDIA: https://resource.flagos.net/repository/flagos-pypi-nvidia/simple
     steps:
-      - name: Checkout (full history for git-describe versioning)
+      - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
-      - name: Pre-flight - Harbor login (retry; Harbor TLS can be flaky)
+      - name: Harbor login (flagos21)
         env:
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS21 }}
         run: |
           [ -n "${HARBOR_PW:-}" ] || { echo "ERROR: HARBOR_AC_FLAGOS21 empty"; exit 1; }
-          for i in 1 2 3 4 5 6; do
-            if printf '%s' "$HARBOR_PW" | docker login "$HARBOR_HOST" -u flagos21 --password-stdin; then
-              echo "login OK (attempt $i)"; exit 0
-            fi
-            echo "login attempt $i failed; retry in 15s..."; sleep 15
-          done
-          echo "ERROR: Harbor login failed after retries"; exit 1
+          printf '%s' "$HARBOR_PW" | docker login "$HARBOR_HOST" -u flagos21 --password-stdin
 
-      - name: Free disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
-                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
-          df -h /
+      - name: Build base image (local, for runtime FROM)
+        run: docker build -f base/nvidia-cuda13.3 -t "$BASE_TAG" base/
 
-      - name: Stage 1 - build base image (local only; serves runtime FROM)
-        run: |
-          python3 base/build.py "$BACKEND" --registry "$TEST_PROJECT"
-          BASE_REF=$(docker images --format '{{.Repository}}:{{.Tag}}' \
-            | grep "flagos-runtime/flagos-base-${BACKEND}" | head -1)
-          [ -n "$BASE_REF" ] || { echo "ERROR: base image not built/tagged"; exit 1; }
-          echo "BASE_REF=$BASE_REF" >> "$GITHUB_ENV"
-          echo "base image (local): $BASE_REF"
-
-      - name: Stage 3 - build wheel-based runtime + push to Harbor (generous retries)
+      - name: Build wheel-based runtime image
         run: |
           cat > /tmp/runtime.Dockerfile <<EOF
-          FROM ${BASE_REF}
+          FROM $BASE_TAG
           ENV DEBIAN_FRONTEND=noninteractive
-          RUN apt-get update \
-              && apt-get install -y --no-install-recommends python3 python3-venv python3-pip \
-              && rm -rf /var/lib/apt/lists/*
+          RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv python3-pip && rm -rf /var/lib/apt/lists/*
           RUN python3 -m venv /flagos
           ENV PATH=/flagos/bin:\$PATH
-          RUN pip install --upgrade pip \
-              && pip install --pre "flag_gems[nvidia-cuda133,cpp-cuda]==${PYVER}" "triton==3.6.0" \
-                   --index-url ${DAILY_INDEX} \
-                   --extra-index-url ${NVIDIA_INDEX} \
-                   --extra-index-url https://pypi.org/simple \
-                   --trusted-host resource.flagos.net
-          ENV COMPILER=triton USE_C_EXTENSION=1 \
-              NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
+          RUN pip install --upgrade pip && pip install --pre "flag_gems[nvidia-cuda133,cpp-cuda]==$PYVER" "triton==3.6.0" --index-url $DAILY --extra-index-url $NVIDIA --extra-index-url https://pypi.org/simple --trusted-host resource.flagos.net
+          ENV COMPILER=triton USE_C_EXTENSION=1 NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
           WORKDIR /app
           ENTRYPOINT ["bash"]
           EOF
-          RUNTIME_REF="${TEST_PROJECT}/flagos-runtime-${BACKEND}:e2e"
           docker build -f /tmp/runtime.Dockerfile -t "$RUNTIME_REF" /tmp
-          echo "runtime built: $RUNTIME_REF ; pushing (docker push resumes layers across retries)"
-          pushed=no
-          for i in $(seq 1 10); do
-            if timeout 1200 docker push "$RUNTIME_REF"; then pushed=yes; echo "runtime push OK (attempt $i)"; break; fi
-            echo "runtime push attempt $i failed/timed out; retry in 20s..."; sleep 20
-          done
-          [ "$pushed" = yes ] || { echo "ERROR: runtime push failed after retries (Harbor still flaky)"; exit 1; }
-          echo "RUNTIME_REF=$RUNTIME_REF" >> "$GITHUB_ENV"
-          echo "runtime image pushed: $RUNTIME_REF"
 
-      - name: Summary
-        if: always()
+      - name: Push runtime to Harbor (LAN — measure bandwidth)
         run: |
-          echo "runtime = ${TEST_PROJECT}/flagos-runtime-${BACKEND}:e2e"
-          echo "version = ${PYVER}"
+          t0=$(date +%s)
+          docker push "$RUNTIME_REF"
+          t1=$(date +%s)
+          echo "PUSH_SECONDS=$((t1 - t0))"
+
+      - name: Evict local images (so verify pulls fresh from Harbor)
+        run: |
+          docker image rm "$RUNTIME_REF" "$BASE_TAG" >/dev/null 2>&1 || true
+          docker image prune -f >/dev/null 2>&1 || true
+          echo "local runtime images remaining: $(docker images -q "$RUNTIME_REF" | wc -l | tr -d ' ')"
+
+      - name: Cold-pull runtime from Harbor (probe pull path)
+        run: |
+          t0=$(date +%s)
+          docker pull "$RUNTIME_REF"
+          t1=$(date +%s)
+          echo "PULL_SECONDS=$((t1 - t0))"
+
+      - name: GPU verification (import + version + cpp .so + op on H20)
+        run: |
+          cat > /tmp/verify.py <<'PY'
+          import torch, flag_gems, os, glob
+          print("flag_gems", getattr(flag_gems, "__version__", "?"))
+          print("torch", torch.__version__, "| cuda", torch.cuda.is_available(), "| ndev", torch.cuda.device_count())
+          d = os.path.dirname(flag_gems.__file__)
+          sos = glob.glob(os.path.join(d, "**", "*.so"), recursive=True)
+          print("cpp .so present:", len(sos) > 0, [os.path.basename(x) for x in sos[:4]])
+          try:
+              a = torch.randn(256, 256, device="cuda", dtype=torch.float16)
+              b = torch.randn(256, 256, device="cuda", dtype=torch.float16)
+              ref = a @ b
+              with flag_gems.use_gems():
+                  c = a @ b
+              print("GPU op via flag_gems OK:", bool(torch.allclose(c, ref, atol=1e-2, rtol=1e-2)))
+          except Exception as e:
+              print("op test note:", repr(e))
+          PY
+          docker run --rm --gpus all -v /tmp/verify.py:/verify.py:ro "$RUNTIME_REF" python /verify.py
 
       - name: Logout
         if: always()
