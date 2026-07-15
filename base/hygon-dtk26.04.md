@@ -1,0 +1,1 @@
+../docs/content/en/base/hygon-dtk26.04.md

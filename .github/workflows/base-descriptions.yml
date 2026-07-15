@@ -1,0 +1,132 @@
+name: Base image descriptions
+
+# Post-build: capture the versions actually baked into each base image, compose a
+# per-image description markdown (single source for the docs site, the in-repo
+# base/<name>.md file, and the Harbor repository description), then commit + upload.
+#
+# Separate from the build (per the design): version extraction needs the built
+# image, and keeping this out of the build workflow keeps both simpler.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released image tag to describe (e.g. 2.1.1). Blank = latest git tag.'
+        type: string
+        default: ''
+  workflow_run:
+    workflows: ["Base Image Build (manual)"]
+    types: [completed]
+
+permissions:
+  contents: write   # compose job commits the generated descriptions
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  set-matrix:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: python3 -m pip install --user pyyaml
+      - id: m
+        run: |
+          python3 base/generate_matrix.py > matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+      - id: v
+        # Describe the released images: explicit input, else the latest tag.
+        run: |
+          ver="${{ inputs.version }}"
+          [ -n "$ver" ] || ver=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "describing image version: $ver"
+
+  extract:
+    needs: set-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      IMAGE_VERSION: ${{ needs.set-matrix.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - name: Harbor login (for image pull)
+        env:
+          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+        run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin
+      - name: Extract baked-in system-package versions
+        run: |
+          python3 docs/gen_data.py
+          python3 docs/extract_versions.py "${{ matrix.name }}" versions
+      - uses: actions/upload-artifact@v4
+        with:
+          name: versions-${{ matrix.name }}
+          path: versions/${{ matrix.name }}.tsv
+          if-no-files-found: warn
+
+  compose:
+    needs: [set-matrix, extract]
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_VERSION: ${{ needs.set-matrix.outputs.version }}
+      HARBOR_HOST: harbor.baai.ac.cn
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: python3 -m pip install --user pyyaml
+      - name: Download version artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: versions-dl
+          pattern: versions-*
+          merge-multiple: false
+      - name: Collect versions into one dir
+        run: |
+          mkdir -p versions
+          # each artifact is versions-dl/versions-<name>/<name>.tsv
+          find versions-dl -name '*.tsv' -exec cp {} versions/ \;
+          ls -1 versions/ || true
+      - name: Generate descriptions (with resolved versions)
+        run: |
+          python3 docs/gen_data.py
+          VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
+      - name: Refresh base/<name>.md symlinks
+        run: |
+          for md in docs/content/en/base/*.md; do
+            n=$(basename "$md" .md); [ "$n" = "_index" ] && continue
+            ln -sf "../docs/content/en/base/$n.md" "base/$n.md"
+          done
+      - name: Commit updated descriptions
+        run: |
+          git config user.name "flagos-ci"
+          git config user.email "noreply@flagos.net"
+          git add docs/content/en/base/*.md base/*.md
+          if git diff --cached --quiet; then
+            echo "no description changes"
+          else
+            git commit -m "docs(base): refresh image descriptions for ${IMAGE_VERSION}"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+      - name: Upload descriptions to Harbor
+        env:
+          HARBOR_USER: tengqm
+          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+        run: python3 docs/upload_descriptions.py
