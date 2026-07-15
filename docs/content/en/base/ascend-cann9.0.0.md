@@ -2,8 +2,6 @@
 title: "ascend-cann9.0.0"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1`
-
 Base image: `ubuntu:22.04`
 
 ## Prerequisites

@@ -2,8 +2,6 @@
 title: "nvidia-cuda13.3"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1`
-
 Base image: `nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04`
 
 ## Prerequisites
