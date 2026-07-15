@@ -43,6 +43,9 @@ other = "Greyed = fallback compiler (flagtree is the default; triton is used onl
 [environment]
 other = "Environment"
 
+[run_prereq]
+other = "Host prerequisite:"
+
 [run]
 other = "Run"
 

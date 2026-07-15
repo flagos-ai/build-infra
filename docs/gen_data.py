@@ -188,6 +188,7 @@ def main():
     run_cfg = build_config.get("run") or {}
     run_default = run_cfg.get("default", "")
     run_vendors = run_cfg.get("vendors") or {}
+    run_prereq = run_cfg.get("prereq") or {}
 
     def image(prefix, kind, name, tag):
         base = f"flagos-{kind}-{name}"
@@ -210,6 +211,7 @@ def main():
                     "vendor": vendor,
                     "backend": backend,
                     "run": run_vendors.get(vendor, run_default),
+                    "run_prereq": run_prereq.get(vendor, ""),
                     "base": {
                         "image": image(base_prefix, "base", name, version),
                         "os": meta["base_os"] or "",

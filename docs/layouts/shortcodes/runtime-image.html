@@ -29,7 +29,8 @@
 {{- end }}
 
 <h3>{{ T "run" }}</h3>
-<pre><code>docker run --rm -it {{ with .run }}{{ . }} {{ end }}{{ $r.image }} bash</code></pre>
+<pre><code>{{ with .run_prereq }}# {{ T "run_prereq" }} {{ . }}
+{{ end }}docker run --rm -it {{ with .run }}{{ . }} {{ end }}{{ $r.image }} bash</code></pre>
 {{- if not .run }}
 <p><em>{{ T "run_todo" }}</em></p>
 {{- end }}

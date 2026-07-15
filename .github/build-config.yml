@@ -55,7 +55,10 @@ run:
   vendors:
     # VERIFIED: nvidia-container-runtime exposes GPUs + driver + nvidia-smi
     nvidia: "--gpus all"
-    # VERIFIED on metax124 (8x C550): /dev/mxcd + /dev/dri, mx-smi baked in (umd)
+    # VERIFIED on metax124 (8x C550): umd base builds headless, and these
+    # confined flags run mx-smi in-container listing the devices. (The very
+    # first `mx-smi` run hung, then worked on subsequent runs — a transient
+    # cold-device first-touch init, not a flag problem.)
     metax: "--device /dev/mxcd --device /dev/dri --group-add video"
     # DOC: Ascend passthrough; npu-smi + driver are host-provided → bind-mount
     ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi"
@@ -70,13 +73,25 @@ run:
     kunlunxin: "--device /dev/xpu0 --device /dev/xpuctrl"
     # DOC: Enflame GCU device node; efsmi ships in the runtime stack
     enflame: "--device /dev/gcu"
-    # DOC: MThreads uses its container runtime + env var; tool is mthreads-gmi
+    # DOC: MThreads uses its container runtime + env var; tool is mthreads-gmi.
+    # Host prerequisite: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0.
     mthreads: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
-    # DOC: Iluvatar uses its container runtime + env var; tool is ixsmi
+    # VERIFIED: Iluvatar container runtime + env var; tool is ixsmi.
+    # Host prerequisite: ix-container-toolkit >= 1.1.0.
     iluvatar: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
     # DOC: Tsingmicro TX8 — vendor docs only show a permissive privileged launch;
     # a tighter set of device nodes is TBD (verify on hardware)
     tsingmicro: "--privileged --ipc=host -v /dev:/dev -v /lib/modules:/lib/modules"
     # sunrise PTPU: device node unknown — no public docs found
     sunrise: ""       # TODO: confirm device node / launch method on hardware
+
+  # Host prerequisite for the run command, per vendor — listed ONLY when there is
+  # a specific, non-obvious requirement. Vendors using --gpus/--runtime need a
+  # container toolkit installed on the host (named + versioned here). The
+  # --device-passthrough vendors need only the vendor driver + the device nodes
+  # already shown in the run flags, so they carry no prereq (nothing rendered).
+  prereq:
+    nvidia: "nvidia-container-toolkit"
+    mthreads: "KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0"
+    iluvatar: "ix-container-toolkit >= 1.1.0"
 
