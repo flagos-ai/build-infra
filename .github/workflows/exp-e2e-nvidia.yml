@@ -137,7 +137,7 @@ jobs:
           cd /src
           SETUPTOOLS_SCM_PRETEND_VERSION="$PYVER" \
             CMAKE_ARGS="-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND=CUDA" \
-            python3 -m pip wheel ./cpp --no-build-isolation --break-system-packages -w /out
+            python3 -m pip wheel ./cpp --no-build-isolation -w /out
           chmod -R a+rw /out
           ls -l /out
           SCRIPT
