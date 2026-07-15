@@ -4,9 +4,10 @@ title: "tsingmicro-tsm260604"
 
 `harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1`
 
+Base image: `ubuntu:22.04`
+
 ## Prerequisites
 
-- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** Tsingmicro TX8110
 

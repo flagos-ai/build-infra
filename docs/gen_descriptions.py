@@ -73,10 +73,12 @@ def render(entry: dict, versions: dict) -> str:
 
     lines += [f"`{base['image']}`", ""]
 
+    # Base OS of the container (a fact about the image, not a host prerequisite).
+    if base.get("os"):
+        lines += [f"Base image: `{base['os']}`", ""]
+
     # ── Prerequisites ────────────────────────────────────────────
     lines += ["## Prerequisites", ""]
-    if base.get("os"):
-        lines.append(f"- **Operating system:** `{base['os']}`")
     lines.append(f"- **Architecture:** {base.get('arch', '')}")
     hw = base.get("hardware") or []
     if hw:

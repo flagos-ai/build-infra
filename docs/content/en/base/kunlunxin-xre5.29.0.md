@@ -4,9 +4,10 @@ title: "kunlunxin-xre5.29.0"
 
 `harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1`
 
+Base image: `ubuntu:22.04`
+
 ## Prerequisites
 
-- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** Kunlunxin P800
 

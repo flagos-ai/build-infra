@@ -4,9 +4,10 @@ title: "iluvatar-corex4.4.0"
 
 `harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1`
 
+Base image: `ubuntu:24.04`
+
 ## Prerequisites
 
-- **Operating system:** `ubuntu:24.04`
 - **Architecture:** x86_64
 - **Chip models:** Iluvatar BI-V150
 - **Host container toolkit:** ix-container-toolkit >= 1.1.0

@@ -4,9 +4,10 @@ title: "sunrise-tangrt1.2.0"
 
 `harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1`
 
+Base image: `ubuntu:24.04`
+
 ## Prerequisites
 
-- **Operating system:** `ubuntu:24.04`
 - **Architecture:** x86_64
 - **Chip models:** Sunrise SR-SUN-S2-X1
 
