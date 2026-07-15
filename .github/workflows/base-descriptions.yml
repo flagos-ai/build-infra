@@ -75,7 +75,7 @@ jobs:
         run: |
           python3 docs/gen_data.py
           python3 docs/extract_versions.py "${{ matrix.name }}" versions
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: versions-${{ matrix.name }}
           path: versions/${{ matrix.name }}.tsv
