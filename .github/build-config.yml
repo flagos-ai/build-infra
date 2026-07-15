@@ -22,9 +22,10 @@ registry:
 runners:
   default: [self-hosted, h20]
   overrides:
-    # aarch64 — CANN toolkit/ops packages are linux-aarch64
-    ascend-cann8.5.0: [self-hosted, hw26]
-    ascend-cann9.0.0: [self-hosted, hw26]
+    # aarch64 — CANN toolkit/ops packages are linux-aarch64 (built on hw26,
+    # which is registered with the label 'cann850').
+    ascend-cann8.5.0: [self-hosted, cann850]
+    ascend-cann9.0.0: [self-hosted, cann850]
 
 # `docker run` flags needed to expose each vendor's accelerator to a container.
 # Used by the docs to render a concrete run command per image. Vendors not
