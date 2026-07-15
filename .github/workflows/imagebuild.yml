@@ -26,7 +26,12 @@ jobs:
           fetch-depth: 0  # tags needed for base/build.py version (git describe)
 
       - name: Install PyYAML
-        run: python3 -m pip install --user pyyaml
+        # Self-hosted runners (h20) have an externally-managed system Python
+        # (PEP 668) that rejects `pip install`. Skip if PyYAML is already
+        # importable; otherwise install to the user site with the override.
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Log in to the Container registry
         if: ${{ inputs.push }}
