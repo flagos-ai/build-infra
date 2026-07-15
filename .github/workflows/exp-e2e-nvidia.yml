@@ -96,7 +96,7 @@ jobs:
           except Exception as e:
               print("op test note:", repr(e))
           PY
-          docker run --rm --gpus all -v /tmp/verify.py:/verify.py:ro "$RUNTIME_REF" python /verify.py
+          docker run --rm --gpus all --entrypoint python -v /tmp/verify.py:/verify.py:ro "$RUNTIME_REF" /verify.py
 
       - name: Logout
         if: always()
