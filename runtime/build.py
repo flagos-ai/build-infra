@@ -15,7 +15,6 @@ Examples:
 """
 
 import argparse
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -98,38 +97,64 @@ def resolve_backend(backend_arg: str, configs: dict):
     sys.exit(f"Error: '{backend_arg}' not found in configs.yaml vendors")
 
 
-def parse_labels(containerfile: Path) -> dict[str, str]:
-    """Extract OCI LABEL values from a containerfile."""
-    labels = {}
-    with open(containerfile) as f:
-        for line in f:
-            m = re.match(
-                r'LABEL\s+org\.opencontainers\.image\.(\w+)\s*=\s*"([^"]*)"', line
-            )
-            if m:
-                labels[m.group(1)] = m.group(2)
-    return labels
+def git_describe(repo_root: Path) -> str | None:
+    """build-infra release version via `git describe --tags` ("v" stripped).
+
+    Same scheme base/build.py stamps onto the base image tag.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "describe", "--tags", "--always"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+    if r.returncode != 0:
+        return None
+    desc = r.stdout.strip()
+    if desc[:1] == "v" and desc[1:2].isdigit():
+        desc = desc[1:]
+    return desc or None
+
+
+def base_registry(repo_root: Path) -> str | None:
+    """Base-image registry prefix ({host}/{prefixes.base}) from build-config.yml."""
+    cfg_path = repo_root / ".github" / "build-config.yml"
+    if not cfg_path.exists():
+        return None
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f) or {}
+    reg = cfg.get("registry") or {}
+    host = reg.get("host")
+    prefix = (reg.get("prefixes") or {}).get("base")
+    return f"{host}/{prefix}" if host and prefix else None
 
 
 def resolve_base_image(
     vendor: str, backend: str, configs: dict, repo_root: Path
 ) -> str:
-    """Derive base image name by reading version/revision from the base containerfile.
+    """Full base image ref for the runtime FROM.
 
-    Image name: {prefix}-{vendor}-{backend}:{version}-{revision}
+    {registry}/{prefix}-{vendor}-{backend}:{git-version}
+
+    The tag comes from build-infra's `git describe --tags` — the SAME version
+    base/build.py stamps onto the pushed base image. (PR #99 removed the
+    version/revision LABELs, so this no longer reads them.) Falls back to :latest
+    with a warning when no tag is reachable (shallow checkout — use fetch-depth: 0).
     """
     prefix = configs.get("base_image_prefix", "flagos-base")
-    base_file = repo_root / "base" / f"{vendor}-{backend}"
-
-    if base_file.exists():
-        labels = parse_labels(base_file)
-        version = labels.get("version", "latest")
-        revision = labels.get("revision", "0")
-        tag = f"{version}-{revision}"
-    else:
-        tag = "latest"
-
-    return f"{prefix}-{vendor}-{backend}:{tag}"
+    version = git_describe(repo_root)
+    if not version:
+        print(
+            "warning: no git tag reachable — base image tag defaults to :latest",
+            file=sys.stderr,
+        )
+        version = "latest"
+    name = f"{prefix}-{vendor}-{backend}:{version}"
+    registry = base_registry(repo_root)
+    return f"{registry}/{name}" if registry else name
 
 
 def resolve_build_args(
@@ -146,22 +171,49 @@ def resolve_build_args(
     """Resolve all docker build-arg values for a given backend."""
 
     pypi_base = configs.get("pypi_base", "")
+    pypi_daily = configs.get("pypi_daily", "")
     mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
+
+    # Install spec: fold the per-vendor C++ operators extra into the FlagGems
+    # extras when the backend supports C++ (cmake_backend set). The C++ extra
+    # token is the cmake backend lowercased (CUDA -> cuda -> cpp-cuda), NOT the
+    # vendor name. The extras resolve flag_gems + flag-gems-cpp-<backend> wheels.
+    extras = backend_info.get("extras", "")
+    cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
+    if cpp_backend:
+        extras_spec = f"{extras},cpp-{cpp_backend}" if extras else f"cpp-{cpp_backend}"
+    else:
+        extras_spec = extras
+
+    # Compiler: prefer flagtree (the blessed default); fall back to triton only
+    # when the backend has no flagtree entry (flagtree unsupported for it).
+    # A single compiler is baked; the flagtree<->triton switch is a later task.
+    flagtree = backend_info.get("flagtree", "")
+    triton = backend_info.get("triton", "")
+    if flagtree:
+        compiler, compiler_pkg = "flagtree", flagtree
+    elif triton:
+        compiler, compiler_pkg = "triton", triton
+    else:
+        compiler, compiler_pkg = "", ""
 
     args = {
         "BASE_IMAGE": base_image_override
         or resolve_base_image(vendor, backend, configs, repo_root),
         "PYTHON_VERSION": backend_info.get("python", "3.12"),
         "FLAGOS_PYPI": pypi_base.format(vendor=vendor) if pypi_base else "",
+        "DAILY_PYPI": pypi_daily,
         "EXTRA_PYPI": extra_pypi_override or mirror,
-        "EXTRAS_GROUP": backend_info.get("extras", ""),
-        "INCLUDE_TESTS": include_tests_override or "true",
+        "EXTRAS_GROUP": extras_spec,
+        "COMPILER": compiler,
+        "COMPILER_PKG": compiler_pkg,
+        "INCLUDE_TESTS": include_tests_override or "false",
     }
 
     # Optional triton-specific post-install packages from configs.yaml.
-    # These are only needed when using triton (not flagtree).
+    # Only relevant when the baked compiler is triton — skip under flagtree.
     triton_post = backend_info.get("triton_post_install", [])
-    if isinstance(triton_post, list) and triton_post:
+    if compiler == "triton" and isinstance(triton_post, list) and triton_post:
         pkgs = " ".join(triton_post)
         flagos_pypi = args["FLAGOS_PYPI"]
         extra_pypi = args["EXTRA_PYPI"]
@@ -189,7 +241,8 @@ def main():
     parser.add_argument(
         "--flaggems-dir",
         required=True,
-        help="Path to FlagGems source tree (used as the docker build context)",
+        help="Path to FlagGems source tree — used ONLY to derive the wheel "
+        "version (git describe); no longer the docker build context.",
     )
     parser.add_argument("--base-image", help="Override base image")
     parser.add_argument("--extra-pypi", help="Override extra PyPI mirror URL")
@@ -253,7 +306,10 @@ def main():
     cmd = ["docker", "build"]
     for key, value in build_args.items():
         cmd.extend(["--build-arg", f"{key}={value}"])
-    cmd.extend(["-f", str(containerfile), "-t", tag, str(flaggems_dir)])
+    # Wheel-based install: the image installs FlagGems from PyPI, so the build
+    # context no longer needs the FlagGems source tree (no COPY). Use runtime/
+    # as a trivial context. --flaggems-dir is kept only to derive the version.
+    cmd.extend(["-f", str(containerfile), "-t", tag, str(script_dir)])
 
     if args.dry_run:
         print("Would run:")

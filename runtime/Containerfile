@@ -13,12 +13,14 @@ ARG INCLUDE_TESTS=true
 # ── Internal build arguments (set by build.py) ────────────────
 ARG PYTHON_VERSION=3.12
 ARG FLAGOS_PYPI=""
+ARG DAILY_PYPI=""
 ARG EXTRAS_GROUP=""
+ARG COMPILER=""
+ARG COMPILER_PKG=""
 ARG TRITON_POST_INSTALL=""
-# TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
-# Buildkit excludes .git from the build context, so setuptools-scm
-# cannot detect the version. build.py reads it from git describe and
-# passes it here.
+# FlagGems wheel version to pin (== exact). build.py derives it from the
+# FlagGems git describe; buildkit excludes .git from the context so the wheel
+# can't self-detect it.
 ARG FLAGGEMS_VERSION=0.0.0
 
 
@@ -29,8 +31,10 @@ FROM ${BASE_IMAGE} AS builder
 
 ARG PYTHON_VERSION
 ARG FLAGOS_PYPI
+ARG DAILY_PYPI
 ARG EXTRA_PYPI
 ARG EXTRAS_GROUP
+ARG COMPILER_PKG
 ARG TRITON_POST_INSTALL
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
@@ -45,48 +49,35 @@ RUN uv venv /flagos --python ${PYTHON_VERSION} --relocatable
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 
-# ── Python build dependencies ─────────────────────────────────
-RUN uv pip install --no-cache-dir \
-        --index ${EXTRA_PYPI} \
-        "setuptools>=64.0,<80.0" \
-        "scikit-build-core==0.12.2" \
-        "pybind11==3.0.3" \
-        "cmake>=3.20,<4.0" \
-        "ninja==1.13.0" \
-        "pip"
-
-# ── Build FlagGems ─────────────────────────────────────────────
-WORKDIR /build
-COPY . /build/FlagGems
-WORKDIR /build/FlagGems
-
-# TODO: Remove SETUPTOOLS_SCM_PRETEND_VERSION once we switch to
-# wheel-based install. See FLAGGEMS_VERSION ARG for details.
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${FLAGGEMS_VERSION}
-
-RUN uv pip install --no-cache-dir ".[$EXTRAS_GROUP]" \
-      --default-index ${FLAGOS_PYPI} \
-      --index ${EXTRA_PYPI} \
+# ── Install FlagGems (prebuilt wheels) + compiler ─────────────
+# Wheel-based: no source tree, no inline C++ compile. Hermetic — only
+# resource.flagos.net. Two FlagOS indexes with uv's unsafe-first-match so a
+# dependency can resolve from EITHER index; uv's default first-index strategy
+# pins each package to a single index and won't fall through (which broke
+# cross-index deps like a pinned PyYAML).
+#   flag_gems + flag-gems-cpp-<backend>      -> flagos-pypi-daily  (DAILY_PYPI)
+#   torch / triton / flagtree / pinned deps  -> flagos-pypi-<vendor> (FLAGOS_PYPI)
+RUN uv pip install --no-cache-dir --prerelease=allow \
+      --index-strategy unsafe-first-match \
+      --index ${FLAGOS_PYPI} \
+      --index ${DAILY_PYPI} \
       --trusted-host resource.flagos.net \
-      --trusted-host mirrors.aliyun.com
+      "flag_gems[${EXTRAS_GROUP}]==${FLAGGEMS_VERSION}" ${COMPILER_PKG}
 
 # ── Triton post-install (e.g. triton_ascend) ─────────────────
 RUN if [ -n "${TRITON_POST_INSTALL}" ]; then \
       sh -c "${TRITON_POST_INSTALL}"; \
     fi
 
-# ── Test dependencies ──────────────────────────────────────────
-RUN uv pip install --no-cache-dir ".[test]" \
-      --index ${EXTRA_PYPI} \
-      --trusted-host mirrors.aliyun.com
-
-# ── Copy test suite ───────────────────────────────────────────
-RUN mkdir -p /app && \
-    if [ "${INCLUDE_TESTS}" = "true" ]; then \
-      cp -r /build/FlagGems/tests /app/tests \
-      && cp -r /build/FlagGems/benchmark /app/benchmark \
-      && cp /build/FlagGems/pytest.ini /app; \
-    fi
+# ── Tests — deferred (image not finalized) ────────────────────
+# Tests are NOT shipped yet: FlagGems' [test] extra installs only frameworks,
+# not the tests/ + benchmark/ sources, and wheel-based install has no source
+# tree to copy from. Left out until FlagGems ships tests as package-data (the
+# [test] fix). INCLUDE_TESTS stays as the switch for when that lands.
+RUN mkdir -p /app \
+    && if [ "${INCLUDE_TESTS}" = "true" ]; then \
+         echo "NOTE: tests requested but not shipped yet — pending FlagGems [test] package-data"; \
+       fi
 
 
 # ════════════════════════════════════════════════════════════════
@@ -95,6 +86,7 @@ RUN mkdir -p /app && \
 FROM ${BASE_IMAGE} AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG COMPILER
 
 # ── Copy uv and venv from builder ─────────────────────────────
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
@@ -106,6 +98,12 @@ COPY --from=builder /app /app
 
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
+
+# Compiler backend FlagGems uses (flagtree, or triton fallback), and enable the
+# C++ operator extensions (the flag-gems-cpp-<backend> .so files won't load
+# without this).
+ENV COMPILER=${COMPILER} \
+    USE_C_EXTENSION=1
 
 WORKDIR /app
 ENTRYPOINT ["bash"]

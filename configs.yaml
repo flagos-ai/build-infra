@@ -40,6 +40,7 @@
 base_image_prefix: "flagos-base"
 
 pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"
+pypi_daily: "https://resource.flagos.net/repository/flagos-pypi-daily/simple"
 mirror: "https://mirrors.aliyun.com/pypi/simple"
 
 vendors:
