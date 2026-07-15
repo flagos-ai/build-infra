@@ -43,12 +43,12 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubu
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install CANN toolkit ──────────────────────────────────────
-RUN curl -o /cann.run ${FILE_STORE}/ascend/${CANN_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /cann.run ${FILE_STORE}/ascend/${CANN_PACKAGE} \
     && chmod +x /cann.run \
     && /cann.run --full --quiet --nox11 --install-for-all \
     && rm /cann.run
 
-RUN curl -o /ops.run ${FILE_STORE}/ascend/${OPS_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /ops.run ${FILE_STORE}/ascend/${OPS_PACKAGE} \
     && chmod +x /ops.run \
     && /ops.run --install --quiet --nox11 --install-for-all \
     && rm /ops.run
