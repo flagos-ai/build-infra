@@ -51,10 +51,17 @@ jobs:
           [ -n "${HARBOR_PW:-}" ]   || { echo "ERROR: HARBOR_AC_FLAGOS21 secret is empty/unset"; exit 1; }
           echo "both secrets present"
 
-      - name: Pre-flight - Harbor login
+      - name: Pre-flight - Harbor login (retry; Harbor TLS can be flaky)
         env:
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS21 }}
-        run: printf '%s' "$HARBOR_PW" | docker login "$HARBOR_HOST" -u flagos21 --password-stdin
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if printf '%s' "$HARBOR_PW" | docker login "$HARBOR_HOST" -u flagos21 --password-stdin; then
+              echo "login OK (attempt $i)"; exit 0
+            fi
+            echo "login attempt $i failed (transient TLS?); retrying in 15s..."; sleep 15
+          done
+          echo "ERROR: Harbor login failed after retries"; exit 1
 
       - name: Pre-flight - torch/triton resolvable from FlagOS index (the cuda13.3 risk)
         run: |
@@ -80,7 +87,11 @@ jobs:
       # ---- Stage 1: base image -> Harbor (test project) -------------------
       - name: Stage 1 - build + push base image
         run: |
-          python3 base/build.py "$BACKEND" --registry "$TEST_PROJECT" --push
+          for i in 1 2 3 4 5; do
+            python3 base/build.py "$BACKEND" --registry "$TEST_PROJECT" --push && break
+            echo "base build/push attempt $i failed (transient Harbor?); retry in 15s..."; sleep 15
+            [ "$i" = 5 ] && { echo "ERROR: base build/push failed after retries"; exit 1; }
+          done
           BASE_REF=$(docker images --format '{{.Repository}}:{{.Tag}}' \
             | grep "flagos-runtime/flagos-base-${BACKEND}" | head -1)
           [ -n "$BASE_REF" ] || { echo "ERROR: could not find pushed base image"; exit 1; }
@@ -166,7 +177,10 @@ jobs:
           EOF
           RUNTIME_REF="${TEST_PROJECT}/flagos-runtime-${BACKEND}:e2e"
           docker build -f /tmp/runtime.Dockerfile -t "$RUNTIME_REF" /tmp
-          docker push "$RUNTIME_REF"
+          for i in 1 2 3 4 5; do
+            docker push "$RUNTIME_REF" && break
+            echo "push attempt $i failed (transient?); retrying in 15s..."; sleep 15
+          done
           echo "runtime image: $RUNTIME_REF"
 
       - name: Summary
