@@ -1,10 +1,11 @@
 # ============================================================
-# Base image for Ascend CANN 8.5.0 on Ubuntu 22.04
+# Base image for Ascend CANN 8.5.0 on Ubuntu 24.04
 # ============================================================
 # History:
-# - 20260610: Initial version 
+# - 20260610: Initial version
+# - 20260715: Bump base OS 22.04 -> 24.04 (newer libstdc++ for flagtree); #110
 
-FROM ubuntu:22.04 AS Builder
+FROM ubuntu:24.04 AS Builder
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
@@ -20,24 +21,34 @@ ENV OPS_PACKAGE=Ascend-cann-${PRODUCT}-ops_8.5.0_linux-aarch64.run
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
-# python are required by the CANN toolkit/ops installer
-# libelf1 and libpython3-dev are required by the runtime.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl unzip net-tools pciutils\
+# python${PYTHON_VERSION} is version-locked to MATCH the runtime venv (3.11):
+# the CANN installer writes python-version-specific artifacts that the runtime
+# imports (set_env.sh puts them on PYTHONPATH), so the base python must equal the
+# runtime python. noble ships 3.12 and doesn't package 3.11, so add deadsnakes to
+# force-install 3.11 alongside the system 3.12 (two copies is fine — CANN uses
+# 3.11). libelf1 and libpython3-dev are required by the runtime.
+#
+# ascend builds only on the aarch64 China nodes, where ports.ubuntu.com is
+# unreliable — point apt at the aliyun ubuntu-ports mirror first.
+RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubuntu-ports|g' /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        curl unzip net-tools pciutils \
         gcc g++ build-essential make \
-        python${PYTHON_VERSION} python3-pip python${PYTHON_VERSION}-dev \
+        python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python3-pip \
         libelf1 \
         libpython3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install CANN toolkit ──────────────────────────────────────
-RUN curl -o /cann.run ${FILE_STORE}/ascend/${CANN_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /cann.run ${FILE_STORE}/ascend/${CANN_PACKAGE} \
     && chmod +x /cann.run \
     && /cann.run --full --quiet --nox11 --install-for-all \
     && rm /cann.run
 
-RUN curl -o /ops.run ${FILE_STORE}/ascend/${OPS_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /ops.run ${FILE_STORE}/ascend/${OPS_PACKAGE} \
     && chmod +x /ops.run \
     && /ops.run --install --quiet --nox11 --install-for-all \
     && rm /ops.run
