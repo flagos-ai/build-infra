@@ -2,7 +2,9 @@
 title: "metax-maca3.7.2.1"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1`
+## Base image
+
+`ubuntu:24.04`
 
 ## Prerequisites
 

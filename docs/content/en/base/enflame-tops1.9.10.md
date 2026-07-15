@@ -2,7 +2,9 @@
 title: "enflame-tops1.9.10"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1`
+## Base image
+
+`ubuntu:24.04`
 
 ## Prerequisites
 

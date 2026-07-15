@@ -71,7 +71,10 @@ def render(entry: dict, versions: dict) -> str:
     # Hugo front matter (docs title/ordering). Stripped before Harbor upload.
     lines += ["---", f'title: "{name}"', "---", ""]
 
-    lines += [f"`{base['image']}`", ""]
+    # Base OS of the container, as its own section (a fact about the image, not
+    # a host prerequisite — and not a floating line above the first heading).
+    if base.get("os"):
+        lines += ["## Base image", "", f"`{base['os']}`", ""]
 
     # ── Prerequisites ────────────────────────────────────────────
     lines += ["## Prerequisites", ""]

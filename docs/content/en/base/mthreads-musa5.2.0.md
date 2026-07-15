@@ -2,7 +2,9 @@
 title: "mthreads-musa5.2.0"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

@@ -2,7 +2,9 @@
 title: "hygon-dtk26.04"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

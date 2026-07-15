@@ -2,7 +2,9 @@
 title: "mthreads-musa4.3.6"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

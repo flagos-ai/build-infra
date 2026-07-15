@@ -2,7 +2,9 @@
 title: "nvidia-cuda12.8"
 ---
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1`
+## Base image
+
+`nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04`
 
 ## Prerequisites
 
