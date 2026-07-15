@@ -58,7 +58,7 @@ run:
     # cold-device first-touch init, not a flag problem.)
     metax: "--device /dev/mxcd --device /dev/dri --group-add video"
     # DOC: Ascend passthrough; npu-smi + driver are host-provided → bind-mount
-    ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi"
+    ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
     # DOC + maintainer: hygon DCU is ROCm/HIP-based → kfd + dri; also needs the
     # host /opt/hyhal mounted (maintainer-confirmed; exact purpose TBD)
     hygon: "--device /dev/kfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
@@ -99,7 +99,9 @@ run:
 verify:
   vendors:
     nvidia: "nvidia-smi"
-    ascend: "npu-smi info"
+    # ascend: the driver/toolkit env is provided by sourcing set_env.sh (the
+    # base_source TODO — not yet flattened into ENV), so npu-smi needs it first.
+    ascend: "source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info"
     metax: "mx-smi"
     cambricon: "cnmon"
     iluvatar: "ixsmi"
