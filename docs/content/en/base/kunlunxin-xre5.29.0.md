@@ -2,7 +2,9 @@
 title: "kunlunxin-xre5.29.0"
 ---
 
-Base image: `ubuntu:22.04`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

@@ -2,7 +2,9 @@
 title: "sunrise-tangrt1.2.0"
 ---
 
-Base image: `ubuntu:24.04`
+## Base image
+
+`ubuntu:24.04`
 
 ## Prerequisites
 

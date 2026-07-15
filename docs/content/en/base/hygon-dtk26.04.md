@@ -2,7 +2,9 @@
 title: "hygon-dtk26.04"
 ---
 
-Base image: `ubuntu:22.04`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

@@ -2,7 +2,9 @@
 title: "cambricon-neuware4.4.3"
 ---
 
-Base image: `ubuntu:22.04`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

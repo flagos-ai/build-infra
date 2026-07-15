@@ -2,7 +2,9 @@
 title: "enflame-tops1.9.10"
 ---
 
-Base image: `ubuntu:24.04`
+## Base image
+
+`ubuntu:24.04`
 
 ## Prerequisites
 

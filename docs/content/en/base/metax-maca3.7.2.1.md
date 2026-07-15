@@ -2,7 +2,9 @@
 title: "metax-maca3.7.2.1"
 ---
 
-Base image: `ubuntu:24.04`
+## Base image
+
+`ubuntu:24.04`
 
 ## Prerequisites
 

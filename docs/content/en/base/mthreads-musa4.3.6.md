@@ -2,7 +2,9 @@
 title: "mthreads-musa4.3.6"
 ---
 
-Base image: `ubuntu:22.04`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

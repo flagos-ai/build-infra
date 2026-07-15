@@ -2,7 +2,9 @@
 title: "ascend-cann9.0.0"
 ---
 
-Base image: `ubuntu:22.04`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

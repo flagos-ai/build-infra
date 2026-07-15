@@ -2,7 +2,9 @@
 title: "nvidia-cuda12.8"
 ---
 
-Base image: `nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04`
+## Base image
+
+`nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04`
 
 ## Prerequisites
 

@@ -2,7 +2,9 @@
 title: "tsingmicro-tsm260604"
 ---
 
-Base image: `ubuntu:22.04`
+## Base image
+
+`ubuntu:22.04`
 
 ## Prerequisites
 

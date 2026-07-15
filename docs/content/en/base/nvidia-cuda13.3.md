@@ -2,7 +2,9 @@
 title: "nvidia-cuda13.3"
 ---
 
-Base image: `nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04`
+## Base image
+
+`nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04`
 
 ## Prerequisites
 

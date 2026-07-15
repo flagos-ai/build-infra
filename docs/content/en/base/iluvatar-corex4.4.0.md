@@ -2,7 +2,9 @@
 title: "iluvatar-corex4.4.0"
 ---
 
-Base image: `ubuntu:24.04`
+## Base image
+
+`ubuntu:24.04`
 
 ## Prerequisites
 
