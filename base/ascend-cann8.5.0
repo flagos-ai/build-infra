@@ -27,7 +27,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 # runtime python. noble ships 3.12 and doesn't package 3.11, so add deadsnakes to
 # force-install 3.11 alongside the system 3.12 (two copies is fine — CANN uses
 # 3.11). libelf1 and libpython3-dev are required by the runtime.
-RUN apt-get update \
+#
+# ascend builds only on the aarch64 China nodes, where ports.ubuntu.com is
+# unreliable — point apt at the aliyun ubuntu-ports mirror first.
+RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubuntu-ports|g' /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates software-properties-common \
     && add-apt-repository -y ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y --no-install-recommends \
