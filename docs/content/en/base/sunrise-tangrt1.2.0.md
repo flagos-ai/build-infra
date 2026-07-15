@@ -6,6 +6,7 @@ title: "sunrise-tangrt1.2.0"
 
 ## Prerequisites
 
+- **Operating system:** `ubuntu:24.04`
 - **Architecture:** x86_64
 - **Chip models:** Sunrise SR-SUN-S2-X1
 

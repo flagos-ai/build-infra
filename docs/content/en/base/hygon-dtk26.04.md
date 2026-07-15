@@ -6,6 +6,7 @@ title: "hygon-dtk26.04"
 
 ## Prerequisites
 
+- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** Hygon BW1000
 

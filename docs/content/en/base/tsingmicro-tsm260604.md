@@ -6,6 +6,7 @@ title: "tsingmicro-tsm260604"
 
 ## Prerequisites
 
+- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** Tsingmicro TX8110
 

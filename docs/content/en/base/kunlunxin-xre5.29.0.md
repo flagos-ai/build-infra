@@ -6,6 +6,7 @@ title: "kunlunxin-xre5.29.0"
 
 ## Prerequisites
 
+- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** Kunlunxin P800
 

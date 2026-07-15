@@ -6,6 +6,7 @@ title: "ascend-cann8.5.0"
 
 ## Prerequisites
 
+- **Operating system:** `ubuntu:22.04`
 - **Architecture:** aarch64
 - **Chip models:** Ascend 910B
 

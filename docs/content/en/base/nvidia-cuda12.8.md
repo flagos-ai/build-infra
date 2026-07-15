@@ -6,6 +6,7 @@ title: "nvidia-cuda12.8"
 
 ## Prerequisites
 
+- **Operating system:** `nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04`
 - **Architecture:** x86_64
 - **Chip models:** NVIDIA H20
 - **Host container toolkit:** nvidia-container-toolkit

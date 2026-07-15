@@ -6,6 +6,7 @@ title: "metax-maca3.7.2.1"
 
 ## Prerequisites
 
+- **Operating system:** `ubuntu:24.04`
 - **Architecture:** x86_64
 - **Chip models:** MetaX C550
 
