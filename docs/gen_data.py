@@ -15,6 +15,7 @@ Each entry has a `base` section (from the containerfile) and a `runtime`
 section (the software stack from configs.yaml).
 """
 
+import os
 import re
 import subprocess
 import sys
@@ -31,12 +32,16 @@ def find_repo_root() -> Path:
 
 
 def git_version(repo_root: Path) -> str:
-    """Release version from the build-infra Git tag (`git describe --tags`).
+    """Release version for the image tags.
 
-    Matches base/build.py: "v2.1.0" -> "2.1.0", commits after -> "2.1.0-3-gsha".
-    Falls back to "latest" when no tag is reachable (e.g. a shallow checkout —
-    the docs workflow uses fetch-depth: 0).
+    An explicit IMAGE_VERSION env wins (the descriptions workflow feeds the
+    released tag so refs match the pushed images even when main has advanced
+    past the tag). Otherwise `git describe --tags`, matching base/build.py:
+    "v2.1.0" -> "2.1.0", commits after -> "2.1.0-3-gsha". Falls back to "latest".
     """
+    override = os.environ.get("IMAGE_VERSION")
+    if override:
+        return override.lstrip("v")
     try:
         r = subprocess.run(
             ["git", "describe", "--tags", "--always"],
@@ -189,6 +194,7 @@ def main():
     run_default = run_cfg.get("default", "")
     run_vendors = run_cfg.get("vendors") or {}
     run_prereq = run_cfg.get("prereq") or {}
+    verify_vendors = (build_config.get("verify") or {}).get("vendors") or {}
 
     def image(prefix, kind, name, tag):
         base = f"flagos-{kind}-{name}"
@@ -204,6 +210,10 @@ def main():
                 continue  # not buildable — no base image
             meta = parse_containerfile(cf, {"PYTHON_VERSION": spec.get("python", "")})
             env = spec.get("env") or {}
+            sdk = spec.get("sdk") or []
+            # Architecture from the SDK notes (they embed the target arch).
+            sdk_blob = " ".join(sdk).lower()
+            arch = "aarch64" if ("aarch64" in sdk_blob or "arm64" in sdk_blob) else "x86_64"
 
             backends.append(
                 {
@@ -212,11 +222,14 @@ def main():
                     "backend": backend,
                     "run": run_vendors.get(vendor, run_default),
                     "run_prereq": run_prereq.get(vendor, ""),
+                    "verify": verify_vendors.get(vendor, ""),
                     "base": {
                         "image": image(base_prefix, "base", name, version),
                         "os": meta["base_os"] or "",
+                        "arch": arch,
+                        "hardware": spec.get("hardware") or [],
                         "system_packages": meta["system_packages"],
-                        "sdk": spec.get("sdk") or [],
+                        "sdk": sdk,
                         "env": env.get("base") or {},
                     },
                     "runtime": {

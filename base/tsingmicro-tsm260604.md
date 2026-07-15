@@ -1,0 +1,1 @@
+../docs/content/en/base/tsingmicro-tsm260604.md

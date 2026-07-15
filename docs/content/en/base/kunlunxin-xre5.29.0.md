@@ -1,0 +1,50 @@
+---
+title: "kunlunxin-xre5.29.0"
+---
+
+`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1`
+
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Kunlunxin P800
+
+## System packages
+
+Explicitly installed; the version is the one baked into this image:
+
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `kmod`
+- `pciutils`
+
+## SDK components
+
+- CUDA 12.9.0_575.51.03
+- XRE-CUDA12 5.29.0.0
+- XCUDART 5.13.0
+
+## Environment
+
+- `PATH=/usr/local/xpu/bin:$PATH`
+- `LD_LIBRARY_PATH=/usr/local/xpu/lib:/usr/local/xcudart/lib`
+
+## Launch
+
+Start an interactive shell in the container:
+
+```bash
+docker run --rm -it --device /dev/xpu0 --device /dev/xpuctrl harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible (the first run may take a moment):
+
+```bash
+xpu-smi
+```

@@ -1,0 +1,64 @@
+---
+title: "tsingmicro-tsm260604"
+---
+
+`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1`
+
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Tsingmicro TX8110
+
+## System packages
+
+Explicitly installed; the version is the one baked into this image:
+
+- `build-essential`
+- `ca-certificates`
+- `clang`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `libfmt-dev`
+- `libopenmpi3`
+- `libpython3-dev`
+- `libunwind8`
+- `sudo`
+
+## SDK components
+
+- TSM Runtime 260604163331
+- TSM Validation Suite 260604163331
+- TSM CCL 260604163331
+- TSM Profiler 260604163331
+- TX8 Compiler Dependencies 20260507
+- LLVM a66376b0
+
+## Environment
+
+- `KUIPER_PATH=/usr/local/kuiper`
+- `TX8_DEPS_ROOT=/usr/local/tx8_deps`
+- `LLVM_SYSPATH=/usr/local/llvm`
+- `PATH=/usr/local/kuiper/bin:${PATH}`
+- `LLVM_BINARY_DIR=/usr/local/llvm/bin`
+- `PYTHONPATH=/usr/local/llvm/python_packages/mlir_core`
+- `LD_LIBRARY_PATH=/usr/local/tx8_deps/lib:/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib`
+- `USE_TORCH_XLA=0`
+- `TORCH_COMPILE_DISABLE=1`
+
+## Launch
+
+Start an interactive shell in the container:
+
+```bash
+docker run --rm -it --privileged --ipc=host -v /dev:/dev -v /lib/modules:/lib/modules harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible (the first run may take a moment):
+
+```bash
+tsm-smi
+```

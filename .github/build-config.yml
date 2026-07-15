@@ -92,3 +92,21 @@ run:
     mthreads: "KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0"
     iluvatar: "ix-container-toolkit >= 1.1.0"
 
+# Device-enumeration command per vendor: shown in the docs/description sample
+# launch line (`docker run <run-flags> <image> <verify>`) to confirm the
+# accelerator is visible, and the eventual base-image release-gate check.
+# Vendors not listed fall back to `bash` in the sample.
+verify:
+  vendors:
+    nvidia: "nvidia-smi"
+    ascend: "npu-smi info"
+    metax: "mx-smi"
+    cambricon: "cnmon"
+    iluvatar: "ixsmi"
+    hygon: "hy-smi"
+    kunlunxin: "xpu-smi"
+    mthreads: "mthreads-gmi"
+    enflame: "efsmi"
+    sunrise: "pt_smi"
+    tsingmicro: "tsm-smi"
+
