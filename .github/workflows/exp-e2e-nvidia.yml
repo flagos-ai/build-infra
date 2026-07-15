@@ -25,6 +25,7 @@ jobs:
       PYVER: "5.4.0.dev601+g03122362d"
       DAILY: https://resource.flagos.net/repository/flagos-pypi-daily/simple
       NVIDIA: https://resource.flagos.net/repository/flagos-pypi-nvidia/simple
+      MIRROR: https://mirrors.aliyun.com/pypi/simple
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -47,7 +48,7 @@ jobs:
           RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv python3-pip && rm -rf /var/lib/apt/lists/*
           RUN python3 -m venv /flagos
           ENV PATH=/flagos/bin:\$PATH
-          RUN pip install --upgrade pip && pip install --pre "flag_gems[nvidia-cuda133,cpp-cuda]==$PYVER" "triton==3.6.0" --index-url $DAILY --extra-index-url $NVIDIA --extra-index-url https://pypi.org/simple --trusted-host resource.flagos.net
+          RUN pip install --upgrade pip && pip install --pre "flag_gems[nvidia-cuda133,cpp-cuda]==$PYVER" "triton==3.6.0" --index-url $DAILY --extra-index-url $NVIDIA --extra-index-url $MIRROR --trusted-host resource.flagos.net --trusted-host mirrors.aliyun.com
           ENV COMPILER=triton USE_C_EXTENSION=1 NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
           WORKDIR /app
           ENTRYPOINT ["bash"]
