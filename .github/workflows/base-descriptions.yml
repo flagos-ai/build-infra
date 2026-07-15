@@ -89,7 +89,6 @@ jobs:
       pull-requests: write
     env:
       IMAGE_VERSION: ${{ needs.set-matrix.outputs.version }}
-      HARBOR_HOST: harbor.baai.ac.cn
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
@@ -119,16 +118,9 @@ jobs:
             ln -sf "../docs/content/en/base/$n.md" "base/$n.md"
           done
 
-      # Publish to Harbor FIRST — it needs no git write, so descriptions go live
-      # regardless of how the PR/merge side goes.
-      - name: Upload descriptions to Harbor
-        env:
-          HARBOR_USER: tengqm
-          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
-        run: python3 docs/upload_descriptions.py
-
-      # main requires a PR (repository ruleset) — open one and auto-merge instead
-      # of pushing directly. The version diff is then reviewable per refresh.
+      # Open a PR with the version-enriched descriptions and enable auto-merge.
+      # Publication (docs + Harbor) is gated on this PR merging — see
+      # base-descriptions-publish.yml. The version diff is the review checkpoint.
       - name: Open descriptions PR (auto-merge)
         run: |
           git config user.name "flagos-ci"
@@ -144,7 +136,7 @@ jobs:
           if ! gh pr view "$branch" >/dev/null 2>&1; then
             gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \
               --title "docs(base): refresh image descriptions for ${IMAGE_VERSION}" \
-              --body "Automated refresh of per-image descriptions (baked-in system-package versions) for ${IMAGE_VERSION}. Descriptions already pushed to Harbor."
+              --body "Automated refresh of per-image descriptions (baked-in system-package versions) for ${IMAGE_VERSION}. On merge, the descriptions publish to the docs site and Harbor."
           fi
           gh pr merge "$branch" --auto --squash || \
-            echo "auto-merge not enabled or blocked — PR left open for review"
+            echo "auto-merge queued/unavailable — PR left for review"
