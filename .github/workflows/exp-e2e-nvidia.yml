@@ -85,18 +85,25 @@ jobs:
           df -h /
 
       # ---- Stage 1: base image -> Harbor (test project) -------------------
-      - name: Stage 1 - build + push base image
+      - name: Stage 1 - build base (local) + best-effort push to Harbor
         run: |
-          for i in 1 2 3 4 5; do
-            python3 base/build.py "$BACKEND" --registry "$TEST_PROJECT" --push && break
-            echo "base build/push attempt $i failed (transient Harbor?); retry in 15s..."; sleep 15
-            [ "$i" = 5 ] && { echo "ERROR: base build/push failed after retries"; exit 1; }
-          done
+          # Build + tag locally (NO --push): the base only needs to be in the local
+          # docker cache to serve the runtime FROM on this same runner.
+          python3 base/build.py "$BACKEND" --registry "$TEST_PROJECT"
           BASE_REF=$(docker images --format '{{.Repository}}:{{.Tag}}' \
             | grep "flagos-runtime/flagos-base-${BACKEND}" | head -1)
-          [ -n "$BASE_REF" ] || { echo "ERROR: could not find pushed base image"; exit 1; }
+          [ -n "$BASE_REF" ] || { echo "ERROR: base image not built/tagged"; exit 1; }
           echo "BASE_REF=$BASE_REF" >> "$GITHUB_ENV"
-          echo "base image: $BASE_REF"
+          echo "base image (local): $BASE_REF"
+          # Push to Harbor is best-effort re-validation (already proven separately).
+          # `timeout` guards against Harbor TLS stalls (a hung push doesn't error).
+          # Non-fatal: don't block the novel wheels/runtime stages on a flaky Harbor.
+          pushed=no
+          for i in 1 2 3; do
+            if timeout 420 docker push "$BASE_REF"; then pushed=yes; echo "base push OK (attempt $i)"; break; fi
+            echo "base push attempt $i failed/timed out; retry in 20s..."; sleep 20
+          done
+          [ "$pushed" = yes ] || echo "WARNING: base push did not complete (Harbor flaky) — continuing; base is local for runtime FROM"
 
       # ---- Stage 2: build both wheels, upload to flagos-pypi-daily --------
       - name: Stage 2a - pure-Python flag_gems wheel
@@ -177,10 +184,12 @@ jobs:
           EOF
           RUNTIME_REF="${TEST_PROJECT}/flagos-runtime-${BACKEND}:e2e"
           docker build -f /tmp/runtime.Dockerfile -t "$RUNTIME_REF" /tmp
+          pushed=no
           for i in 1 2 3 4 5; do
-            docker push "$RUNTIME_REF" && break
-            echo "push attempt $i failed (transient?); retrying in 15s..."; sleep 15
+            if timeout 600 docker push "$RUNTIME_REF"; then pushed=yes; echo "runtime push OK (attempt $i)"; break; fi
+            echo "runtime push attempt $i failed/timed out; retry in 20s..."; sleep 20
           done
+          [ "$pushed" = yes ] || { echo "ERROR: runtime push failed after retries (Harbor)"; exit 1; }
           echo "runtime image: $RUNTIME_REF"
 
       - name: Summary
