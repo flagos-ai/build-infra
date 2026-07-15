@@ -84,9 +84,13 @@ jobs:
   compose:
     needs: [set-matrix, extract]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       IMAGE_VERSION: ${{ needs.set-matrix.outputs.version }}
       HARBOR_HOST: harbor.baai.ac.cn
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -114,19 +118,33 @@ jobs:
             n=$(basename "$md" .md); [ "$n" = "_index" ] && continue
             ln -sf "../docs/content/en/base/$n.md" "base/$n.md"
           done
-      - name: Commit updated descriptions
-        run: |
-          git config user.name "flagos-ci"
-          git config user.email "noreply@flagos.net"
-          git add docs/content/en/base/*.md base/*.md
-          if git diff --cached --quiet; then
-            echo "no description changes"
-          else
-            git commit -m "docs(base): refresh image descriptions for ${IMAGE_VERSION}"
-            git push origin HEAD:${GITHUB_REF_NAME}
-          fi
+
+      # Publish to Harbor FIRST — it needs no git write, so descriptions go live
+      # regardless of how the PR/merge side goes.
       - name: Upload descriptions to Harbor
         env:
           HARBOR_USER: tengqm
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
         run: python3 docs/upload_descriptions.py
+
+      # main requires a PR (repository ruleset) — open one and auto-merge instead
+      # of pushing directly. The version diff is then reviewable per refresh.
+      - name: Open descriptions PR (auto-merge)
+        run: |
+          git config user.name "flagos-ci"
+          git config user.email "noreply@flagos.net"
+          git add docs/content/en/base/*.md base/*.md
+          if git diff --cached --quiet; then
+            echo "no description changes — nothing to PR"; exit 0
+          fi
+          branch="auto/base-descriptions-${IMAGE_VERSION}"
+          git checkout -b "$branch"
+          git commit -m "docs(base): refresh image descriptions for ${IMAGE_VERSION}"
+          git push -f origin "$branch"
+          if ! gh pr view "$branch" >/dev/null 2>&1; then
+            gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \
+              --title "docs(base): refresh image descriptions for ${IMAGE_VERSION}" \
+              --body "Automated refresh of per-image descriptions (baked-in system-package versions) for ${IMAGE_VERSION}. Descriptions already pushed to Harbor."
+          fi
+          gh pr merge "$branch" --auto --squash || \
+            echo "auto-merge not enabled or blocked — PR left open for review"
