@@ -6,7 +6,6 @@ title: "enflame-tops1.9.10"
 
 ## Prerequisites
 
-- **Operating system:** `ubuntu:24.04`
 - **Architecture:** x86_64
 - **Chip models:** Enflame Zixiao C200 (S60)
 

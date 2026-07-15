@@ -75,8 +75,6 @@ def render(entry: dict, versions: dict) -> str:
 
     # ── Prerequisites ────────────────────────────────────────────
     lines += ["## Prerequisites", ""]
-    if base.get("os"):
-        lines.append(f"- **Operating system:** `{base['os']}`")
     lines.append(f"- **Architecture:** {base.get('arch', '')}")
     hw = base.get("hardware") or []
     if hw:

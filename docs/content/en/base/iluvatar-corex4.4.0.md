@@ -6,7 +6,6 @@ title: "iluvatar-corex4.4.0"
 
 ## Prerequisites
 
-- **Operating system:** `ubuntu:24.04`
 - **Architecture:** x86_64
 - **Chip models:** Iluvatar BI-V150
 - **Host container toolkit:** ix-container-toolkit >= 1.1.0

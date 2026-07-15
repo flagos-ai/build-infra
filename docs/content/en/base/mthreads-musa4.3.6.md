@@ -6,7 +6,6 @@ title: "mthreads-musa4.3.6"
 
 ## Prerequisites
 
-- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** MThreads MTT S5000
 - **Host container toolkit:** KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0

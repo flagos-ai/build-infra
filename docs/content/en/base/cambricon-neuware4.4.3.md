@@ -6,7 +6,6 @@ title: "cambricon-neuware4.4.3"
 
 ## Prerequisites
 
-- **Operating system:** `ubuntu:22.04`
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
 
