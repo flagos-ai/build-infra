@@ -13,14 +13,14 @@ title: "kunlunxin-xre5.29.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential`
-- `ca-certificates`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
-- `kmod`
-- `pciutils`
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `cmake` — 3.22.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `kmod` — 29
+- `pciutils` — 3.7.0
 
 ## SDK components
 

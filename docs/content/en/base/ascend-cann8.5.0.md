@@ -13,20 +13,20 @@ title: "ascend-cann8.5.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential`
-- `ca-certificates`
-- `curl`
-- `g++`
-- `gcc`
-- `libelf1`
-- `libpython3-dev`
-- `make`
-- `net-tools`
-- `pciutils`
-- `python3-pip`
-- `python3.11`
-- `python3.11-dev`
-- `unzip`
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `libelf1` — 0.186
+- `libpython3-dev` — 3.10.6
+- `make` — 4.3
+- `net-tools` — 1.60+git20181103.0eebece
+- `pciutils` — 3.7.0
+- `python3-pip` — 22.0.2+dfsg
+- `python3.11` — 3.11.0~rc1
+- `python3.11-dev` — 3.11.0~rc1
+- `unzip` — 6.0
 
 ## SDK components
 

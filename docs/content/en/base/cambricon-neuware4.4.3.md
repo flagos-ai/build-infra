@@ -13,19 +13,19 @@ title: "cambricon-neuware4.4.3"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential`
-- `ca-certificates`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
-- `gdb`
-- `libc6-dev-i386`
-- `libncurses5`
-- `libtinfo5`
-- `make`
-- `pciutils`
-- `unzip`
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `cmake` — 3.22.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `gdb` — 12.1
+- `libc6-dev-i386` — 2.35
+- `libncurses5` — 6.3
+- `libtinfo5` — 6.3
+- `make` — 4.3
+- `pciutils` — 3.7.0
+- `unzip` — 6.0
 
 ## SDK components
 
