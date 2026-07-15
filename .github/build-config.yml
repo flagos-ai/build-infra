@@ -9,26 +9,22 @@
 registry:
   host: harbor.baai.ac.cn
   prefixes:
-    base: flagbase
+    base: flagos-base
     # runtime: <prefix>   # TODO: fill in when runtime image CI lands
     # app: <prefix>       # TODO: fill in when app image CI lands
 
 # Which runner builds each image (base containerfile name -> runs-on).
 # Backends not listed under `overrides` use `default`.
 #
-# TODO: base images may not need to build on separate machines at all — the only
-# real constraint is CPU arch (x86_64 vs arm64), not vendor hardware. Revisit
-# whether this can collapse to an arch-based rule instead of per-vendor entries.
-# Exact runner labels still need confirmation (only ascend/nvidia are set).
+# This round: h20 (self-hosted) builds all x86_64 base images; hw26 (self-hosted)
+# builds the aarch64 images (ascend). The only real constraint is CPU arch, so
+# this is effectively an arch split: default = x86_64 -> h20, aarch64 -> hw26.
 runners:
-  default: ubuntu-latest
+  default: [self-hosted, h20]
   overrides:
     # aarch64 — CANN toolkit/ops packages are linux-aarch64
-    ascend-cann8.5.0: [self-hosted, ascend, arm64]
-    ascend-cann9.0.0: [self-hosted, ascend, arm64]
-    # nvidia base builds ran on the h20 runner in the previous setup
-    nvidia-cuda12.8: [self-hosted, h20]
-    nvidia-cuda13.3: [self-hosted, h20]
+    ascend-cann8.5.0: [self-hosted, hw26]
+    ascend-cann9.0.0: [self-hosted, hw26]
 
 # `docker run` flags needed to expose each vendor's accelerator to a container.
 # Used by the docs to render a concrete run command per image. Vendors not

@@ -31,14 +31,17 @@ jobs:
       - name: Log in to the Container registry
         if: ${{ inputs.push }}
         env:
-          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-          CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
         run: |
+          if [ -z "${HARBOR_PW:-}" ]; then
+            echo "ERROR: secret HARBOR_AC_FLAGOS_BASE is empty or unset" >&2
+            exit 1
+          fi
           # registry host = build-config.yml registry.host
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
-          echo "Logging in to ${host}"
-          echo "${CONTAINER_REGISTRY}" | docker login "${host}" \
-            -u "${REGISTRY_USERNAME}" --password-stdin
+          echo "Logging in to ${host} as tengqm"
+          printf '%s' "${HARBOR_PW}" | docker login "${host}" \
+            -u tengqm --password-stdin
 
       - name: Build base image
         run: |
