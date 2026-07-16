@@ -3,13 +3,7 @@
 # ============================================================
 # History:
 # - 20260608: Initial version
-# - 20260716: Bump base OS 22.04 -> 24.04 for flagtree (needs newer libstdc++).
-#   TSM runtime/compiler packages carry no OS tag and are unchanged: their
-#   22.04-built binaries link older glibc/libstdc++ and run on 24.04's newer libs
-#   (forward-compatible), while the 24.04 base satisfies flagtree's GLIBCXX floor.
-#   The base has no python interpreter; the prebuilt cp310 MLIR bindings on
-#   PYTHONPATH are consumed by the runtime venv's python 3.10, so noble's system
-#   python is irrelevant here.
+# - 20260716: Bump base OS 22.04 -> 24.04
 
 FROM ubuntu:24.04
 
@@ -48,10 +42,12 @@ RUN set -eux ; \
   done
 
 # ── TsingMicro Compiler depdendencies ─────────────────────────────
-RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/tx8.tar.gz ${FILE_STORE}/tx8_depends_dev_20260507_104051.tar.gz \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/tx8.tar.gz \
+      ${FILE_STORE}/tx8_depends_dev_20260507_104051.tar.gz \
     && tar xf /tmp/tx8.tar.gz -C /usr/local \
     && rm /tmp/tx8.tar.gz
-RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/llvm.tar.gz ${FILE_STORE}/llvm-a66376b0-ubuntu-x64.tgz \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/llvm.tar.gz \
+      ${FILE_STORE}/llvm-a66376b0-ubuntu-x64.tgz \
     && tar xf /tmp/llvm.tar.gz -C /usr/local \
     && rm /tmp/llvm.tar.gz
  
