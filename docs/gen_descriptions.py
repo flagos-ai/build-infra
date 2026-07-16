@@ -82,9 +82,19 @@ def render(entry: dict, versions: dict) -> str:
     hw = base.get("hardware") or []
     if hw:
         lines.append(f"- **Chip models:** {', '.join(hw)}")
+    drv = base.get("driver") or ""
+    if drv:
+        lines.append(f"- **Host driver:** {drv}")
     toolkit = entry.get("run_prereq") or ""
     if toolkit:
-        lines.append(f"- **Host container toolkit:** {toolkit}")
+        # The container toolkit is only needed for the recommended (toolkit) launch.
+        # Where a raw/generic tier also exists it's optional — the raw command needs
+        # no toolkit; it's only truly required for toolkit-only backends.
+        has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
+        if has_raw:
+            lines.append(f"- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: {toolkit}")
+        else:
+            lines.append(f"- **Container toolkit:** {toolkit}")
     lines.append("")
 
     # ── System packages (explicit apt, with baked-in versions) ──
@@ -114,11 +124,27 @@ def render(entry: dict, versions: dict) -> str:
         lines.append("")
 
     # ── Launch ──────────────────────────────────────────────────
-    run_flags = entry.get("run") or ""
-    flags = f"{run_flags} " if run_flags else ""
-    lines += ["## Launch", ""]
-    lines += ["Start an interactive shell in the container:", ""]
-    lines += ["```bash", f"docker run --rm -it {flags}{base['image']} bash", "```", ""]
+    # One block per launch tier (see gen_data.launch_tiers). When a vendor has both
+    # a toolkit and a raw tier, the toolkit one is labelled "Recommended" and the raw
+    # one is the no-toolkit/podman fallback; a lone tier gets a plain header.
+    image = base["image"]
+    tiers = entry.get("launch") or []
+    prereq = entry.get("run_prereq") or ""
+    both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
+    if tiers:
+        lines += ["## Launch", ""]
+        for t in tiers:
+            cmd = t["template"].replace("{image}", image)
+            if t["kind"] == "toolkit":
+                tk = f" (`{prereq}`)" if prereq else ""
+                opt = " *(optional)*" if both else ""
+                hdr = f"**With the container toolkit**{opt}{tk}:"
+            elif t["kind"] == "raw":
+                hdr = ("**Without a toolkit** — plain docker / podman:" if both
+                       else "Start an interactive shell (works with docker or podman):")
+            else:  # generic
+                hdr = "Start an interactive shell in the container:"
+            lines += [hdr, "", "```bash", cmd, "```", ""]
 
     # ── Verify ──────────────────────────────────────────────────
     # Shown as a SEPARATE command to run INSIDE the launched container (not

@@ -52,5 +52,23 @@ other = "Run"
 [run_todo]
 other = "Device flags for this vendor aren't finalized yet — this generic command may need vendor-specific --device / --gpus flags."
 
+[run_recommended]
+other = "With the container toolkit (optional)"
+
+[run_toolkit_only]
+other = "With the container toolkit"
+
+[run_raw]
+other = "Without a toolkit — plain docker / podman"
+
+[run_raw_only]
+other = "Launch (works with docker or podman)"
+
+[run_generic]
+other = "Start an interactive shell in the container"
+
+[host_driver]
+other = "Host driver"
+
 [runtime_tag_note]
 other = "tag scheme being finalized"

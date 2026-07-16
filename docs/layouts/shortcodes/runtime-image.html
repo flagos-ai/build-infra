@@ -7,6 +7,9 @@
 <ul>
   <li><strong>{{ T "image" }}:</strong> <code class="plain">{{ $r.image }}</code> <em>({{ T "runtime_tag_note" }})</em></li>
   <li><strong>{{ T "python" }}:</strong> {{ $r.python }}</li>
+  {{- with .base.driver }}
+  <li><strong>{{ T "host_driver" }}:</strong> <code class="plain">{{ . }}</code></li>
+  {{- end }}
 </ul>
 
 <h4>{{ T "major_packages" }}</h4>
@@ -29,9 +32,20 @@
 {{- end }}
 
 <h3>{{ T "run" }}</h3>
-<pre><code>{{ with .run_prereq }}# {{ T "run_prereq" }} {{ . }}
-{{ end }}docker run --rm -it {{ with .run }}{{ . }} {{ end }}{{ $r.image }} bash</code></pre>
-{{- if not .run }}
+{{- $bk := . -}}
+{{- $img := $r.image -}}
+{{- $both := and (gt (len (where .launch "kind" "toolkit")) 0) (gt (len (where .launch "kind" "raw")) 0) -}}
+{{- range .launch }}
+  {{- if eq .kind "toolkit" }}
+<p>{{ if $both }}{{ T "run_recommended" }}{{ else }}{{ T "run_toolkit_only" }}{{ end }}{{ with $bk.run_prereq }} (<code class="plain">{{ . }}</code>){{ end }}:</p>
+  {{- else if eq .kind "raw" }}
+<p>{{ if $both }}{{ T "run_raw" }}{{ else }}{{ T "run_raw_only" }}{{ end }}:</p>
+  {{- else }}
+<p>{{ T "run_generic" }}:</p>
+  {{- end }}
+<pre><code>{{ replace .template "{image}" $img }}</code></pre>
+{{- end }}
+{{- if not .launch }}
 <p><em>{{ T "run_todo" }}</em></p>
 {{- end }}
 

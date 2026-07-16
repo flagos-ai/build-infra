@@ -4,31 +4,21 @@ title: "ascend-cann8.5.0"
 
 ## Base image
 
-`ubuntu:22.04`
+`ubuntu:24.04`
 
 ## Prerequisites
 
 - **Architecture:** aarch64
 - **Chip models:** Ascend 910B
+- **Host driver:** 25.5.0
+- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: Ascend-docker-runtime >= 6.0.RC3
 
 ## System packages
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `libelf1` — 0.186
-- `libpython3-dev` — 3.10.6
-- `make` — 4.3
-- `net-tools` — 1.60+git20181103.0eebece
-- `pciutils` — 3.7.0
-- `python3-pip` — 22.0.2+dfsg
-- `python3.11` — 3.11.0~rc1
-- `python3.11-dev` — 3.11.0~rc1
-- `unzip` — 6.0
+- `ca-certificates`
+- `software-properties-common`
 
 ## SDK components
 
@@ -37,10 +27,16 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Start an interactive shell in the container:
+**With the container toolkit** *(optional)* (`Ascend-docker-runtime >= 6.0.RC3`):
 
 ```bash
-docker run --rm -it --device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1 bash
+docker run --rm -it -e ASCEND_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1-19-ge0c6cbb bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it --device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify
@@ -48,5 +44,5 @@ docker run --rm -it --device /dev/davinci0 --device /dev/davinci_manager --devic
 Inside the container, confirm the accelerator is visible (the first run may take a moment):
 
 ```bash
-npu-smi info
+source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info
 ```

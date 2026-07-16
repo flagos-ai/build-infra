@@ -10,21 +10,23 @@ title: "metax-maca3.7.2.1"
 
 - **Architecture:** x86_64
 - **Chip models:** MetaX C550
+- **Host driver:** 3.8.30
+- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: metax-docker >= 0.15.3
 
 ## System packages
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
 - `libelf1`
-- `libnuma1` — 2.0.18
-- `libpython3-dev` — 3.12.3
-- `make` — 4.3
+- `libnuma1`
+- `libpython3-dev`
+- `make`
 
 ## SDK components
 
@@ -39,10 +41,16 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Start an interactive shell in the container:
+**With the container toolkit** *(optional)* (`metax-docker >= 0.15.3`):
 
 ```bash
-docker run --rm -it --device /dev/mxcd --device /dev/dri --group-add video harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
+metax-docker --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-19-ge0c6cbb bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it --device /dev/mxcd --device /dev/dri --group-add video harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify

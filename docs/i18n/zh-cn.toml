@@ -51,5 +51,23 @@ other = "运行"
 [run_todo]
 other = "该厂商的设备标志尚未最终确定——这条通用命令可能需要补充厂商特定的 --device / --gpus 标志。"
 
+[run_recommended]
+other = "使用容器工具包（可选）"
+
+[run_toolkit_only]
+other = "使用容器工具包"
+
+[run_raw]
+other = "无需工具包 —— 直接使用 docker / podman"
+
+[run_raw_only]
+other = "启动（docker 或 podman 均可）"
+
+[run_generic]
+other = "在容器中启动交互式 shell"
+
+[host_driver]
+other = "宿主机驱动"
+
 [runtime_tag_note]
 other = "tag 方案待定"

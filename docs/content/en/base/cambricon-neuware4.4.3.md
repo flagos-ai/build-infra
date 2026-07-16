@@ -4,30 +4,31 @@ title: "cambricon-neuware4.4.3"
 
 ## Base image
 
-`ubuntu:22.04`
+`ubuntu:24.04`
 
 ## Prerequisites
 
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
+- **Host driver:** 6.2.15
 
 ## System packages
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `gdb` — 12.1
-- `libc6-dev-i386` — 2.35
-- `libncurses5` — 6.3
-- `libtinfo5` — 6.3
-- `make` — 4.3
-- `pciutils` — 3.7.0
-- `unzip` — 6.0
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `gdb`
+- `libc6-dev-i386`
+- `libncurses6`
+- `libtinfo6`
+- `make`
+- `pciutils`
+- `unzip`
 
 ## SDK components
 
@@ -60,10 +61,10 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Start an interactive shell in the container:
+Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --device /dev/cambricon_dev0 --device /dev/cambricon_ctl -v /usr/bin/cnmon:/usr/bin/cnmon harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1 bash
+docker run --rm -it --device /dev/cambricon_dev0 --device /dev/cambricon_ctl harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify
