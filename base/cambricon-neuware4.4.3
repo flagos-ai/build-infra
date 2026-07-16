@@ -1,10 +1,15 @@
 # ============================================================
-# Base image for Cambricon Neuware 4.4.3 Ubuntu 22.04
+# Base image for Cambricon Neuware 4.4.3 Ubuntu 24.04
 # ============================================================
 # History:
 # - 20260624: Initial version
+# - 20260716: Bump base OS 22.04 -> 24.04 for fleet uniformity (cambricon is
+#   triton-only, so this is not needed for flagtree, but keeps all bases on one
+#   OS). Neuware .debs are ubuntu22.04-tagged; their 22.04-built binaries run on
+#   24.04 (forward-compatible). noble dropped libncurses5/libtinfo5 (.so.5) —
+#   use libncurses6/libtinfo6 instead.
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
@@ -32,7 +37,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
   && apt-get install -f -y pciutils curl ca-certificates unzip\
     gcc g++ gdb build-essential cmake make \
-    libncurses5 libtinfo5 libc6-dev-i386 \
+    libncurses6 libtinfo6 libc6-dev-i386 \
   && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -65,7 +70,7 @@ ENV PKGS="cnlicense_1.2.0-1.ubuntu22.04_amd64.deb \
 
 RUN set -eux ; \
   for pkg in ${PKGS}; do \
-    curl -o ${pkg} ${FILE_STORE}/${pkg}; \
+    curl --retry 5 --retry-delay 5 --retry-all-errors -o ${pkg} ${FILE_STORE}/${pkg}; \
     dpkg -i ${pkg}; \
     rm -f ${pkg}; \
   done \
@@ -73,7 +78,7 @@ RUN set -eux ; \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-RUN curl -o ${CNMON_PKG} ${FILE_STORE}/${CNMON_PKG}; \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o ${CNMON_PKG} ${FILE_STORE}/${CNMON_PKG}; \
   unzip ${CNMON_PKG} -d /usr/bin; \
   rm -f ${CNMON_PKG}
 

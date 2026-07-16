@@ -67,8 +67,10 @@ run:
     # telemetry. With both, hy-smi shows full readings under these confined flags (no
     # privileged needed).
     hygon: "--device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
-    # DOC: Cambricon MLU device + control node; cnmon is host-provided → mount
-    cambricon: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl -v /usr/bin/cnmon:/usr/bin/cnmon"
+    # VERIFIED on the MLU590 node: confined device passthrough is enough. cnmon is
+    # baked into the base image (unzipped in the containerfile) and runs against the
+    # MLU without the host -v /usr/bin/cnmon mount.
+    cambricon: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl"
     # DOC + maintainer: Kunlunxin XPU device + control node; xpu-smi is baked in
     # the base image (no mount needed). NOTE: vendor docs claim --privileged is
     # also required to enumerate devices — verify whether --device alone suffices.
