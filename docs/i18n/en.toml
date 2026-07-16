@@ -67,5 +67,8 @@ other = "Launch (works with docker or podman)"
 [run_generic]
 other = "Start an interactive shell in the container"
 
+[host_driver]
+other = "Host driver"
+
 [runtime_tag_note]
 other = "tag scheme being finalized"

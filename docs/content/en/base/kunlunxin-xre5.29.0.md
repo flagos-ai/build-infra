@@ -10,6 +10,7 @@ title: "kunlunxin-xre5.29.0"
 
 - **Architecture:** x86_64
 - **Chip models:** Kunlunxin P800
+- **Host driver:** 5.29.0.0
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: xpu_container >= 1.0.13
 
 ## System packages
@@ -41,13 +42,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`xpu_container >= 1.0.13`):
 
 ```bash
-docker run --rm -it --runtime xpu -e CXPU_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-18-gb92aab6 bash
+docker run --rm -it --runtime xpu -e CXPU_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-19-ge0c6cbb bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/xpu0 --device /dev/xpuctrl harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-18-gb92aab6 bash
+docker run --rm -it --device /dev/xpu0 --device /dev/xpuctrl harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify

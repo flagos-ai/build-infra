@@ -262,6 +262,7 @@ def main():
                         "os": meta["base_os"] or "",
                         "arch": arch,
                         "hardware": spec.get("hardware") or [],
+                        "driver": spec.get("driver", ""),
                         "system_packages": meta["system_packages"],
                         "sdk": sdk,
                         "env": env.get("base") or {},

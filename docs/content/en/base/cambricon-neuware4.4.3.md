@@ -10,6 +10,7 @@ title: "cambricon-neuware4.4.3"
 
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
+- **Host driver:** 6.2.15
 
 ## System packages
 
@@ -63,7 +64,7 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --device /dev/cambricon_dev0 --device /dev/cambricon_ctl harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1-18-gb92aab6 bash
+docker run --rm -it --device /dev/cambricon_dev0 --device /dev/cambricon_ctl harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify

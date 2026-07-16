@@ -7,6 +7,9 @@
 <ul>
   <li><strong>{{ T "image" }}:</strong> <code class="plain">{{ $r.image }}</code> <em>({{ T "runtime_tag_note" }})</em></li>
   <li><strong>{{ T "python" }}:</strong> {{ $r.python }}</li>
+  {{- with .base.driver }}
+  <li><strong>{{ T "host_driver" }}:</strong> <code class="plain">{{ . }}</code></li>
+  {{- end }}
 </ul>
 
 <h4>{{ T "major_packages" }}</h4>

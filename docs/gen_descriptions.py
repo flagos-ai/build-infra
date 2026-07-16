@@ -82,6 +82,9 @@ def render(entry: dict, versions: dict) -> str:
     hw = base.get("hardware") or []
     if hw:
         lines.append(f"- **Chip models:** {', '.join(hw)}")
+    drv = base.get("driver") or ""
+    if drv:
+        lines.append(f"- **Host driver:** {drv}")
     toolkit = entry.get("run_prereq") or ""
     if toolkit:
         # The container toolkit is only needed for the recommended (toolkit) launch.

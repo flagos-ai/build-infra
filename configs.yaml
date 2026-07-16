@@ -36,6 +36,10 @@
 #                        scripts should eventually be expanded into the base image as
 #                        ENV (so users need not source them), but are kept until then.
 #   "deps:"            — Python dependencies (torch stack, etc.).
+#   "hardware:"        — chip models the image targets (rendered as a prerequisite).
+#   "driver:"          — host driver version installed on the node — a prerequisite,
+#                        distinct from the in-container SDK. Probed from the vendor's
+#                        smi tool (nvidia-smi, npu-smi, ...).
 
 base_image_prefix: "flagos-base"
 
@@ -48,6 +52,7 @@ vendors:
     cuda12.8:
       extras: nvidia-cuda128
       hardware: ["NVIDIA H20"]   # TODO: add other validated NVIDIA GPUs
+      driver: "610.43.02"
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
@@ -69,6 +74,7 @@ vendors:
     cuda13.3:
       extras: nvidia-cuda133
       hardware: ["NVIDIA H20"]   # TODO: add other validated NVIDIA GPUs
+      driver: "610.43.02"
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
@@ -91,6 +97,7 @@ vendors:
     cann8.5.0:
       extras: ascend-cann850
       hardware: ["Ascend 910B"]   # TODO: confirm 910C
+      driver: "25.5.0"
       python: "3.11"
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
@@ -109,6 +116,7 @@ vendors:
     cann9.0.0:
       extras: ascend-cann900
       hardware: ["Ascend 910B"]   # TODO: confirm 910C
+      driver: "26.0.rc1"
       python: "3.11"
       cmake_backend: NPU
       triton: triton==3.5.0
@@ -131,6 +139,7 @@ vendors:
     neuware4.4.3:
       extras: cambricon
       hardware: ["Cambricon MLU590"]
+      driver: "6.2.15"
       python: "3.10"
       triton: triton==3.2.0+mlu1.7.2
       env:
@@ -173,6 +182,7 @@ vendors:
     tops1.9.10:
       extras: enflame
       hardware: ["Enflame Zixiao C200 (S60)"]
+      driver: "1.9.10"
       python: "3.12"
       cmake_backend: GCU
       triton: triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
@@ -200,6 +210,7 @@ vendors:
     dtk26.04:
       extras: hygon
       hardware: ["Hygon BW1000"]
+      driver: "6.3.30-V1.4.1a"
       python: "3.10"
       triton: triton==3.3.0+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.5.1+hcu3.1
@@ -216,6 +227,7 @@ vendors:
     corex4.4.0:
       extras: iluvatar
       hardware: ["Iluvatar BI-V150"]
+      driver: "4.4.0"
       python: "3.10"
       cmake_backend: IX
       triton: triton==3.1.0+corex.4.4.0
@@ -237,6 +249,7 @@ vendors:
     xre5.29.0:
       extras: kunlunxin
       hardware: ["Kunlunxin P800"]
+      driver: "5.29.0.0"
       python: "3.10"
       triton: triton==3.0.0+a48aedef
       flagtree: flagtree==0.5.1+xpu3.0
@@ -269,6 +282,7 @@ vendors:
     maca3.7.2.1:
       extras: metax
       hardware: ["MetaX C550"]
+      driver: "3.8.30"
       python: "3.12"
       triton: triton==3.0.0+metax3.7.2.0
       flagtree: flagtree==3.1.0+metax3.7.2.0
@@ -290,6 +304,7 @@ vendors:
     musa4.3.6:
       extras: mthreads-musa436
       hardware: ["MThreads MTT S5000"]
+      driver: "5.2.0-server"
       python: "3.10"
       cmake_backend: MUSA
       triton: triton==3.6.0+git89458660
@@ -314,6 +329,7 @@ vendors:
     musa5.2.0:
       extras: mthreads-musa520
       hardware: ["MThreads MTT S5000"]
+      driver: "5.2.0-server"
       python: "3.10"
       cmake_backend: MUSA
       triton: triton==3.6.0
@@ -349,6 +365,7 @@ vendors:
     tangrt1.2.0:
       extras: sunrise
       hardware: ["Sunrise SR-SUN-S2-X1"]
+      driver: "0.24.0"
       python: "3.10"
       triton: triton==3.4.0.6+gite4f6d6e4
       # flagtree==0.4.0+sunrise3.4 — requires GLIBC_2.39, unavailable on current system
@@ -386,6 +403,7 @@ vendors:
     tsm260604:
       extras: tsingmicro
       hardware: ["Tsingmicro TX8110"]
+      driver: "260604163331.01"
       python: "3.10"
       triton: triton==3.3.0+gitfe2a28fa
       flagtree: flagtree==0.5.0.post20260612+git705a4064

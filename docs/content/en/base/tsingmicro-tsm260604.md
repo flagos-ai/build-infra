@@ -10,6 +10,7 @@ title: "tsingmicro-tsm260604"
 
 - **Architecture:** x86_64
 - **Chip models:** Tsingmicro TX8110
+- **Host driver:** 260604163331.01
 
 ## System packages
 
@@ -54,7 +55,7 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --device /dev/accel --device /dev/accel_drv_mgr harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-18-gb92aab6 bash
+docker run --rm -it --device /dev/accel --device /dev/accel_drv_mgr harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify

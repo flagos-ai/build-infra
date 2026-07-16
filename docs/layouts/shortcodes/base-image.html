@@ -7,6 +7,9 @@
 <ul>
   <li><strong>{{ T "image" }}:</strong> <code class="plain">{{ $b.image }}</code></li>
   <li><strong>{{ T "base_os" }}:</strong> <code class="plain">{{ $b.os }}</code></li>
+  {{- with $b.driver }}
+  <li><strong>{{ T "host_driver" }}:</strong> <code class="plain">{{ . }}</code></li>
+  {{- end }}
 </ul>
 
 {{- with $b.system_packages }}

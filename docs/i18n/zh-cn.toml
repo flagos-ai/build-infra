@@ -66,5 +66,8 @@ other = "启动（docker 或 podman 均可）"
 [run_generic]
 other = "在容器中启动交互式 shell"
 
+[host_driver]
+other = "宿主机驱动"
+
 [runtime_tag_note]
 other = "tag 方案待定"

@@ -10,6 +10,7 @@ title: "enflame-tops1.9.10"
 
 - **Architecture:** x86_64
 - **Chip models:** Enflame Zixiao C200 (S60)
+- **Host driver:** 1.9.10
 
 ## System packages
 
@@ -40,7 +41,7 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --device /dev/gcu harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-18-gb92aab6 bash
+docker run --rm -it --device /dev/gcu harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-19-ge0c6cbb bash
 ```
 
 ## Verify
