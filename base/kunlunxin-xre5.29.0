@@ -1,10 +1,14 @@
 # ============================================================
-# Base image for Kunlunxin XPU 5.29 on Ubuntu 22.04
+# Base image for Kunlunxin XPU 5.29 on Ubuntu 24.04
 # ============================================================
 # History:
 # - 20260608: Initial version
+# - 20260716: Bump base OS 22.04 -> 24.04 for flagtree (needs newer libstdc++).
+#   Kunlunxin's XRE/XCUDART packages carry no OS tag and are unchanged here:
+#   their binaries link older glibc/libstdc++ and run on 24.04's newer libs
+#   (forward-compatible), while the 24.04 base satisfies flagtree's GLIBCXX floor.
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
@@ -24,12 +28,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
    && rm -rf /var/lib/apt/lists/*
 
 # ── Install CUDA ────────────────────────────────────────────────
-RUN curl -o /cuda.run ${FILE_STORE}/cuda/${CUDA_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /cuda.run ${FILE_STORE}/cuda/${CUDA_PACKAGE} \
     && bash cuda.run --toolkit --silent \
     && rm /cuda.run
 
 # ── Install XRE ────────────────────────────────────────────────
-RUN curl -o /tmp/xre.run ${FILE_STORE}/kunlunxin/${XRE_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/xre.run ${FILE_STORE}/kunlunxin/${XRE_PACKAGE} \
     && cd /tmp \
     && bash xre.run --extract-only \
     && cd /tmp/xre-Linux-x86_64 \
@@ -37,7 +41,7 @@ RUN curl -o /tmp/xre.run ${FILE_STORE}/kunlunxin/${XRE_PACKAGE} \
     && rm -fr /tmp/*
 
 # ── Install XCUDART ────────────────────────────────────────────
-RUN curl -o /xcudart.deb ${FILE_STORE}/kunlunxin/${XCUDART_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STORE}/kunlunxin/${XCUDART_PACKAGE} \
     && dpkg -i --instdir /usr/local /xcudart.deb \
     && rm /xcudart.deb
 
