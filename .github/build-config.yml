@@ -81,9 +81,9 @@ run:
     # VERIFIED: Iluvatar container runtime + env var; tool is ixsmi.
     # Host prerequisite: ix-container-toolkit >= 1.1.0.
     iluvatar: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
-    # DOC: Tsingmicro TX8 — vendor docs only show a permissive privileged launch;
-    # a tighter set of device nodes is TBD (verify on hardware)
-    tsingmicro: "--privileged --ipc=host -v /dev:/dev -v /lib/modules:/lib/modules"
+    # VERIFIED on the TX8110 node: confined device passthrough is enough — the two
+    # accel nodes, no --privileged/-v /dev needed. tsm_smi listed all 32 chips.
+    tsingmicro: "--device /dev/accel --device /dev/accel_drv_mgr"
     # sunrise PTPU: device node unknown — no public docs found
     sunrise: ""       # TODO: confirm device node / launch method on hardware
 
@@ -117,5 +117,7 @@ verify:
     mthreads: "mthreads-gmi"
     enflame: "efsmi"
     sunrise: "pt_smi"
-    tsingmicro: "tsm-smi"
+    # VERIFIED on the TX8110 node: the tool is tsm_smi (underscore), on PATH via
+    # KUIPER_PATH/bin (/usr/local/kuiper/bin), no env-source needed.
+    tsingmicro: "tsm_smi"
 
