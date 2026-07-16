@@ -1,15 +1,20 @@
 # ============================================================
-# Base image for Hygon DTK 26.04 on Ubuntu 22.04
+# Base image for Hygon DTK 26.04 on Ubuntu 24.04
 # ============================================================
 # History:
 # - 20260607: Initial version, DTK 26.04 only support Ubuntu 22.04
+# - 20260716: Bump base OS 22.04 -> 24.04 for flagtree (needs newer libstdc++).
+#   Hygon has no Ubuntu-24.04 DTK release, so we keep the Ubuntu-22.04 DTK build:
+#   22.04 binaries link older glibc/libstdc++ and run on 24.04's newer libs
+#   (forward-compatible), while the 24.04 base satisfies flagtree's GLIBCXX floor.
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
+# No Ubuntu-24.04 DTK yet — the 22.04 build runs on 24.04 (see header note).
 ARG SDK_PACKAGE=DTK-26.04-Ubuntu22.04-x86_64.tar.gz
 
 ENV DEBIAN_FRONTEND=noninteractive
