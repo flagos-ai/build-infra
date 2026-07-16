@@ -41,7 +41,7 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell in the container:
 
 ```bash
-docker run --rm -it harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-16-gac22f59 bash
+docker run --rm -it harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-17-g78c7264 bash
 ```
 
 ## Verify

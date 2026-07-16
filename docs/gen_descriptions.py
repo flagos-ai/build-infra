@@ -84,7 +84,14 @@ def render(entry: dict, versions: dict) -> str:
         lines.append(f"- **Chip models:** {', '.join(hw)}")
     toolkit = entry.get("run_prereq") or ""
     if toolkit:
-        lines.append(f"- **Host container toolkit:** {toolkit}")
+        # The container toolkit is only needed for the recommended (toolkit) launch.
+        # Where a raw/generic tier also exists it's optional — the raw command needs
+        # no toolkit; it's only truly required for toolkit-only backends.
+        has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
+        if has_raw:
+            lines.append(f"- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: {toolkit}")
+        else:
+            lines.append(f"- **Container toolkit:** {toolkit}")
     lines.append("")
 
     # ── System packages (explicit apt, with baked-in versions) ──
@@ -127,10 +134,10 @@ def render(entry: dict, versions: dict) -> str:
             cmd = t["template"].replace("{image}", image)
             if t["kind"] == "toolkit":
                 tk = f" (`{prereq}`)" if prereq else ""
-                hdr = (f"**Recommended** — with the container toolkit{tk}:" if both
-                       else f"Launch with the container toolkit{tk}:")
+                opt = " *(optional)*" if both else ""
+                hdr = f"**With the container toolkit**{opt}{tk}:"
             elif t["kind"] == "raw":
-                hdr = ("**Without the toolkit / podman** — raw device passthrough:" if both
+                hdr = ("**Without a toolkit** — plain docker / podman:" if both
                        else "Start an interactive shell (works with docker or podman):")
             else:  # generic
                 hdr = "Start an interactive shell in the container:"

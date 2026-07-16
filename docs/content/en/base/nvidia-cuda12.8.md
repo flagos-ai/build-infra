@@ -10,7 +10,7 @@ title: "nvidia-cuda12.8"
 
 - **Architecture:** x86_64
 - **Chip models:** NVIDIA H20
-- **Host container toolkit:** nvidia-container-toolkit
+- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: nvidia-container-toolkit
 
 ## System packages
 
@@ -38,10 +38,16 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Launch with the container toolkit (`nvidia-container-toolkit`):
+**With the container toolkit** *(optional)* (`nvidia-container-toolkit`):
 
 ```bash
-docker run --rm -it --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-16-gac22f59 bash
+docker run --rm -it --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-17-g78c7264 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it --device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-17-g78c7264 bash
 ```
 
 ## Verify

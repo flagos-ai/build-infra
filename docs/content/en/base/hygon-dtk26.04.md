@@ -10,7 +10,7 @@ title: "hygon-dtk26.04"
 
 - **Architecture:** x86_64
 - **Chip models:** Hygon BW1000
-- **Host container toolkit:** dcu-container-toolkit >= 1.3.0
+- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: dcu-container-toolkit >= 1.3.0
 
 ## System packages
 
@@ -30,16 +30,16 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**Recommended** — with the container toolkit (`dcu-container-toolkit >= 1.3.0`):
+**With the container toolkit** *(optional)* (`dcu-container-toolkit >= 1.3.0`):
 
 ```bash
-docker run --rm -it -e DCU_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-16-gac22f59 bash
+docker run --rm -it -e DCU_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-17-g78c7264 bash
 ```
 
-**Without the toolkit / podman** — raw device passthrough:
+**Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-16-gac22f59 bash
+docker run --rm -it --device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-17-g78c7264 bash
 ```
 
 ## Verify

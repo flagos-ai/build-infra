@@ -52,13 +52,13 @@ other = "运行"
 other = "该厂商的设备标志尚未最终确定——这条通用命令可能需要补充厂商特定的 --device / --gpus 标志。"
 
 [run_recommended]
-other = "推荐 —— 使用容器工具包"
+other = "使用容器工具包（可选）"
 
 [run_toolkit_only]
-other = "使用容器工具包启动"
+other = "使用容器工具包"
 
 [run_raw]
-other = "不使用工具包 / podman —— 原始设备直通"
+other = "无需工具包 —— 直接使用 docker / podman"
 
 [run_raw_only]
 other = "启动（docker 或 podman 均可）"

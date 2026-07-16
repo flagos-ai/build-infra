@@ -54,7 +54,7 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --device /dev/accel --device /dev/accel_drv_mgr harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-16-gac22f59 bash
+docker run --rm -it --device /dev/accel --device /dev/accel_drv_mgr harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-17-g78c7264 bash
 ```
 
 ## Verify

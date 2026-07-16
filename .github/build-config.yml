@@ -54,6 +54,10 @@ run:
     nvidia:
       # VERIFIED: nvidia-container-toolkit injects the driver + nvidia-smi.
       toolkit: "--gpus all"
+      # VERIFIED on h20 (runc, no toolkit): device nodes + host driver mounts
+      # (nvidia-smi + libnvidia-ml for smi, libcuda for CUDA). The toolkit automates
+      # exactly this; raw is the pre-toolkit / podman path.
+      raw: "--device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro"
     ascend:
       # VERIFIED on 910B (hw25): Ascend-docker-runtime. Use explicit device INDICES —
       # ASCEND_VISIBLE_DEVICES=all trips the runtime's product-type enumeration on the
@@ -75,12 +79,19 @@ run:
       # VERIFIED on metax124 (8x C550): confined device flags run mx-smi.
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
-      # VERIFIED on worker38024 (8x S5000): MT Container Toolkit runtime. mthreads-gmi +
-      # driver libs are injected by the runtime (not baked) → no raw tier yet (see #125).
+      # VERIFIED on worker38024 (8x S5000): MT Container Toolkit runtime.
       toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
+      # VERIFIED on worker38024 (runc, no toolkit): mthreads-gmi is self-contained
+      # (talks to /dev/mtgpu.* directly, no driver libs), so just the device nodes +
+      # a host mount of the tool. (Baking it into the image is the fuller podman story
+      # — see #125.)
+      raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
       # VERIFIED: ix-container-toolkit runtime; tool is ixsmi.
       toolkit: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
+      # VERIFIED on ix15 (runc, no toolkit): device node + host /usr/local/corex mount
+      # (carries ixsmi + its libixml.so). The base image's corex env puts ixsmi on PATH.
+      raw: "--device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro"
     cambricon:
       # VERIFIED on MLU590: confined passthrough; cnmon is baked in the image (no host
       # mount). No container toolkit/runtime known.

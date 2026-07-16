@@ -10,7 +10,7 @@ title: "ascend-cann9.0.0"
 
 - **Architecture:** aarch64
 - **Chip models:** Ascend 910B
-- **Host container toolkit:** Ascend-docker-runtime >= 6.0.RC3
+- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: Ascend-docker-runtime >= 6.0.RC3
 
 ## System packages
 
@@ -27,16 +27,16 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**Recommended** — with the container toolkit (`Ascend-docker-runtime >= 6.0.RC3`):
+**With the container toolkit** *(optional)* (`Ascend-docker-runtime >= 6.0.RC3`):
 
 ```bash
-docker run --rm -it -e ASCEND_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-16-gac22f59 bash
+docker run --rm -it -e ASCEND_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-17-g78c7264 bash
 ```
 
-**Without the toolkit / podman** — raw device passthrough:
+**Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-16-gac22f59 bash
+docker run --rm -it --device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-17-g78c7264 bash
 ```
 
 ## Verify
