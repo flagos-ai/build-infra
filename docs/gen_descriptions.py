@@ -114,11 +114,27 @@ def render(entry: dict, versions: dict) -> str:
         lines.append("")
 
     # ── Launch ──────────────────────────────────────────────────
-    run_flags = entry.get("run") or ""
-    flags = f"{run_flags} " if run_flags else ""
-    lines += ["## Launch", ""]
-    lines += ["Start an interactive shell in the container:", ""]
-    lines += ["```bash", f"docker run --rm -it {flags}{base['image']} bash", "```", ""]
+    # One block per launch tier (see gen_data.launch_tiers). When a vendor has both
+    # a toolkit and a raw tier, the toolkit one is labelled "Recommended" and the raw
+    # one is the no-toolkit/podman fallback; a lone tier gets a plain header.
+    image = base["image"]
+    tiers = entry.get("launch") or []
+    prereq = entry.get("run_prereq") or ""
+    both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
+    if tiers:
+        lines += ["## Launch", ""]
+        for t in tiers:
+            cmd = t["template"].replace("{image}", image)
+            if t["kind"] == "toolkit":
+                tk = f" (`{prereq}`)" if prereq else ""
+                hdr = (f"**Recommended** — with the container toolkit{tk}:" if both
+                       else f"Launch with the container toolkit{tk}:")
+            elif t["kind"] == "raw":
+                hdr = ("**Without the toolkit / podman** — raw device passthrough:" if both
+                       else "Start an interactive shell (works with docker or podman):")
+            else:  # generic
+                hdr = "Start an interactive shell in the container:"
+            lines += [hdr, "", "```bash", cmd, "```", ""]
 
     # ── Verify ──────────────────────────────────────────────────
     # Shown as a SEPARATE command to run INSIDE the launched container (not

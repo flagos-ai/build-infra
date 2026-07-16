@@ -196,6 +196,40 @@ def main():
     run_prereq = run_cfg.get("prereq") or {}
     verify_vendors = (build_config.get("verify") or {}).get("vendors") or {}
 
+    def launch_tiers(vendor):
+        """Ordered launch tiers for a vendor: a list of {kind, template}. `kind`
+        is 'toolkit' (recommended, needs the container toolkit), 'raw' (device
+        passthrough, docker/podman), or 'generic' (plain run, no device flags).
+        `template` carries an `{image}` placeholder so each renderer can drop in
+        the base or runtime image. Renderers map `kind` to a label (English in
+        gen_descriptions, i18n in the Hugo shortcodes), so the list is
+        language-neutral.
+
+        Presence rules on the vendor's run entry (a map): a `toolkit`/`toolkit_cmd`
+        key -> toolkit tier; a `raw` key -> raw tier (empty string -> generic);
+        no `raw` key -> no raw tier (toolkit-only). A legacy bare string is raw
+        flags; an unlisted vendor gets a generic tier from the default."""
+        rv = run_vendors.get(vendor)
+        d = rv if isinstance(rv, dict) else {}
+        tiers = []
+        if d.get("toolkit_cmd"):
+            tiers.append({"kind": "toolkit", "template": d["toolkit_cmd"]})
+        elif d.get("toolkit"):
+            tiers.append({"kind": "toolkit", "template": f"docker run --rm -it {d['toolkit']} {{image}} bash"})
+        if isinstance(rv, dict) and "raw" in d:
+            raw = d["raw"]
+        elif isinstance(rv, str):
+            raw = rv
+        elif rv is None:
+            raw = run_default  # unlisted vendor -> generic
+        else:
+            raw = None         # dict without a raw key -> toolkit-only
+        if raw is not None:
+            flags = f"{raw} " if raw else ""
+            tiers.append({"kind": "raw" if raw else "generic",
+                          "template": f"docker run --rm -it {flags}{{image}} bash"})
+        return tiers
+
     def image(prefix, kind, name, tag):
         base = f"flagos-{kind}-{name}"
         base = f"{prefix}/{base}" if prefix else base
@@ -220,7 +254,7 @@ def main():
                     "name": name,
                     "vendor": vendor,
                     "backend": backend,
-                    "run": run_vendors.get(vendor, run_default),
+                    "launch": launch_tiers(vendor),
                     "run_prereq": run_prereq.get(vendor, ""),
                     "verify": verify_vendors.get(vendor, ""),
                     "base": {

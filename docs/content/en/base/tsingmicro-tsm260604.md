@@ -4,7 +4,7 @@ title: "tsingmicro-tsm260604"
 
 ## Base image
 
-`ubuntu:22.04`
+`ubuntu:24.04`
 
 ## Prerequisites
 
@@ -15,18 +15,18 @@ title: "tsingmicro-tsm260604"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `clang` — 14.0
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `libfmt-dev` — 8.1.1+ds1
-- `libopenmpi3` — 4.1.2
-- `libpython3-dev` — 3.10.6
-- `libunwind8` — 1.3.2
-- `sudo` — 1.9.9
+- `build-essential`
+- `ca-certificates`
+- `clang`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `libfmt-dev`
+- `libopenmpi3`
+- `libpython3-dev`
+- `libunwind8`
+- `sudo`
 
 ## SDK components
 
@@ -51,10 +51,10 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Start an interactive shell in the container:
+Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --privileged --ipc=host -v /dev:/dev -v /lib/modules:/lib/modules harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1 bash
+docker run --rm -it --device /dev/accel --device /dev/accel_drv_mgr harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-16-gac22f59 bash
 ```
 
 ## Verify
@@ -62,5 +62,5 @@ docker run --rm -it --privileged --ipc=host -v /dev:/dev -v /lib/modules:/lib/mo
 Inside the container, confirm the accelerator is visible (the first run may take a moment):
 
 ```bash
-tsm-smi
+tsm_smi
 ```
