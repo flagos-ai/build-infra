@@ -60,9 +60,13 @@ run:
     metax: "--device /dev/mxcd --device /dev/dri --group-add video"
     # DOC: Ascend passthrough; npu-smi + driver are host-provided → bind-mount
     ascend: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
-    # DOC + maintainer: hygon DCU is ROCm/HIP-based → kfd + dri; also needs the
-    # host /opt/hyhal mounted (maintainer-confirmed; exact purpose TBD)
-    hygon: "--device /dev/kfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
+    # VERIFIED on hygon25 (8x DCU): hygon is ROCm/HIP-based → needs BOTH kfd nodes
+    # (/dev/kfd major 501 + /dev/mkfd major 500) plus /dev/dri, and the host
+    # /opt/hyhal mounted. /dev/kfd alone enumerates devices (temp/vram) but hy-smi
+    # then errors "Open mkfd failed" and power/perf read N/A — /dev/mkfd carries that
+    # telemetry. With both, hy-smi shows full readings under these confined flags (no
+    # privileged needed).
+    hygon: "--device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
     # DOC: Cambricon MLU device + control node; cnmon is host-provided → mount
     cambricon: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl -v /usr/bin/cnmon:/usr/bin/cnmon"
     # DOC + maintainer: Kunlunxin XPU device + control node; xpu-smi is baked in
@@ -106,7 +110,9 @@ verify:
     metax: "mx-smi"
     cambricon: "cnmon"
     iluvatar: "ixsmi"
-    hygon: "hy-smi"
+    # VERIFIED on hygon25: hy-smi lives at /opt/dtk-26.04/.hyhal/bin/hy-smi and is
+    # only on PATH after sourcing the DTK env (not flattened into ENV yet).
+    hygon: "source /opt/dtk-26.04/env.sh && hy-smi"
     kunlunxin: "xpu-smi"
     mthreads: "mthreads-gmi"
     enflame: "efsmi"
