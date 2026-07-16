@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install DTK ────────────────────────────────────────────────
-RUN curl -o /dtk.tar.gz ${FILE_STORE}/hygon/${SDK_PACKAGE} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /dtk.tar.gz ${FILE_STORE}/hygon/${SDK_PACKAGE} \
     && tar xzf /dtk.tar.gz -C /opt \
     && rm /dtk.tar.gz
 
