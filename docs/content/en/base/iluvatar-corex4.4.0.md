@@ -39,13 +39,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`ix-container-toolkit >= 1.1.0`):
 
 ```bash
-docker run --rm -it --runtime iluvatar --env IX_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-17-g78c7264 bash
+docker run --rm -it --runtime iluvatar --env IX_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-18-gb92aab6 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-17-g78c7264 bash
+docker run --rm -it --device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-18-gb92aab6 bash
 ```
 
 ## Verify

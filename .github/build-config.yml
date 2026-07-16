@@ -36,84 +36,59 @@ runners:
 # the rest are placeholders — replace the TODO strings with the real flags.
 # How to launch each vendor's image, for the docs' per-image "Launch" section.
 # Each vendor may carry up to two launch styles; the docs render whichever exist,
-# "toolkit" first (recommended):
+# toolkit first:
 #   toolkit:     flags added to `docker run` when the vendor's container toolkit is
 #                installed on the host (--gpus all, --runtime X, -e X_VISIBLE_DEVICES).
 #   toolkit_cmd: a full wrapper command ({image} placeholder) for launchers that
 #                REPLACE `docker run` entirely (e.g. metax-docker).
-#   raw:         device-passthrough flags that work with plain docker/podman + the
-#                vendor driver, no toolkit (used when the smi tool is baked into the
-#                image). Empty raw ("") = generic `docker run <image>`, no flags.
+#   raw:         device-passthrough flags for plain docker/podman + the vendor driver,
+#                no toolkit. Empty raw ("") = generic `docker run <image>`, no flags.
 # The toolkit's host prerequisite is named under `prereq` below.
-#
-# STATUS: VERIFIED = tried on real hardware here, or maintainer-verified before
-# sharing; DOC = vendor/community docs, confirm on hardware.
 run:
   default: ""
   vendors:
     nvidia:
-      # VERIFIED: nvidia-container-toolkit injects the driver + nvidia-smi.
       toolkit: "--gpus all"
-      # VERIFIED on h20 (runc, no toolkit): device nodes + host driver mounts
-      # (nvidia-smi + libnvidia-ml for smi, libcuda for CUDA). The toolkit automates
-      # exactly this; raw is the pre-toolkit / podman path.
+      # raw needs the host driver: nvidia-smi + libnvidia-ml (for smi) + libcuda (CUDA).
       raw: "--device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro"
     ascend:
-      # VERIFIED on 910B (hw25): Ascend-docker-runtime. Use explicit device INDICES —
-      # ASCEND_VISIBLE_DEVICES=all trips the runtime's product-type enumeration on the
+      # GOTCHA: explicit device indices only — ASCEND_VISIBLE_DEVICES=all fails on the
       # 910 ("product type is not support"); =0 (or 0,1,...) works.
       toolkit: "-e ASCEND_VISIBLE_DEVICES=0"
-      # VERIFIED on 910B: raw passthrough; npu-smi + driver are host-provided → mount.
       raw: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
     hygon:
-      # VERIFIED (maintainer): DCU-Container-Toolkit injects hyhal.
       toolkit: "-e DCU_VISIBLE_DEVICES=all"
-      # VERIFIED on hygon25 (8x DCU): needs BOTH kfd nodes (/dev/kfd major 501 +
-      # /dev/mkfd major 500) + /dev/dri + host /opt/hyhal. /dev/kfd alone enumerates
-      # devices but hy-smi errors "Open mkfd failed" and power/perf read N/A without
-      # /dev/mkfd.
+      # GOTCHA: needs BOTH kfd nodes — /dev/kfd alone leaves power/perf N/A and hy-smi
+      # errors "Open mkfd failed"; /dev/mkfd carries that telemetry.
       raw: "--device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
     metax:
-      # VERIFIED (maintainer): metax-docker is a wrapper launcher (replaces docker run).
+      # metax-docker is a wrapper launcher (replaces `docker run`), not flags.
       toolkit_cmd: "metax-docker --gpus all {image} bash"
-      # VERIFIED on metax124 (8x C550): confined device flags run mx-smi.
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
-      # VERIFIED on worker38024 (8x S5000): MT Container Toolkit runtime.
       toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
-      # VERIFIED on worker38024 (runc, no toolkit): mthreads-gmi is self-contained
-      # (talks to /dev/mtgpu.* directly, no driver libs), so just the device nodes +
-      # a host mount of the tool. (Baking it into the image is the fuller podman story
-      # — see #125.)
+      # raw mounts the host mthreads-gmi (not baked); #125 would bake it and drop the mount.
       raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
-      # VERIFIED: ix-container-toolkit runtime; tool is ixsmi.
       toolkit: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
-      # VERIFIED on ix15 (runc, no toolkit): device node + host /usr/local/corex mount
-      # (carries ixsmi + its libixml.so). The base image's corex env puts ixsmi on PATH.
+      # raw mounts the host /usr/local/corex (carries ixsmi + its libixml.so).
       raw: "--device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro"
     cambricon:
-      # VERIFIED on MLU590: confined passthrough; cnmon is baked in the image (no host
-      # mount). No container toolkit/runtime known.
+      # No container toolkit/runtime known; cnmon is baked in the image.
       raw: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl"
     kunlunxin:
-      # VERIFIED on P800 (both tiers): xpu-container-toolkit runtime. NOTE the env
-      # var is CXPU_VISIBLE_DEVICES (Container-XPU), NOT XPU_VISIBLE_DEVICES, and it
-      # wants explicit device indices. Host setup: `xpu-ctk runtime configure
-      # --runtime=docker` then restart docker (the .deb install skips this step).
+      # GOTCHA: env var is CXPU_VISIBLE_DEVICES (not XPU_), explicit index. Host setup:
+      # `xpu-ctk runtime configure --runtime=docker` + restart docker (the .deb skips it).
       toolkit: "--runtime xpu -e CXPU_VISIBLE_DEVICES=0"
-      # VERIFIED on P800: confined passthrough; xpu-smi baked in the image.
       raw: "--device /dev/xpu0 --device /dev/xpuctrl"
     tsingmicro:
-      # VERIFIED on TX8110 (32 chips): confined passthrough; tsm_smi baked in the image.
-      # TODO toolkit: checking with Tsingmicro (tracked in #128).
+      # TODO toolkit: checking with Tsingmicro (#128).
       raw: "--device /dev/accel --device /dev/accel_drv_mgr"
     enflame:
-      # DOC: Enflame GCU device node; efsmi ships in the runtime stack.
-      # TODO toolkit: awaiting response from Enflame (tracked in #128).
+      # TODO toolkit: awaiting Enflame (#128).
       raw: "--device /dev/gcu"
     sunrise:
-      # sunrise PTPU: generic launch only — no device flags / toolkit known.
+      # generic launch only — no device flags / toolkit known.
       raw: ""
 
   # Host prerequisite (container toolkit) for the toolkit tier, per vendor. Rendered
@@ -134,20 +109,16 @@ run:
 verify:
   vendors:
     nvidia: "nvidia-smi"
-    # ascend: the driver/toolkit env is provided by sourcing set_env.sh (the
-    # base_source TODO — not yet flattened into ENV), so npu-smi needs it first.
+    # needs set_env.sh sourced first (env not baked into the image yet).
     ascend: "source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info"
     metax: "mx-smi"
     cambricon: "cnmon"
     iluvatar: "ixsmi"
-    # VERIFIED on hygon25: hy-smi via the hyhal env. /opt/hyhal/env.sh works for both
-    # launch paths — host-mounted in the raw case, toolkit-injected with the DCU toolkit.
+    # hyhal env works for both launch paths (host-mounted raw / toolkit-injected).
     hygon: "source /opt/hyhal/env.sh && hy-smi"
     kunlunxin: "xpu-smi"
     mthreads: "mthreads-gmi"
     enflame: "efsmi"
     sunrise: "pt_smi"
-    # VERIFIED on the TX8110 node: the tool is tsm_smi (underscore), on PATH via
-    # KUIPER_PATH/bin (/usr/local/kuiper/bin), no env-source needed.
     tsingmicro: "tsm_smi"
 

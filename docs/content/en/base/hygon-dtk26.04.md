@@ -33,13 +33,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`dcu-container-toolkit >= 1.3.0`):
 
 ```bash
-docker run --rm -it -e DCU_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-17-g78c7264 bash
+docker run --rm -it -e DCU_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-18-gb92aab6 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-17-g78c7264 bash
+docker run --rm -it --device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-18-gb92aab6 bash
 ```
 
 ## Verify

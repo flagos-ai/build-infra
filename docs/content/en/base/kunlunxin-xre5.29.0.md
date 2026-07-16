@@ -41,13 +41,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`xpu_container >= 1.0.13`):
 
 ```bash
-docker run --rm -it --runtime xpu -e CXPU_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-17-g78c7264 bash
+docker run --rm -it --runtime xpu -e CXPU_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-18-gb92aab6 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/xpu0 --device /dev/xpuctrl harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-17-g78c7264 bash
+docker run --rm -it --device /dev/xpu0 --device /dev/xpuctrl harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-18-gb92aab6 bash
 ```
 
 ## Verify

@@ -46,13 +46,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0`):
 
 ```bash
-docker run --rm -it --runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-17-g78c7264 bash
+docker run --rm -it --runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-18-gb92aab6 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-17-g78c7264 bash
+docker run --rm -it --device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-18-gb92aab6 bash
 ```
 
 ## Verify
