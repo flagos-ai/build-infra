@@ -1,7 +1,12 @@
 # ============================================================
-# Base image for MooreThreads MUSA 5.2.0 on Ubuntu 22.04
+# Base image for MooreThreads MUSA 5.2.0 on Ubuntu 24.04
 # ============================================================
-FROM ubuntu:22.04
+# History:
+# - 20260716: Bump base OS 22.04 -> 24.04 for flagtree (needs newer libstdc++).
+#   MUSA/MCCL/muDNN packages carry no OS tag and are unchanged: their 22.04-built
+#   binaries link older glibc/libstdc++ and run on 24.04's newer libs
+#   (forward-compatible), while the 24.04 base satisfies flagtree's GLIBCXX floor.
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
@@ -22,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Toolkit
-RUN curl -o /toolkits.tar.gz ${FILE_STORE}/${TOOKIT_PKG} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /toolkits.tar.gz ${FILE_STORE}/${TOOKIT_PKG} \
     && tar xzvf /toolkits.tar.gz -C /tmp \
     && cd /tmp/musa_toolkits_install \
     && ./install.sh \
@@ -34,7 +39,7 @@ ENV PATH="${MUSA_HOME}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="${MUSA_HOME}/lib"
 
 # Install MCCL
-RUN curl -o /mccl.tar.gz ${FILE_STORE}/${MCCL_PKG} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mccl.tar.gz ${FILE_STORE}/${MCCL_PKG} \
   && tar xzf /mccl.tar.gz -C /tmp \
   && cd /tmp/mccl \
   && ./install.sh \
@@ -42,7 +47,7 @@ RUN curl -o /mccl.tar.gz ${FILE_STORE}/${MCCL_PKG} \
   && rm /mccl.tar.gz
 
 # Install MuDNN
-RUN curl -o /mudnn.tar.gz ${FILE_STORE}/${MUDNN_PKG} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mudnn.tar.gz ${FILE_STORE}/${MUDNN_PKG} \
   && tar xzvf /mudnn.tar.gz -C /tmp \
   && cd /tmp/mudnn \
   && ./install_mudnn.sh \
