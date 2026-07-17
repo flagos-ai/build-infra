@@ -2,35 +2,35 @@
 title: "ascend-cann9.0.0"
 ---
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** aarch64
-- **Chip models:** Ascend 910B
-- **Host driver:** 26.0.rc1
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: Ascend-docker-runtime >= 6.0.RC3
+- **架构:** aarch64
+- **芯片型号:** Ascend 910B
+- **宿主机驱动:** 26.0.rc1
+- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: Ascend-docker-runtime >= 6.0.RC3
 
-## Image contents
+## 镜像内容
 
-### Base image
+### 基础镜像
 
 `ubuntu:24.04`
 
-### System packages
+### 系统软件包
 
-Explicitly installed; the version is the one baked into this image:
+显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `ca-certificates`
 - `software-properties-common`
 
-### SDK components
+### SDK 组件
 
 - CANN Toolkit 9.0.0 (aarch64)
 - CANN 910B Ops 9.0.0 (aarch64)
 - CANN NNAL 9.0.0 (aarch64)
 
-## Launch
+## 启动
 
-**With the container toolkit** *(optional)*:
+**使用容器工具包** *(可选)*：
 
 ```bash
 docker run --rm -it \
@@ -38,7 +38,7 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g18451ed bash
 ```
 
-**Without a toolkit** — plain docker / podman:
+**无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
@@ -52,9 +52,9 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g18451ed bash
 ```
 
-## Verify
+## 验证
 
-Inside the container, confirm the accelerator is visible:
+在容器内，确认加速器可见：
 
 ```bash
 source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info

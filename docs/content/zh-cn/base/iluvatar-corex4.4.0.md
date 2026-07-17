@@ -2,22 +2,22 @@
 title: "iluvatar-corex4.4.0"
 ---
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** Iluvatar BI-V150
-- **Host driver:** 4.4.0
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: ix-container-toolkit >= 1.1.0
+- **架构:** x86_64
+- **芯片型号:** Iluvatar BI-V150
+- **宿主机驱动:** 4.4.0
+- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: ix-container-toolkit >= 1.1.0
 
-## Image contents
+## 镜像内容
 
-### Base image
+### 基础镜像
 
 `ubuntu:24.04`
 
-### System packages
+### 系统软件包
 
-Explicitly installed; the version is the one baked into this image:
+显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential`
 - `ca-certificates`
@@ -26,20 +26,20 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc`
 - `unzip`
 
-### SDK components
+### SDK 组件
 
 - Corex Runtime 4.4.0
 - CUDA Header files 260604
 
-## Environment
+## 环境变量
 
 - `COREX_ROOT=/usr/local/corex`
 - `PATH=/usr/local/corex/bin:$PATH`
 - `LD_LIBRARY_PATH=/usr/local/corex/lib`
 
-## Launch
+## 启动
 
-**With the container toolkit** *(optional)*:
+**使用容器工具包** *(可选)*：
 
 ```bash
 docker run --rm -it \
@@ -48,7 +48,7 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g18451ed bash
 ```
 
-**Without a toolkit** — plain docker / podman:
+**无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
@@ -57,9 +57,9 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g18451ed bash
 ```
 
-## Verify
+## 验证
 
-Inside the container, confirm the accelerator is visible:
+在容器内，确认加速器可见：
 
 ```bash
 ixsmi

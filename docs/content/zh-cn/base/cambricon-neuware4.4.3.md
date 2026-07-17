@@ -2,21 +2,21 @@
 title: "cambricon-neuware4.4.3"
 ---
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** Cambricon MLU590
-- **Host driver:** 6.2.15
+- **架构:** x86_64
+- **芯片型号:** Cambricon MLU590
+- **宿主机驱动:** 6.2.15
 
-## Image contents
+## 镜像内容
 
-### Base image
+### 基础镜像
 
 `ubuntu:24.04`
 
-### System packages
+### 系统软件包
 
-Explicitly installed; the version is the one baked into this image:
+显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential`
 - `ca-certificates`
@@ -32,7 +32,7 @@ Explicitly installed; the version is the one baked into this image:
 - `pciutils`
 - `unzip`
 
-### SDK components
+### SDK 组件
 
 - cndev 6.5.25 (amd64)
 - cnmon 6.2.15
@@ -56,14 +56,14 @@ Explicitly installed; the version is the one baked into this image:
 - cntoolkit-cloud 4.4.3
 - cnclep 1.1.1.
 
-## Environment
+## 环境变量
 
 - `PATH=/usr/local/neuware/bin:$PATH`
 - `LD_LIBRARY_PATH=/usr/local/neuware/lib64`
 
-## Launch
+## 启动
 
-Start an interactive shell (works with docker or podman):
+启动交互式 shell（docker 或 podman 均可）：
 
 ```bash
 docker run --rm -it \
@@ -72,9 +72,9 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1-20-g18451ed bash
 ```
 
-## Verify
+## 验证
 
-Inside the container, confirm the accelerator is visible:
+在容器内，确认加速器可见：
 
 ```bash
 cnmon

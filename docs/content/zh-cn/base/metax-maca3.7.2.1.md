@@ -2,22 +2,22 @@
 title: "metax-maca3.7.2.1"
 ---
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** MetaX C550
-- **Host driver:** 3.8.30
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: metax-docker >= 0.15.3
+- **架构:** x86_64
+- **芯片型号:** MetaX C550
+- **宿主机驱动:** 3.8.30
+- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: metax-docker >= 0.15.3
 
-## Image contents
+## 镜像内容
 
-### Base image
+### 基础镜像
 
 `ubuntu:24.04`
 
-### System packages
+### 系统软件包
 
-Explicitly installed; the version is the one baked into this image:
+显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential`
 - `ca-certificates`
@@ -30,20 +30,20 @@ Explicitly installed; the version is the one baked into this image:
 - `libpython3-dev`
 - `make`
 
-### SDK components
+### SDK 组件
 
 - MetaX Driver 3.7.2.30
 - MACA SDK 3.7.2.0
 
-## Environment
+## 环境变量
 
 - `PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}`
 - `MACA_PATH=/opt/maca`
 - `LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib`
 
-## Launch
+## 启动
 
-**With the container toolkit** *(optional)*:
+**使用容器工具包** *(可选)*：
 
 ```bash
 metax-docker \
@@ -51,7 +51,7 @@ metax-docker \
   harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-20-g18451ed bash
 ```
 
-**Without a toolkit** — plain docker / podman:
+**无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
@@ -61,9 +61,9 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-20-g18451ed bash
 ```
 
-## Verify
+## 验证
 
-Inside the container, confirm the accelerator is visible:
+在容器内，确认加速器可见：
 
 ```bash
 mx-smi
