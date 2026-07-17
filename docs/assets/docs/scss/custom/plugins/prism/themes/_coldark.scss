@@ -1,0 +1,336 @@
+/**
+ * Coldark theme for Prism.js — scheme-aware wrapper for Lotus Docs.
+ *
+ * Light mode uses the "Cold" variation; dark mode uses the "Dark" variation,
+ * so the code box always matches the page. Token palette and backgrounds are
+ * taken verbatim from the upstream themes:
+ *   https://github.com/ArmandPhilippot/coldark-prism  (MIT, Armand Philippot)
+ *
+ * Wired through the theme's --prism-code-* CSS variables (see prism/_prism.scss)
+ * so the scrollbar and copy-button styling pick up the right colours too. Only
+ * the .token colours differ between schemes; they are swapped under
+ * [data-dark-mode] at the bottom.
+ */
+
+:root {
+    // Coldark Cold (light)
+    --prism-code-color: #111b27;
+    --prism-code-bg: #e3eaf2;
+    --prism-code-scrollbar-thumb-color: #8da1b9;
+    --prism-line-highlight-bg-color: #8da1b9;
+    --prism-copy-btn-bg-hover-color: var(--gray-700);
+}
+
+[data-dark-mode] {
+    // Coldark Dark
+    --prism-code-color: #e3eaf2;
+    --prism-code-bg: #111b27;
+    --prism-code-scrollbar-thumb-color: #3c526d;
+    --prism-line-highlight-bg-color: #3c526d;
+    --prism-copy-btn-bg-hover-color: var(--white);
+}
+
+code[class*="language-"],
+pre[class*="language-"] {
+    color: var(--prism-code-color) !important;
+    background: var(--prism-code-bg) !important;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+    overflow: auto;
+    border-radius: 0 0 4px 4px;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+    background: var(--prism-code-bg);
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+    padding: .1em;
+    border-radius: .3em;
+    white-space: normal;
+}
+
+.line-highlight:before,
+.line-highlight[data-end]:after {
+    background-color: var(--prism-line-highlight-bg-color);
+}
+
+[data-copy-state="copy"] span:empty::before {
+    background-color: var(--gray-400);
+}
+
+[data-copy-state="copy"] span:empty:hover::before {
+    background-color: var(--prism-copy-btn-bg-hover-color);
+}
+
+[data-copy-state="copy-success"] span:empty::before {
+    background-color: var(--emerald-200);
+}
+
+// ── Coldark Cold token palette (light mode) ─────────────────────────────────
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+    color: #3c526d;
+}
+
+.token.punctuation {
+    color: #111b27;
+}
+
+.token.delimiter.important,
+.token.selector .parent,
+.token.tag,
+.token.tag .token.punctuation {
+    color: #006d6d;
+}
+
+.token.attr-name,
+.token.boolean,
+.token.boolean.important,
+.token.number,
+.token.constant,
+.token.selector .token.attribute {
+    color: #755f00;
+}
+
+.token.class-name,
+.token.key,
+.token.parameter,
+.token.property,
+.token.property-access,
+.token.variable {
+    color: #005a8e;
+}
+
+.token.attr-value,
+.token.inserted,
+.token.color,
+.token.selector .token.value,
+.token.string,
+.token.string .token.url-link {
+    color: #116b00;
+}
+
+.token.builtin,
+.token.keyword-array,
+.token.package,
+.token.regex {
+    color: #af00af;
+}
+
+.token.function,
+.token.selector .token.class,
+.token.selector .token.id {
+    color: #7c00aa;
+}
+
+.token.atrule .token.rule,
+.token.combinator,
+.token.keyword,
+.token.operator,
+.token.pseudo-class,
+.token.pseudo-element,
+.token.selector,
+.token.unit {
+    color: #a04900;
+}
+
+.token.deleted,
+.token.important {
+    color: #c22f2e;
+}
+
+.token.keyword-this,
+.token.this {
+    color: #005a8e;
+}
+
+.token.important,
+.token.keyword-this,
+.token.this,
+.token.bold {
+    font-weight: 700;
+}
+
+.token.delimiter.important {
+    font-weight: inherit;
+}
+
+.token.italic {
+    font-style: italic;
+}
+
+.token.entity {
+    cursor: help;
+}
+
+.language-markdown .token.title,
+.language-markdown .token.title .token.punctuation {
+    color: #005a8e;
+    font-weight: 700;
+}
+
+.language-markdown .token.blockquote.punctuation {
+    color: #af00af;
+}
+
+.language-markdown .token.code {
+    color: #006d6d;
+}
+
+.language-markdown .token.hr.punctuation {
+    color: #3c526d;
+}
+
+.language-markdown .token.url .token.content {
+    color: #116b00;
+}
+
+.language-markdown .token.url-link {
+    color: #755f00;
+}
+
+.language-markdown .token.list.punctuation {
+    color: #af00af;
+}
+
+.language-markdown .token.table-header {
+    color: #111b27;
+}
+
+.language-json .token.operator {
+    color: #111b27;
+}
+
+.language-scss .token.variable {
+    color: #006d6d;
+}
+
+// ── Coldark Dark token palette (dark mode) ──────────────────────────────────
+[data-dark-mode] {
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata {
+        color: #8da1b9;
+    }
+
+    .token.punctuation {
+        color: #e3eaf2;
+    }
+
+    .token.delimiter.important,
+    .token.selector .parent,
+    .token.tag,
+    .token.tag .token.punctuation {
+        color: #66cccc;
+    }
+
+    .token.attr-name,
+    .token.boolean,
+    .token.boolean.important,
+    .token.number,
+    .token.constant,
+    .token.selector .token.attribute {
+        color: #e6d37a;
+    }
+
+    .token.class-name,
+    .token.key,
+    .token.parameter,
+    .token.property,
+    .token.property-access,
+    .token.variable {
+        color: #6cb8e6;
+    }
+
+    .token.attr-value,
+    .token.inserted,
+    .token.color,
+    .token.selector .token.value,
+    .token.string,
+    .token.string .token.url-link {
+        color: #91d076;
+    }
+
+    .token.builtin,
+    .token.keyword-array,
+    .token.package,
+    .token.regex {
+        color: #f4adf4;
+    }
+
+    .token.function,
+    .token.selector .token.class,
+    .token.selector .token.id {
+        color: #c699e3;
+    }
+
+    .token.atrule .token.rule,
+    .token.combinator,
+    .token.keyword,
+    .token.operator,
+    .token.pseudo-class,
+    .token.pseudo-element,
+    .token.selector,
+    .token.unit {
+        color: #e9ae7e;
+    }
+
+    .token.deleted,
+    .token.important {
+        color: #cd6660;
+    }
+
+    .token.keyword-this,
+    .token.this {
+        color: #6cb8e6;
+    }
+
+    .language-markdown .token.title,
+    .language-markdown .token.title .token.punctuation {
+        color: #6cb8e6;
+    }
+
+    .language-markdown .token.blockquote.punctuation {
+        color: #f4adf4;
+    }
+
+    .language-markdown .token.code {
+        color: #66cccc;
+    }
+
+    .language-markdown .token.hr.punctuation {
+        color: #8da1b9;
+    }
+
+    .language-markdown .token.url .token.content {
+        color: #91d076;
+    }
+
+    .language-markdown .token.url-link {
+        color: #e6d37a;
+    }
+
+    .language-markdown .token.list.punctuation {
+        color: #f4adf4;
+    }
+
+    .language-markdown .token.table-header {
+        color: #e3eaf2;
+    }
+
+    .language-json .token.operator {
+        color: #e3eaf2;
+    }
+
+    .language-scss .token.variable {
+        color: #66cccc;
+    }
+}

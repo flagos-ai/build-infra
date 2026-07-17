@@ -31,7 +31,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-21-g7fe5cbd bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -45,7 +45,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-21-g7fe5cbd bash
 ```
 
 ## Verify

@@ -7,7 +7,7 @@ title: "nvidia-cuda12.8"
 - **架构:** x86_64
 - **芯片型号:** NVIDIA H20
 - **宿主机驱动:** 610.43.02
-- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: nvidia-container-toolkit
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: nvidia-container-toolkit
 
 ## 镜像内容
 
@@ -46,7 +46,7 @@ title: "nvidia-cuda12.8"
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-21-g7fe5cbd bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -59,7 +59,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-21-g7fe5cbd bash
 ```
 
 ## 验证

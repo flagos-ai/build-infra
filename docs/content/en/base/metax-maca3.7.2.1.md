@@ -7,7 +7,7 @@ title: "metax-maca3.7.2.1"
 - **Architecture:** x86_64
 - **Chip models:** MetaX C550
 - **Host driver:** 3.8.30
-- **Container toolkit** <abbr title="only for the toolkit launch below; the plain docker/podman command needs none">*(optional)*</abbr>: metax-docker >= 0.15.3
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: metax-docker >= 0.15.3
 
 ## Image contents
 
@@ -48,7 +48,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 metax-docker \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-21-g7fe5cbd bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -58,7 +58,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-21-g7fe5cbd bash
 ```
 
 ## Verify

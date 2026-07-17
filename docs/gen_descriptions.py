@@ -17,8 +17,9 @@ emitted from one generator rather than a per-language shortcode.
 
 Two output flavors feed three consumers:
   - "web"   -> docs/content/{en,zh-cn}/base/*.md — the Hugo site. Keeps front
-               matter and renders the container-toolkit caveat as an <abbr>
-               hover tooltip (styled in docs/assets/_custom.scss).
+               matter and renders the container-toolkit caveat as an info marker
+               that shows a Bootstrap tooltip on hover (styled in
+               docs/assets/docs/scss/custom/structure/_content.scss).
   - "plain" -> base/*.md (English) — the in-repo image readme and the source for
                the Harbor repository description. No front matter, no tooltip.
 These are separate files, so the web pages can be polished (HTML/CSS) without
@@ -168,8 +169,9 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
     Two flavors, because the same content feeds three consumers with different
     needs:
       - "web"   — the Hugo site. Keeps the Hugo front matter and renders the
-                  container-toolkit caveat as an <abbr> hover tooltip, so the
-                  page stays uncluttered but the explanation is one hover away.
+                  container-toolkit caveat as an info marker that shows a
+                  Bootstrap tooltip on hover, so the page stays uncluttered but
+                  the explanation is one hover away.
       - "plain" — the in-repo base/<name>.md readme and the Harbor repository
                   description. No front matter, no tooltip: the toolkit line is
                   just "*(optional)*" with the caveat dropped (these surfaces
@@ -199,12 +201,25 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
     if toolkit:
         # The container toolkit is only needed for the toolkit launch. Where a
         # raw/generic tier also exists it's optional; only truly required for
-        # toolkit-only backends. On the web that "why" is a hover tooltip; in the
-        # plain flavor it's dropped (no hover), leaving a bare "*(optional)*".
+        # toolkit-only backends. On the web that "why" is a Bootstrap tooltip
+        # shown on hovering an info marker (the Lotus Docs theme initializes
+        # every [data-bs-toggle="tooltip"] on load); in the plain flavor it's
+        # dropped (no hover), leaving a bare "*(optional)*".
         has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
         if has_raw:
             if web:
-                opt = f'<abbr title="{s["toolkit_tooltip"]}">{s["toolkit_optional"]}</abbr>'
+                # Emit the emphasis as literal <em> rather than markdown "*...*":
+                # Goldmark does not re-parse markdown inside an inline HTML span.
+                # The caveat is a separate info marker; the tooltip shows on hover
+                # (and keyboard focus) — Bootstrap's default trigger.
+                label = s["toolkit_optional"].strip("*")
+                opt = (
+                    f"<em>{label}</em> "
+                    '<button type="button" class="toolkit-optional-info" '
+                    'data-bs-toggle="tooltip" '
+                    f'data-bs-title="{s["toolkit_tooltip"]}" '
+                    f'aria-label="{s["toolkit_tooltip"]}">&#9432;</button>'
+                )
             else:
                 opt = s["toolkit_optional"]
             lines.append(f"- **{s['toolkit']}** {opt}: {toolkit}")

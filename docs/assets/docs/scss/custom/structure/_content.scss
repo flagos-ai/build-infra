@@ -212,7 +212,10 @@ i {
 .docs-content .main-content div.highlight {
     margin: 16px 0;
     padding: $code-block-padding-top;
-    background: var(--code-block-bg);
+    // Match the active Prism theme's code background (Coldark: light in the day
+    // scheme, dark at night) rather than the theme's fixed dark --code-block-bg,
+    // so the wrapper doesn't show a dark slab behind a light code box.
+    background: var(--prism-code-bg);
     border-radius: 4px;
     pre {
         padding: 0;
@@ -344,4 +347,50 @@ body {
 // !important on the title, add top spacing to the content block that follows it.
 .docs-content #content.main-content {
     margin-top: 1.25rem;
+}
+
+// Container-toolkit "optional" caveat. gen_descriptions.py emits an info marker
+// (ⓘ button) after the italic "(optional)"; clicking it pops a Bootstrap
+// tooltip with the explanation (trigger="focus" — toggles on click, dismisses
+// on the next outside click). Style the marker as a bare, muted, clickable glyph
+// so it reads as an affordance rather than a form button.
+.docs-content .main-content .toolkit-optional-info {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--content-link-color);
+    line-height: 1;
+    font-size: 0.9em;
+    vertical-align: baseline;
+    cursor: pointer;
+    &:hover,
+    &:focus {
+        opacity: 0.75;
+    }
+}
+
+// The toolkit-optional tooltip (and any other Bootstrap tooltip). Two fixes over
+// the theme defaults:
+//   1. Readability: the theme sets a white tooltip background in light mode
+//      (--tooltip-bg: --white) but never overrides --bs-tooltip-color, so the
+//      text stays Bootstrap's default var(--bs-body-bg) — white-on-white, hence
+//      unreadable in the daylight scheme. Pin the text to a real foreground
+//      colour (theme's --text-default) so it reads in both schemes.
+//   2. Size: Bootstrap's / the theme's default font-size is too small; bump it
+//      and give the box a little more room.
+// Scoped `body .tooltip` (specificity 0,1,1) rather than a bare `.tooltip`: the
+// theme's own _tooltip.scss is imported AFTER this file and sets font-size on a
+// bare `.tooltip` (0,1,0), so at equal specificity it would win on source order.
+// The extra `body` guarantees these win regardless of import order. The .tooltip
+// element is appended to <body>, so the selector still matches.
+body .tooltip {
+    --bs-tooltip-color: var(--text-default);
+    --bs-tooltip-font-size: 0.95rem;
+    --bs-tooltip-max-width: 260px;
+    .tooltip-inner {
+        color: var(--text-default);
+        font-size: var(--bs-tooltip-font-size);
+        padding: 0.5rem 0.75rem;
+        line-height: 1.4;
+    }
 }
