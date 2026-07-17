@@ -3,8 +3,6 @@ title: Application images
 weight: 40
 ---
 
-# Application images
-
 **Application images** are built on top of [runtime images]({{< relref "/runtime" >}}) and
 package a ready-to-run AI application together with the FlagOS stack.
 

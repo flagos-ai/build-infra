@@ -1,10 +1,7 @@
 ---
 title: Base images
 weight: 20
-bookCollapseSection: true
 ---
-
-# Base images
 
 A **base image** is a vendor's SDK and toolchain installed on an operating-system
 base. It's only about the **OS** and the **supported SDK version** — not Python,

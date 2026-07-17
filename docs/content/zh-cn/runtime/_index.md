@@ -1,10 +1,7 @@
 ---
-title: 运行时镜像
+title: "运行时镜像（runtime）"
 weight: 30
-bookCollapseSection: true
 ---
-
-# 运行时镜像（runtime）
 
 **运行时镜像**构建在[基础镜像]({{< relref "/base" >}})之上，加入 **Python 解释器**
 和**软件栈**——Torch、Triton、FlagTree 以及 FlagGems。

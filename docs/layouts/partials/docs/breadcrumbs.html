@@ -1,0 +1,47 @@
+{{/* Shadowed from Lotus Docs.
+
+     The stock breadcrumb renders the leading "Home" house icon as a bare <i>
+     with no <a> wrapper whenever the current page IS the doc root/section
+     landing (theme assumes a single /docs/ root). On this multi-section site
+     that yields a dead, unclickable house icon on section and home pages.
+
+     Fix: always emit a leading Home crumb that links to the site (language)
+     root, then the ancestor path, then the current page as plain text. */}}
+<nav aria-label="breadcrumb" class="d-inline-block pb-2 mt-1 mt-sm-0">
+    <ul id="breadcrumbs" class="breadcrumb bg-transparent mb-0" itemscope itemtype="https://schema.org/BreadcrumbList">
+        {{- $data := newScratch }}
+        {{- $data.Set "counter" 1 }}
+
+        {{/* Always-linked Home crumb -> language root. */}}
+        <li class="breadcrumb-item text-capitalize {{ if .IsHome }}active{{ end }}" {{ if .IsHome }}aria-current="page"{{ end }} itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a itemprop="item" href="{{ relLangURL "" }}">
+                <i class="material-icons size-20 align-text-bottom" itemprop="name">Home</i>
+            </a>
+            <meta itemprop="position" content='{{ $data.Get "counter" }}' />
+        </li>
+
+        {{/* Ancestor sections (excluding the site root Home, which we rendered
+             above) as linked crumbs, outermost first. */}}
+        {{- range .Ancestors.Reverse }}
+            {{- if not .IsHome }}
+                {{- $data.Add "counter" 1 }}
+                <li class="breadcrumb-item text-capitalize" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+                    <a itemprop="item" href="{{ .RelPermalink }}">
+                        <span itemprop="name">{{ .Title }}</span>
+                    </a>
+                    <meta itemprop="position" content='{{ $data.Get "counter" }}' />
+                </li>
+            {{- end }}
+        {{- end }}
+
+        {{/* Current page as the active (non-link) trailing crumb, unless we're
+             on Home (already the active crumb above). */}}
+        {{- if not .IsHome }}
+            {{- $data.Add "counter" 1 }}
+            <li class="breadcrumb-item text-capitalize active" aria-current="page" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+                <span itemprop="name">{{ .Title }}</span>
+                <meta itemprop="position" content='{{ $data.Get "counter" }}' />
+            </li>
+        {{- end }}
+    </ul>
+</nav>

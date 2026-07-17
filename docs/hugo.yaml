@@ -1,14 +1,22 @@
 baseURL: https://flagos-ai.github.io/release-info/
 title: Release Info
 languageCode: en-us
-theme:
-  - hugo-book
 
 contentDir: content/en
 defaultContentLanguage: en
 defaultContentLanguageInSubdir: false
 timeZone: UTC
 enableGitInfo: true
+
+# Lotus Docs (Bootstrap 5) and its Bootstrap-SCSS dependency are both pulled as
+# Hugo modules (see go.mod). No git submodule / no vendored CSS.
+module:
+  hugoVersion:
+    extended: true
+    min: "0.140.0"
+  imports:
+    - path: github.com/colinwilson/lotusdocs
+    - path: github.com/gohugoio/hugo-mod-bootstrap-scss/v5
 
 markup:
   goldmark:
@@ -28,15 +36,6 @@ markup:
     endLevel: 3
     ordered: false
 
-menus:
-  after:
-    - name: GitHub
-      url: https://github.com/flagos-ai/build-infra
-      weight: 10
-    - name: FlagOS
-      url: https://flagos.io/
-      weight: 20
-
 # English is the only translated language for now; zh-cn is reserved so adding
 # Chinese later is purely additive (translate content/zh-cn + i18n/zh-cn.toml).
 languages:
@@ -53,8 +52,42 @@ languages:
     weight: 2
     languagedirection: ltr
 
+# Lotus Docs reads the primary nav from menus.main; keep the two external links
+# that hugo-book showed via menus.after.
+menus:
+  main:
+    - name: GitHub
+      url: https://github.com/flagos-ai/build-infra
+      weight: 10
+    - name: FlagOS
+      url: https://flagos.io/
+      weight: 20
+
 params:
-  BookSection: '*'
-  BookTheme: auto
-  BookToC: true
-  BookLastChangeLink: 'https://github.com/flagos-ai/build-infra/commit/{{ .GitInfo.Hash }}'
+  # Empty social block: the theme iterates site.Params.social to build header
+  # icons; without it Hugo logs a harmless IsSet-on-nil warning on every build.
+  social: {}
+  # Lotus Docs documentation-template params. These replace the old hugo-book
+  # Book* params: BookTheme:auto -> docs.darkMode, BookToC -> docs.toc,
+  # BookLastChangeLink -> docs.repoURL + editPage/lastMod.
+  docs:
+    title: Release Info
+    darkMode: true
+    prism: true
+    prismTheme: coldark
+    sidebarIcons: false
+    breadcrumbs: true
+    backToTop: true
+    toc: true
+    tocMobile: true
+    scrollSpy: true
+    # 'Edit this page' / 'Last modified' wired to the build-infra repo.
+    repoURL: https://github.com/flagos-ai/build-infra
+    repoBranch: main
+    # docs/ lives in a subdir of the repo, so point edits at the right path.
+    editPage: true
+    lastMod: true
+    lastModRelative: true
+  # Search is disabled: no flexsearch bar in the top header.
+  flexsearch:
+    enabled: false

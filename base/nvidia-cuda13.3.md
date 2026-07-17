@@ -42,7 +42,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-21-g7fe5cbd bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -55,7 +55,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-21-g7fe5cbd bash
 ```
 
 ## Verify

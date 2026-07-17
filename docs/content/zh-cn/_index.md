@@ -1,9 +1,9 @@
 ---
 title: 发布信息
 type: docs
+cascade:
+  type: docs
 ---
-
-# 发布信息
 
 FlagOS 容器镜像构建基础设施。FlagOS 的镜像是分层发布的——厂商 **base** 镜像、
 其上的 FlagGems **runtime** 镜像，以及（即将推出的）**application** 镜像。

@@ -43,7 +43,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-21-g7fe5cbd bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -51,7 +51,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/gcu \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-21-g7fe5cbd bash
 ```
 
 ## Verify

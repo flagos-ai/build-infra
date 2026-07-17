@@ -34,8 +34,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          # Theme + Bootstrap come from Hugo Modules (see docs/go.mod), not a
+          # submodule, so submodule checkout is no longer required.
           fetch-depth: 0
+
+      - name: Install Go
+        # Hugo Modules are Go modules under the hood; Hugo shells out to `go`
+        # to download the theme and Bootstrap SCSS during the build.
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
 
       - name: Install Hugo (extended)
         run: |

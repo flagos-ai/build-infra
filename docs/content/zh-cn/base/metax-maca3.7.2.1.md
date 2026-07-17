@@ -7,7 +7,7 @@ title: "metax-maca3.7.2.1"
 - **架构:** x86_64
 - **芯片型号:** MetaX C550
 - **宿主机驱动:** 3.8.30
-- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: metax-docker >= 0.15.3
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: metax-docker >= 0.15.3
 
 ## 镜像内容
 
@@ -48,7 +48,7 @@ title: "metax-maca3.7.2.1"
 ```bash
 metax-docker \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-21-g7fe5cbd bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -58,7 +58,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-21-g7fe5cbd bash
 ```
 
 ## 验证

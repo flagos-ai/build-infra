@@ -7,7 +7,7 @@ title: "hygon-dtk26.04"
 - **架构:** x86_64
 - **芯片型号:** Hygon BW1000
 - **宿主机驱动:** 6.3.30-V1.4.1a
-- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: dcu-container-toolkit >= 1.3.0
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: dcu-container-toolkit >= 1.3.0
 
 ## 镜像内容
 
@@ -38,7 +38,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-21-g7fe5cbd bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -51,7 +51,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-20-g9ab46c9 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-21-g7fe5cbd bash
 ```
 
 ## 验证

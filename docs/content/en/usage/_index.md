@@ -1,9 +1,7 @@
 ---
-title: Usage
+title: "Using the images"
 weight: 50
 ---
-
-# Using the images
 
 ## Pull
 
