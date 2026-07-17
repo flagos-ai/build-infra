@@ -44,13 +44,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`metax-docker >= 0.15.3`):
 
 ```bash
-metax-docker --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-19-ge0c6cbb bash
+metax-docker --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/mxcd --device /dev/dri --group-add video harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-19-ge0c6cbb bash
+docker run --rm -it --device /dev/mxcd --device /dev/dri --group-add video harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-17-g361735c bash
 ```
 
 ## Verify

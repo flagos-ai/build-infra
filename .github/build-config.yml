@@ -82,10 +82,11 @@ run:
       toolkit: "--runtime xpu -e CXPU_VISIBLE_DEVICES=0"
       raw: "--device /dev/xpu0 --device /dev/xpuctrl"
     tsingmicro:
-      # TODO toolkit: checking with Tsingmicro (#128).
+      toolkit: "--runtime=tsingmicro -e TSINGMICRO_VISIBLE_DEVICES=all"
       raw: "--device /dev/accel --device /dev/accel_drv_mgr"
     enflame:
-      # TODO toolkit: awaiting Enflame (#128).
+      # gotcha: toolkit uses --network host + env var, no --runtime flag.
+      toolkit: "--network host -e TENCENT_VISIBLE_DEVICES=all"
       raw: "--device /dev/gcu"
     sunrise:
       # generic launch only — no device flags / toolkit known.
@@ -101,6 +102,8 @@ run:
     kunlunxin: "xpu_container >= 1.0.13"
     mthreads: "KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0"
     iluvatar: "ix-container-toolkit >= 1.1.0"
+    tsingmicro: "tx-container-toolkit >= 2.5.0"
+    enflame: "tencent-container-toolkit >= 2.0.52"
 
 # Device-enumeration command per vendor: shown in the docs/description sample
 # launch line (`docker run <run-flags> <image> <verify>`) to confirm the
