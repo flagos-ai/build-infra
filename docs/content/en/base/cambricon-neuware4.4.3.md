@@ -2,17 +2,19 @@
 title: "cambricon-neuware4.4.3"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
 - **Host driver:** 6.2.15
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -30,7 +32,7 @@ Explicitly installed; the version is the one baked into this image:
 - `pciutils`
 - `unzip`
 
-## SDK components
+### SDK components
 
 - cndev 6.5.25 (amd64)
 - cnmon 6.2.15
@@ -64,12 +66,15 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell (works with docker or podman):
 
 ```bash
-docker run --rm -it --device /dev/cambricon_dev0 --device /dev/cambricon_ctl harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/cambricon_dev0 \
+  --device /dev/cambricon_ctl \
+  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 cnmon

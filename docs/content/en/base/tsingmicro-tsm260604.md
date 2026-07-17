@@ -2,10 +2,6 @@
 title: "tsingmicro-tsm260604"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -13,7 +9,13 @@ title: "tsingmicro-tsm260604"
 - **Host driver:** 260604163331.01
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: tx-container-toolkit >= 2.5.0
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -30,7 +32,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libunwind8`
 - `sudo`
 
-## SDK components
+### SDK components
 
 - TSM Runtime 260604163331
 - TSM Validation Suite 260604163331
@@ -53,21 +55,27 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`tx-container-toolkit >= 2.5.0`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-docker run --rm -it --runtime=tsingmicro -e TSINGMICRO_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --runtime=tsingmicro \
+  -e TSINGMICRO_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/accel --device /dev/accel_drv_mgr harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/accel \
+  --device /dev/accel_drv_mgr \
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 tsm_smi

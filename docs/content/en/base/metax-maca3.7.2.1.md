@@ -2,10 +2,6 @@
 title: "metax-maca3.7.2.1"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -13,7 +9,13 @@ title: "metax-maca3.7.2.1"
 - **Host driver:** 3.8.30
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: metax-docker >= 0.15.3
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -28,7 +30,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libpython3-dev`
 - `make`
 
-## SDK components
+### SDK components
 
 - MetaX Driver 3.7.2.30
 - MACA SDK 3.7.2.0
@@ -41,21 +43,27 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`metax-docker >= 0.15.3`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-metax-docker --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-17-g361735c bash
+metax-docker \
+  --gpus all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/mxcd --device /dev/dri --group-add video harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/mxcd \
+  --device /dev/dri \
+  --group-add video \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 mx-smi

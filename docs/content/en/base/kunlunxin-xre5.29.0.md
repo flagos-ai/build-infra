@@ -2,10 +2,6 @@
 title: "kunlunxin-xre5.29.0"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -13,7 +9,13 @@ title: "kunlunxin-xre5.29.0"
 - **Host driver:** 5.29.0.0
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: xpu_container >= 1.0.13
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -26,7 +28,7 @@ Explicitly installed; the version is the one baked into this image:
 - `kmod`
 - `pciutils`
 
-## SDK components
+### SDK components
 
 - CUDA 12.9.0_575.51.03
 - XRE-CUDA12 5.29.0.0
@@ -39,21 +41,27 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`xpu_container >= 1.0.13`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-docker run --rm -it --runtime xpu -e CXPU_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --runtime xpu \
+  -e CXPU_VISIBLE_DEVICES=0 \
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/xpu0 --device /dev/xpuctrl harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/xpu0 \
+  --device /dev/xpuctrl \
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 xpu-smi

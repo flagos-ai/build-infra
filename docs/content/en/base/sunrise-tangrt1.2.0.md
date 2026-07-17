@@ -2,17 +2,19 @@
 title: "sunrise-tangrt1.2.0"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
 - **Chip models:** Sunrise SR-SUN-S2-X1
 - **Host driver:** 0.24.0
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -24,7 +26,7 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc`
 - `pciutils`
 
-## SDK components
+### SDK components
 
 - Tang Toolkit 1.2.0
 - PCCL 1.2.0
@@ -42,12 +44,13 @@ Explicitly installed; the version is the one baked into this image:
 Start an interactive shell in the container:
 
 ```bash
-docker run --rm -it harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-17-g361735c bash
+docker run --rm -it \
+  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 pt_smi

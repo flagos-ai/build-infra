@@ -2,10 +2,6 @@
 title: "enflame-tops1.9.10"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -13,7 +9,13 @@ title: "enflame-tops1.9.10"
 - **Host driver:** 1.9.10
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: tencent-container-toolkit >= 2.0.52
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -24,7 +26,7 @@ Explicitly installed; the version is the one baked into this image:
 - `g++`
 - `gcc`
 
-## SDK components
+### SDK components
 
 - Enflame driver 1.9.10
 - TOPS Runtime 1.9.10
@@ -39,21 +41,26 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`tencent-container-toolkit >= 2.0.52`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-docker run --rm -it --network host -e TENCENT_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --network host \
+  -e TENCENT_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/gcu harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/gcu \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 efsmi
