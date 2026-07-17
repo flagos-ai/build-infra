@@ -9,13 +9,20 @@ system-package versions actually baked into the built image. Those versions come
 from a per-backend TSV (`<name>.tsv`, lines "package\tversion") produced in CI by
 `dpkg-query` inside the image — see .github/workflows/base-descriptions.yml.
 
+Both languages are generated from the same language-neutral data: only the prose
+and section headers differ (the STRINGS table below), while the technical values
+(chip models, SDK strings, package names, env, launch/verify commands) are
+verbatim in both. English pages double as the Harbor repository descriptions;
+the Chinese pages are docs-only. This keeps en/ and zh-cn/ in lockstep — the
+reason both are emitted from one generator rather than a per-language shortcode.
+
 The body starts at H2 (no H1): Hugo supplies the page title from the front
 matter, and Harbor shows the repository name as the top heading — so the same
 body reads correctly in both once the front matter is stripped for Harbor.
 
 Usage:
-  python docs/gen_descriptions.py                    # all -> docs/content/en/base/<name>.md
-  python docs/gen_descriptions.py nvidia-cuda13.3    # one -> stdout
+  python docs/gen_descriptions.py                    # all langs -> docs/content/<lang>/base/<name>.md
+  python docs/gen_descriptions.py nvidia-cuda13.3    # one backend, all langs -> stdout
   VERSIONS_DIR=/path python docs/gen_descriptions.py # resolve versions from <dir>/<name>.tsv
 """
 
@@ -24,6 +31,61 @@ import sys
 from pathlib import Path
 
 import yaml
+
+
+# Prose and section headers per language. Keys mirror the labels in
+# i18n/zh-cn.toml so the two Chinese renderings stay consistent. Everything the
+# docs pipeline treats as data (chip models, SDK strings, package names, env,
+# launch/verify commands) is language-neutral and NOT listed here — it renders
+# verbatim in both languages.
+LANGS = ("en", "zh-cn")
+
+STRINGS = {
+    "en": {
+        "prerequisites": "Prerequisites",
+        "architecture": "Architecture",
+        "chip_models": "Chip models",
+        "host_driver": "Host driver",
+        "toolkit": "Container toolkit",
+        "toolkit_optional_note": "*(optional — only for the toolkit launch below; the plain docker/podman command needs none)*",
+        "image_contents": "Image contents",
+        "base_image": "Base image",
+        "system_packages": "System packages",
+        "system_packages_note": "Explicitly installed; the version is the one baked into this image:",
+        "sdk_components": "SDK components",
+        "environment": "Environment",
+        "launch": "Launch",
+        "launch_toolkit_optional": "**With the container toolkit** *(optional)*:",
+        "launch_toolkit": "**With the container toolkit**:",
+        "launch_raw_both": "**Without a toolkit** — plain docker / podman:",
+        "launch_raw_only": "Start an interactive shell (works with docker or podman):",
+        "launch_generic": "Start an interactive shell in the container:",
+        "verify": "Verify",
+        "verify_note": "Inside the container, confirm the accelerator is visible:",
+    },
+    "zh-cn": {
+        "prerequisites": "前置条件",
+        "architecture": "架构",
+        "chip_models": "芯片型号",
+        "host_driver": "宿主机驱动",
+        "toolkit": "容器工具包",
+        "toolkit_optional_note": "*(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*",
+        "image_contents": "镜像内容",
+        "base_image": "基础镜像",
+        "system_packages": "系统软件包",
+        "system_packages_note": "显式安装；此处版本即为该镜像中实际打包的版本：",
+        "sdk_components": "SDK 组件",
+        "environment": "环境变量",
+        "launch": "启动",
+        "launch_toolkit_optional": "**使用容器工具包** *(可选)*：",
+        "launch_toolkit": "**使用容器工具包**：",
+        "launch_raw_both": "**无需工具包** —— 直接使用 docker / podman：",
+        "launch_raw_only": "启动交互式 shell（docker 或 podman 均可）：",
+        "launch_generic": "在容器中启动交互式 shell：",
+        "verify": "验证",
+        "verify_note": "在容器内，确认加速器可见：",
+    },
+}
 
 
 def repo_root() -> Path:
@@ -86,8 +148,14 @@ def wrap_cmd(cmd: str, width: int = 84) -> str:
     return "\n".join(out)
 
 
-def render(entry: dict, versions: dict) -> str:
-    """Compose the description markdown for one backend."""
+def render(entry: dict, versions: dict, lang: str = "en") -> str:
+    """Compose the description markdown for one backend in `lang`.
+
+    Only prose/headers are localized (from STRINGS); every technical value —
+    chip models, SDK strings, package names, env, launch/verify commands —
+    renders verbatim, so the two languages stay structurally identical.
+    """
+    s = STRINGS[lang]
     base = entry["base"]
     name = entry["name"]
     lines: list[str] = []
@@ -96,14 +164,14 @@ def render(entry: dict, versions: dict) -> str:
     lines += ["---", f'title: "{name}"', "---", ""]
 
     # ── Prerequisites ────────────────────────────────────────────
-    lines += ["## Prerequisites", ""]
-    lines.append(f"- **Architecture:** {base.get('arch', '')}")
+    lines += [f"## {s['prerequisites']}", ""]
+    lines.append(f"- **{s['architecture']}:** {base.get('arch', '')}")
     hw = base.get("hardware") or []
     if hw:
-        lines.append(f"- **Chip models:** {', '.join(hw)}")
+        lines.append(f"- **{s['chip_models']}:** {', '.join(hw)}")
     drv = base.get("driver") or ""
     if drv:
-        lines.append(f"- **Host driver:** {drv}")
+        lines.append(f"- **{s['host_driver']}:** {drv}")
     toolkit = entry.get("run_prereq") or ""
     if toolkit:
         # The container toolkit is only needed for the toolkit launch. Where a
@@ -111,35 +179,35 @@ def render(entry: dict, versions: dict) -> str:
         # toolkit-only backends.
         has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
         if has_raw:
-            lines.append(f"- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: {toolkit}")
+            lines.append(f"- **{s['toolkit']}** {s['toolkit_optional_note']}: {toolkit}")
         else:
-            lines.append(f"- **Container toolkit:** {toolkit}")
+            lines.append(f"- **{s['toolkit']}:** {toolkit}")
     lines.append("")
 
     # ── Image contents (base OS + system packages + SDK components) ──
     pkgs = base.get("system_packages") or []
     sdk = base.get("sdk") or []
     if base.get("os") or pkgs or sdk:
-        lines += ["## Image contents", ""]
+        lines += [f"## {s['image_contents']}", ""]
         if base.get("os"):
-            lines += ["### Base image", "", f"`{base['os']}`", ""]
+            lines += [f"### {s['base_image']}", "", f"`{base['os']}`", ""]
         if pkgs:
-            lines += ["### System packages", ""]
-            lines += ["Explicitly installed; the version is the one baked into this image:", ""]
+            lines += [f"### {s['system_packages']}", ""]
+            lines += [s["system_packages_note"], ""]
             for p in sorted(pkgs):
                 ver = versions.get(p)
                 lines.append(f"- `{p}` — {ver}" if ver else f"- `{p}`")
             lines.append("")
         if sdk:
-            lines += ["### SDK components", ""]
-            for s in sdk:
-                lines.append(f"- {s}")
+            lines += [f"### {s['sdk_components']}", ""]
+            for item in sdk:
+                lines.append(f"- {item}")
             lines.append("")
 
     # ── Environment ─────────────────────────────────────────────
     env = base.get("env") or {}
     if env:
-        lines += ["## Environment", ""]
+        lines += [f"## {s['environment']}", ""]
         for k, v in env.items():
             lines.append(f"- `{k}={v}`")
         lines.append("")
@@ -153,17 +221,15 @@ def render(entry: dict, versions: dict) -> str:
     tiers = entry.get("launch") or []
     both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
     if tiers:
-        lines += ["## Launch", ""]
+        lines += [f"## {s['launch']}", ""]
         for t in tiers:
             cmd = wrap_cmd(t["template"].replace("{image}", image))
             if t["kind"] == "toolkit":
-                opt = " *(optional)*" if both else ""
-                hdr = f"**With the container toolkit**{opt}:"
+                hdr = s["launch_toolkit_optional"] if both else s["launch_toolkit"]
             elif t["kind"] == "raw":
-                hdr = ("**Without a toolkit** — plain docker / podman:" if both
-                       else "Start an interactive shell (works with docker or podman):")
+                hdr = s["launch_raw_both"] if both else s["launch_raw_only"]
             else:  # generic
-                hdr = "Start an interactive shell in the container:"
+                hdr = s["launch_generic"]
             lines += [hdr, "", "```bash", cmd, "```", ""]
 
     # ── Verify ──────────────────────────────────────────────────
@@ -172,8 +238,8 @@ def render(entry: dict, versions: dict) -> str:
     # device check on its own and can retry it independently.
     verify = entry.get("verify")
     if verify:
-        lines += ["## Verify", ""]
-        lines += ["Inside the container, confirm the accelerator is visible:", ""]
+        lines += [f"## {s['verify']}", ""]
+        lines += [s["verify_note"], ""]
         lines += ["```bash", verify, "```", ""]
 
     return "\n".join(lines).rstrip() + "\n"
@@ -189,18 +255,27 @@ def main():
 
     requested = sys.argv[1:]
     if requested:
+        # Spot-check to stdout: every requested backend in every language, so a
+        # single-backend check never silently covers just one language.
         for name in requested:
             if name not in backends:
                 sys.exit(f"Error: '{name}' not in images.yaml")
-            print(render(backends[name], load_versions(versions_dir, name)))
+            for lang in LANGS:
+                print(render(backends[name], load_versions(versions_dir, name), lang))
         return
 
-    out_dir = root / "docs" / "content" / "en" / "base"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, entry in backends.items():
-        md = render(entry, load_versions(versions_dir, name))
-        (out_dir / f"{name}.md").write_text(md)
-    print(f"Wrote {len(backends)} descriptions to {out_dir}")
+    # Emit every backend for every language. English pages double as the Harbor
+    # descriptions; the Chinese pages keep the zh-cn docs in lockstep.
+    total = 0
+    for lang in LANGS:
+        out_dir = root / "docs" / "content" / lang / "base"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for name, entry in backends.items():
+            md = render(entry, load_versions(versions_dir, name), lang)
+            (out_dir / f"{name}.md").write_text(md)
+            total += 1
+        print(f"Wrote {len(backends)} {lang} descriptions to {out_dir}")
+    print(f"Total: {total} descriptions")
 
 
 if __name__ == "__main__":

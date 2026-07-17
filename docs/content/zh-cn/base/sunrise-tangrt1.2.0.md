@@ -2,21 +2,21 @@
 title: "sunrise-tangrt1.2.0"
 ---
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** Sunrise SR-SUN-S2-X1
-- **Host driver:** 0.24.0
+- **架构:** x86_64
+- **芯片型号:** Sunrise SR-SUN-S2-X1
+- **宿主机驱动:** 0.24.0
 
-## Image contents
+## 镜像内容
 
-### Base image
+### 基础镜像
 
 `ubuntu:24.04`
 
-### System packages
+### 系统软件包
 
-Explicitly installed; the version is the one baked into this image:
+显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential`
 - `ca-certificates`
@@ -26,31 +26,31 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc`
 - `pciutils`
 
-### SDK components
+### SDK 组件
 
 - Tang Toolkit 1.2.0
 - PCCL 1.2.0
 - taDNN 1.2.0
 - taBLAS 1.2.0
 
-## Environment
+## 环境变量
 
 - `TANGRT_ROOT=/usr/local/tangrt`
 - `LIBRARY_PATH=/usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64`
 - `LD_LIBRARY_PATH=/usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64`
 
-## Launch
+## 启动
 
-Start an interactive shell in the container:
+在容器中启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-20-g18451ed bash
 ```
 
-## Verify
+## 验证
 
-Inside the container, confirm the accelerator is visible:
+在容器内，确认加速器可见：
 
 ```bash
 pt_smi

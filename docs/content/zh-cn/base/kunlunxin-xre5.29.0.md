@@ -2,22 +2,22 @@
 title: "kunlunxin-xre5.29.0"
 ---
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** Kunlunxin P800
-- **Host driver:** 5.29.0.0
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: xpu_container >= 1.0.13
+- **架构:** x86_64
+- **芯片型号:** Kunlunxin P800
+- **宿主机驱动:** 5.29.0.0
+- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: xpu_container >= 1.0.13
 
-## Image contents
+## 镜像内容
 
-### Base image
+### 基础镜像
 
 `ubuntu:24.04`
 
-### System packages
+### 系统软件包
 
-Explicitly installed; the version is the one baked into this image:
+显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential`
 - `ca-certificates`
@@ -28,20 +28,20 @@ Explicitly installed; the version is the one baked into this image:
 - `kmod`
 - `pciutils`
 
-### SDK components
+### SDK 组件
 
 - CUDA 12.9.0_575.51.03
 - XRE-CUDA12 5.29.0.0
 - XCUDART 5.13.0
 
-## Environment
+## 环境变量
 
 - `PATH=/usr/local/xpu/bin:$PATH`
 - `LD_LIBRARY_PATH=/usr/local/xpu/lib:/usr/local/xcudart/lib`
 
-## Launch
+## 启动
 
-**With the container toolkit** *(optional)*:
+**使用容器工具包** *(可选)*：
 
 ```bash
 docker run --rm -it \
@@ -50,7 +50,7 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-20-g18451ed bash
 ```
 
-**Without a toolkit** — plain docker / podman:
+**无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
@@ -59,9 +59,9 @@ docker run --rm -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-20-g18451ed bash
 ```
 
-## Verify
+## 验证
 
-Inside the container, confirm the accelerator is visible:
+在容器内，确认加速器可见：
 
 ```bash
 xpu-smi
