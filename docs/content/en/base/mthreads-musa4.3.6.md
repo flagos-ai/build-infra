@@ -2,10 +2,6 @@
 title: "mthreads-musa4.3.6"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -13,7 +9,13 @@ title: "mthreads-musa4.3.6"
 - **Host driver:** 5.2.0-server
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -30,7 +32,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libpython3-dev`
 - `openmpi-bin`
 
-## SDK components
+### SDK components
 
 - MUSA Toolkits RC4.3.6
 - MCCL RC2.1.6
@@ -44,21 +46,28 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-docker run --rm -it --runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/mtgpu.0 \
+  --device /dev/dri \
+  -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 mthreads-gmi

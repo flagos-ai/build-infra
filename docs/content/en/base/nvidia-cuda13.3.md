@@ -2,10 +2,6 @@
 title: "nvidia-cuda13.3"
 ---
 
-## Base image
-
-`nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04`
-
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -13,7 +9,13 @@ title: "nvidia-cuda13.3"
 - **Host driver:** 610.43.02
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: nvidia-container-toolkit
 
-## System packages
+## Image contents
+
+### Base image
+
+`nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
@@ -28,7 +30,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libpython3-dev`
 - `make`
 
-## SDK components
+### SDK components
 
 - CUDA 13.3 (x86_64)
 
@@ -39,21 +41,30 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`nvidia-container-toolkit`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-docker run --rm -it --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --gpus all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/nvidia0 \
+  --device /dev/nvidiactl \
+  --device /dev/nvidia-uvm \
+  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
+  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
+  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 nvidia-smi

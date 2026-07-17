@@ -2,10 +2,6 @@
 title: "ascend-cann9.0.0"
 ---
 
-## Base image
-
-`ubuntu:24.04`
-
 ## Prerequisites
 
 - **Architecture:** aarch64
@@ -13,14 +9,20 @@ title: "ascend-cann9.0.0"
 - **Host driver:** 26.0.rc1
 - **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: Ascend-docker-runtime >= 6.0.RC3
 
-## System packages
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
 - `ca-certificates`
 - `software-properties-common`
 
-## SDK components
+### SDK components
 
 - CANN Toolkit 9.0.0 (aarch64)
 - CANN 910B Ops 9.0.0 (aarch64)
@@ -28,21 +30,31 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-**With the container toolkit** *(optional)* (`Ascend-docker-runtime >= 6.0.RC3`):
+**With the container toolkit** *(optional)*:
 
 ```bash
-docker run --rm -it -e ASCEND_VISIBLE_DEVICES=0 harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-17-g361735c bash
+docker run --rm -it \
+  -e ASCEND_VISIBLE_DEVICES=0 \
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-17-g361735c bash
+docker run --rm -it \
+  --device /dev/davinci0 \
+  --device /dev/davinci_manager \
+  --device /dev/devmm_svm \
+  --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+  -v /usr/local/dcmi:/usr/local/dcmi \
+  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-17-g361735c bash
 ```
 
 ## Verify
 
-Inside the container, confirm the accelerator is visible (the first run may take a moment):
+Inside the container, confirm the accelerator is visible:
 
 ```bash
 source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info

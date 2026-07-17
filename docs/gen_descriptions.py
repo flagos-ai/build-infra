@@ -62,6 +62,30 @@ def load_versions(versions_dir: Path | None, name: str) -> dict:
     return out
 
 
+def wrap_cmd(cmd: str, width: int = 84) -> str:
+    """Wrap a long `docker run …` / wrapper-launcher command onto multiple lines
+    (one flag per continuation line) so the code block doesn't scroll sideways.
+    Short commands are left as-is."""
+    if len(cmd) <= width:
+        return cmd
+    head = "docker run --rm -it"
+    if cmd.startswith(head + " "):
+        rest = cmd[len(head) + 1:]
+    else:  # wrapper launcher, e.g. `metax-docker …`
+        head, _, rest = cmd.partition(" ")
+    toks = rest.split(" ")
+    tail = f"{toks[-2]} {toks[-1]}"  # "<image> bash"
+    toks = toks[:-2]
+    groups, i = [], 0
+    while i < len(toks):
+        if toks[i].startswith("-") and i + 1 < len(toks) and not toks[i + 1].startswith("-"):
+            groups.append(f"{toks[i]} {toks[i + 1]}"); i += 2
+        else:
+            groups.append(toks[i]); i += 1
+    out = [f"{head} \\"] + [f"  {g} \\" for g in groups] + [f"  {tail}"]
+    return "\n".join(out)
+
+
 def render(entry: dict, versions: dict) -> str:
     """Compose the description markdown for one backend."""
     base = entry["base"]
@@ -70,11 +94,6 @@ def render(entry: dict, versions: dict) -> str:
 
     # Hugo front matter (docs title/ordering). Stripped before Harbor upload.
     lines += ["---", f'title: "{name}"', "---", ""]
-
-    # Base OS of the container, as its own section (a fact about the image, not
-    # a host prerequisite — and not a floating line above the first heading).
-    if base.get("os"):
-        lines += ["## Base image", "", f"`{base['os']}`", ""]
 
     # ── Prerequisites ────────────────────────────────────────────
     lines += ["## Prerequisites", ""]
@@ -87,9 +106,9 @@ def render(entry: dict, versions: dict) -> str:
         lines.append(f"- **Host driver:** {drv}")
     toolkit = entry.get("run_prereq") or ""
     if toolkit:
-        # The container toolkit is only needed for the recommended (toolkit) launch.
-        # Where a raw/generic tier also exists it's optional — the raw command needs
-        # no toolkit; it's only truly required for toolkit-only backends.
+        # The container toolkit is only needed for the toolkit launch. Where a
+        # raw/generic tier also exists it's optional; only truly required for
+        # toolkit-only backends.
         has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
         if has_raw:
             lines.append(f"- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: {toolkit}")
@@ -97,23 +116,25 @@ def render(entry: dict, versions: dict) -> str:
             lines.append(f"- **Container toolkit:** {toolkit}")
     lines.append("")
 
-    # ── System packages (explicit apt, with baked-in versions) ──
+    # ── Image contents (base OS + system packages + SDK components) ──
     pkgs = base.get("system_packages") or []
-    if pkgs:
-        lines += ["## System packages", ""]
-        lines += ["Explicitly installed; the version is the one baked into this image:", ""]
-        for p in sorted(pkgs):
-            ver = versions.get(p)
-            lines.append(f"- `{p}` — {ver}" if ver else f"- `{p}`")
-        lines.append("")
-
-    # ── SDK components (already versioned in configs) ───────────
     sdk = base.get("sdk") or []
-    if sdk:
-        lines += ["## SDK components", ""]
-        for s in sdk:
-            lines.append(f"- {s}")
-        lines.append("")
+    if base.get("os") or pkgs or sdk:
+        lines += ["## Image contents", ""]
+        if base.get("os"):
+            lines += ["### Base image", "", f"`{base['os']}`", ""]
+        if pkgs:
+            lines += ["### System packages", ""]
+            lines += ["Explicitly installed; the version is the one baked into this image:", ""]
+            for p in sorted(pkgs):
+                ver = versions.get(p)
+                lines.append(f"- `{p}` — {ver}" if ver else f"- `{p}`")
+            lines.append("")
+        if sdk:
+            lines += ["### SDK components", ""]
+            for s in sdk:
+                lines.append(f"- {s}")
+            lines.append("")
 
     # ── Environment ─────────────────────────────────────────────
     env = base.get("env") or {}
@@ -124,21 +145,20 @@ def render(entry: dict, versions: dict) -> str:
         lines.append("")
 
     # ── Launch ──────────────────────────────────────────────────
-    # One block per launch tier (see gen_data.launch_tiers). When a vendor has both
-    # a toolkit and a raw tier, the toolkit one is labelled "Recommended" and the raw
-    # one is the no-toolkit/podman fallback; a lone tier gets a plain header.
+    # One block per launch tier (see gen_data.launch_tiers). When both a toolkit
+    # and a raw tier exist, the toolkit is labelled optional and the raw one is the
+    # no-toolkit/podman path; a lone tier gets a plain header. The toolkit version
+    # is not repeated here — it's in Prerequisites.
     image = base["image"]
     tiers = entry.get("launch") or []
-    prereq = entry.get("run_prereq") or ""
     both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
     if tiers:
         lines += ["## Launch", ""]
         for t in tiers:
-            cmd = t["template"].replace("{image}", image)
+            cmd = wrap_cmd(t["template"].replace("{image}", image))
             if t["kind"] == "toolkit":
-                tk = f" (`{prereq}`)" if prereq else ""
                 opt = " *(optional)*" if both else ""
-                hdr = f"**With the container toolkit**{opt}{tk}:"
+                hdr = f"**With the container toolkit**{opt}:"
             elif t["kind"] == "raw":
                 hdr = ("**Without a toolkit** — plain docker / podman:" if both
                        else "Start an interactive shell (works with docker or podman):")
@@ -147,18 +167,13 @@ def render(entry: dict, versions: dict) -> str:
             lines += [hdr, "", "```bash", cmd, "```", ""]
 
     # ── Verify ──────────────────────────────────────────────────
-    # Shown as a SEPARATE command to run INSIDE the launched container (not
-    # folded into the `docker run` line): some vendor runtimes take a moment or
-    # hang on the first container start, so users run the device check on its
-    # own and can retry it independently.
+    # A SEPARATE command to run INSIDE the launched container (not folded into the
+    # docker run line): some vendor runtimes hang on first touch, so users run the
+    # device check on its own and can retry it independently.
     verify = entry.get("verify")
     if verify:
         lines += ["## Verify", ""]
-        lines += [
-            "Inside the container, confirm the accelerator is visible "
-            "(the first run may take a moment):",
-            "",
-        ]
+        lines += ["Inside the container, confirm the accelerator is visible:", ""]
         lines += ["```bash", verify, "```", ""]
 
     return "\n".join(lines).rstrip() + "\n"
