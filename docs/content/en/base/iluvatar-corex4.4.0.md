@@ -7,7 +7,7 @@ title: "iluvatar-corex4.4.0"
 - **Architecture:** x86_64
 - **Chip models:** Iluvatar BI-V150
 - **Host driver:** 4.4.0
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: ix-container-toolkit >= 1.1.0
+- **Container toolkit** <abbr title="only for the toolkit launch below; the plain docker/podman command needs none">*(optional)*</abbr>: ix-container-toolkit >= 1.1.0
 
 ## Image contents
 
@@ -45,7 +45,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g9ab46c9 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -54,7 +54,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   -v /usr/local/corex:/usr/local/corex:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g9ab46c9 bash
 ```
 
 ## Verify

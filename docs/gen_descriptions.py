@@ -12,17 +12,25 @@ from a per-backend TSV (`<name>.tsv`, lines "package\tversion") produced in CI b
 Both languages are generated from the same language-neutral data: only the prose
 and section headers differ (the STRINGS table below), while the technical values
 (chip models, SDK strings, package names, env, launch/verify commands) are
-verbatim in both. English pages double as the Harbor repository descriptions;
-the Chinese pages are docs-only. This keeps en/ and zh-cn/ in lockstep — the
-reason both are emitted from one generator rather than a per-language shortcode.
+verbatim in both. This keeps en/ and zh-cn/ in lockstep — the reason both are
+emitted from one generator rather than a per-language shortcode.
+
+Two output flavors feed three consumers:
+  - "web"   -> docs/content/{en,zh-cn}/base/*.md — the Hugo site. Keeps front
+               matter and renders the container-toolkit caveat as an <abbr>
+               hover tooltip (styled in docs/assets/_custom.scss).
+  - "plain" -> base/*.md (English) — the in-repo image readme and the source for
+               the Harbor repository description. No front matter, no tooltip.
+These are separate files, so the web pages can be polished (HTML/CSS) without
+touching the plain readmes.
 
 The body starts at H2 (no H1): Hugo supplies the page title from the front
 matter, and Harbor shows the repository name as the top heading — so the same
-body reads correctly in both once the front matter is stripped for Harbor.
+body reads correctly in both.
 
 Usage:
-  python docs/gen_descriptions.py                    # all langs -> docs/content/<lang>/base/<name>.md
-  python docs/gen_descriptions.py nvidia-cuda13.3    # one backend, all langs -> stdout
+  python docs/gen_descriptions.py                    # all langs + plain -> files
+  python docs/gen_descriptions.py nvidia-cuda13.3    # one backend, all langs + plain -> stdout
   VERSIONS_DIR=/path python docs/gen_descriptions.py # resolve versions from <dir>/<name>.tsv
 """
 
@@ -47,7 +55,8 @@ STRINGS = {
         "chip_models": "Chip models",
         "host_driver": "Host driver",
         "toolkit": "Container toolkit",
-        "toolkit_optional_note": "*(optional — only for the toolkit launch below; the plain docker/podman command needs none)*",
+        "toolkit_optional": "*(optional)*",
+        "toolkit_tooltip": "only for the toolkit launch below; the plain docker/podman command needs none",
         "image_contents": "Image contents",
         "base_image": "Base image",
         "system_packages": "System packages",
@@ -69,7 +78,8 @@ STRINGS = {
         "chip_models": "芯片型号",
         "host_driver": "宿主机驱动",
         "toolkit": "容器工具包",
-        "toolkit_optional_note": "*(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*",
+        "toolkit_optional": "*(可选)*",
+        "toolkit_tooltip": "仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装",
         "image_contents": "镜像内容",
         "base_image": "基础镜像",
         "system_packages": "系统软件包",
@@ -148,20 +158,33 @@ def wrap_cmd(cmd: str, width: int = 84) -> str:
     return "\n".join(out)
 
 
-def render(entry: dict, versions: dict, lang: str = "en") -> str:
+def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -> str:
     """Compose the description markdown for one backend in `lang`.
 
     Only prose/headers are localized (from STRINGS); every technical value —
     chip models, SDK strings, package names, env, launch/verify commands —
     renders verbatim, so the two languages stay structurally identical.
+
+    Two flavors, because the same content feeds three consumers with different
+    needs:
+      - "web"   — the Hugo site. Keeps the Hugo front matter and renders the
+                  container-toolkit caveat as an <abbr> hover tooltip, so the
+                  page stays uncluttered but the explanation is one hover away.
+      - "plain" — the in-repo base/<name>.md readme and the Harbor repository
+                  description. No front matter, no tooltip: the toolkit line is
+                  just "*(optional)*" with the caveat dropped (these surfaces
+                  render plain markdown and have no hover affordance).
     """
     s = STRINGS[lang]
+    web = flavor == "web"
     base = entry["base"]
     name = entry["name"]
     lines: list[str] = []
 
-    # Hugo front matter (docs title/ordering). Stripped before Harbor upload.
-    lines += ["---", f'title: "{name}"', "---", ""]
+    # Hugo front matter (docs title/ordering) — web flavor only. The plain flavor
+    # feeds a repo readme / Harbor description, where the front matter is noise.
+    if web:
+        lines += ["---", f'title: "{name}"', "---", ""]
 
     # ── Prerequisites ────────────────────────────────────────────
     lines += [f"## {s['prerequisites']}", ""]
@@ -176,10 +199,15 @@ def render(entry: dict, versions: dict, lang: str = "en") -> str:
     if toolkit:
         # The container toolkit is only needed for the toolkit launch. Where a
         # raw/generic tier also exists it's optional; only truly required for
-        # toolkit-only backends.
+        # toolkit-only backends. On the web that "why" is a hover tooltip; in the
+        # plain flavor it's dropped (no hover), leaving a bare "*(optional)*".
         has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
         if has_raw:
-            lines.append(f"- **{s['toolkit']}** {s['toolkit_optional_note']}: {toolkit}")
+            if web:
+                opt = f'<abbr title="{s["toolkit_tooltip"]}">{s["toolkit_optional"]}</abbr>'
+            else:
+                opt = s["toolkit_optional"]
+            lines.append(f"- **{s['toolkit']}** {opt}: {toolkit}")
         else:
             lines.append(f"- **{s['toolkit']}:** {toolkit}")
     lines.append("")
@@ -255,27 +283,38 @@ def main():
 
     requested = sys.argv[1:]
     if requested:
-        # Spot-check to stdout: every requested backend in every language, so a
-        # single-backend check never silently covers just one language.
+        # Spot-check to stdout: every requested backend, every language, both
+        # flavors — so a single-backend check never silently covers just one.
         for name in requested:
             if name not in backends:
                 sys.exit(f"Error: '{name}' not in images.yaml")
+            versions = load_versions(versions_dir, name)
             for lang in LANGS:
-                print(render(backends[name], load_versions(versions_dir, name), lang))
+                print(render(backends[name], versions, lang, "web"))
+            print(render(backends[name], versions, "en", "plain"))
         return
 
-    # Emit every backend for every language. English pages double as the Harbor
-    # descriptions; the Chinese pages keep the zh-cn docs in lockstep.
+    # Web flavor: every backend, every language, into the Hugo content tree. The
+    # zh-cn pages stay in lockstep with en; both may use tooltips/HTML.
     total = 0
     for lang in LANGS:
         out_dir = root / "docs" / "content" / lang / "base"
         out_dir.mkdir(parents=True, exist_ok=True)
         for name, entry in backends.items():
-            md = render(entry, load_versions(versions_dir, name), lang)
+            md = render(entry, load_versions(versions_dir, name), lang, "web")
             (out_dir / f"{name}.md").write_text(md)
             total += 1
-        print(f"Wrote {len(backends)} {lang} descriptions to {out_dir}")
-    print(f"Total: {total} descriptions")
+        print(f"Wrote {len(backends)} {lang} web pages to {out_dir}")
+
+    # Plain flavor: English only, into base/<name>.md — the in-repo image readme
+    # and the source for the Harbor repository description. Real files (no longer
+    # symlinks into docs/), so the web pages can be polished independently.
+    base_dir = root / "base"
+    for name, entry in backends.items():
+        md = render(entry, load_versions(versions_dir, name), "en", "plain")
+        (base_dir / f"{name}.md").write_text(md)
+    print(f"Wrote {len(backends)} plain readmes to {base_dir}")
+    print(f"Total: {total + len(backends)} descriptions")
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ title: "sunrise-tangrt1.2.0"
 
 ```bash
 docker run --rm -it \
-  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-20-g9ab46c9 bash
 ```
 
 ## 验证

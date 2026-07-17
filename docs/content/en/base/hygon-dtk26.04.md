@@ -7,7 +7,7 @@ title: "hygon-dtk26.04"
 - **Architecture:** x86_64
 - **Chip models:** Hygon BW1000
 - **Host driver:** 6.3.30-V1.4.1a
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: dcu-container-toolkit >= 1.3.0
+- **Container toolkit** <abbr title="only for the toolkit launch below; the plain docker/podman command needs none">*(optional)*</abbr>: dcu-container-toolkit >= 1.3.0
 
 ## Image contents
 
@@ -38,7 +38,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-20-g9ab46c9 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -51,7 +51,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-20-g9ab46c9 bash
 ```
 
 ## Verify

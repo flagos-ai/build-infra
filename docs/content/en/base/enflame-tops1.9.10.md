@@ -7,7 +7,7 @@ title: "enflame-tops1.9.10"
 - **Architecture:** x86_64
 - **Chip models:** Enflame Zixiao C200 (S60)
 - **Host driver:** 1.9.10
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: tencent-container-toolkit >= 2.0.52
+- **Container toolkit** <abbr title="only for the toolkit launch below; the plain docker/podman command needs none">*(optional)*</abbr>: tencent-container-toolkit >= 2.0.52
 
 ## Image contents
 
@@ -47,7 +47,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g9ab46c9 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -55,7 +55,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/gcu \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g9ab46c9 bash
 ```
 
 ## Verify

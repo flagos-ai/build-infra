@@ -108,17 +108,12 @@ jobs:
           find versions-dl -name '*.tsv' -exec cp {} versions/ \;
           ls -1 versions/ || true
       - name: Generate descriptions (with resolved versions)
-        # Writes both docs/content/en/base/*.md and docs/content/zh-cn/base/*.md
-        # from the same data — see docs/gen_descriptions.py.
+        # One generator, three outputs from the same data: web-flavored pages at
+        # docs/content/{en,zh-cn}/base/*.md (Hugo site) and plain-flavored
+        # base/*.md (in-repo readme + Harbor description). See gen_descriptions.py.
         run: |
           python3 docs/gen_data.py
           VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
-      - name: Refresh base/<name>.md symlinks
-        run: |
-          for md in docs/content/en/base/*.md; do
-            n=$(basename "$md" .md); [ "$n" = "_index" ] && continue
-            ln -sf "../docs/content/en/base/$n.md" "base/$n.md"
-          done
 
       # Open a PR with the version-enriched descriptions and enable auto-merge.
       # Publication (docs + Harbor) is gated on this PR merging — see
@@ -127,9 +122,9 @@ jobs:
         run: |
           git config user.name "flagos-ci"
           git config user.email "noreply@flagos.net"
-          # Both language trees are generated from the same data and must land in
-          # the same commit so en/ and zh-cn/ never drift. base/*.md are the
-          # EN-only Harbor/in-repo description symlinks (Harbor is English).
+          # All outputs are generated from the same data and must land in one
+          # commit so the web pages (en + zh-cn) and the plain base/*.md readmes
+          # never drift. base/*.md are English plain-flavor (Harbor is English).
           git add docs/content/en/base/*.md docs/content/zh-cn/base/*.md base/*.md
           if git diff --cached --quiet; then
             echo "no description changes — nothing to PR"; exit 0

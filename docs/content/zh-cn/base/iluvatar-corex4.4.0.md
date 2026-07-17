@@ -7,7 +7,7 @@ title: "iluvatar-corex4.4.0"
 - **架构:** x86_64
 - **芯片型号:** Iluvatar BI-V150
 - **宿主机驱动:** 4.4.0
-- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: ix-container-toolkit >= 1.1.0
+- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: ix-container-toolkit >= 1.1.0
 
 ## 镜像内容
 
@@ -45,7 +45,7 @@ title: "iluvatar-corex4.4.0"
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g9ab46c9 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -54,7 +54,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   -v /usr/local/corex:/usr/local/corex:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-20-g9ab46c9 bash
 ```
 
 ## 验证

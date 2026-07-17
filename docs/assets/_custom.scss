@@ -18,3 +18,13 @@ code.plain {
 .muted code.plain {
   opacity: 0.5;
 }
+
+// Tooltip affordance: base-image pages render the container-toolkit caveat as an
+// <abbr title="…"> hover tooltip (see docs/gen_descriptions.py, web flavor).
+// Give it a discoverable hint — a dotted underline and the help cursor — since
+// the theme's reset otherwise leaves it looking like plain text.
+abbr[title] {
+  text-decoration: underline dotted;
+  text-underline-offset: 0.15em;
+  cursor: help;
+}
