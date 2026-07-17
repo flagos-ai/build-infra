@@ -7,7 +7,7 @@ title: "mthreads-musa5.2.0"
 - **Architecture:** x86_64
 - **Chip models:** MThreads MTT S5000
 - **Host driver:** 5.2.0-server
-- **Container toolkit** *(optional — only for the toolkit launch below; the plain docker/podman command needs none)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
+- **Container toolkit** <abbr title="only for the toolkit launch below; the plain docker/podman command needs none">*(optional)*</abbr>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## Image contents
 
@@ -52,7 +52,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-20-g9ab46c9 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -62,7 +62,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-20-g9ab46c9 bash
 ```
 
 ## Verify

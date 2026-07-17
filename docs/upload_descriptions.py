@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Push each generated base-image description to Harbor as the repository
-description. Strips the Hugo front matter — Harbor renders the description as
-markdown and shows the repository name as the top heading, so the H2-based body
-reads correctly on its own.
+description. Harbor renders the description as markdown and shows the repository
+name as the top heading, so the H2-based body reads correctly on its own.
 
-Reads the generated markdown from docs/content/en/base/<name>.md for every
-backend in docs/data/images.yaml. The repository is flagos-base-<name> under the
-project taken from the image ref.
+Reads the plain-flavor markdown from base/<name>.md (the same file that serves
+as the in-repo image readme) for every backend in docs/data/images.yaml. The
+repository is flagos-base-<name> under the project taken from the image ref.
 
 Env: HARBOR_HOST, HARBOR_USER, HARBOR_PW (basic auth).
 Usage: python docs/upload_descriptions.py [--dry-run]
@@ -45,7 +44,7 @@ def main():
 
     root = Path(__file__).resolve().parent.parent
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
-    base_dir = root / "docs" / "content" / "en" / "base"
+    base_dir = root / "base"
 
     failures = 0
     for entry in images.get("backends", []):

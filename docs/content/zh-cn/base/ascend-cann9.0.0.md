@@ -7,7 +7,7 @@ title: "ascend-cann9.0.0"
 - **架构:** aarch64
 - **芯片型号:** Ascend 910B
 - **宿主机驱动:** 26.0.rc1
-- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: Ascend-docker-runtime >= 6.0.RC3
+- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: Ascend-docker-runtime >= 6.0.RC3
 
 ## 镜像内容
 
@@ -35,7 +35,7 @@ title: "ascend-cann9.0.0"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g9ab46c9 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -49,7 +49,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-20-g9ab46c9 bash
 ```
 
 ## 验证

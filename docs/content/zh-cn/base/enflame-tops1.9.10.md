@@ -7,7 +7,7 @@ title: "enflame-tops1.9.10"
 - **架构:** x86_64
 - **芯片型号:** Enflame Zixiao C200 (S60)
 - **宿主机驱动:** 1.9.10
-- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: tencent-container-toolkit >= 2.0.52
+- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: tencent-container-toolkit >= 2.0.52
 
 ## 镜像内容
 
@@ -47,7 +47,7 @@ title: "enflame-tops1.9.10"
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g9ab46c9 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -55,7 +55,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/gcu \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1-20-g9ab46c9 bash
 ```
 
 ## 验证

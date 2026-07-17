@@ -7,7 +7,7 @@ title: "mthreads-musa4.3.6"
 - **架构:** x86_64
 - **芯片型号:** MThreads MTT S5000
 - **宿主机驱动:** 5.2.0-server
-- **容器工具包** *(可选 —— 仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
+- **容器工具包** <abbr title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">*(可选)*</abbr>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## 镜像内容
 
@@ -52,7 +52,7 @@ title: "mthreads-musa4.3.6"
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-20-g9ab46c9 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -62,7 +62,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-20-g18451ed bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-20-g9ab46c9 bash
 ```
 
 ## 验证
