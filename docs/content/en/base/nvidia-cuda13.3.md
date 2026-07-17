@@ -42,13 +42,13 @@ Explicitly installed; the version is the one baked into this image:
 **With the container toolkit** *(optional)* (`nvidia-container-toolkit`):
 
 ```bash
-docker run --rm -it --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-19-ge0c6cbb bash
+docker run --rm -it --gpus all harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-17-g361735c bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
-docker run --rm -it --device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-19-ge0c6cbb bash
+docker run --rm -it --device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-17-g361735c bash
 ```
 
 ## Verify
