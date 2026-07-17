@@ -1,0 +1,51 @@
+{{- /*
+  wrap-cmd — wrap a long `docker run …` / wrapper-launcher command onto multiple
+  lines (one flag or flag+value per continuation line, ending "<image> bash"), so
+  the rendered code block does not scroll sideways. Mirrors the base-page
+  generator docs/gen_descriptions.py::wrap_cmd so runtime pages wrap identically.
+
+  Call: {{ partial "wrap-cmd" $cmd }}  ->  returns the wrapped string.
+  Short commands (<= 84 chars) are returned unchanged.
+*/ -}}
+{{- $cmd := . -}}
+{{- $width := 84 -}}
+{{- if le (len $cmd) $width -}}
+{{- $cmd -}}
+{{- else -}}
+  {{- $head := "docker run --rm -it" -}}
+  {{- $rest := "" -}}
+  {{- if hasPrefix $cmd (printf "%s " $head) -}}
+    {{- $rest = substr $cmd (add (len $head) 1) -}}
+  {{- else -}}
+    {{- /* wrapper launcher, e.g. `metax-docker …`: head is the first token */ -}}
+    {{- $parts := split $cmd " " -}}
+    {{- $head = index $parts 0 -}}
+    {{- $rest = substr $cmd (add (len $head) 1) -}}
+  {{- end -}}
+  {{- $toks := split $rest " " -}}
+  {{- $n := len $toks -}}
+  {{- $tail := printf "%s %s" (index $toks (sub $n 2)) (index $toks (sub $n 1)) -}}
+  {{- $body := first (sub $n 2) $toks -}}
+  {{- $groups := slice -}}
+  {{- $skip := false -}}
+  {{- range $i, $t := $body -}}
+    {{- if $skip -}}
+      {{- $skip = false -}}
+    {{- else -}}
+      {{- $next := "" -}}
+      {{- if lt (add $i 1) (len $body) -}}{{- $next = index $body (add $i 1) -}}{{- end -}}
+      {{- if and (hasPrefix $t "-") $next (not (hasPrefix $next "-")) -}}
+        {{- $groups = $groups | append (printf "%s %s" $t $next) -}}
+        {{- $skip = true -}}
+      {{- else -}}
+        {{- $groups = $groups | append $t -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $lines := slice (printf "%s \\" $head) -}}
+  {{- range $groups -}}
+    {{- $lines = $lines | append (printf "  %s \\" .) -}}
+  {{- end -}}
+  {{- $lines = $lines | append (printf "  %s" $tail) -}}
+  {{- delimit $lines "\n" -}}
+{{- end -}}

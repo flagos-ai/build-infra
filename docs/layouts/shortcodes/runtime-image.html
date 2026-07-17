@@ -43,7 +43,7 @@
   {{- else }}
 <p>{{ T "run_generic" }}:</p>
   {{- end }}
-<pre><code>{{ replace .template "{image}" $img }}</code></pre>
+<pre class="language-bash"><code class="language-bash">{{ partial "wrap-cmd" (replace .template "{image}" $img) }}</code></pre>
 {{- end }}
 {{- if not .launch }}
 <p><em>{{ T "run_todo" }}</em></p>
