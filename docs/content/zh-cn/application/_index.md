@@ -1,9 +1,7 @@
 ---
-title: 应用镜像
+title: "应用镜像（application）"
 weight: 40
 ---
-
-# 应用镜像（application）
 
 **应用镜像**构建在[运行时镜像]({{< relref "/runtime" >}})之上，把一个开箱即用的
 AI 应用与 FlagOS 软件栈打包在一起。

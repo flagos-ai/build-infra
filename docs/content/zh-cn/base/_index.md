@@ -1,10 +1,7 @@
 ---
-title: 基础镜像
+title: "基础镜像（base）"
 weight: 20
-bookCollapseSection: true
 ---
-
-# 基础镜像（base）
 
 **基础镜像**是在操作系统之上安装厂商 SDK 与工具链。它只关乎**操作系统**和
 **支持的 SDK 版本**——与 Python、Torch、Triton 无关（那些属于

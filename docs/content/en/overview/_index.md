@@ -3,8 +3,6 @@ title: Overview
 weight: 10
 ---
 
-# Overview
-
 FlagOS images are layered. Each layer builds on the one below it and has a
 distinct concern.
 
