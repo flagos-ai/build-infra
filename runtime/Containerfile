@@ -28,7 +28,11 @@ ARG INCLUDE_TESTS=true
 ARG PYTHON_VERSION=3.12
 ARG FLAGOS_PYPI=""
 ARG DAILY_PYPI=""
-ARG EXTRAS_GROUP=""
+# Dependencies passed explicitly (no extras) — each may be empty.
+# DEPS: space-separated vendor packages from configs.yaml deps: (torch, etc.)
+# CPP_EXTRA: cpp-cuda / cpp-musa / cpp-npu / cpp-gcu / cpp-ix, or empty
+ARG DEPS=""
+ARG CPP_EXTRA=""
 # Compiler packages — each may be empty (no-op). When both are set, FlagTree
 # is the default (installed to /flagos) and Triton is installed to /opt/triton
 # (side dir, switched via PYTHONPATH). When only Triton is set, it goes to
@@ -51,7 +55,8 @@ ARG PYTHON_VERSION
 ARG FLAGOS_PYPI
 ARG DAILY_PYPI
 ARG EXTRA_PYPI
-ARG EXTRAS_GROUP
+ARG DEPS
+ARG CPP_EXTRA
 ARG FLAGTREE_PKG
 ARG TRITON_PKG
 ARG TRITON_EXTRA_PKGS
@@ -68,21 +73,14 @@ RUN uv venv /flagos --python ${PYTHON_VERSION} --relocatable
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 
-# ── Install FlagGems (prebuilt wheels) ─────────────────────────
-# Wheel-based: no source tree, no inline C++ compile. Hermetic — only
-# resource.flagos.net. Two FlagOS indexes with uv's unsafe-first-match so a
-# dependency can resolve from EITHER index; uv's default first-index strategy
-# pins each package to a single index and won't fall through (which broke
-# cross-index deps like a pinned PyYAML).
-#   flag_gems + flag-gems-cpp-<backend>      -> flagos-pypi-daily  (DAILY_PYPI)
-#   torch / triton / flagtree / pinned deps  -> flagos-pypi-<vendor> (FLAGOS_PYPI)
-# Install FlagGems first (no compiler yet), then layer compilers on top.
-RUN uv pip install --no-cache-dir --prerelease=allow \
-      --index-strategy unsafe-first-match \
-      --index ${FLAGOS_PYPI} \
-      --index ${DAILY_PYPI} \
-      --trusted-host resource.flagos.net \
-      "flag_gems[${EXTRAS_GROUP}]==${FLAGGEMS_VERSION}"
+# ── Install vendor dependencies (explicit, no extras) ──────────
+# Dependencies come from configs.yaml deps: — explicit, no resolver ambiguity.
+# Each vendor has exactly one index (FLAGOS_PYPI), so there is no cross-vendor
+# conflict risk. torch / torchvision / vendor-specific packages go here.
+RUN if [ -n "${DEPS}" ]; then \
+      uv pip install --no-cache-dir ${DEPS} \
+        --index ${FLAGOS_PYPI}; \
+    fi
 
 # ── Install FlagTree (default compiler, if configured) ──────────
 # FlagTree installs to site-packages/triton/ — it's the default import.
@@ -107,6 +105,19 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
           --index ${FLAGOS_PYPI} --index ${DAILY_PYPI}; \
       fi; \
     fi
+
+# ── Install FlagGems LAST (prebuilt wheels) ─────────────────────
+# Installed AFTER all deps and compilers so its ==VERSION pin and dependency
+# constraints are authoritative. Uses two indexes: FlagGems itself lives on
+# DAILY_PYPI, the cpp-* extra (when set) resolves flag-gems-cpp-<vendor> from
+# DAILY_PYPI. All non-FlagGems deps are already installed — uv only verifies,
+# never resolves cross-index. CPP_EXTRA is empty or e.g. cpp-cuda.
+RUN uv pip install --no-cache-dir --prerelease=allow \
+      --index-strategy unsafe-first-match \
+      --index ${FLAGOS_PYPI} \
+      --index ${DAILY_PYPI} \
+      --trusted-host resource.flagos.net \
+      "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"
 
 # ── Tests — deferred (image not finalized) ────────────────────
 # Tests are NOT shipped yet: FlagGems' [test] extra installs only frameworks,

@@ -202,16 +202,16 @@ def resolve_build_args(
     pypi_daily = configs.get("pypi_daily", "")
     mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
-    # Install spec: fold the per-vendor C++ operators extra into the FlagGems
-    # extras when the backend supports C++ (cmake_backend set). The C++ extra
-    # token is the cmake backend lowercased (CUDA -> cuda -> cpp-cuda), NOT the
-    # vendor name. The extras resolve flag_gems + flag-gems-cpp-<backend> wheels.
-    extras = backend_info.get("extras", "")
+    # Dependencies: explicit vendor packages from configs.yaml deps: (torch,
+    # torchvision, etc.). Passed directly — no extras, no resolver ambiguity.
+    # Extras are unreliable across vendor indexes because uv resolves by package
+    # name and can't distinguish torch==2.8.0+metax from torch==2.9.0+musa.
+    deps = " ".join(backend_info.get("deps", []))
+
+    # C++ extension extra — a single named wheel (flag-gems-cpp-cuda) with no
+    # multi-index resolution ambiguity. Empty when the backend has no C++ support.
     cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
-    if cpp_backend:
-        extras_spec = f"{extras},cpp-{cpp_backend}" if extras else f"cpp-{cpp_backend}"
-    else:
-        extras_spec = extras
+    cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
 
     # Both compilers are installed (when configured). FlagTree is the default
     # (installed to /flagos); Triton is installed to /opt/triton (side dir,
@@ -229,7 +229,8 @@ def resolve_build_args(
         "FLAGOS_PYPI": pypi_base.format(vendor=vendor) if pypi_base else "",
         "DAILY_PYPI": pypi_daily,
         "EXTRA_PYPI": extra_pypi_override or mirror,
-        "EXTRAS_GROUP": extras_spec,
+        "DEPS": deps,
+        "CPP_EXTRA": cpp_extra,
         "FLAGTREE_PKG": flagtree,
         "TRITON_PKG": triton,
         "TRITON_EXTRA_PKGS": triton_extra,
