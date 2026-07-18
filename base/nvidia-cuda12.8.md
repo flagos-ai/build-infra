@@ -12,8 +12,7 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -58,7 +57,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-31-g853fdf7 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -71,7 +70,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1-31-g853fdf7 bash
 ```
 
 ## Verify

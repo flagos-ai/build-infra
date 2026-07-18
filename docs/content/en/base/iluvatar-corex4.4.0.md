@@ -1,7 +1,3 @@
----
-title: "iluvatar-corex4.4.0"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -16,8 +12,10 @@ title: "iluvatar-corex4.4.0"
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
+---
+title: "iluvatar-corex4.4.0"
+---
 
 ## Prerequisites
 
@@ -62,7 +60,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-31-g853fdf7 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -71,7 +69,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   -v /usr/local/corex:/usr/local/corex:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-31-g853fdf7 bash
 ```
 
 ## Verify

@@ -12,8 +12,7 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -60,7 +59,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 metax-docker \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-31-g853fdf7 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -70,7 +69,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-31-g853fdf7 bash
 ```
 
 ## Verify

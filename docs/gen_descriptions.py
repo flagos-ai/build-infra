@@ -75,9 +75,13 @@ STRINGS = {
         "toolkit_tooltip": "only for the toolkit launch below; the plain docker/podman command needs none",
         "image_contents": "Image contents",
         "base_image": "Base image",
+        "base_image_ref": "Built on",
         "system_packages": "System packages",
         "system_packages_note": "Explicitly installed; the version is the one baked into this image:",
         "sdk_components": "SDK components",
+        "python_version": "Python",
+        "major_packages": "Major Python packages",
+        "fallback_note": "Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).",
         "environment": "Environment",
         "launch": "Launch",
         "launch_toolkit_optional": "**With the container toolkit** *(optional)*:",
@@ -98,9 +102,13 @@ STRINGS = {
         "toolkit_tooltip": "仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装",
         "image_contents": "镜像内容",
         "base_image": "基础镜像",
+        "base_image_ref": "基于",
         "system_packages": "系统软件包",
         "system_packages_note": "显式安装；此处版本即为该镜像中实际打包的版本：",
         "sdk_components": "SDK 组件",
+        "python_version": "Python",
+        "major_packages": "主要 Python 软件包",
+        "fallback_note": "灰色 = 备用编译器（默认使用 flagtree；仅当 flagtree 不可用时才回退到 triton）。",
         "environment": "环境变量",
         "launch": "启动",
         "launch_toolkit_optional": "**使用容器工具包** *(可选)*：",
@@ -112,6 +120,25 @@ STRINGS = {
         "verify_note": "在容器内，确认加速器可见：",
     },
 }
+
+# Apache 2.0 copyright header — HTML comment for web, bare comment for plain.
+COPYRIGHT = [
+    "<!--",
+    " Copyright 2026 FlagOS Contributors",
+    "",
+    " Licensed under the Apache License, Version 2.0 (the \"License\");",
+    " you may not use this file except in compliance with the License.",
+    " You may obtain a copy of the License at",
+    "",
+    "     http://www.apache.org/licenses/LICENSE-2.0",
+    "",
+    " Unless required by applicable law or agreed to in writing, software",
+    " distributed under the License is distributed on an \"AS IS\" BASIS,",
+    " WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    " See the License for the specific language governing permissions and",
+    " limitations under the License.",
+    "-->",
+]
 
 
 def repo_root() -> Path:
@@ -174,6 +201,70 @@ def wrap_cmd(cmd: str, width: int = 84) -> str:
     return "\n".join(out)
 
 
+def _prerequisites(entry: dict, s: dict, web: bool) -> list[str]:
+    """Prerequisites section shared by base and runtime: arch, chip models,
+    host driver, container toolkit (with optional tooltip on the web)."""
+    base = entry["base"]
+    lines = [f"## {s['prerequisites']}", ""]
+    lines.append(f"- **{s['architecture']}:** {base.get('arch', '')}")
+    hw = base.get("hardware") or []
+    if hw:
+        lines.append(f"- **{s['chip_models']}:** {', '.join(hw)}")
+    drv = base.get("driver") or ""
+    if drv:
+        lines.append(f"- **{s['host_driver']}:** {drv}")
+    toolkit = entry.get("run_prereq") or ""
+    if toolkit:
+        has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
+        if has_raw:
+            if web:
+                label = s["toolkit_optional"].strip("*")
+                opt = (
+                    f"<em>{label}</em> "
+                    '<button type="button" class="toolkit-optional-info" '
+                    'data-bs-toggle="tooltip" '
+                    f'data-bs-title="{s["toolkit_tooltip"]}" '
+                    f'aria-label="{s["toolkit_tooltip"]}">&#9432;</button>'
+                )
+            else:
+                opt = s["toolkit_optional"]
+            lines.append(f"- **{s['toolkit']}** {opt}: {toolkit}")
+        else:
+            lines.append(f"- **{s['toolkit']}:** {toolkit}")
+    lines.append("")
+    return lines
+
+
+def _launch(entry: dict, s: dict, image: str) -> list[str]:
+    """Launch section: one tier per block, substituting the given image name."""
+    tiers = entry.get("launch") or []
+    both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
+    lines = []
+    if tiers:
+        lines += [f"## {s['launch']}", ""]
+        for t in tiers:
+            cmd = wrap_cmd(t["template"].replace("{image}", image))
+            if t["kind"] == "toolkit":
+                hdr = s["launch_toolkit_optional"] if both else s["launch_toolkit"]
+            elif t["kind"] == "raw":
+                hdr = s["launch_raw_both"] if both else s["launch_raw_only"]
+            else:  # generic
+                hdr = s["launch_generic"]
+            lines += [hdr, "", "```bash", cmd, "```", ""]
+    return lines
+
+
+def _verify(entry: dict, s: dict) -> list[str]:
+    """Verify section: command to run inside the launched container."""
+    verify = entry.get("verify")
+    lines = []
+    if verify:
+        lines += [f"## {s['verify']}", ""]
+        lines += [s["verify_note"], ""]
+        lines += ["```bash", verify, "```", ""]
+    return lines
+
+
 def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -> str:
     """Compose the description markdown for one backend in `lang`.
 
@@ -198,49 +289,15 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
     name = entry["name"]
     lines: list[str] = []
 
-    # Hugo front matter (docs title/ordering) — web flavor only. The plain flavor
-    # feeds a repo readme / Harbor description, where the front matter is noise.
+    # Apache 2.0 copyright header — rendered as an HTML comment in both flavors.
+    lines += COPYRIGHT
+
+    # Hugo front matter — web flavor only.
     if web:
         lines += ["---", f'title: "{name}"', "---", ""]
 
-    # ── Prerequisites ────────────────────────────────────────────
-    lines += [f"## {s['prerequisites']}", ""]
-    lines.append(f"- **{s['architecture']}:** {base.get('arch', '')}")
-    hw = base.get("hardware") or []
-    if hw:
-        lines.append(f"- **{s['chip_models']}:** {', '.join(hw)}")
-    drv = base.get("driver") or ""
-    if drv:
-        lines.append(f"- **{s['host_driver']}:** {drv}")
-    toolkit = entry.get("run_prereq") or ""
-    if toolkit:
-        # The container toolkit is only needed for the toolkit launch. Where a
-        # raw/generic tier also exists it's optional; only truly required for
-        # toolkit-only backends. On the web that "why" is a Bootstrap tooltip
-        # shown on hovering an info marker (the Lotus Docs theme initializes
-        # every [data-bs-toggle="tooltip"] on load); in the plain flavor it's
-        # dropped (no hover), leaving a bare "*(optional)*".
-        has_raw = any(t["kind"] in ("raw", "generic") for t in (entry.get("launch") or []))
-        if has_raw:
-            if web:
-                # Emit the emphasis as literal <em> rather than markdown "*...*":
-                # Goldmark does not re-parse markdown inside an inline HTML span.
-                # The caveat is a separate info marker; the tooltip shows on hover
-                # (and keyboard focus) — Bootstrap's default trigger.
-                label = s["toolkit_optional"].strip("*")
-                opt = (
-                    f"<em>{label}</em> "
-                    '<button type="button" class="toolkit-optional-info" '
-                    'data-bs-toggle="tooltip" '
-                    f'data-bs-title="{s["toolkit_tooltip"]}" '
-                    f'aria-label="{s["toolkit_tooltip"]}">&#9432;</button>'
-                )
-            else:
-                opt = s["toolkit_optional"]
-            lines.append(f"- **{s['toolkit']}** {opt}: {toolkit}")
-        else:
-            lines.append(f"- **{s['toolkit']}:** {toolkit}")
-    lines.append("")
+    # ── Prerequisites (shared with runtime) ──
+    lines += _prerequisites(entry, s, web)
 
     # ── Image contents (base OS + system packages + SDK components) ──
     pkgs = base.get("system_packages") or []
@@ -262,7 +319,7 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
                 lines.append(f"- {item}")
             lines.append("")
 
-    # ── Environment ─────────────────────────────────────────────
+    # ── Environment (base image env vars) ──
     env = base.get("env") or {}
     if env:
         lines += [f"## {s['environment']}", ""]
@@ -270,35 +327,82 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
             lines.append(f"- `{k}={v}`")
         lines.append("")
 
-    # ── Launch ──────────────────────────────────────────────────
-    # One block per launch tier (see gen_data.launch_tiers). When both a toolkit
-    # and a raw tier exist, the toolkit is labelled optional and the raw one is the
-    # no-toolkit/podman path; a lone tier gets a plain header. The toolkit version
-    # is not repeated here — it's in Prerequisites.
-    image = base["image"]
-    tiers = entry.get("launch") or []
-    both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
-    if tiers:
-        lines += [f"## {s['launch']}", ""]
-        for t in tiers:
-            cmd = wrap_cmd(t["template"].replace("{image}", image))
-            if t["kind"] == "toolkit":
-                hdr = s["launch_toolkit_optional"] if both else s["launch_toolkit"]
-            elif t["kind"] == "raw":
-                hdr = s["launch_raw_both"] if both else s["launch_raw_only"]
-            else:  # generic
-                hdr = s["launch_generic"]
-            lines += [hdr, "", "```bash", cmd, "```", ""]
+    # ── Launch (shared with runtime) ──
+    lines += _launch(entry, s, base["image"])
 
-    # ── Verify ──────────────────────────────────────────────────
-    # A SEPARATE command to run INSIDE the launched container (not folded into the
-    # docker run line): some vendor runtimes hang on first touch, so users run the
-    # device check on its own and can retry it independently.
-    verify = entry.get("verify")
-    if verify:
-        lines += [f"## {s['verify']}", ""]
-        lines += [s["verify_note"], ""]
-        lines += ["```bash", verify, "```", ""]
+    # ── Verify (shared with runtime) ──
+    lines += _verify(entry, s)
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
+    """Compose the runtime-image description markdown for one backend.
+
+    Same two-flavor model as render(): ``"web"`` for the Hugo site (with
+    front matter and tooltip) and ``"plain"`` for the in-repo readme +
+    Harbor repository description.
+    """
+    s = STRINGS[lang]
+    web = flavor == "web"
+    name = entry["name"]
+    base = entry["base"]
+    runtime = entry["runtime"]
+    lines: list[str] = []
+
+    # Apache 2.0 copyright header — rendered as an HTML comment in both flavors.
+    lines += COPYRIGHT
+
+    # Hugo front matter — web flavor only.
+    if web:
+        lines += ["---", f'title: "{name}"', "---", ""]
+
+    # ── Prerequisites (same as base page — inherited from base image) ──
+    lines += _prerequisites(entry, s, web)
+
+    # ── Image contents (base image ref + Python + major packages) ──
+    lines += [f"## {s['image_contents']}", ""]
+
+    if base.get("image"):
+        lines += [f"### {s['base_image_ref']}", "", f"`{base['image']}`", ""]
+
+    python_ver = runtime.get("python", "")
+    if python_ver:
+        lines += [f"### {s['python_version']}", "", python_ver, ""]
+
+    packages = runtime.get("packages") or []
+    if packages:
+        lines += [f"### {s['major_packages']}", ""]
+        has_muted = any(p.get("muted") for p in packages)
+        for p in packages:
+            pkg = p["pkg"]
+            if p.get("muted"):
+                if web:
+                    lines.append(f'- <span class="muted"><code class="plain">{pkg}</code></span>')
+                else:
+                    lines.append(f"- `{pkg}` *(fallback)*")
+            else:
+                lines.append(f"- `{pkg}`")
+        if has_muted:
+            if web:
+                lines += ["", f'<p class="muted"><em>{s["fallback_note"]}</em></p>']
+            else:
+                lines += ["", f"*{s['fallback_note']}*"]
+        lines.append("")
+
+    # ── Environment (runtime env vars) ──
+    env = runtime.get("env") or {}
+    if env:
+        lines += [f"## {s['environment']}", ""]
+        for k, v in env.items():
+            lines.append(f"- `{k}={v}`")
+        lines.append("")
+
+    # ── Launch (runtime image name for launch commands) ──
+    lines += _launch(entry, s, runtime["image"])
+
+    # ── Verify ──
+    lines += _verify(entry, s)
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -313,8 +417,8 @@ def main():
 
     requested = sys.argv[1:]
     if requested:
-        # Spot-check to stdout: every requested backend, every language, both
-        # flavors — so a single-backend check never silently covers just one.
+        # Spot-check to stdout: every requested backend, every language, every
+        # layer — so a single-backend check never silently covers just one layer.
         for name in requested:
             if name not in backends:
                 sys.exit(f"Error: '{name}' not in images.yaml")
@@ -322,11 +426,15 @@ def main():
             for lang in LANGS:
                 print(render(backends[name], versions, lang, "web"))
             print(render(backends[name], versions, "en", "plain"))
+            for lang in LANGS:
+                print(render_runtime(backends[name], lang, "web"))
+            print(render_runtime(backends[name], "en", "plain"))
         return
 
-    # Web flavor: every backend, every language, into the Hugo content tree. The
-    # zh-cn pages stay in lockstep with en; both may use tooltips/HTML.
+    # ── Base images ──────────────────────────────────────────────
     total = 0
+
+    # Base web flavor: docs/content/{en,zh-cn}/base/
     for lang in LANGS:
         out_dir = root / "docs" / "content" / lang / "base"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -334,16 +442,33 @@ def main():
             md = render(entry, load_versions(versions_dir, name), lang, "web")
             (out_dir / f"{name}.md").write_text(md)
             total += 1
-        print(f"Wrote {len(backends)} {lang} web pages to {out_dir}")
+        print(f"Wrote {len(backends)} {lang} base web pages to {out_dir}")
 
-    # Plain flavor: English only, into base/<name>.md — the in-repo image readme
-    # and the source for the Harbor repository description. Real files (no longer
-    # symlinks into docs/), so the web pages can be polished independently.
+    # Base plain flavor: base/<name>.md
     base_dir = root / "base"
     for name, entry in backends.items():
         md = render(entry, load_versions(versions_dir, name), "en", "plain")
         (base_dir / f"{name}.md").write_text(md)
-    print(f"Wrote {len(backends)} plain readmes to {base_dir}")
+    print(f"Wrote {len(backends)} base plain readmes to {base_dir}")
+
+    # ── Runtime images ───────────────────────────────────────────
+    # Runtime web flavor: docs/content/{en,zh-cn}/runtime/
+    for lang in LANGS:
+        out_dir = root / "docs" / "content" / lang / "runtime"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for name, entry in backends.items():
+            md = render_runtime(entry, lang, "web")
+            (out_dir / f"{name}.md").write_text(md)
+            total += 1
+        print(f"Wrote {len(backends)} {lang} runtime web pages to {out_dir}")
+
+    # Runtime plain flavor: runtime/<name>.md
+    runtime_dir = root / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    for name, entry in backends.items():
+        md = render_runtime(entry, "en", "plain")
+        (runtime_dir / f"{name}.md").write_text(md)
+    print(f"Wrote {len(backends)} runtime plain readmes to {runtime_dir}")
     print(f"Total: {total + len(backends)} descriptions")
 
 

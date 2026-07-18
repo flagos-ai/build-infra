@@ -1,7 +1,3 @@
----
-title: "tsingmicro-tsm260604"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -16,8 +12,10 @@ title: "tsingmicro-tsm260604"
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
+---
+title: "tsingmicro-tsm260604"
+---
 
 ## 前置条件
 
@@ -78,7 +76,7 @@ title: "tsingmicro-tsm260604"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -87,7 +85,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7 bash
 ```
 
 ## 验证

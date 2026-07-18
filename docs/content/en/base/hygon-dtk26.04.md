@@ -1,7 +1,3 @@
----
-title: "hygon-dtk26.04"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -16,8 +12,10 @@ title: "hygon-dtk26.04"
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
+---
+title: "hygon-dtk26.04"
+---
 
 ## Prerequisites
 
@@ -55,7 +53,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -68,7 +66,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7 bash
 ```
 
 ## Verify

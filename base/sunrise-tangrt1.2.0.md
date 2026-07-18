@@ -12,8 +12,7 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -57,7 +56,7 @@ Start an interactive shell in the container:
 
 ```bash
 docker run --rm -it \
-  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-31-g853fdf7 bash
 ```
 
 ## Verify

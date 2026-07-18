@@ -12,8 +12,7 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- -->
-
+-->
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -64,7 +63,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-31-g853fdf7 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -74,7 +73,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-21-g7fe5cbd bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-31-g853fdf7 bash
 ```
 
 ## Verify
