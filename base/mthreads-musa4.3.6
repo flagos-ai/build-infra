@@ -26,7 +26,7 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/mthreads
-ENV TOOKIT_PKG=musa_toolkits_rc4.3.6.tar.gz
+ENV TOOLKIT_PKG=musa_toolkits_rc4.3.6.tar.gz
 ENV MCCL_PKG=mccl_rc2.1.6.PH1.tar.gz
 ENV MUDNN_PKG=mudnn_rc3.1.6.PH1.tar.gz
 
@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Toolkit
-RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /toolkits.tar.gz ${FILE_STORE}/${TOOKIT_PKG} \
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /toolkits.tar.gz ${FILE_STORE}/${TOOLKIT_PKG} \
     && tar xzvf /toolkits.tar.gz -C /tmp \
     && cd /tmp/musa_toolkits_install \
     && ./install.sh \
