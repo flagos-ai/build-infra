@@ -36,8 +36,8 @@ version; the checkout just has to include tags.
 `build.sh` only builds (uploading is the workflow's job):
 
 ```sh
-# from a ref (default: wheel-packaging-split — see note below)
-FLAGGEMS_REF=wheel-packaging-split ./build.sh
+# from a ref (default: master)
+FLAGGEMS_REF=master ./build.sh
 
 # from a local clone, offline
 FLAGGEMS_REPO=/path/to/FlagGems ./build.sh
@@ -59,13 +59,3 @@ hit the C++ backend — wrong ref or packaging).
   as a GitHub Actions artifact for inspection.
 - Upload target: **`flagos-pypi-daily`** (the daily/dev repo; releases go to
   `flagos-pypi-hosted`). Auth via the org secret `NEXUS_TOKEN` (`user:token`).
-
-## ⚠️ Temporary: FlagGems ref
-
-`FLAGGEMS_REF` defaults to the **under-review `wheel-packaging-split` branch**,
-which carries the pure-Python setuptools packaging (`build-backend =
-setuptools.build_meta`). On the FlagGems default branch today, `pip wheel .`
-still uses scikit-build and tries to compile C++.
-
-**Once `wheel-packaging-split` merges, change the default ref to the FlagGems
-default branch** (in `build.sh` and the workflow) and delete this note.
