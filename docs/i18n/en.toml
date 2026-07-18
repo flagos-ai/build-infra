@@ -86,3 +86,21 @@ other = "Host driver"
 
 [runtime_tag_note]
 other = "tag scheme being finalized"
+
+[prerequisites]
+other = "Prerequisites"
+
+[architecture]
+other = "Architecture"
+
+[chip_models]
+other = "Chip models"
+
+[container_toolkit]
+other = "Container toolkit"
+
+[container_toolkit_optional]
+other = "optional"
+
+[toolkit_optional_tooltip]
+other = "only for the toolkit launch below; the plain docker/podman command needs none"

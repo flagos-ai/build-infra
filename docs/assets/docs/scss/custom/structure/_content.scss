@@ -33,6 +33,7 @@
     --code-block-bg: #212d63;
     --inline-code-bg: var(--gray-100);
     --inline-code-border: 1px solid var(--gray-400);
+    --inline-code-color: #023020;
 
 }
 
@@ -50,6 +51,7 @@
     --code-block-bg: var(--gray-900);
     --inline-code-bg: var(--gray-800);
     --inline-code-border: 1px solid var(--gray-600);
+    --inline-code-color: #F5F5DC;
 
 }
 
@@ -65,12 +67,6 @@
         text-decoration: underline 2px var(--primary-200);
         text-underline-offset: 2.5px !important;
         transition: 0s !important;
-    }
-    // &.anchor i {
-    //     transform: rotate(-45deg);
-    // }
-    code {
-        color: var(--content-link-color);
     }
 }
 
@@ -239,13 +235,12 @@ i {
 }
 
 .docs-content .main-content code {
-    // font-size: inherit;
-    // color: var(--text-default);
     font-weight: 400;
-    padding: 1px 2px;
-    background: var(--inline-code-bg);
-    border: var(--inline-code-border);
-    border-radius: 4px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: var(--inline-code-color);
 }
 
 .docs-content .main-content pre {
@@ -350,6 +345,14 @@ body {
 // background here; the theme's `pre code` rule keeps the block's own padding.
 .docs-content .main-content pre code {
     background: none;
+}
+
+// Catalog tables: append a subtle arrow to backend links so users can tell
+// the cells are clickable (the code styling otherwise hides link affordance).
+.docs-content .main-content td a::after {
+    content: " →";
+    opacity: 0.45;
+    font-size: 0.85em;
 }
 
 // The page title (theme renders it as <h1 class="content-title"> OUTSIDE
