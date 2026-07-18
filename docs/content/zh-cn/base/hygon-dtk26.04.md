@@ -1,3 +1,18 @@
+<!--
+ Copyright 2026 FlagOS Contributors
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
 ---
 title: "hygon-dtk26.04"
 ---
@@ -38,7 +53,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-30-gd767fb5 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -51,7 +66,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-30-gd767fb5 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7 bash
 ```
 
 ## 验证

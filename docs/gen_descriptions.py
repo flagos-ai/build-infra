@@ -121,6 +121,25 @@ STRINGS = {
     },
 }
 
+# Apache 2.0 copyright header — HTML comment for web, bare comment for plain.
+COPYRIGHT = [
+    "<!--",
+    " Copyright 2026 FlagOS Contributors",
+    "",
+    " Licensed under the Apache License, Version 2.0 (the \"License\");",
+    " you may not use this file except in compliance with the License.",
+    " You may obtain a copy of the License at",
+    "",
+    "     http://www.apache.org/licenses/LICENSE-2.0",
+    "",
+    " Unless required by applicable law or agreed to in writing, software",
+    " distributed under the License is distributed on an \"AS IS\" BASIS,",
+    " WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+    " See the License for the specific language governing permissions and",
+    " limitations under the License.",
+    "-->",
+]
+
 
 def repo_root() -> Path:
     d = Path(__file__).resolve().parent.parent
@@ -270,6 +289,9 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
     name = entry["name"]
     lines: list[str] = []
 
+    # Apache 2.0 copyright header — rendered as an HTML comment in both flavors.
+    lines += COPYRIGHT
+
     # Hugo front matter — web flavor only.
     if web:
         lines += ["---", f'title: "{name}"', "---", ""]
@@ -327,6 +349,9 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
     base = entry["base"]
     runtime = entry["runtime"]
     lines: list[str] = []
+
+    # Apache 2.0 copyright header — rendered as an HTML comment in both flavors.
+    lines += COPYRIGHT
 
     # Hugo front matter — web flavor only.
     if web:

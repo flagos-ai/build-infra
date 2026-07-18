@@ -1,3 +1,18 @@
+<!--
+ Copyright 2026 FlagOS Contributors
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
 ---
 title: "ascend-cann9.0.0"
 ---
@@ -35,7 +50,7 @@ title: "ascend-cann9.0.0"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-30-gd767fb5 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-31-g853fdf7 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -49,7 +64,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-30-gd767fb5 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-31-g853fdf7 bash
 ```
 
 ## 验证
