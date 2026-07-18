@@ -16,7 +16,7 @@
 # Base image for Ascend CANN 9.0.0 on Ubuntu 24.04
 # =========================================================
 # History:
-# -0260615: Initial version
+# - 20260615: Initial version
 # - 20260715: Bump base OS 22.04 -> 24.04 (newer libstdc++ for flagtree); #110
 
 FROM ubuntu:24.04 AS Builder
