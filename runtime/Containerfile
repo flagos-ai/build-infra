@@ -29,9 +29,13 @@ ARG PYTHON_VERSION=3.12
 ARG FLAGOS_PYPI=""
 ARG DAILY_PYPI=""
 ARG EXTRAS_GROUP=""
-ARG COMPILER=""
-ARG COMPILER_PKG=""
-ARG TRITON_POST_INSTALL=""
+# Compiler packages — each may be empty (no-op). When both are set, FlagTree
+# is the default (installed to /flagos) and Triton is installed to /opt/triton
+# (side dir, switched via PYTHONPATH). When only Triton is set, it goes to
+# /flagos (backward compat).
+ARG FLAGTREE_PKG=""
+ARG TRITON_PKG=""
+ARG TRITON_EXTRA_PKGS=""
 # FlagGems wheel version to pin (== exact). build.py derives it from the
 # FlagGems git describe; buildkit excludes .git from the context so the wheel
 # can't self-detect it.
@@ -48,8 +52,9 @@ ARG FLAGOS_PYPI
 ARG DAILY_PYPI
 ARG EXTRA_PYPI
 ARG EXTRAS_GROUP
-ARG COMPILER_PKG
-ARG TRITON_POST_INSTALL
+ARG FLAGTREE_PKG
+ARG TRITON_PKG
+ARG TRITON_EXTRA_PKGS
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
 ARG DEBIAN_FRONTEND=noninteractive
@@ -63,7 +68,7 @@ RUN uv venv /flagos --python ${PYTHON_VERSION} --relocatable
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 
-# ── Install FlagGems (prebuilt wheels) + compiler ─────────────
+# ── Install FlagGems (prebuilt wheels) ─────────────────────────
 # Wheel-based: no source tree, no inline C++ compile. Hermetic — only
 # resource.flagos.net. Two FlagOS indexes with uv's unsafe-first-match so a
 # dependency can resolve from EITHER index; uv's default first-index strategy
@@ -71,16 +76,36 @@ ENV VIRTUAL_ENV=/flagos \
 # cross-index deps like a pinned PyYAML).
 #   flag_gems + flag-gems-cpp-<backend>      -> flagos-pypi-daily  (DAILY_PYPI)
 #   torch / triton / flagtree / pinned deps  -> flagos-pypi-<vendor> (FLAGOS_PYPI)
+# Install FlagGems first (no compiler yet), then layer compilers on top.
 RUN uv pip install --no-cache-dir --prerelease=allow \
       --index-strategy unsafe-first-match \
       --index ${FLAGOS_PYPI} \
       --index ${DAILY_PYPI} \
       --trusted-host resource.flagos.net \
-      "flag_gems[${EXTRAS_GROUP}]==${FLAGGEMS_VERSION}" ${COMPILER_PKG}
+      "flag_gems[${EXTRAS_GROUP}]==${FLAGGEMS_VERSION}"
 
-# ── Triton post-install (e.g. triton_ascend) ─────────────────
-RUN if [ -n "${TRITON_POST_INSTALL}" ]; then \
-      sh -c "${TRITON_POST_INSTALL}"; \
+# ── Install FlagTree (default compiler, if configured) ──────────
+# FlagTree installs to site-packages/triton/ — it's the default import.
+RUN if [ -n "${FLAGTREE_PKG}" ]; then \
+      uv pip install --no-cache-dir ${FLAGTREE_PKG} \
+        --index ${FLAGOS_PYPI} --index ${DAILY_PYPI}; \
+    fi
+
+# ── Install Triton (if configured) ──────────────────────────────
+# When both compilers are present: install Triton to /opt/triton (side dir).
+# The compiler() shell function toggles it by prepending /opt/triton to
+# PYTHONPATH. When FlagTree is absent: install Triton to /flagos normally.
+# Always create /opt/triton so the runtime COPY doesn't fail on missing source.
+RUN mkdir -p /opt/triton
+RUN if [ -n "${TRITON_PKG}" ]; then \
+      if [ -n "${FLAGTREE_PKG}" ]; then \
+        uv pip install --no-cache-dir --target /opt/triton \
+          --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} \
+          ${TRITON_PKG} ${TRITON_EXTRA_PKGS}; \
+      else \
+        uv pip install --no-cache-dir ${TRITON_PKG} ${TRITON_EXTRA_PKGS} \
+          --index ${FLAGOS_PYPI} --index ${DAILY_PYPI}; \
+      fi; \
     fi
 
 # ── Tests — deferred (image not finalized) ────────────────────
@@ -100,12 +125,13 @@ RUN mkdir -p /app \
 FROM ${BASE_IMAGE} AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG COMPILER
 
 # ── Copy uv and venv from builder ─────────────────────────────
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 COPY --from=builder /root/.local/share/uv /root/.local/share/uv
 COPY --from=builder /flagos /flagos
+# Triton side dir — only exists for dual-compiler backends.
+COPY --from=builder /opt/triton /opt/triton
 
 # ── Copy tests and benchmarks ─────────────────────────────────
 COPY --from=builder /app /app
@@ -113,11 +139,78 @@ COPY --from=builder /app /app
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 
-# Compiler backend FlagGems uses (flagtree, or triton fallback), and enable the
-# C++ operator extensions (the flag-gems-cpp-<backend> .so files won't load
-# without this).
-ENV COMPILER=${COMPILER} \
-    USE_C_EXTENSION=1
+# Enable C++ operator extensions (the flag-gems-cpp-<backend> .so files
+# won't load without this). The default compiler is FlagTree (installed to
+# /flagos); use 'compiler triton' or 'compiler flagtree' to switch.
+ENV USE_C_EXTENSION=1
+
+# ── Compiler switching function ────────────────────────────────
+# Defined in /etc/bash.bashrc so it's available in interactive shells.
+#   compiler            — show active compiler and what's available
+#   compiler flagtree   — switch to FlagTree (default)
+#   compiler triton     — switch to Triton (prepends /opt/triton to PYTHONPATH)
+RUN printf '\n\
+compiler() {\n\
+  _strip_opt_triton() {\n\
+    local cleaned=""\n\
+    IFS=":"\n\
+    for p in $PYTHONPATH; do\n\
+      [ "$p" != "/opt/triton" ] && [ -n "$cleaned" ] && cleaned="${cleaned}:${p}"\n\
+      [ "$p" != "/opt/triton" ] && [ -z "$cleaned" ] && cleaned="$p"\n\
+    done\n\
+    printf "%%s" "$cleaned"\n\
+  }\n\
+\n\
+  case "${1:-}" in\n\
+    flagtree)\n\
+      cleaned=$(_strip_opt_triton)\n\
+      if [ -n "$cleaned" ]; then\n\
+        export PYTHONPATH="$cleaned"\n\
+      else\n\
+        unset PYTHONPATH\n\
+      fi\n\
+      python3 -c "import triton; print(\"flagtree (active) -\", triton.__version__)"\n\
+      ;;\n\
+    triton)\n\
+      if [ ! -d /opt/triton/triton ]; then\n\
+        echo "triton: not available on this backend" >&2\n\
+        return 1\n\
+      fi\n\
+      cleaned=$(_strip_opt_triton)\n\
+      if [ -n "$cleaned" ]; then\n\
+        export PYTHONPATH="/opt/triton:${cleaned}"\n\
+      else\n\
+        export PYTHONPATH="/opt/triton"\n\
+      fi\n\
+      python3 -c "import triton; print(\"triton (active) -\", triton.__version__)"\n\
+      ;;\n\
+    ""|status|help)\n\
+      echo "available compilers:"\n\
+      if python3 -c "import importlib.metadata; importlib.metadata.version(\"flagtree\")" 2>/dev/null; then\n\
+        ft_ver=$(python3 -c "import importlib.metadata; print(importlib.metadata.version(\"flagtree\"))")\n\
+        echo "  flagtree  ${ft_ver}  (default)"\n\
+      fi\n\
+      if [ -d /opt/triton/triton ]; then\n\
+        tr_ver=$(PYTHONPATH="/opt/triton${PYTHONPATH:+:}${PYTHONPATH:-}" python3 -c "import triton; print(triton.__version__)")\n\
+        echo "  triton    ${tr_ver}"\n\
+      elif python3 -c "import triton" 2>/dev/null; then\n\
+        tr_ver=$(python3 -c "import triton; print(triton.__version__)")\n\
+        echo "  triton    ${tr_ver}  (default)"\n\
+      fi\n\
+      echo\n\
+      echo "active compiler:"\n\
+      python3 -c "import os, triton; print(\" \", \"flagtree\" if \"/opt/triton\" not in os.path.dirname(triton.__file__) else \"triton\", \"-\", triton.__version__)"\n\
+      ;;\n\
+    *)\n\
+      echo "Usage: compiler [flagtree|triton]" >&2\n\
+      echo "  compiler           show status" >&2\n\
+      echo "  compiler flagtree  switch to FlagTree (default)" >&2\n\
+      echo "  compiler triton    switch to Triton" >&2\n\
+      return 1\n\
+      ;;\n\
+  esac\n\
+}\n\
+' >> /etc/bash.bashrc
 
 WORKDIR /app
 ENTRYPOINT ["bash"]

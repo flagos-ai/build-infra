@@ -213,17 +213,14 @@ def resolve_build_args(
     else:
         extras_spec = extras
 
-    # Compiler: prefer flagtree (the blessed default); fall back to triton only
-    # when the backend has no flagtree entry (flagtree unsupported for it).
-    # A single compiler is baked; the flagtree<->triton switch is a later task.
+    # Both compilers are installed (when configured). FlagTree is the default
+    # (installed to /flagos); Triton is installed to /opt/triton (side dir,
+    # switched via PYTHONPATH). When only Triton is configured, it goes to
+    # /flagos as the sole compiler (backward compat).
     flagtree = backend_info.get("flagtree", "")
     triton = backend_info.get("triton", "")
-    if flagtree:
-        compiler, compiler_pkg = "flagtree", flagtree
-    elif triton:
-        compiler, compiler_pkg = "triton", triton
-    else:
-        compiler, compiler_pkg = "", ""
+    triton_post = backend_info.get("triton_post_install", [])
+    triton_extra = " ".join(triton_post) if isinstance(triton_post, list) else ""
 
     args = {
         "BASE_IMAGE": base_image_override
@@ -233,25 +230,11 @@ def resolve_build_args(
         "DAILY_PYPI": pypi_daily,
         "EXTRA_PYPI": extra_pypi_override or mirror,
         "EXTRAS_GROUP": extras_spec,
-        "COMPILER": compiler,
-        "COMPILER_PKG": compiler_pkg,
+        "FLAGTREE_PKG": flagtree,
+        "TRITON_PKG": triton,
+        "TRITON_EXTRA_PKGS": triton_extra,
         "INCLUDE_TESTS": include_tests_override or "false",
     }
-
-    # Optional triton-specific post-install packages from configs.yaml.
-    # Only relevant when the baked compiler is triton — skip under flagtree.
-    triton_post = backend_info.get("triton_post_install", [])
-    if compiler == "triton" and isinstance(triton_post, list) and triton_post:
-        pkgs = " ".join(triton_post)
-        flagos_pypi = args["FLAGOS_PYPI"]
-        extra_pypi = args["EXTRA_PYPI"]
-        cmd = (
-            f"uv pip install --no-cache-dir"
-            f" --default-index {flagos_pypi}"
-            f" --index {extra_pypi}"
-            f" {pkgs}"
-        )
-        args["TRITON_POST_INSTALL"] = cmd
 
     return args
 
