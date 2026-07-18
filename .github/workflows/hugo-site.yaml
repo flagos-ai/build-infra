@@ -55,7 +55,7 @@ jobs:
       - name: Install Go
         # Hugo Modules are Go modules under the hood; Hugo shells out to `go`
         # to download the theme and Bootstrap SCSS during the build.
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: 'stable'
 
