@@ -258,6 +258,7 @@ vendors:
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
+        - CMake (Iluvatar) 3.31.8  # cmake-3.31.8+corex.4.4.0-linux-x86_64.sh
 
   kunlunxin:
     xre5.29.0:
