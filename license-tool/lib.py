@@ -125,24 +125,65 @@ def dump_data(data, yaml_path):
 #  File-skip rules
 # =============================================================================
 
-SKIP_PATTERNS = ["LICENSE", "go.sum", ".gitignore"]
+SKIP_PATTERNS = ["LICENSE", "go.sum", ".gitignore", "README.md",
+                 "changelog",  # Debian changelog: strict format, dpkg-buildpackage parsing
+                 ]
+
+# Path prefixes to skip (directories with strict-format files).
+SKIP_PATH_PREFIXES = [
+    "packaging/",     # Debian/RPM packaging: strict format (control, rules, spec, etc.)
+    "third_party/",   # Forked upstream code — not ours to relicense; headers shift line numbers
+]
 
 SKIP_EXTENSIONS = {
     ".json", ".png", ".jpg", ".jpeg", ".svg", ".ico",
-    ".woff", ".woff2", ".ttf", ".eot",
+    ".woff", ".woff2", ".ttf", ".eot", ".pyc", ".zip",
+    ".tar", ".gz", ".bz2", ".xz", ".deb", ".rpm",
+    ".bc", ".pdf", ".pptx", ".docx",
+    ".bin", ".a", ".map", ".csv", ".bk", ".o", ".so", ".dylib",
 }
 
 COMMENT_STYLE = {
+    # Shell-style #
     ".py":     '# prefix (after shebang if present)',
     ".yaml":   '# prefix',
     ".yml":    '# prefix',
     ".sh":     '# prefix (after shebang if present)',
+    ".bash":   '# prefix (after shebang if present)',
     ".toml":   '# prefix',
     "":        '# prefix (Containerfile)',
+    ".cfg":    '# prefix',
+    ".ini":    '# prefix',
+    ".cmake":  '# prefix',
+    ".txt":    '# prefix',
+    ".in":     '# prefix',
+    ".install": '# prefix',
+    ".spec":   '# prefix',
+    ".service": '# prefix',
+    ".conf":   '# prefix',
+    ".dockerfile": '# prefix',
+    ".pypirc": '# prefix',
+    # C/C++ style //
+    ".cpp":    '// prefix',
+    ".c":      '// prefix',
+    ".h":      '// prefix',
+    ".hpp":    '// prefix',
+    ".cu":     '// prefix',
+    ".cuh":    '// prefix',
+    ".cc":     '// prefix',
+    ".cxx":    '// prefix',
+    ".hxx":    '// prefix',
+    # MLIR / TableGen / Go
+    ".mlir":   '// prefix',
+    ".td":     '// prefix',
     ".md":     '<!-- --> (after Hugo frontmatter if present)',
-    ".html":   '{{/* */}} Go template comment',
-    ".gotmpl": '{{/* */}} Go template comment',
+    # LLVM IR
+    ".ll":     "; prefix",
+    ".html":   '<!-- -->',
+    ".rst":    '.. SQL comment style',
+    ".css":    '/* */ block',
     ".scss":   '/* */ block',
+    ".gotmpl": '{{/* */}} Go template comment',
     ".go":     '// prefix',
     ".mod":    '// prefix',
 }
@@ -169,6 +210,9 @@ def should_skip(filepath):
         return True
     if ext in SKIP_EXTENSIONS:
         return True
+    for prefix in SKIP_PATH_PREFIXES:
+        if filepath.startswith(prefix):
+            return True
     return False
 
 
@@ -436,36 +480,55 @@ def block_comment(header_lines, start, end):
 #  Header placement logic (file-type aware)
 # =============================================================================
 
-def get_header(filepath, header_lines):
-    """Return (header_text, insertion_line) for *filepath*.
+# Extensions that get # prefix
+_HASH_EXTS = {".py", ".yaml", ".yml", ".sh", ".bash", ".toml",
+              ".cfg", ".ini", ".cmake", ".txt", ".in", ".install",
+              ".spec", ".service", ".conf", ".dockerfile", ".pypirc",
+              ".pyi"}
+# Extensions where we check for shebang
+_SHEBANG_EXTS = {".py", ".sh", ".bash"}
+# Extensions that get // prefix
+_CPP_EXTS = {".cpp", ".c", ".h", ".hpp", ".cu", ".cuh",
+             ".cc", ".cxx", ".hxx", ".go", ".mod",
+             ".mlir", ".td"}
 
-    *insertion_line* is the 0-based line count where the header should be
-    inserted (0 = prepend). *header_lines* is the list of license text lines
-    (from `build_header_lines`).
-    """
+# LLVM IR uses ; comments
+_SEMI_EXTS = {".ll"}
+# Extensions that get /* */ block
+_BLOCK_EXTS = {".scss", ".css"}
+# Extensions that get <!-- --> HTML comment
+_HTML_EXTS = {".md", ".html", ".rst"}
+# Extensions that get Go template comment
+_GOTMPL_EXTS = {".gotmpl"}
+
+# HASH_EXTS: "# EXTS"
+
+
+def get_header(filepath, header_lines):
+    """Return (header_text, insertion_line) for *filepath*."""
     ext = classify_ext(filepath)
 
-    if ext in {".py", ".yaml", ".yml", ".sh", ".toml"} or ext == "":
+    if ext in _HASH_EXTS or ext == "":
         header = make_comment_block(header_lines, "# ")
-        if ext in {".py", ".sh"} or ext == "":
+        if ext in _SHEBANG_EXTS or ext == "":
             try:
-                with open(filepath, "r") as f:
+                with open(filepath, "r", errors="replace") as f:
                     first_line = f.readline()
                 if first_line.startswith("#!"):
-                    with open(filepath, "r") as f:
+                    with open(filepath, "r", errors="replace") as f:
                         f.readline()
                         second_line = f.readline()
                     return header, 2 if second_line == "\n" else 1
-            except (IOError, OSError):
+            except (IOError, OSError, UnicodeDecodeError):
                 pass
         return header, 0
 
     if ext == ".md":
         try:
-            with open(filepath, "r") as f:
+            with open(filepath, "r", errors="replace") as f:
                 first_line = f.readline()
             if first_line.strip() == "---":
-                with open(filepath, "r") as f:
+                with open(filepath, "r", errors="replace") as f:
                     f.readline()
                     line_count = 1
                     for line in f:
@@ -473,18 +536,24 @@ def get_header(filepath, header_lines):
                         if line.strip() == "---":
                             break
                 return block_comment(header_lines, "<!--", "-->"), line_count
-        except (IOError, OSError):
+        except (IOError, OSError, UnicodeDecodeError):
             pass
         return block_comment(header_lines, "<!--", "-->"), 0
 
-    if ext in {".html", ".gotmpl"}:
+    if ext in _GOTMPL_EXTS:
         return block_comment(header_lines, "{{/*", "*/}}"), 0
 
-    if ext == ".scss":
+    if ext in _BLOCK_EXTS:
         return block_comment(header_lines, "/*", "*/"), 0
 
-    if ext in {".go", ".mod"}:
+    if ext in _CPP_EXTS:
         return make_comment_block(header_lines, "// "), 0
+
+    if ext in _SEMI_EXTS:
+        return make_comment_block(header_lines, "; "), 0
+
+    if ext in _HTML_EXTS - {".md"}:
+        return block_comment(header_lines, "<!--", "-->"), 0
 
     return None, 0
 
@@ -565,7 +634,7 @@ def detect_edge_cases(all_files):
         has_shebang = False
         for f in shebangs[:30]:
             try:
-                with open(f, "r") as fh:
+                with open(f, "r", errors="replace") as fh:
                     if fh.readline().startswith("#!"):
                         has_shebang = True
                         break
@@ -583,7 +652,7 @@ def detect_edge_cases(all_files):
         has_fm = False
         for f in hugo_md[:50]:
             try:
-                with open(f, "r") as fh:
+                with open(f, "r", errors="replace") as fh:
                     if fh.readline().strip() == "---":
                         has_fm = True
                         break
@@ -649,11 +718,11 @@ def classify_files(repo_root, year, owner, license_id=None):
         ext = classify_ext(fullpath)
 
         try:
-            with open(fullpath, "r") as f:
+            with open(fullpath, "r", errors="replace") as f:
                 head_content = f.read(8192)
-        except (IOError, OSError):
+        except (IOError, OSError, UnicodeDecodeError):
             stats["error"] += 1
-            error_files.append({"path": filepath, "error": "unreadable"})
+            error_files.append({"path": filepath, "error": "unreadable or binary"})
             continue
 
         cat, detail = classify_existing_header(head_content, owner, lic_id)

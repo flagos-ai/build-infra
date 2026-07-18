@@ -43,9 +43,9 @@ def add_header_to_file(filepath, year, owner, license_id, dry_run=False):
         return "unknown_type", 0
 
     try:
-        with open(filepath, "r") as f:
+        with open(filepath, "r", errors="replace") as f:
             original = f.read()
-    except (IOError, OSError) as e:
+    except (IOError, OSError, UnicodeDecodeError) as e:
         return f"error: {e}", 0
 
     hdr_lines = header.count("\n")
