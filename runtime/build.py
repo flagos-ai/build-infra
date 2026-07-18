@@ -147,6 +147,19 @@ def base_registry(repo_root: Path) -> str | None:
     return f"{host}/{prefix}" if host and prefix else None
 
 
+def runtime_registry(repo_root: Path) -> str | None:
+    """Runtime-image registry prefix ({host}/{prefixes.runtime}) from build-config.yml."""
+    cfg_path = repo_root / ".github" / "build-config.yml"
+    if not cfg_path.exists():
+        return None
+    with open(cfg_path) as f:
+        cfg = yaml.safe_load(f) or {}
+    reg = cfg.get("registry") or {}
+    host = reg.get("host")
+    prefix = (reg.get("prefixes") or {}).get("runtime")
+    return f"{host}/{prefix}" if host and prefix else None
+
+
 def resolve_base_image(
     vendor: str, backend: str, configs: dict, repo_root: Path
 ) -> str:
@@ -316,7 +329,8 @@ def main():
     elif args.registry:
         tag = f"{args.registry}/{image_name}:latest"
     else:
-        tag = f"{image_name}:latest"
+        registry = runtime_registry(repo_root)
+        tag = f"{registry}/{image_name}:latest" if registry else f"{image_name}:latest"
 
     cmd = ["docker", "build"]
     for key, value in build_args.items():

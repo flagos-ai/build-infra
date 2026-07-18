@@ -17,10 +17,6 @@ name: FlagGems daily wheel
 # Build the pure-Python flag_gems wheel from FlagGems source and (optionally)
 # upload it to the internal PyPI. The wheel is versioned by FlagGems'
 # setuptools_scm (git tags): a dev build looks like 5.4.0.dev580+gb89e0aeb8.
-#
-# NOTE: FLAGGEMS_REF defaults to the under-review wheel-packaging-split branch,
-# which carries the pure-Python setuptools packaging. Change the default to the
-# FlagGems default branch once that branch merges.
 
 on:
   workflow_dispatch:
@@ -28,7 +24,7 @@ on:
       flaggems_ref:
         description: 'FlagGems git ref to build'
         type: string
-        default: wheel-packaging-split
+        default: master
       upload:
         description: 'upload the wheel to the internal PyPI'
         type: boolean
@@ -50,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FLAGGEMS_REPO: https://github.com/flagos-ai/FlagGems.git
-      FLAGGEMS_REF: ${{ inputs.flaggems_ref || 'wheel-packaging-split' }}
+      FLAGGEMS_REF: ${{ inputs.flaggems_ref || 'master' }}
       PYPI_REPO: ${{ inputs.pypi_repo || 'flagos-pypi-daily' }}
     steps:
       - name: Checkout build-infra

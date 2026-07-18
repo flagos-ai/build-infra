@@ -24,7 +24,7 @@ registry:
   host: harbor.baai.ac.cn
   prefixes:
     base: flagos-base
-    # runtime: <prefix>   # TODO: fill in when runtime image CI lands
+    runtime: flagos-runtime
     # app: <prefix>       # TODO: fill in when app image CI lands
 
 # Which runner builds each image (base containerfile name -> runs-on).

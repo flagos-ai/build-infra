@@ -28,11 +28,7 @@
 set -euo pipefail
 
 FLAGGEMS_REPO="${FLAGGEMS_REPO:-https://github.com/flagos-ai/FlagGems.git}"
-# TODO: default to the FlagGems default branch once wheel-packaging-split merges.
-# The pure-Python setuptools packaging (build-backend = setuptools.build_meta)
-# lives on that under-review branch for now; on master today `pip wheel .` still
-# uses scikit-build (tries to compile C++). Drop this ref once it lands.
-FLAGGEMS_REF="${FLAGGEMS_REF:-wheel-packaging-split}"
+FLAGGEMS_REF="${FLAGGEMS_REF:-master}"
 OUTDIR="${OUTDIR:-$(pwd)/wheels}"
 
 workdir="$(mktemp -d)"
