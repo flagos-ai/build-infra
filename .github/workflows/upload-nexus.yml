@@ -39,7 +39,38 @@ env:
   NEXUS_YUM_URL: https://resource.flagos.net/repository/flagos-yum-hosted
 
 jobs:
+  # Publish automatically only for stable release tags. Tag spelling
+  # differs across FlagOS repos (v0.13.0, 0.6.0, v0.2, 1.2), and so do
+  # pre-release spellings (v0.2.0-rc0.1, 0.6.0rc1, v5.4.0.dev0,
+  # v5.0.1.rc.0, v1.0.0-alpha.0) and variant tags (v0.1.0-cuda,
+  # 0.6.0+metax3.6). GitHub expressions cannot match regexes, so the
+  # allowlist check runs in a shell step; manual dispatch always passes
+  # and remains the escape hatch for deliberate exceptions.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - name: Check for a stable release tag
+        id: check
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != "push" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch - publishing."
+          elif [[ "$REF_NAME" =~ ^v?[0-9]+(\.[0-9]+){0,3}(\.post[0-9]+)?$ ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Stable release tag '${REF_NAME}' - publishing."
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Non-stable tag '${REF_NAME}' - skipping publish."
+          fi
+
   upload:
+    needs: guard
+    if: needs.guard.outputs.publish == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Configure SSL trust (optional internal CA)
@@ -54,12 +85,55 @@ jobs:
             echo "NEXUS_CA_CERT not set - using the system trust store."
           fi
 
+      - name: Wait for the build workflows of this commit
+        if: github.event_name == 'push' && inputs.run_id == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A tag push starts the build workflows and this upload in
+          # parallel; block until the builds of this exact commit complete
+          # so the downloads below can never fall back to a stale run.
+          wait_for() {
+            local wf="$1" mode="$2" timeout="$3"
+            local deadline=$((SECONDS + timeout)) status
+            if ! gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}" --silent 2>/dev/null; then
+              echo "${wf}: not present in this repository"
+              if [ "$mode" = required ]; then return 1; else return 0; fi
+            fi
+            while :; do
+              status=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/runs?head_sha=${GITHUB_SHA}&per_page=1" \
+                --jq 'if (.workflow_runs | length) == 0 then "pending" else .workflow_runs[0] | .status + "/" + (.conclusion // "") end' \
+                2>/dev/null || echo "pending")
+              if [ "$status" = "completed/success" ]; then
+                echo "${wf}: success"
+                return 0
+              fi
+              case "$status" in
+                completed/*)
+                  echo "${wf}: ${status#completed/}"
+                  if [ "$mode" = required ]; then return 1; else return 0; fi
+                  ;;
+              esac
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                echo "${wf}: still '${status}' after ${timeout}s"
+                if [ "$mode" = required ]; then return 1; else return 0; fi
+              fi
+              echo "${wf}: ${status} - waiting..."
+              sleep 60
+            done
+          }
+          wait_for build-deb.yml required 5400
+          wait_for build-rpm.yml optional 5400
+
       - name: Download deb build artifacts
         uses: dawidd6/action-download-artifact@v21
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build-deb.yml
           run_id: ${{ inputs.run_id }}
+          # On tag push, pin the download to this tag's commit instead of
+          # "latest successful run", which may be an unrelated PR build.
+          commit: ${{ github.event_name == 'push' && github.sha || '' }}
           workflow_conclusion: success
           path: packages/
 
@@ -69,6 +143,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build-rpm.yml
           run_id: ${{ inputs.run_id }}
+          commit: ${{ github.event_name == 'push' && github.sha || '' }}
           workflow_conclusion: success
           path: packages/
         continue-on-error: true
