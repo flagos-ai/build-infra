@@ -37,7 +37,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0  # tags needed for base/build.py version (git describe)
+          fetch-depth: 0  # tags needed for version computation (git rev-list)
 
       - name: Install PyYAML
         # Self-hosted runners (h20) have an externally-managed system Python
@@ -64,4 +64,4 @@ jobs:
 
       - name: Build base image
         run: |
-          python3 base/build.py "${{ inputs.name }}" ${{ inputs.push && '--push' || '' }}
+          python3 scripts/build_base.py "${{ inputs.name }}" ${{ inputs.push && '--push' || '' }}

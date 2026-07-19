@@ -16,28 +16,28 @@
 
 """Build FlagOS base container images.
 
-The image version comes from the build-infra Git tag (`git describe --tags`) —
-there is no version stored in the containerfiles. A tagged release commit builds
-a clean version (`2.1.0`); commits after a tag build `2.1.0-<n>-g<sha>`, which
-is self-evidently a dev build. The version, source commit, and build time are
-stamped onto the image as OCI labels.
+The image version comes from the Containerfile's ``LABEL org.opencontainers.image.version``
+plus a per-backend git revision count since that version's tag — so only
+Containerfile changes bump the version, not unrelated repo edits.
 
 Image tag convention:
-    flagos-base-{name}:{version}       (version = git describe, "v" stripped)
+    flagos-base-{name}:{version}-{n}   (n = commits to base/{name} since v{version})
 
 Usage:
-    python base/build.py <name> [options]
+    python scripts/build_base.py <name> [options]
 
 Examples:
-    python base/build.py nvidia-cuda12.8 --dry-run
-    python base/build.py ascend-cann9.0.0 --push
-    python base/build.py metax-maca3.7.2.1 --tag my-registry/flagos-base-metax:custom
+    python scripts/build_base.py nvidia-cuda12.8 --dry-run
+    python scripts/build_base.py ascend-cann9.0.0 --push
+    python scripts/build_base.py metax-maca3.7.2.1 --tag my-registry/flagos-base-metax:custom
 """
 
 import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+from version import image_version
 
 IMAGE_PREFIX = "flagos-base"
 
@@ -136,7 +136,7 @@ def main():
             f"Available: {', '.join(available)}"
         )
 
-    version = git_version(repo_root)
+    version = image_version(repo_root, args.name) or git_version(repo_root)
     commit = git(repo_root, "rev-parse", "HEAD") or ""
     created = git(repo_root, "show", "-s", "--format=%cI", "HEAD") or ""
 

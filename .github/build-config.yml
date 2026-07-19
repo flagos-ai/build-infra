@@ -14,7 +14,7 @@
 
 # Global build configuration, shared across image layers (base / runtime / app).
 #
-# Read by base/generate_matrix.py (runners) and base/build.py (registry).
+# Read by scripts/generate_matrix.py (runners) and scripts/build_base.py (registry).
 # Keep globally-shared build settings here instead of threading them through
 # workflow inputs.
 

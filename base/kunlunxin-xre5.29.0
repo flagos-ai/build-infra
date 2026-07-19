@@ -25,6 +25,7 @@
 FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.version="2.1.1"
 
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore

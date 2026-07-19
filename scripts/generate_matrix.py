@@ -25,8 +25,8 @@ Output (compact JSON on stdout):
     {"include": [{"name": "nvidia-cuda12.8", "runson": "..."}, ...]}
 
 Usage:
-    python base/generate_matrix.py                       # all buildable backends
-    python base/generate_matrix.py nvidia-cuda12.8 metax-maca3.7.2.1  # subset
+    python scripts/generate_matrix.py                       # all buildable backends
+    python scripts/generate_matrix.py nvidia-cuda12.8 metax-maca3.7.2.1  # subset
 
 Backends without a base/ file (e.g. thead-ppu2.0.0, spacemit-spacemit) are
 skipped with a note on stderr.

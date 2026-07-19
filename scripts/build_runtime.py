@@ -21,18 +21,20 @@ dependencies) to resolve build arguments, then invokes `docker build`
 with the appropriate --build-arg values.
 
 Usage:
-    python runtime/build.py <backend-key> --flaggems-dir <path> [options]
+    python scripts/build_runtime.py <backend-key> --flaggems-dir <path> [options]
 
 Examples:
-    python runtime/build.py nvidia-cuda12.8 --flaggems-dir ../FlagGems --dry-run
-    python runtime/build.py ascend-cann9.0.0 --flaggems-dir ../FlagGems --tag latest
-    python runtime/build.py metax --flaggems-dir ../FlagGems --push
+    python scripts/build_runtime.py nvidia-cuda12.8 --flaggems-dir ../FlagGems --dry-run
+    python scripts/build_runtime.py ascend-cann9.0.0 --flaggems-dir ../FlagGems --tag latest
+    python scripts/build_runtime.py metax --flaggems-dir ../FlagGems --push
 """
 
 import argparse
 import subprocess
 import sys
 from pathlib import Path
+
+from version import image_version
 
 import yaml
 
@@ -115,7 +117,7 @@ def resolve_backend(backend_arg: str, configs: dict):
 def git_describe(repo_root: Path) -> str | None:
     """build-infra release version via `git describe --tags` ("v" stripped).
 
-    Same scheme base/build.py stamps onto the base image tag.
+    Same scheme build_base.py stamps onto the base image tag.
     """
     try:
         r = subprocess.run(
@@ -165,24 +167,27 @@ def resolve_base_image(
 ) -> str:
     """Full base image ref for the runtime FROM.
 
-    {registry}/{prefix}-{vendor}-{backend}:{git-version}
+    {registry}/{prefix}-{vendor}-{backend}:{version}
 
-    The tag comes from build-infra's `git describe --tags` — the SAME version
-    base/build.py stamps onto the pushed base image. (PR #99 removed the
-    version/revision LABELs, so this no longer reads them.) Falls back to :latest
-    with a warning when no tag is reachable (shallow checkout — use fetch-depth: 0).
+    The version comes from the base image's Containerfile LABEL +
+    per-backend git revision count (see version.image_version).
+    Falls back to git describe when the Containerfile has no version LABEL.
+    Falls back to :latest when no git tag is reachable (shallow checkout).
     """
     prefix = configs.get("base_image_prefix", "flagos-base")
-    version = git_describe(repo_root)
+    name = f"{vendor}-{backend}"
+    version = image_version(repo_root, name)
+    if version is None:
+        version = git_describe(repo_root)
     if not version:
         print(
             "warning: no git tag reachable — base image tag defaults to :latest",
             file=sys.stderr,
         )
         version = "latest"
-    name = f"{prefix}-{vendor}-{backend}:{version}"
+    img = f"{prefix}-{name}:{version}"
     registry = base_registry(repo_root)
-    return f"{registry}/{name}" if registry else name
+    return f"{registry}/{img}" if registry else img
 
 
 def resolve_build_args(
@@ -278,9 +283,10 @@ def main():
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parent
     flaggems_dir = Path(args.flaggems_dir).resolve()
+    runtime_dir = repo_root / "runtime"
 
     configs_path = repo_root / "configs.yaml"
-    containerfile = script_dir / "Containerfile"
+    containerfile = runtime_dir / "Containerfile"
 
     if not configs_path.exists():
         sys.exit(f"Error: {configs_path} not found")
@@ -322,7 +328,7 @@ def main():
     # Wheel-based install: the image installs FlagGems from PyPI, so the build
     # context no longer needs the FlagGems source tree (no COPY). Use runtime/
     # as a trivial context. --flaggems-dir is kept only to derive the version.
-    cmd.extend(["-f", str(containerfile), "-t", tag, str(script_dir)])
+    cmd.extend(["-f", str(containerfile), "-t", tag, str(runtime_dir)])
 
     if args.dry_run:
         print("Would run:")
