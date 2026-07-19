@@ -21,12 +21,13 @@ dependencies) to resolve build arguments, then invokes `docker build`
 with the appropriate --build-arg values.
 
 Usage:
-    python scripts/build_runtime.py <backend-key> --flaggems-dir <path> [options]
+    python scripts/build_runtime.py <backend-key> [options]
 
 Examples:
-    python scripts/build_runtime.py nvidia-cuda12.8 --flaggems-dir ../FlagGems --dry-run
-    python scripts/build_runtime.py ascend-cann9.0.0 --flaggems-dir ../FlagGems --tag latest
-    python scripts/build_runtime.py metax --flaggems-dir ../FlagGems --push
+    python scripts/build_runtime.py nvidia-cuda12.8 --dry-run
+    python scripts/build_runtime.py ascend-cann9.0.0 --tag latest
+    python scripts/build_runtime.py metax --push
+    python scripts/build_runtime.py nvidia-cuda12.8 --flaggems 5.4.0.dev601+g03122362d   # override
 """
 
 import argparse
@@ -42,40 +43,6 @@ import yaml
 def load_yaml(path: Path) -> dict:
     with open(path) as f:
         return yaml.safe_load(f)
-
-
-def get_flaggems_version(flaggems_dir: Path) -> str:
-    """Get FlagGems version from git describe.
-
-    TODO: Remove once we switch to wheel-based install — the wheel
-    will carry the correct version and setuptools-scm won't be needed.
-    """
-    try:
-        result = subprocess.run(
-            ["git", "describe", "--tags"],
-            cwd=flaggems_dir,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            # Convert git describe output to setuptools-scm format:
-            #   "v5.4.0.dev0-528-g0283c119d" → "5.4.0.dev528+g0283c119d"
-            desc = result.stdout.strip().lstrip("v")
-            parts = desc.split("-")
-            if len(parts) >= 3:
-                tag = parts[0]  # "5.4.0.dev0"
-                distance = parts[-2]  # "528"
-                commit = parts[-1]  # "g0283c119d"
-                # Replace ".dev0" with ".dev{distance}"
-                if ".dev" in tag:
-                    tag = tag[: tag.index(".dev")]
-                return f"{tag}.dev{distance}+{commit}"
-            else:
-                # Exact tag, no commits after
-                return parts[0]
-    except FileNotFoundError:
-        pass
-    return "0.0.0"
 
 
 def resolve_backend(backend_arg: str, configs: dict):
@@ -256,10 +223,9 @@ def main():
         help="Backend key (e.g. nvidia-cuda12.8, ascend-cann9.0.0, metax)",
     )
     parser.add_argument(
-        "--flaggems-dir",
-        required=True,
-        help="Path to FlagGems source tree — used ONLY to derive the wheel "
-        "version (git describe); no longer the docker build context.",
+        "--flaggems",
+        default="",
+        help="FlagGems wheel version override (default: from configs.yaml)",
     )
     parser.add_argument("--base-image", help="Override base image")
     parser.add_argument("--extra-pypi", help="Override extra PyPI mirror URL")
@@ -282,7 +248,6 @@ def main():
 
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parent
-    flaggems_dir = Path(args.flaggems_dir).resolve()
     runtime_dir = repo_root / "runtime"
 
     configs_path = repo_root / "configs.yaml"
@@ -294,9 +259,6 @@ def main():
         sys.exit(f"Error: {containerfile} not found")
 
     configs = load_yaml(configs_path)
-
-    # TODO: Remove FLAGGEMS_VERSION once we switch to wheel-based install.
-    flaggems_version = get_flaggems_version(flaggems_dir)
 
     backend_info, vendor, backend = resolve_backend(args.backend, configs)
 
@@ -310,7 +272,7 @@ def main():
         extra_pypi_override=args.extra_pypi,
         include_tests_override=args.include_tests,
     )
-    build_args["FLAGGEMS_VERSION"] = flaggems_version
+    build_args["FLAGGEMS_VERSION"] = args.flaggems or configs.get("flaggems", "")
 
     image_name = f"flagos-runtime-{vendor}-{backend}"
 

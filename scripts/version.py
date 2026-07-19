@@ -12,40 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base image version computation.
+"""Per-backend image version from configs.yaml + git.
 
-Each base/<vendor>-<backend> Containerfile declares a base repo version label::
+configs.yaml declares the stack version::
 
-    LABEL org.opencontainers.image.version="2.1.1"
+    version: "2.1.1"
 
-image_version() reads that label and counts git commits to the Containerfile
-since the corresponding tag (v2.1.1), producing::
+image_version() counts git commits to ``base/<name>`` since tag
+``v2.1.1``, producing::
 
     2.1.1        (n=0, no changes since the tag)
     2.1.1-3      (3 commits to this Containerfile since v2.1.1)
 """
 
-import re
 import subprocess
 from pathlib import Path
 
 
-_VERSION_LABEL_RE = re.compile(
-    r'LABEL\s+org\.opencontainers\.image\.version\s*=\s*"([^"]+)"'
-)
+def _load_version(repo_root: Path) -> str | None:
+    """Read ``version:`` from configs.yaml."""
+    import yaml
 
-
-def read_version_label(repo_root: Path, name: str) -> str | None:
-    """Read the base version label from ``base/<name>`` Containerfile.
-
-    Returns the version string (e.g. ``"2.1.1"``) or None when the
-    file is missing or has no version label.
-    """
-    cf = repo_root / "base" / name
-    if not cf.is_file():
+    cfg = repo_root / "configs.yaml"
+    if not cfg.is_file():
         return None
-    m = _VERSION_LABEL_RE.search(cf.read_text())
-    return m.group(1) if m else None
+    with open(cfg) as f:
+        data = yaml.safe_load(f) or {}
+    return data.get("version") or None
 
 
 def image_version(repo_root: Path, name: str) -> str | None:
@@ -55,10 +48,9 @@ def image_version(repo_root: Path, name: str) -> str | None:
 
     Returns ``"X.Y.Z-n"`` when there are *n* commits to ``base/<name>``
     since tag ``vX.Y.Z``, or just ``"X.Y.Z"`` when n=0.  Returns None
-    when the Containerfile has no version label — callers should fall
-    back to the old ``git describe`` scheme.
+    when configs.yaml has no version field.
     """
-    label_ver = read_version_label(repo_root, name)
+    label_ver = _load_version(repo_root)
     if not label_ver:
         return None
 
@@ -73,9 +65,6 @@ def image_version(repo_root: Path, name: str) -> str | None:
     except FileNotFoundError:
         return label_ver
 
-    # Tag not reachable (e.g. it still points to an old commit, or doesn't
-    # exist yet) — treat as n=0, which is the right answer once the tag is
-    # moved to HEAD.
     if r.returncode != 0:
         return label_ver
 
