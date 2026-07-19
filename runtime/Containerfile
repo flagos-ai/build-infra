@@ -40,9 +40,8 @@ ARG CPP_EXTRA=""
 ARG FLAGTREE_PKG=""
 ARG TRITON_PKG=""
 ARG TRITON_EXTRA_PKGS=""
-# FlagGems wheel version to pin (== exact). build.py derives it from the
-# FlagGems git describe; buildkit excludes .git from the context so the wheel
-# can't self-detect it.
+# FlagGems wheel version to pin (== exact). Set by build_runtime.py from
+# configs.yaml flaggems: or the --flaggems CLI override.
 ARG FLAGGEMS_VERSION=0.0.0
 
 

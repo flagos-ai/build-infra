@@ -29,10 +29,10 @@ on:
         description: 'push image(s) to the registry'
         type: boolean
         default: false
-      flaggems_ref:
-        description: 'FlagGems git ref for version derivation'
+      flaggems:
+        description: 'FlagGems wheel version to install (e.g. 5.4.0.dev601+g03122362d)'
         type: string
-        default: master
+        default: ''
 
 jobs:
   set-matrix:
@@ -71,14 +71,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout FlagGems
-        uses: actions/checkout@v7
-        with:
-          repository: flagos-ai/FlagGems
-          ref: ${{ inputs.flaggems_ref }}
-          fetch-depth: 0
-          path: FlagGems
-
       - name: Install PyYAML
         run: python3 -m pip install --user pyyaml
 
@@ -89,5 +81,5 @@ jobs:
             push_flag="--push"
           fi
           python3 scripts/build_runtime.py "${{ matrix.name }}" \
-            --flaggems-dir FlagGems \
+            --flaggems "${{ inputs.flaggems }}" \
             ${push_flag}

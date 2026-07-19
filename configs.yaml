@@ -15,12 +15,16 @@
 # FlagOS build configuration.
 #
 # Single source of truth for all vendor/backend dependencies and build
-# settings. Used by base/build.py and runtime/build.py.
+# settings. Used by scripts/build_base.py and scripts/build_runtime.py.
+#
+# Stack-level fields:
+#   version:  release version (e.g. "2.1.1") — seeds all base image tags.
+#   flaggems: FlagGems wheel version for runtime builds — override with --flaggems.
 #
 # Base image naming convention:
-#   {base_image_prefix}-{vendor}-{backend}:{version}-{revision}
-#   e.g. flagos-base-nvidia-cuda12.8:2.1.0-0
-#   Version and revision are read from OCI LABELs in base/{vendor}-{backend}.
+#   {base_image_prefix}-{vendor}-{backend}:{version}-{n}
+#   e.g. flagos-base-nvidia-cuda12.8:2.1.1-0
+#   {n} = commits to base/{vendor}-{backend} since tag v{version}.
 #
 # Runtime image naming convention:
 #   flagos-runtime-{vendor}-{backend}:latest
@@ -54,6 +58,14 @@
 #   "driver:"          — host driver version installed on the node — a prerequisite,
 #                        distinct from the in-container SDK. Probed from the vendor's
 #                        smi tool (nvidia-smi, npu-smi, ...).
+
+# FlagOS software stack version — the single anchor for the whole release.
+# This version seeds all base image tags and the runtime Containerfile OCI labels.
+# Runtime images also pull the corresponding FlagGems wheel version below.
+#
+# At release: bump both fields → git tag v<VERSION> → done.
+version: "2.1.1"
+flaggems: ""
 
 base_image_prefix: "flagos-base"
 

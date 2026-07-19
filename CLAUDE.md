@@ -20,9 +20,10 @@ It builds three layers for 13+ GPU/NPU vendors:
 python scripts/build_base.py nvidia-cuda12.8 --dry-run    # preview
 python scripts/build_base.py nvidia-cuda12.8 --push        # build + push
 
-# Build a runtime image (needs FlagGems source for version derivation)
-python scripts/build_runtime.py nvidia-cuda12.8 --flaggems-dir ../FlagGems --dry-run
-python scripts/build_runtime.py metax --flaggems-dir ../FlagGems --push   # vendor shorthand (single backend)
+# Build a runtime image (FlagGems version from configs.yaml, or override)
+python scripts/build_runtime.py nvidia-cuda12.8 --dry-run
+python scripts/build_runtime.py metax --push                     # vendor shorthand
+python scripts/build_runtime.py nvidia-cuda12.8 --flaggems 5.4.0.dev601+g03122362d
 
 # Generate CI matrix from configs.yaml
 python scripts/generate_matrix.py                          # all buildable backends
@@ -64,7 +65,7 @@ configs.yaml + base/ Containerfiles + build-config.yml
 
 ### Base image version (per-backend, not global)
 
-Each Containerfile declares `LABEL org.opencontainers.image.version="X.Y.Z"`. `scripts/version.py` computes the full version: reads the LABEL + counts commits to that file since tag `vX.Y.Z`. The repo tag anchors all backends at the same X.Y.Z baseline; n diverges per-backend as Containerfiles evolve independently. See `scripts/version.py` for the implementation.
+`configs.yaml` declares `version: "X.Y.Z"` — the single stack-wide release version. `scripts/version.py` counts git commits to each `base/<name>` since tag `vX.Y.Z`, producing `X.Y.Z-n` per backend. The repo tag anchors all backends at the same baseline; n diverges as Containerfiles evolve independently. The version is stamped onto the image at build time as an OCI label — Containerfiles do not hardcode it.
 
 ### Runtime Containerfile (multi-stage, dual-compiler)
 
@@ -73,6 +74,7 @@ Each Containerfile declares `LABEL org.opencontainers.image.version="X.Y.Z"`. `s
 - `DEPS` — space-separated vendor packages from `configs.yaml deps:` (explicit, no extras — extras are unreliable across vendor indexes)
 - `CPP_EXTRA` — e.g. `cpp-cuda`, derived from `cmake_backend`
 - `FLAGTREE_PKG` / `TRITON_PKG` — compiler packages
+- `FLAGGEMS_VERSION` — from `configs.yaml` `flaggems:`, override with `--flaggems`
 
 Two stages: **builder** (installs uv, venv, deps, compilers, FlagGems wheel) → **runtime** (copies venv + uv). When both compilers are configured, FlagTree is default (`/flagos`) and Triton is a side install (`/opt/triton`), switchable via the `compiler` shell function.
 
@@ -97,12 +99,12 @@ All self-hosted: default is `[self-hosted, h20]` (x86_64). Ascend backends overr
 
 ## Conventions
 
-- **Version = Containerfile LABEL + git count.** Each `base/<name>` has `LABEL org.opencontainers.image.version="X.Y.Z"`. `scripts/version.py` computes the per-backend version as `X.Y.Z-n` where n = commits to that file since tag vX.Y.Z. CI needs `fetch-depth: 0`.
-- **Reset at release.** Moving the repo tag (`vX.Y.Z`) and updating all LABELs resets n to 0 across all backends. A `sed` across all Containerfiles is the release procedure.
+- **Version from configs.yaml.** `configs.yaml` `version:` is the single stack-wide release version. `scripts/version.py` computes per-backend versions as `X.Y.Z-n` where n = commits to `base/<name>` since tag vX.Y.Z. At release: bump `version:` and `flaggems:` in one place → `git tag vX.Y.Z`.
+- **FlagGems version from configs.yaml.** `configs.yaml` `flaggems:` sets the wheel version for runtime builds. Override with `--flaggems` CLI flag when needed.
 - **Per-vendor PyPI indexes.** Each vendor has a separate index: `flagos-pypi-{vendor}`. This isolates vendor-specific packages so there is no cross-vendor package confusion.
 - **No extras for runtime deps.** `configs.yaml deps:` lists explicit packages passed to `uv pip install` — extras (`.[nvidia-cuda128]`) can't resolve correctly across vendor indexes.
 - **FlagTree is the default compiler.** Triton is the fallback (installed to `/opt/triton` when both present). The `compiler` bash function toggles.
-- **Wheel-based install for runtime.** FlagGems is installed from PyPI wheels, not from a source checkout. `--flaggems-dir` in `scripts/build_runtime.py` is only for version derivation.
+- **Wheel-based install for runtime.** FlagGems is installed from PyPI wheels. `--flaggems` pins the exact wheel version.
 - **`base_source` env = TODO.** Some vendors (ascend, hygon, thead) need a `source set_env.sh` step; the goal is to expand these into base image ENV so users don't need to source.
 - **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `docs/gen_descriptions.py`. Edit the generator or data files, not the markdown.
 - **Review-gated descriptions.** System package versions are extracted from built images and injected into description PRs. Human review of version bumps happens before descriptions go live on the docs site or Harbor.
