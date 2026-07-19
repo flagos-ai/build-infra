@@ -50,9 +50,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 base/generate_matrix.py > matrix.json
+            python3 scripts/generate_matrix.py > matrix.json
           else
-            python3 base/generate_matrix.py "${{ inputs.backend }}" > matrix.json
+            python3 scripts/generate_matrix.py "${{ inputs.backend }}" > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
@@ -88,6 +88,6 @@ jobs:
           if [[ "${{ inputs.push }}" == "true" ]]; then
             push_flag="--push"
           fi
-          python3 runtime/build.py "${{ matrix.name }}" \
+          python3 scripts/build_runtime.py "${{ matrix.name }}" \
             --flaggems-dir FlagGems \
             ${push_flag}

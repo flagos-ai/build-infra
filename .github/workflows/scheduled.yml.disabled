@@ -41,7 +41,7 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
-          python3 base/generate_matrix.py > matrix.json
+          python3 scripts/generate_matrix.py > matrix.json
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 

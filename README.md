@@ -31,20 +31,21 @@ from `configs.yaml` + `base/`, so they can't drift from the source.
 |-----------------------------|-------------------------------------------------------------|
 | `configs.yaml`              | Source of truth: per-backend deps, versions, image env      |
 | `base/<vendor>-<backend>`   | Base image containerfiles                                   |
-| `base/build.py`             | Build a base image (reads OCI labels + registry)            |
-| `base/generate_matrix.py`   | Emit the CI build matrix from `configs.yaml`                |
+| `scripts/build_base.py`     | Build a base image (reads OCI labels + registry)            |
+| `scripts/generate_matrix.py`| Emit the CI build matrix from `configs.yaml`                |
+| `scripts/build_runtime.py`  | Build a runtime image                                       |
 | `.github/build-config.yml`  | Global build config: registry + per-backend runners         |
-| `runtime/`                  | FlagGems runtime image build system                         |
+| `runtime/`                  | Runtime Containerfile + per-image readmes                   |
 | `flagtree-builder/`         | Low-glibc FlagTree wheel builders                           |
-| `docs/`                     | Hugo docs site (data-driven from the files above)           |
+| `docs/`                     | Hugo docs site + data-generation scripts                    |
 
 ## Quick start
 
 Build a base image locally:
 
 ```bash
-python base/build.py nvidia-cuda12.8 --dry-run   # preview
-python base/build.py nvidia-cuda12.8 --push      # build + push
+python scripts/build_base.py nvidia-cuda12.8 --dry-run   # preview
+python scripts/build_base.py nvidia-cuda12.8 --push      # build + push
 ```
 
 In CI, base images are built on demand via the **Base Image Build (manual)**

@@ -30,11 +30,15 @@ Each entry has a `base` section (from the containerfile) and a `runtime`
 section (the software stack from configs.yaml).
 """
 
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+# load version.py from sibling scripts/ directory
+_scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+sys.path.insert(0, str(_scripts_dir))
+from version import image_version
 
 import yaml
 
@@ -46,17 +50,8 @@ def find_repo_root() -> Path:
     sys.exit("Error: cannot locate repository root (base/ + configs.yaml)")
 
 
-def git_version(repo_root: Path) -> str:
-    """Release version for the image tags.
-
-    An explicit IMAGE_VERSION env wins (the descriptions workflow feeds the
-    released tag so refs match the pushed images even when main has advanced
-    past the tag). Otherwise `git describe --tags`, matching base/build.py:
-    "v2.1.0" -> "2.1.0", commits after -> "2.1.0-3-gsha". Falls back to "latest".
-    """
-    override = os.environ.get("IMAGE_VERSION")
-    if override:
-        return override.lstrip("v")
+def _git_describe(repo_root: Path) -> str:
+    """Fallback version when a Containerfile has no version LABEL."""
     try:
         r = subprocess.run(
             ["git", "describe", "--tags", "--always"],
@@ -202,7 +197,6 @@ def main():
     configs = load_yaml(repo_root / "configs.yaml")
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
 
-    version = git_version(repo_root)  # release version, all base images share it
     base_prefix = prefix_for(build_config, "base")
     runtime_prefix = prefix_for(build_config, "runtime")
     run_cfg = build_config.get("run") or {}
@@ -264,6 +258,8 @@ def main():
             sdk_blob = " ".join(sdk).lower()
             arch = "aarch64" if ("aarch64" in sdk_blob or "arm64" in sdk_blob) else "x86_64"
 
+            ver = image_version(repo_root, name) or _git_describe(repo_root)
+
             backends.append(
                 {
                     "name": name,
@@ -273,7 +269,7 @@ def main():
                     "run_prereq": run_prereq.get(vendor, ""),
                     "verify": verify_vendors.get(vendor, ""),
                     "base": {
-                        "image": image(base_prefix, "base", name, version),
+                        "image": image(base_prefix, "base", name, ver),
                         "os": meta["base_os"] or "",
                         "arch": arch,
                         "hardware": spec.get("hardware") or [],

@@ -22,6 +22,7 @@
 FROM ubuntu:24.04 AS Builder
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
+LABEL org.opencontainers.image.version="2.1.1"
 
 # ── Build arguments ────────────────────────────────────────────
 ARG PYTHON_VERSION=3.11

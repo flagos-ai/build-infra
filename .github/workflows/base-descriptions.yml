@@ -23,11 +23,6 @@ name: Base image descriptions
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Released image tag to describe (e.g. 2.1.1). Blank = latest git tag.'
-        type: string
-        default: ''
   workflow_run:
     workflows: ["Base Image Build (manual)"]
     types: [completed]
@@ -45,7 +40,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
-      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -53,15 +47,8 @@ jobs:
       - run: python3 -m pip install --user pyyaml
       - id: m
         run: |
-          python3 base/generate_matrix.py > matrix.json
+          python3 scripts/generate_matrix.py > matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
-      - id: v
-        # Describe the released images: explicit input, else the latest tag.
-        run: |
-          ver="${{ inputs.version }}"
-          [ -n "$ver" ] || ver=$(git describe --tags --abbrev=0 | sed 's/^v//')
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
-          echo "describing image version: $ver"
 
   extract:
     needs: set-matrix
@@ -69,8 +56,6 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
     runs-on: ${{ fromJSON(matrix.runson) }}
-    env:
-      IMAGE_VERSION: ${{ needs.set-matrix.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -102,7 +87,6 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      IMAGE_VERSION: ${{ needs.set-matrix.outputs.version }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
@@ -143,14 +127,15 @@ jobs:
           if git diff --cached --quiet; then
             echo "no description changes — nothing to PR"; exit 0
           fi
-          branch="auto/base-descriptions-${IMAGE_VERSION}"
+          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          branch="auto/base-descriptions-${label}"
           git checkout -b "$branch"
-          git commit -m "docs(base): refresh image descriptions for ${IMAGE_VERSION}"
+          git commit -m "docs(base): refresh image descriptions for ${label}"
           git push -f origin "$branch"
           if ! gh pr view "$branch" >/dev/null 2>&1; then
             gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \
-              --title "docs(base): refresh image descriptions for ${IMAGE_VERSION}" \
-              --body "Automated refresh of per-image descriptions (baked-in system-package versions) for ${IMAGE_VERSION}. On merge, the descriptions publish to the docs site and Harbor."
+              --title "docs(base): refresh image descriptions for ${label}" \
+              --body "Automated refresh of per-image descriptions (baked-in system-package versions) for ${label}. On merge, the descriptions publish to the docs site and Harbor."
           fi
           gh pr merge "$branch" --auto --squash || \
             echo "auto-merge queued/unavailable — PR left for review"
