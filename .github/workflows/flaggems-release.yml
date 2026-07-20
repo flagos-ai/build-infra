@@ -1,0 +1,155 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: FlagGems Release Wheels
+
+# RELEASE.md steps 5a + 5b + 5c:
+#   5a — Build the pure-Python flag_gems wheel, push to every vendor PyPI.
+#   5b — Build cpp operator wheels inside each vendor's base image (cmake_backend
+#        backends only), verify, push to the vendor's PyPI.
+#   5c — Write flaggems: into configs.yaml, commit, open a PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flaggems_ref:
+        description: 'FlagGems tag/ref to build (e.g. "v5.3.1")'
+        type: string
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ── 5a: pure-Python wheel, all vendor PyPIs ──────────────────────────────
+  python-wheel:
+    runs-on: ubuntu-latest
+    env:
+      FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
+      NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+      - name: Build wheel
+        run: python3 scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
+      - name: Upload to all vendor PyPIs
+        run: |
+          wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
+          python3 scripts/release_flaggems.py upload-python "$wheel"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flag_gems-wheel
+          path: wheels/flag_gems-*.whl
+
+  # ── 5b: cpp operator wheels, per-vendor hardware runner ───────────────────
+  cpp-matrix:
+    needs: python-wheel
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: python3 -m pip install --user pyyaml
+      - id: m
+        run: |
+          python3 scripts/generate_cpp_matrix.py > matrix.json
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  cpp-wheels:
+    needs: [python-wheel, cpp-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.cpp-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
+      BACKEND: ${{ matrix.name }}
+      NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+      HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Harbor login (pull base image)
+        env:
+          HTTP_PROXY: ""
+          HTTPS_PROXY: ""
+          no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
+        run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
+      - name: Build cpp wheel inside base image
+        run: |
+          python3 docs/gen_data.py
+          python3 scripts/release_flaggems.py build-cpp "$BACKEND" --ref "$FLAGGEMS_REF" --outdir wheels-cpp
+
+      - name: Verify cpp wheel
+        run: |
+          wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
+          pip install --break-system-packages "$wheel"
+          python3 -c "import flag_gems; print('cpp extension OK')"
+
+      - name: Upload cpp wheel to vendor PyPI
+        run: |
+          wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
+          python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flag_gems_cpp_${{ matrix.name }}-wheel
+          path: wheels-cpp/flag_gems_cpp_*.whl
+
+  # ── 5c: update configs.yaml ──────────────────────────────────────────────
+  update-config:
+    needs: [python-wheel, cpp-wheels]
+    if: always() && needs.python-wheel.result == 'success' && needs.cpp-wheels.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+      - name: Set FlagGems version + open PR
+        run: python3 scripts/release_flaggems.py update-config "${{ inputs.flaggems_ref }}"
