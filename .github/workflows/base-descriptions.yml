@@ -157,6 +157,11 @@ jobs:
         env:
           # h20 may have proxy set; clear it for gh CLI (GitHub API access).
           no_proxy: "api.github.com,.github.com,github.com"
+          # commit-tree needs an identity; h20 has no global git config.
+          GIT_AUTHOR_NAME: flagos-ci
+          GIT_AUTHOR_EMAIL: noreply@flagos.net
+          GIT_COMMITTER_NAME: flagos-ci
+          GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
           set -uo pipefail  # not -e — self-trigger must run even if git ops fail
           label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
@@ -229,8 +234,10 @@ jobs:
           # Save to state branch (best-effort — don't abort the retry if it fails).
           if git add -f versions/ && tree=$(git write-tree) 2>/dev/null; then
             commit=$(echo "state: ${now}/${expected} versions after retry ${retry}" \
-              | git commit-tree -p "refs/heads/${GITHUB_REF_NAME}" "${tree}")
-            git push -f origin "${commit}:refs/heads/${state_branch}" 2>/dev/null || true
+              | git commit-tree -p "refs/heads/${GITHUB_REF_NAME}" "${tree}" 2>/dev/null) || true
+            if [ -n "$commit" ]; then
+              git push -f origin "${commit}:refs/heads/${state_branch}" 2>/dev/null || true
+            fi
           else
             echo "::warning::Could not save versions to state branch — will retry anyway"
           fi
