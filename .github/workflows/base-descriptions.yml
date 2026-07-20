@@ -52,6 +52,10 @@ jobs:
 
   extract:
     needs: set-matrix
+    # A transient runner connectivity failure shouldn't block the whole PR —
+    # missing backends are noted in the PR body and can be filled by re-running
+    # only the failed jobs (gh run rerun --failed).
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
@@ -60,6 +64,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+        retry:
+          max_attempts: 3
+          delay: 30
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
@@ -75,6 +82,9 @@ jobs:
           HTTP_PROXY: ""
           HTTPS_PROXY: ""
           no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
+        retry:
+          max_attempts: 3
+          delay: 30
         run: |
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
           printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin
@@ -135,9 +145,6 @@ jobs:
         run: |
           git config user.name "flagos-ci"
           git config user.email "noreply@flagos.net"
-          # All outputs are generated from the same data and must land in one
-          # commit so the web pages (en + zh-cn) and the plain base/*.md readmes
-          # never drift. base/*.md are English plain-flavor (Harbor is English).
           git add docs/content/en/base/*.md docs/content/zh-cn/base/*.md base/*.md
           if git diff --cached --quiet; then
             echo "no description changes — nothing to PR"; exit 0
@@ -147,10 +154,23 @@ jobs:
           git checkout -b "$branch"
           git commit -m "docs(base): refresh image descriptions for ${label}"
           git push -f origin "$branch"
+
+          # Build PR body: list which backends contributed version data
+          # and which were missing (transient runner failures).
+          set -- $(python3 docs/missing_versions.py | grep '^COUNT ')
+          got=$2 expected=$3
+          missing=$(python3 docs/missing_versions.py | grep '^MISSING ' | sed 's/^MISSING /- /')
+          body="Automated refresh of per-image descriptions (baked-in system-package versions) for ${label}."
+          body+=$'\n\n'"**Version data:** ${got:-?}/${expected:-?} backends"
+          if [ -n "$missing" ] && [ "${got:-0}" -lt "${expected:-0}" ] 2>/dev/null; then
+            body+=$'\n\n'"**Missing (likely runner connectivity):**"$'\n'"${missing}"
+          fi
+          body+=$'\n\n'"On merge, the descriptions publish to the docs site and Harbor."
+
           if ! gh pr view "$branch" >/dev/null 2>&1; then
             gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \
               --title "docs(base): refresh image descriptions for ${label}" \
-              --body "Automated refresh of per-image descriptions (baked-in system-package versions) for ${label}. On merge, the descriptions publish to the docs site and Harbor."
+              --body "${body}"
           fi
           gh pr merge "$branch" --auto --squash || \
             echo "auto-merge queued/unavailable — PR left for review"
