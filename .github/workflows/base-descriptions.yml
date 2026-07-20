@@ -20,15 +20,30 @@ name: Base image descriptions
 #
 # Separate from the build (per the design): version extraction needs the built
 # image, and keeping this out of the build workflow keeps both simpler.
+#
+# Self-healing: self-hosted runner connectivity to GitHub is unreliable across
+# vendors. The accumulate job collects whatever extractors succeed, saves partial
+# results to a state branch, then self-triggers with only the missing backends.
+# This loops until all 14 are collected or the retry cap (50) is hit.
 
 on:
   workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backends to process — "all" or space-separated names'
+        type: string
+        default: 'all'
+      retry_count:
+        description: 'Number of retries so far (set by the workflow itself)'
+        type: number
+        default: 0
   workflow_run:
     workflows: ["Base Image Build (manual)"]
     types: [completed]
 
 permissions:
-  contents: write   # compose job commits the generated descriptions
+  contents: write
+  pull-requests: write
 
 defaults:
   run:
@@ -46,16 +61,21 @@ jobs:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
       - id: m
+        env:
+          BACKEND: ${{ github.event.inputs.backend || 'all' }}
         run: |
-          python3 scripts/generate_matrix.py > matrix.json
+          if [[ "${BACKEND}" == "all" ]]; then
+            python3 scripts/generate_matrix.py > matrix.json
+          else
+            python3 scripts/generate_matrix.py ${BACKEND} > matrix.json
+          fi
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 
   extract:
     needs: set-matrix
-    # Self-hosted runners are best-effort: verify + extract on the actual
-    # hardware. When a runner is unreachable, compose fills the gap from
-    # ubuntu-latest by pulling the image from Harbor — dpkg-query doesn't
-    # need the accelerator. The PR always gets 14/14 complete data.
+    # Self-hosted runners are best-effort. When a runner is unreachable
+    # (checkout / Harbor login / docker permissions), the job fails here.
+    # The accumulate job detects the gap and re-dispatches only that backend.
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -108,18 +128,14 @@ jobs:
           path: versions/${{ matrix.name }}.tsv
           if-no-files-found: warn
 
-  compose:
+  accumulate:
     needs: [set-matrix, extract]
-    # h20 — it has Docker (to pull images for the fallback) and is inside the
-    # network (so Harbor is reachable). GitHub-hosted ubuntu-latest runners
-    # can't reach the internal Harbor registry.
+    if: always() && needs.set-matrix.result == 'success'
     runs-on: [self-hosted, h20]
-    permissions:
-      contents: write
-      pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
-      HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+      RETRY_COUNT: ${{ github.event.inputs.retry_count || 0 }}
+      MAX_RETRIES: 50
     steps:
       - uses: actions/checkout@v7
         with:
@@ -129,80 +145,102 @@ jobs:
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
 
-      - name: Download version artifacts
+      - name: Download version artifacts (this run)
         uses: actions/download-artifact@v8
         with:
           path: versions-dl
           pattern: versions-*
           merge-multiple: false
 
-      - name: Collect self-hosted versions
+      - name: Accumulate
         run: |
-          mkdir -p versions
-          find versions-dl -name '*.tsv' -exec cp {} versions/ \; 2>/dev/null || true
-          echo "Self-hosted runner versions: $(find versions -name '*.tsv' | wc -l)"
+          set -euo pipefail
+          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          state_branch="auto/versions-${label}"
+          retry="${RETRY_COUNT:-0}"
 
-      - name: Fill missing versions from Harbor (ubuntu-latest fallback)
-        run: |
+          mkdir -p versions
+
+          # 1. Restore previously accumulated TSVs from the state branch.
+          if git ls-remote --exit-code origin "refs/heads/${state_branch}" 2>/dev/null; then
+            echo "--- restoring accumulated versions from ${state_branch} ---"
+            git fetch origin "${state_branch}"
+            git archive "origin/${state_branch}" versions/ | tar xf - -C . 2>/dev/null || true
+          fi
+          prev=$(find versions -name '*.tsv' -type f | wc -l)
+          echo "Restored from state: ${prev}"
+
+          # 2. Merge new TSVs from this run.
+          find versions-dl -name '*.tsv' -exec cp {} versions/ \; 2>/dev/null || true
+          now=$(find versions -name '*.tsv' -type f | wc -l)
+          echo "After merging this run: ${now} (was ${prev})"
+
+          # 3. Check completeness.
           python3 docs/gen_data.py
-          MISSING=$(python3 docs/missing_versions.py | grep '^MISSING ' | sed 's/^MISSING //')
-          if [ -z "$MISSING" ]; then
-            echo "All backends accounted for — no fallback needed."
+          expected=$(python3 docs/missing_versions.py 2>/dev/null \
+            | awk '/^COUNT / {print $3}' || echo "14")
+          missing=$(python3 docs/missing_versions.py 2>/dev/null \
+            | awk '/^MISSING / {print $2}' || true)
+
+          if [ -z "$missing" ] && [ "$now" -ge "$expected" ]; then
+            echo "=== ALL ${now}/${expected} BACKENDS COLLECTED ==="
+
+            # --- Finalize: generate descriptions + open PR ---
+            VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
+
+            git config user.name "flagos-ci"
+            git config user.email "noreply@flagos.net"
+            git add docs/content/en/base/*.md docs/content/zh-cn/base/*.md base/*.md
+            if git diff --cached --quiet; then
+              echo "No description changes — nothing to PR."
+            else
+              pr_branch="auto/base-descriptions-${label}"
+              git checkout -b "${pr_branch}"
+              git commit -m "docs(base): refresh image descriptions for ${label}"
+              git push -f origin "${pr_branch}"
+
+              body="Automated refresh of per-image descriptions (baked-in system-package versions) for ${label}."
+              body+=$'\n\n'"**Version data:** ${now}/${expected} backends"
+              body+=$'\n\n'"On merge, the descriptions publish to the docs site and Harbor."
+
+              if ! gh pr view "${pr_branch}" >/dev/null 2>&1; then
+                gh pr create --base "${GITHUB_REF_NAME}" --head "${pr_branch}" \
+                  --title "docs(base): refresh image descriptions for ${label}" \
+                  --body "${body}"
+              fi
+              gh pr merge "${pr_branch}" --auto --squash || \
+                echo "auto-merge queued/unavailable — PR left for review"
+            fi
+
+            # Clean up the state branch — done accumulating.
+            git push origin --delete "${state_branch}" 2>/dev/null || true
+            echo "Done. State branch ${state_branch} deleted."
             exit 0
           fi
-          echo "Backends missing self-hosted data:"
-          echo "$MISSING"
 
-          # Login to Harbor — ubuntu-latest has no proxy issues.
-          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
-          HTTP_PROXY="" HTTPS_PROXY="" no_proxy="harbor.baai.ac.cn,.baai.ac.cn" \
-            printf '%s' "${HARBOR_PW}" | docker login "$host" -u tengqm --password-stdin
+          # 4. Not yet complete — save accumulated TSVs to state branch.
+          echo "=== INCOMPLETE: ${now}/${expected} backends after retry ${retry} ==="
+          echo "Still missing:"
+          python3 docs/missing_versions.py 2>/dev/null | grep '^MISSING ' | sed 's/^MISSING /  - /' || true
 
-          for name in $MISSING; do
-            echo "::group::fallback extract: $name"
-            python3 scripts/fallback_extract.py "$name" versions && echo "  -> OK" || echo "  -> FAILED"
-            echo "::endgroup::"
-          done
-          echo "After fallback: $(find versions -name '*.tsv' | wc -l) total"
-      - name: Generate descriptions (with resolved versions)
-        # One generator, three outputs from the same data: web-flavored pages at
-        # docs/content/{en,zh-cn}/base/*.md (Hugo site) and plain-flavored
-        # base/*.md (in-repo readme + Harbor description). See gen_descriptions.py.
-        run: |
-          python3 docs/gen_data.py
-          VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
+          git checkout --orphan "${state_branch}"
+          git reset --hard 2>/dev/null || true
+          git add versions/
+          git commit -m "state: ${now}/${expected} versions after retry ${retry}"
+          git push -f origin "${state_branch}"
 
-      # Open a PR with the version-enriched descriptions and enable auto-merge.
-      # Publication (docs + Harbor) is gated on this PR merging — see
-      # base-descriptions-publish.yml. The version diff is the review checkpoint.
-      #
-      # All backends are guaranteed: self-hosted extractors provide the fast
-      # path with hardware verify; the compose-phase fallback pulls from Harbor
-      # and runs dpkg-query on ubuntu-latest for any backend whose runner was
-      # unreachable — so the PR always has 14/14 complete version data.
-      - name: Open descriptions PR (auto-merge)
-        run: |
-          git config user.name "flagos-ci"
-          git config user.email "noreply@flagos.net"
-          git add docs/content/en/base/*.md docs/content/zh-cn/base/*.md base/*.md
-          if git diff --cached --quiet; then
-            echo "no description changes — nothing to PR"; exit 0
+          # 5. Self-trigger with only the missing backends.
+          if [ "$retry" -ge "${MAX_RETRIES:-50}" ]; then
+            echo "::error::Retry cap (${MAX_RETRIES}) reached — giving up."
+            echo "Missing backends:"
+            python3 docs/missing_versions.py 2>/dev/null | grep '^MISSING ' | sed 's/^MISSING /  - /'
+            exit 1
           fi
-          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
-          branch="auto/base-descriptions-${label}"
-          git checkout -b "$branch"
-          git commit -m "docs(base): refresh image descriptions for ${label}"
-          git push -f origin "$branch"
 
-          total=$(find versions -name '*.tsv' -type f | wc -l)
-          body="Automated refresh of per-image descriptions (baked-in system-package versions) for ${label}."
-          body+=$'\n\n'"**Version data:** ${total} backends"
-          body+=$'\n\n'"On merge, the descriptions publish to the docs site and Harbor."
-
-          if ! gh pr view "$branch" >/dev/null 2>&1; then
-            gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \
-              --title "docs(base): refresh image descriptions for ${label}" \
-              --body "${body}"
-          fi
-          gh pr merge "$branch" --auto --squash || \
-            echo "auto-merge queued/unavailable — PR left for review"
+          missing_names=$(python3 docs/missing_versions.py 2>/dev/null \
+            | awk '/^MISSING / {print $2}' | tr '\n' ' ')
+          next_retry=$((retry + 1))
+          echo "Self-triggering retry ${next_retry}/${MAX_RETRIES} for: ${missing_names}"
+          gh workflow run ".github/workflows/base-descriptions.yml" \
+            -f backend="${missing_names}" \
+            -f retry_count="${next_retry}"
