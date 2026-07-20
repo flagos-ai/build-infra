@@ -30,6 +30,8 @@ Each entry has a `base` section (from the containerfile) and a `runtime`
 section (the software stack from configs.yaml).
 """
 
+from __future__ import annotations
+
 import re
 import subprocess
 import sys

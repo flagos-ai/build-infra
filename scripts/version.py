@@ -25,6 +25,8 @@ image_version() counts git commits to ``base/<name>`` since tag
     2.1.1-3      (3 commits to this Containerfile since v2.1.1)
 """
 
+from __future__ import annotations
+
 import subprocess
 from pathlib import Path
 

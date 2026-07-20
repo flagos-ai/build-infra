@@ -50,6 +50,8 @@ Usage:
   VERSIONS_DIR=/path python docs/gen_descriptions.py # resolve versions from <dir>/<name>.tsv
 """
 
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
