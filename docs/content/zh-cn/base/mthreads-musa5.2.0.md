@@ -1,3 +1,7 @@
+---
+title: "mthreads-musa5.2.0"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,10 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "mthreads-musa5.2.0"
----
-
 ## 前置条件
 
 - **架构:** x86_64

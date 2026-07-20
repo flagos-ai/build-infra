@@ -1,3 +1,7 @@
+---
+title: "tsingmicro-tsm260604"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,10 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "tsingmicro-tsm260604"
----
-
 ## Prerequisites
 
 - **Architecture:** x86_64

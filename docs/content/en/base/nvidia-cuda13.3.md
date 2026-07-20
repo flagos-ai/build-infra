@@ -1,3 +1,7 @@
+---
+title: "nvidia-cuda13.3"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,10 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "nvidia-cuda13.3"
----
-
 ## Prerequisites
 
 - **Architecture:** x86_64

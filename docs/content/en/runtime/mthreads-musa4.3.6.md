@@ -1,3 +1,7 @@
+---
+title: "mthreads-musa4.3.6"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,10 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "mthreads-musa4.3.6"
----
-
 ## Prerequisites
 
 - **Architecture:** x86_64
