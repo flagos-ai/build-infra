@@ -162,13 +162,22 @@ def cmd_build_cpp(args: argparse.Namespace) -> str:
     outdir = args.outdir or str(ROOT / "wheels-cpp")
     os.makedirs(outdir, exist_ok=True)
 
+    # Build the list of torch-family deps needed at cmake-configure time.
+    pypi_url = cfg.get("pypi_base", "").format(vendor=vendor)
+    torch_deps = " ".join(d for d in (specs.get("deps") or []) if d.startswith("torch"))
+    torch_install = ""
+    if torch_deps:
+        torch_install = f"python3 -m pip install --index-url \"{pypi_url}\" {torch_deps}"
+
     # Run everything inside docker to use the vendor's toolchain.
     script = f"""
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq && apt-get install -y -qq git python3-pip >/dev/null 2>&1
 
-git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems
+git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
+  sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
+  sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems
 cd /tmp/FlagGems
 git fetch --quiet --tags --force origin || true
 git checkout --quiet "{args.ref}"
@@ -176,15 +185,26 @@ echo "FlagGems @ $(git describe --tags 2>/dev/null || echo '{args.ref}')"
 
 tools/set_cpp_vendor.sh {v}
 
+# Install torch-family deps (needed by cmake configure via find_package(Torch)).
+{torch_install}
+# Install cpp build deps.
+python3 -m pip install \
+  "setuptools>=64.0" "setuptools-scm>=8" "scikit-build-core>=0.9" \
+  "pybind11>=3.0" "cmake>=3.20,<4" "ninja>=1.11"
+
 # pip wheel outside the source tree so setuptools_scm doesn't see a dirty repo.
 mkdir -p /tmp/wheel-out
 export CMAKE_ARGS="-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND={cmake_backend} -DCMAKE_BUILD_TYPE=Release"
 python3 -m pip wheel ./cpp --no-deps --no-build-isolation -w /tmp/wheel-out
 
-# --- .so checks: catch rpath / DT_NEEDED issues early (no torch needed) ---
-pip install --no-index --find-links=/tmp/wheel-out flag-gems-cpp-{v} 2>/dev/null || \
-  pip install /tmp/wheel-out/*.whl
-SO=$(python3 -c "from flag_gems import c_operators; print(c_operators.__file__)")
+# --- .so checks: catch rpath / DT_NEEDED issues early ---
+pip install --no-deps /tmp/wheel-out/*.whl
+SITE=$(python3 -c "import site; print(site.getsitepackages()[0])")
+SO=$(find "$SITE" -name 'c_operators*.so' 2>/dev/null | head -1)
+if [ -z "$SO" ]; then
+  echo "ERROR: c_operators .so not found in site-packages" >&2
+  exit 1
+fi
 echo "  .so path: $SO"
 echo ">>> DT_NEEDED:"
 readelf -d "$SO" | grep 'NEEDED' | sed 's/.*\[//;s/\]//' | sort

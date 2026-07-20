@@ -17,8 +17,8 @@
 """Generate a build matrix for cpp operator wheel backends only.
 
 Like ``scripts/generate_matrix.py``, but filtered to backends that have a
-``cmake_backend``. Used by the FlagGems release workflow (step 5b) so only
-backends that actually need a cpp wheel are included.
+``cmake_backend``, with one entry per unique cmake_backend value — the cpp
+wheel for ``CUDA`` is the same for nvidia-cuda12.8 and nvidia-cuda13.3.
 
 Usage: python3 scripts/generate_cpp_matrix.py
 """
@@ -38,16 +38,17 @@ def main() -> None:
 
     configs = yaml.safe_load((root / "configs.yaml").read_text())
 
-    # which backends have cmake_backend?
-    cpp_names: set[str] = set()
+    # Map cmake_backend -> one backend name (first encountered).
+    cpp_map: dict[str, str] = {}
     for vendor, specs in (configs.get("vendors") or {}).items():
         for bk_name, spec in (specs or {}).items():
-            if spec.get("cmake_backend"):
-                cpp_names.add(f"{vendor}-{bk_name}")
+            cmake = spec.get("cmake_backend")
+            if cmake and cmake not in cpp_map:
+                cpp_map[cmake] = f"{vendor}-{bk_name}"
+
+    cpp_names = set(cpp_map.values())
 
     # generate full matrix, then filter
-    import subprocess
-
     r = subprocess.run(
         [sys.executable, str(root / "scripts" / "generate_matrix.py")],
         capture_output=True, text=True, cwd=root,
