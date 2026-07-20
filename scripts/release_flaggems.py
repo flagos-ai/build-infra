@@ -225,6 +225,8 @@ def _twine_upload(wheel: Path, repo_url: str) -> None:
     """Upload a single wheel to a PyPI repo via twine.
 
     Credentials are passed via env vars so they never appear in logs.
+    The ``repo_url`` is a pip index URL (ends with ``/simple``);
+    twine needs the bare repository URL, so that suffix is stripped.
     """
     token = os.environ.get("NEXUS_TOKEN", "")
     if not token:
@@ -233,10 +235,12 @@ def _twine_upload(wheel: Path, repo_url: str) -> None:
     env = os.environ.copy()
     env["TWINE_USERNAME"] = user
     env["TWINE_PASSWORD"] = pw
+    # twine wants the bare repo URL, not the pip index URL.
+    upload_url = repo_url.rstrip("/").removesuffix("/simple")
     subprocess.run(
         [
             sys.executable, "-m", "twine", "upload",
-            "--repository-url", f"{repo_url}/",
+            "--repository-url", f"{upload_url}/",
             "--non-interactive",
             str(wheel),
         ],
