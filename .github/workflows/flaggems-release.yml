@@ -118,10 +118,16 @@ jobs:
           echo "::error::Harbor login failed after 3 attempts"
           exit 1
 
-      - name: Build + verify cpp wheel inside base image
+      - name: Build cpp wheel inside base image
         run: |
           python3 docs/gen_data.py
           python3 scripts/release_flaggems.py build-cpp "$BACKEND" --ref "$FLAGGEMS_REF" --outdir wheels-cpp
+
+      - name: Verify cpp wheel
+        run: |
+          wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
+          pip install --break-system-packages "$wheel"
+          python3 -c "import flag_gems; print('cpp extension OK')"
 
       - name: Upload cpp wheel to vendor PyPI
         run: |
