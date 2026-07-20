@@ -230,11 +230,16 @@ jobs:
 
           VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
 
+          # Clean up leftover staged versions/ from the collect step.
+          git reset HEAD versions/ 2>/dev/null || true
+          git checkout -- versions/ 2>/dev/null || true
+
           git config user.name "flagos-ci"
           git config user.email "noreply@flagos.net"
           git add docs/content/en/base/*.md docs/content/zh-cn/base/*.md base/*.md
           if git diff --cached --quiet; then
             echo "No description changes — nothing to PR."
+            git push origin --delete "auto/versions-${label}" 2>/dev/null || true
             exit 0
           fi
           pr_branch="auto/base-descriptions-${label}"
@@ -248,11 +253,12 @@ jobs:
               --title "docs(base): refresh image descriptions for ${label}" \
               --body "${body}"
           fi
-          gh pr merge "${pr_branch}" --auto --squash || echo "auto-merge queued"
+          # Auto-merge is blocked by branch protection (requires PR); leave
+          # the PR open for review. Merge triggers base-descriptions-publish.yml.
+          gh pr merge "${pr_branch}" --auto --squash || echo "auto-merge queued/unavailable — PR left for review"
 
           # Clean up state branch.
-          state_branch="auto/versions-${label}"
-          git push origin --delete "${state_branch}" 2>/dev/null || true
+          git push origin --delete "auto/versions-${label}" 2>/dev/null || true
           echo "Done."
 
       - name: Retry (self-trigger)
