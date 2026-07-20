@@ -1,0 +1,12 @@
+build-essential	12.10ubuntu1
+ca-certificates	20260601~24.04.1
+cmake	3.28.3-1build7
+curl	8.5.0-2ubuntu10.11
+g++	4:13.2.0-7ubuntu1
+gcc	4:13.2.0-7ubuntu1
+libelf1	
+libgfortran5	14.2.0-4ubuntu2~24.04.1
+libnuma-dev	2.0.18-1ubuntu0.24.04.1
+libopenmpi-dev	4.1.6-7ubuntu2
+libpython3-dev	3.12.3-0ubuntu2.1
+openmpi-bin	4.1.6-7ubuntu2
