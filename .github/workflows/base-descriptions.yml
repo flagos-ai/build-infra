@@ -110,7 +110,10 @@ jobs:
 
   compose:
     needs: [set-matrix, extract]
-    runs-on: ubuntu-latest
+    # h20 — it has Docker (to pull images for the fallback) and is inside the
+    # network (so Harbor is reachable). GitHub-hosted ubuntu-latest runners
+    # can't reach the internal Harbor registry.
+    runs-on: [self-hosted, h20]
     permissions:
       contents: write
       pull-requests: write
@@ -121,7 +124,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - run: python3 -m pip install --user pyyaml
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Download version artifacts
         uses: actions/download-artifact@v8
@@ -149,7 +155,8 @@ jobs:
 
           # Login to Harbor — ubuntu-latest has no proxy issues.
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
-          printf '%s' "${HARBOR_PW}" | docker login "$host" -u tengqm --password-stdin
+          HTTP_PROXY="" HTTPS_PROXY="" no_proxy="harbor.baai.ac.cn,.baai.ac.cn" \
+            printf '%s' "${HARBOR_PW}" | docker login "$host" -u tengqm --password-stdin
 
           for name in $MISSING; do
             echo "::group::fallback extract: $name"
