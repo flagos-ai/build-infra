@@ -29,7 +29,7 @@ title: "nvidia-cuda12.8"
 
 ### Built on
 
-[`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1`](../base/nvidia-cuda12.8/)
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1</code> <a href="../base/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 

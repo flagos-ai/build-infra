@@ -29,7 +29,7 @@ title: "tsingmicro-tsm260604"
 
 ### 基于
 
-[`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1`](../base/tsingmicro-tsm260604/)
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1</code> <a href="../base/tsingmicro-tsm260604/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 

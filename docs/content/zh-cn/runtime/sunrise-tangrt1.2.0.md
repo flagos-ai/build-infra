@@ -28,7 +28,7 @@ title: "sunrise-tangrt1.2.0"
 
 ### 基于
 
-[`harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1`](../base/sunrise-tangrt1.2.0/)
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1</code> <a href="../base/sunrise-tangrt1.2.0/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
