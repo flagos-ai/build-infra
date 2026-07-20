@@ -28,7 +28,7 @@ title: "mthreads-musa4.3.6"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1`
 
 ### Python
 
@@ -58,7 +58,7 @@ title: "mthreads-musa4.3.6"
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  flagos-runtime-mthreads-musa4.3.6:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:latest bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -68,7 +68,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  flagos-runtime-mthreads-musa4.3.6:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:latest bash
 ```
 
 ## Verify

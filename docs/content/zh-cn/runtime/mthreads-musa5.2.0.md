@@ -28,7 +28,7 @@ title: "mthreads-musa5.2.0"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1`
 
 ### Python
 
@@ -58,7 +58,7 @@ title: "mthreads-musa5.2.0"
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  flagos-runtime-mthreads-musa5.2.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:latest bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -68,7 +68,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  flagos-runtime-mthreads-musa5.2.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:latest bash
 ```
 
 ## 验证

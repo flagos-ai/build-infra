@@ -27,7 +27,7 @@ title: "sunrise-tangrt1.2.0"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1`
 
 ### Python
 
@@ -47,7 +47,8 @@ title: "sunrise-tangrt1.2.0"
 Start an interactive shell in the container:
 
 ```bash
-docker run --rm -it flagos-runtime-sunrise-tangrt1.2.0:latest bash
+docker run --rm -it \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:latest bash
 ```
 
 ## Verify

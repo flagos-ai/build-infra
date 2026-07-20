@@ -28,7 +28,7 @@ title: "nvidia-cuda13.3"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1`
 
 ### Python
 
@@ -55,7 +55,9 @@ title: "nvidia-cuda13.3"
 **使用容器工具包** *(可选)*：
 
 ```bash
-docker run --rm -it --gpus all flagos-runtime-nvidia-cuda13.3:latest bash
+docker run --rm -it \
+  --gpus all \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:latest bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -68,7 +70,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  flagos-runtime-nvidia-cuda13.3:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:latest bash
 ```
 
 ## 验证

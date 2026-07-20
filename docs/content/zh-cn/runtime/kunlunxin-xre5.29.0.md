@@ -28,7 +28,7 @@ title: "kunlunxin-xre5.29.0"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1`
 
 ### Python
 
@@ -65,7 +65,7 @@ title: "kunlunxin-xre5.29.0"
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  flagos-runtime-kunlunxin-xre5.29.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.29.0:latest bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -74,7 +74,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  flagos-runtime-kunlunxin-xre5.29.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.29.0:latest bash
 ```
 
 ## 验证

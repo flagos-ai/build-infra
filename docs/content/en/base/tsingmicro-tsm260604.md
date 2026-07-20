@@ -76,7 +76,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -85,7 +85,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1 bash
 ```
 
 ## Verify

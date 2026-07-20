@@ -53,7 +53,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -66,7 +66,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1 bash
 ```
 
 ## Verify

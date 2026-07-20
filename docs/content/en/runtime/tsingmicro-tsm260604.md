@@ -28,7 +28,7 @@ title: "tsingmicro-tsm260604"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1`
 
 ### Python
 
@@ -60,7 +60,7 @@ title: "tsingmicro-tsm260604"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  flagos-runtime-tsingmicro-tsm260604:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260604:latest bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -69,7 +69,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  flagos-runtime-tsingmicro-tsm260604:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260604:latest bash
 ```
 
 ## Verify

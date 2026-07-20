@@ -28,7 +28,7 @@ title: "hygon-dtk26.04"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1`
 
 ### Python
 
@@ -50,7 +50,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  flagos-runtime-hygon-dtk26.04:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:latest bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -63,7 +63,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  flagos-runtime-hygon-dtk26.04:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:latest bash
 ```
 
 ## Verify

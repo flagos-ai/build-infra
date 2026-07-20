@@ -121,7 +121,9 @@ STRINGS = {
     },
 }
 
-# Apache 2.0 copyright header — HTML comment for web, bare comment for plain.
+# Apache 2.0 copyright header — HTML comment, web flavor only.
+# Harbor can't parse HTML comments in repository descriptions, so the plain
+# flavor (base/*.md and runtime/*.md) omits this.
 COPYRIGHT = [
     "<!--",
     " Copyright 2026 FlagOS Contributors",
@@ -289,11 +291,10 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
     name = entry["name"]
     lines: list[str] = []
 
-    # Apache 2.0 copyright header — rendered as an HTML comment in both flavors.
-    lines += COPYRIGHT
-
     # Hugo front matter — web flavor only.
     if web:
+        # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
+        lines += COPYRIGHT
         lines += ["---", f'title: "{name}"', "---", ""]
 
     # ── Prerequisites (shared with runtime) ──
@@ -350,11 +351,10 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
     runtime = entry["runtime"]
     lines: list[str] = []
 
-    # Apache 2.0 copyright header — rendered as an HTML comment in both flavors.
-    lines += COPYRIGHT
-
     # Hugo front matter — web flavor only.
     if web:
+        # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
+        lines += COPYRIGHT
         lines += ["---", f'title: "{name}"', "---", ""]
 
     # ── Prerequisites (same as base page — inherited from base image) ──

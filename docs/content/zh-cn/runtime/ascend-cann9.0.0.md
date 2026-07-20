@@ -28,7 +28,7 @@ title: "ascend-cann9.0.0"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1`
 
 ### Python
 
@@ -51,7 +51,7 @@ title: "ascend-cann9.0.0"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  flagos-runtime-ascend-cann9.0.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:latest bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -65,7 +65,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  flagos-runtime-ascend-cann9.0.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:latest bash
 ```
 
 ## 验证

@@ -28,7 +28,7 @@ title: "iluvatar-corex4.4.0"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-31-g853fdf7`
+`harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1`
 
 ### Python
 
@@ -50,7 +50,7 @@ title: "iluvatar-corex4.4.0"
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  flagos-runtime-iluvatar-corex4.4.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:latest bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -59,7 +59,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   -v /usr/local/corex:/usr/local/corex:ro \
-  flagos-runtime-iluvatar-corex4.4.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:latest bash
 ```
 
 ## 验证

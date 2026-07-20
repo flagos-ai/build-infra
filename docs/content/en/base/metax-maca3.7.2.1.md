@@ -63,7 +63,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 metax-docker \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -73,7 +73,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
 ```
 
 ## Verify

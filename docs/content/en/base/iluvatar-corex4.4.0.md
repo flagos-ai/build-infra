@@ -45,6 +45,7 @@ Explicitly installed; the version is the one baked into this image:
 
 - Corex Runtime 4.4.0
 - CUDA Header files 260604
+- CMake (Iluvatar) 3.31.8
 
 ## Environment
 
@@ -60,7 +61,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -69,7 +70,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   -v /usr/local/corex:/usr/local/corex:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1 bash
 ```
 
 ## Verify
