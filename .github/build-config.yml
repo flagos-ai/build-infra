@@ -44,8 +44,8 @@ runners:
     iluvatar-corex4.4.0: [self-hosted, iluvatar]
     kunlunxin-xre5.29.0: [self-hosted, kunlunxin]
     metax-maca3.7.2.1: [self-hosted, metax]
-    mthreads-musa4.3.6: [self-hosted, mthreads]
-    mthreads-musa5.2.0: [self-hosted, mthreads]
+    mthreads-musa4.3.6: [self-hosted, musa520]
+    mthreads-musa5.2.0: [self-hosted, musa520]
     sunrise-tangrt1.2.0: [self-hosted, sunrise]
     tsingmicro-tsm260604: [self-hosted, tsingmicro]
 

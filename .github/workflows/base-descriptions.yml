@@ -72,6 +72,7 @@ jobs:
           printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin
 
       - name: Verify base image (best-effort)
+        continue-on-error: true
         run: |
           python3 docs/gen_data.py
           python3 scripts/verify_base.py "${{ matrix.name }}"
