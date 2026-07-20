@@ -154,8 +154,11 @@ jobs:
           merge-multiple: false
 
       - name: Accumulate
+        env:
+          # h20 may have proxy set; clear it for gh CLI (GitHub API access).
+          no_proxy: "api.github.com,.github.com,github.com"
         run: |
-          set -euo pipefail
+          set -uo pipefail  # not -e — self-trigger must run even if git ops fail
           label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
           state_branch="auto/versions-${label}"
           retry="${RETRY_COUNT:-0}"
@@ -185,8 +188,6 @@ jobs:
 
           if [ -z "$missing" ] && [ "$now" -ge "$expected" ]; then
             echo "=== ALL ${now}/${expected} BACKENDS COLLECTED ==="
-
-            # --- Finalize: generate descriptions + open PR ---
             VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
 
             git config user.name "flagos-ci"
@@ -199,50 +200,41 @@ jobs:
               git checkout -b "${pr_branch}"
               git commit -m "docs(base): refresh image descriptions for ${label}"
               git push -f origin "${pr_branch}"
-
-              body="Automated refresh of per-image descriptions (baked-in system-package versions) for ${label}."
+              body="Automated refresh with baked-in system-package versions for ${label}."
               body+=$'\n\n'"**Version data:** ${now}/${expected} backends"
-              body+=$'\n\n'"On merge, the descriptions publish to the docs site and Harbor."
-
               if ! gh pr view "${pr_branch}" >/dev/null 2>&1; then
                 gh pr create --base "${GITHUB_REF_NAME}" --head "${pr_branch}" \
                   --title "docs(base): refresh image descriptions for ${label}" \
                   --body "${body}"
               fi
-              gh pr merge "${pr_branch}" --auto --squash || \
-                echo "auto-merge queued/unavailable — PR left for review"
+              gh pr merge "${pr_branch}" --auto --squash || echo "auto-merge queued"
             fi
-
-            # Clean up the state branch — done accumulating.
             git push origin --delete "${state_branch}" 2>/dev/null || true
-            echo "Done. State branch ${state_branch} deleted."
             exit 0
           fi
 
-          # 4. Not yet complete — save accumulated TSVs to state branch.
-          #    Use write-tree + commit-tree to avoid touching the working
-          #    directory (which may be dirty from artifact download).
+          # 4. Not yet complete — save + retry.
           echo "=== INCOMPLETE: ${now}/${expected} backends after retry ${retry} ==="
           echo "Still missing:"
           python3 docs/missing_versions.py 2>/dev/null | grep '^MISSING ' | sed 's/^MISSING /  - /' || true
 
-          git add versions/
-          tree=$(git write-tree)
-          commit=$(echo "state: ${now}/${expected} versions after retry ${retry}" \
-            | git commit-tree -p "origin/${GITHUB_REF_NAME}" "${tree}")
-          git push -f origin "${commit}:refs/heads/${state_branch}"
-          git reset HEAD versions/ 2>/dev/null || true
+          missing_names=$(python3 docs/missing_versions.py 2>/dev/null \
+            | awk '/^MISSING / {print $2}' | tr '\n' ' ')
 
-          # 5. Self-trigger with only the missing backends.
           if [ "$retry" -ge "${MAX_RETRIES:-50}" ]; then
-            echo "::error::Retry cap (${MAX_RETRIES}) reached — giving up."
-            echo "Missing backends:"
-            python3 docs/missing_versions.py 2>/dev/null | grep '^MISSING ' | sed 's/^MISSING /  - /'
+            echo "::error::Retry cap (${MAX_RETRIES}) reached. Missing: ${missing_names}"
             exit 1
           fi
 
-          missing_names=$(python3 docs/missing_versions.py 2>/dev/null \
-            | awk '/^MISSING / {print $2}' | tr '\n' ' ')
+          # Save to state branch (best-effort — don't abort the retry if it fails).
+          if git add -f versions/ && tree=$(git write-tree) 2>/dev/null; then
+            commit=$(echo "state: ${now}/${expected} versions after retry ${retry}" \
+              | git commit-tree -p "refs/heads/${GITHUB_REF_NAME}" "${tree}")
+            git push -f origin "${commit}:refs/heads/${state_branch}" 2>/dev/null || true
+          else
+            echo "::warning::Could not save versions to state branch — will retry anyway"
+          fi
+
           next_retry=$((retry + 1))
           echo "Self-triggering retry ${next_retry}/${MAX_RETRIES} for: ${missing_names}"
           gh workflow run ".github/workflows/base-descriptions.yml" \
