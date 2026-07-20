@@ -52,7 +52,7 @@ other = "Python"
 other = "Major Python packages"
 
 [triton_fallback_note]
-other = "Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable)."
+other = "Greyed = alternative compiler (flagtree is the default; triton can also be used)."
 
 [environment]
 other = "Environment"

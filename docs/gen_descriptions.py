@@ -83,7 +83,8 @@ STRINGS = {
         "sdk_components": "SDK components",
         "python_version": "Python",
         "major_packages": "Major Python packages",
-        "fallback_note": "Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).",
+        "switch_compiler": "Switch compiler",
+        "switch_compiler_note": "This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.",
         "environment": "Environment",
         "launch": "Launch",
         "launch_toolkit_optional": "**With the container toolkit** *(optional)*:",
@@ -110,7 +111,8 @@ STRINGS = {
         "sdk_components": "SDK 组件",
         "python_version": "Python",
         "major_packages": "主要 Python 软件包",
-        "fallback_note": "灰色 = 备用编译器（默认使用 flagtree；仅当 flagtree 不可用时才回退到 triton）。",
+        "switch_compiler": "切换编译器",
+        "switch_compiler_note": "本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。",
         "environment": "环境变量",
         "launch": "启动",
         "launch_toolkit_optional": "**使用容器工具包** *(可选)*：",
@@ -382,14 +384,12 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
                 if web:
                     lines.append(f'- <span class="muted"><code class="plain">{pkg}</code></span>')
                 else:
-                    lines.append(f"- `{pkg}` *(fallback)*")
+                    lines.append(f"- `{pkg}` *(alternative)*")
             else:
                 lines.append(f"- `{pkg}`")
         if has_muted:
-            if web:
-                lines += ["", f'<p class="muted"><em>{s["fallback_note"]}</em></p>']
-            else:
-                lines += ["", f"*{s['fallback_note']}*"]
+            lines += ["", f"### {s['switch_compiler']}", ""]
+            lines.append(s["switch_compiler_note"])
         lines.append("")
 
     # ── Environment (runtime env vars) ──

@@ -51,7 +51,7 @@ other = "Python"
 other = "主要 Python 软件包"
 
 [triton_fallback_note]
-other = "灰色 = 备用编译器（默认使用 flagtree；仅当 flagtree 不可用时才回退到 triton）。"
+other = "灰色 = 备选编译器（默认使用 flagtree，也可使用 triton）。"
 
 [environment]
 other = "环境变量"

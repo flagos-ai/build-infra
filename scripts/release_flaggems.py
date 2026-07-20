@@ -222,20 +222,25 @@ def cmd_upload_cpp(args: argparse.Namespace) -> None:
 
 
 def _twine_upload(wheel: Path, repo_url: str) -> None:
-    """Upload a single wheel to a PyPI repo via twine."""
+    """Upload a single wheel to a PyPI repo via twine.
+
+    Credentials are passed via env vars so they never appear in logs.
+    """
     token = os.environ.get("NEXUS_TOKEN", "")
     if not token:
         sys.exit("ERROR: NEXUS_TOKEN env var is empty or unset")
     user, _, pw = token.partition(":")
+    env = os.environ.copy()
+    env["TWINE_USERNAME"] = user
+    env["TWINE_PASSWORD"] = pw
     subprocess.run(
         [
             sys.executable, "-m", "twine", "upload",
             "--repository-url", f"{repo_url}/",
             "--non-interactive",
-            "-u", user, "-p", pw,
             str(wheel),
         ],
-        check=True,
+        check=True, env=env,
     )
 
 

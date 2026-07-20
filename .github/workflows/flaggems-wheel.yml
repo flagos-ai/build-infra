@@ -79,8 +79,9 @@ jobs:
             exit 1
           fi
           python3 -m pip install --quiet twine
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
           python3 -m twine upload \
             --repository-url "https://resource.flagos.net/repository/${PYPI_REPO}/" \
-            -u "${NEXUS_TOKEN%%:*}" -p "${NEXUS_TOKEN#*:}" \
             --non-interactive \
             wheels/*.whl
