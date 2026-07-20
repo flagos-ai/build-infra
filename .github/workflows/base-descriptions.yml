@@ -70,6 +70,12 @@ jobs:
         run: |
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
           printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin
+
+      - name: Verify base image (best-effort)
+        run: |
+          python3 docs/gen_data.py
+          python3 scripts/verify_base.py "${{ matrix.name }}"
+
       - name: Extract baked-in system-package versions
         run: |
           python3 docs/gen_data.py
