@@ -146,6 +146,7 @@ jobs:
             || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Download version artifacts (this run)
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           path: versions-dl
@@ -219,15 +220,18 @@ jobs:
           fi
 
           # 4. Not yet complete — save accumulated TSVs to state branch.
+          #    Use write-tree + commit-tree to avoid touching the working
+          #    directory (which may be dirty from artifact download).
           echo "=== INCOMPLETE: ${now}/${expected} backends after retry ${retry} ==="
           echo "Still missing:"
           python3 docs/missing_versions.py 2>/dev/null | grep '^MISSING ' | sed 's/^MISSING /  - /' || true
 
-          git checkout --orphan "${state_branch}"
-          git reset --hard 2>/dev/null || true
           git add versions/
-          git commit -m "state: ${now}/${expected} versions after retry ${retry}"
-          git push -f origin "${state_branch}"
+          tree=$(git write-tree)
+          commit=$(echo "state: ${now}/${expected} versions after retry ${retry}" \
+            | git commit-tree -p "origin/${GITHUB_REF_NAME}" "${tree}")
+          git push -f origin "${commit}:refs/heads/${state_branch}"
+          git reset HEAD versions/ 2>/dev/null || true
 
           # 5. Self-trigger with only the missing backends.
           if [ "$retry" -ge "${MAX_RETRIES:-50}" ]; then
