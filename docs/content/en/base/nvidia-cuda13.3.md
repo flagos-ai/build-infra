@@ -34,16 +34,16 @@ title: "nvidia-cuda13.3"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential`
-- `ca-certificates`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
 - `libelf1`
-- `libnuma1`
-- `libpython3-dev`
-- `make`
+- `libnuma1` — 2.0.18
+- `libpython3-dev` — 3.12.3
+- `make` — 4.3
 
 ### SDK components
 
@@ -61,7 +61,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -74,7 +74,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1 bash
 ```
 
 ## Verify

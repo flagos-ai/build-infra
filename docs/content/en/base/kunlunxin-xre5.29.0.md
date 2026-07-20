@@ -34,14 +34,14 @@ title: "kunlunxin-xre5.29.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential`
-- `ca-certificates`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
-- `kmod`
-- `pciutils`
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `kmod` — 31+20240202
+- `pciutils` — 3.10.0
 
 ### SDK components
 
@@ -62,7 +62,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -71,7 +71,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
 ```
 
 ## Verify

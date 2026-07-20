@@ -34,8 +34,8 @@ title: "ascend-cann8.5.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `ca-certificates`
-- `software-properties-common`
+- `ca-certificates` — 20260601~24.04.1
+- `software-properties-common` — 0.99.49.4
 
 ### SDK components
 
@@ -49,7 +49,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -63,7 +63,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.1 bash
 ```
 
 ## Verify

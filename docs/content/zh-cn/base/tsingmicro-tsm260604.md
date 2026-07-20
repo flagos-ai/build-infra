@@ -34,18 +34,18 @@ title: "tsingmicro-tsm260604"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential`
-- `ca-certificates`
-- `clang`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
-- `libfmt-dev`
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `clang` — 18.0
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `libfmt-dev` — 9.1.0+ds1
 - `libopenmpi3`
-- `libpython3-dev`
-- `libunwind8`
-- `sudo`
+- `libpython3-dev` — 3.12.3
+- `libunwind8` — 1.6.2
+- `sudo` — 1.9.15p5
 
 ### SDK 组件
 
@@ -76,7 +76,7 @@ title: "tsingmicro-tsm260604"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -85,7 +85,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1-31-g853fdf7 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1 bash
 ```
 
 ## 验证
