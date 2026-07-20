@@ -181,9 +181,21 @@ mkdir -p /tmp/wheel-out
 export CMAKE_ARGS="-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND={cmake_backend} -DCMAKE_BUILD_TYPE=Release"
 python3 -m pip wheel ./cpp --no-deps --no-build-isolation -w /tmp/wheel-out
 
-# Verify: install and import.
-pip install /tmp/wheel-out/*.whl
-python3 -c "import flag_gems; print('OK  cpp extension loads for {v}')"
+# --- .so checks: catch rpath / DT_NEEDED issues early (no torch needed) ---
+pip install --no-index --find-links=/tmp/wheel-out flag-gems-cpp-{v} 2>/dev/null || \
+  pip install /tmp/wheel-out/*.whl
+SO=$(python3 -c "from flag_gems import c_operators; print(c_operators.__file__)")
+echo "  .so path: $SO"
+echo ">>> DT_NEEDED:"
+readelf -d "$SO" | grep 'NEEDED' | sed 's/.*\[//;s/\]//' | sort
+echo ">>> rpath / runpath:"
+readelf -d "$SO" | grep -iE 'RPATH|RUNPATH' || echo "  (none — relies on LD_LIBRARY_PATH)"
+for lib in $(readelf -d "$SO" | grep 'NEEDED' | sed 's/.*\[//;s/\]//'); do
+  if ! ldconfig -p | grep -q "$lib"; then
+    echo "  ! WARNING: $lib not in ldconfig cache — must be in LD_LIBRARY_PATH"
+  fi
+done
+echo "OK  cpp extension .so built for {v}"
 
 # Copy out.
 cp /tmp/wheel-out/*.whl /host-out/
