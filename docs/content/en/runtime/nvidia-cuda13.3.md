@@ -29,7 +29,7 @@ title: "nvidia-cuda13.3"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1`](../base/nvidia-cuda13.3/)
 
 ### Python
 

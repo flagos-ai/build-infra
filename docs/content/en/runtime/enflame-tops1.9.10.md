@@ -29,7 +29,7 @@ title: "enflame-tops1.9.10"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1`](../base/enflame-tops1.9.10/)
 
 ### Python
 

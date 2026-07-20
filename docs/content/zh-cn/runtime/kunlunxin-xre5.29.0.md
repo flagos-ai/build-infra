@@ -29,7 +29,7 @@ title: "kunlunxin-xre5.29.0"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1`](../base/kunlunxin-xre5.29.0/)
 
 ### Python
 

@@ -29,7 +29,7 @@ title: "hygon-dtk26.04"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1`](../base/hygon-dtk26.04/)
 
 ### Python
 

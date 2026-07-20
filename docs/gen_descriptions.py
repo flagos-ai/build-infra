@@ -370,7 +370,10 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
     lines += [f"## {s['image_contents']}", ""]
 
     if base.get("image"):
-        lines += [f"### {s['base_image_ref']}", "", f"`{base['image']}`", ""]
+        if web:
+            lines += [f"### {s['base_image_ref']}", "", f"[`{base['image']}`](../base/{name}/)", ""]
+        else:
+            lines += [f"### {s['base_image_ref']}", "", f"`{base['image']}`", ""]
 
     python_ver = runtime.get("python", "")
     if python_ver:

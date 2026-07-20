@@ -29,7 +29,7 @@ title: "iluvatar-corex4.4.0"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.1`](../base/iluvatar-corex4.4.0/)
 
 ### Python
 

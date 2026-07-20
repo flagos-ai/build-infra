@@ -29,7 +29,7 @@ title: "mthreads-musa5.2.0"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1`](../base/mthreads-musa5.2.0/)
 
 ### Python
 

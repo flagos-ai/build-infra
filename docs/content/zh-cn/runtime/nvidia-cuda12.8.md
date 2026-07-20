@@ -29,7 +29,7 @@ title: "nvidia-cuda12.8"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1`](../base/nvidia-cuda12.8/)
 
 ### Python
 

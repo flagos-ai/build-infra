@@ -29,7 +29,7 @@ title: "ascend-cann9.0.0"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1`](../base/ascend-cann9.0.0/)
 
 ### Python
 

@@ -29,7 +29,7 @@ title: "tsingmicro-tsm260604"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1`](../base/tsingmicro-tsm260604/)
 
 ### Python
 

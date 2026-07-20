@@ -28,7 +28,7 @@ title: "cambricon-neuware4.4.3"
 
 ### 基于
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1`](../base/cambricon-neuware4.4.3/)
 
 ### Python
 

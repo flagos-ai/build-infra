@@ -29,7 +29,7 @@ title: "mthreads-musa4.3.6"
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1`
+[`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1`](../base/mthreads-musa4.3.6/)
 
 ### Python
 
