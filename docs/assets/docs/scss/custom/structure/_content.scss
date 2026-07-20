@@ -388,6 +388,17 @@ body {
     }
 }
 
+// Muted items: fallback compiler packages and their explanatory note (lists in
+// runtime image pages). Uses reduced opacity so the entry is still legible but
+// visually de-emphasized. code children inherit the parent color so the inline
+// code styling doesn't override the fade effect.
+.muted {
+    opacity: 0.55;
+    code {
+        color: inherit;
+    }
+}
+
 // The toolkit-optional tooltip (and any other Bootstrap tooltip). Two fixes over
 // the theme defaults:
 //   1. Readability: the theme sets a white tooltip background in light mode
