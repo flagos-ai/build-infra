@@ -62,6 +62,20 @@ jobs:
           printf '%s' "${HARBOR_PW}" | docker login "${host}" \
             -u tengqm --password-stdin
 
+      - name: Check disk space
+        shell: bash
+        run: |
+          FREE_GB=$(df -BG /var/lib/docker 2>/dev/null | awk 'NR==2{print $4}' | sed 's/G//')
+          if [ -z "$FREE_GB" ] || [ "$FREE_GB" = "avail" ]; then
+            FREE_GB=$(df -BG . | awk 'NR==2{print $4}' | sed 's/G//')
+          fi
+          echo "Free disk space: ${FREE_GB}G"
+          if [ "$FREE_GB" -lt 10 ] 2>/dev/null; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < 10G). Docker needs cleanup."
+            df -h /var/lib/docker . 2>/dev/null || df -h .
+            exit 1
+          fi
+
       - name: Build base image
         run: |
           python3 scripts/build_base.py "${{ inputs.name }}" ${{ inputs.push && '--push' || '' }}
