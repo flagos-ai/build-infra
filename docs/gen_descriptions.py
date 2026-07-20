@@ -375,7 +375,7 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
         if web:
             lines += [f"### {s['base_image_ref']}", "",
                       f'<div class="ms-3"><code class="plain">{base["image"]}</code> '
-                      f'<a href="../base/{name}/" title="{s["base_image_link_title"]}" '
+                      f'<a href="../../base/{name}/" title="{s["base_image_link_title"]}" '
                       f'aria-label="{s["base_image_link_title"]}">'
                       f'<i class="material-icons align-middle size-20">open_in_new</i></a></div>', ""]
         else:

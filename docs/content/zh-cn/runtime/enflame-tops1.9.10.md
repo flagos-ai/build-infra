@@ -29,7 +29,7 @@ title: "enflame-tops1.9.10"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1</code> <a href="../base/enflame-tops1.9.10/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1</code> <a href="../../base/enflame-tops1.9.10/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
