@@ -56,6 +56,7 @@ jobs:
         run: python3 scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
       - name: Upload to all vendor PyPIs
         run: |
+          python3 -m pip install --quiet twine
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-python "$wheel"
       - uses: actions/upload-artifact@v7
@@ -117,19 +118,14 @@ jobs:
           echo "::error::Harbor login failed after 3 attempts"
           exit 1
 
-      - name: Build cpp wheel inside base image
+      - name: Build + verify cpp wheel inside base image
         run: |
           python3 docs/gen_data.py
           python3 scripts/release_flaggems.py build-cpp "$BACKEND" --ref "$FLAGGEMS_REF" --outdir wheels-cpp
 
-      - name: Verify cpp wheel
-        run: |
-          wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
-          pip install --break-system-packages "$wheel"
-          python3 -c "import flag_gems; print('cpp extension OK')"
-
       - name: Upload cpp wheel to vendor PyPI
         run: |
+          python3 -m pip install --break-system-packages --quiet twine
           wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
 
