@@ -1,7 +1,3 @@
----
-title: "mthreads-musa4.3.6"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -17,6 +13,10 @@ title: "mthreads-musa4.3.6"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+---
+title: "mthreads-musa4.3.6"
+---
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -34,18 +34,18 @@ title: "mthreads-musa4.3.6"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
 - `libelf1`
-- `libgfortran5` — 14.2.0
-- `libnuma-dev` — 2.0.18
-- `libopenmpi-dev` — 4.1.6
-- `libpython3-dev` — 3.12.3
-- `openmpi-bin` — 4.1.6
+- `libgfortran5`
+- `libnuma-dev`
+- `libopenmpi-dev`
+- `libpython3-dev`
+- `openmpi-bin`
 
 ### SDK components
 

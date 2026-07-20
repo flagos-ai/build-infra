@@ -22,9 +22,11 @@
 - `mkl==2024.0.0`
 - `torch==2.9.0+musa5.2.0`
 - `torch_musa==2.9.1`
-- `triton==3.6.0` *(fallback)*
+- `triton==3.6.0` *(alternative)*
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Environment
 

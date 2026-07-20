@@ -15,8 +15,8 @@
 
 Explicitly installed; the version is the one baked into this image:
 
-- `ca-certificates` — 20260601~24.04.1
-- `software-properties-common` — 0.99.49.4
+- `ca-certificates`
+- `software-properties-common`
 
 ### SDK components
 

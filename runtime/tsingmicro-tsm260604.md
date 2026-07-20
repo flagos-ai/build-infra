@@ -23,10 +23,12 @@
 - `torch_txda==0.1.0+20260615.37ba6bbd`
 - `torchaudio==2.7.0+cpu`
 - `torchvision==0.22.0+cpu`
-- `triton==3.3.0+gitfe2a28fa` *(fallback)*
+- `triton==3.3.0+gitfe2a28fa` *(alternative)*
 - `txops==0.1.0+20260508.60287151`
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Environment
 

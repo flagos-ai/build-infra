@@ -17,6 +17,7 @@ title: "kunlunxin-xre5.29.0"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -55,7 +56,9 @@ title: "kunlunxin-xre5.29.0"
 - `xformers==0.0.29+1e7a8ec.d20260114`
 - `xmlir==1.0.0.1`
 
-<p class="muted"><em>Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).</em></p>
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

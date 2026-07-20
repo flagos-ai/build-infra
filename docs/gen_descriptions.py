@@ -357,9 +357,10 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
 
     # Hugo front matter — web flavor only.
     if web:
+        lines += ["---", f'title: "{name}"', "---", ""]
         # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
         lines += COPYRIGHT
-        lines += ["---", f'title: "{name}"', "---", ""]
+        _ = lines.append("")
 
     # ── Prerequisites (same as base page — inherited from base image) ──
     lines += _prerequisites(entry, s, web)

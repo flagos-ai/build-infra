@@ -25,9 +25,11 @@
 - `torch==2.10.0+cpu`
 - `torchaudio==2.10.0+cpu`
 - `torchvision==0.25.0+cpu`
-- `triton-gcu==3.6.0+1.0.20260521.cc.1.9.10` *(fallback)*
+- `triton-gcu==3.6.0+1.0.20260521.cc.1.9.10` *(alternative)*
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

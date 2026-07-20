@@ -22,9 +22,11 @@
 - `torch==2.10.0+cu128`
 - `torchaudio==2.10.0+cu128`
 - `torchvision==0.25.0+cu128`
-- `triton==3.6.0` *(fallback)*
+- `triton==3.6.0` *(alternative)*
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Environment
 

@@ -17,6 +17,7 @@ title: "metax-maca3.7.2.1"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -44,7 +45,9 @@ title: "metax-maca3.7.2.1"
 - `torchvision==0.15.1+metax3.7.2.0`
 - <span class="muted"><code class="plain">triton==3.0.0+metax3.7.2.0</code></span>
 
-<p class="muted"><em>Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).</em></p>
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

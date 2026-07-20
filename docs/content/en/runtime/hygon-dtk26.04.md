@@ -17,6 +17,7 @@ title: "hygon-dtk26.04"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -41,7 +42,9 @@ title: "hygon-dtk26.04"
 - `torch==2.9.0+das.opt1.dtk2604`
 - <span class="muted"><code class="plain">triton==3.3.0+das.opt1.dtk2604.torch290</code></span>
 
-<p class="muted"><em>Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).</em></p>
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

@@ -20,9 +20,11 @@
 - `flag_gems`
 - `flagtree==0.5.1+hcu3.1`
 - `torch==2.9.0+das.opt1.dtk2604`
-- `triton==3.3.0+das.opt1.dtk2604.torch290` *(fallback)*
+- `triton==3.3.0+das.opt1.dtk2604.torch290` *(alternative)*
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

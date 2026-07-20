@@ -21,9 +21,11 @@
 - `flagtree==0.6.0+ascend3.5`
 - `torch-npu==2.10.0`
 - `torch==2.10.0+cpu`
-- `triton==3.5.0 (+ triton_ascend==3.2.1)` *(fallback)*
+- `triton==3.5.0 (+ triton_ascend==3.2.1)` *(alternative)*
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

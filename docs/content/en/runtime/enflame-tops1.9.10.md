@@ -17,6 +17,7 @@ title: "enflame-tops1.9.10"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -46,7 +47,9 @@ title: "enflame-tops1.9.10"
 - `torchvision==0.25.0+cpu`
 - <span class="muted"><code class="plain">triton-gcu==3.6.0+1.0.20260521.cc.1.9.10</code></span>
 
-<p class="muted"><em>Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).</em></p>
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

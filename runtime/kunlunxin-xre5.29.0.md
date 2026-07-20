@@ -32,11 +32,13 @@
 - `torch_xray==2.0.4`
 - `torchaudio==2.9.0+cu129`
 - `torchvision==0.24.0+cu129`
-- `triton==3.0.0+a48aedef` *(fallback)*
+- `triton==3.0.0+a48aedef` *(alternative)*
 - `xformers==0.0.29+1e7a8ec.d20260114`
 - `xmlir==1.0.0.1`
 
-*Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).*
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

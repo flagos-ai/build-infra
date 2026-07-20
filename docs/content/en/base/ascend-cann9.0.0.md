@@ -1,7 +1,3 @@
----
-title: "ascend-cann9.0.0"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -17,6 +13,10 @@ title: "ascend-cann9.0.0"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+---
+title: "ascend-cann9.0.0"
+---
+
 ## Prerequisites
 
 - **Architecture:** aarch64
@@ -34,8 +34,8 @@ title: "ascend-cann9.0.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `ca-certificates` — 20260601~24.04.1
-- `software-properties-common` — 0.99.49.4
+- `ca-certificates`
+- `software-properties-common`
 
 ### SDK components
 

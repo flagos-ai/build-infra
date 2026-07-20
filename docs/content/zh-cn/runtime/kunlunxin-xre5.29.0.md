@@ -17,6 +17,7 @@ title: "kunlunxin-xre5.29.0"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## 前置条件
 
 - **架构:** x86_64
@@ -55,7 +56,9 @@ title: "kunlunxin-xre5.29.0"
 - `xformers==0.0.29+1e7a8ec.d20260114`
 - `xmlir==1.0.0.1`
 
-<p class="muted"><em>灰色 = 备用编译器（默认使用 flagtree；仅当 flagtree 不可用时才回退到 triton）。</em></p>
+### 切换编译器
+
+本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
 
 ## 启动
 

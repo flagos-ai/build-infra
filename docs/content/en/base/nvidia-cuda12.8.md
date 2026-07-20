@@ -1,7 +1,3 @@
----
-title: "nvidia-cuda12.8"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -17,6 +13,10 @@ title: "nvidia-cuda12.8"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+---
+title: "nvidia-cuda12.8"
+---
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -34,16 +34,16 @@ title: "nvidia-cuda12.8"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
 - `libelf1`
-- `libnuma1` — 2.0.18
-- `libpython3-dev` — 3.12.3
-- `make` — 4.3
+- `libnuma1`
+- `libpython3-dev`
+- `make`
 
 ### SDK components
 

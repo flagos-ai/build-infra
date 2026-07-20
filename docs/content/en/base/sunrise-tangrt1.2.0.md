@@ -1,7 +1,3 @@
----
-title: "sunrise-tangrt1.2.0"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -17,6 +13,10 @@ title: "sunrise-tangrt1.2.0"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+---
+title: "sunrise-tangrt1.2.0"
+---
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -33,13 +33,13 @@ title: "sunrise-tangrt1.2.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `pciutils` — 3.10.0
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `pciutils`
 
 ### SDK components
 

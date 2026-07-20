@@ -1,7 +1,3 @@
----
-title: "tsingmicro-tsm260604"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -17,6 +13,10 @@ title: "tsingmicro-tsm260604"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+---
+title: "tsingmicro-tsm260604"
+---
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -34,18 +34,18 @@ title: "tsingmicro-tsm260604"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `clang` — 14.0
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `libfmt-dev` — 8.1.1+ds1
-- `libopenmpi3` — 4.1.2
-- `libpython3-dev` — 3.10.6
-- `libunwind8` — 1.3.2
-- `sudo` — 1.9.9
+- `build-essential`
+- `ca-certificates`
+- `clang`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `libfmt-dev`
+- `libopenmpi3`
+- `libpython3-dev`
+- `libunwind8`
+- `sudo`
 
 ### SDK components
 

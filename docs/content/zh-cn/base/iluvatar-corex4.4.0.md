@@ -1,7 +1,3 @@
----
-title: "iluvatar-corex4.4.0"
----
-
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -17,6 +13,10 @@ title: "iluvatar-corex4.4.0"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+---
+title: "iluvatar-corex4.4.0"
+---
+
 ## 前置条件
 
 - **架构:** x86_64
@@ -34,12 +34,12 @@ title: "iluvatar-corex4.4.0"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `unzip` — 6.0
+- `build-essential`
+- `ca-certificates`
+- `curl`
+- `g++`
+- `gcc`
+- `unzip`
 
 ### SDK 组件
 

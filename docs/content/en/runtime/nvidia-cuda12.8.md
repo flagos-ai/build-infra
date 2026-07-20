@@ -17,6 +17,7 @@ title: "nvidia-cuda12.8"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -43,7 +44,9 @@ title: "nvidia-cuda12.8"
 - `torchvision==0.25.0+cu128`
 - <span class="muted"><code class="plain">triton==3.6.0</code></span>
 
-<p class="muted"><em>Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).</em></p>
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Environment
 

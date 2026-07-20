@@ -17,6 +17,7 @@ title: "ascend-cann8.5.0"
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 ## Prerequisites
 
 - **Architecture:** aarch64
@@ -42,7 +43,9 @@ title: "ascend-cann8.5.0"
 - `torch==2.9.0+cpu`
 - <span class="muted"><code class="plain">triton-ascend==3.2.0</code></span>
 
-<p class="muted"><em>Greyed = fallback compiler (flagtree is the default; triton is used only if flagtree is unavailable).</em></p>
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 
