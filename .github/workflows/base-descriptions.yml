@@ -67,6 +67,14 @@ jobs:
       - name: Harbor login (for image pull)
         env:
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+          # Harbor is internal — bypass any HTTP_PROXY/HTTPS_PROXY the runner
+          # may have set for GitHub access, otherwise docker login routes
+          # Harbor traffic through the proxy and fails.
+          # Only uppercase HTTP_PROXY/HTTPS_PROXY (lowercase clash with runner
+          # env vars set by the GitHub Actions runner config).
+          HTTP_PROXY: ""
+          HTTPS_PROXY: ""
+          no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
         run: |
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
           printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin

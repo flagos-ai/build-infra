@@ -51,6 +51,13 @@ jobs:
         if: ${{ inputs.push }}
         env:
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+          # Harbor is internal — bypass any HTTP_PROXY/HTTPS_PROXY the runner
+          # may have set for GitHub access.
+          # Only uppercase HTTP_PROXY/HTTPS_PROXY (lowercase clash with runner
+          # env vars set by the GitHub Actions runner config).
+          HTTP_PROXY: ""
+          HTTPS_PROXY: ""
+          no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
         run: |
           if [ -z "${HARBOR_PW:-}" ]; then
             echo "ERROR: secret HARBOR_AC_FLAGOS_BASE is empty or unset" >&2
