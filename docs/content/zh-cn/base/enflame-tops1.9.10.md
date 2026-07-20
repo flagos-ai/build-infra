@@ -1,3 +1,7 @@
+---
+title: "enflame-tops1.9.10"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,9 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "enflame-tops1.9.10"
----
 
 ## 前置条件
 

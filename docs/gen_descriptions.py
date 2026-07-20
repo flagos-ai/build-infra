@@ -297,9 +297,10 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
 
     # Hugo front matter — web flavor only.
     if web:
+        lines += ["---", f'title: "{name}"', "---", ""]
         # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
         lines += COPYRIGHT
-        lines += ["---", f'title: "{name}"', "---", ""]
+        _ = lines.append("")
 
     # ── Prerequisites (shared with runtime) ──
     lines += _prerequisites(entry, s, web)

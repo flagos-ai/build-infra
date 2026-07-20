@@ -1,3 +1,7 @@
+---
+title: "metax-maca3.7.2.1"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,9 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "metax-maca3.7.2.1"
----
 
 ## 前置条件
 

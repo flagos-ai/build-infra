@@ -1,3 +1,7 @@
+---
+title: "kunlunxin-xre5.29.0"
+---
+
 <!--
  Copyright 2026 FlagOS Contributors
 
@@ -13,9 +17,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
----
-title: "kunlunxin-xre5.29.0"
----
 
 ## 前置条件
 
