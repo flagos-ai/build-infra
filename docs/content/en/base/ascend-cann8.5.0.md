@@ -34,8 +34,8 @@ title: "ascend-cann8.5.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `ca-certificates`
-- `software-properties-common`
+- `ca-certificates` — 20260601~24.04.1
+- `software-properties-common` — 0.99.49.4
 
 ### SDK components
 

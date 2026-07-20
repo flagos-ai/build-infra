@@ -34,14 +34,14 @@ title: "kunlunxin-xre5.29.0"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential`
-- `ca-certificates`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
-- `kmod`
-- `pciutils`
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `kmod` — 31+20240202
+- `pciutils` — 3.10.0
 
 ### SDK 组件
 
