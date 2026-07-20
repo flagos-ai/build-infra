@@ -64,9 +64,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-        retry:
-          max_attempts: 3
-          delay: 30
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
@@ -82,12 +79,17 @@ jobs:
           HTTP_PROXY: ""
           HTTPS_PROXY: ""
           no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
-        retry:
-          max_attempts: 3
-          delay: 30
         run: |
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
-          printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying in 30s..."
+            sleep 30
+          done
+          echo "::warning::Harbor login failed after 3 attempts — skipping ${{ matrix.name }}"
+          exit 1
 
       - name: Verify base image (best-effort)
         continue-on-error: true
