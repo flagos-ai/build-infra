@@ -438,10 +438,25 @@ def main():
             versions = load_versions(versions_dir, name)
             for lang in LANGS:
                 print(render(backends[name], versions, lang, "web"))
-            print(render(backends[name], versions, "en", "plain"))
+            if versions_dir:
+                print(render(backends[name], versions, "en", "plain"))
             for lang in LANGS:
                 print(render_runtime(backends[name], lang, "web"))
-            print(render_runtime(backends[name], "en", "plain"))
+            if versions_dir:
+                print(render_runtime(backends[name], "en", "plain"))
+        return
+
+    # File output requires VERSIONS_DIR — without it, only package names
+    # (not versions) are emitted, which would silently overwrite versioned
+    # pages previously committed via the descriptions CI (see #151).
+    # Pass a backend name on the command line for a local stdout preview.
+    if not versions_dir:
+        print(
+            "No VERSIONS_DIR set — skipping file output.\n"
+            "Pass a backend name for a stdout preview, e.g.:\n"
+            "  python3 docs/gen_descriptions.py nvidia-cuda12.8",
+            file=sys.stderr,
+        )
         return
 
     # ── Base images ──────────────────────────────────────────────
@@ -457,7 +472,7 @@ def main():
             total += 1
         print(f"Wrote {len(backends)} {lang} base web pages to {out_dir}")
 
-    # Base plain flavor: base/<name>.md
+    # Base plain flavor: base/<name>.md (Harbor-bound)
     base_dir = root / "base"
     for name, entry in backends.items():
         md = render(entry, load_versions(versions_dir, name), "en", "plain")
@@ -475,7 +490,7 @@ def main():
             total += 1
         print(f"Wrote {len(backends)} {lang} runtime web pages to {out_dir}")
 
-    # Runtime plain flavor: runtime/<name>.md
+    # Runtime plain flavor: runtime/<name>.md (Harbor-bound)
     runtime_dir = root / "runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     for name, entry in backends.items():
