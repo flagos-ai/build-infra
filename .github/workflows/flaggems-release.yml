@@ -108,7 +108,8 @@ jobs:
         run: |
           vendor=$(echo "$BACKEND" | cut -d- -f1)
           bk=$(echo "$BACKEND" | cut -d- -f2-)
-          image="flagos-runtime-${vendor}-${bk}:latest"
+          reg=$(/tmp/ci-venv/bin/python -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
+          image="${reg}/flagos-runtime-${vendor}-${bk}:latest"
           /tmp/ci-venv/bin/python scripts/release_flaggems.py build-cpp "$BACKEND" \
             --ref "$FLAGGEMS_REF" --runtime-image "$image" --outdir wheels-cpp
 
