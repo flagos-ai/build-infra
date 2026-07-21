@@ -35,7 +35,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # clang is dendency from triton;
 # sudo is hardcoded dependency from TSM installers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl git ca-certificates \
+      curl git vim ca-certificates \
       gcc g++ build-essential cmake clang \
       libopenmpi3 sudo \
       libfmt-dev libunwind8 \

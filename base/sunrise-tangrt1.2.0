@@ -35,7 +35,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git ca-certificates curl \
+        git vim ca-certificates curl \
         gcc g++ build-essential cmake pciutils \
     && rm -rf /var/lib/apt/lists/*
 
