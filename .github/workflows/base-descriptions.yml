@@ -228,11 +228,12 @@ jobs:
           count="${{ steps.collect.outputs.count }}"
           label="${{ steps.collect.outputs.label }}"
 
-          VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
+          # Nuke any dirty state from the collect step (git add -f versions/
+          # polluted the index). Keep versions/ on disk — we need it for VERSIONS_DIR.
+          git reset --hard HEAD
+          git clean -fd -- versions-dl 2>/dev/null || true
 
-          # Clean up leftover staged versions/ from the collect step.
-          git reset HEAD versions/ 2>/dev/null || true
-          git checkout -- versions/ 2>/dev/null || true
+          VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
 
           git config user.name "flagos-ci"
           git config user.email "noreply@flagos.net"
