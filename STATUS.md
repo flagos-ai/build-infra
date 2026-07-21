@@ -78,4 +78,12 @@ done
 - [ ] 步骤 3 验证 base images + 生成描述 PR
 - [ ] 步骤 4 runtime:v1（之前只构建了 nvidia-cuda13.3，本次需全部 14 backend）
 - [ ] 步骤 5 cpp wheel 构建 — 4 轮调试已修了 ENTRYPOINT、文件挂载、镜像引用、git 自举等问题，实际 cpp 编译尚未跑通
-- [ ] **泛化自动重试机制** — `base-descriptions.yml` 的 accumulate 已有自触发重试模式（restore state branch → 合并 artifact → `missing_versions.py` 查漏 → `gh workflow run` 自触发，上限 50 次）。这个模式应该泛化到所有多 backend 工作流（`trigger.yml`、`runtime.yml`、`flaggems-release.yml`），避免个别 runner 失联导致发版卡住。核心组件：state branch 持久化、artifact 合并、缺失追踪、retry_count 计数参数
+- [ ] **泛化自动重试机制** — `base-descriptions.yml` 的 accumulate 已有自触发重试模式（restore state branch → 合并 artifact → `missing_versions.py` 查漏 → `gh workflow run` 自触发，上限 50 次）。应泛化到**所有多 backend 工作流**（`trigger.yml`、`runtime.yml`、`flaggems-release.yml`），避免个别 runner 因网络/GitHub 连接波动失联导致整个 release 卡住。
+
+  **需应对的失败场景**：
+  - 网络连接不稳定（无法访问 GitHub / resource.flagos.net）
+  - Harbor 连接偶尔超时
+  - runner 磁盘不足
+  - runner 离线
+
+  **不重试的场景**：代码/配置错误、SDK 安装失败、验证失败 — 这些需要人介入修复。
