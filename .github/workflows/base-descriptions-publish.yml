@@ -14,17 +14,23 @@
 
 name: Publish base descriptions to Harbor
 
-# Publication is gated on review+merge (Option B): when reviewed per-image
-# descriptions land on main (a base-descriptions PR merged), push them to the
-# Harbor repository descriptions. Nothing goes live until the version diff — the
-# checkpoint for catching a disruptive change (e.g. a toolchain gcc bump) — has
-# been reviewed and merged.
+# Publication is gated on review+merge: when reviewed per-image descriptions
+# land on main (a base-descriptions PR merged), push them to the Harbor repository.
+# Nothing goes live until the version diff — the checkpoint for catching
+# a disruptive change (e.g. a toolchain gcc bump) — has been reviewed and merged.
 
 on:
+  # This whenever the base image description is changed (usually a followup
+  # to the base image rebuild), the image repository description is supposed
+  # to be automatically updated.
   push:
     branches: [main]
     paths:
       - 'base/*.md'
+
+  # This is for the occasional github failure when the changes on 'base/*.md'
+  # files fail to trigger this workflow.
+  workflow_dispatch:
 
 defaults:
   run:
