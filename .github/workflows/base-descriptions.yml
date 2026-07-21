@@ -175,6 +175,8 @@ jobs:
           retry="${RETRY_COUNT:-0}"
           done="false"
 
+          # self-hosted runners have persistent workdirs — need a clean start.
+          rm -rf versions
           mkdir -p versions
           set +e   # GHA injects -e; undo it so we always reach the output lines
 
