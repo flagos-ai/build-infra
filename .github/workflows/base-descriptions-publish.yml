@@ -25,6 +25,7 @@ on:
     branches: [main]
     paths:
       - 'base/*.md'
+  workflow_dispatch:
 
 defaults:
   run:
