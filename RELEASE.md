@@ -19,8 +19,8 @@ version: "2.2.0"
 ```
 
 注意：
-- `flaggems` 此时留空，base image 构建不依赖 FlagGems 版本。
-- **此时不打 tag**。`version:` 只是声明"我们打算发布 `2.2.0`"；
+- `flaggems` 此时留空。
+- **此时不打 tag**。`version:` 只是声明"打算发布 `2.2.0`"；
   `scripts/version.py` 在 tag 不存在时返回纯版本号（不含 `-n`），
   构建不受影响。tag 在整个栈验证通过后才打。
 
@@ -34,63 +34,61 @@ GitHub Actions → **Base Image Build (manual)** → `backend: all`, `push: true
 
 ## 3. 验证 base images + 生成描述
 
-### 3a. 验证
+> 自愈合：触发一次 **Base image descriptions** 即可。extract 在 14 个硬件 runner
+> 上 verify → dpkg-query → artifact，accumulate（ubuntu-latest）收集全部后自动
+> 生成描述 PR。个别 runner 失联会自触发重试，全齐后开出 PR。
 
-构建完成的 base image 需要在有对应硬件的节点上逐一验证。
-
-1. 在目标硬件节点上 `docker pull` 对应 vendor 的 base image
-2. 运行 `build-config.yml` 中 `verify:` 定义的验证命令，确认加速器可见
-3. 如果验证失败，修复 Containerfile 后回到步骤 2 重建
-
-验证命令速查（详见 `build-config.yml` `verify.vendors`）：
-
-| Vendor | Verify 命令 |
-|---|---|
-| nvidia | `nvidia-smi` |
-| ascend | `source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info` |
-| metax | `mx-smi` |
-| cambricon | `cnmon` |
-| iluvatar | `ixsmi` |
-| hygon | `source /opt/hyhal/env.sh && hy-smi` |
-| kunlunxin | `xpu-smi` |
-| mthreads | `mthreads-gmi` |
-| enflame | `efsmi` |
-| sunrise | `pt_smi` |
-| tsingmicro | `tsm_smi` |
-
-### 3b. 生成描述
-
-验证通过后，触发 **Base image descriptions** workflow (dispatch)。验证节点上镜像已就绪，
-直接提取系统包版本并生成描述，打开 **review-gated PR**。
-
-Base image 线自此结束——后续不再修改 Containerfile。
-
-## 4. 审核描述 PR
-
-- [ ] 确认版本号正确
+- [ ] 确认所有 backend verify 通过（PR 合并前检查 run log 即可）
 - [ ] 系统包版本无意外大版本跳变（gcc、libc 等）
 - [ ] 所有 backend 的描述均已生成
 
-Merge PR。合并后 **base-descriptions-publish.yml** 自动将描述推到 Harbor。
+Merge PR。合并后 **base-descriptions-publish.yml** 和 **hugo-site.yaml** 自动
+将描述推到 Harbor 和文档站。
 
-## 5. FlagGems 打 tag + 构建纯 Python wheel
+## 4. 构建 runtime:v1（无 FlagGems，作构建平台）
+
+Runtime 镜像的 venv（torch / flagtree / triton）是构建 FlagGems cpp wheel
+的理想环境。先产出不含 FlagGems 的 runtime:v1 作为步骤 5 的构建平台。
+
+每个 backend 在自己的硬件 runner 上构建，**仅本地保存**（不推 Harbor）：
+
+```bash
+python3 scripts/build_runtime.py nvidia-cuda12.8 --no-flaggems
+```
+
+14 个 backend 全部成功后进入步骤 5。
+
+## 5. FlagGems 打 tag + 构建 wheels
 
 - [ ] 在 FlagGems 仓库打 release tag（如 `v5.3.1`）
 
-### 5a. 构建 + 推送 Python wheel
+### 5a. Python wheel → 所有 vendor PyPI
 
-使用 GitHub Actions → **FlagGems Release Wheels** → `flaggems_ref=v5.3.1`：
+GitHub Actions → **FlagGems Release Wheels** → `flaggems_ref=v5.3.1`：
+- `python-wheel` job（ubuntu-latest）：`pip wheel` → 纯 Python `py3-none-any.whl`
+- 推送到**所有 14 个** vendor PyPI
 
-1. 构建纯 Python wheel：`flag_gems-x.y.z-py3-none-any.whl`（不依赖 vendor SDK）
-2. 推送到**所有** vendor 的 PyPI：`flagos-pypi-<vendor>`
+### 5b. Cpp operator wheel → vendor PyPI（cmake_backend 后端）
 
-> **不再有独立的 5b 步骤。** cpp operator wheels 移到步骤 6 的
-> runtime builder 阶段 — runtime builder 的 venv 中 torch / flagtree /
-> triton / flag_gems base 已经就绪，编译 cpp wheel 只需追加 `pip wheel ./cpp`。
+`cpp-wheels` job 矩阵，每个 vendor 在自己的 runner 上，docker run 本地 runtime:v1：
+
+```bash
+docker run --rm -v $PWD:/out runtime:v1 bash -c "
+  git clone https://github.com/flagos-ai/FlagGems.git /tmp/src
+  cd /tmp/src && git checkout v5.3.1
+  tools/set_cpp_vendor.sh <vendor>
+  pip install setuptools scikit-build-core pybind11 cmake ninja
+  CMAKE_ARGS='-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND=CUDA ...' \
+    SETUPTOOLS_SCM_PRETEND_VERSION=5.3.1 \
+    pip wheel ./cpp --no-deps -w /out
+"
+```
+
+构建完成后 readelf 检查 .so 的 DT_NEEDED / rpath，然后推送到对应 vendor 的 PyPI。
 
 ### 5c. 回填版本号
 
-步骤 6 完成后，**更新 configs.yaml 中的 `flaggems` 字段**：
+步骤 5a/5b 完成后，**更新 configs.yaml 中的 `flaggems` 字段**：
 
 ```yaml
 flaggems: "5.3.1"
@@ -98,37 +96,17 @@ flaggems: "5.3.1"
 
 提交并 push。
 
-## 6. 构建 runtime images（含 cpp operator wheels）
+## 6. 构建 runtime:v2（含 FlagGems，推送 Harbor）
 
-### 6a. 确认依赖版本
+runtime:v2 在 runtime:v1 基础上安装 flag_gems + cpp wheel（来自 PyPI），
+推送到 Harbor 作为正式镜像。
 
-检查 `configs.yaml` 中所有 backend 的 `deps:` / `flagtree:` / `triton:` 版本是否为目标版本。
-`torch` 与 `flagtree`/`triton`、`torch` 与 `triton_post_install` 之间的版本匹配是高风险点——
-运行时会首次将这些包在同一 venv 中组装，兼容性问题在这里暴露。
-
-### 6b. CI 构建（Python wheel + cpp wheel + runtime image）
-
-GitHub Actions → **Runtime Image Build (manual)**：
-
+GitHub Actions → **Runtime Image Build (manual)**（正常触发，不传 `--no-flaggems`）：
 - `backend: all`
 - `push: true`
-- `flaggems: 5.3.1`（与 configs.yaml `flaggems` 字段一致）
+- `flaggems` 留空（读取 configs.yaml 中的 `5.3.1`）
 
-Runtime builder 在每个 vendor 的 self-hosted runner 上执行：
-
-1. 从 `flagos-pypi-<vendor>` 安装 torch / deps / flagtree / triton
-2. 从 `flagos-pypi-<vendor>` 安装 `flag_gems==5.3.1`（纯 Python wheel）
-3. **对 `cmake_backend` vendor**：checkout FlagGems @ `v5.3.1` →
-   `set_cpp_vendor.sh <v>` → `pip wheel ./cpp` → 装 cpp wheel →
-   readelf 检查 → 推 cpp wheel 到 `flagos-pypi-<vendor>`
-4. 组装 runtime 镜像（venv + compilers + flag_gems base + cpp）
-5. 推送 runtime 镜像到 Harbor
-
-> cpp operator wheel 不再单独构建——runtime builder 的 venv 中依赖
-> （torch / flagtree / triton）已经齐全，`pip wheel ./cpp` 是自然的一步。
-> 之前尝试在 base image 内临时装 torch 再编译，脆弱且重复。
-
-### 6c. 验证 runtime images（端到端）
+## 7. 验证 runtime v2（端到端）
 
 构建并推送到 Harbor 后，在有对应硬件的节点上：
 
@@ -136,41 +114,18 @@ Runtime builder 在每个 vendor 的 self-hosted runner 上执行：
 2. 运行 `python tools/run_tests.py` 确认端到端可用
 
 如果验证失败，根据错误类型回退：
+- **包版本不兼容**：调整 `configs.yaml` → 返回**步骤 4**
+- **FlagGems bug**：修补代码 → 重新打 tag → 返回**步骤 5**
 
-- **包版本不兼容**（`torch` / `flagtree` / `triton` 版本冲突）：调整 `configs.yaml` 中
-  对应 backend 的 `deps:` / `flagtree:` / `triton:` 版本，返回**步骤 6a**。
-- **FlagGems 本身存在 bug**：修补 FlagGems 代码 → 重新打 tag（如 `v5.4.1`）→ 返回
-  **步骤 5** 重新构建 wheels。
-
-> TODO: FlagGems 仓库的 `tools/run_tests.py` 脚本需要打包到 runtime 镜像中。
-> 测试文件和 benchmarks 已随 `flaggems_test` / `flaggems_benchmark` 路径安装，
-> 脚本到位后验证命令即统一为 `python tools/run_tests.py`，无需 per-vendor 定制。
-
-## 7. 更新 runtime 描述
-
-Runtime 验证通过后，`flaggems` 版本刚确定，需要刷一遍 runtime 页面的描述。
+## 8. 更新 runtime 描述
 
 触发 **Base image descriptions** workflow (dispatch)，重新运行 `gen_data.py` +
-`gen_descriptions.py`，生成 runtime 页面的最终版本（含 `flag_gems` 版本号等）。
-与步骤 3b/4 一样，打开 review-gated PR，审核后 merge。
-
-合并后 **hugo-site.yaml** 和 **base-descriptions-publish.yml** 自动触发：
-- 文档站部署到 `flagos-ai.github.io/release-info`
-- Runtime 描述推到 Harbor
-
-## 8. App 镜像（TODO）
-
-> 此步骤待 `app/` 构建系统落地后补全。App 镜像在 runtime 的基础上部署：
-> - vllm + vllm-plugin-FL（推理）
-> - sglang + sglang-plugin-FL（推理）
-> - Megatron-LM-FL + 依赖（训练）
->
-> 核心技术挑战：安装 vllm/sglang 等上层包时，必须确保不覆盖 runtime 层已锁定版本的
-> torch / flagtree / triton / flag_gems 等依赖。此项将单独设计。
+`gen_descriptions.py`，生成 runtime 页面最终版本（含 `flag_gems` 版本号）。
+打开 review-gated PR，审核后 merge。
 
 ## 9. 打 build-infra tag
 
-全部验证通过后，在此 commit 上打 tag：
+全部验证通过后：
 
 ```bash
 git checkout main && git pull
@@ -178,6 +133,5 @@ git tag -f v2.2.0 HEAD
 git push -f origin v2.2.0
 ```
 
-tag 的含义：**这个 commit 上的整套 FlagOS 软件栈（base images → FlagGems → runtime images）
-已经过验证，可以发布。** 之后如有 Containerfile 变更，`image_version()` 会从该 tag 开始自动
-产生 `2.2.0-1`、`2.2.0-2` ……
+tag 的含义：**这个 commit 上的整套 FlagOS 软件栈（base images → runtime:v1 →
+FlagGems → runtime:v2）已经过验证，可以发布。**

@@ -43,8 +43,9 @@ ARG TRITON_EXTRA_PKGS=""
 # FlagGems wheel version to pin (== exact). Set by build_runtime.py from
 # configs.yaml flaggems: or the --flaggems CLI override.
 ARG FLAGGEMS_VERSION=0.0.0
-# FlagGems git tag for cpp wheel build — e.g. "v5.3.1".  Empty skips cpp.
-ARG FLAGGEMS_REF=""
+# When non-empty, skip the flag_gems install entirely — produces the
+# build-platform image for step 5 (no flag_gems, just torch + deps + compilers).
+ARG NO_FLAGGEMS=""
 
 
 # ════════════════════════════════════════════════════════════════
@@ -63,7 +64,7 @@ ARG TRITON_PKG
 ARG TRITON_EXTRA_PKGS
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
-ARG FLAGGEMS_REF
+ARG NO_FLAGGEMS
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ── Install uv ────────────────────────────────────────────────
@@ -108,38 +109,22 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       fi; \
     fi
 
-# ── Install FlagGems base (Python-only wheel) ───────────────────
-RUN uv pip install --no-cache-dir --prerelease=allow \
-      --index-strategy unsafe-first-match \
-      --index ${FLAGOS_PYPI} \
-      --index ${DAILY_PYPI} \
-      --trusted-host resource.flagos.net \
-      "flag_gems==${FLAGGEMS_VERSION}"
+# ── FlagGems — skip when building the build-platform (runtime:v1).
 
-# ── Build + install cpp operator wheel (cmake_backend only) ────
-# Replaces the old step-5b: the venv already has torch / deps / compilers,
-# so cloning FlagGems and running pip wheel ./cpp here is a natural fit.
-# Produces flag-gems-cpp-<vendor>-*.whl, installs it, and saves a copy
-# to /app/cpp-wheels/ for the host-side upload step.
-ARG FLAGGEMS_REF
-RUN if [ -n "${CPP_EXTRA}" ] && [ -n "${FLAGGEMS_REF}" ]; then \
-      apt-get update -qq && apt-get install -y -qq git && \
-      vendor=$(echo ${CPP_EXTRA} | sed 's/^cpp-//'); \
-      git clone --quiet "https://github.com/flagos-ai/FlagGems.git" /tmp/FlagGems && \
-      cd /tmp/FlagGems && \
-      git fetch --quiet --tags origin tag "${FLAGGEMS_REF}" 2>/dev/null || \
-        git fetch --quiet --tags --force origin && \
-      git checkout --quiet --detach "${FLAGGEMS_REF}" && \
-      tools/set_cpp_vendor.sh "${vendor}" && \
-      pip install setuptools scikit-build-core pybind11 cmake ninja && \
-      SETUPTOOLS_SCM_PRETEND_VERSION="${FLAGGEMS_REF#v}" \
-        pip wheel ./cpp --no-deps -w /tmp/wheel-out && \
-      pip install --no-deps /tmp/wheel-out/*.whl && \
-      mkdir -p /app/cpp-wheels && \
-      cp /tmp/wheel-out/*.whl /app/cpp-wheels/ && \
-      rm -rf /tmp/FlagGems /tmp/wheel-out; \
-    fi && \
-    mkdir -p /app/cpp-wheels
+# When NO_FLAGGEMS is set: skip flag_gems entirely.  This produces a
+# runtime image that has torch + deps + compilers but no flag_gems —
+# the build platform for step 5 (cpp wheel compilation).
+ARG NO_FLAGGEMS
+RUN if [ -n "${NO_FLAGGEMS}" ]; then \
+      echo "NO_FLAGGEMS: skipping flag_gems install"; \
+    else \
+      uv pip install --no-cache-dir --prerelease=allow \
+        --index-strategy unsafe-first-match \
+        --index ${FLAGOS_PYPI} \
+        --index ${DAILY_PYPI} \
+        --trusted-host resource.flagos.net \
+        "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"; \
+    fi
 
 # ── Tests — deferred (image not finalized) ────────────────────
 # Tests are NOT shipped yet: FlagGems' [test] extra installs only frameworks,

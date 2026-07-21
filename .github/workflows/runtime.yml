@@ -33,6 +33,10 @@ on:
         description: 'FlagGems wheel version to install (e.g. 5.4.0.dev601+g03122362d)'
         type: string
         default: ''
+      no_flaggems:
+        description: 'skip flag_gems install — produce build-platform image (step 4)'
+        type: boolean
+        default: false
 
 jobs:
   set-matrix:
@@ -104,6 +108,10 @@ jobs:
           if [[ "${{ inputs.push }}" == "true" ]]; then
             push_flag="--push"
           fi
+          no_flag=""
+          if [[ "${{ inputs.no_flaggems }}" == "true" ]]; then
+            no_flag="--no-flaggems"
+          fi
           python3 scripts/build_runtime.py "${{ matrix.name }}" \
             --flaggems "${{ inputs.flaggems }}" \
-            ${push_flag}
+            ${push_flag} ${no_flag}
