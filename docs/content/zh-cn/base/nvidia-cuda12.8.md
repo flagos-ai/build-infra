@@ -35,16 +35,16 @@ title: "nvidia-cuda12.8"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential`
-- `ca-certificates`
-- `cmake`
-- `curl`
-- `g++`
-- `gcc`
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
 - `libelf1`
-- `libnuma1`
-- `libpython3-dev`
-- `make`
+- `libnuma1` — 2.0.18
+- `libpython3-dev` — 3.12.3
+- `make` — 4.3
 
 ### SDK 组件
 
