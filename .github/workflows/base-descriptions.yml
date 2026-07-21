@@ -178,8 +178,8 @@ jobs:
           mkdir -p versions
           set +e   # GHA injects -e; undo it so we always reach the output lines
 
-          # --- restore state branch ---
-          if git ls-remote --exit-code origin "refs/heads/${state_branch}" 2>/dev/null; then
+          # --- restore state branch (skip on retry=0 — fresh run) ---
+          if [ "$retry" != "0" ] && git ls-remote --exit-code origin "refs/heads/${state_branch}" 2>/dev/null; then
             git fetch origin "${state_branch}" 2>/dev/null
             git archive "origin/${state_branch}" versions/ 2>/dev/null | tar xf - -C . 2>/dev/null || true
           fi
