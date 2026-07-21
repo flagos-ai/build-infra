@@ -24,6 +24,11 @@
 
 set -euo pipefail
 
+# ── self-bootstrap git (base images are rebuilt infrequently) ──
+if ! command -v git >/dev/null 2>&1; then
+  apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates
+fi
+
 OUTDIR="${OUTDIR:-/tmp/wheel-out}"
 FLAGGEMS_REPO="${FLAGGEMS_REPO:-https://github.com/flagos-ai/FlagGems.git}"
 
