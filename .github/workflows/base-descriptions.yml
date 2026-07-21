@@ -131,7 +131,7 @@ jobs:
   accumulate:
     needs: [set-matrix, extract]
     if: always() && needs.set-matrix.result == 'success'
-    runs-on: [self-hosted, h20]
+    runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
       RETRY_COUNT: ${{ github.event.inputs.retry_count || 0 }}
@@ -145,10 +145,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Install PyYAML
-        run: |
-          python3 -c "import yaml" 2>/dev/null \
-            || python3 -m pip install --user --break-system-packages pyyaml
+      - run: python3 -m pip install --user pyyaml
 
       - name: Download version artifacts (this run)
         continue-on-error: true
@@ -158,13 +155,11 @@ jobs:
           pattern: versions-*
           merge-multiple: false
 
-      # Collect TSVs, save state, decide. Always exits 0 — the next step acts.
-      # GHA injects `bash -e -o pipefail` so every command after a failure
-      # would be unreachable.  Wrap everything so a non-zero here can never
-      # prevent the self-trigger from running.
+      # collect: restore state → merge artifacts → check gaps → save state.
+      # Always exits 0 — the next step (Finalize or Retry) acts on the
+      # done/missing outputs.
       - id: collect
         env:
-          no_proxy: "api.github.com,.github.com,github.com"
           GIT_AUTHOR_NAME: flagos-ci
           GIT_AUTHOR_EMAIL: noreply@flagos.net
           GIT_COMMITTER_NAME: flagos-ci
@@ -175,8 +170,6 @@ jobs:
           retry="${RETRY_COUNT:-0}"
           done="false"
 
-          # self-hosted runners have persistent workdirs — need a clean start.
-          rm -rf versions
           mkdir -p versions
           set +e   # GHA injects -e; undo it so we always reach the output lines
 
@@ -223,8 +216,6 @@ jobs:
 
       - name: Finalize (descriptions + PR) or retry
         if: always() && steps.collect.outputs.done == 'true'
-        env:
-          no_proxy: "api.github.com,.github.com,github.com"
         run: |
           set +e
           count="${{ steps.collect.outputs.count }}"
