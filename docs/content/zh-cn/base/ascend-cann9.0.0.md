@@ -35,8 +35,8 @@ title: "ascend-cann9.0.0"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `ca-certificates`
-- `software-properties-common`
+- `ca-certificates` — 20260601~24.04.1
+- `software-properties-common` — 0.99.49.4
 
 ### SDK 组件
 
