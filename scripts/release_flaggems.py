@@ -31,10 +31,9 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import yaml
@@ -105,19 +104,39 @@ def cmd_build_python(args: argparse.Namespace) -> str:
 
 
 def cmd_upload_python(args: argparse.Namespace) -> None:
-    """Push the same py3-none-any wheel to every vendor PyPI."""
+    """Push the same py3-none-any wheel to every vendor PyPI in parallel."""
     cfg = _load_configs()
     urls = _pypi_urls(cfg)
     wheel = Path(args.wheel)
 
-    for vendor, url in sorted(urls.items()):
-        print(f">>> uploading to {vendor}: {url}")
-        if args.dry_run:
-            print(f"    [dry-run] would upload {wheel.name} to {url}")
-            continue
-        _twine_upload(wheel, url)
+    if args.dry_run:
+        for vendor, url in sorted(urls.items()):
+            print(f"[dry-run] would upload {wheel.name} to {vendor}: {url}")
+        return
 
-    print(f"Uploaded to {len(urls)} vendor PyPIs.")
+    token = os.environ.get("NEXUS_TOKEN", "")
+    if not token:
+        sys.exit("ERROR: NEXUS_TOKEN env var is empty or unset")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {
+            pool.submit(_twine_upload, wheel, url): vendor
+            for vendor, url in urls.items()
+        }
+        ok, fail = 0, 0
+        for f in as_completed(futures):
+            vendor = futures[f]
+            try:
+                f.result()
+                print(f"  OK  {vendor}")
+                ok += 1
+            except Exception as exc:
+                print(f"  FAIL {vendor}: {exc}")
+                fail += 1
+
+    print(f"Uploaded to {ok}/{len(urls)} vendor PyPIs (errors: {fail}).")
+    if fail:
+        sys.exit(1)
 
 
 # ── build-cpp ─────────────────────────────────────────────────────────────────
