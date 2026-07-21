@@ -73,40 +73,32 @@ Base image 线自此结束——后续不再修改 Containerfile。
 
 Merge PR。合并后 **base-descriptions-publish.yml** 自动将描述推到 Harbor。
 
-## 5. FlagGems 打 tag + 构建 release wheels
+## 5. FlagGems 打 tag + 构建纯 Python wheel
 
-### 5a. 构建 Python wheel
+- [ ] 在 FlagGems 仓库打 release tag（如 `v5.3.1`）
 
-1. 在 FlagGems 仓库打 release tag（如 `v5.4.0`）
-2. 使用该 tag 构建纯 Python wheel：`flag_gems-x.y.z-py3-none-any.whl`
-   — 不依赖 vendor SDK，任意环境可构建
-3. 验证：`pip install flag_gems==5.4.0 && python -c "import flag_gems"`，确认包无损坏
-4. 将 Python wheel 推送到**所有** vendor 的 PyPI：`flagos-pypi-<vendor>`
+### 5a. 构建 + 推送 Python wheel
 
-### 5b. 构建 cpp operator wheels
+使用 GitHub Actions → **FlagGems Release Wheels** → `flaggems_ref=v5.3.1`：
 
-对每个有 `cmake_backend` 的 vendor（nvidia / ascend / mthreads / enflame / iluvatar），
-使用该 vendor 的 base image 构建 `flag_gems_cpp_<vendor>-x.y.z-*.whl`。
+1. 构建纯 Python wheel：`flag_gems-x.y.z-py3-none-any.whl`（不依赖 vendor SDK）
+2. 推送到**所有** vendor 的 PyPI：`flagos-pypi-<vendor>`
 
-构建完成后，在同一 base image 中验证 cpp 算子可用：
-`pip install flag_gems[cpp-<vendor>]==5.4.0 && python -c "import flag_gems; flag_gems.test_cpp_extension()"`，
-确认至少一个 C++ 算子可正常调用并返回正确结果。
-
-验证通过后推送到对应的 `flagos-pypi-<vendor>`。
-
-没有 `cmake_backend` 的 vendor 跳过此步骤，其 runtime image 使用 5a 推送的 Python wheel。
+> **不再有独立的 5b 步骤。** cpp operator wheels 移到步骤 6 的
+> runtime builder 阶段 — runtime builder 的 venv 中 torch / flagtree /
+> triton / flag_gems base 已经就绪，编译 cpp wheel 只需追加 `pip wheel ./cpp`。
 
 ### 5c. 回填版本号
 
-构建完成后，**更新 configs.yaml 中的 `flaggems` 字段**：
+步骤 6 完成后，**更新 configs.yaml 中的 `flaggems` 字段**：
 
 ```yaml
-flaggems: "5.4.0"
+flaggems: "5.3.1"
 ```
 
 提交并 push。
 
-## 6. 构建 runtime images
+## 6. 构建 runtime images（含 cpp operator wheels）
 
 ### 6a. 确认依赖版本
 
@@ -114,17 +106,29 @@ flaggems: "5.4.0"
 `torch` 与 `flagtree`/`triton`、`torch` 与 `triton_post_install` 之间的版本匹配是高风险点——
 运行时会首次将这些包在同一 venv 中组装，兼容性问题在这里暴露。
 
-### 6b. CI 构建
+### 6b. CI 构建（Python wheel + cpp wheel + runtime image）
 
 GitHub Actions → **Runtime Image Build (manual)**：
 
 - `backend: all`
 - `push: true`
-- `flaggems: 5.4.0`（与 `configs.yaml` 一致，留空则使用 `configs.yaml` 值）
+- `flaggems: 5.3.1`（与 configs.yaml `flaggems` 字段一致）
 
-Runtime image 从 `flagos-pypi-<vendor>` 安装步骤 5 推送的 release wheel。
+Runtime builder 在每个 vendor 的 self-hosted runner 上执行：
 
-### 6c. 验证 runtime images
+1. 从 `flagos-pypi-<vendor>` 安装 torch / deps / flagtree / triton
+2. 从 `flagos-pypi-<vendor>` 安装 `flag_gems==5.3.1`（纯 Python wheel）
+3. **对 `cmake_backend` vendor**：checkout FlagGems @ `v5.3.1` →
+   `set_cpp_vendor.sh <v>` → `pip wheel ./cpp` → 装 cpp wheel →
+   readelf 检查 → 推 cpp wheel 到 `flagos-pypi-<vendor>`
+4. 组装 runtime 镜像（venv + compilers + flag_gems base + cpp）
+5. 推送 runtime 镜像到 Harbor
+
+> cpp operator wheel 不再单独构建——runtime builder 的 venv 中依赖
+> （torch / flagtree / triton）已经齐全，`pip wheel ./cpp` 是自然的一步。
+> 之前尝试在 base image 内临时装 torch 再编译，脆弱且重复。
+
+### 6c. 验证 runtime images（端到端）
 
 构建并推送到 Harbor 后，在有对应硬件的节点上：
 
