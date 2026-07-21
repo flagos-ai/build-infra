@@ -47,7 +47,16 @@ gh workflow run "Base Image Build (manual)" -f backend="all" -f push="true"
 
 **修复**：已 push 到 main（commit `0e0ce8a`），改用 `df --output=avail | tail -1`。
 
-**后续操作**：等当前 run 结束后，对这 4 个 backend 重新触发 base image build。
+**后续操作**：
+1. 当前正在跑的 job **不要动**，让它们继续
+2. 已成功的 **不重复触发**
+3. 等 run 结束后，只对 4 个因 locale bug 失败的 backend **单独补跑**：
+
+```bash
+for b in hygon-dtk26.04 iluvatar-corex4.4.0 sunrise-tangrt1.2.0 tsingmicro-tsm260604; do
+  gh workflow run "Base Image Build (manual)" -f backend="$b" -f push="true"
+done
+```
 
 ## 本次 release 周期的代码变更（v2.1.1 之后，已在 HEAD）
 
