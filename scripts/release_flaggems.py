@@ -181,12 +181,14 @@ def cmd_build_cpp(args: argparse.Namespace) -> str:
     outdir = args.outdir or str(ROOT / "wheels-cpp")
     os.makedirs(outdir, exist_ok=True)
 
-    # Build the list of torch-family deps needed at cmake-configure time.
+    # Build the list of torch-family deps and resolve the cpp wheel version.
     pypi_url = cfg.get("pypi_base", "").format(vendor=vendor)
     torch_deps = " ".join(d for d in (specs.get("deps") or []) if d.startswith("torch"))
     torch_install = ""
     if torch_deps:
         torch_install = f"python3 -m pip install --index-url \"{pypi_url}\" {torch_deps}"
+    # setuptools_scm version from tag — "v5.3.1" -> "5.3.1"
+    pretend = args.ref.lstrip("v")
 
     # Run everything inside docker to use the vendor's toolchain.
     script = f"""
@@ -198,8 +200,9 @@ git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
   sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
   sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems
 cd /tmp/FlagGems
-git fetch --quiet --tags --force origin || true
-git checkout --quiet "{args.ref}"
+git fetch --quiet --tags --depth=1 origin tag "{args.ref}" || \
+  git fetch --quiet --tags --force origin
+git checkout --quiet --detach "{args.ref}"
 echo "FlagGems @ $(git describe --tags 2>/dev/null || echo '{args.ref}')"
 
 tools/set_cpp_vendor.sh {v}
@@ -214,6 +217,7 @@ python3 -m pip install \
 # pip wheel outside the source tree so setuptools_scm doesn't see a dirty repo.
 mkdir -p /tmp/wheel-out
 export CMAKE_ARGS="-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND={cmake_backend} -DCMAKE_BUILD_TYPE=Release"
+export SETUPTOOLS_SCM_PRETEND_VERSION="{pretend}"
 python3 -m pip wheel ./cpp --no-deps --no-build-isolation -w /tmp/wheel-out
 
 # --- .so checks: catch rpath / DT_NEEDED issues early ---
