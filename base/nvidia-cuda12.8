@@ -30,7 +30,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # base dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      curl ca-certificates libnuma1 libelf1 \
+      curl git ca-certificates libnuma1 libelf1 \
       gcc g++ cmake make build-essential libpython3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

@@ -34,7 +34,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl ca-certificates \
+        curl git ca-certificates \
         gcc g++ build-essential cmake \
         libelf1 libnuma-dev libgfortran5 libpython3-dev \
         libopenmpi-dev openmpi-bin \

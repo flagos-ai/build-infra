@@ -31,7 +31,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl unzip ca-certificates \
+        curl unzip git ca-certificates \
         build-essential gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 

@@ -24,11 +24,6 @@
 
 set -euo pipefail
 
-# ── self-bootstrap: runtime:v1 may not ship git ─────────────────
-if ! command -v git >/dev/null 2>&1; then
-  apt-get update -qq && apt-get install -y -qq --no-install-recommends git
-fi
-
 OUTDIR="${OUTDIR:-/tmp/wheel-out}"
 FLAGGEMS_REPO="${FLAGGEMS_REPO:-https://github.com/flagos-ai/FlagGems.git}"
 

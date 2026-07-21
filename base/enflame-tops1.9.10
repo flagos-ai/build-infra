@@ -29,7 +29,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl ca-certificates \
+        curl git ca-certificates \
         gcc g++ build-essential cmake \
     && rm -rf /var/lib/apt/lists/*
 
