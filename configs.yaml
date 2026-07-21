@@ -67,6 +67,17 @@
 version: "2.1.1"
 flaggems: "5.3.1"
 
+# Versions of build tools needed to compile the cpp operator wheel inside the
+# runtime:v1 container.  Pinned so a future pip install won't silently pull an
+# incompatible release.
+flaggems_cpp_build_deps:
+  - "setuptools>=64.0,<77"
+  - "setuptools-scm>=8,<10"
+  - "scikit-build-core==0.12.2"
+  - "pybind11==3.0.3"
+  - "cmake>=3.20,<4"
+  - "ninja==1.13.0"
+
 base_image_prefix: "flagos-base"
 
 pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"

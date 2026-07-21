@@ -14,12 +14,13 @@
 
 name: FlagGems Release Wheels
 
-# RELEASE.md steps 5a + 5c:
-#   5a — Build the pure-Python flag_gems wheel + push to every vendor PyPI.
+# RELEASE.md step 5:
+#   5a — Build the pure-Python flag_gems wheel → push to every vendor PyPI.
+#   5b — Build cpp operator wheels inside runtime:v1 (local, from step 4).
 #   5c — Write flaggems: into configs.yaml, commit, open a PR.
 #
-# Step 5b (cpp operator wheels) has moved into the runtime builder stage
-# (runtime/Containerfile + scripts/build_runtime.py).
+# Prerequisites: step 4 must have completed — runtime:v1 images (built with
+# --no-flaggems) must be present on each vendor's self-hosted runner.
 
 on:
   workflow_dispatch:
@@ -40,7 +41,11 @@ defaults:
 jobs:
   # ── 5a: pure-Python wheel, all vendor PyPIs ──────────────────────────────
   python-wheel:
-    runs-on: ubuntu-latest
+    # Self-hosted runner for fast upload — pushing a 5.4 MB wheel to 14
+    # vendor Nexus repositories over the public internet (GitHub runner) has
+    # been observed at ~60 kB/s. An internal self-hosted runner saturates
+    # the link in seconds. The build itself is pure Python and runs anywhere.
+    runs-on: [self-hosted, h20]
     env:
       FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
       NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
@@ -48,16 +53,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Install PyYAML
-        run: python3 -m pip install --user pyyaml
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
       - name: Build wheel
         run: python3 scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
       - name: Upload to all vendor PyPIs
         run: |
-          python3 -m pip install --quiet twine
+          python3 -m pip install --user --break-system-packages --quiet twine 2>/dev/null || \
+            python3 -m pip install --user --quiet twine
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-python "$wheel"
       - uses: actions/upload-artifact@v7
@@ -65,9 +70,67 @@ jobs:
           name: flag_gems-wheel
           path: wheels/flag_gems-*.whl
 
+  # ── 5b: cpp operator wheels, inside runtime:v1 ───────────────────────────
+  cpp-matrix:
+    needs: python-wheel
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: python3 -m pip install --user pyyaml
+      - id: m
+        run: |
+          python3 scripts/cpp_matrix.py > matrix.json
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  cpp-wheels:
+    needs: [python-wheel, cpp-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.cpp-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
+      BACKEND: ${{ matrix.name }}
+      NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Build cpp wheel inside runtime:v1
+        run: |
+          vendor=$(echo "$BACKEND" | cut -d- -f1)
+          bk=$(echo "$BACKEND" | cut -d- -f2-)
+          image="flagos-runtime-${vendor}-${bk}:latest"
+          python3 scripts/release_flaggems.py build-cpp "$BACKEND" \
+            --ref "$FLAGGEMS_REF" --runtime-image "$image" --outdir wheels-cpp
+
+      - name: Upload cpp wheel to vendor PyPI
+        run: |
+          python3 -m pip install --break-system-packages --quiet twine 2>/dev/null || \
+            python3 -m pip install --break-system-packages --user --quiet twine 2>/dev/null || \
+            python3 -m pip install --user --quiet twine
+          wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
+          python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flag_gems_cpp_${{ matrix.name }}-wheel
+          path: wheels-cpp/flag_gems_cpp_*.whl
+
   # ── 5c: update configs.yaml ──────────────────────────────────────────────
   update-config:
-    needs: python-wheel
+    needs: [python-wheel, cpp-wheels]
+    if: always() && needs.python-wheel.result == 'success' && needs.cpp-wheels.result == 'success'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}

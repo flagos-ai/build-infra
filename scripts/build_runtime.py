@@ -27,11 +27,11 @@ Examples:
     python scripts/build_runtime.py nvidia-cuda12.8 --dry-run
     python scripts/build_runtime.py ascend-cann9.0.0 --tag latest
     python scripts/build_runtime.py metax --push
-    python scripts/build_runtime.py nvidia-cuda12.8 --flaggems 5.4.0.dev601+g03122362d   # override
+    python scripts/build_runtime.py nvidia-cuda12.8 --flaggems 5.4.0.dev601+g03122362d
+    python scripts/build_runtime.py nvidia-cuda12.8 --no-flaggems   # build-platform (step 4)
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -213,31 +213,6 @@ def resolve_build_args(
     return args
 
 
-def _upload_cpp_wheel(vendor: str, wheel: Path, configs: dict, repo_root: Path) -> None:
-    """Upload a cpp wheel to the vendor's PyPI via twine."""
-    token = os.environ.get("NEXUS_TOKEN", "")
-    if not token:
-        print(f"  skip cpp upload for {vendor}: NEXUS_TOKEN not set", file=sys.stderr)
-        return
-    user, _, pw = token.partition(":")
-    env = os.environ.copy()
-    env["TWINE_USERNAME"] = user
-    env["TWINE_PASSWORD"] = pw
-    pypi_base = configs.get("pypi_base", "")
-    upload_url = pypi_base.format(vendor=vendor).rstrip("/").removesuffix("/simple")
-    print(f"  uploading {wheel.name} to {upload_url} ...")
-    subprocess.run(
-        [
-            sys.executable, "-m", "twine", "upload",
-            "--repository-url", f"{upload_url}/",
-            "--non-interactive",
-            str(wheel),
-        ],
-        check=True, env=env,
-    )
-    print(f"  cpp wheel uploaded to {vendor}")
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Build FlagGems runtime container images",
@@ -252,6 +227,11 @@ def main():
         "--flaggems",
         default="",
         help="FlagGems wheel version override (default: from configs.yaml)",
+    )
+    parser.add_argument(
+        "--no-flaggems",
+        action="store_true",
+        help="Skip flag_gems install — produce the build-platform image (step 4)",
     )
     parser.add_argument("--base-image", help="Override base image")
     parser.add_argument("--extra-pypi", help="Override extra PyPI mirror URL")
@@ -299,11 +279,7 @@ def main():
         include_tests_override=args.include_tests,
     )
     build_args["FLAGGEMS_VERSION"] = args.flaggems or configs.get("flaggems", "")
-
-    # cpp wheel build: derive FlagGems git ref from version ("5.3.1" → "v5.3.1")
-    flaggems_ver = build_args["FLAGGEMS_VERSION"]
-    flaggems_ref = f"v{flaggems_ver}" if flaggems_ver and not flaggems_ver.startswith("v") else flaggems_ver
-    build_args["FLAGGEMS_REF"] = flaggems_ref if build_args.get("CPP_EXTRA") else ""
+    build_args["NO_FLAGGEMS"] = "1" if args.no_flaggems else ""
 
     image_name = f"flagos-runtime-{vendor}-{backend}"
 
@@ -336,24 +312,6 @@ def main():
     result = subprocess.run(cmd)
     if result.returncode != 0:
         sys.exit(f"docker build failed with exit code {result.returncode}")
-
-    # ── cpp wheel: upload to vendor PyPI ──────────────────────────
-    cpp_extra = build_args.get("CPP_EXTRA", "")
-    if cpp_extra and args.push:
-        cpp_dir = Path(f"wheels-cpp-{backend}")
-        container_id = subprocess.run(
-            ["docker", "create", tag], capture_output=True, text=True, check=True
-        ).stdout.strip()
-        try:
-            cpp_dir.mkdir(exist_ok=True)
-            subprocess.run(
-                ["docker", "cp", f"{container_id}:/app/cpp-wheels/.", str(cpp_dir)],
-                check=True,
-            )
-            for wheel in sorted(cpp_dir.glob("flag_gems_cpp_*.whl")):
-                _upload_cpp_wheel(vendor, wheel, configs, repo_root)
-        finally:
-            subprocess.run(["docker", "rm", container_id], capture_output=True)
 
     if args.push:
         print(f"Pushing {tag}...")

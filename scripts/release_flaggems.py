@@ -14,16 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Release FlagGems wheels — RELEASE.md steps 5a + 5c.
+"""Release FlagGems wheels — RELEASE.md steps 5a + 5b.
 
 Usage::
 
     python3 scripts/release_flaggems.py build-python --ref v5.3.1 [--outdir DIR]
     python3 scripts/release_flaggems.py upload-python WHEEL [--dry-run]
-    python3 scripts/release_flaggems.py update-config VERSION
+    python3 scripts/release_flaggems.py build-cpp BACKEND --ref v5.3.1 --runtime-image IMG [--outdir DIR]
+    python3 scripts/release_flaggems.py upload-cpp BACKEND WHEEL [--dry-run]
 
-Cpp operator wheels are built inside the runtime builder stage
-(see runtime/Containerfile and scripts/build_runtime.py).
+Cpp wheel build runs inside the runtime:v1 container (built in step 4
+with --no-flaggems) — its venv already has torch + deps + compilers,
+so ``pip wheel ./cpp`` just works.
 
 The NEXUS_TOKEN env var is required for upload commands (``user:token``).
 """
@@ -147,6 +149,82 @@ def _twine_upload(wheel: Path, repo_url: str) -> None:
     )
 
 
+# ── build-cpp ─────────────────────────────────────────────────────────────────
+
+VENDOR_MAP: dict[str, str] = {
+    "CUDA": "cuda",
+    "NPU": "npu",
+    "GCU": "gcu",
+    "IX": "ix",
+    "MUSA": "musa",
+}
+
+
+def cmd_build_cpp(args: argparse.Namespace) -> str:
+    """Build a cpp operator wheel inside runtime:v1.  Returns wheel path."""
+    cfg = _load_configs()
+    vendor, bk = args.backend.split("-", 1)
+    specs = (cfg.get("vendors") or {}).get(vendor, {}).get(bk)
+    if not specs:
+        sys.exit(f"Error: backend '{args.backend}' not in configs.yaml")
+    cmake_backend = specs.get("cmake_backend")
+    if not cmake_backend:
+        sys.exit(f"Error: backend '{args.backend}' has no cmake_backend")
+    v = VENDOR_MAP.get(cmake_backend)
+    if not v:
+        sys.exit(f"Error: unknown cmake_backend '{cmake_backend}'")
+
+    # Build deps from configs.yaml (pinned so the build is reproducible).
+    build_deps = " ".join(cfg.get("flaggems_cpp_build_deps", []))
+
+    outdir = args.outdir or str(ROOT / "wheels-cpp")
+    os.makedirs(outdir, exist_ok=True)
+    host_out = os.path.abspath(outdir)
+
+    script_path = str(ROOT / "scripts" / "build_cpp_wheel.sh")
+
+    print(f"Building cpp wheel for {args.backend} ({v}) inside {args.runtime_image} ...")
+    subprocess.run(
+        [
+            "docker", "run", "--rm",
+            "-v", f"{host_out}:/tmp/wheel-out",
+            "-v", f"{script_path}:/tmp/build_cpp_wheel.sh:ro",
+            "-e", f'FLAGGEMS_REF={args.ref}',
+            "-e", f'FLAGGEMS_CPP_VENDOR={v}',
+            "-e", f'FLAGGEMS_CMAKE_ARGS=-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND={cmake_backend} -DCMAKE_BUILD_TYPE=Release',
+            "-e", f'SETUPTOOLS_SCM_PRETEND_VERSION={args.ref.lstrip("v")}',
+            "-e", f'FLAGGEMS_BUILD_DEPS={build_deps}',
+            args.runtime_image,
+            "bash", "/tmp/build_cpp_wheel.sh",
+        ],
+        check=True,
+    )
+    wheels = sorted(Path(outdir).glob("flag_gems_cpp_*.whl"))
+    if not wheels:
+        sys.exit("ERROR: no cpp wheel produced")
+    print(f"Wheel: {wheels[-1]}")
+    return str(wheels[-1])
+
+
+# ── upload-cpp ───────────────────────────────────────────────────────────────
+
+
+def cmd_upload_cpp(args: argparse.Namespace) -> None:
+    """Push a cpp wheel to its vendor's PyPI."""
+    cfg = _load_configs()
+    vendor = args.backend.split("-", 1)[0]
+    url = _pypi_urls(cfg).get(vendor)
+    if not url:
+        sys.exit(f"Error: vendor '{vendor}' has no PyPI URL")
+    wheel = Path(args.wheel)
+    print(f">>> uploading to {vendor}: {url}")
+    if args.dry_run:
+        print(f"    [dry-run] would upload {wheel.name} to {url}")
+        return
+    _twine_upload(wheel, url)
+    print(f"Uploaded to {vendor}.")
+
+
 # ── update-config ────────────────────────────────────────────────────────────
 
 
@@ -221,6 +299,22 @@ def main() -> None:
     up.add_argument("wheel", help="Path to flag_gems-*.whl")
     up.add_argument("--dry-run", action="store_true", help="Print without uploading")
     up.set_defaults(func=lambda a: cmd_upload_python(a))
+
+    # build-cpp
+    bc = subs.add_parser("build-cpp", help="Build cpp wheel inside runtime:v1")
+    bc.add_argument("backend", help="Backend name, e.g. nvidia-cuda12.8")
+    bc.add_argument("--ref", required=True, help="FlagGems git tag/ref")
+    bc.add_argument("--runtime-image", required=True,
+                    help="runtime:v1 image ref (built with --no-flaggems in step 4)")
+    bc.add_argument("--outdir", help="Output directory for the cpp wheel")
+    bc.set_defaults(func=lambda a: cmd_build_cpp(a))
+
+    # upload-cpp
+    uc = subs.add_parser("upload-cpp", help="Upload cpp wheel to vendor PyPI")
+    uc.add_argument("backend", help="Backend name, e.g. nvidia-cuda12.8")
+    uc.add_argument("wheel", help="Path to flag_gems_cpp_*.whl")
+    uc.add_argument("--dry-run", action="store_true", help="Print without uploading")
+    uc.set_defaults(func=lambda a: cmd_upload_cpp(a))
 
     # update-config
     ug = subs.add_parser("update-config", help="Set flaggems version + open PR")
