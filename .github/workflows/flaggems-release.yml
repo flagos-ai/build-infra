@@ -53,18 +53,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Install PyYAML
+      - name: Setup Python (isolated venv)
         run: |
-          python3 -c "import yaml" 2>/dev/null \
-            || python3 -m pip install --user --break-system-packages pyyaml
+          python3 -m venv /tmp/ci-venv
+          /tmp/ci-venv/bin/pip install --quiet pyyaml twine
       - name: Build wheel
-        run: python3 scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
+        run: /tmp/ci-venv/bin/python scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
       - name: Upload to all vendor PyPIs
         run: |
-          python3 -m pip install --user --break-system-packages --quiet twine 2>/dev/null || \
-            python3 -m pip install --user --quiet twine
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
-          python3 scripts/release_flaggems.py upload-python "$wheel"
+          /tmp/ci-venv/bin/python scripts/release_flaggems.py upload-python "$wheel"
       - uses: actions/upload-artifact@v7
         with:
           name: flag_gems-wheel
@@ -101,26 +99,23 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Install PyYAML
+      - name: Setup Python (isolated venv)
         run: |
-          python3 -c "import yaml" 2>/dev/null \
-            || python3 -m pip install --user --break-system-packages pyyaml
+          python3 -m venv /tmp/ci-venv
+          /tmp/ci-venv/bin/pip install --quiet pyyaml twine
 
       - name: Build cpp wheel inside runtime:v1
         run: |
           vendor=$(echo "$BACKEND" | cut -d- -f1)
           bk=$(echo "$BACKEND" | cut -d- -f2-)
           image="flagos-runtime-${vendor}-${bk}:latest"
-          python3 scripts/release_flaggems.py build-cpp "$BACKEND" \
+          /tmp/ci-venv/bin/python scripts/release_flaggems.py build-cpp "$BACKEND" \
             --ref "$FLAGGEMS_REF" --runtime-image "$image" --outdir wheels-cpp
 
       - name: Upload cpp wheel to vendor PyPI
         run: |
-          python3 -m pip install --break-system-packages --quiet twine 2>/dev/null || \
-            python3 -m pip install --break-system-packages --user --quiet twine 2>/dev/null || \
-            python3 -m pip install --user --quiet twine
           wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
-          python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
+          /tmp/ci-venv/bin/python scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
 
       - uses: actions/upload-artifact@v7
         with:
