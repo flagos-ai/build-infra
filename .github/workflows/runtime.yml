@@ -75,8 +75,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install PyYAML
-        run: python3 -m pip install --user pyyaml
+      - name: Setup Python (isolated venv)
+        run: |
+          python3 -m venv /tmp/ci-venv
+          /tmp/ci-venv/bin/pip install --quiet yaml twine
 
       - name: Harbor login (pull base image + push runtime)
         if: ${{ inputs.push }}
@@ -86,7 +88,7 @@ jobs:
           HTTPS_PROXY: ""
           no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
         run: |
-          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          host=$(/tmp/ci-venv/bin/python -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
           for i in 1 2 3; do
             if printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin; then
               exit 0
@@ -101,9 +103,6 @@ jobs:
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
-          # twine is needed for cpp wheel upload (cmake_backend backends).
-          python3 -m pip install --user --break-system-packages --quiet twine 2>/dev/null || \
-            python3 -m pip install --user --quiet twine
           push_flag=""
           if [[ "${{ inputs.push }}" == "true" ]]; then
             push_flag="--push"
@@ -112,6 +111,6 @@ jobs:
           if [[ "${{ inputs.no_flaggems }}" == "true" ]]; then
             no_flag="--no-flaggems"
           fi
-          python3 scripts/build_runtime.py "${{ matrix.name }}" \
+          /tmp/ci-venv/bin/python scripts/build_runtime.py "${{ matrix.name }}" \
             --flaggems "${{ inputs.flaggems }}" \
             ${push_flag} ${no_flag}
