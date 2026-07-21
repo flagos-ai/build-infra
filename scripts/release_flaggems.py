@@ -187,6 +187,7 @@ def cmd_build_cpp(args: argparse.Namespace) -> str:
     subprocess.run(
         [
             "docker", "run", "--rm",
+            "--entrypoint", "bash",
             "-v", f"{host_out}:/tmp/wheel-out",
             "-v", f"{script_path}:/tmp/build_cpp_wheel.sh:ro",
             "-e", f'FLAGGEMS_REF={args.ref}',
@@ -195,7 +196,7 @@ def cmd_build_cpp(args: argparse.Namespace) -> str:
             "-e", f'SETUPTOOLS_SCM_PRETEND_VERSION={args.ref.lstrip("v")}',
             "-e", f'FLAGGEMS_BUILD_DEPS={build_deps}',
             args.runtime_image,
-            "bash", "/tmp/build_cpp_wheel.sh",
+            "/tmp/build_cpp_wheel.sh",
         ],
         check=True,
     )
