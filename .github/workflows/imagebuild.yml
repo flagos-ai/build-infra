@@ -78,12 +78,13 @@ jobs:
       - name: Check disk space
         shell: bash
         run: |
-          FREE_GB=$(df -BG /var/lib/docker 2>/dev/null | awk 'NR==2{print $4}' | sed 's/G//')
-          if [ -z "$FREE_GB" ] || [ "$FREE_GB" = "avail" ]; then
-            FREE_GB=$(df -BG . | awk 'NR==2{print $4}' | sed 's/G//')
+          FREE_KB=$(df --output=avail /var/lib/docker 2>/dev/null | tail -1 | tr -d ' ')
+          if [ -z "$FREE_KB" ] || ! [ "$FREE_KB" -eq "$FREE_KB" ] 2>/dev/null; then
+            FREE_KB=$(df --output=avail . | tail -1 | tr -d ' ')
           fi
+          FREE_GB=$((FREE_KB / 1024 / 1024))
           echo "Free disk space: ${FREE_GB}G"
-          if [ "$FREE_GB" -lt 10 ] 2>/dev/null; then
+          if [ "$FREE_GB" -lt 10 ]; then
             echo "ERROR: insufficient disk space (${FREE_GB}G < 10G). Docker needs cleanup."
             df -h /var/lib/docker . 2>/dev/null || df -h .
             exit 1
