@@ -24,17 +24,28 @@
 
 set -euo pipefail
 
+# ── self-bootstrap: runtime:v1 may not ship git ─────────────────
+if ! command -v git >/dev/null 2>&1; then
+  apt-get update -qq && apt-get install -y -qq --no-install-recommends git
+fi
+
 OUTDIR="${OUTDIR:-/tmp/wheel-out}"
 FLAGGEMS_REPO="${FLAGGEMS_REPO:-https://github.com/flagos-ai/FlagGems.git}"
 
 # ── clone + checkout ──────────────────────────────────────────
-git clone --quiet "$FLAGGEMS_REPO" /tmp/FlagGems 2>/dev/null || {
-  sleep 30
-  git clone --quiet "$FLAGGEMS_REPO" /tmp/FlagGems 2>/dev/null
-} || {
-  sleep 30
-  git clone --quiet "$FLAGGEMS_REPO" /tmp/FlagGems
+# Retry: h20 and other CN runners may have spotty GitHub connectivity.
+clone_with_retry() {
+  for i in 1 2 3; do
+    if git clone --quiet "$FLAGGEMS_REPO" /tmp/FlagGems 2>/dev/null; then
+      return 0
+    fi
+    echo "git clone attempt $i failed, retrying in 30s..."
+    sleep 30
+  done
+  return 1
 }
+
+clone_with_retry
 cd /tmp/FlagGems
 git fetch --quiet --tags origin tag "$FLAGGEMS_REF" 2>/dev/null \
   || git fetch --quiet --tags --force origin
