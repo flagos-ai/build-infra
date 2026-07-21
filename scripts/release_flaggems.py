@@ -14,15 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Release FlagGems wheels — RELEASE.md steps 5a + 5b + 5c.
+"""Release FlagGems wheels — RELEASE.md steps 5a + 5c.
 
 Usage::
 
     python3 scripts/release_flaggems.py build-python --ref v5.3.1 [--outdir DIR]
     python3 scripts/release_flaggems.py upload-python WHEEL [--dry-run]
-    python3 scripts/release_flaggems.py build-cpp BACKEND --ref v5.3.1 [--outdir DIR]
-    python3 scripts/release_flaggems.py upload-cpp BACKEND WHEEL [--dry-run]
     python3 scripts/release_flaggems.py update-config VERSION
+
+Cpp operator wheels are built inside the runtime builder stage
+(see runtime/Containerfile and scripts/build_runtime.py).
 
 The NEXUS_TOKEN env var is required for upload commands (``user:token``).
 """
@@ -56,26 +57,6 @@ def _pypi_urls(cfg: dict) -> dict[str, str]:
     for vendor in (cfg.get("vendors") or {}):
         urls[vendor] = template.replace("{vendor}", vendor)
     return urls
-
-
-def _cmake_backends(cfg: dict) -> list[str]:
-    """Return backend names that have a cmake_backend."""
-    backends: list[str] = []
-    vendors = cfg.get("vendors") or {}
-    for vendor, specs in vendors.items():
-        for bk_name, spec in (specs or {}).items():
-            if spec.get("cmake_backend"):
-                backends.append(f"{vendor}-{bk_name}")
-    return sorted(backends)
-
-
-def _venv() -> str:
-    """Return a version string from the FlagGems ref (strip leading 'v').
-
-    "v5.3.1" -> "5.3.1".  The wheel filename already carries the version
-    via setuptools_scm; this is for display and for the configs.yaml update.
-    """
-    return sys.argv[sys.argv.index("--ref") + 1].lstrip("v")
 
 
 # ── build-python ─────────────────────────────────────────────────────────────
@@ -137,143 +118,6 @@ def cmd_upload_python(args: argparse.Namespace) -> None:
     print(f"Uploaded to {ok}/{len(urls)} vendor PyPIs (errors: {fail}).")
     if fail:
         sys.exit(1)
-
-
-# ── build-cpp ─────────────────────────────────────────────────────────────────
-
-
-VENDOR_MAP: dict[str, str] = {
-    "CUDA": "cuda",
-    "NPU": "npu",
-    "GCU": "gcu",
-    "IX": "ix",
-    "MUSA": "musa",
-}
-
-
-def cmd_build_cpp(args: argparse.Namespace) -> str:
-    """Build a cpp operator wheel inside the base image.  Returns wheel path."""
-    cfg = _load_configs()
-    vendor, bk = args.backend.split("-", 1)
-    specs = (cfg.get("vendors") or {}).get(vendor, {}).get(bk)
-    if not specs:
-        sys.exit(f"Error: backend '{args.backend}' not in configs.yaml")
-
-    cmake_backend = specs.get("cmake_backend")
-    if not cmake_backend:
-        sys.exit(f"Error: backend '{args.backend}' has no cmake_backend")
-
-    v = VENDOR_MAP.get(cmake_backend)
-    if not v:
-        sys.exit(f"Error: unknown cmake_backend '{cmake_backend}' (no VENDOR_MAP entry)")
-
-    # Resolve image ref.
-    images = yaml.safe_load(
-        (ROOT / "docs" / "data" / "images.yaml").read_text()
-    )
-    entry = next(
-        (b for b in images.get("backends", []) if b["name"] == args.backend), None
-    )
-    if not entry:
-        sys.exit(f"Error: '{args.backend}' not in images.yaml (run gen_data.py first)")
-    image = entry["base"]["image"]
-
-    outdir = args.outdir or str(ROOT / "wheels-cpp")
-    os.makedirs(outdir, exist_ok=True)
-
-    # Build the list of torch-family deps and resolve the cpp wheel version.
-    pypi_url = cfg.get("pypi_base", "").format(vendor=vendor)
-    torch_deps = " ".join(d for d in (specs.get("deps") or []) if d.startswith("torch"))
-    torch_install = ""
-    if torch_deps:
-        torch_install = f"python3 -m pip install --index-url \"{pypi_url}\" {torch_deps}"
-    # setuptools_scm version from tag — "v5.3.1" -> "5.3.1"
-    pretend = args.ref.lstrip("v")
-
-    # Run everything inside docker to use the vendor's toolchain.
-    script = f"""
-set -euo pipefail
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq && apt-get install -y -qq python3 python3-pip git >/dev/null 2>&1
-
-git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
-  sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
-  sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems
-cd /tmp/FlagGems
-git fetch --quiet --tags --depth=1 origin tag "{args.ref}" || \
-  git fetch --quiet --tags --force origin
-git checkout --quiet --detach "{args.ref}"
-echo "FlagGems @ $(git describe --tags 2>/dev/null || echo '{args.ref}')"
-
-tools/set_cpp_vendor.sh {v}
-
-# Install torch-family deps (needed by cmake configure via find_package(Torch)).
-{torch_install}
-# Install cpp build deps.
-python3 -m pip install \
-  "setuptools>=64.0" "setuptools-scm>=8" "scikit-build-core>=0.9" \
-  "pybind11>=3.0" "cmake>=3.20,<4" "ninja>=1.11"
-
-# pip wheel outside the source tree so setuptools_scm doesn't see a dirty repo.
-mkdir -p /tmp/wheel-out
-export CMAKE_ARGS="-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND={cmake_backend} -DCMAKE_BUILD_TYPE=Release"
-export SETUPTOOLS_SCM_PRETEND_VERSION="{pretend}"
-python3 -m pip wheel ./cpp --no-deps --no-build-isolation -w /tmp/wheel-out
-
-# --- .so checks: catch rpath / DT_NEEDED issues early ---
-pip install --no-deps /tmp/wheel-out/*.whl
-SITE=$(python3 -c "import site; print(site.getsitepackages()[0])")
-SO=$(find "$SITE" -name 'c_operators*.so' 2>/dev/null | head -1)
-if [ -z "$SO" ]; then
-  echo "ERROR: c_operators .so not found in site-packages" >&2
-  exit 1
-fi
-echo "  .so path: $SO"
-echo ">>> DT_NEEDED:"
-readelf -d "$SO" | grep 'NEEDED' | sed 's/.*\[//;s/\]//' | sort
-echo ">>> rpath / runpath:"
-readelf -d "$SO" | grep -iE 'RPATH|RUNPATH' || echo "  (none — relies on LD_LIBRARY_PATH)"
-for lib in $(readelf -d "$SO" | grep 'NEEDED' | sed 's/.*\[//;s/\]//'); do
-  if ! ldconfig -p | grep -q "$lib"; then
-    echo "  ! WARNING: $lib not in ldconfig cache — must be in LD_LIBRARY_PATH"
-  fi
-done
-echo "OK  cpp extension .so built for {v}"
-
-# Copy out.
-cp /tmp/wheel-out/*.whl /host-out/
-"""
-    host_out = os.path.abspath(outdir)
-    print(f"Building cpp wheel for {args.backend} ({v}) inside {image} ...")
-    subprocess.run(
-        ["docker", "run", "--rm", "-v", f"{host_out}:/host-out", image, "bash", "-c", script],
-        check=True,
-    )
-
-    wheels = sorted(Path(outdir).glob("flag_gems_cpp_*.whl"))
-    if not wheels:
-        sys.exit("ERROR: no cpp wheel produced")
-    print(f"Wheel: {wheels[-1]}")
-    return str(wheels[-1])
-
-
-# ── upload-cpp ───────────────────────────────────────────────────────────────
-
-
-def cmd_upload_cpp(args: argparse.Namespace) -> None:
-    """Push a cpp wheel to its vendor's PyPI."""
-    cfg = _load_configs()
-    vendor = args.backend.split("-", 1)[0]
-    url = _pypi_urls(cfg).get(vendor)
-    if not url:
-        sys.exit(f"Error: vendor '{vendor}' has no PyPI URL")
-    wheel = Path(args.wheel)
-    print(f">>> uploading to {vendor}: {url}")
-    if args.dry_run:
-        print(f"    [dry-run] would upload {wheel.name} to {url}")
-        return
-    _twine_upload(wheel, url)
-    print(f"Uploaded to {vendor}.")
 
 
 def _twine_upload(wheel: Path, repo_url: str) -> None:
@@ -377,20 +221,6 @@ def main() -> None:
     up.add_argument("wheel", help="Path to flag_gems-*.whl")
     up.add_argument("--dry-run", action="store_true", help="Print without uploading")
     up.set_defaults(func=lambda a: cmd_upload_python(a))
-
-    # build-cpp
-    bc = subs.add_parser("build-cpp", help="Build cpp wheel inside base image")
-    bc.add_argument("backend", help="Backend name, e.g. nvidia-cuda12.8")
-    bc.add_argument("--ref", required=True, help="FlagGems git tag/ref")
-    bc.add_argument("--outdir", help="Output directory for the cpp wheel")
-    bc.set_defaults(func=lambda a: cmd_build_cpp(a))
-
-    # upload-cpp
-    uc = subs.add_parser("upload-cpp", help="Upload cpp wheel to vendor PyPI")
-    uc.add_argument("backend", help="Backend name, e.g. nvidia-cuda12.8")
-    uc.add_argument("wheel", help="Path to flag_gems_cpp_*.whl")
-    uc.add_argument("--dry-run", action="store_true", help="Print without uploading")
-    uc.set_defaults(func=lambda a: cmd_upload_cpp(a))
 
     # update-config
     ug = subs.add_parser("update-config", help="Set flaggems version + open PR")

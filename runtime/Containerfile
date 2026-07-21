@@ -43,6 +43,8 @@ ARG TRITON_EXTRA_PKGS=""
 # FlagGems wheel version to pin (== exact). Set by build_runtime.py from
 # configs.yaml flaggems: or the --flaggems CLI override.
 ARG FLAGGEMS_VERSION=0.0.0
+# FlagGems git tag for cpp wheel build — e.g. "v5.3.1".  Empty skips cpp.
+ARG FLAGGEMS_REF=""
 
 
 # ════════════════════════════════════════════════════════════════
@@ -61,6 +63,7 @@ ARG TRITON_PKG
 ARG TRITON_EXTRA_PKGS
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
+ARG FLAGGEMS_REF
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ── Install uv ────────────────────────────────────────────────
@@ -105,18 +108,38 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       fi; \
     fi
 
-# ── Install FlagGems LAST (prebuilt wheels) ─────────────────────
-# Installed AFTER all deps and compilers so its ==VERSION pin and dependency
-# constraints are authoritative. Uses two indexes: FlagGems itself lives on
-# DAILY_PYPI, the cpp-* extra (when set) resolves flag-gems-cpp-<vendor> from
-# DAILY_PYPI. All non-FlagGems deps are already installed — uv only verifies,
-# never resolves cross-index. CPP_EXTRA is empty or e.g. cpp-cuda.
+# ── Install FlagGems base (Python-only wheel) ───────────────────
 RUN uv pip install --no-cache-dir --prerelease=allow \
       --index-strategy unsafe-first-match \
       --index ${FLAGOS_PYPI} \
       --index ${DAILY_PYPI} \
       --trusted-host resource.flagos.net \
-      "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"
+      "flag_gems==${FLAGGEMS_VERSION}"
+
+# ── Build + install cpp operator wheel (cmake_backend only) ────
+# Replaces the old step-5b: the venv already has torch / deps / compilers,
+# so cloning FlagGems and running pip wheel ./cpp here is a natural fit.
+# Produces flag-gems-cpp-<vendor>-*.whl, installs it, and saves a copy
+# to /app/cpp-wheels/ for the host-side upload step.
+ARG FLAGGEMS_REF
+RUN if [ -n "${CPP_EXTRA}" ] && [ -n "${FLAGGEMS_REF}" ]; then \
+      apt-get update -qq && apt-get install -y -qq git && \
+      vendor=$(echo ${CPP_EXTRA} | sed 's/^cpp-//'); \
+      git clone --quiet "https://github.com/flagos-ai/FlagGems.git" /tmp/FlagGems && \
+      cd /tmp/FlagGems && \
+      git fetch --quiet --tags origin tag "${FLAGGEMS_REF}" 2>/dev/null || \
+        git fetch --quiet --tags --force origin && \
+      git checkout --quiet --detach "${FLAGGEMS_REF}" && \
+      tools/set_cpp_vendor.sh "${vendor}" && \
+      pip install setuptools scikit-build-core pybind11 cmake ninja && \
+      SETUPTOOLS_SCM_PRETEND_VERSION="${FLAGGEMS_REF#v}" \
+        pip wheel ./cpp --no-deps -w /tmp/wheel-out && \
+      pip install --no-deps /tmp/wheel-out/*.whl && \
+      mkdir -p /app/cpp-wheels && \
+      cp /tmp/wheel-out/*.whl /app/cpp-wheels/ && \
+      rm -rf /tmp/FlagGems /tmp/wheel-out; \
+    fi && \
+    mkdir -p /app/cpp-wheels
 
 # ── Tests — deferred (image not finalized) ────────────────────
 # Tests are NOT shipped yet: FlagGems' [test] extra installs only frameworks,

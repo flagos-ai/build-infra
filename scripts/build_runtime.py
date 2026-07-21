@@ -31,6 +31,7 @@ Examples:
 """
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -212,6 +213,31 @@ def resolve_build_args(
     return args
 
 
+def _upload_cpp_wheel(vendor: str, wheel: Path, configs: dict, repo_root: Path) -> None:
+    """Upload a cpp wheel to the vendor's PyPI via twine."""
+    token = os.environ.get("NEXUS_TOKEN", "")
+    if not token:
+        print(f"  skip cpp upload for {vendor}: NEXUS_TOKEN not set", file=sys.stderr)
+        return
+    user, _, pw = token.partition(":")
+    env = os.environ.copy()
+    env["TWINE_USERNAME"] = user
+    env["TWINE_PASSWORD"] = pw
+    pypi_base = configs.get("pypi_base", "")
+    upload_url = pypi_base.format(vendor=vendor).rstrip("/").removesuffix("/simple")
+    print(f"  uploading {wheel.name} to {upload_url} ...")
+    subprocess.run(
+        [
+            sys.executable, "-m", "twine", "upload",
+            "--repository-url", f"{upload_url}/",
+            "--non-interactive",
+            str(wheel),
+        ],
+        check=True, env=env,
+    )
+    print(f"  cpp wheel uploaded to {vendor}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Build FlagGems runtime container images",
@@ -274,6 +300,11 @@ def main():
     )
     build_args["FLAGGEMS_VERSION"] = args.flaggems or configs.get("flaggems", "")
 
+    # cpp wheel build: derive FlagGems git ref from version ("5.3.1" → "v5.3.1")
+    flaggems_ver = build_args["FLAGGEMS_VERSION"]
+    flaggems_ref = f"v{flaggems_ver}" if flaggems_ver and not flaggems_ver.startswith("v") else flaggems_ver
+    build_args["FLAGGEMS_REF"] = flaggems_ref if build_args.get("CPP_EXTRA") else ""
+
     image_name = f"flagos-runtime-{vendor}-{backend}"
 
     if args.tag:
@@ -305,6 +336,24 @@ def main():
     result = subprocess.run(cmd)
     if result.returncode != 0:
         sys.exit(f"docker build failed with exit code {result.returncode}")
+
+    # ── cpp wheel: upload to vendor PyPI ──────────────────────────
+    cpp_extra = build_args.get("CPP_EXTRA", "")
+    if cpp_extra and args.push:
+        cpp_dir = Path(f"wheels-cpp-{backend}")
+        container_id = subprocess.run(
+            ["docker", "create", tag], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        try:
+            cpp_dir.mkdir(exist_ok=True)
+            subprocess.run(
+                ["docker", "cp", f"{container_id}:/app/cpp-wheels/.", str(cpp_dir)],
+                check=True,
+            )
+            for wheel in sorted(cpp_dir.glob("flag_gems_cpp_*.whl")):
+                _upload_cpp_wheel(vendor, wheel, configs, repo_root)
+        finally:
+            subprocess.run(["docker", "rm", container_id], capture_output=True)
 
     if args.push:
         print(f"Pushing {tag}...")
