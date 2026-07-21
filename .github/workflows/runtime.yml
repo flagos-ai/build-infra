@@ -74,8 +74,32 @@ jobs:
       - name: Install PyYAML
         run: python3 -m pip install --user pyyaml
 
-      - name: Build runtime image
+      - name: Harbor login (pull base image + push runtime)
+        if: ${{ inputs.push }}
+        env:
+          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+          HTTP_PROXY: ""
+          HTTPS_PROXY: ""
+          no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
         run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
+      - name: Build runtime image
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          # twine is needed for cpp wheel upload (cmake_backend backends).
+          python3 -m pip install --user --break-system-packages --quiet twine 2>/dev/null || \
+            python3 -m pip install --user --quiet twine
           push_flag=""
           if [[ "${{ inputs.push }}" == "true" ]]; then
             push_flag="--push"
