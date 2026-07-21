@@ -78,7 +78,7 @@ jobs:
       - name: Setup Python (isolated venv)
         run: |
           python3 -m venv /tmp/ci-venv
-          /tmp/ci-venv/bin/pip install --quiet yaml twine
+          /tmp/ci-venv/bin/pip install --quiet pyyaml twine
 
       - name: Harbor login (pull base image + push runtime)
         if: ${{ inputs.push }}
