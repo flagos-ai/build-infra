@@ -29,6 +29,10 @@ on:
         description: 'FlagGems tag/ref to build (e.g. "v5.3.1")'
         type: string
         required: true
+      target_backend:
+        description: 'Single backend for cpp-wheels (empty = all)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -45,6 +49,10 @@ jobs:
     # vendor Nexus repositories over the public internet (GitHub runner) has
     # been observed at ~60 kB/s. An internal self-hosted runner saturates
     # the link in seconds. The build itself is pure Python and runs anywhere.
+    #
+    # Skip when target_backend is set — a single-backend cpp retry does not
+    # need the python wheel rebuilt.
+    if: ${{ inputs.target_backend == '' }}
     runs-on: [self-hosted, h20]
     env:
       FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
@@ -70,7 +78,6 @@ jobs:
 
   # ── 5b: cpp operator wheels, inside runtime:v1 ───────────────────────────
   cpp-matrix:
-    needs: python-wheel
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -81,12 +88,17 @@ jobs:
       - run: python3 -m pip install --user pyyaml
       - id: m
         run: |
-          python3 scripts/cpp_matrix.py > matrix.json
+          if [[ -n "${{ inputs.target_backend }}" ]]; then
+            python3 scripts/cpp_matrix.py | jq --arg b "${{ inputs.target_backend }}" \
+              '{include: [.include[] | select(.name == $b)]}' > matrix.json
+          else
+            python3 scripts/cpp_matrix.py > matrix.json
+          fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 
   cpp-wheels:
-    needs: [python-wheel, cpp-matrix]
+    needs: cpp-matrix
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.cpp-matrix.outputs.matrix) }}
