@@ -43,16 +43,14 @@ gh workflow run "Base Image Build (manual)" -f backend="all" -f push="true"
 
 ### 卡点：磁盘检查 locale bug（5 个 backend 失败）
 
-**根本原因**：`imagebuild.yml` 的 disk space check 用了 `df -BG | awk 'NR==2{print $4}'` — 在中文 locale 的 runner 上 `$4` 拿到了非数字列头（`Avail` vs `可用`）。
+**根本原因**：`imagebuild.yml` 的 disk space check 用了 `df -BG | awk 'NR==2{print $4}'` — 在中文 locale 的 runner 上 `$4` 拿到了非数字列头（`Avail` vs `可用`）。enflame 失败原因待确认（run 未结束，日志暂不可查），可能同因。
 
 **修复**：已 push 到 main（commit `0e0ce8a`），改用 `df --output=avail | tail -1`。
-
-> enflame 失败原因待确认（run 未结束，日志不可查），可能是同因。
 
 **后续操作**：
 1. 当前正在跑的 job **不要动**，让它们继续
 2. 已成功的 **不重复触发**
-3. 等 run 结束后，只对 4 个因 locale bug 失败的 backend **单独补跑**：
+3. 等 run 结束后，只对 5 个失败的 backend **单独补跑**：
 
 ```bash
 for b in enflame-tops1.9.10 hygon-dtk26.04 iluvatar-corex4.4.0 sunrise-tangrt1.2.0 tsingmicro-tsm260604; do
@@ -76,7 +74,8 @@ done
 
 ## 已知待办
 
-- [ ] 当前 base image build 跑完后，对 hygon/iluvatar/sunrise/tsingmicro 补跑
+- [ ] 当前 base image build 跑完后，对 5 个失败的 backend 补跑
 - [ ] 步骤 3 验证 base images + 生成描述 PR
 - [ ] 步骤 4 runtime:v1（之前只构建了 nvidia-cuda13.3，本次需全部 14 backend）
 - [ ] 步骤 5 cpp wheel 构建 — 4 轮调试已修了 ENTRYPOINT、文件挂载、镜像引用、git 自举等问题，实际 cpp 编译尚未跑通
+- [ ] **泛化自动重试机制** — `base-descriptions.yml` 的 accumulate 已有自触发重试模式（restore state branch → 合并 artifact → `missing_versions.py` 查漏 → `gh workflow run` 自触发，上限 50 次）。这个模式应该泛化到所有多 backend 工作流（`trigger.yml`、`runtime.yml`、`flaggems-release.yml`），避免个别 runner 失联导致发版卡住。核心组件：state branch 持久化、artifact 合并、缺失追踪、retry_count 计数参数
