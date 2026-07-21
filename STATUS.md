@@ -27,25 +27,27 @@ gh workflow run "Base Image Build (manual)" -f backend="all" -f push="true"
 | Backend | Runner | 状态 |
 |---------|--------|------|
 | nvidia-cuda13.3 | h20 | ✅ |
-| nvidia-cuda12.8 | h20 | 🔄 |
+| nvidia-cuda12.8 | h20 | ✅ |
+| metax-maca3.7.2.1 | metax | ✅ |
+| mthreads-musa5.2.0 | musa520 | ✅ |
 | ascend-cann8.5.0 | cann850 | 🔄 |
 | ascend-cann9.0.0 | cann9 | 🔄 |
 | cambricon-neuware4.4.3 | cambricon | 🔄 |
-| enflame-tops1.9.10 | enflame | 🔄 |
 | kunlunxin-xre5.29.0 | kunlunxin | 🔄 |
-| metax-maca3.7.2.1 | metax | 🔄 |
 | mthreads-musa4.3.6 | musa520 | 🔄 |
-| mthreads-musa5.2.0 | musa520 | 🔄 |
+| enflame-tops1.9.10 | enflame | ❌ |
 | hygon-dtk26.04 | hygon | ❌ |
 | iluvatar-corex4.4.0 | iluvatar | ❌ |
 | sunrise-tangrt1.2.0 | sunrise | ❌ |
 | tsingmicro-tsm260604 | tsingmicro | ❌ |
 
-### 卡点：磁盘检查 locale bug（4 个 backend 失败）
+### 卡点：磁盘检查 locale bug（5 个 backend 失败）
 
 **根本原因**：`imagebuild.yml` 的 disk space check 用了 `df -BG | awk 'NR==2{print $4}'` — 在中文 locale 的 runner 上 `$4` 拿到了非数字列头（`Avail` vs `可用`）。
 
 **修复**：已 push 到 main（commit `0e0ce8a`），改用 `df --output=avail | tail -1`。
+
+> enflame 失败原因待确认（run 未结束，日志不可查），可能是同因。
 
 **后续操作**：
 1. 当前正在跑的 job **不要动**，让它们继续
@@ -53,7 +55,7 @@ gh workflow run "Base Image Build (manual)" -f backend="all" -f push="true"
 3. 等 run 结束后，只对 4 个因 locale bug 失败的 backend **单独补跑**：
 
 ```bash
-for b in hygon-dtk26.04 iluvatar-corex4.4.0 sunrise-tangrt1.2.0 tsingmicro-tsm260604; do
+for b in enflame-tops1.9.10 hygon-dtk26.04 iluvatar-corex4.4.0 sunrise-tangrt1.2.0 tsingmicro-tsm260604; do
   gh workflow run "Base Image Build (manual)" -f backend="$b" -f push="true"
 done
 ```
