@@ -182,21 +182,24 @@ def cmd_build_cpp(args: argparse.Namespace) -> str:
     host_out = os.path.abspath(outdir)
 
     script_path = str(ROOT / "scripts" / "build_cpp_wheel.sh")
+    with open(script_path) as fh:
+        script = fh.read()
 
     print(f"Building cpp wheel for {args.backend} ({v}) inside {args.runtime_image} ...")
+    # Use bash -c so we don't need to bind-mount the script file — some runner
+    # Docker configurations reject file mounts from checkout directories.
     subprocess.run(
         [
             "docker", "run", "--rm",
             "--entrypoint", "bash",
             "-v", f"{host_out}:/tmp/wheel-out",
-            "-v", f"{script_path}:/tmp/build_cpp_wheel.sh:ro",
             "-e", f'FLAGGEMS_REF={args.ref}',
             "-e", f'FLAGGEMS_CPP_VENDOR={v}',
             "-e", f'FLAGGEMS_CMAKE_ARGS=-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND={cmake_backend} -DCMAKE_BUILD_TYPE=Release',
             "-e", f'SETUPTOOLS_SCM_PRETEND_VERSION={args.ref.lstrip("v")}',
             "-e", f'FLAGGEMS_BUILD_DEPS={build_deps}',
             args.runtime_image,
-            "/tmp/build_cpp_wheel.sh",
+            "-c", script,
         ],
         check=True,
     )
