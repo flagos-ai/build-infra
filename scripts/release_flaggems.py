@@ -194,7 +194,7 @@ def cmd_build_cpp(args: argparse.Namespace) -> str:
     script = f"""
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq && apt-get install -y -qq git python3-pip >/dev/null 2>&1
+apt-get update -qq && apt-get install -y -qq python3 python3-pip git >/dev/null 2>&1
 
 git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
   sleep 30 && git clone --quiet "{FLAGGEMS_REPO}" /tmp/FlagGems 2>/dev/null || \
