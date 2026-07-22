@@ -139,6 +139,8 @@ def _finalize(args) -> None:
     dr = _git("diff", "--cached", "--quiet", check=False)
     if dr.returncode == 0:
         print("No description changes — nothing to PR.")
+        # Clean up the stale PR branch from a previous run as well.
+        _git("push", "origin", "--delete", f"{cfg['pr_prefix']}-{label}", check=False)
         _cleanup_state_branch(label)
         _cleanup_per_backend_branches(label)
         return
@@ -150,7 +152,9 @@ def _finalize(args) -> None:
 
     _git("commit", "-m", cfg["commit_msg"].format(label=label))
 
-    _git("push", "origin", pr_branch, check=False)
+    # Force-push: a stale branch from a previous run (closed/unmerged PR)
+    # may already exist with a different commit.
+    _git("push", "--force", "origin", pr_branch, check=False)
 
     # Don't create a duplicate PR if one already exists.
     pr_list = _gh("pr", "list", "--head", pr_branch, "--json", "number", "-q", ".[0].number")
