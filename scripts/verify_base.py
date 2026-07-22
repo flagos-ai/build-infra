@@ -25,7 +25,6 @@ requirement for description extraction.
 Usage: python scripts/verify_base.py <backend-name>
 """
 
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -63,13 +62,8 @@ def main() -> None:
         print(f"::notice::{vendor}: no verify command in build-config.yml → SKIP")
         return
 
-    # Per-vendor `docker run` flags (raw device-passthrough — no toolkit needed).
-    raw_cfg = ((build_cfg.get("run") or {}).get("vendors") or {}).get(vendor) or {}
-    raw_flags_str = raw_cfg.get("raw", "")
-    raw_flags = shlex.split(raw_flags_str) if raw_flags_str else []
-
-    # docker run <run-flags> --rm <image> verify
-    cmd = ["docker", "run"] + raw_flags + ["--rm", image, "bash", "-c", verify_cmd]
+    # docker run <image> verify
+    cmd = ["docker", "run", "--rm", image, "bash", "-c", verify_cmd]
     print(f"::group::{' '.join(cmd)}")
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.stdout:
