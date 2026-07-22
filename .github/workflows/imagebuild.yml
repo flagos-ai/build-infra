@@ -78,10 +78,21 @@ jobs:
       - name: Check disk space
         shell: bash
         run: |
+          # First df may fail on runners where /var/lib/docker is absent or
+          # --output is unsupported.  Turn off pipefail so a failing pipeline
+          # doesn't abort the script before the fallback runs.
+          set +o pipefail
           FREE_KB=$(df --output=avail /var/lib/docker 2>/dev/null | tail -1 | tr -d ' ')
           if [ -z "$FREE_KB" ] || ! [ "$FREE_KB" -eq "$FREE_KB" ] 2>/dev/null; then
-            FREE_KB=$(df --output=avail . | tail -1 | tr -d ' ')
+            FREE_KB=$(df --output=avail . 2>/dev/null | tail -1 | tr -d ' ')
           fi
+          if [ -z "$FREE_KB" ] || ! [ "$FREE_KB" -eq "$FREE_KB" ] 2>/dev/null; then
+            echo "ERROR: cannot determine free disk space (df --output=avail unsupported?)."
+            echo "Falling back to df -h:"
+            df -h /var/lib/docker . 2>/dev/null || df -h .
+            exit 1
+          fi
+          set -o pipefail
           FREE_GB=$((FREE_KB / 1024 / 1024))
           echo "Free disk space: ${FREE_GB}G"
           if [ "$FREE_GB" -lt 10 ]; then
