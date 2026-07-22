@@ -22,11 +22,13 @@ Explicitly installed; the version is the one baked into this image:
 - `curl` — 7.81.0
 - `g++` — 11.2.0
 - `gcc` — 11.2.0
+- `git`
 - `libfmt-dev` — 8.1.1+ds1
 - `libopenmpi3` — 4.1.2
 - `libpython3-dev` — 3.10.6
 - `libunwind8` — 1.3.2
 - `sudo` — 1.9.9
+- `vim`
 
 ### SDK components
 
