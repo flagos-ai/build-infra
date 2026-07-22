@@ -195,10 +195,10 @@ def _retry(args) -> None:
 
     next_retry = retry + 1
     print(f"Self-triggering retry {next_retry}/{max_retries} for: {missing}")
-    _gh(
-        "workflow", "run", ".github/workflows/base-descriptions.yml",
-        "-f", f"backend={missing}",
-        "-f", f"retry_count={next_retry}",
+    subprocess.run(
+        ["gh", "workflow", "run", ".github/workflows/base-descriptions.yml",
+         "-f", f"backend={missing}", "-f", f"retry_count={next_retry}"],
+        check=True, cwd=REPO_ROOT,
     )
 
 
