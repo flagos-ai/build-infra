@@ -17,12 +17,13 @@
 """Fetch TSV files from per-backend extract branches into a local directory.
 
 Each extract job pushes a single ``<backend>.tsv`` to a branch
-``auto/versions-<label>/<backend>``.  On a fresh run (``--retry 0``), all
-existing per-backend branches are deleted first so that stale data from a
-previous cycle doesn't mask a missing backend.
+``auto/versions-<label>/<backend>`` (after individually deleting any stale
+branch from a previous cycle).  This script discovers all such branches via
+``git ls-remote``, fetches them, and extracts the TSV file into
+``<out-dir>/<backend>.tsv``.
 
 Usage:
-    python scripts/fetch_version_tsvs.py <out-dir> --retry <N>
+    python scripts/fetch_version_tsvs.py <out-dir>
 """
 
 import subprocess
@@ -48,7 +49,6 @@ def main() -> None:
 
     ap = argparse.ArgumentParser()
     ap.add_argument("out_dir", help="Path to output directory (versions-remote)")
-    ap.add_argument("--retry", type=int, default=0, help="Retry count (0 = fresh run)")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -56,21 +56,6 @@ def main() -> None:
 
     label = _label()
     prefix = f"refs/heads/auto/versions-{label}/"
-
-    # Fresh run: delete all per-backend branches so stale data from a
-    # previous cycle doesn't mask a missing backend.
-    if args.retry == 0:
-        r = subprocess.run(
-            ["git", "ls-remote", "--heads", "origin", f"{prefix}*"],
-            capture_output=True, text=True, cwd=REPO_ROOT,
-        )
-        for line in r.stdout.strip().splitlines():
-            ref = line.split()[1] if line else ""
-            if ref:
-                subprocess.run(
-                    ["git", "push", "origin", "--delete", ref[len("refs/heads/"):]],
-                    check=False, capture_output=True, cwd=REPO_ROOT,
-                )
 
     # Discover per-backend branches.
     r = subprocess.run(

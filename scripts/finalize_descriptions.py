@@ -194,6 +194,14 @@ def _retry(args) -> None:
         print("::warning::done=false but no missing backends listed — nothing to retry")
         return
 
+    # Zero backends collected on a fresh run means a systemic failure (not a
+    # transient one-off). Retrying all 14 backends is pointless.
+    if args.count == 0 and retry == 0:
+        print("::error::0 backends collected — systemic failure, not retrying")
+        _cleanup_per_backend_branches(label)
+        _cleanup_state_branch(label)
+        sys.exit(1)
+
     if retry >= max_retries:
         print(f"::error::Retry cap ({max_retries}) reached. Missing: {missing}")
         _cleanup_per_backend_branches(label)

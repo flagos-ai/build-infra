@@ -170,7 +170,7 @@ jobs:
       - run: python3 -m pip install --user pyyaml
 
       - name: Fetch version TSVs from extract jobs
-        run: python3 scripts/fetch_version_tsvs.py versions-remote --retry "${RETRY_COUNT:-0}"
+        run: python3 scripts/fetch_version_tsvs.py versions-remote
 
       # collect: restore state → merge TSVs → check completeness → save state.
       # Always exits 0 — the next step (Finalize or Retry) acts on the
