@@ -52,3 +52,10 @@ jobs:
         run: python3 docs/gen_data.py
       - name: Upload descriptions to Harbor
         run: python3 docs/upload_descriptions.py
+
+      - name: Clean up description branch
+        if: always()
+        run: |
+          label=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'unknown')
+          git push origin --delete "auto/base-descriptions-${label}" 2>/dev/null || true
+          echo "Cleaned up auto/base-descriptions-${label}"

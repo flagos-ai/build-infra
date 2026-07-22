@@ -259,17 +259,14 @@ jobs:
           pr_branch="auto/base-descriptions-${label}"
           git checkout -b "${pr_branch}" 2>/dev/null || git checkout "${pr_branch}" 2>/dev/null || true
           git commit -m "docs(base): refresh image descriptions for ${label}"
-          git push -f origin "${pr_branch}"
+          git push origin "${pr_branch}"
           body="Automated refresh with baked-in system-package versions for ${label}."
           body+=$'\n\n'"**Version data:** ${count} backends"
-          if ! gh pr view "${pr_branch}" >/dev/null 2>&1; then
+          if [ -z "$(gh pr list --head "${pr_branch}" --json number -q '.[0].number')" ]; then
             gh pr create --base "${GITHUB_REF_NAME}" --head "${pr_branch}" \
               --title "docs(base): refresh image descriptions for ${label}" \
               --body "${body}"
           fi
-          # Auto-merge is blocked by branch protection (requires PR); leave
-          # the PR open for review. Merge triggers base-descriptions-publish.yml.
-          gh pr merge "${pr_branch}" --auto --squash || echo "auto-merge queued/unavailable — PR left for review"
 
           # Clean up state branch.
           git push origin --delete "auto/versions-${label}" 2>/dev/null || true
