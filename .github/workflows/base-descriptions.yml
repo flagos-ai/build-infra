@@ -122,11 +122,46 @@ jobs:
         run: |
           python3 docs/gen_data.py
           python3 docs/extract_versions.py "${{ matrix.name }}" versions
-      - uses: actions/upload-artifact@v7
-        with:
-          name: versions-${{ matrix.name }}
-          path: versions/${{ matrix.name }}.tsv
-          if-no-files-found: warn
+
+      - name: Upload version artifact (with retry)
+        # Self-hosted runners behind firewalls/proxies may intermittently
+        # fail to reach GitHub's artifact backend.  Upload via the REST API
+        # with retry + backoff so transient failures don't waste the whole
+        # extract job.  Must be zip — actions/download-artifact@v8 expects
+        # a zip archive as the artifact content.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          label="${{ matrix.name }}"
+          name="versions-${label}"
+          tsv="versions/${label}.tsv"
+          [ -f "${tsv}" ] || { echo "::warning::${tsv} not found"; exit 0; }
+          zip_file="/tmp/${name}.zip"
+          (cd versions && zip -q "${zip_file}" "${label}.tsv")
+          success=false
+          for i in 1 2 3 4 5; do
+            echo "Upload attempt ${i}/5 for ${name}..."
+            if curl -sSf -X POST \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -F "artifact_name=${name}" \
+              -F "file=@${zip_file};type=application/zip" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
+              -o /dev/null; then
+              echo "Uploaded: ${name}"
+              success=true
+              break
+            fi
+            t=$((i * 15))
+            echo "Upload failed, retrying in ${t}s"
+            sleep $t
+          done
+          rm -f "${zip_file}"
+          if [ "$success" != "true" ]; then
+            echo "::warning::Upload failed after 5 attempts — accumulate will self-heal"
+            exit 1
+          fi
 
   accumulate:
     needs: [set-matrix, extract]
