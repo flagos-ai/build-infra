@@ -41,10 +41,12 @@ title: "metax-maca3.7.2.1"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git` — 2.43.0
 - `libelf1`
 - `libnuma1` — 2.0.18
 - `libpython3-dev` — 3.12.3
 - `make` — 4.3
+- `vim` — 9.1.0016
 
 ### SDK 组件
 

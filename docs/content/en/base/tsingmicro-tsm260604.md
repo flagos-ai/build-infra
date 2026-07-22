@@ -35,18 +35,20 @@ title: "tsingmicro-tsm260604"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `clang` — 14.0
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `libfmt-dev` — 8.1.1+ds1
-- `libopenmpi3` — 4.1.2
-- `libpython3-dev` — 3.10.6
-- `libunwind8` — 1.3.2
-- `sudo` — 1.9.9
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `clang` — 18.0
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `git` — 2.43.0
+- `libfmt-dev` — 9.1.0+ds1
+- `libopenmpi3`
+- `libpython3-dev` — 3.12.3
+- `libunwind8` — 1.6.2
+- `sudo` — 1.9.15p5
+- `vim` — 9.1.0016
 
 ### SDK components
 
