@@ -41,6 +41,8 @@ Explicitly installed; the version is the one baked into this image:
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git`
+- `vim`
 
 ### SDK components
 
@@ -70,7 +72,8 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  --device /dev/gcu \
+  --privileged \
+  -v /dev:/dev \
   harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1 bash
 ```
 

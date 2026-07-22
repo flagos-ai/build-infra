@@ -40,7 +40,9 @@ title: "sunrise-tangrt1.2.0"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git`
 - `pciutils` — 3.10.0
+- `vim`
 
 ### SDK 组件
 
@@ -57,10 +59,12 @@ title: "sunrise-tangrt1.2.0"
 
 ## 启动
 
-在容器中启动交互式 shell：
+启动交互式 shell（docker 或 podman 均可）：
 
 ```bash
 docker run --rm -it \
+  --privileged \
+  -v /dev:/dev \
   harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1 bash
 ```
 
