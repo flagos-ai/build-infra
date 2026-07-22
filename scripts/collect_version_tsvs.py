@@ -170,9 +170,11 @@ def main() -> None:
         print(f"Missing: {' '.join(missing_names)}", file=sys.stderr)
         _save_state(state_branch, f"state: {now}/{expected} after retry {retry}")
 
-    # Output JSON for GHA step outputs.
+    # Output JSON for GHA step outputs.  Use "true"/"false" strings rather than
+    # Python bool so that downstream `--done` parsing in finalize_descriptions.py
+    # matches the argparse choices (lowercase).
     result = {
-        "done": done,
+        "done": "true" if done else "false",
         "count": now,
         "label": label,
         "missing": " ".join(missing_names),
