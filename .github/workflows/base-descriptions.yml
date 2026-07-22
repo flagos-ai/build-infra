@@ -190,6 +190,12 @@ jobs:
           retry="${RETRY_COUNT:-0}"
           done="false"
 
+          # Fresh run: wipe versions/ so stale TSV files from a previous cycle
+          # don't mask a missing backend.  Retries restore from the state branch
+          # instead (below).
+          if [ "$retry" = "0" ]; then
+            rm -rf versions/
+          fi
           mkdir -p versions
           set +e   # GHA injects -e; undo it so we always reach the output lines
 
