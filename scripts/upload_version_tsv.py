@@ -17,8 +17,10 @@
 """Push the extracted system-package version TSV for a single backend to a git
 branch so the accumulate job can collect it without relying on upload-artifact.
 
-Creates an orphan branch ``auto/versions-<label>/<backend>`` containing exactly
-one file (``<backend>.tsv``) in the empty root tree, then force-pushes it.
+Writes the TSV into git's object database directly (hash-object + mktree +
+commit-tree + push), never switching branches or touching the working tree.
+This keeps the runner's local repo state pristine across runs and avoids the
+orphan-branch residue that broke concurrent/retry runs.
 
 Replaces the three ``actions/upload-artifact@v7`` retry-attempt steps in the
 extract job, which hang through HTTP_PROXY on some self-hosted runners.
@@ -26,7 +28,6 @@ extract job, which hang through HTTP_PROXY on some self-hosted runners.
 Usage: python scripts/upload_version_tsv.py <backend> <tsv-dir>
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -59,33 +60,29 @@ def main() -> None:
     label = _label()
     branch = f"auto/versions-{label}/{backend}"
 
-    subprocess.run(
-        ["git", "checkout", "--orphan", branch],
-        check=True, cwd=REPO_ROOT,
-    )
-    # Clean the index (orphan branch starts with a populated index).
-    subprocess.run(
-        ["git", "rm", "-rf", "--cached", "."],
-        check=False, cwd=REPO_ROOT,
-    )
+    # Write the TSV as a git blob, never touching the working tree or index.
+    blob = subprocess.run(
+        ["git", "hash-object", "-w", str(tsv_file)],
+        check=True, capture_output=True, text=True, cwd=REPO_ROOT,
+    ).stdout.strip()
 
-    dest = Path(REPO_ROOT) / f"{backend}.tsv"
-    dest.write_bytes(tsv_file.read_bytes())
+    # Build a tree containing just <backend>.tsv.
+    tree_input = f"100644 blob {blob}\t{backend}.tsv"
+    tree = subprocess.run(
+        ["git", "mktree"],
+        input=tree_input, check=True, capture_output=True, text=True,
+        cwd=REPO_ROOT,
+    ).stdout.strip()
 
-    subprocess.run(
-        ["git", "add", f"{backend}.tsv"],
-        check=True, cwd=REPO_ROOT,
-    )
-    subprocess.run(
-        ["git", "commit", "-m", f"versions: {backend}"],
-        check=True, cwd=REPO_ROOT,
-        env={**os.environ, "GIT_AUTHOR_NAME": "flagos-ci",
-             "GIT_AUTHOR_EMAIL": "noreply@flagos.net",
-             "GIT_COMMITTER_NAME": "flagos-ci",
-             "GIT_COMMITTER_EMAIL": "noreply@flagos.net"},
-    )
+    # Create a commit and push directly to the remote branch.
+    commit = subprocess.run(
+        ["git", "commit-tree", tree, "-m", f"versions: {backend}"],
+        input="", check=True, capture_output=True, text=True,
+        cwd=REPO_ROOT,
+    ).stdout.strip()
+
     r = subprocess.run(
-        ["git", "push", "-f", "origin", branch],
+        ["git", "push", "-f", "origin", f"{commit}:refs/heads/{branch}"],
         capture_output=True, text=True, cwd=REPO_ROOT,
     )
     if r.returncode == 0:

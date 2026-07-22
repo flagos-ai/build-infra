@@ -52,6 +52,10 @@ def main():
         print(f"{name}: no explicit system packages")
         return
 
+    # Always pull the latest image; docker run --rm uses the local copy but
+    # the runner may have a stale cache from a previous build cycle.
+    subprocess.run(["docker", "pull", image], check=True, capture_output=True)
+
     # dpkg-query prints the found packages even when some are absent (it exits
     # non-zero then) — capture stdout regardless.
     cmd = [
