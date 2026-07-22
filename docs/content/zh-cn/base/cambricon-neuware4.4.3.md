@@ -41,12 +41,14 @@ title: "cambricon-neuware4.4.3"
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `gdb` — 15.1
+- `git` — 2.43.0
 - `libc6-dev-i386` — 2.39
 - `libncurses6` — 6.4+20240113
 - `libtinfo6` — 6.4+20240113
 - `make` — 4.3
 - `pciutils` — 3.10.0
 - `unzip` — 6.0
+- `vim` — 9.1.0016
 
 ### SDK 组件
 
