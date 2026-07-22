@@ -150,24 +150,24 @@ def main() -> None:
                     input=archive.stdout, capture_output=True, cwd=REPO_ROOT,
                 )
         prev = len(list(versions_dir.glob("*.tsv")))
-        print(f"Restored from state: {prev}")
+        print(f"Restored from state: {prev}", file=sys.stderr)
 
     # Merge this run's fetched TSVs.
     for tsv in remote_dir.glob("*.tsv"):
         shutil.copy2(tsv, versions_dir / tsv.name)
     now = len(list(versions_dir.glob("*.tsv")))
-    print(f"After merging: {now} (was {prev})")
+    print(f"After merging: {now} (was {prev})", file=sys.stderr)
 
     # Check completeness.
     missing_names, expected = _missing(versions_dir)
     done = (not missing_names) and now >= expected
 
     if done:
-        print(f"=== ALL {now}/{expected} BACKENDS COLLECTED ===")
+        print(f"=== ALL {now}/{expected} BACKENDS COLLECTED ===", file=sys.stderr)
         _save_state(state_branch, f"final: {now}/{expected}")
     else:
-        print(f"=== INCOMPLETE: {now}/{expected} after retry {retry} ===")
-        print(f"Missing: {' '.join(missing_names)}")
+        print(f"=== INCOMPLETE: {now}/{expected} after retry {retry} ===", file=sys.stderr)
+        print(f"Missing: {' '.join(missing_names)}", file=sys.stderr)
         _save_state(state_branch, f"state: {now}/{expected} after retry {retry}")
 
     # Output JSON for GHA step outputs.
