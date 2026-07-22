@@ -41,6 +41,8 @@ title: "enflame-tops1.9.10"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git`
+- `vim`
 
 ### SDK 组件
 
