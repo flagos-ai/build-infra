@@ -28,6 +28,7 @@ extract job, which hang through HTTP_PROXY on some self-hosted runners.
 Usage: python scripts/upload_version_tsv.py <backend> <tsv-dir>
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -77,8 +78,12 @@ def main() -> None:
     # Create a commit and push directly to the remote branch.
     commit = subprocess.run(
         ["git", "commit-tree", tree, "-m", f"versions: {backend}"],
-        input="", check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True,
         cwd=REPO_ROOT,
+        env={**os.environ, "GIT_AUTHOR_NAME": "flagos-ci",
+             "GIT_AUTHOR_EMAIL": "noreply@flagos.net",
+             "GIT_COMMITTER_NAME": "flagos-ci",
+             "GIT_COMMITTER_EMAIL": "noreply@flagos.net"},
     ).stdout.strip()
 
     r = subprocess.run(
