@@ -78,22 +78,23 @@ jobs:
       - name: Check disk space
         shell: bash
         run: |
-          # df -P is POSIX (works everywhere: GNU, busybox, BSD).
-          # Check /var/lib/docker first; fall back to . when it's absent.
-          FREE_KB=$(df -P /var/lib/docker 2>/dev/null | awk 'NR==2{print $4}')
+          # Bash runs with `set -e -o pipefail` — a failing pipeline exits the
+          # script before our fallback logic runs.  Append `|| true` so that a
+          # missing /var/lib/docker (or any df failure) doesn't kill the step.
+          FREE_KB=$(df -P /var/lib/docker 2>/dev/null | awk 'NR==2{print $4}' || true)
           if [ -z "$FREE_KB" ] || ! [ "$FREE_KB" -eq "$FREE_KB" ] 2>/dev/null; then
-            FREE_KB=$(df -P . | awk 'NR==2{print $4}')
+            FREE_KB=$(df -P . 2>/dev/null | awk 'NR==2{print $4}' || true)
           fi
           if [ -z "$FREE_KB" ] || ! [ "$FREE_KB" -eq "$FREE_KB" ] 2>/dev/null; then
             echo "ERROR: cannot determine free disk space"
-            df -h /var/lib/docker . 2>/dev/null || df -h .
+            df -h /var/lib/docker . 2>/dev/null || df -h . || true
             exit 1
           fi
           FREE_GB=$((FREE_KB / 1024 / 1024))
           echo "Free disk space: ${FREE_GB}G"
           if [ "$FREE_GB" -lt 10 ]; then
             echo "ERROR: insufficient disk space (${FREE_GB}G < 10G). Docker needs cleanup."
-            df -h /var/lib/docker . 2>/dev/null || df -h .
+            df -h /var/lib/docker . 2>/dev/null || df -h . || true
             exit 1
           fi
 
