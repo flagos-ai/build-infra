@@ -21,6 +21,12 @@ name: Base image descriptions
 # Separate from the build (per the design): version extraction needs the built
 # image, and keeping this out of the build workflow keeps both simpler.
 #
+# Transport: extract jobs push TSV files via git to per-backend branches
+# (auto/versions-<label>/<backend>) instead of using upload-artifact, which
+# reliably hangs through HTTP_PROXY on some self-hosted runners.
+# Accumulate fetches all per-backend branches, merges them, and saves the
+# cumulative set to a state branch.
+#
 # Self-healing: self-hosted runner connectivity to GitHub is unreliable across
 # vendors. The accumulate job collects whatever extractors succeed, saves partial
 # results to a state branch, then self-triggers with only the missing backends.
@@ -123,30 +129,8 @@ jobs:
           python3 docs/gen_data.py
           python3 docs/extract_versions.py "${{ matrix.name }}" versions
 
-      - name: Upload version artifact (attempt 1)
-        id: upload1
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: versions-${{ matrix.name }}
-          path: versions/${{ matrix.name }}.tsv
-          if-no-files-found: warn
-      - name: Upload version artifact (attempt 2)
-        if: steps.upload1.outcome == 'failure'
-        id: upload2
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: versions-${{ matrix.name }}
-          path: versions/${{ matrix.name }}.tsv
-          if-no-files-found: warn
-      - name: Upload version artifact (attempt 3)
-        if: steps.upload2.outcome == 'failure'
-        uses: actions/upload-artifact@v7
-        with:
-          name: versions-${{ matrix.name }}
-          path: versions/${{ matrix.name }}.tsv
-          if-no-files-found: warn
+      - name: Push version TSV via git
+        run: python3 scripts/upload_version_tsv.py "${{ matrix.name }}" versions
 
   accumulate:
     needs: [set-matrix, extract]
@@ -167,15 +151,10 @@ jobs:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
 
-      - name: Download version artifacts (this run)
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          path: versions-dl
-          pattern: versions-*
-          merge-multiple: false
+      - name: Fetch version TSVs from extract jobs
+        run: python3 scripts/fetch_version_tsvs.py versions-remote
 
-      # collect: restore state → merge artifacts → check gaps → save state.
+      # collect: restore state → merge TSVs → check completeness → save state.
       # Always exits 0 — the next step (Finalize or Retry) acts on the
       # done/missing outputs.
       - id: collect
@@ -185,121 +164,35 @@ jobs:
           GIT_COMMITTER_NAME: flagos-ci
           GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
-          label="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'unknown')"
-          state_branch="auto/versions-${label}"
-          retry="${RETRY_COUNT:-0}"
-          done="false"
+          result=$(python3 scripts/collect_version_tsvs.py \
+            --versions versions --remote versions-remote \
+            --retry "${RETRY_COUNT:-0}")
+          echo "$result"
 
-          # Fresh run: wipe versions/ so stale TSV files from a previous cycle
-          # don't mask a missing backend.  Retries restore from the state branch
-          # instead (below).
-          if [ "$retry" = "0" ]; then
-            rm -rf versions/
-          fi
-          mkdir -p versions
-          set +e   # GHA injects -e; undo it so we always reach the output lines
-
-          # --- restore state branch (skip on retry=0 — fresh run) ---
-          if [ "$retry" != "0" ] && git ls-remote --exit-code origin "refs/heads/${state_branch}" 2>/dev/null; then
-            git fetch origin "${state_branch}" 2>/dev/null
-            git archive "origin/${state_branch}" versions/ 2>/dev/null | tar xf - -C . 2>/dev/null || true
-          fi
-          prev=$(find versions -name '*.tsv' -type f 2>/dev/null | wc -l)
-          echo "Restored from state: ${prev}"
-
-          # --- merge this run's artifacts ---
-          find versions-dl -name '*.tsv' -exec cp {} versions/ \; 2>/dev/null || true
-          now=$(find versions -name '*.tsv' -type f 2>/dev/null | wc -l)
-          echo "After merging: ${now} (was ${prev})"
-
-          # --- check completeness ---
-          python3 docs/gen_data.py 2>/dev/null || true
-          expected=$(python3 docs/missing_versions.py 2>/dev/null | awk '/^COUNT /{print $3}' || echo "14")
-          missing=$(python3 docs/missing_versions.py 2>/dev/null | awk '/^MISSING /{print $2}' | tr '\n' ' ' || true)
-
-          if [ -z "${missing// /}" ] && [ "$now" -ge "$expected" ] 2>/dev/null; then
-            done="true"
-            echo "=== ALL ${now}/${expected} BACKENDS COLLECTED ==="
-            # Save final TSV set so the state branch can be cleaned later.
-            if git add -f versions/ 2>/dev/null && tree=$(git write-tree) 2>/dev/null; then
-              c=$(echo "final: ${now}/${expected}" | git commit-tree -p "refs/heads/${GITHUB_REF_NAME}" "${tree}" 2>/dev/null) || true
-              [ -n "$c" ] && git push -f origin "${c}:refs/heads/${state_branch}" 2>/dev/null || true
-            fi
-          else
-            echo "=== INCOMPLETE: ${now}/${expected} after retry ${retry} ==="
-            echo "Missing: ${missing}"
-            # Save state branch (best-effort).
-            if git add -f versions/ 2>/dev/null && tree=$(git write-tree) 2>/dev/null; then
-              c=$(echo "state: ${now}/${expected} after retry ${retry}" | git commit-tree -p "refs/heads/${GITHUB_REF_NAME}" "${tree}" 2>/dev/null) || true
-              [ -n "$c" ] && git push -f origin "${c}:refs/heads/${state_branch}" 2>/dev/null || true
-            fi
-          fi
-
-          echo "done=${done}" >> "$GITHUB_OUTPUT"
-          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
-          echo "count=${now}" >> "$GITHUB_OUTPUT"
-          echo "label=${label}" >> "$GITHUB_OUTPUT"
+          # Parse JSON once, write each field to GITHUB_OUTPUT.
+          echo "$result" | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          for k in ('done', 'count', 'label', 'missing'):
+              print(f'{k}={d[k]}')
+          " | tee -a "$GITHUB_OUTPUT"
 
       - name: Finalize (descriptions + PR) or retry
-        if: always() && steps.collect.outputs.done == 'true'
-        run: |
-          set +e
-          count="${{ steps.collect.outputs.count }}"
-          label="${{ steps.collect.outputs.label }}"
-
-          # Unstage dirty state from the collect step (git add -f versions/
-          # polluted the index).  Keep versions/ on disk — gen_descriptions
-          # reads from VERSIONS_DIR.  restore --staged only touches the index,
-          # reset --hard would also wipe the working tree.
-          git restore --staged .
-          git clean -fd -- versions-dl 2>/dev/null || true
-
-          VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
-
-          git config user.name "flagos-ci"
-          git config user.email "noreply@flagos.net"
-          git add docs/content/en/base/*.md docs/content/zh-cn/base/*.md base/*.md
-          if git diff --cached --quiet; then
-            echo "No description changes — nothing to PR."
-            git push origin --delete "auto/versions-${label}" 2>/dev/null || true
-            exit 0
-          fi
-          pr_branch="auto/base-descriptions-${label}"
-          git checkout -b "${pr_branch}" 2>/dev/null || git checkout "${pr_branch}" 2>/dev/null || true
-          git commit -m "docs(base): refresh image descriptions for ${label}"
-          git push origin "${pr_branch}"
-          body="Automated refresh with baked-in system-package versions for ${label}."
-          body+=$'\n\n'"**Version data:** ${count} backends"
-          if [ -z "$(gh pr list --head "${pr_branch}" --json number -q '.[0].number')" ]; then
-            gh pr create --base "${GITHUB_REF_NAME}" --head "${pr_branch}" \
-              --title "docs(base): refresh image descriptions for ${label}" \
-              --body "${body}"
-          fi
-
-          # Clean up state branch.
-          git push origin --delete "auto/versions-${label}" 2>/dev/null || true
-          echo "Done."
-
-      - name: Retry (self-trigger)
-        if: always() && steps.collect.outputs.done == 'false'
+        if: always() && steps.collect.outcome == 'success'
         env:
-          no_proxy: "api.github.com,.github.com,github.com"
+          GH_TOKEN: ${{ github.token }}
+          VERSIONS_DIR: ${{ github.workspace }}/versions
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
-          set +e
-          retry="${{ env.RETRY_COUNT }}"
-          max="${MAX_RETRIES:-50}"
-          missing="${{ steps.collect.outputs.missing }}"
+          # collect poisons the index (git add -f versions/); unstage it.
+          git restore --staged .
+          git clean -fd -- versions-remote 2>/dev/null || true
 
-          if [ -z "${missing// /}" ]; then
-            echo "::warning::done=false but no missing backends listed — nothing to retry"
-            exit 0
-          fi
-          if [ "$retry" -ge "$max" ] 2>/dev/null; then
-            echo "::error::Retry cap (${max}) reached. Missing: ${missing}"
-            exit 1
-          fi
-          next=$((retry + 1))
-          echo "Self-triggering retry ${next}/${max} for: ${missing}"
-          gh workflow run ".github/workflows/base-descriptions.yml" \
-            -f backend="${missing}" \
-            -f retry_count="${next}"
+          python3 scripts/finalize_descriptions.py \
+            --mode base \
+            --done "${{ steps.collect.outputs.done }}" \
+            --count "${{ steps.collect.outputs.count || 0 }}" \
+            --label "${{ steps.collect.outputs.label || 'unknown' }}" \
+            --missing "${{ steps.collect.outputs.missing || '' }}" \
+            --retry "${{ env.RETRY_COUNT || 0 }}" \
+            --max-retries "${MAX_RETRIES:-50}"
