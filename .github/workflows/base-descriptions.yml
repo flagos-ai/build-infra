@@ -124,25 +124,34 @@ jobs:
           python3 docs/extract_versions.py "${{ matrix.name }}" versions
 
       - name: Upload version artifact (with retry)
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           label="${{ matrix.name }}"
           tsv="versions/${label}.tsv"
           [ -f "${tsv}" ] || { echo "::warning::${tsv} not found"; exit 0; }
           name="versions-${label}"
+          url="${ACTIONS_RUNTIME_URL}_apis/pipelines/workflows/${GITHUB_RUN_ID}/artifacts?api-version=6.0-preview"
+          auth="Authorization: Bearer ${ACTIONS_RUNTIME_TOKEN}"
           for i in 1 2 3 4 5; do
             echo "Upload attempt ${i}/5 for ${name}..."
-            if curl -sSf -X POST \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -F "artifact_name=${name}" \
-              -F "file=@${tsv}" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
-              -o /dev/null; then
-              echo "Uploaded: ${name}"
-              exit 0
-            fi
-            sleep $((i * 15))
+            # 1. create artifact container
+            resp=$(curl -sSf -X POST "${url}" \
+              -H "${auth}" -H "Content-Type: application/json" \
+              -d "{\"Type\":\"actions_storage\",\"Name\":\"${name}\"}") || {
+              sleep $((i * 15)); continue; }
+            file_url=$(echo "$resp" | python3 -c "import sys,json;print(json.load(sys.stdin)['fileContainerResourceUrl'])")
+            cid=$(echo "$resp" | python3 -c "import sys,json;print(json.load(sys.stdin)['containerId'])")
+            # 2. upload file
+            size=$(stat -c%s "${tsv}" 2>/dev/null || stat -f%z "${tsv}" 2>/dev/null)
+            curl -sSf -X PUT "${file_url}?itemPath=${label}.tsv" \
+              -H "${auth}" -H "Content-Type: application/octet-stream" \
+              -H "Content-Length: ${size}" \
+              --data-binary "@${tsv}" || { sleep $((i * 15)); continue; }
+            # 3. finalize
+            curl -sSf -X PATCH "${url}" \
+              -H "${auth}" -H "Content-Type: application/json" \
+              -d "{\"Size\":${size},\"ContainerId\":${cid}}" || { sleep $((i * 15)); continue; }
+            echo "Uploaded: ${name}"
+            exit 0
           done
           echo "::warning::Upload failed after 5 attempts — accumulate will self-heal"
           exit 1
