@@ -40,7 +40,9 @@ Explicitly installed; the version is the one baked into this image:
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git` — 2.43.0
 - `pciutils` — 3.10.0
+- `vim` — 9.1.0016
 
 ### SDK components
 
@@ -57,10 +59,12 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Start an interactive shell in the container:
+Start an interactive shell (works with docker or podman):
 
 ```bash
 docker run --rm -it \
+  --privileged \
+  -v /dev:/dev \
   harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1 bash
 ```
 
