@@ -108,7 +108,7 @@ run:
     enflame:
       # gotcha: toolkit uses --network host + env var, no --runtime flag.
       toolkit: "--network host -e TENCENT_VISIBLE_DEVICES=all"
-      raw: "--device /dev/gcu"
+      raw: "--privileged -v /dev:/dev"
     sunrise:
       # generic launch only — no device flags / toolkit known.
       raw: ""

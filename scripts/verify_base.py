@@ -63,13 +63,14 @@ def main() -> None:
         print(f"::notice::{vendor}: no verify command in build-config.yml → SKIP")
         return
 
-    # Per-vendor `docker run` flags (raw device-passthrough — no toolkit needed).
-    raw_cfg = ((build_cfg.get("run") or {}).get("vendors") or {}).get(vendor) or {}
-    raw_flags_str = raw_cfg.get("raw", "")
-    raw_flags = shlex.split(raw_flags_str) if raw_flags_str else []
+    # Per-vendor `docker run` flags: toolkit first (container runtime installed
+    # on every self-hosted runner), raw device-passthrough as fallback.
+    run_cfg = ((build_cfg.get("run") or {}).get("vendors") or {}).get(vendor) or {}
+    flags_str = run_cfg.get("toolkit", "") or run_cfg.get("raw", "")
+    flags = shlex.split(flags_str) if flags_str else []
 
     # docker run <run-flags> --rm <image> verify
-    cmd = ["docker", "run"] + raw_flags + ["--rm", image, "bash", "-c", verify_cmd]
+    cmd = ["docker", "run"] + flags + ["--rm", image, "bash", "-c", verify_cmd]
     print(f"::group::{' '.join(cmd)}")
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.stdout:
