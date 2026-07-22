@@ -15,15 +15,18 @@
 # limitations under the License.
 
 """Push the extracted system-package version TSV for a single backend to a git
-branch so the accumulate job can collect it without relying on upload-artifact.
+branch so the accumulate job can collect it.
 
-Writes the TSV into git's object database directly (hash-object + mktree +
-commit-tree + push), never switching branches or touching the working tree.
-This keeps the runner's local repo state pristine across runs and avoids the
-orphan-branch residue that broke concurrent/retry runs.
+Preconditions: the caller records the verify step outcome to
+``<tsv-dir>/<backend>.verify_outcome`` (contents: ``success``, ``failure``,
+or ``skipped``).  ``GITHUB_RUN_ID`` must be set in the environment.
 
-Replaces the three ``actions/upload-artifact@v7`` retry-attempt steps in the
-extract job, which hang through HTTP_PROXY on some self-hosted runners.
+The script prepends two metadata headers (``# run:``, ``# verify:``) to the
+TSV so the accumulate job can tell whether the data is fresh and whether the
+verify step passed.
+
+Before pushing, deletes the remote branch so a failed extract leaves no stale
+branch behind.
 
 Usage: python scripts/upload_version_tsv.py <backend> <tsv-dir>
 """
@@ -54,17 +57,31 @@ def main() -> None:
     backend = sys.argv[1]
     tsv_dir = Path(sys.argv[2])
     tsv_file = tsv_dir / f"{backend}.tsv"
+    verify_file = tsv_dir / f"{backend}.verify_outcome"
 
     if not tsv_file.is_file():
         sys.exit(f"Error: {tsv_file} not found")
 
     label = _label()
     branch = f"auto/versions-{label}/{backend}"
+    run_id = os.environ.get("GITHUB_RUN_ID", "unknown")
+    verify = verify_file.read_text().strip() if verify_file.is_file() else "unknown"
 
-    # Write the TSV as a git blob, never touching the working tree or index.
+    # Prepend metadata headers to the TSV content.
+    tsv_raw = tsv_file.read_text()
+    payload = f"# run: {run_id}\n# verify: {verify}\n{tsv_raw}"
+
+    # Delete any stale branch so a failed extract leaves no trace.
+    subprocess.run(
+        ["git", "push", "origin", "--delete", branch],
+        check=False, capture_output=True, cwd=REPO_ROOT,
+    )
+
+    # Write the annotated TSV as a git blob, never touching the working tree.
     blob = subprocess.run(
-        ["git", "hash-object", "-w", str(tsv_file)],
-        check=True, capture_output=True, text=True, cwd=REPO_ROOT,
+        ["git", "hash-object", "-w", "--stdin"],
+        input=payload, check=True, capture_output=True, text=True,
+        cwd=REPO_ROOT,
     ).stdout.strip()
 
     # Build a tree containing just <backend>.tsv.

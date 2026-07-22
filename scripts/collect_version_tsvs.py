@@ -16,16 +16,22 @@
 
 """Collect version TSVs from extract jobs and saved state into ``versions/``.
 
-On a fresh run (retry=0), wipes ``versions/`` first so stale TSVs from a
-previous cycle don't mask a missing backend. Retries restore from the state
-branch, then merge freshly-fetched TSVs on top.
+On a fresh run (retry=0), wipes ``versions/`` and deletes all stale
+per-backend branches. Retries merge freshly-fetched TSVs from the remote
+directory (produced by ``fetch_version_tsvs.py``).
+
+Each TSV carries two metadata headers prepended by ``upload_version_tsv.py``::
+
+    # run: <github_run_id>
+    # verify: success|failure|skipped
 
 After merging, checks completeness against the expected backend list (via
-``generate_matrix.py``) and saves accumulated state to a git branch.
+``generate_matrix.py``) and reports a verify summary.
 
 Outputs a single JSON line to stdout consumed by GHA step outputs::
 
-    {"done": true|false, "count": N, "label": "X.Y.Z", "missing": "b1 b2"}
+    {"done": "true", "count": 14, "label": "2.1.1",
+     "missing": "", "verify_ok": 12, "verify_fail": 2, "verify_skip": 0}
 
 Usage: python scripts/collect_version_tsvs.py \\
          --versions <dir> --remote <dir> --retry <N>
@@ -34,6 +40,7 @@ Usage: python scripts/collect_version_tsvs.py \\
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -119,11 +126,24 @@ def main() -> None:
     # Output JSON for GHA step outputs.  Use "true"/"false" strings rather than
     # Python bool so that downstream `--done` parsing in finalize_descriptions.py
     # matches the argparse choices (lowercase).
+    #
+    # Also include a verify summary: counts of success/failure/skipped from the
+    # metadata headers in each collected TSV.
+    verify_counts = {"success": 0, "failure": 0, "skipped": 0}
+    for tsv in versions_dir.glob("*.tsv"):
+        head = tsv.read_text()[:256]
+        m = re.search(r"^# verify: (success|failure|skipped)", head, re.MULTILINE)
+        if m:
+            verify_counts[m.group(1)] += 1
+
     result = {
         "done": "true" if done else "false",
         "count": now,
         "label": label,
         "missing": " ".join(missing_names),
+        "verify_ok": verify_counts["success"],
+        "verify_fail": verify_counts["failure"],
+        "verify_skip": verify_counts["skipped"],
     }
     print(json.dumps(result))
 
