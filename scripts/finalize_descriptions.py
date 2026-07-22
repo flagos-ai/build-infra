@@ -189,9 +189,10 @@ def _retry(args) -> None:
         _cleanup_state_branch(label)
         sys.exit(1)
 
-    # Clean already-collected per-backend branches so the next retry
-    # only sees freshly pushed ones.
-    _cleanup_per_backend_branches(label)
+    # Per-backend branches from previous successful runs are NOT deleted here —
+    # they are the source of truth for already-collected backends. The next
+    # accumulate will collect from all existing branches + the freshly pushed
+    # ones from this retry, and only merge the latest per-backend TSV.
 
     next_retry = retry + 1
     print(f"Self-triggering retry {next_retry}/{max_retries} for: {missing}")
