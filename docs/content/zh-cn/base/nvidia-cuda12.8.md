@@ -41,10 +41,12 @@ title: "nvidia-cuda12.8"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git`
 - `libelf1`
 - `libnuma1` — 2.0.18
 - `libpython3-dev` — 3.12.3
 - `make` — 4.3
+- `vim`
 
 ### SDK 组件
 

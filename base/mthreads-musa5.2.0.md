@@ -21,12 +21,14 @@ Explicitly installed; the version is the one baked into this image:
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git`
 - `libelf1`
 - `libgfortran5` — 14.2.0
 - `libnuma-dev` — 2.0.18
 - `libopenmpi-dev` — 4.1.6
 - `libpython3-dev` — 3.12.3
 - `openmpi-bin` — 4.1.6
+- `vim`
 
 ### SDK components
 
