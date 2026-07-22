@@ -41,7 +41,9 @@ title: "hygon-dtk26.04"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git`
 - `pciutils` — 3.10.0
+- `vim`
 
 ### SDK 组件
 

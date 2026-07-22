@@ -40,7 +40,9 @@ title: "iluvatar-corex4.4.0"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `git` — 2.43.0
 - `unzip` — 6.0
+- `vim` — 9.1.0016
 
 ### SDK 组件
 
