@@ -56,7 +56,7 @@ jobs:
           if [[ "${{ inputs.backend }}" == "all" ]]; then
             python3 scripts/generate_matrix.py > matrix.json
           else
-            python3 scripts/generate_matrix.py "${{ inputs.backend }}" > matrix.json
+            python3 scripts/generate_matrix.py ${{ inputs.backend }} > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
