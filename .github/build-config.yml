@@ -110,8 +110,7 @@ run:
       toolkit: "--network host -e TENCENT_VISIBLE_DEVICES=all"
       raw: "--privileged -v /dev:/dev"
     sunrise:
-      # generic launch only — no device flags / toolkit known.
-      raw: ""
+      raw: "--privileged -v /dev:/dev"
 
   # Host prerequisite (container toolkit) for the toolkit tier, per vendor. Rendered
   # only when the vendor has a toolkit/toolkit_cmd launch style.
