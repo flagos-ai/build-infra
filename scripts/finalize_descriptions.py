@@ -55,8 +55,11 @@ MODE_CONFIG = {
         ],
         "pr_prefix": "auto/base-descriptions",
         "pr_title": "docs(base): refresh image descriptions for {label}",
-        "pr_body": ("Automated refresh with baked-in system-package versions "
-                    "for {label}.\n\n**Version data:** {count} backends"),
+        "pr_body": (
+            "Automated refresh with baked-in system-package versions for {label}."
+            "\n\n**Version data:** {count} backends"
+            "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
+        ),
         "commit_msg": "docs(base): refresh image descriptions for {label}",
     },
     "runtime": {
@@ -67,8 +70,11 @@ MODE_CONFIG = {
         ],
         "pr_prefix": "auto/runtime-descriptions",
         "pr_title": "docs(runtime): refresh image descriptions for {label}",
-        "pr_body": ("Automated refresh of runtime image descriptions for "
-                    "{label}.\n\n**Version data:** {count} backends"),
+        "pr_body": (
+            "Automated refresh of runtime image descriptions for {label}."
+            "\n\n**Version data:** {count} backends"
+            "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
+        ),
         "commit_msg": "docs(runtime): refresh image descriptions for {label}",
     },
 }
@@ -159,12 +165,17 @@ def _finalize(args) -> None:
     # Don't create a duplicate PR if one already exists.
     pr_list = _gh("pr", "list", "--head", pr_branch, "--json", "number", "-q", ".[0].number")
     if not pr_list.stdout.strip():
+        body = cfg["pr_body"].format(
+            label=label, count=count,
+            verify_ok=args.verify_ok, verify_fail=args.verify_fail,
+            verify_skip=args.verify_skip,
+        )
         _gh(
             "pr", "create",
             "--base", os.environ.get("GITHUB_REF_NAME", "main"),
             "--head", pr_branch,
             "--title", cfg["pr_title"].format(label=label),
-            "--body", cfg["pr_body"].format(label=label, count=count),
+            "--body", body,
         )
 
     _cleanup_state_branch(label)
@@ -212,6 +223,9 @@ def main() -> None:
     ap.add_argument("--count", type=int, default=0)
     ap.add_argument("--label", default="unknown")
     ap.add_argument("--missing", default="")
+    ap.add_argument("--verify-ok", type=int, default=0)
+    ap.add_argument("--verify-fail", type=int, default=0)
+    ap.add_argument("--verify-skip", type=int, default=0)
     ap.add_argument("--retry", type=int, default=0)
     ap.add_argument("--max-retries", type=int, default=50)
     args = ap.parse_args()
