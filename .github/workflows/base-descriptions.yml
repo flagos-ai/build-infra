@@ -241,9 +241,11 @@ jobs:
           count="${{ steps.collect.outputs.count }}"
           label="${{ steps.collect.outputs.label }}"
 
-          # Nuke any dirty state from the collect step (git add -f versions/
-          # polluted the index). Keep versions/ on disk — we need it for VERSIONS_DIR.
-          git reset --hard HEAD
+          # Unstage dirty state from the collect step (git add -f versions/
+          # polluted the index).  Keep versions/ on disk — gen_descriptions
+          # reads from VERSIONS_DIR.  restore --staged only touches the index,
+          # reset --hard would also wipe the working tree.
+          git restore --staged .
           git clean -fd -- versions-dl 2>/dev/null || true
 
           VERSIONS_DIR="$PWD/versions" python3 docs/gen_descriptions.py
