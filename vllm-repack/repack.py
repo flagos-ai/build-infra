@@ -29,12 +29,15 @@ indirect-dependency wheels under cache/.
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
+import urllib.error
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -243,14 +246,12 @@ def wheel_name_to_filename(name: str, version: str) -> str:
 # ── indirect dep repacking ─────────────────────────────────────────────
 
 
-def resolve_wheel(name: str, version_spec: str, extra_indexes: list[str]) -> Path:
+def resolve_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
     """Download a wheel from PyPI (or extra indexes) via 'uv pip download'.
-    Returns path to downloaded .whl file.
+    Returns path to downloaded .whl file.  `version` must be an exact version
+    (e.g. '0.2.3'), not a specifier range.
     """
-    if version_spec:
-        spec = f"{name}{version_spec}"
-    else:
-        spec = name
+    spec = f"{name}=={version}"
     with tempfile.TemporaryDirectory() as td:
         cmd = [
             "uv", "pip", "download",
@@ -270,41 +271,110 @@ def resolve_wheel(name: str, version_spec: str, extra_indexes: list[str]) -> Pat
         shutil.move(str(whls[0]), dst)
         return dst
 
+_JSON_HEADERS = {"Accept": "application/json"}
+
+
+def _resolve_version_from_pypi(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
+    """Resolve a version specifier to an exact version using PyPI JSON API."""
+    indexes = ["https://pypi.org/pypi/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
+    for base_url in indexes:
+        url = f"{base_url}{name}/json"
+        try:
+            req = urllib.request.Request(url, headers=_JSON_HEADERS)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode())
+            versions = list(data.get("releases", {}).keys())
+            versions.sort(key=lambda v: [int(x) for x in re.findall(r"\d+", v)])
+            version_spec_parsed = version_spec.strip()
+            for v in reversed(versions):
+                if _version_matches(v, version_spec_parsed):
+                    return v
+        except Exception:
+            continue
+    return None
+
+
+def _version_matches(version: str, spec: str) -> bool:
+    """Lightweight PEP 440 version matching.  Handles ==, >=, <=, !=, <, >.
+    Returns True if `version` satisfies `spec`.
+    """
+    spec = spec.strip()
+    v = _parse_version(version)
+
+    # Split on comma for compound specs like '<1.0.0,>=0.2.1'
+    parts = [p.strip() for p in spec.split(",") if p.strip()]
+    if not parts:
+        return True
+
+    for part in parts:
+        # Support whitespace-separated compound as well: '>=0.2.1,<1.0.0'
+        sub_parts = [s.strip() for s in part.split() if s.strip()]
+        for sp in sub_parts:
+            op, target = _parse_spec_part(sp)
+            if op is None:
+                return False
+            tv = _parse_version(target)
+            if not _check_op(v, op, tv):
+                return False
+    return True
+
+
+def _parse_version(v_str: str):
+    """Parse a version string into a tuple of ints for comparison."""
+    # Strip any epoch prefix
+    if "!" in v_str:
+        v_str = v_str.split("!", 1)[1]
+    # Take only the release segment (before first pre/post/dev marker)
+    release = v_str
+    for sep in ("a", "b", "rc", ".post", ".dev", "+", "-"):
+        idx = release.find(sep)
+        if idx != -1:
+            release = release[:idx]
+    return tuple(int(x) for x in release.split(".") if x.isdigit())
+
+
+def _parse_spec_part(spec: str) -> tuple[str | None, str]:
+    """Parse a single version specifier into (operator, version)."""
+    for op in ("!=", ">=", "<=", "==", ">", "<", "~="):
+        if spec.startswith(op):
+            return op, spec[len(op):]
+    # Bare version is treated as ==
+    return "==", spec
+
+
+def _check_op(v1: tuple, op: str, v2: tuple) -> bool:
+    if op == "==":
+        return v1 == v2
+    elif op == "!=":
+        return v1 != v2
+    elif op == ">=":
+        return v1 >= v2
+    elif op == "<=":
+        return v1 <= v2
+    elif op == ">":
+        return v1 > v2
+    elif op == "<":
+        return v1 < v2
+    elif op == "~=":
+        # Compatible release: ~= X.Y means >= X.Y, == X.*
+        return v1 >= v2 and v1[:len(v2) - 1] == v2[:len(v2) - 1]
+    return False
+
 
 def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
                     deps_index: dict, config: dict):
     """Download and repack an indirect dep wheel.  Returns (cache_whl_path, manifest_path)."""
-    # Resolve to exact version via index lookup
+    # Resolve to exact version via PyPI JSON API
     with tempfile.TemporaryDirectory() as td:
-        cmd = [
-            "uv", "pip", "compile",
-            "--no-deps",
-            "--no-annotate",
-            "--no-header",
-            "--index-url", "https://pypi.org/simple/",
-        ]
-        for ei in extra_indexes:
-            cmd.extend(["--extra-index-url", ei])
-        if version_spec:
-            cmd.append(f"{name}{version_spec}")
-        else:
-            cmd.append(name)
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        spec_line = None
-        for line in result.stdout.splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and not line.startswith("-"):
-                spec_line = line
-                break
-        if not spec_line:
-            raise RuntimeError(f"uv pip compile could not resolve {name}{version_spec}")
-        # spec_line looks like "xgrammar==0.2.3"
-        pkg_name, _, pkg_version = spec_line.partition("==")
-        if not pkg_version:
-            pkg_name, _, pkg_version = spec_line.partition(">=")
-        resolved_version = pkg_version.strip()
+        # Strip extras (e.g. [cu13]) for the PyPI lookup
+        pypi_name = re.sub(r"\[.*\]", "", pkg_name)
+        resolved_version = _resolve_version_from_pypi(pypi_name, version_spec, extra_indexes)
+        if not resolved_version:
+            raise RuntimeError(
+                f"Could not resolve {pkg_name}{version_spec} via PyPI JSON API"
+            )
 
-    key = f"{_normalize(pkg_name)}-{resolved_version}"
+    key = f"{_normalize(pypi_name)}-{resolved_version}"
 
     # Already processed?
     if key in deps_index:
@@ -318,7 +388,8 @@ def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
     print(f"  processing {key} ...")
 
     # Download original wheel
-    wheel_path = resolve_wheel(pkg_name, f"=={resolved_version}", extra_indexes)
+    # Download original wheel (use name stripped of extras for download)
+    wheel_path = resolve_wheel(pypi_name, resolved_version, extra_indexes)
 
     # Read its METADATA
     meta_text, dist_info_dir = read_wheel_metadata(wheel_path)
@@ -333,11 +404,11 @@ def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
             print(f"    strip {rd['raw']}")
 
     # Write manifest
-    manifest_path = CACHE_DIR / f"{_normalize(pkg_name)}-{resolved_version}.deps-manifest.yaml"
+    manifest_path = CACHE_DIR / f"{_normalize(pypi_name)}-{resolved_version}.deps-manifest.yaml"
     manifest_data = {
         "source_wheel": wheel_path.name,
         "source_sha256": sha256_file(wheel_path),
-        "package": pkg_name,
+        "package": pypi_name,
         "version": resolved_version,
         "modified_at": datetime.now(timezone.utc).isoformat(),
         "all_requires_dist": [rd["raw"] for rd in all_rd],
@@ -350,7 +421,7 @@ def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
     strip_names = {_normalize(x) for x in config.get("strip_from_repacked", [])}
     new_meta = _strip_requires_dist_lines(meta_text, strip_names)
     new_meta = _downgrade_metadata_version(new_meta)
-    output_name = wheel_name_to_filename(pkg_name, resolved_version)
+    output_name = wheel_name_to_filename(pypi_name, resolved_version)
     output_path = CACHE_DIR / output_name
     rewrite_wheel(wheel_path, output_path, new_meta, dist_info_dir)
 
