@@ -140,7 +140,7 @@ vendors:
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
       env:
-        # TODO: expand set_env.sh into the base image as ENV (avoid sourcing).
+        # set_env.sh captured to /etc/profile.d/vendor.sh in base Containerfile.
         base_source:
           - /usr/local/Ascend/cann/set_env.sh
       deps:
@@ -161,7 +161,7 @@ vendors:
       triton_post_install:
         - triton_ascend==3.2.1
       env:
-        # TODO: expand set_env.sh into the base image as ENV (avoid sourcing).
+        # set_env.sh captured to /etc/profile.d/vendor.sh in base Containerfile.
         base_source:
           - /usr/local/Ascend/cann/set_env.sh
       deps:
@@ -252,7 +252,7 @@ vendors:
       triton: triton==3.3.0+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.5.1+hcu3.1
       env:
-        # TODO: expand env.sh into the base image as ENV (avoid sourcing).
+        # env.sh captured to /etc/profile.d/vendor.sh in base Containerfile.
         base_source:
           - /opt/dtk-26.04/env.sh
       deps:
@@ -431,7 +431,7 @@ vendors:
       python: "3.12"
       triton: triton==3.5.0+ppu2.0.0.oe
       env:
-        # TODO: expand envsetup.sh into the base image as ENV (avoid sourcing).
+        # envsetup.sh NOT yet captured — thead has no base image yet.
         base_source:
           - /usr/local/PPU_SDK/envsetup.sh
       deps:
