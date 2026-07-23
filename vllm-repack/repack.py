@@ -247,29 +247,59 @@ def wheel_name_to_filename(name: str, version: str) -> str:
 
 
 def resolve_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
-    """Download a wheel from PyPI (or extra indexes) via 'uv pip download'.
+    """Download a wheel from PyPI JSON API.
     Returns path to downloaded .whl file.  `version` must be an exact version
     (e.g. '0.2.3'), not a specifier range.
     """
-    spec = f"{name}=={version}"
-    with tempfile.TemporaryDirectory() as td:
-        cmd = [
-            "uv", "pip", "download",
-            "--no-deps",
-            "--dest", td,
-            "--index-url", "https://pypi.org/simple/",
-        ]
-        for ei in extra_indexes:
-            cmd.extend(["--extra-index-url", ei])
-        cmd.append(spec)
-        subprocess.run(cmd, check=True, capture_output=True)
-        whls = list(Path(td).glob("*.whl"))
-        if not whls:
-            raise RuntimeError(f"uv pip download {spec} produced no wheel files")
-        # Move to cache so it persists
-        dst = CACHE_DIR / whls[0].name
-        shutil.move(str(whls[0]), dst)
-        return dst
+    import urllib.request as _ur
+
+    # Try PyPI JSON API to get the wheel URL
+    indexes = ["https://pypi.org/pypi/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
+    wheel_url = None
+    wheel_filename = None
+
+    for base_url in indexes:
+        try:
+            url = f"{base_url}{name}/{version}/json"
+            req = _ur.Request(url, headers=_JSON_HEADERS)
+            with _ur.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode())
+            for entry in data.get("urls", []):
+                if entry.get("packagetype") == "bdist_wheel":
+                    # prefer manylinux/compatible wheels over platform-specific
+                    fn = entry.get("filename", "")
+                    wheel_url = entry.get("url")
+                    if wheel_url:
+                        wheel_filename = fn
+                        break
+            if wheel_url:
+                break
+        except Exception:
+            continue
+
+    if not wheel_url:
+        raise RuntimeError(f"Could not find wheel for {name}=={version}")
+
+    dst = CACHE_DIR / wheel_filename
+    print(f"    downloading {wheel_filename} ...")
+    try:
+        with _ur.urlopen(wheel_url, timeout=120) as resp:
+            with open(dst, "wb") as f:
+                shutil.copyfileobj(resp, f)
+    except Exception:
+        # Fallback: try pip download
+        import subprocess as _sp
+        spec = f"{name}=={version}"
+        _sp.run(
+            [sys.executable, "-m", "pip", "download", "--no-deps", "--dest", str(CACHE_DIR), spec],
+            check=True, capture_output=True,
+        )
+        whls = sorted(CACHE_DIR.glob(f"{re.sub(r'[-_.]', '[-_.]', name)}-{version}*.whl"))
+        if whls:
+            return whls[-1]
+        raise
+
+    return dst
 
 _JSON_HEADERS = {"Accept": "application/json"}
 
