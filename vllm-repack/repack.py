@@ -333,8 +333,7 @@ def resolve_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
 def _is_valid_zip(path: Path) -> bool:
     try:
         with zipfile.ZipFile(path) as z:
-            z.testzip()
-        return True
+            return len(z.namelist()) > 0 and z.testzip() is None
     except (zipfile.BadZipFile, OSError):
         return False
 
