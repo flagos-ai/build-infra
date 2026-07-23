@@ -248,4 +248,4 @@ compiler() {\n\
 ' >> /etc/bash.bashrc
 
 WORKDIR /app
-ENTRYPOINT ["bash"]
+CMD ["bash"]
