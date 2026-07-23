@@ -1,0 +1,79 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ── Wheel Repack Classification Rules ────────────────────────────────
+# Each key is a set of *package names* (no version, case-sensitive).
+# For the top-level wheel (e.g. vllm): any Requires-Dist matching a name in
+# "remove_torch_chain" / "remove_cuda_only" / "remove_orphaned" gets stripped.
+#
+# For identified indirect-dep wheels (also_repack): the dependency-stripping
+# rules under "strip_from_repacked" apply instead — this is deliberately
+# more conservative than the top-level rules.
+
+# ── Top-level removal rules (applied to e.g. vllm's own METADATA) ──
+
+# Packages that directly or transitively depend on torch / triton.
+# Stripping these from vllm's Requires-Dist prevents the entire torch chain
+# from being pulled in.
+remove_torch_chain:
+  - torch
+  - torchaudio
+  - torchvision
+  - torchcodec
+
+# NVIDIA / CUDA-only packages — meaningless on non-CUDA platforms.
+remove_cuda_only:
+  - PyNvVideoCodec
+  - nvidia-cudnn-frontend
+  - nvidia-cutlass-dsl
+  - nvtx
+  - numba
+
+# Packages whose only consumer was stripped above (no other consumers left).
+remove_orphaned:
+  - apache-tvm-ffi
+
+# ── Indirect dependency handling ─────────────────────────────────────
+# These package names are known to pull in torch / triton via their own
+# Requires-Dist.  The repacker will download their original wheel, patch
+# its METADATA, and place the result in cache/.
+
+also_repack:
+  - compressed-tensors
+  - flashinfer-python
+  - flashinfer-cubin
+  - tilelang
+  - quack-kernels
+  - tokenspeed-mla
+  - humming-kernels
+  - xgrammar
+  - tokenspeed-triton
+  - triton
+
+# ── Stripping rules for also_repack packages ─────────────────────────
+# When repacking an indirect dep wheel, remove these from its Requires-Dist.
+# This is narrower than the top-level rules — we only strip the torch/triton
+# family, never CUDA infrastructure (the repacked dep may still need e.g.
+# nvidia-cudnn-frontend at runtime if the user is on CUDA hardware).
+strip_from_repacked:
+  - torch
+  - torchaudio
+  - torchvision
+  - torchcodec
+  - triton
+  - tokenspeed-triton
+
+# ── Indexes for downloading original wheels ──────────────────────────
+# The repacker tries pypi.org first; if --extra-index is given, it appends
+# that URL to the index list.
