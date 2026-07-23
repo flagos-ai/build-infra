@@ -82,6 +82,7 @@ ENV VIRTUAL_ENV=/flagos \
 # conflict risk. torch / torchvision / vendor-specific packages go here.
 RUN if [ -n "${DEPS}" ]; then \
       uv pip install --no-cache-dir ${DEPS} \
+        --index-strategy unsafe-best-match \
         --index ${FLAGOS_PYPI}; \
     fi
 
@@ -89,6 +90,7 @@ RUN if [ -n "${DEPS}" ]; then \
 # FlagTree installs to site-packages/triton/ — it's the default import.
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
       uv pip install --no-cache-dir ${FLAGTREE_PKG} \
+        --index-strategy unsafe-best-match \
         --index ${FLAGOS_PYPI} --index ${DAILY_PYPI}; \
     fi
 
