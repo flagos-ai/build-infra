@@ -75,10 +75,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Python (isolated venv)
-        run: |
-          ~/.local/bin/uv venv /tmp/ci-venv --python 3
-          /tmp/ci-venv/bin/pip install --quiet pyyaml twine
+      - name: Setup Python deps
+        run: python3 -m pip install --user pyyaml twine
 
       - name: Harbor login (pull base image + push runtime)
         if: ${{ inputs.push }}
@@ -111,6 +109,6 @@ jobs:
           if [[ "${{ inputs.no_flaggems }}" == "true" ]]; then
             no_flag="--no-flaggems"
           fi
-          /tmp/ci-venv/bin/python scripts/build_runtime.py "${{ matrix.name }}" \
+          python3 scripts/build_runtime.py "${{ matrix.name }}" \
             --flaggems "${{ inputs.flaggems }}" \
             ${push_flag} ${no_flag}
