@@ -367,11 +367,11 @@ def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
     # Resolve to exact version via PyPI JSON API
     with tempfile.TemporaryDirectory() as td:
         # Strip extras (e.g. [cu13]) for the PyPI lookup
-        pypi_name = re.sub(r"\[.*\]", "", pkg_name)
+        pypi_name = re.sub(r"\[.*\]", "", name)
         resolved_version = _resolve_version_from_pypi(pypi_name, version_spec, extra_indexes)
         if not resolved_version:
             raise RuntimeError(
-                f"Could not resolve {pkg_name}{version_spec} via PyPI JSON API"
+                f"Could not resolve {name}{version_spec} via PyPI JSON API"
             )
 
     key = f"{_normalize(pypi_name)}-{resolved_version}"
