@@ -46,3 +46,21 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /dtk.tar.gz ${FILE_STOR
     && rm /dtk.tar.gz
 
 # NOTE: The /opt/dtk-26.04/env.sh needs to be sourced before using
+
+# ── Capture vendor SDK env into profile.d ──────────────────────
+# Users and downstream Dockerfiles no longer need to source env.sh —
+# the vendor env loads automatically in login, non-login interactive,
+# and non-interactive shells (via runtime's profile.d plumbing).
+RUN env_before=$(env | sort) && \
+    set -a && . /opt/dtk-26.04/env.sh > /dev/null 2>&1 || true && set +a && \
+    env_after=$(env | sort) && \
+    printf '%s\n' "$env_before" > /tmp/_v_before && \
+    printf '%s\n' "$env_after" > /tmp/_v_after && \
+    comm -13 /tmp/_v_before /tmp/_v_after \
+      | grep -v '^_\|^PWD=\|^SHLVL=\|^OLDPWD=' \
+      | while IFS='=' read -r var val; do \
+          printf 'export %s="%s"\n' "$var" "$val"; \
+        done \
+      > /etc/profile.d/vendor.sh && \
+    rm -f /tmp/_v_before /tmp/_v_after && \
+    echo "vendor.sh: captured $(wc -l < /etc/profile.d/vendor.sh) env vars"

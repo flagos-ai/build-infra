@@ -132,13 +132,13 @@ run:
 verify:
   vendors:
     nvidia: "nvidia-smi"
-    # needs set_env.sh sourced first (env not baked into the image yet).
-    ascend: "source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info"
+    # Env now auto-loaded from /etc/profile.d/vendor.sh (captured at base image build).
+    ascend: "npu-smi info"
     metax: "mx-smi"
     cambricon: "cnmon"
     iluvatar: "ixsmi"
-    # hyhal env works for both launch paths (host-mounted raw / toolkit-injected).
-    hygon: "source /opt/hyhal/env.sh && hy-smi"
+    # Env now auto-loaded from /etc/profile.d/vendor.sh.
+    hygon: "hy-smi"
     kunlunxin: "xpu-smi"
     mthreads: "mthreads-gmi"
     enflame: "efsmi"
