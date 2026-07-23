@@ -83,11 +83,11 @@ jobs:
       - name: Harbor login (push only)
         if: ${{ inputs.push }}
         env:
-          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS21 }}
         run: |
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           for i in 1 2 3; do
-            if printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin; then
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u flagos21 --password-stdin; then
               exit 0
             fi
             echo "Harbor login attempt $i failed, retrying..."
