@@ -163,20 +163,20 @@ def _downgrade_metadata_version(text: str) -> str:
 
 
 def _extract_name_version(requires_dist_line: str):
-    """Return (name, version_spec) from a raw Requires-Dist string."""
-    m = _NAME_RE.match(requires_dist_line)
-    name = m.group(1).strip() if m else requires_dist_line
-    version_spec = requires_dist_line[len(name):].strip()
-    if version_spec.startswith(";"):
-        name_and_extra = name
-        rest = version_spec
-        version_spec = ""
-        # marker-only: e.g. "apache-tvm-ffi==0.1.9; platform ..."
-        # The semicolon starts the marker; version is before it if present.
-        semicolon = name_and_extra.find(";")
-        if semicolon != -1:
-            name = name_and_extra[:semicolon].strip()
-            rest = name_and_extra[semicolon:]
+    """Return (name, version_spec_no_marker) from a raw Requires-Dist string.
+
+    Strips extras like [cu13] and environment markers like ; platform_system == ... .
+    """
+    raw = requires_dist_line.strip()
+    # Split off environment marker
+    pkg_spec = raw.split(";", 1)[0].strip()
+
+    m = _NAME_RE.match(pkg_spec)
+    name = m.group(1).strip() if m else pkg_spec
+
+    # Version spec is everything after the name (may include extras brackets)
+    version_spec = pkg_spec[len(name):].strip()
+
     return name, version_spec
 
 
