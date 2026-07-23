@@ -100,6 +100,9 @@ jobs:
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
+          echo "::group::Build runtime image"
+          trap 'echo "::endgroup::"' EXIT
+
           flaggems_ver="${{ inputs.flaggems }}"
           [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
