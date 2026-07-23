@@ -48,9 +48,16 @@ RUN curl -o corex-installer.run ${FILE_STORE}/iluvatar/${SDK_INSTALLER} \
   && rm /corex-installer.run
 
 # Install Corex CMake
+# NOTE: the cmake.sh installer does not respect --target for its bin/
+# path and may write to /bin, overwriting the /bin -> usr/bin symlink.
+# Guard against this by restoring the symlink after install.
 RUN curl -o cmake.sh ${FILE_STORE}/iluvatar/${CMAKE_PKG} \
   && bash cmake.sh --skip-license --target /opt/cmake-corex \
-  && rm cmake.sh
+  && rm cmake.sh \
+  && if [ ! -L /bin ]; then \
+       echo "WARNING: cmake.sh overwrote /bin symlink, restoring..."; \
+       rm -rf /bin && ln -s usr/bin /bin; \
+     fi
 
 # Environment variable
 ENV COREX_ROOT=/usr/local/corex
