@@ -264,42 +264,79 @@ def resolve_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
             req = _ur.Request(url, headers=_JSON_HEADERS)
             with _ur.urlopen(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode())
+            candidates = []
             for entry in data.get("urls", []):
                 if entry.get("packagetype") == "bdist_wheel":
-                    # prefer manylinux/compatible wheels over platform-specific
                     fn = entry.get("filename", "")
-                    wheel_url = entry.get("url")
-                    if wheel_url:
-                        wheel_filename = fn
-                        break
-            if wheel_url:
+                    u = entry.get("url")
+                    if u:
+                        # Prefer manylinux → none-any → platform-specific
+                        score = 0
+                        if "manylinux" in fn:
+                            score = 3
+                        elif fn.endswith("-any.whl") or "-none-any" in fn:
+                            score = 2
+                        else:
+                            score = 1
+                        candidates.append((score, fn, u))
+            if candidates:
+                candidates.sort(key=lambda x: x[0], reverse=True)
+                _, wheel_filename, wheel_url = candidates[0]
                 break
         except Exception:
             continue
 
     if not wheel_url:
-        raise RuntimeError(f"Could not find wheel for {name}=={version}")
+        # Fallback: try pip download
+        spec = f"{name}=={version}"
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "download", "--no-deps",
+             "--dest", str(CACHE_DIR), "--no-cache-dir", spec],
+            check=False, capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            whls = sorted(
+                CACHE_DIR.glob(f"{re.sub(r'[-_.]', '[-_.]', name)}-{version}*.whl"),
+                key=lambda p: p.stat().st_size,
+            )
+            if whls:
+                return whls[-1]
+        raise RuntimeError(f"Could not find or download wheel for {name}=={version}")
 
     dst = CACHE_DIR / wheel_filename
+    if dst.exists() and dst.stat().st_size > 1024:
+        # Already downloaded and valid size
+        if _is_valid_zip(dst):
+            return dst
+        dst.unlink()
+
     print(f"    downloading {wheel_filename} ...")
+    from urllib.error import URLError
     try:
         with _ur.urlopen(wheel_url, timeout=120) as resp:
+            content_type = resp.headers.get("Content-Type", "")
+            if "html" in content_type:
+                raise RuntimeError(f"URL returned HTML, not a wheel: {wheel_url}")
             with open(dst, "wb") as f:
                 shutil.copyfileobj(resp, f)
-    except Exception:
-        # Fallback: try pip download
-        import subprocess as _sp
-        spec = f"{name}=={version}"
-        _sp.run(
-            [sys.executable, "-m", "pip", "download", "--no-deps", "--dest", str(CACHE_DIR), spec],
-            check=True, capture_output=True,
-        )
-        whls = sorted(CACHE_DIR.glob(f"{re.sub(r'[-_.]', '[-_.]', name)}-{version}*.whl"))
-        if whls:
-            return whls[-1]
-        raise
+        if not _is_valid_zip(dst):
+            dst.unlink()
+            raise RuntimeError(f"Downloaded file is not a valid zip: {wheel_filename}")
+    except (URLError, OSError, RuntimeError) as e:
+        if dst.exists():
+            dst.unlink()
+        raise RuntimeError(f"Failed to download {wheel_filename}: {e}")
 
     return dst
+
+
+def _is_valid_zip(path: Path) -> bool:
+    try:
+        with zipfile.ZipFile(path) as z:
+            z.testzip()
+        return True
+    except (zipfile.BadZipFile, OSError):
+        return False
 
 _JSON_HEADERS = {"Accept": "application/json"}
 
