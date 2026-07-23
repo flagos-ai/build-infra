@@ -81,17 +81,23 @@ ENV VIRTUAL_ENV=/flagos \
 # Each vendor has exactly one index (FLAGOS_PYPI), so there is no cross-vendor
 # conflict risk. torch / torchvision / vendor-specific packages go here.
 RUN if [ -n "${DEPS}" ]; then \
-      uv pip install --no-cache-dir --retry 3 ${DEPS} \
-        --index-strategy unsafe-best-match \
-        --index ${FLAGOS_PYPI}; \
+      for i in 1 2 3; do \
+        uv pip install --no-cache-dir ${DEPS} \
+          --index-strategy unsafe-best-match \
+          --index ${FLAGOS_PYPI} && break; \
+        echo "DEPS install attempt $i failed, retrying..."; \
+      done; \
     fi
 
 # ── Install FlagTree (default compiler, if configured) ──────────
 # FlagTree installs to site-packages/triton/ — it's the default import.
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
-      uv pip install --no-cache-dir --retry 3 ${FLAGTREE_PKG} \
-        --index-strategy unsafe-best-match \
-        --index ${FLAGOS_PYPI} --index ${DAILY_PYPI}; \
+      for i in 1 2 3; do \
+        uv pip install --no-cache-dir ${FLAGTREE_PKG} \
+          --index-strategy unsafe-best-match \
+          --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} && break; \
+        echo "FlagTree install attempt $i failed, retrying..."; \
+      done; \
     fi
 
 # ── Install Triton (if configured) ──────────────────────────────
@@ -102,12 +108,18 @@ RUN if [ -n "${FLAGTREE_PKG}" ]; then \
 RUN mkdir -p /opt/triton
 RUN if [ -n "${TRITON_PKG}" ]; then \
       if [ -n "${FLAGTREE_PKG}" ]; then \
-        uv pip install --no-cache-dir --retry 3 --target /opt/triton \
-          --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} \
-          ${TRITON_PKG} ${TRITON_EXTRA_PKGS}; \
+        for i in 1 2 3; do \
+          uv pip install --no-cache-dir --target /opt/triton \
+            --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} \
+            ${TRITON_PKG} ${TRITON_EXTRA_PKGS} && break; \
+          echo "Triton (side) install attempt $i failed, retrying..."; \
+        done; \
       else \
-        uv pip install --no-cache-dir --retry 3 ${TRITON_PKG} ${TRITON_EXTRA_PKGS} \
-          --index ${FLAGOS_PYPI} --index ${DAILY_PYPI}; \
+        for i in 1 2 3; do \
+          uv pip install --no-cache-dir ${TRITON_PKG} ${TRITON_EXTRA_PKGS} \
+            --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} && break; \
+          echo "Triton install attempt $i failed, retrying..."; \
+        done; \
       fi; \
     fi
 
@@ -120,12 +132,15 @@ ARG NO_FLAGGEMS
 RUN if [ -n "${NO_FLAGGEMS}" ]; then \
       echo "NO_FLAGGEMS: skipping flag_gems install"; \
     else \
-      uv pip install --no-cache-dir --retry 3 --prerelease=allow \
-        --index-strategy unsafe-first-match \
-        --index ${FLAGOS_PYPI} \
-        --index ${DAILY_PYPI} \
-        --trusted-host resource.flagos.net \
-        "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"; \
+      for i in 1 2 3; do \
+        uv pip install --no-cache-dir --prerelease=allow \
+          --index-strategy unsafe-first-match \
+          --index ${FLAGOS_PYPI} \
+          --index ${DAILY_PYPI} \
+          --trusted-host resource.flagos.net \
+          "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}" && break; \
+        echo "FlagGems install attempt $i failed, retrying..."; \
+      done; \
     fi
 
 # ── Tests — deferred (image not finalized) ────────────────────
