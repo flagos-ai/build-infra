@@ -109,6 +109,35 @@ jobs:
           no_flaggems_arg=""
           [[ "${{ inputs.no_flaggems }}" == "true" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1'
 
+          # --- debug: runner environment ---
+          echo "--- Runner environment ---"
+          echo "hostname: $(hostname)"
+          echo "arch: $(uname -m)"
+          docker version --format 'docker: {{.Server.Version}}' 2>/dev/null || echo "docker: unavailable"
+          echo "docker images (flagos):"
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep flagos || echo "  (none)"
+
+          # --- debug: build parameters ---
+          echo "--- Build parameters ---"
+          echo "base_image:         ${{ matrix.base_image }}"
+          echo "image_tag:          ${{ matrix.image_tag }}"
+          echo "flaggems_version:   ${flaggems_ver}"
+          echo "no_flaggems:         ${{ inputs.no_flaggems }}"
+          echo "python_version:      ${{ matrix.python_version }}"
+          echo "deps:                ${{ matrix.deps }}"
+          echo "cpp_extra:           ${{ matrix.cpp_extra }}"
+          echo "flagtree_pkg:        ${{ matrix.flagtree_pkg }}"
+          echo "triton_pkg:          ${{ matrix.triton_pkg }}"
+
+          # --- pull base image ---
+          echo "--- Pulling base image ---"
+          docker pull "${{ matrix.base_image }}" || {
+            echo "::error::Failed to pull base image ${{ matrix.base_image }}"
+            exit 1
+          }
+
+          # --- build ---
+          echo "--- Building runtime image ---"
           docker build \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
             --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
@@ -126,6 +155,10 @@ jobs:
             -t "${{ matrix.image_tag }}" \
             -f runtime/Containerfile runtime/
 
+          echo "--- Build complete ---"
+
+          # --- push ---
           if [[ "${{ inputs.push }}" == "true" ]]; then
+            echo "--- Pushing ---"
             docker push "${{ matrix.image_tag }}"
           fi
