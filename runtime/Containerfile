@@ -71,6 +71,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN curl -LsSf "https://resource.flagos.net/repository/flagos-filestore/utils/uv-$(uname -m)-0.11.30-linux-gnu.tar.gz" \
     | tar xz -C /usr/local/bin --strip-components=1
 
+# ── CPython mirror — uv downloads standalone CPython from filestore
+# instead of GitHub (much faster from CN runners).
+ENV UV_PYTHON_INSTALL_MIRROR=https://resource.flagos.net/repository/flagos-filestore/uv-python
+
 # ── Create virtual environment ─────────────────────────────────
 RUN uv venv /flagos --python ${PYTHON_VERSION} --relocatable
 ENV VIRTUAL_ENV=/flagos \
@@ -180,7 +184,10 @@ ENV VIRTUAL_ENV=/flagos \
 ENV USE_C_EXTENSION=1
 
 # ── Compiler switching function ────────────────────────────────
-# Defined in /etc/bash.bashrc so it's available in interactive shells.
+# Written to /etc/profile.d/compiler.sh; available in login shells (via
+# /etc/profile), non-login interactive (via bash.bashrc → profile.d/*.sh),
+# and non-interactive (via BASH_ENV → profile.d/*.sh).
+#
 #   compiler            — show active compiler and what's available
 #   compiler flagtree   — switch to FlagTree (default)
 #   compiler triton     — switch to Triton (prepends /opt/triton to PYTHONPATH)
@@ -245,7 +252,19 @@ compiler() {\n\
       ;;\n\
   esac\n\
 }\n\
-' >> /etc/bash.bashrc
+' > /etc/profile.d/compiler.sh
+
+# ── Bash plumbing — make profile.d/*.sh available everywhere ─────
+#   /etc/profile         → profile.d/*.sh   (login shells, native)
+#   bash.bashrc          → profile.d/*.sh   (non-login interactive)
+#   BASH_ENV             → profile.d/*.sh   (non-interactive, bash -c)
+#
+# Base images may also drop files into /etc/profile.d/ (e.g. vendor SDK env).
+# This plumbing sources everything so user never needs to source env scripts.
+RUN printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n' \
+    > /etc/bash_env.sh; \
+    printf '. /etc/bash_env.sh\n%%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc
+ENV BASH_ENV=/etc/bash_env.sh
 
 WORKDIR /app
 CMD ["bash"]
