@@ -17,9 +17,6 @@ name: Runtime Image Build (manual)
 # Runtime images are built on demand, not on every push/PR. They layer
 # FlagGems (pure Python + optional C++ extension) on top of a base image
 # via wheel install. Trigger this manually to build a backend (or all).
-#
-# Self-hosted runners do NOT need Python/pyyaml.  All build arguments are
-# pre-computed by set-matrix (ubuntu-latest) via generate_matrix.py --runtime.
 
 on:
   workflow_dispatch:
