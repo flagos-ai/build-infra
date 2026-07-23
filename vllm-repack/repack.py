@@ -217,7 +217,19 @@ def read_wheel_metadata(whl_path: Path) -> tuple[str, str]:
 
 
 def rewrite_wheel(src: Path, dst: Path, metadata_text: str, dist_info_dir: str):
-    """Copy src → dst, replacing METADATA content."""
+    """Copy src → dst, replacing METADATA content.  Handles src == dst safely."""
+    if src.resolve() == dst.resolve():
+        tmp = dst.with_suffix(dst.suffix + ".tmp")
+        try:
+            _rewrite_wheel_impl(src, tmp, metadata_text, dist_info_dir)
+            tmp.replace(dst)
+        finally:
+            tmp.unlink(missing_ok=True)
+    else:
+        _rewrite_wheel_impl(src, dst, metadata_text, dist_info_dir)
+
+
+def _rewrite_wheel_impl(src: Path, dst: Path, metadata_text: str, dist_info_dir: str):
     with zipfile.ZipFile(src) as zin:
         with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
