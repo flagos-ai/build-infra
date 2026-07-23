@@ -53,16 +53,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Setup Python (isolated venv)
-        run: |
-          python3 -m venv /tmp/ci-venv
-          /tmp/ci-venv/bin/pip install --quiet pyyaml twine
+      - name: Setup Python deps
+        run: python3 -m pip install --user pyyaml twine
       - name: Build wheel
-        run: /tmp/ci-venv/bin/python scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
+        run: python3 scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
       - name: Upload to all vendor PyPIs
         run: |
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
-          /tmp/ci-venv/bin/python scripts/release_flaggems.py upload-python "$wheel"
+          python3 scripts/release_flaggems.py upload-python "$wheel"
       - uses: actions/upload-artifact@v7
         with:
           name: flag_gems-wheel
@@ -99,24 +97,30 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Setup Python (isolated venv)
+      - name: Setup Python deps
+        run: python3 -m pip install --user pyyaml twine
+
+      - name: Pull runtime:v1 image
         run: |
-          python3 -m venv /tmp/ci-venv
-          /tmp/ci-venv/bin/pip install --quiet pyyaml twine
+          reg=$(python3 -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
+          vendor=$(echo "$BACKEND" | cut -d- -f1)
+          bk=$(echo "$BACKEND" | cut -d- -f2-)
+          image="${reg}/flagos-runtime-${vendor}-${bk}:2.1.1"
+          docker pull "$image"
 
       - name: Build cpp wheel inside runtime:v1
         run: |
           vendor=$(echo "$BACKEND" | cut -d- -f1)
           bk=$(echo "$BACKEND" | cut -d- -f2-)
-          reg=$(/tmp/ci-venv/bin/python -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
-          image="${reg}/flagos-runtime-${vendor}-${bk}:latest"
-          /tmp/ci-venv/bin/python scripts/release_flaggems.py build-cpp "$BACKEND" \
+          reg=$(python3 -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
+          image="${reg}/flagos-runtime-${vendor}-${bk}:2.1.1"
+          python3 scripts/release_flaggems.py build-cpp "$BACKEND" \
             --ref "$FLAGGEMS_REF" --runtime-image "$image" --outdir wheels-cpp
 
       - name: Upload cpp wheel to vendor PyPI
         run: |
           wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
-          /tmp/ci-venv/bin/python scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
+          python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
 
       - uses: actions/upload-artifact@v7
         with:
