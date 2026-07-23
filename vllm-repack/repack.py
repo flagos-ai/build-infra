@@ -174,10 +174,13 @@ def _extract_name_version(requires_dist_line: str):
     # Split off environment marker
     pkg_spec = raw.split(";", 1)[0].strip()
 
+    # Strip extras brackets e.g. humming-kernels[cu13]==0.1.10 → humming-kernels==0.1.10
+    pkg_spec = re.sub(r"\[.*\]", "", pkg_spec)
+
     m = _NAME_RE.match(pkg_spec)
     name = m.group(1).strip() if m else pkg_spec
 
-    # Version spec is everything after the name (may include extras brackets)
+    # Version spec is everything after the name
     version_spec = pkg_spec[len(name):].strip()
 
     return name, version_spec
