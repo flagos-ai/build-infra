@@ -68,8 +68,7 @@ ARG NO_FLAGGEMS
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ── Install uv (arch-aware, from internal filestore) ──────────
-RUN arch=$(uname -m); \
-    curl -LsSf "https://resource.flagos.net/repository/flagos-filestore/utils/uv-\${arch}-0.11.30-linux-gnu.tar.gz" \
+RUN curl -LsSf "https://resource.flagos.net/repository/flagos-filestore/utils/uv-$(uname -m)-0.11.30-linux-gnu.tar.gz" \
     | tar xz -C /usr/local/bin --strip-components=1
 
 # ── Create virtual environment ─────────────────────────────────
