@@ -43,6 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      harbor_host: ${{ steps.harbor-host.outputs.host }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -54,12 +55,18 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 scripts/generate_matrix.py > matrix.json
+            python3 scripts/generate_matrix.py --runtime > matrix.json
           else
-            python3 scripts/generate_matrix.py ${{ inputs.backend }} > matrix.json
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+      - id: harbor-host
+        shell: bash
+        run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          echo "host=$host" >> "$GITHUB_OUTPUT"
 
   build-matrix:
     needs: set-matrix
@@ -72,21 +79,13 @@ jobs:
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
-      - name: Setup Python deps
-        run: python3 -m pip install --user pyyaml twine
-
-      - name: Harbor login (pull base image + push runtime)
+      - name: Harbor login (push only)
         if: ${{ inputs.push }}
         env:
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
-          HTTP_PROXY: ""
-          HTTPS_PROXY: ""
-          no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
         run: |
-          host=$(/tmp/ci-venv/bin/python -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
           for i in 1 2 3; do
             if printf '%s' "$HARBOR_PW" | docker login "$host" -u tengqm --password-stdin; then
               exit 0
@@ -101,14 +100,29 @@ jobs:
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
-          push_flag=""
+          flaggems_ver="${{ inputs.flaggems }}"
+          [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
+
+          no_flaggems_arg=""
+          [[ "${{ inputs.no_flaggems }}" == "true" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1'
+
+          docker build \
+            --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
+            --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
+            --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
+            --build-arg "DAILY_PYPI=${{ matrix.daily_pypi }}" \
+            --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
+            --build-arg "DEPS=${{ matrix.deps }}" \
+            --build-arg "CPP_EXTRA=${{ matrix.cpp_extra }}" \
+            --build-arg "FLAGTREE_PKG=${{ matrix.flagtree_pkg }}" \
+            --build-arg "TRITON_PKG=${{ matrix.triton_pkg }}" \
+            --build-arg "TRITON_EXTRA_PKGS=${{ matrix.triton_extra_pkgs }}" \
+            --build-arg "INCLUDE_TESTS=false" \
+            --build-arg "FLAGGEMS_VERSION=${flaggems_ver}" \
+            ${no_flaggems_arg} \
+            -t "${{ matrix.image_tag }}" \
+            -f runtime/Containerfile runtime/
+
           if [[ "${{ inputs.push }}" == "true" ]]; then
-            push_flag="--push"
+            docker push "${{ matrix.image_tag }}"
           fi
-          no_flag=""
-          if [[ "${{ inputs.no_flaggems }}" == "true" ]]; then
-            no_flag="--no-flaggems"
-          fi
-          python3 scripts/build_runtime.py "${{ matrix.name }}" \
-            --flaggems "${{ inputs.flaggems }}" \
-            ${push_flag} ${no_flag}
