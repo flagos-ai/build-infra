@@ -146,6 +146,15 @@ def parse_containerfile(path: Path, extra_vars: dict | None = None) -> dict:
                 if re.fullmatch(r"[a-z0-9][a-z0-9+.:-]*", tok):
                     system_packages.append(tok)
 
+        # dpkg-installed .deb packages: extract Debian source package names
+        # from .deb filenames (name_version_arch.deb or name-version_arch.deb)
+        # appearing in curl / ENV / dpkg lines. Catches packages that aren't in
+        # apt-get install lines.
+        for dm in re.finditer(
+            r'\b([a-z][a-z0-9+.-]*?)[_-]\d[^ ]*\.deb\b', st
+        ):
+            system_packages.append(_resolve(dm.group(1), varmap))
+
     return {
         "base_os": base_os,
         "labels": labels,
