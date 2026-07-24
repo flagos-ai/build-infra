@@ -52,3 +52,7 @@ RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.9.10-1_amd64.deb \
     && dpkg -i *.deb || true \
     && apt-get install -yf 2>/dev/null || true \
     && rm -f *.deb
+
+# flagtree toolkit.py expects /opt/triton_gcu but triton-gcu deb
+# installs to /opt/triton/triton_gcu.
+RUN ln -sf /opt/triton/triton_gcu /opt/triton_gcu
