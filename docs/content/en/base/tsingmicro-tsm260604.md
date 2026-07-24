@@ -43,7 +43,6 @@ Explicitly installed; the version is the one baked into this image:
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
-- `libfmt-dev` — 9.1.0+ds1
 - `libopenmpi3`
 - `libpython3-dev` — 3.12.3
 - `libunwind8` — 1.6.2
