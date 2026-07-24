@@ -70,7 +70,7 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/tx8.tar.gz \
     && rm /tmp/tx8.tar.gz
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/llvm.tar.gz \
       ${FILE_STORE}/llvm-22-ubuntu-x64.tgz \
-    && mkdir /usr/local/llvm
+    && mkdir -p /usr/local/llvm \
     && tar xf /tmp/llvm.tar.gz -C /usr/local/llvm \
     && rm /tmp/llvm.tar.gz
  
