@@ -1,0 +1,16 @@
+# run: 30080755489
+# verify: success
+build-essential	12.10ubuntu1
+ca-certificates	20260601~24.04.1
+clang	1:18.0-59~exp2
+cmake	3.28.3-1build7
+curl	8.5.0-2ubuntu10.11
+g++	4:13.2.0-7ubuntu1
+gcc	4:13.2.0-7ubuntu1
+git	1:2.43.0-1ubuntu7.3
+libfmt8	8.1.1+ds1-2
+libopenmpi3	
+libpython3-dev	3.12.3-0ubuntu2.1
+libunwind8	1.6.2-3build1.1
+sudo	1.9.15p5-3ubuntu5.24.04.2
+vim	2:9.1.0016-1ubuntu7.18
