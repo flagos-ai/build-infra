@@ -1,0 +1,6 @@
+# run: 30080755489
+# verify: success
+ca-certificates	20260601~24.04.1
+git	1:2.43.0-1ubuntu7.3
+software-properties-common	0.99.49.4
+vim	2:9.1.0016-1ubuntu7.18
