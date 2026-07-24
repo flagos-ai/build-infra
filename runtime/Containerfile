@@ -112,7 +112,7 @@ RUN if [ -n "${FLAGTREE_PKG}" ]; then \
       for i in 1 2 3; do \
         uv pip install --no-cache-dir ${FLAGTREE_PKG} \
           --index-strategy unsafe-best-match \
-          --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} && break; \
+          --index ${FLAGOS_PYPI} && break; \
         echo "FlagTree install attempt $i failed, retrying..."; \
       done; \
     fi
@@ -124,18 +124,20 @@ RUN if [ -n "${FLAGTREE_PKG}" ]; then \
 # Always create /opt/triton so the runtime COPY doesn't fail on missing source.
 RUN mkdir -p /opt/triton
 RUN if [ -n "${TRITON_PKG}" ]; then \
-      if [ -n "${FLAGTREE_PKG}" ]; then \
+      if [ -n "${FLAGTREE_PKG}" ]; then target_flag="--target /opt/triton"; \
+      else target_flag=""; fi; \
+      for i in 1 2 3; do \
+        uv pip install --no-cache-dir ${target_flag} \
+          --index ${FLAGOS_PYPI} \
+          ${TRITON_PKG} && break; \
+        echo "Triton install attempt $i failed, retrying..."; \
+      done; \
+      if [ -n "${TRITON_EXTRA_PKGS}" ]; then \
         for i in 1 2 3; do \
-          uv pip install --no-cache-dir --target /opt/triton \
-            --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} \
-            ${TRITON_PKG} ${TRITON_EXTRA_PKGS} && break; \
-          echo "Triton (side) install attempt $i failed, retrying..."; \
-        done; \
-      else \
-        for i in 1 2 3; do \
-          uv pip install --no-cache-dir ${TRITON_PKG} ${TRITON_EXTRA_PKGS} \
-            --index ${FLAGOS_PYPI} --index ${DAILY_PYPI} && break; \
-          echo "Triton install attempt $i failed, retrying..."; \
+          uv pip install --no-cache-dir ${target_flag} \
+            --index ${FLAGOS_PYPI} \
+            ${TRITON_EXTRA_PKGS} && break; \
+          echo "Triton extra install attempt $i failed, retrying..."; \
         done; \
       fi; \
     fi
