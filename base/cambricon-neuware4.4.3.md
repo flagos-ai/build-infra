@@ -17,6 +17,29 @@ Explicitly installed; the version is the one baked into this image:
 - `build-essential` — 12.10ubuntu1
 - `ca-certificates` — 20260601~24.04.1
 - `cmake` — 3.28.3
+- `cnas` — 5.4.3
+- `cnbin` — 2.4.2
+- `cncc` — 5.4.3
+- `cncl` — 1.29.4
+- `cnclep` — 1.1.1
+- `cncodec3` — 2.4.1
+- `cndev` — 6.5.25
+- `cndev-compat` — 6.5.25
+- `cndrv` — 3.4.3
+- `cngdb` — 4.4.2
+- `cnjpeg` — 0.5.1
+- `cnlicense` — 1.2.0
+- `cnnl` — 2.1.829
+- `cnnlextra` — 2.2.7
+- `cnpapi` — 4.4.2
+- `cnperf`
+- `cnpx` — 1.6.0
+- `cnrt` — 7.4.0
+- `cnrtc` — 0.7.4
+- `cnsanitizer` — 0.12.3
+- `cnstudio` — 1.2.1
+- `cntoolkit` — 4.4.3
+- `cntoolkit-cloud`
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
@@ -26,6 +49,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libncurses6` — 6.4+20240113
 - `libtinfo6` — 6.4+20240113
 - `make` — 4.3
+- `mluops` — 1.8.1
 - `pciutils` — 3.10.0
 - `unzip` — 6.0
 - `vim` — 9.1.0016

@@ -19,9 +19,18 @@ Explicitly installed; the version is the one baked into this image:
 - `ca-certificates` — 20260601~24.04.1
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
+- `eccl` — 3.6.3.11
+- `efml` — 1.9.10
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
+- `gculare-perftest` — 1.9.10
 - `git` — 2.43.0
+- `topsaten` — 3.7.20260514
+- `topscc` — 1.9.10
+- `topspti` — 1.9.10
+- `topsruntime` — 1.9.10
+- `topstx` — 1.9.10
+- `triton-gcu`
 - `vim` — 9.1.0016
 
 ### SDK components
