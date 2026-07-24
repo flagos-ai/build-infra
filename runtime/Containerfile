@@ -128,6 +128,7 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       else target_flag=""; fi; \
       for i in 1 2 3; do \
         uv pip install --no-cache-dir ${target_flag} \
+          --index-strategy unsafe-best-match \
           --index ${FLAGOS_PYPI} \
           ${TRITON_PKG} && break; \
         echo "Triton install attempt $i failed, retrying..."; \
@@ -135,6 +136,7 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       if [ -n "${TRITON_EXTRA_PKGS}" ]; then \
         for i in 1 2 3; do \
           uv pip install --no-cache-dir ${target_flag} \
+            --index-strategy unsafe-best-match \
             --index ${FLAGOS_PYPI} \
             ${TRITON_EXTRA_PKGS} && break; \
           echo "Triton extra install attempt $i failed, retrying..."; \
