@@ -57,5 +57,5 @@ docker run --rm -it \
 Inside the container, confirm the accelerator is visible:
 
 ```bash
-source /opt/hyhal/env.sh && hy-smi
+hy-smi
 ```
