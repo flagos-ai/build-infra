@@ -41,9 +41,9 @@ title: "hygon-dtk26.04"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
-- `git` — 2.43.0
+- `git`
 - `pciutils` — 3.10.0
-- `vim` — 9.1.0016
+- `vim`
 
 ### SDK 组件
 
@@ -56,7 +56,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -69,7 +69,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1-1 bash
 ```
 
 ## 验证

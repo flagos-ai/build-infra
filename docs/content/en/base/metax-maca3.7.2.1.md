@@ -41,12 +41,12 @@ Explicitly installed; the version is the one baked into this image:
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
-- `git` — 2.43.0
+- `git`
 - `libelf1`
 - `libnuma1` — 2.0.18
 - `libpython3-dev` — 3.12.3
 - `make` — 4.3
-- `vim` — 9.1.0016
+- `vim`
 
 ### SDK components
 
