@@ -75,5 +75,5 @@ docker run --rm -it \
 在容器内，确认加速器可见：
 
 ```bash
-source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info
+npu-smi info
 ```

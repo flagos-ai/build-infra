@@ -77,5 +77,5 @@ docker run --rm -it \
 在容器内，确认加速器可见：
 
 ```bash
-source /opt/hyhal/env.sh && hy-smi
+hy-smi
 ```

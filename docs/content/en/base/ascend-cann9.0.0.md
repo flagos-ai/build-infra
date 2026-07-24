@@ -75,5 +75,5 @@ docker run --rm -it \
 Inside the container, confirm the accelerator is visible:
 
 ```bash
-source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info
+npu-smi info
 ```
