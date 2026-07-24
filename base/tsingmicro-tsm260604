@@ -69,8 +69,9 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/tx8.tar.gz \
     && tar xf /tmp/tx8.tar.gz -C /usr/local \
     && rm /tmp/tx8.tar.gz
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/llvm.tar.gz \
-      ${FILE_STORE}/llvm-a66376b0-ubuntu-x64.tgz \
-    && tar xf /tmp/llvm.tar.gz -C /usr/local \
+      ${FILE_STORE}/llvm-22-ubuntu-x64.tgz \
+    && mkdir /usr/local/llvm
+    && tar xf /tmp/llvm.tar.gz -C /usr/local/llvm \
     && rm /tmp/llvm.tar.gz
  
 ENV KUIPER_PATH="/usr/local/kuiper" \
