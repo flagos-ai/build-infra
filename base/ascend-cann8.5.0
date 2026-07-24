@@ -50,7 +50,7 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubu
     && add-apt-repository -y ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y --no-install-recommends \
         curl unzip net-tools pciutils \
-        gcc g++ build-essential make \
+        gcc g++ build-essential make cmake \
         python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python3-pip \
         libelf1 \
         libpython3-dev \

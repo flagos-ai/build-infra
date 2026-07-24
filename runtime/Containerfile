@@ -93,6 +93,19 @@ RUN if [ -n "${DEPS}" ]; then \
       done; \
     fi
 
+# ── Install runtime packages (former build deps) ───────────────
+# pybind11 is a runtime dependency of flagtree (ascend backend,
+# triton/backends/ascend/utils.py imports it). ninja is needed for
+# C++ extension builds. Versions pinned to match flaggems_cpp_build_deps.
+# These are standard PyPI packages, not vendor-specific — use mirror.
+RUN for pkg in pybind11==3.0.3 ninja==1.13.0; do \
+      for i in 1 2 3; do \
+        uv pip install --no-cache-dir "$pkg" \
+          --index ${EXTRA_PYPI} && break; \
+        echo "$pkg install attempt $i failed, retrying..."; \
+      done; \
+    done
+
 # ── Install FlagTree (default compiler, if configured) ──────────
 # FlagTree installs to site-packages/triton/ — it's the default import.
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
