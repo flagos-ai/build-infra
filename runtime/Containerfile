@@ -261,7 +261,9 @@ compiler() {\n\
 #
 # Base images may also drop files into /etc/profile.d/ (e.g. vendor SDK env).
 # This plumbing sources everything so user never needs to source env scripts.
-RUN printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n' \
+# vendor.sh (from base image) captures PATH from the base's set_env.sh,
+# which may override the venv prefix. Restore /flagos/bin after sourcing.
+RUN printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n\nexport PATH="/flagos/bin:$PATH"\n' \
     > /etc/bash_env.sh; \
     printf '. /etc/bash_env.sh\n%%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc
 ENV BASH_ENV=/etc/bash_env.sh
