@@ -45,6 +45,7 @@ Explicitly installed; the version is the one baked into this image:
 - `kmod` — 31+20240202
 - `pciutils` — 3.10.0
 - `vim` — 9.1.0016
+- `xcudart` — 0.0.1
 
 ### SDK components
 
