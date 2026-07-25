@@ -1,0 +1,156 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Verify cpp wheel fixes (temp)
+
+# Temporary workflow to verify FlagGems + libtriton_jit fixes before PR merge.
+# Delete this file after verification is complete.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-nvidia-cuda12.8:
+    runs-on: [self-hosted, h20]
+    steps:
+      - name: Verify cpp ops in runtime container
+        run: |
+          set -euo pipefail
+
+          RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.1"
+          FLAGGEMS_REPO="https://github.com/tengqm/FlagGems.git"
+          FLAGGEMS_REF="fix/get-flag-gems-src-path-fallback"
+          LIBTRITON_JIT_REPO="https://github.com/flagos-ai/libtriton_jit"
+          LIBTRITON_JIT_REF="fix/gen-ssig-relative-path-fallback"
+
+          echo "=== Pulling runtime image ==="
+          docker pull "$RUNTIME_IMAGE"
+
+          docker run --rm --gpus all \
+            -e FLAGGEMS_REPO -e FLAGGEMS_REF \
+            -e LIBTRITON_JIT_REPO -e LIBTRITON_JIT_REF \
+            "$RUNTIME_IMAGE" \
+            bash -c '
+              set -euo pipefail
+
+              # ── Clone fix branches (git is baked into base image) ──────
+              echo "=== Cloning FlagGems ($FLAGGEMS_REF) ==="
+              git clone --quiet --depth 1 --branch "$FLAGGEMS_REF" "$FLAGGEMS_REPO" /tmp/FlagGems
+              cd /tmp/FlagGems
+              echo "FlagGems @ $(git describe --tags 2>/dev/null || git rev-parse --short HEAD)"
+
+              echo "=== Cloning libtriton_jit ($LIBTRITON_JIT_REF) ==="
+              git clone --quiet --depth 1 --branch "$LIBTRITON_JIT_REF" "$LIBTRITON_JIT_REPO" /tmp/libtriton_jit
+              echo "libtriton_jit @ $(git -C /tmp/libtriton_jit describe --tags 2>/dev/null || git -C /tmp/libtriton_jit rev-parse --short HEAD)"
+
+              # ── Point cpp/CMakeLists.txt at the local libtriton_jit clone ─
+              echo "=== Patching CMakeLists.txt to use local libtriton_jit ==="
+              sed -i "s|URL https://resource.flagos.net/repository/flagos-filestore/libtriton_jit/libtriton_jit-0.2.0-rc0.1.tar.gz|SOURCE_DIR /tmp/libtriton_jit|" cpp/CMakeLists.txt
+              grep SOURCE_DIR cpp/CMakeLists.txt
+
+              # ── Set vendor ─────────────────────────────────────────────
+              echo "=== Setting cpp vendor: cuda ==="
+              tools/set_cpp_vendor.sh cuda
+
+              # ── Install FlagGems build deps ────────────────────────────
+              echo "=== Installing build deps ==="
+              pip install scikit-build-core pybind11 cmake ninja
+
+              # ── Build + install pure Python wheel ──────────────────────
+              echo "=== Building pure Python wheel ==="
+              pip wheel . --no-deps -w /tmp/wheels
+              PURE_WHEEL=$(ls /tmp/wheels/flag_gems-*.whl | head -1)
+              echo "Pure wheel: $PURE_WHEEL"
+              pip install --no-deps "$PURE_WHEEL"
+
+              # ── Build + install cpp wheel ──────────────────────────────
+              echo "=== Building cpp wheel ==="
+              CMAKE_ARGS="-DFLAGGEMS_BUILD_C_EXTENSIONS=ON -DFLAGGEMS_BACKEND=CUDA -DCMAKE_BUILD_TYPE=Release" \
+                pip wheel ./cpp --no-deps -w /tmp/wheels-cpp
+              CPP_WHEEL=$(ls /tmp/wheels-cpp/flag_gems_cpp_*.whl | head -1)
+              echo "Cpp wheel: $CPP_WHEEL"
+              pip install --no-deps "$CPP_WHEEL"
+
+              # ── Check .so presence ─────────────────────────────────────
+              echo "=== Checking cpp .so ==="
+              SO=$(find "$VIRTUAL_ENV" -name "c_operators*.so" 2>/dev/null | head -1)
+              if [ -z "$SO" ]; then
+                echo "ERROR: c_operators .so not found" >&2
+                find "$VIRTUAL_ENV" -name "*.so" 2>/dev/null
+                exit 1
+              fi
+              echo ".so: $SO"
+
+              # ── Check triton_src is shipped ────────────────────────────
+              echo "=== Checking triton_src ==="
+              find "$VIRTUAL_ENV" -path "*/flag_gems/*" -name "fill.py" 2>/dev/null | head -5
+              find "$VIRTUAL_ENV" -path "*/flag_gems/*" -name "copy.py" 2>/dev/null | head -5
+
+              # ── Check gen_ssig.py is shipped ───────────────────────────
+              echo "=== Checking gen_ssig.py ==="
+              find "$VIRTUAL_ENV" -name "gen_ssig.py" 2>/dev/null | head -3
+
+              # ── Verify: import + use_gems + run a cpp op ───────────────
+              echo "=== Running verification test ==="
+              python3 <<"PYEOF"
+import os
+import sys
+
+# Check env
+print(f"USE_C_EXTENSION = {os.environ.get('USE_C_EXTENSION', 'unset')}")
+print(f"FLAGGEMS_SOURCE_DIR = {os.environ.get('FLAGGEMS_SOURCE_DIR', 'unset')}")
+print(f"VIRTUAL_ENV = {os.environ.get('VIRTUAL_ENV', 'unset')}")
+print(f"sys.prefix = {sys.prefix}")
+
+import torch
+print(f"torch: {torch.__version__}, cuda: {torch.cuda.is_available()}, devices: {torch.cuda.device_count()}")
+
+import flag_gems
+print(f"flag_gems: {flag_gems.__version__}")
+
+# Try to import cpp extension
+try:
+    import flag_gems._C
+    print(f"_C module loaded from: {flag_gems._C.__file__}")
+except ImportError as e:
+    print(f"_C import failed: {e}")
+
+from flag_gems import use_gems
+use_gems()
+
+# Verify cpp extensions are enabled
+from flag_gems.utils import libentry
+print(f"libentry loaded OK")
+
+# Run a simple cpp op — these go through the triton kernel path
+# that needs gen_ssig.py to extract static signatures
+a = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0], device="cuda")
+b = a + a
+print(f"add result: {b.tolist()}")
+
+c = torch.zeros(5, device="cuda")
+print(f"zeros result: {c.tolist()}")
+
+d = c + a
+print(f"fill+add result: {d.tolist()}")
+
+# Check that cpp ops actually ran (not just pytorch fallback)
+from flag_gems import runtime
+print(f"FlagGems runtime backend: {runtime.backend_name()}")
+
+print("ALL TESTS PASSED")
+PYEOF
+
+              echo "=== Verification complete ==="
+            '
