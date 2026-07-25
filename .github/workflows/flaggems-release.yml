@@ -56,7 +56,10 @@ jobs:
       - name: Setup Python deps
         run: |
           mirror=$(grep "^mirror:" configs.yaml | sed 's/.*"\(.*\)"/\1/')
-          python3 -m pip install --user --index-url "$mirror" pyyaml twine
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages --index-url "$mirror" pyyaml
+          python3 -c "import twine" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages --index-url "$mirror" twine
       - name: Build wheel
         run: python3 scripts/release_flaggems.py build-python --ref "$FLAGGEMS_REF"
       - name: Upload to all vendor PyPIs
@@ -102,7 +105,10 @@ jobs:
       - name: Setup Python deps
         run: |
           mirror=$(grep "^mirror:" configs.yaml | sed 's/.*"\(.*\)"/\1/')
-          python3 -m pip install --user --index-url "$mirror" pyyaml twine
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages --index-url "$mirror" pyyaml
+          python3 -c "import twine" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages --index-url "$mirror" twine
 
       - name: Pull runtime:v1 image
         run: |
