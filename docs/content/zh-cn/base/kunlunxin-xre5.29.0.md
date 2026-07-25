@@ -45,6 +45,7 @@ title: "kunlunxin-xre5.29.0"
 - `kmod` — 31+20240202
 - `pciutils` — 3.10.0
 - `vim` — 9.1.0016
+- `xcudart` — 0.0.1
 
 ### SDK 组件
 
