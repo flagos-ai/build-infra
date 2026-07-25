@@ -152,15 +152,6 @@ def parse_containerfile(path: Path, extra_vars: dict | None = None) -> dict:
                 if re.fullmatch(r"[a-z0-9][a-z0-9+.:-]*", tok):
                     system_packages.append(tok)
 
-        # dpkg-installed .deb packages: extract Debian source package names
-        # from .deb filenames (name_version_arch.deb or name-version_arch.deb)
-        # appearing in curl / ENV / dpkg lines. Catches packages that aren't in
-        # apt-get install lines.
-        for dm in re.finditer(
-            r'\b([a-z][a-z0-9+.-]*?)[_-]\d[^ ]*\.deb\b', st
-        ):
-            system_packages.append(_resolve(dm.group(1), varmap))
-
     return {
         "base_os": base_os,
         "labels": labels,
@@ -277,6 +268,13 @@ def main():
 
             ver = image_version(repo_root, name) or _git_describe(repo_root)
 
+            # Merge dpkg-installed system-level packages (e.g. libfmt8 for
+            # tsingmicro) — these are exceptions declared in configs.yaml, not
+            # the SDK .debs that get their own section.
+            sys_pkgs = list(meta["system_packages"])
+            for p in spec.get("system_dpkg", []) or []:
+                sys_pkgs.append(p)
+
             backends.append(
                 {
                     "name": name,
@@ -291,7 +289,7 @@ def main():
                         "arch": arch,
                         "hardware": spec.get("hardware") or [],
                         "driver": spec.get("driver", ""),
-                        "system_packages": meta["system_packages"],
+                        "system_packages": _dedup(sys_pkgs),
                         "sdk": sdk,
                         "env": env.get("base") or {},
                     },
