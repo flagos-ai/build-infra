@@ -276,13 +276,18 @@ compiler() {\n\
 #   bash.bashrc          → profile.d/*.sh   (non-login interactive)
 #   BASH_ENV             → profile.d/*.sh   (non-interactive, bash -c)
 #
-# Base images may also drop files into /etc/profile.d/ (e.g. vendor SDK env).
-# This plumbing sources everything so user never needs to source env scripts.
-# vendor.sh (from base image) captures PATH from the base's set_env.sh,
-# which may override the venv prefix. Restore /flagos/bin after sourcing.
-RUN printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n\nexport PATH="/flagos/bin:$PATH"\n' \
-    > /etc/bash_env.sh; \
-    printf '. /etc/bash_env.sh\n%%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc
+# Base images with vendor SDK env (ascend, hygon) already set up
+# /etc/bash_env.sh to source profile.d/*.sh. For those, we only append
+# the PATH fix so /flagos/bin stays first (vendor.sh may have prepended
+# SDK paths). For all others, create the full plumbing here.
+# This way base and runtime don't do the same work twice and never conflict.
+RUN if [ -f /etc/bash_env.sh ]; then \
+      printf 'export PATH="/flagos/bin:$PATH"\n' >> /etc/bash_env.sh; \
+    else \
+      printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n\nexport PATH="/flagos/bin:$PATH"\n' \
+        > /etc/bash_env.sh; \
+      printf '. /etc/bash_env.sh\n%%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc; \
+    fi
 ENV BASH_ENV=/etc/bash_env.sh
 
 WORKDIR /app
