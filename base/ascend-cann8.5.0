@@ -88,3 +88,12 @@ RUN env_before=$(env | sort) && \
       > /etc/profile.d/vendor.sh && \
     rm -f /tmp/_v_before /tmp/_v_after && \
     echo "vendor.sh: captured $(wc -l < /etc/profile.d/vendor.sh) env vars"
+
+# ── Bash plumbing — make profile.d/*.sh available everywhere ─────
+# /etc/profile.d/vendor.sh is sourced in login shells only by default.
+# This makes it active in non-login interactive (bash.bashrc) and
+# non-interactive (BASH_ENV) shells too — so `bash -c "cmd"` works.
+RUN printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n' \
+    > /etc/bash_env.sh; \
+    printf '. /etc/bash_env.sh\n%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc
+ENV BASH_ENV=/etc/bash_env.sh
