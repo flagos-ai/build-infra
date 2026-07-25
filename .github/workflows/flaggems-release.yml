@@ -66,10 +66,6 @@ jobs:
         run: |
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-python "$wheel"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: flag_gems-wheel
-          path: wheels/flag_gems-*.whl
 
   # ── 5b: cpp operator wheels, inside runtime:v1 ───────────────────────────
   cpp-matrix:
@@ -131,11 +127,6 @@ jobs:
         run: |
           wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: flag_gems_cpp_${{ matrix.name }}-wheel
-          path: wheels-cpp/flag_gems_cpp_*.whl
 
   # ── 5c: update configs.yaml ──────────────────────────────────────────────
   update-config:
