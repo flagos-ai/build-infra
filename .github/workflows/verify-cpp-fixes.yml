@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify-nvidia-cuda12.8:
+  verify-nvidia-cuda128:
     runs-on: [self-hosted, h20]
     steps:
       - uses: actions/checkout@v7
