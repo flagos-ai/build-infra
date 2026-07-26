@@ -94,8 +94,8 @@ RUN if [ -n "${DEPS}" ]; then \
       for i in 1 2 3; do \
         if uv pip install --no-cache-dir ${DEPS} \
           --index-strategy unsafe-best-match \
-          --index ${FLAGOS_PYPI} \
-          --extra-index-url ${EXTRA_PYPI}; then \
+          --default-index ${FLAGOS_PYPI} \
+          --index ${EXTRA_PYPI}; then \
           _installed=0; break; \
         fi; \
         echo "DEPS install attempt $i failed, retrying..."; \
@@ -128,8 +128,8 @@ RUN if [ -n "${FLAGTREE_PKG}" ]; then \
       for i in 1 2 3; do \
         if uv pip install --no-cache-dir ${FLAGTREE_PKG} \
           --index-strategy unsafe-best-match \
-          --index ${FLAGOS_PYPI} \
-          --extra-index-url ${EXTRA_PYPI}; then \
+          --default-index ${FLAGOS_PYPI} \
+          --index ${EXTRA_PYPI}; then \
           _installed=0; break; \
         fi; \
         echo "FlagTree install attempt $i failed, retrying..."; \
@@ -150,8 +150,8 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       for i in 1 2 3; do \
         if uv pip install --no-cache-dir ${target_flag} \
           --index-strategy unsafe-best-match \
-          --index ${FLAGOS_PYPI} \
-          --extra-index-url ${EXTRA_PYPI} \
+          --default-index ${FLAGOS_PYPI} \
+          --index ${EXTRA_PYPI} \
           ${TRITON_PKG}; then \
           _installed=0; break; \
         fi; \
@@ -163,8 +163,8 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
         for i in 1 2 3; do \
           if uv pip install --no-cache-dir ${target_flag} \
             --index-strategy unsafe-best-match \
-            --index ${FLAGOS_PYPI} \
-            --extra-index-url ${EXTRA_PYPI} \
+            --default-index ${FLAGOS_PYPI} \
+            --index ${EXTRA_PYPI} \
             ${TRITON_EXTRA_PKGS}; then \
             _installed=0; break; \
           fi; \
@@ -187,9 +187,9 @@ RUN if [ -n "${NO_FLAGGEMS}" ]; then \
       for i in 1 2 3; do \
         if uv pip install --no-cache-dir --prerelease=allow \
           --index-strategy unsafe-first-match \
-          --index ${FLAGOS_PYPI} \
+          --default-index ${FLAGOS_PYPI} \
           --index ${DAILY_PYPI} \
-          --extra-index-url ${EXTRA_PYPI} \
+          --index ${EXTRA_PYPI} \
           --trusted-host resource.flagos.net \
           "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"; then \
           _installed=0; break; \
