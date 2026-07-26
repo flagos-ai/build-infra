@@ -205,6 +205,7 @@ def resolve_build_args(
         "DAILY_PYPI": pypi_daily,
         "EXTRA_PYPI": extra_pypi_override or mirror,
         "DEPS": deps,
+        "RUNTIME_PREREQS": " ".join(configs.get("runtime_prereqs", [])),
         "CPP_EXTRA": cpp_extra,
         "FLAGTREE_PKG": flagtree,
         "TRITON_PKG": triton,

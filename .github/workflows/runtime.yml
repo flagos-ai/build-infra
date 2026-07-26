@@ -44,6 +44,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       harbor_host: ${{ steps.harbor-host.outputs.host }}
+      runtime_prereqs: ${{ steps.runtime-prereqs.outputs.prereqs }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -61,6 +62,12 @@ jobs:
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+      - id: runtime-prereqs
+        shell: bash
+        run: |
+          prereqs=$(python3 -c "import yaml; print(' '.join(yaml.safe_load(open('configs.yaml'))['runtime_prereqs']))")
+          echo "prereqs=$prereqs" >> "$GITHUB_OUTPUT"
 
       - id: harbor-host
         shell: bash
@@ -136,6 +143,7 @@ jobs:
             --build-arg "DAILY_PYPI=${{ matrix.daily_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "DEPS=${{ matrix.deps }}" \
+            --build-arg "RUNTIME_PREREQS=${{ needs.set-matrix.outputs.runtime_prereqs }}" \
             --build-arg "CPP_EXTRA=${{ matrix.cpp_extra }}" \
             --build-arg "FLAGTREE_PKG=${{ matrix.flagtree_pkg }}" \
             --build-arg "TRITON_PKG=${{ matrix.triton_pkg }}" \

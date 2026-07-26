@@ -28,6 +28,10 @@ ARG INCLUDE_TESTS=true
 ARG PYTHON_VERSION=3.12
 ARG FLAGOS_PYPI=""
 ARG DAILY_PYPI=""
+# Common packages from configs.yaml runtime_prereqs — needed before FlagGems
+# is installed (pybind11 for flagtree, ninja for C++ extension builds,
+# PyYAML/numpy for vendor torch packages that import without declaring).
+ARG RUNTIME_PREREQS=""
 # Dependencies passed explicitly (no extras) — each may be empty.
 # DEPS: space-separated vendor packages from configs.yaml deps: (torch, etc.)
 # CPP_EXTRA: cpp-cuda / cpp-musa / cpp-npu / cpp-gcu / cpp-ix, or empty
@@ -58,6 +62,7 @@ ARG FLAGOS_PYPI
 ARG DAILY_PYPI
 ARG EXTRA_PYPI
 ARG DEPS
+ARG RUNTIME_PREREQS
 ARG CPP_EXTRA
 ARG FLAGTREE_PKG
 ARG TRITON_PKG
@@ -97,24 +102,23 @@ RUN if [ -n "${DEPS}" ]; then \
       [ "$_installed" -eq 0 ] || { echo "ERROR: DEPS install failed after 3 attempts"; exit 1; }; \
     fi
 
-# ── Install runtime packages ───────────────────────────────────
-# pybind11 is a runtime dependency of flagtree (ascend backend,
-# triton/backends/ascend/utils.py imports it). ninja is needed for
-# C++ extension builds. PyYAML and numpy are FlagGems core deps
-# but also needed before FlagGems is installed (torch_npu and other
-# vendor torch packages import them without declaring the dependency).
-# These are standard PyPI packages, not vendor-specific — use mirror.
-RUN for pkg in pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.1 numpy==1.26.4; do \
+# ── Install runtime prerequisites ───────────────────────────────
+# Common packages from configs.yaml runtime_prereqs, installed from
+# the mirror before FlagGems. pybind11 is a runtime dep of flagtree;
+# ninja is needed for C++ extension builds; PyYAML and numpy are
+# FlagGems core deps that vendor torch packages import without
+# declaring the dependency.
+RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
-        if uv pip install --no-cache-dir "$pkg" \
+        if uv pip install --no-cache-dir ${RUNTIME_PREREQS} \
           --index ${EXTRA_PYPI}; then \
           _installed=0; break; \
         fi; \
-        echo "$pkg install attempt $i failed, retrying..."; \
+        echo "RUNTIME_PREREQS install attempt $i failed, retrying..."; \
       done; \
-      [ "$_installed" -eq 0 ] || { echo "ERROR: $pkg install failed after 3 attempts"; exit 1; }; \
-    done
+      [ "$_installed" -eq 0 ] || { echo "ERROR: RUNTIME_PREREQS install failed after 3 attempts"; exit 1; }; \
+    fi
 
 # ── Install FlagTree (default compiler, if configured) ──────────
 # FlagTree installs to site-packages/triton/ — it's the default import.
