@@ -85,12 +85,16 @@ ENV VIRTUAL_ENV=/flagos \
 # Each vendor has exactly one index (FLAGOS_PYPI), so there is no cross-vendor
 # conflict risk. torch / torchvision / vendor-specific packages go here.
 RUN if [ -n "${DEPS}" ]; then \
+      _installed=1; \
       for i in 1 2 3; do \
-        uv pip install --no-cache-dir ${DEPS} \
+        if uv pip install --no-cache-dir ${DEPS} \
           --index-strategy unsafe-best-match \
-          --index ${FLAGOS_PYPI} && break; \
+          --index ${FLAGOS_PYPI}; then \
+          _installed=0; break; \
+        fi; \
         echo "DEPS install attempt $i failed, retrying..."; \
       done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: DEPS install failed after 3 attempts"; exit 1; }; \
     fi
 
 # ── Install runtime packages ───────────────────────────────────
@@ -101,22 +105,30 @@ RUN if [ -n "${DEPS}" ]; then \
 # vendor torch packages import them without declaring the dependency).
 # These are standard PyPI packages, not vendor-specific — use mirror.
 RUN for pkg in pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.1 numpy==1.26.4; do \
+      _installed=1; \
       for i in 1 2 3; do \
-        uv pip install --no-cache-dir "$pkg" \
-          --index ${EXTRA_PYPI} && break; \
+        if uv pip install --no-cache-dir "$pkg" \
+          --index ${EXTRA_PYPI}; then \
+          _installed=0; break; \
+        fi; \
         echo "$pkg install attempt $i failed, retrying..."; \
       done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: $pkg install failed after 3 attempts"; exit 1; }; \
     done
 
 # ── Install FlagTree (default compiler, if configured) ──────────
 # FlagTree installs to site-packages/triton/ — it's the default import.
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
+      _installed=1; \
       for i in 1 2 3; do \
-        uv pip install --no-cache-dir ${FLAGTREE_PKG} \
+        if uv pip install --no-cache-dir ${FLAGTREE_PKG} \
           --index-strategy unsafe-best-match \
-          --index ${FLAGOS_PYPI} && break; \
+          --index ${FLAGOS_PYPI}; then \
+          _installed=0; break; \
+        fi; \
         echo "FlagTree install attempt $i failed, retrying..."; \
       done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: FlagTree install failed after 3 attempts"; exit 1; }; \
     fi
 
 # ── Install Triton (if configured) ──────────────────────────────
@@ -128,21 +140,29 @@ RUN mkdir -p /opt/triton
 RUN if [ -n "${TRITON_PKG}" ]; then \
       if [ -n "${FLAGTREE_PKG}" ]; then target_flag="--target /opt/triton"; \
       else target_flag=""; fi; \
+      _installed=1; \
       for i in 1 2 3; do \
-        uv pip install --no-cache-dir ${target_flag} \
+        if uv pip install --no-cache-dir ${target_flag} \
           --index-strategy unsafe-best-match \
           --index ${FLAGOS_PYPI} \
-          ${TRITON_PKG} && break; \
+          ${TRITON_PKG}; then \
+          _installed=0; break; \
+        fi; \
         echo "Triton install attempt $i failed, retrying..."; \
       done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: Triton install failed after 3 attempts"; exit 1; }; \
       if [ -n "${TRITON_EXTRA_PKGS}" ]; then \
+        _installed=1; \
         for i in 1 2 3; do \
-          uv pip install --no-cache-dir ${target_flag} \
+          if uv pip install --no-cache-dir ${target_flag} \
             --index-strategy unsafe-best-match \
             --index ${FLAGOS_PYPI} \
-            ${TRITON_EXTRA_PKGS} && break; \
+            ${TRITON_EXTRA_PKGS}; then \
+            _installed=0; break; \
+          fi; \
           echo "Triton extra install attempt $i failed, retrying..."; \
         done; \
+        [ "$_installed" -eq 0 ] || { echo "ERROR: Triton extra install failed after 3 attempts"; exit 1; }; \
       fi; \
     fi
 
@@ -155,15 +175,19 @@ ARG NO_FLAGGEMS
 RUN if [ -n "${NO_FLAGGEMS}" ]; then \
       echo "NO_FLAGGEMS: skipping flag_gems install"; \
     else \
+      _installed=1; \
       for i in 1 2 3; do \
-        uv pip install --no-cache-dir --prerelease=allow \
+        if uv pip install --no-cache-dir --prerelease=allow \
           --index-strategy unsafe-first-match \
           --index ${FLAGOS_PYPI} \
           --index ${DAILY_PYPI} \
           --trusted-host resource.flagos.net \
-          "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}" && break; \
+          "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"; then \
+          _installed=0; break; \
+        fi; \
         echo "FlagGems install attempt $i failed, retrying..."; \
       done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: FlagGems install failed after 3 attempts"; exit 1; }; \
       if find /flagos -name 'c_operators*.so' 2>/dev/null | grep -q .; then \
         echo "cpp extension .so detected — enabling USE_C_EXTENSION"; \
         printf 'export USE_C_EXTENSION=1\n' > /etc/profile.d/use_c_extension.sh; \
