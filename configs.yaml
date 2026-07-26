@@ -75,6 +75,18 @@ flaggems_cpp_build_deps:
   - "cmake>=3.20,<4"
   - "ninja==1.13.0"
 
+# Common Python packages installed in every runtime image before FlagGems.
+# These are standard PyPI packages (not vendor-specific), installed from
+# the mirror. pybind11 is a runtime dep of flagtree (ascend backend);
+# ninja is needed for C++ extension builds; PyYAML and numpy are FlagGems
+# core deps but must be installed before FlagGems (vendor torch packages
+# import them without declaring the dependency).
+runtime_prereqs:
+  - "pybind11==3.0.3"
+  - "ninja==1.13.0"
+  - "PyYAML==6.0.1"
+  - "numpy==1.26.4"
+
 base_image_prefix: "flagos-base"
 
 pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"
