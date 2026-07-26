@@ -28,7 +28,8 @@ name: Base image descriptions
 # cumulative set to a state branch.
 #
 # Self-healing: self-hosted runner connectivity to GitHub is unreliable across
-# vendors. The accumulate job collects whatever extractors succeed, saves partial
+# vendors. Each extract job retries checkout 3× at the step level (10s / 15s
+# backoff). The accumulate job collects whatever extractors succeed, saves partial
 # results to a state branch, then self-triggers with only the missing backends.
 # This loops until all 14 are collected or the retry cap (50) is hit.
 
@@ -90,8 +91,31 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runson) }}
     steps:
       - uses: actions/checkout@v7
+        id: c1
+        continue-on-error: true
         with:
           fetch-depth: 0
+
+      - name: Wait before retry
+        if: steps.c1.outcome == 'failure'
+        run: sleep 10
+
+      - uses: actions/checkout@v7
+        id: c2
+        if: steps.c1.outcome == 'failure'
+        continue-on-error: true
+        with:
+          fetch-depth: 0
+
+      - name: Wait before final retry
+        if: steps.c2.outcome == 'failure'
+        run: sleep 15
+
+      - uses: actions/checkout@v7
+        if: steps.c2.outcome == 'failure'
+        with:
+          fetch-depth: 0
+
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
