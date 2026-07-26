@@ -59,15 +59,16 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
 docker run --rm -it \
-  --device /dev/gcu \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:latest bash
+  --privileged \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.1 bash
 ```
 
 ## Verify

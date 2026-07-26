@@ -53,7 +53,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -66,7 +66,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.1 bash
 ```
 
 ## 验证
@@ -74,5 +74,5 @@ docker run --rm -it \
 在容器内，确认加速器可见：
 
 ```bash
-source /opt/hyhal/env.sh && hy-smi
+hy-smi
 ```

@@ -61,7 +61,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -71,7 +71,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.1 bash
 ```
 
 ## Verify

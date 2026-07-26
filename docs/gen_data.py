@@ -294,7 +294,7 @@ def main():
                         "env": env.get("base") or {},
                     },
                     "runtime": {
-                        "image": image(runtime_prefix, "runtime", name, "latest"),
+                        "image": image(runtime_prefix, "runtime", name, configs["version"]),
                         "python": spec.get("python", ""),
                         "packages": runtime_packages(spec),
                         "env": env.get("runtime") or {},

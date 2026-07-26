@@ -36,7 +36,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 ```bash
 metax-docker \
   --gpus all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -46,7 +46,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.1 bash
 ```
 
 ## Verify

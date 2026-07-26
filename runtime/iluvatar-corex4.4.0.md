@@ -31,7 +31,7 @@
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -40,7 +40,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   -v /usr/local/corex:/usr/local/corex:ro \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.1.1 bash
 ```
 
 ## Verify

@@ -145,8 +145,8 @@ gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true"
 在对应硬件的节点上手动验证：
 
 ```bash
-docker pull harbor.baai.ac.cn/flagos-runtime/flagos-runtime-<vendor>-<backend>:latest
-docker run --gpus all harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:latest \
+docker pull harbor.baai.ac.cn/flagos-runtime/flagos-runtime-<vendor>-<backend>:<version>
+docker run --gpus all harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:<version> \
   python -c "import flag_gems; ..."
 ```
 

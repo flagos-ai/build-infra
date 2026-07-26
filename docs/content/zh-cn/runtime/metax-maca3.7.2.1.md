@@ -56,7 +56,7 @@ title: "metax-maca3.7.2.1"
 ```bash
 metax-docker \
   --gpus all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -66,7 +66,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.1 bash
 ```
 
 ## 验证
