@@ -61,7 +61,7 @@ fi
 
 # ── build ─────────────────────────────────────────────────────
 mkdir -p "$OUTDIR"
-pip wheel ./cpp --no-deps -w "$OUTDIR"
+pip wheel ./cpp --no-deps --no-build-isolation -w "$OUTDIR"
 
 # ── install + inspect .so ─────────────────────────────────────
 pip install --no-deps "$OUTDIR"/*.whl

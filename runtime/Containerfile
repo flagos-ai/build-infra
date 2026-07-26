@@ -93,12 +93,14 @@ RUN if [ -n "${DEPS}" ]; then \
       done; \
     fi
 
-# ── Install runtime packages (former build deps) ───────────────
+# ── Install runtime packages ───────────────────────────────────
 # pybind11 is a runtime dependency of flagtree (ascend backend,
 # triton/backends/ascend/utils.py imports it). ninja is needed for
-# C++ extension builds. Versions pinned to match flaggems_cpp_build_deps.
+# C++ extension builds. PyYAML and numpy are FlagGems core deps
+# but also needed before FlagGems is installed (torch_npu and other
+# vendor torch packages import them without declaring the dependency).
 # These are standard PyPI packages, not vendor-specific — use mirror.
-RUN for pkg in pybind11==3.0.3 ninja==1.13.0; do \
+RUN for pkg in pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.1 numpy==1.26.4; do \
       for i in 1 2 3; do \
         uv pip install --no-cache-dir "$pkg" \
           --index ${EXTRA_PYPI} && break; \
@@ -162,6 +164,10 @@ RUN if [ -n "${NO_FLAGGEMS}" ]; then \
           "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}" && break; \
         echo "FlagGems install attempt $i failed, retrying..."; \
       done; \
+      if find /flagos -name 'c_operators*.so' 2>/dev/null | grep -q .; then \
+        echo "cpp extension .so detected — enabling USE_C_EXTENSION"; \
+        printf 'export USE_C_EXTENSION=1\n' > /etc/profile.d/use_c_extension.sh; \
+      fi; \
     fi
 
 # ── Tests — deferred (image not finalized) ────────────────────
@@ -195,10 +201,13 @@ COPY --from=builder /app /app
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 
-# Enable C++ operator extensions (the flag-gems-cpp-<backend> .so files
-# won't load without this). The default compiler is FlagTree (installed to
-# /flagos); use 'compiler triton' or 'compiler flagtree' to switch.
-ENV USE_C_EXTENSION=1
+# C++ operator extensions are opt-in — set USE_C_EXTENSION=1 at runtime
+# AFTER installing the flag-gems-cpp-<vendor> wheel. The env is NOT set
+# here as a default because runtime:v1 (NO_FLAGGEMS) has no cpp wheel and
+# setting it prematurely causes FlagGems to crash on import.
+#
+# The default compiler is FlagTree (installed to /flagos); use
+# 'compiler triton' or 'compiler flagtree' to switch.
 
 # ── Compiler switching function ────────────────────────────────
 # Written to /etc/profile.d/compiler.sh; available in login shells (via
