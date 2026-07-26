@@ -59,15 +59,16 @@ title: "enflame-tops1.9.10"
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
-  --device /dev/gcu \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:latest bash
+  --privileged \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.1 bash
 ```
 
 ## 验证

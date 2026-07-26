@@ -51,7 +51,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:2.1.1 bash
 ```
 
 ## Verify

@@ -40,7 +40,7 @@ title: "mthreads-musa5.2.0"
 - `flag_gems`
 - `flagtree==0.6.0+mthreads3.6`
 - `mkl==2024.0.0`
-- `torch==2.9.0+musa5.2.0`
+- `torch==2.9.1+musa5.2.0`
 - `torch_musa==2.9.1`
 - <span class="muted"><code class="plain">triton==3.6.0</code></span>
 
@@ -61,7 +61,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -71,7 +71,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.1 bash
 ```
 
 ## Verify

@@ -54,7 +54,7 @@ title: "ascend-cann9.0.0"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -68,7 +68,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:latest bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.1 bash
 ```
 
 ## 验证
@@ -76,5 +76,5 @@ docker run --rm -it \
 在容器内，确认加速器可见：
 
 ```bash
-source /usr/local/Ascend/ascend-toolkit/set_env.sh && npu-smi info
+npu-smi info
 ```

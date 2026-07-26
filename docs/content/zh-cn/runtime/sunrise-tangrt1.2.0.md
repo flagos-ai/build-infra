@@ -45,11 +45,13 @@ title: "sunrise-tangrt1.2.0"
 
 ## 启动
 
-在容器中启动交互式 shell：
+启动交互式 shell（docker 或 podman 均可）：
 
 ```bash
 docker run --rm -it \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:latest bash
+  --privileged \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.1.1 bash
 ```
 
 ## 验证

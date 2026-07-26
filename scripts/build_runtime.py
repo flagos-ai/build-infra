@@ -284,14 +284,15 @@ def main():
     build_args["NO_FLAGGEMS"] = "1" if args.no_flaggems else ""
 
     image_name = f"flagos-runtime-{vendor}-{backend}"
+    version = configs["version"]
 
     if args.tag:
         tag = args.tag
     elif args.registry:
-        tag = f"{args.registry}/{image_name}:latest"
+        tag = f"{args.registry}/{image_name}:{version}"
     else:
         registry = runtime_registry(repo_root)
-        tag = f"{registry}/{image_name}:latest" if registry else f"{image_name}:latest"
+        tag = f"{registry}/{image_name}:{version}" if registry else f"{image_name}:{version}"
 
     cmd = ["docker", "build"]
     for key, value in build_args.items():

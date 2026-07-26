@@ -25,11 +25,13 @@
 
 ## Launch
 
-Start an interactive shell in the container:
+Start an interactive shell (works with docker or podman):
 
 ```bash
 docker run --rm -it \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:latest bash
+  --privileged \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.1.1 bash
 ```
 
 ## Verify

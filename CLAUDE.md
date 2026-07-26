@@ -59,7 +59,7 @@ configs.yaml + base/ Containerfiles + build-config.yml
 ### Image naming
 
 - **Base:** `flagos-base-{vendor}-{backend}:{version}-{n}` — version from Containerfile `LABEL org.opencontainers.image.version` (repo tag), n = per-backend git revision count since that tag. Only Containerfile changes bump n.
-- **Runtime:** `flagos-runtime-{vendor}-{backend}:latest`
+- **Runtime:** `flagos-runtime-{vendor}-{backend}:{version}` — version from configs.yaml `version:` (same as base)
 - Registry: `harbor.baai.ac.cn/{prefix}/` (prefix from `build-config.yml` registry.prefixes)
 - `base/<name>` Containerfile names match the `{vendor}-{backend}` key (e.g. `base/nvidia-cuda12.8`)
 
