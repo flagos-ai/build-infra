@@ -125,14 +125,21 @@ def dump_data(data, yaml_path):
 #  File-skip rules
 # =============================================================================
 
-SKIP_PATTERNS = ["LICENSE", "go.sum", ".gitignore", "README.md",
+SKIP_PATTERNS = ["LICENSE", "go.sum", ".gitignore", "README.md", "README_cn.md",
                  "changelog",  # Debian changelog: strict format, dpkg-buildpackage parsing
+                 "PULL_REQUEST_TEMPLATE.md", "CODEOWNERS",
+                 "CODE_OF_CONDUCT.md", "MAINTAINERS.md",
                  ]
 
 # Path prefixes to skip (directories with strict-format files).
 SKIP_PATH_PREFIXES = [
     "packaging/",     # Debian/RPM packaging: strict format (control, rules, spec, etc.)
     "third_party/",   # Forked upstream code — not ours to relicense; headers shift line numbers
+]
+
+# Path substrings to skip (data files where headers break parsing).
+SKIP_PATH_CONTAINS = [
+    "results_gold/",
 ]
 
 SKIP_EXTENSIONS = {
@@ -213,6 +220,9 @@ def should_skip(filepath):
     for prefix in SKIP_PATH_PREFIXES:
         if filepath.startswith(prefix):
             return True
+    for pattern in SKIP_PATH_CONTAINS:
+        if pattern in filepath:
+            return True
     return False
 
 
@@ -221,11 +231,15 @@ def should_skip(filepath):
 # =============================================================================
 
 def classify_ext(filepath):
-    """Return a normalized extension, handling version-number suffixes and
-    .disabled YAML files."""
+    """Return a normalized extension, handling version-number suffixes,
+    .disabled YAML files, and Dockerfile / Containerfile variant suffixes."""
+    basename = os.path.basename(filepath)
     ext = os.path.splitext(filepath)[1].lower()
     if ext == ".disabled":
         return ".yaml"
+    # Dockerfile / Containerfile variants: Dockerfile.all, Containerfile.inference, etc.
+    if basename.startswith(("Dockerfile.", "Containerfile.")):
+        return ""
     if ext and ext[1:].replace(".", "").isdigit():
         return ""
     return ext

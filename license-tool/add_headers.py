@@ -43,30 +43,36 @@ def add_header_to_file(filepath, year, owner, license_id, dry_run=False):
         return "unknown_type", 0
 
     try:
-        with open(filepath, "r", errors="replace") as f:
+        with open(filepath, "r", newline="", errors="replace") as f:
             original = f.read()
     except (IOError, OSError, UnicodeDecodeError) as e:
         return f"error: {e}", 0
 
+    # Detect line-ending style so we don't convert CRLF ↔ LF
+    eol = "\r\n" if "\r\n" in original else "\n"
+    header_eol = header.replace("\n", eol)
+    sep = eol
+
     hdr_lines = header.count("\n")
 
     if insert_line == 0:
-        new_content = header + "\n" + original
+        new_content = header_eol + sep + original
     else:
         lines = original.splitlines(keepends=True)
         new_content = "".join(
-            lines[:insert_line] + ["\n", header, "\n"] + lines[insert_line:]
+            lines[:insert_line] + [sep, header_eol, sep] + lines[insert_line:]
         )
-
-    new_content = new_content.rstrip("\n") + "\n"
 
     if new_content == original:
         return "unchanged", 0
 
+    # Ensure exactly one trailing newline, preserving original EOL style
+    new_content = new_content.rstrip("\r\n") + eol
+
     if dry_run:
         return "would_add", hdr_lines
 
-    with open(filepath, "w") as f:
+    with open(filepath, "w", newline="") as f:
         f.write(new_content)
     return "added", hdr_lines
 
