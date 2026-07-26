@@ -83,8 +83,8 @@ run:
       # errors "Open mkfd failed"; /dev/mkfd carries that telemetry.
       raw: "--device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
     metax:
-      # metax-docker is a wrapper launcher (replaces `docker run`), not flags.
-      toolkit_cmd: "metax-docker --gpus all {image} bash"
+      # metax-docker is a `docker` wrapper (drop-in replacement), not flags.
+      toolkit_cmd: "metax-docker run --rm -it {image} bash"
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
       toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"

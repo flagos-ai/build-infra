@@ -35,7 +35,9 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ```bash
 metax-docker \
-  --gpus all \
+  run \
+  --rm \
+  -it \
   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.1 bash
 ```
 
