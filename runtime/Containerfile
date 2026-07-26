@@ -187,16 +187,27 @@ RUN if [ -n "${NO_FLAGGEMS}" ]; then \
       for i in 1 2 3; do \
         if uv pip install --no-cache-dir --prerelease=allow \
           --index-strategy unsafe-first-match \
-          --default-index ${FLAGOS_PYPI} \
+          --index ${FLAGOS_PYPI} \
           --index ${DAILY_PYPI} \
           --index ${EXTRA_PYPI} \
           --trusted-host resource.flagos.net \
-          "flag_gems${CPP_EXTRA:+[${CPP_EXTRA}]}==${FLAGGEMS_VERSION}"; then \
+          "flag_gems==${FLAGGEMS_VERSION}"; then \
           _installed=0; break; \
         fi; \
         echo "FlagGems install attempt $i failed, retrying..."; \
       done; \
       [ "$_installed" -eq 0 ] || { echo "ERROR: FlagGems install failed after 3 attempts"; exit 1; }; \
+      if [ -n "${CPP_EXTRA}" ]; then \
+        uv pip install --no-cache-dir --prerelease=allow \
+          --index-strategy unsafe-first-match \
+          --index ${FLAGOS_PYPI} \
+          --index ${DAILY_PYPI} \
+          --index ${EXTRA_PYPI} \
+          --trusted-host resource.flagos.net \
+          "flag-gems-${CPP_EXTRA}==${FLAGGEMS_VERSION}" 2>/dev/null \
+          && echo "cpp extension ${CPP_EXTRA} installed" \
+          || echo "cpp extension ${CPP_EXTRA} not available (skipped)"; \
+      fi; \
       if find /flagos -name 'c_operators*.so' 2>/dev/null | grep -q .; then \
         echo "cpp extension .so detected — enabling USE_C_EXTENSION"; \
         printf 'export USE_C_EXTENSION=1\n' > /etc/profile.d/use_c_extension.sh; \
