@@ -47,12 +47,9 @@
 #   "triton_post_install:" — extra packages installed after Triton (COMPILER=triton).
 #   "env:"             — environment split by which image consumes it:
 #                          base:        vars baked into flagos-base-{vendor}-{backend}
-#                          base_source: vendor scripts sourced to set up the base env
 #                          runtime:     vars baked into flagos-runtime-{vendor}-{backend}
 #                        base/runtime must mirror EXACTLY what the image sets — the
-#                        source of truth for per-image env documentation. base_source
-#                        scripts should eventually be expanded into the base image as
-#                        ENV (so users need not source them), but are kept until then.
+#                        source of truth for per-image env documentation.
 #   "deps:"            — Python dependencies (torch stack, etc.).
 #   "hardware:"        — chip models the image targets (rendered as a prerequisite).
 #   "driver:"          — host driver version installed on the node — a prerequisite,
@@ -140,9 +137,6 @@ vendors:
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
       env:
-        # set_env.sh captured to /etc/profile.d/vendor.sh in base Containerfile.
-        base_source:
-          - /usr/local/Ascend/cann/set_env.sh
       deps:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
@@ -161,9 +155,6 @@ vendors:
       triton_post_install:
         - triton_ascend==3.2.1
       env:
-        # set_env.sh captured to /etc/profile.d/vendor.sh in base Containerfile.
-        base_source:
-          - /usr/local/Ascend/cann/set_env.sh
       deps:
         - torch==2.10.0+cpu
         - torch-npu==2.10.0
@@ -252,9 +243,6 @@ vendors:
       triton: triton==3.3.0+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.5.1+hcu3.1
       env:
-        # env.sh captured to /etc/profile.d/vendor.sh in base Containerfile.
-        base_source:
-          - /opt/dtk-26.04/env.sh
       deps:
         - torch==2.9.0+das.opt1.dtk2604
       sdk:
@@ -431,9 +419,6 @@ vendors:
       python: "3.12"
       triton: triton==3.5.0+ppu2.0.0.oe
       env:
-        # envsetup.sh NOT yet captured — thead has no base image yet.
-        base_source:
-          - /usr/local/PPU_SDK/envsetup.sh
       deps:
         - torch==2.9.0+ppu2.0.0.oe
 
