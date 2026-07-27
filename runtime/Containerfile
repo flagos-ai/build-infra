@@ -80,10 +80,21 @@ RUN curl -LsSf "https://resource.flagos.net/repository/flagos-filestore/utils/uv
 # instead of GitHub (much faster from CN runners).
 ENV UV_PYTHON_INSTALL_MIRROR=https://resource.flagos.net/repository/flagos-filestore/uv-python
 
+# ── Install managed CPython (always from filestore mirror) ─────
+# --python-preference only-managed guarantees uv downloads its own
+# CPython build regardless of what the base image ships. Base image
+# Python is installed by the vendor SDK and may not match the version
+# we need; runtime must control its own Python.
+# As a side effect, ~/.local/share/uv always exists for stage 2 COPY.
+RUN uv python install "${PYTHON_VERSION}" --python-preference only-managed -q
+
 # ── Create virtual environment ─────────────────────────────────
 RUN uv venv /flagos --python ${PYTHON_VERSION} --relocatable --seed
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
+
+# ── Upgrade pip in the venv ──────────────────────────────────────
+RUN pip install --no-cache-dir --upgrade pip
 
 # ── Install vendor dependencies (explicit, no extras) ──────────
 # Dependencies come from configs.yaml deps: — explicit, no resolver ambiguity.
@@ -92,10 +103,9 @@ ENV VIRTUAL_ENV=/flagos \
 RUN if [ -n "${DEPS}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
-        if uv pip install --no-cache-dir ${DEPS} \
-          --index-strategy unsafe-best-match \
-          --default-index ${FLAGOS_PYPI} \
-          --index ${EXTRA_PYPI}; then \
+        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+           pip install --no-cache-dir ${DEPS}; then \
           _installed=0; break; \
         fi; \
         echo "DEPS install attempt $i failed, retrying..."; \
@@ -112,8 +122,8 @@ RUN if [ -n "${DEPS}" ]; then \
 RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
-        if uv pip install --no-cache-dir ${RUNTIME_PREREQS} \
-          --index ${EXTRA_PYPI}; then \
+        if PIP_INDEX_URL="${EXTRA_PYPI}" \
+           pip install --no-cache-dir ${RUNTIME_PREREQS}; then \
           _installed=0; break; \
         fi; \
         echo "RUNTIME_PREREQS install attempt $i failed, retrying..."; \
@@ -126,10 +136,9 @@ RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
-        if uv pip install --no-cache-dir ${FLAGTREE_PKG} \
-          --index-strategy unsafe-best-match \
-          --default-index ${FLAGOS_PYPI} \
-          --index ${EXTRA_PYPI}; then \
+        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+           pip install --no-cache-dir ${FLAGTREE_PKG}; then \
           _installed=0; break; \
         fi; \
         echo "FlagTree install attempt $i failed, retrying..."; \
@@ -148,10 +157,9 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       else target_flag=""; fi; \
       _installed=1; \
       for i in 1 2 3; do \
-        if uv pip install --no-cache-dir ${target_flag} \
-          --index-strategy unsafe-best-match \
-          --default-index ${FLAGOS_PYPI} \
-          --index ${EXTRA_PYPI} \
+        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+           pip install --no-cache-dir ${target_flag} \
           ${TRITON_PKG}; then \
           _installed=0; break; \
         fi; \
@@ -161,10 +169,9 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       if [ -n "${TRITON_EXTRA_PKGS}" ]; then \
         _installed=1; \
         for i in 1 2 3; do \
-          if uv pip install --no-cache-dir ${target_flag} \
-            --index-strategy unsafe-best-match \
-            --default-index ${FLAGOS_PYPI} \
-            --index ${EXTRA_PYPI} \
+          if PIP_INDEX_URL="${FLAGOS_PYPI}" \
+             PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+             pip install --no-cache-dir ${target_flag} \
             ${TRITON_EXTRA_PKGS}; then \
             _installed=0; break; \
           fi; \
@@ -185,12 +192,10 @@ RUN if [ -n "${NO_FLAGGEMS}" ]; then \
     else \
       _installed=1; \
       for i in 1 2 3; do \
-        if uv pip install --no-cache-dir --prerelease=allow \
-          --index-strategy unsafe-first-match \
-          --index ${FLAGOS_PYPI} \
-          --index ${DAILY_PYPI} \
-          --index ${EXTRA_PYPI} \
-          --trusted-host resource.flagos.net \
+        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
+           PIP_TRUSTED_HOST="resource.flagos.net" \
+           pip install --no-cache-dir --pre \
           "flag_gems==${FLAGGEMS_VERSION}"; then \
           _installed=0; break; \
         fi; \
@@ -198,12 +203,10 @@ RUN if [ -n "${NO_FLAGGEMS}" ]; then \
       done; \
       [ "$_installed" -eq 0 ] || { echo "ERROR: FlagGems install failed after 3 attempts"; exit 1; }; \
       if [ -n "${CPP_EXTRA}" ]; then \
-        uv pip install --no-cache-dir --prerelease=allow \
-          --index-strategy unsafe-first-match \
-          --index ${FLAGOS_PYPI} \
-          --index ${DAILY_PYPI} \
-          --index ${EXTRA_PYPI} \
-          --trusted-host resource.flagos.net \
+        PIP_INDEX_URL="${FLAGOS_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
+        PIP_TRUSTED_HOST="resource.flagos.net" \
+        pip install --no-cache-dir --pre \
           "flag-gems-${CPP_EXTRA}==${FLAGGEMS_VERSION}" 2>/dev/null \
           && echo "cpp extension ${CPP_EXTRA} installed" \
           || echo "cpp extension ${CPP_EXTRA} not available (skipped)"; \
