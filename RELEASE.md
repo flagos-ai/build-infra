@@ -81,11 +81,14 @@ gh pr list --head auto/image-descriptions-*
 
 ## 4. 构建 runtime:v1（构建平台）
 
-> **手动触发。** 产出不含 FlagGems 的运行时镜像，用于步骤 5 的 cpp wheel 编译。仅本地保存，不推 Harbor。
+> **手动触发。** 产出不含 FlagGems 的运行时镜像（`:{version}-build`），用于步骤 5 的 FlagGems wheel 编译。
 
 ```bash
-gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="false" -f no_flaggems="true"
+gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true" -f no_flaggems="true"
 ```
+
+镜像 tag: `:{version}-build`（如 `:2.2.0-build`）。
+推送到 Harbor 供 FlagGems CI 拉取。
 
 验证方式：
 ```bash
@@ -98,6 +101,7 @@ gh run view <RUN_ID> --json jobs -q '...'  # 同步骤 2
 如果只有部分 backend 需要 runtime:v1（比如只验证 nvidia），可以只触发指定 backend：
 ```bash
 gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f no_flaggems="true"
+gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f push="true" -f no_flaggems="true"
 ```
 
 ## 5. FlagGems 构建 wheels
@@ -140,6 +144,12 @@ gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true"
 
 `flaggems` 留空 — 自动读取 `configs.yaml` 中的版本。
 
+镜像 tag: `:{version}`（如 `:2.2.0`）。注意与步骤 4 的 `:{version}-build` 区分 — 后者是构建平台，不含 FlagGems；前者是最终交付物。
+
+> **注意：** 步骤 5（FlagGems 迭代测试）可能持续数周，期间步骤 6 会被反复执行。
+> 每次 `configs.yaml` 更新 deps 或 FlagGems 修复后，都需要重新构建 runtime:v2 来验证。
+> 步骤 8（生成 runtime 描述）只在最终验证通过后执行一次。
+
 ## 7. 验证 runtime v2（端到端）
 
 在对应硬件的节点上手动验证：
@@ -156,13 +166,16 @@ docker run --gpus all harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cud
 
 ## 8. 更新 runtime 描述
 
-> **手动触发**
+> **手动触发。**
 
 ```bash
-gh workflow run "Base image descriptions"
+gh workflow run "Runtime Image Descriptions"
 ```
 
 生成 runtime 页面最终版本（含 `flag_gems` 版本号）。Review + merge PR。
+
+> **注意：** 此步骤只在 runtime:v2 最终验证通过后执行一次。
+> 描述内容来自 `configs.yaml`，runtime 镜像构建本身不触发此工作流。
 
 ## 9. 打 release tag
 

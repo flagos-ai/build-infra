@@ -289,11 +289,13 @@ def main():
 
     if args.tag:
         tag = args.tag
-    elif args.registry:
-        tag = f"{args.registry}/{image_name}:{version}"
     else:
-        registry = runtime_registry(repo_root)
-        tag = f"{registry}/{image_name}:{version}" if registry else f"{image_name}:{version}"
+        suffix = "-build" if args.no_flaggems else ""
+        if args.registry:
+            tag = f"{args.registry}/{image_name}:{version}{suffix}"
+        else:
+            registry = runtime_registry(repo_root)
+            tag = f"{registry}/{image_name}:{version}{suffix}" if registry else f"{image_name}:{version}{suffix}"
 
     cmd = ["docker", "build"]
     for key, value in build_args.items():
