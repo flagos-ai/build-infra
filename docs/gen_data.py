@@ -175,7 +175,7 @@ def pick(deps, name):
     return ""
 
 
-def runtime_packages(spec: dict) -> list:
+def runtime_packages(spec: dict, flaggems_version: str = "") -> list:
     """Merged, sorted 'Major Python packages' list for the runtime image:
     deps + the compiler (flagtree and/or triton) + FlagGems.
 
@@ -195,7 +195,8 @@ def runtime_packages(spec: dict) -> list:
         label = f"{triton} (+ {', '.join(post)})" if post else triton
         items.append({"pkg": label, "muted": bool(flagtree)})
 
-    items.append({"pkg": "flag_gems", "muted": False})
+    fg = f"flag_gems=={flaggems_version}" if flaggems_version else "flag_gems"
+    items.append({"pkg": fg, "muted": False})
     items.sort(key=lambda x: x["pkg"].lower())
     return items
 
@@ -296,7 +297,7 @@ def main():
                     "runtime": {
                         "image": image(runtime_prefix, "runtime", name, configs["version"]),
                         "python": spec.get("python", ""),
-                        "packages": runtime_packages(spec),
+                        "packages": runtime_packages(spec, configs.get("flaggems", "")),
                         "env": env.get("runtime") or {},
                     },
                 }

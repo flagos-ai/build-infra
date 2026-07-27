@@ -18,17 +18,13 @@ name: Runtime Image Descriptions
 # docs site, the in-repo runtime/<name>.md file, and the Harbor repository
 # description), then commit + upload.
 #
-# Triggered automatically when a runtime image build completes successfully, or
-# manually via workflow_dispatch.
-#
-# Simpler than base-descriptions: runtime descriptions don't need dpkg-query
-# version extraction — they render the Python software stack from configs.yaml.
+# Triggered manually when the final runtime image (v2, with flag_gems) has been
+# built and pushed. Not triggered by workflow_run because runtime:v2 is rebuilt
+# repeatedly during the FlagGems testing phase — automatic triggering would
+# produce noisy empty PRs.
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Runtime Image Build (manual)"]
-    types: [completed]
 
 permissions:
   contents: write
