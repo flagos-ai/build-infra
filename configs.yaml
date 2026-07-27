@@ -85,7 +85,7 @@ runtime_prereqs:
   - "pybind11==3.0.3"
   - "ninja==1.13.0"
   - "PyYAML==6.0.1"
-  - "numpy==1.26.4"
+  - "numpy==2.3.5"
 
 base_image_prefix: "flagos-base"
 
@@ -287,7 +287,7 @@ vendors:
     xre5.29.0:
       extras: kunlunxin
       hardware: ["Kunlunxin P800"]
-      driver: "5.29.0.0"
+      driver: "5.29.0"
       python: "3.10"
       triton: triton==3.0.0+a48aedef
       flagtree: flagtree==0.5.1+xpu3.0
@@ -311,6 +311,20 @@ vendors:
         - torch_xray==2.0.4
         - xformers==0.0.29+1e7a8ec.d20260114
         - xmlir==1.0.0.1
+      sdk:
+        - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
+        - XRE-CUDA12 5.29.0.0       # xre-Linux-x86_64-cuda12-5.29.0.0.run
+        - XCUDART 5.13.0            # xcudart-5.13.0_amd64.deb
+
+    xre5.37.1:
+      extras: kunlunxin
+      hardware: ["Kunlunxin P800"]
+      driver: "5.37.1"
+      python: "3.10"
+      env:
+        base:
+          PATH: /usr/local/xpu/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/xpu/lib:/usr/local/xcudart/lib
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.29.0.0       # xre-Linux-x86_64-cuda12-5.29.0.0.run
