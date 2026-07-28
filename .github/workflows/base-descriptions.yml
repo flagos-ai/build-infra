@@ -247,9 +247,20 @@ jobs:
           GIT_COMMITTER_NAME: flagos-ci
           GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
+          # Collect: merge TSVs → check completeness.
+          # Determine the expected backend set — the same scope set-matrix
+          # used, so scoped runs don't auto-retry for backends that were
+          # never requested.
+          SCOPE="${{ github.event.inputs.backend || 'all' }}"
+          if [[ "${SCOPE}" == "all" ]]; then
+            EXPECTED=""
+          else
+            EXPECTED="${SCOPE}"
+          fi
           result=$(python3 scripts/collect_version_tsvs.py \
             --versions versions --remote versions-remote \
-            --retry "${RETRY_COUNT:-0}")
+            --retry "${RETRY_COUNT:-0}" \
+            --expected "${EXPECTED}")
           echo "$result"
 
           # Parse JSON once, write each field to GITHUB_OUTPUT.

@@ -65,9 +65,19 @@ def _label() -> str:
     return "unknown"
 
 
-def _missing(versions_dir: Path) -> tuple[list[str], int]:
-    """Return (missing_names, expected_count)."""
-    # gen_data.py must run first so images.yaml includes system packages.
+def _missing(versions_dir: Path, expected_backends: list[str] | None = None) -> tuple[list[str], int]:
+    """Return (missing_names, expected_count).
+
+    When *expected_backends* is given, compute missing directly.  Otherwise
+    delegate to ``missing_versions.py`` (which runs ``generate_matrix.py`` and
+    enumerates every backend — correct for a full run, wrong for a scoped one)."""
+    if expected_backends is not None:
+        expected_set = set(expected_backends)
+        got = {f.stem for f in versions_dir.glob("*.tsv")} if versions_dir.is_dir() else set()
+        missing = sorted(expected_set - got)
+        return missing, len(expected_set)
+
+    # Full run: discover expected backends from generate_matrix.py.
     subprocess.run(
         [sys.executable, str(REPO_ROOT / "docs" / "gen_data.py")],
         capture_output=True, cwd=REPO_ROOT,
@@ -76,7 +86,6 @@ def _missing(versions_dir: Path) -> tuple[list[str], int]:
         [sys.executable, str(REPO_ROOT / "docs" / "missing_versions.py")],
         capture_output=True, text=True, cwd=REPO_ROOT,
     )
-    # Shell's missing_versions.py writes lines; parse COUNT and MISSING.
     missing = []
     expected = 14
     for line in r.stdout.strip().splitlines():
@@ -96,6 +105,9 @@ def main() -> None:
     ap.add_argument("--versions", required=True, help="Path to versions/ directory")
     ap.add_argument("--remote", required=True, help="Path to versions-remote/ directory")
     ap.add_argument("--retry", type=int, default=0, help="Retry count (0 = fresh run)")
+    ap.add_argument("--expected", default="",
+                    help="Space-separated expected backend names (from set-matrix). "
+                         "When empty, discover from generate_matrix.py.")
     args = ap.parse_args()
 
     versions_dir = Path(args.versions)
@@ -119,7 +131,8 @@ def main() -> None:
     print(f"After merging: {now} (was {prev})", file=sys.stderr)
 
     # Check completeness.
-    missing_names, expected = _missing(versions_dir)
+    expected_backends = args.expected.split() if args.expected else None
+    missing_names, expected = _missing(versions_dir, expected_backends)
     done = (not missing_names) and now >= expected
 
     if done:
