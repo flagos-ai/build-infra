@@ -18,9 +18,14 @@ name: SDK section reminder
 # the maintainer to update that backend's `sdk:` list in configs.yaml if the
 # installed SDK packages changed. The decision is left to a human — no automated
 # package tracking.
+#
+# Uses pull_request_target (not pull_request) so that the GITHUB_TOKEN retains
+# pull-requests: write on fork PRs. Safe: this workflow never checks out PR code
+# or runs user-controlled content — it only calls the GitHub API via a trusted
+# github-script action.
 
 on:
-  pull_request:
+  pull_request_target:
     paths:
       - 'base/**'
 
