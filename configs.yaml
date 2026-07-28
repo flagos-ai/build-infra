@@ -78,14 +78,13 @@ flaggems_cpp_build_deps:
 # Common Python packages installed in every runtime image before FlagGems.
 # These are standard PyPI packages (not vendor-specific), installed from
 # the mirror. pybind11 is a runtime dep of flagtree (ascend backend);
-# ninja is needed for C++ extension builds; PyYAML and numpy are FlagGems
-# core deps but must be installed before FlagGems (vendor torch packages
-# import them without declaring the dependency).
+# ninja is needed for C++ extension builds; PyYAML is a FlagGems
+# core dep that vendor torch packages import without declaring.
+# numpy is pinned per-backend (Python 3.10 vs 3.12 range differs).
 runtime_prereqs:
   - "pybind11==3.0.3"
   - "ninja==1.13.0"
   - "PyYAML==6.0.1"
-  - "numpy==2.3.5"
 
 base_image_prefix: "flagos-base"
 
@@ -114,6 +113,7 @@ vendors:
         - torch==2.10.0+cu128
         - torchaudio==2.10.0+cu128
         - torchvision==0.25.0+cu128
+        - numpy==2.3.5
       sdk:
         - CUDA 12.8 (x86_64)
 
@@ -136,6 +136,7 @@ vendors:
         - torch==2.11.0+cu130
         - torchaudio==2.11.0+cu130
         - torchvision==0.26.0+cu130
+        - numpy==2.3.5
       sdk:
         - CUDA 13.3 (x86_64)
 
@@ -152,6 +153,7 @@ vendors:
       deps:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
+        - numpy==2.3.5
       sdk:
         - CANN Toolkit 8.5.0 (aarch64)     # Ascend-cann-toolkit_8.5.0_linux-aarch64.run
         - CANN 910B Ops 8.5.0 (aarch64)    # Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
@@ -170,6 +172,7 @@ vendors:
       deps:
         - torch==2.10.0+cpu
         - torch-npu==2.10.0
+        - numpy==2.3.5
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910B Ops 9.0.0 (aarch64) # Ascend-cann-910b-ops_9.0.0_linux-aarch64.run
@@ -191,6 +194,7 @@ vendors:
         - torch==2.7.1+cpu
         - torch-mlu==1.29.2+torch2.7.1
         - torch-mlu-ops==1.8.0+torch2.7.1
+        - numpy==2.2.6
       sdk:
         - cndev 6.5.25 (amd64) # cnlicense_1.2.0-1.ubuntu22.04_amd64.deb
                                # cndev_6.5.25-1.ubuntu22.04_amd64.deb
@@ -236,6 +240,7 @@ vendors:
         - torchvision==0.25.0+cpu
         - torch-gcu==2.10.0+3.7.20260408
         - flash-attn==2.7.2+torch.2.9.1.gcu.3.4.20260323
+        - numpy==2.3.5
       sdk:
         - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
         - TOPS Runtime 1.9.10     # topsruntime_1.9.10-1_amd64.deb
@@ -265,6 +270,7 @@ vendors:
         - torchvision==0.25.0+cpu
         - torch-gcu==2.10.0+3.7.20260408
         - topstx==1.9.17
+        - numpy==2.3.5
       sdk:
         - Enflame driver 1.9.17   # enflame-x86_64-gcc-1.9.17-20260604115152.run
         - TOPS Runtime 1.9.17     # topsruntime_1.9.17-1_amd64.deb
@@ -289,6 +295,7 @@ vendors:
       env:
       deps:
         - torch==2.9.0+das.opt1.dtk2604
+        - numpy==2.2.6
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
 
@@ -343,6 +350,7 @@ vendors:
         - torch_xray==2.0.4
         - xformers==0.0.29+1e7a8ec.d20260114
         - xmlir==1.0.0.1
+        - numpy==2.2.6
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.29.0.0       # xre-Linux-x86_64-cuda12-5.29.0.0.run
@@ -375,6 +383,7 @@ vendors:
         - torch_xray==2.0.4
         - xformers==0.0.29+1e7a8ec.d20260114
         - xmlir==1.0.0.1
+        - numpy==2.2.6
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.37.1.0       # xre-Linux-x86_64-cuda12-5.37.1.0.run
@@ -398,6 +407,7 @@ vendors:
         - torchaudio==2.4.1+metax3.7.2.0
         - torchvision==0.15.1+metax3.7.2.0
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
+        - numpy==2.3.5
       sdk:
         - MetaX Driver 3.7.2.30   # metax-driver-3.7.2.30-deb-x86_64.run
         - MACA SDK 3.7.2.0        # maca-sdk-3.7.2.0-deb-x86_64.tar.xz
@@ -423,6 +433,7 @@ vendors:
         - torch==2.9.0+musa.4.3.6
         - torch_musa==2.9.0
         - mkl==2024.0.0
+        - numpy==2.2.6
       sdk:
         - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
         - MCCL RC2.1.6              # mccl_rc2.1.6.PH1.tar.gz
@@ -448,6 +459,7 @@ vendors:
         - torch==2.9.1+musa5.2.0
         - torch_musa==2.9.1
         - mkl==2024.0.0
+        - numpy==2.2.6
 
       sdk:
         - MUSA Toolkits 5.2.0     # musa_toolkits_5.2.0.tar.gz
@@ -462,6 +474,7 @@ vendors:
       triton: triton==3.6.0+spacemit.a5
       deps:
         - torch==2.8.0+spacemit.0
+        - numpy==2.3.5
 
   sunrise:
     tangrt1.2.0:
@@ -481,6 +494,7 @@ vendors:
         - torchaudio==2.11.0+cpu
         - torchvision==0.26.0+cpu
         - torch-ptpu==0.2.3+torch2.11
+        - numpy==2.2.6
       sdk:
         - Tang Toolkit 1.2.0   # tangtk-v1.2.0-linux-x86_64.run
         - PCCL 1.2.0           # pccl-v1.2.0-linux_x86_64.run
@@ -497,6 +511,7 @@ vendors:
       env:
       deps:
         - torch==2.9.0+ppu2.0.0.oe
+        - numpy==2.3.5
 
   tsingmicro:
     tsm260604:
@@ -531,6 +546,7 @@ vendors:
         - torchaudio==2.7.0+cpu
         - torch_txda==0.1.0+20260615.37ba6bbd
         - txops==0.1.0+20260508.60287151
+        - numpy==2.2.6
       sdk:
         - TSM Runtime 260604163331           # Tsm_runtime_260604163331_x86_64_installer.run
         - TSM Validation Suite 260604163331  # Tsm_validation_suite_260604163331_x86_64_installer.run
