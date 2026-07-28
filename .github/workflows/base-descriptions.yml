@@ -225,7 +225,7 @@ jobs:
           GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
           label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
-          state_branch="auto/versions-${label}"
+          state_branch="auto/versions-${label}-state"
           if git ls-remote --heads origin "refs/heads/${state_branch}" | grep -q refs; then
             echo "Restoring state from ${state_branch}"
             git fetch origin "${state_branch}"
@@ -273,7 +273,7 @@ jobs:
           GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
           label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
-          state_branch="auto/versions-${label}"
+          state_branch="auto/versions-${label}-state"
 
           if [ ! -d versions ] || [ -z "$(ls -A versions 2>/dev/null)" ]; then
             echo "No version data to save"

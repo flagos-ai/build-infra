@@ -106,7 +106,7 @@ def _cleanup_per_backend_branches(label: str) -> None:
 
 
 def _cleanup_state_branch(label: str) -> None:
-    _git("push", "origin", "--delete", f"auto/versions-{label}", check=False)
+    _git("push", "origin", "--delete", f"auto/versions-{label}-state", check=False)
 
 
 def _git_env() -> dict:
