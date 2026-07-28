@@ -19,12 +19,20 @@ Repack a Python wheel by removing unwanted Requires-Dist entries from its
 METADATA, recording every change in a .deps-manifest.yaml for traceability.
 
 Usage:
-    python repack.py /path/to/vllm-0.25.1-xxx.whl          # single wheel
-    python repack.py --from pypi vllm==0.25.1               # download first
-    python repack.py --extra-index https://... vllm.whl     # add search index
+    python repack.py /path/to/vllm-0.25.1-xxx.whl
+    python repack.py --extra-indexes https://... vllm.whl
 
-The script puts repacked wheels + manifests under output/ and patched
-indirect-dependency wheels under cache/.
+The script puts repacked wheels + manifests under output/.  Indirect
+dependency (also_repack) repacking is kept as a fallback under cache/ —
+by default these packages stay in Requires-Dist so pip resolves them
+naturally from the default index.
+
+Design:
+    - Only blacklisted deps (torch_chain, cuda_only, orphaned) are stripped
+      from Requires-Dist.  also_repack packages are KEPT — pip resolves them.
+    - No version suffix — pip + --extra-index-url to vendor PyPI ensures the
+      repacked wheel is used, without uv-style auto-upgrade behavior.
+    - The default download index is https://mirrors.aliyun.com/pypi/simple/
 """
 
 import argparse
@@ -49,6 +57,7 @@ CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 CACHE_DIR = SCRIPT_DIR / "cache"
 OUTPUT_DIR = SCRIPT_DIR / "output"
 DEPS_INDEX_PATH = SCRIPT_DIR / "deps-index.yaml"
+VERSION_SUFFIX = ""
 
 
 # ── helpers ────────────────────────────────────────────────────────────
@@ -268,7 +277,7 @@ def resolve_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
     import urllib.request as _ur
 
     # Try PyPI JSON API to get the wheel URL
-    indexes = ["https://pypi.org/pypi/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
+    indexes = ["https://mirrors.aliyun.com/pypi/simple/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
     wheel_url = None
     wheel_filename = None
 
@@ -356,7 +365,7 @@ _JSON_HEADERS = {"Accept": "application/json"}
 
 def _resolve_version_from_pypi(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
     """Resolve a version specifier to an exact version using PyPI JSON API."""
-    indexes = ["https://pypi.org/pypi/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
+    indexes = ["https://mirrors.aliyun.com/pypi/simple/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
     for base_url in indexes:
         url = f"{base_url}{name}/json"
         try:
@@ -534,7 +543,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
 
     # 2. Classify every Requires-Dist
     removed: dict[str, list[str]] = {"torch_chain": [], "cuda_only": [], "orphaned": []}
-    repack_targets: list[dict] = []
+    repack_candidates: list[dict] = []  # also_repack — recorded but NOT stripped
     retained: list[str] = []
 
     for rd in all_rd:
@@ -542,27 +551,28 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
         if cat in ("torch_chain", "cuda_only", "orphaned"):
             removed[cat].append(rd["raw"])
         elif cat == "repack":
-            repack_targets.append(rd)
-            removed.setdefault("repack", []).append(rd["raw"])
+            # also_repack packages are KEPT in Requires-Dist — pip resolves
+            # them naturally.  repack_indirect() is a fallback for packages
+            # that pin an incompatible torch/triton version.
+            repack_candidates.append(rd)
+            retained.append(rd["raw"])
         else:
             retained.append(rd["raw"])
 
     print(f"  keep:     {len(retained)}")
-    for cat in ("torch_chain", "cuda_only", "orphaned", "repack"):
+    for cat in ("torch_chain", "cuda_only", "orphaned"):
         if removed[cat]:
             print(f"  {cat}: {len(removed[cat])}")
+    if repack_candidates:
+        print(f"  also_repack (kept): {len(repack_candidates)}")
 
-    # 3. Repack indirect deps (also_repack)
+    # 3. Record also_repack candidates (kept in Requires-Dist by default)
     repacked_refs: list[dict] = []
-    for rd in repack_targets:
-        name, version_spec = _extract_name_version(rd["raw"])
-        cache_whl, manifest = repack_indirect(
-            name, version_spec, extra_indexes, deps_index, config
-        )
+    for rd in repack_candidates:
         repacked_refs.append({
             "original": rd["raw"],
-            "repacked": str(cache_whl.relative_to(SCRIPT_DIR)),
-            "manifest": str(manifest.relative_to(SCRIPT_DIR)),
+            "repacked": "(kept — not repacked)",
+            "manifest": "",
         })
 
     # 4. Write top-level manifest
@@ -591,7 +601,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
 
     # 5. Strip & rewrite top-level wheel
     names_to_remove: set[str] = set()
-    for cat in ("torch_chain", "cuda_only", "orphaned", "repack"):
+    for cat in ("torch_chain", "cuda_only", "orphaned"):
         for rd_raw in removed.get(cat, []):
             nm = _NAME_RE.match(rd_raw)
             if nm:
