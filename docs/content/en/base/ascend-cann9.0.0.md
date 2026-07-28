@@ -35,9 +35,23 @@ title: "ascend-cann9.0.0"
 
 Explicitly installed; the version is the one baked into this image:
 
+- `build-essential` — 12.10ubuntu1
 - `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libelf1`
+- `libpython3-dev` — 3.12.3
+- `make` — 4.3
+- `net-tools` — 2.10
+- `pciutils` — 3.10.0
+- `python3-pip` — 24.0+dfsg
+- `python3.11` — 3.11.15
+- `python3.11-dev` — 3.11.15
 - `software-properties-common` — 0.99.49.4
+- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK components
