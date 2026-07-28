@@ -121,8 +121,8 @@ def _strip_requires_dist_lines(metadata_text: str, names_to_remove: set[str]) ->
 
 _METADATA_VERSION_RE = re.compile(r"^Metadata-Version:\s*.+$", re.MULTILINE | re.IGNORECASE)
 _LICENSE_EXPRESSION_RE = re.compile(r"^License-Expression:\s*.+$", re.MULTILINE | re.IGNORECASE)
-_LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+$", re.MULTILINE | re.IGNORECASE)
-_DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+$", re.MULTILINE | re.IGNORECASE)
+_LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
+_DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
 
 
 def _downgrade_metadata_version(text: str) -> str:
