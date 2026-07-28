@@ -68,6 +68,22 @@ jobs:
         with:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
+
+      # On a fresh run (not a retry), delete all stale branches and saved
+      # state from a previous cycle so no stale TSV data leaks into the
+      # current collection. Retries preserve existing state.
+      - name: Cleanse stale version branches (fresh run only)
+        if: ${{ (github.event.inputs.retry_count || '0') == '0' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for ref in $(git ls-remote --heads origin 'refs/heads/auto/versions*' | awk '{print $2}'); do
+            branch="${ref#refs/heads/}"
+            echo "Cleaning stale branch: $branch"
+            git push origin --delete "$branch" 2>/dev/null || true
+          done
+        continue-on-error: true
+
       - id: m
         env:
           BACKEND: ${{ github.event.inputs.backend || 'all' }}
@@ -197,9 +213,33 @@ jobs:
       - name: Fetch version TSVs from extract jobs
         run: python3 scripts/fetch_version_tsvs.py versions-remote
 
-      # collect: restore state → merge TSVs → check completeness → save state.
-      # Always exits 0 — the next step (Finalize or Retry) acts on the
-      # done/missing outputs.
+      # Restore previously-collected TSVs from the state branch so that
+      # backends not refreshed this retry retain their data across runs.
+      # On retry=0 the state branch doesn't exist yet — that's fine, we
+      # start fresh (set-matrix already cleansed stale branches).
+      - name: Restore state from previous retries
+        env:
+          GIT_AUTHOR_NAME: flagos-ci
+          GIT_AUTHOR_EMAIL: noreply@flagos.net
+          GIT_COMMITTER_NAME: flagos-ci
+          GIT_COMMITTER_EMAIL: noreply@flagos.net
+        run: |
+          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          state_branch="auto/versions-${label}"
+          if git ls-remote --heads origin "refs/heads/${state_branch}" | grep -q refs; then
+            echo "Restoring state from ${state_branch}"
+            git fetch origin "${state_branch}"
+            mkdir -p versions
+            git checkout FETCH_HEAD -- versions/
+          else
+            echo "No state branch (${state_branch}) — starting fresh"
+            mkdir -p versions
+          fi
+
+      # collect: merge TSVs → check completeness.
+      # State was restored above; this step overwrites any stale entries
+      # with freshly-fetched data. Always exits 0 — the next step
+      # (Finalize or Retry) acts on the done/missing outputs.
       - id: collect
         env:
           GIT_AUTHOR_NAME: flagos-ci
@@ -220,6 +260,55 @@ jobs:
                     'verify_ok', 'verify_fail', 'verify_skip'):
               print(f'{k}={d[k]}')
           " | tee -a "$GITHUB_OUTPUT"
+
+      # Persist collected TSVs to the state branch so they survive
+      # across retries (each accumulate runs on a fresh ubuntu-latest VM).
+      # Each save is a full snapshot of versions/ — no incremental merge.
+      - name: Save state for next retry
+        if: always() && steps.collect.outcome == 'success'
+        env:
+          GIT_AUTHOR_NAME: flagos-ci
+          GIT_AUTHOR_EMAIL: noreply@flagos.net
+          GIT_COMMITTER_NAME: flagos-ci
+          GIT_COMMITTER_EMAIL: noreply@flagos.net
+        run: |
+          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          state_branch="auto/versions-${label}"
+
+          if [ ! -d versions ] || [ -z "$(ls -A versions 2>/dev/null)" ]; then
+            echo "No version data to save"
+            exit 0
+          fi
+
+          # Stage all TSV files so write-tree captures them (collect step
+          # copies them from versions-remote/ — they are untracked).
+          git add -f versions/*.tsv 2>/dev/null || true
+
+          # Build a tree of the versions/ directory contents, then wrap it
+          # in an outer tree so restore via checkout -- versions/ works.
+          inner_tree=$(git write-tree --prefix=versions/)
+          if [ -z "$inner_tree" ]; then
+            echo "Failed to create inner tree"
+            git restore --staged versions/ 2>/dev/null || true
+            exit 0
+          fi
+          outer_tree=$(printf "040000 tree %s\tversions" "$inner_tree" | git mktree)
+
+          # Use previous state commit as parent if it exists.
+          parent=""
+          if git ls-remote --heads origin "refs/heads/${state_branch}" | grep -q refs; then
+            parent=$(git rev-parse "origin/${state_branch}" 2>/dev/null || echo "")
+          fi
+          parent_opt=""
+          if [ -n "$parent" ]; then
+            parent_opt="-p $parent"
+          fi
+          commit=$(echo "state:${label}" | git commit-tree "$outer_tree" $parent_opt)
+          git push -f origin "${commit}:refs/heads/${state_branch}"
+          echo "Saved state to ${state_branch} (commit ${commit:0:12})"
+
+          # Unstage to keep working tree clean for the finalize step.
+          git restore --staged versions/ 2>/dev/null || true
 
       - name: Finalize (descriptions + PR) or retry
         if: always() && steps.collect.outcome == 'success'
