@@ -16,9 +16,9 @@
 Explicitly installed; the version is the one baked into this image:
 
 - `ca-certificates` — 20260601~24.04.1
-- `git` — 2.43.0
+- `git`
 - `software-properties-common` — 0.99.49.4
-- `vim` — 9.1.0016
+- `vim`
 
 ### SDK components
 
