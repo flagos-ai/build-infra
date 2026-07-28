@@ -144,13 +144,15 @@ def parse_containerfile(path: Path, extra_vars: dict | None = None) -> dict:
             labels[lm.group(1)] = lm.group(2)
         # apt packages: take valid package tokens only (skip flags, redirects,
         # operators, comments), with ${VAR} resolved.
-        am = re.search(r"apt-get\s+install\s+(.*)", st)
-        if am:
-            frag = re.split(r"&&|\|\||;", am.group(1))[0]
-            for tok in frag.split():
-                tok = _resolve(tok, varmap)
-                if re.fullmatch(r"[a-z0-9][a-z0-9+.:-]*", tok):
-                    system_packages.append(tok)
+        # Split on && / || / ; first — multiple apt-get install calls may
+        # appear in the same logical line (e.g. ascend Containerfile).
+        for frag in re.split(r"&&|\|\||;", st):
+            am = re.search(r"apt-get\s+install\s+(.*)", frag)
+            if am:
+                for tok in am.group(1).split():
+                    tok = _resolve(tok, varmap)
+                    if re.fullmatch(r"[a-z0-9][a-z0-9+.:-]*", tok):
+                        system_packages.append(tok)
 
     return {
         "base_os": base_os,
