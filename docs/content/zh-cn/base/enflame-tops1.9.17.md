@@ -1,5 +1,5 @@
 ---
-title: "kunlunxin-xre5.29.0"
+title: "enflame-tops1.9.17"
 ---
 
 <!--
@@ -21,15 +21,15 @@ title: "kunlunxin-xre5.29.0"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** Kunlunxin P800
-- **宿主机驱动:** 5.29.0
-- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: xpu_container >= 1.0.13
+- **芯片型号:** Enflame Zixiao C200 (S60)
+- **宿主机驱动:** 1.9.17
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: tencent-container-toolkit >= 2.0.52
 
 ## 镜像内容
 
 ### 基础镜像
 
-`ubuntu:22.04`
+`ubuntu:24.04`
 
 ### 系统软件包
 
@@ -42,21 +42,23 @@ title: "kunlunxin-xre5.29.0"
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
-- `kmod` — 31+20240202
+- `libelf1`
 - `make` — 4.3
-- `pciutils` — 3.10.0
 - `vim` — 9.1.0016
 
 ### SDK 组件
 
-- CUDA 12.9.0_575.51.03
-- XRE-CUDA12 5.29.0.0
-- XCUDART 5.13.0
-
-## 环境变量
-
-- `PATH=/usr/local/xpu/bin:$PATH`
-- `LD_LIBRARY_PATH=/usr/local/xpu/lib:/usr/local/xcudart/lib`
+- Enflame driver 1.9.17
+- TOPS Runtime 1.9.17
+- TOPS CC 1.9.17
+- TOPS PTI 1.9.17
+- TOPSTX 1.9.17
+- TOPS ATen 3.7.20260602
+- EFML 1.9.17
+- ECCL 3.6.3.11
+- ECCL Tests 3.6.3.11
+- Triton GCU 3.6.0+1.0.20260610.cc.1.9.17
+- Gculare-perftest 1.9.17
 
 ## 启动
 
@@ -64,18 +66,18 @@ title: "kunlunxin-xre5.29.0"
 
 ```bash
 docker run --rm -it \
-  --runtime xpu \
-  -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
+  --network host \
+  -e TENCENT_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.17:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
-  --device /dev/xpu0 \
-  --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
+  --privileged \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.17:2.1.1 bash
 ```
 
 ## 验证
@@ -83,5 +85,5 @@ docker run --rm -it \
 在容器内，确认加速器可见：
 
 ```bash
-xpu-smi
+efsmi
 ```

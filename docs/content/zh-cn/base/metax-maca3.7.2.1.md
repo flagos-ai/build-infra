@@ -65,7 +65,9 @@ title: "metax-maca3.7.2.1"
 
 ```bash
 metax-docker \
-  --gpus all \
+  run \
+  --rm \
+  -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
 ```
 

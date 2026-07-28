@@ -42,6 +42,7 @@ title: "enflame-tops1.9.10"
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libelf1`
 - `vim` — 9.1.0016
 
 ### SDK 组件

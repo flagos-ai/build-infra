@@ -1,5 +1,5 @@
 ---
-title: "metax-maca3.7.2.1"
+title: "enflame-tops1.9.17"
 ---
 
 <!--
@@ -21,9 +21,9 @@ title: "metax-maca3.7.2.1"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** MetaX C550
-- **Host driver:** 3.8.30
-- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: metax-docker >= 0.15.3
+- **Chip models:** Enflame Zixiao C200 (S60)
+- **Host driver:** 1.9.17
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: tencent-container-toolkit >= 2.0.52
 
 ## Image contents
 
@@ -43,42 +43,41 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc` — 13.2.0
 - `git` — 2.43.0
 - `libelf1`
-- `libnuma1` — 2.0.18
-- `libpython3-dev` — 3.12.3
 - `make` — 4.3
 - `vim` — 9.1.0016
 
 ### SDK components
 
-- MetaX Driver 3.7.2.30
-- MACA SDK 3.7.2.0
-
-## Environment
-
-- `PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}`
-- `MACA_PATH=/opt/maca`
-- `LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib`
+- Enflame driver 1.9.17
+- TOPS Runtime 1.9.17
+- TOPS CC 1.9.17
+- TOPS PTI 1.9.17
+- TOPSTX 1.9.17
+- TOPS ATen 3.7.20260602
+- EFML 1.9.17
+- ECCL 3.6.3.11
+- ECCL Tests 3.6.3.11
+- Triton GCU 3.6.0+1.0.20260610.cc.1.9.17
+- Gculare-perftest 1.9.17
 
 ## Launch
 
 **With the container toolkit** *(optional)*:
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
+docker run --rm -it \
+  --network host \
+  -e TENCENT_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.17:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
 
 ```bash
 docker run --rm -it \
-  --device /dev/mxcd \
-  --device /dev/dri \
-  --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
+  --privileged \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.17:2.1.1 bash
 ```
 
 ## Verify
@@ -86,5 +85,5 @@ docker run --rm -it \
 Inside the container, confirm the accelerator is visible:
 
 ```bash
-mx-smi
+efsmi
 ```
