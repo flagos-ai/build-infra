@@ -116,9 +116,9 @@ RUN if [ -n "${DEPS}" ]; then \
 # ── Install runtime prerequisites ───────────────────────────────
 # Common packages from configs.yaml runtime_prereqs, installed from
 # the mirror before FlagGems. pybind11 is a runtime dep of flagtree;
-# ninja is needed for C++ extension builds; PyYAML and numpy are
-# FlagGems core deps that vendor torch packages import without
-# declaring the dependency.
+# ninja is needed for C++ extension builds; PyYAML is a FlagGems
+# core dep that vendor torch packages import without declaring.
+# numpy is pinned per-backend in configs.yaml deps.
 RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \

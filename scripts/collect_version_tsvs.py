@@ -14,11 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Collect version TSVs from extract jobs and saved state into ``versions/``.
+"""Collect version TSVs from extract jobs into ``versions/``.
 
-On a fresh run (retry=0), wipes ``versions/`` and deletes all stale
-per-backend branches. Retries merge freshly-fetched TSVs from the remote
-directory (produced by ``fetch_version_tsvs.py``).
+The ``accumulate`` job manages state persistence across retries via a git
+state branch (``auto/versions-<label>``). On retry>0 it restores the state
+branch into ``versions/`` *before* calling this script. On retry=0
+``versions/`` starts empty — the cleanse step in the workflow has already
+deleted any stale branches from a previous cycle.
+
+This script always merges freshly-fetched TSVs from the remote directory
+(produced by ``fetch_version_tsvs.py``) into ``versions/``, overwriting any
+previously-collected entries for backends that just produced fresh data.
 
 Each TSV carries two metadata headers prepended by ``upload_version_tsv.py``::
 
@@ -97,11 +103,10 @@ def main() -> None:
     retry = args.retry
     label = _label()
 
-    # Fresh run: wipe versions/ so stale TSVs from a previous cycle
-    # don't mask a missing backend.
-    if retry == 0:
-        if versions_dir.exists():
-            shutil.rmtree(versions_dir)
+    # State management (cleanse / restore from state branch) is handled by the
+    # accumulate job before this script runs. This script always starts with
+    # versions/ pre-populated (empty on retry=0, restored from state branch on
+    # retry>0) and merges any freshly-fetched TSVs into it.
     versions_dir.mkdir(parents=True, exist_ok=True)
 
     # Merge TSVs from per-backend branches. On retry, previously-collected

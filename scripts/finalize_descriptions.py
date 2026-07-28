@@ -165,11 +165,17 @@ def _finalize(args) -> None:
     # Don't create a duplicate PR if one already exists.
     pr_list = _gh("pr", "list", "--head", pr_branch, "--json", "number", "-q", ".[0].number")
     if not pr_list.stdout.strip():
-        body = cfg["pr_body"].format(
-            label=label, count=count,
-            verify_ok=args.verify_ok, verify_fail=args.verify_fail,
-            verify_skip=args.verify_skip,
-        )
+        missing = getattr(args, "missing", "").strip()
+        body_lines = [
+            cfg["pr_body"].format(
+                label=label, count=count,
+                verify_ok=args.verify_ok, verify_fail=args.verify_fail,
+                verify_skip=args.verify_skip,
+            ),
+        ]
+        if missing:
+            body_lines.append(f"\n**Missing (could not be collected):** {missing}")
+        body = "\n".join(body_lines)
         _gh(
             "pr", "create",
             "--base", os.environ.get("GITHUB_REF_NAME", "main"),
@@ -203,10 +209,10 @@ def _retry(args) -> None:
         sys.exit(1)
 
     if retry >= max_retries:
-        print(f"::error::Retry cap ({max_retries}) reached. Missing: {missing}")
-        _cleanup_per_backend_branches(label)
-        _cleanup_state_branch(label)
-        sys.exit(1)
+        print(f"::warning::Retry cap ({max_retries}) reached. "
+              f"Proceeding with partial data. Missing: {missing}")
+        _finalize(args)
+        return
 
     # Per-backend branches from previous successful runs are NOT deleted here —
     # they are the source of truth for already-collected backends. The next

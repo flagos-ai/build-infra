@@ -45,7 +45,9 @@ Explicitly installed; the version is the one baked into this image:
 
 ```bash
 metax-docker \
-  --gpus all \
+  run \
+  --rm \
+  -it \
   harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
 ```
 
