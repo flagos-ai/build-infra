@@ -1,0 +1,75 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# FlagOS vLLM app image
+#
+# Single Containerfile for all backends — build args drive the
+# per-vendor configuration.  See docs/ for the full guide.
+#
+# Revision history:
+#   2026-07-28   Initial version. vllm from repacked wheel (vendor
+#                PyPI), vllm-plugin-FL from source.
+# TODO
+#   - vllm-plugin-FL: build+release as wheel, then `pip install`
+#     instead of source-building.
+#   - Publish-time verification (torch version, vllm import).
+# ============================================================
+
+ARG RUNTIME_IMAGE
+FROM ${RUNTIME_IMAGE}
+
+# --- Build arguments ------------------------------------------
+
+ARG VLLM_VERSION=0.20.2
+
+# Repacked vllm wheel lives here — searched first.
+ARG FLAGOS_PYPI=""
+
+# Fallback for all other dependencies.
+ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+
+# vllm-plugin-FL git ref.
+ARG PLUGIN_FL_REF=""
+
+# "cuda" for CUDA-ABI backends (nvidia, metax, hygon, iluvatar,
+#   mthreads, kunlunxin, cambricon).
+# "ascend" / "gcu" for PrivateUse1.
+ARG VLLM_VENDOR=cuda
+
+# --- Install vllm (repacked wheel) ----------------------------
+
+RUN pip install \
+  --index-url "${FLAGOS_PYPI}" \
+  --extra-index-url "${EXTRA_PYPI}" \
+  "vllm==${VLLM_VERSION}"
+
+# --- Install vllm-plugin-FL (source) --------------------------
+
+ARG PLUGIN_FL_REF
+RUN if [ -n "${PLUGIN_FL_REF}" ]; then \
+    git clone \
+      --branch "${PLUGIN_FL_REF}" \
+      --depth 1 \
+      https://github.com/flagos-ai/vllm-plugin-FL.git \
+      /workspace/vllm-plugin-FL \
+    && cd /workspace/vllm-plugin-FL \
+    && VLLM_VENDOR=${VLLM_VENDOR} pip install --no-build-isolation . \
+    && rm -rf /workspace/vllm-plugin-FL ; \
+  fi
+
+# --- Runtime --------------------------------------------------
+
+ENV VLLM_PLUGINS=fl
+WORKDIR /workspace
