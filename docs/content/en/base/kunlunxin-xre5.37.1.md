@@ -1,5 +1,5 @@
 ---
-title: "kunlunxin-xre5.29.0"
+title: "kunlunxin-xre5.37.1"
 ---
 
 <!--
@@ -22,7 +22,7 @@ title: "kunlunxin-xre5.29.0"
 
 - **Architecture:** x86_64
 - **Chip models:** Kunlunxin P800
-- **Host driver:** 5.29.0
+- **Host driver:** 5.37.1
 - **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: xpu_container >= 1.0.13
 
 ## Image contents
@@ -35,22 +35,21 @@ title: "kunlunxin-xre5.29.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `kmod` — 31+20240202
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `cmake` — 3.22.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `git` — 2.34.1
 - `make` — 4.3
-- `pciutils` — 3.10.0
-- `vim` — 9.1.0016
+- `pciutils` — 3.7.0
+- `vim` — 8.2.3995
 
 ### SDK components
 
 - CUDA 12.9.0_575.51.03
-- XRE-CUDA12 5.29.0.0
+- XRE-CUDA12 5.37.1.0
 - XCUDART 5.13.0
 
 ## Environment
@@ -66,7 +65,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -75,7 +74,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1 bash
 ```
 
 ## Verify

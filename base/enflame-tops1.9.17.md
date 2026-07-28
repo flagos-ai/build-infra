@@ -2,7 +2,7 @@
 
 - **Architecture:** x86_64
 - **Chip models:** Enflame Zixiao C200 (S60)
-- **Host driver:** 1.9.10
+- **Host driver:** 1.9.17
 - **Container toolkit** *(optional)*: tencent-container-toolkit >= 2.0.52
 
 ## Image contents
@@ -23,20 +23,22 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc` — 13.2.0
 - `git` — 2.43.0
 - `libelf1`
+- `make` — 4.3
 - `vim` — 9.1.0016
 
 ### SDK components
 
-- Enflame driver 1.9.10
-- TOPS Runtime 1.9.10
-- TOPS CC 1.9.10
-- TOPS PTI 1.9.10
-- TOPSTX 1.9.10
-- TOPS ATen 3.7.20260514
-- EFML 1.9.10
+- Enflame driver 1.9.17
+- TOPS Runtime 1.9.17
+- TOPS CC 1.9.17
+- TOPS PTI 1.9.17
+- TOPSTX 1.9.17
+- TOPS ATen 3.7.20260602
+- EFML 1.9.17
 - ECCL 3.6.3.11
-- Triton GCU 3.6.0+1.0.20260521.cc.1.9.10
-- Gculare-perftest 1.9.10
+- ECCL Tests 3.6.3.11
+- Triton GCU 3.6.0+1.0.20260610.cc.1.9.17
+- Gculare-perftest 1.9.17
 
 ## Launch
 
@@ -46,7 +48,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.17:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -55,7 +57,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.17:2.1.1 bash
 ```
 
 ## Verify

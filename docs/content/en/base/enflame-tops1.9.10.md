@@ -42,6 +42,7 @@ Explicitly installed; the version is the one baked into this image:
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libelf1`
 - `vim` — 9.1.0016
 
 ### SDK components
