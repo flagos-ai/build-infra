@@ -29,7 +29,7 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/cambricon
-ARG CNMON_PKG=cnmon-6.2.15-x86_64.zip
+ARG CNMON_PKG=cnmon-6.5.29-x86_64.zip
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -45,29 +45,29 @@ RUN apt-get update \
 
 # ── Install Neuware ────────────────────────────────────────────────
 ENV PKGS="cnlicense_1.2.0-1.ubuntu22.04_amd64.deb \
-  cndev_6.5.25-1.ubuntu22.04_amd64.deb \
-  cnbin_2.4.2-1.ubuntu22.04_amd64.deb \
-  cndrv_3.4.3-1.ubuntu22.04_amd64.deb \
-  cndev-compat_6.5.25-1.ubuntu22.04_amd64.deb \
-  cnrt_7.4.0-1.ubuntu22.04_amd64.deb \
-  cnas_5.4.3-1.ubuntu22.04_amd64.deb \
-  cnpx_1.6.0-1.ubuntu22.04_amd64.deb \
-  cnpapi_4.4.2-1.ubuntu22.04_amd64.deb \
-  cnperf_6.4.3-1.ubuntu22.04_amd64.deb \
-  cngdb_4.4.2-1.ubuntu22.04_amd64.deb \
-  cncc_5.4.3-1.ubuntu22.04_amd64.deb \
+  cndev_6.5.47-1.ubuntu22.04_amd64.deb \
+  cnbin_2.7.0-1.ubuntu22.04_amd64.deb \
+  cndrv_3.7.2-1.ubuntu22.04_amd64.deb \
+  cndev-compat_6.5.47-1.ubuntu22.04_amd64.deb \
+  cnrt_7.7.2-1.ubuntu22.04_amd64.deb \
+  cnas_5.7.2-1.ubuntu22.04_amd64.deb \
+  cnpx_1.7.0-1.ubuntu22.04_amd64.deb \
+  cnpapi_4.7.1-1.ubuntu22.04_amd64.deb \
+  cnperf_6.7.2-1.ubuntu22.04_amd64.deb \
+  cngdb_4.7.2-1.ubuntu22.04_amd64.deb \
+  cncc_5.7.2-1.ubuntu22.04_amd64.deb \
   cnrtc_0.7.4-1.ubuntu22.04_amd64.deb \
-  cnjpeg_0.5.1-1.ubuntu22.04_amd64.deb \
-  cncodec3_2.4.1-1.ubuntu22.04_amd64.deb \
-  cnsanitizer_0.12.3-1.ubuntu22.04_amd64.deb \
-  cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb \
-  cnnl_2.1.829-20251127_150207-v2.1.12-0.rc0-3-g54aaee8.ubuntu22.04_amd64.deb \
-  cnnlextra_2.2.7-1.ubuntu22.04_amd64.deb \
-  mluops_1.8.1-1.ubuntu22.04_amd64.deb \
-  cncl_1.29.4-1.ubuntu22.04_amd64.deb \
-  cnstudio_1.2.1-1.ubuntu22.04_amd64.deb \
-  cntoolkit-cloud_4.4.3-1.ubuntu22.04_amd64.deb \
-  cnclep_1.1.1-1.ubuntu22.04_amd64.deb"
+  cnjpeg_0.8.0-1.ubuntu22.04_amd64.deb \
+  cncodec3_2.7.0-1.ubuntu22.04_amd64.deb \
+  cnsanitizer_0.15.2-1.ubuntu22.04_amd64.deb \
+  cntoolkit_4.7.2-1.ubuntu22.04_amd64.deb \
+  cnnl_2.2.14-1.ubuntu22.04_amd64.deb \
+  cnnlextra_2.4.0-1.ubuntu22.04_amd64.deb \
+  mluops_1.12.0-1.ubuntu22.04_amd64.deb \
+  cncl_1.30.8-1.ubuntu22.04_amd64.deb \
+  cnstudio_1.5.0-1.ubuntu22.04_amd64.deb \
+  cntoolkit-cloud_4.7.2-1.ubuntu22.04_amd64.deb \
+  cnclep_1.4.0-1.ubuntu22.04_amd64.deb"
 
 RUN set -eux ; \
   for pkg in ${PKGS}; do \
