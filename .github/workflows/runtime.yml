@@ -134,7 +134,8 @@ jobs:
           [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
           no_flaggems_arg=""
-          [[ "${{ inputs.no_flaggems }}" == "true" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1'
+          image_tag="${{ matrix.image_tag }}"
+          [[ "${{ inputs.no_flaggems }}" == "true" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1' && image_tag="${image_tag}-build"
 
           docker build \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
@@ -151,9 +152,12 @@ jobs:
             --build-arg "INCLUDE_TESTS=false" \
             --build-arg "FLAGGEMS_VERSION=${flaggems_ver}" \
             ${no_flaggems_arg} \
-            -t "${{ matrix.image_tag }}" \
+            -t "${image_tag}" \
             -f runtime/Containerfile runtime/
 
       - name: Push runtime image
         if: ${{ inputs.push }}
-        run: docker push "${{ matrix.image_tag }}"
+        run: |
+          image_tag="${{ matrix.image_tag }}"
+          [[ "${{ inputs.no_flaggems }}" == "true" ]] && image_tag="${image_tag}-build"
+          docker push "${image_tag}"
