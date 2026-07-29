@@ -70,6 +70,10 @@ jobs:
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
 
+      # images.yaml is .gitignore'd but needed by verify_runtime.py.
+      - name: Generate images.yaml
+        run: python3 docs/gen_data.py
+
       - name: Verify ${{ matrix.name }}
         run: python3 scripts/verify_runtime.py "${{ matrix.name }}"
 

@@ -112,23 +112,24 @@ def main() -> None:
         flags_str = run_cfg.get("toolkit", "") or run_cfg.get("raw", "")
         flags = shlex.split(flags_str) if flags_str else []
 
-        # Pull + verify.
+        # Pull + verify.  Stream output directly to the terminal so
+        # self-hosted runners capture it in the job log — capture_output
+        # can drop it when GitHub API connectivity is unreliable.
         print(f"::group::{name} — verify runtime v2 ({image})")
-        subprocess.run(["docker", "pull", image], check=True, capture_output=True)
+        print(f"  Pulling {image}...")
+        pr = subprocess.run(["docker", "pull", image])
+        if pr.returncode != 0:
+            print(f"  ❌ docker pull failed (exit {pr.returncode})")
+            print("::endgroup::")
+            failed.append(name)
+            continue
 
         # Pipe the verification script via bash heredoc so multi-line
         # try/except blocks work (python3 -c can't do that on one line).
         cmd = ["docker", "run"] + flags + ["--rm", image,
                "bash", "-c", f"python3 << 'PYEOF'\n{VERIFY_SCRIPT}\nPYEOF"]
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        if r.stdout:
-            for line in r.stdout.strip().splitlines():
-                if "FAIL" in line:
-                    print(f"  ❌ {line}")
-                else:
-                    print(f"  ✅ {line}")
-        if r.stderr:
-            sys.stderr.write(r.stderr)
+        print(f"  Verifying...")
+        r = subprocess.run(cmd)
         print("::endgroup::")
 
         if r.returncode != 0:
