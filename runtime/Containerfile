@@ -50,6 +50,10 @@ ARG FLAGGEMS_VERSION=0.0.0
 # When non-empty, skip the flag_gems install entirely — produces the
 # build-platform image for step 5 (no flag_gems, just torch + deps + compilers).
 ARG NO_FLAGGEMS=""
+# Per-backend runtime env vars from configs.yaml env.runtime, serialized
+# as "KEY=value\nKEY2=value2". Written to /etc/profile.d/runtime_env.sh in
+# the runtime stage so they are active in every shell.
+ARG RUNTIME_ENV=""
 
 
 # ════════════════════════════════════════════════════════════════
@@ -247,6 +251,14 @@ COPY --from=builder /app /app
 
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
+
+# ── Per-backend runtime env vars from configs.yaml env.runtime ──
+# Written to profile.d so they are sourced in every shell (login,
+# non-login interactive, and bash -c via BASH_ENV).
+ARG RUNTIME_ENV
+RUN if [ -n "${RUNTIME_ENV}" ]; then \
+      printf '%s\n' "${RUNTIME_ENV}" > /etc/profile.d/runtime_env.sh; \
+    fi
 
 # C++ operator extensions are opt-in — set USE_C_EXTENSION=1 at runtime
 # AFTER installing the flag-gems-cpp-<vendor> wheel. The env is NOT set

@@ -158,6 +158,7 @@ jobs:
             --build-arg "TRITON_EXTRA_PKGS=${{ matrix.triton_extra_pkgs }}" \
             --build-arg "INCLUDE_TESTS=false" \
             --build-arg "FLAGGEMS_VERSION=${flaggems_ver}" \
+            --build-arg "RUNTIME_ENV=${{ matrix.runtime_env }}" \
             ${no_flaggems_arg} \
             -t "${image_tag}" \
             -f runtime/Containerfile runtime/

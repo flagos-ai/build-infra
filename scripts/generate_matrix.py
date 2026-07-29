@@ -113,6 +113,12 @@ def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: lis
         cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
         cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
 
+        # Per-backend runtime env vars — serialized as "KEY=value\nKEY2=value2"
+        runtime_env = backend_info.get("env", {}).get("runtime", {})
+        runtime_env_lines = "\n".join(
+            f"{k}={v}" for k, v in (runtime_env or {}).items()
+        )
+
         include.append({
             "name": name,
             "runson": runson_for(name, runners),
@@ -130,6 +136,7 @@ def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: lis
             "triton_extra_pkgs": " ".join(
                 backend_info.get("triton_post_install", [])
             ) if isinstance(backend_info.get("triton_post_install"), list) else "",
+            "runtime_env": runtime_env_lines,
         })
 
     return {"include": include}
