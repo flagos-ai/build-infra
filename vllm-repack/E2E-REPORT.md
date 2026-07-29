@@ -1,118 +1,126 @@
-# vllm-repack Track B — NVIDIA cuda12.8 End-to-End Report
+# vllm-repack — 端到端验证报告
 
-**Date:** 2026-07-27/28  
-**Platform:** NVIDIA H20 (8×)  
-**Target:** vllm 0.20.2 + vllm-plugin-FL on flagos-runtime-nvidia-cuda12.8:2.1.1
+## 1. NVIDIA cuda12.8
+
+**日期:** 2026-07-27/28  
+**平台:** NVIDIA H20 (8×)  
+**目标:** vllm 0.20.2 + vllm-plugin-FL, flagos-runtime-nvidia-cuda12.8:2.1.1
 
 ---
 
-## 1. What We Did
+### 1.1 设计决策（Phase 0）
 
-### Phase 0: Design Decisions
+用户给出了三条关键约束：
 
-Three key constraints from the user:
+1. **不使用 `.post1` 后缀** — uv 时代的反升级 trick，pip 下不再需要
+2. **PyPI 分离** — vendor PyPI 只放 repacked vllm wheel（1 个文件）。其余 deps 从 Aliyun 拉。不托管间接依赖的 repack 版本，维护成本太大
+3. **保留 deps 安装，不用 `--no-deps`** — repacked wheel 保留除黑名单外的所有 Requires-Dist。
 
-1. **No `.post1` suffix** — uv-era anti-upgrade hack, no longer needed with pip
-2. **PyPI split** — vendor PyPI hosts ONLY the repacked vllm wheel (1 file). All other deps from Aliyun mirror. Don't host indirect dep repacks — maintenance burden too large
-3. **Repacked vllm with deps, not `--no-deps`** — the repacked wheel retains all Requires-Dist except blacklisted ones. pip resolves safe deps naturally from Aliyun. Torch is already installed and satisfies constraints → pip skips it
+### 1.2 repack.py 改动（Phase 1）
 
-### Phase 1: repack.py Modifications
+#### 1.2a 去掉 `.post1` 后缀
 
-#### 1a. Remove `.post1` suffix
+**文件:** `vllm-repack/repack.py`  
+**改动:** `VERSION_SUFFIX = ""`（原来 `".post1"`）
 
-**File:** `vllm-repack/repack.py`  
-**Change:** `VERSION_SUFFIX = ""` (was `".post1"`)
+设空后 `_bump_version()` 和 `_bump_dist_info_dir()` 成为空操作——
+repacked wheel 保持原始版本。pip 通过 `--extra-index-url` 从 vendor
+PyPI 安装，与上游同版本即可匹配。
 
-With `VERSION_SUFFIX = ""`, `_bump_version()` and `_bump_dist_info_dir()` become no-ops — the repacked wheel keeps the original version. pip installs from vendor PyPI via `--extra-index-url`, and since the repacked wheel has the same version as upstream, pip finds a match on vendor PyPI first.
+#### 1.2b 默认索引改为 Aliyun 镜像
 
-#### 1b. Default index to Aliyun mirror
+**文件:** `vllm-repack/repack.py`  
+**改动:** `https://pypi.org/simple/` → `https://mirrors.aliyun.com/pypi/simple/`
 
-**File:** `vllm-repack/repack.py`  
-**Change:** `https://pypi.org/simple/` → `https://mirrors.aliyun.com/pypi/simple/`
+节点无法访问 pypi.org，所有下载走 Aliyun。
 
-Nodes cannot reach pypi.org. All downloads go through Aliyun.
+#### 1.2c 保留 `also_repack` 在 Requires-Dist 中
 
-#### 1c. Keep `also_repack` packages in Requires-Dist
+**文件:** `vllm-repack/repack.py`  
+**改动:** `also_repack` 包原分类为 `"repack"`，会从 vllm 的 Requires-Dist
+中删除并单独 repack。现在分类为 `"keep"`——保留其 Requires-Dist 行，
+pip 从 Aliyun 自然解析。
 
-**File:** `vllm-repack/repack.py`  
-**Change:** `also_repack` packages were previously classified as `"repack"` and STRIPPED from vllm's Requires-Dist + repacked separately. Now they are classified as `"keep"` — their Requires-Dist lines are preserved, pip resolves them naturally from Aliyun.
+`repack_indirect()` 逻辑保留作为后备：如果间接依赖锁定了不兼容的
+torch 版本，可手动调用。
 
-The `also_repack` logic in `repack_indirect()` is preserved as a fallback: if an indirect dep pins an incompatible torch version, we can invoke it manually.
+#### 1.2d 修复 METADATA 空行 bug（关键修复）
 
-#### 1d. Fix METADATA blank line bug (CRITICAL)
+**文件:** `vllm-repack/repack.py`，函数 `_downgrade_metadata_version`
 
-**File:** `vllm-repack/repack.py`, function `_downgrade_metadata_version`
+**Bug:** 为 Metadata-Version 2.4→2.2 降级时，删除 `License-File` 和
+`Dynamic:` 行的正则替换留下了一个空行。在 email 格式的 METADATA 中，
+第一个空行标记 headers 结束。该空行之后的所有 Requires-Dist 行对 pip
+不可见。
 
-**Bug:** When stripping `License-File: LICENSE` and `Dynamic:` lines for Metadata-Version 2.4→2.2 downgrade, the regex replaced them with empty strings but left a blank line. In email-format METADATA, the FIRST BLANK LINE marks the end of headers. All Requires-Dist lines after that blank line were invisible to pip.
-
-**Fix:** Changed regexes to eat the trailing newline:
+**修复:** 正则加上 `\n?` 吃掉尾随换行：
 ```python
-# Before (broken):
+# 修复前（broken）:
 _LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+$", re.M)
 _DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+$", re.M)
 
-# After (fixed):
+# 修复后（fixed）:
 _LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+\n?", re.M)
 _DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+\n?", re.M)
 ```
 
-This was the root cause of "all dependencies are present in METADATA but pip doesn't see them."
+这是"METADATA 中所有依赖都存在但 pip 看不到"的根本原因。
 
-#### 1e. Docstring update
+#### 1.2e 更新模块文档字符串
 
-Updated the module docstring to reflect the new design (2026-07-27).
+反映新设计（2026-07-27）。
 
-### Phase 2: configs.yaml Changes
+### 1.3 configs.yaml 改动（Phase 2）
 
-#### 2a. Bump flag_gems version
+#### 1.3a 升级 flag_gems 版本
 
 ```yaml
-# Before:
+# 修改前:
 flaggems: "5.3.1"
-
-# After:
+# 修改后:
 flaggems: "5.3.2"
 ```
 
-#### 2b. Bump numpy version (and relax in FlagGems)
+#### 1.3b 升级 numpy 版本（并在 FlagGems 中放宽限制）
 
 ```yaml
-# Before:
+# 修改前:
 runtime_prereqs:
   - "numpy==1.26.4"
-
-# After:
+# 修改后:
 runtime_prereqs:
   - "numpy==2.3.5"
 ```
 
-Background: vllm's dependency `opencv-python-headless>=4.13.0` declares `numpy>=2; python_version >= "3.9"`. The runtime's `numpy==1.26.4` was incompatible. Investigation across all 14 backends found NO vendor torch package declares `numpy<2` — the `==1.26.4` pin was a self-imposed constraint in FlagGems' `pyproject.toml`.
+背景：vllm 依赖 `opencv-python-headless>=4.13.0` 声明
+`numpy>=2; python_version >= "3.9"`，runtime 中 `numpy==1.26.4`
+不兼容。全 14 个后端中没有 vendor torch 声明 `numpy<2`。
 
-### Phase 3: FlagGems Changes (separate repo)
+### 1.4 FlagGems 改动（Phase 3，独立仓库）
 
-**File:** `FlagGems/pyproject.toml`  
-**Change:** `"numpy==1.26.4"` → `"numpy"` (unversioned)  
+**文件:** `FlagGems/pyproject.toml`  
+**改动:** `"numpy==1.26.4"` → `"numpy"`（不锁定版本）  
 **Tag:** `v5.3.2`
 
-### Phase 4: Build, Upload, Install, Verify
+### 1.5 构建、上传、安装、验证（Phase 4）
 
-#### 4a. Download vllm wheel
+#### 1.5a 下载 vllm wheel
 
 ```bash
-# On Linux x86_64 target machine (NOT macOS!)
+# 在 Linux x86_64 目标机器上（非 macOS！）
 pip download --no-deps --dest /tmp/vllm-dl "vllm==0.20.2" \
   --index-url https://mirrors.aliyun.com/pypi/simple
 ```
 
-#### 4b. Repack
+#### 1.5b Repack
 
 ```bash
 python3 vllm-repack/repack.py /tmp/vllm-dl/vllm-0.20.2-cp38-abi3-manylinux_2_35_x86_64.whl
 ```
 
-Result: 7 blacklisted deps removed, 82 retained, 6 also_repack candidates kept.
+结果：7 个黑名单依赖移除，82 个保留，6 个 also_repack 候选保留。
 
-#### 4c. Upload repacked wheel to vendor PyPI
+#### 1.5c 上传 repacked wheel 到 vendor PyPI
 
 ```bash
 twine upload -u flagos -p '<token>' \
@@ -120,10 +128,10 @@ twine upload -u flagos -p '<token>' \
   /tmp/vllm-repack/output/vllm-0.20.2-cp38-abi3-manylinux_2_35_x86_64.whl
 ```
 
-#### 4d. Install flow
+#### 1.5d 安装流程
 
 ```bash
-# 1. Runtime deps (torch, flagtree, flag_gems, ...)
+# 1. 运行时依赖（torch, flagtree, flag_gems, ...）
 pip install \
   --index-url https://resource.flagos.net/repository/flagos-pypi-nvidia/simple \
   --extra-index-url https://mirrors.aliyun.com/pypi/simple \
@@ -131,21 +139,22 @@ pip install \
   flagtree==0.6.0 flag_gems==5.3.2 \
   pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.1 numpy==2.3.5
 
-# 2. vllm (repacked, NO --no-deps!)
+# 2. vllm（repacked，不用 --no-deps！）
 pip install \
   --index-url https://mirrors.aliyun.com/pypi/simple \
   --extra-index-url https://resource.flagos.net/repository/flagos-pypi-nvidia/simple \
   vllm==0.20.2
 
-# 3. vllm-plugin-FL (source build)
+# 3. vllm-plugin-FL（源码构建）
 git clone https://github.com/flagos-ai/vllm-plugin-FL
 cd vllm-plugin-FL
 VLLM_VENDOR=cuda pip install --no-build-isolation .
 ```
 
-**Key insight:** flag_gems must NOT use `--no-deps` — its `sqlalchemy==2.0.48` dependency needs to be fetched from Aliyun. Using `--find-links` for the local wheel + pip natural resolution works.
+**关键心得：** flag_gems 绝不能 `--no-deps`——它的 `sqlalchemy==2.0.48`
+依赖需要从 Aliyun 拉取。
 
-#### 4e. Start vllm serve
+#### 1.5e 启动 vllm serve
 
 ```bash
 export VLLM_PLUGINS=fl
@@ -158,126 +167,125 @@ vllm serve /models/Qwen3.6-35B-A3B \
   --trust-remote-code
 ```
 
-#### 4f. Test inference
+#### 1.5f 测试推理
 
 ```json
 {"model":"qwen","choices":[{"message":{"content":"Here's a thinking process:\n\n1.  **Analyze User Input:**..."}}]}
 {"usage":{"prompt_tokens":17,"total_tokens":145,"completion_tokens":128}}
 ```
 
-✅ Inference successful.
+✅ 推理成功。
 
 ---
 
-## 2. Bugs Encountered & Root Causes
+### 1.6 遇到的 Bug 及根因
 
-| # | Symptom | Root Cause | Fix |
-|---|---------|-----------|-----|
-| 1 | `pip install repacked-vllm.whl` → vllm import fails with `ModuleNotFoundError: No module named 'regex'` | METADATA header ended at a blank line left by `License-File` removal. All 82 Requires-Dist lines were invisible to pip | Fix `_LICENSE_FILE_RE` / `_DYNAMIC_RE` regex to eat trailing `\n?` |
-| 2 | `pip install` upgrades numpy 1.26.4 → 2.3.5, flag_gems breaks | `opencv-python-headless` declares `numpy>=2`, and flag_gems declares `numpy==1.26.4` | Relax FlagGems `pyproject.toml` from `==1.26.4` to `numpy` unversioned; bump configs.yaml pin to `2.3.5` |
-| 3 | After vllm install, `sqlalchemy` completely missing | flag_gems installed with `--no-deps`, so its deps weren't fetched. vllm's resolution didn't need sqlalchemy → uninstalled | Install flag_gems without `--no-deps` (use `--find-links` for local wheel, let pip resolve deps) |
-| 4 | macOS `pip download vllm==0.20.2` gives sdist with `version: 0.20.2+cpu` → inconsistent version error | macOS has no manylinux wheel; Aliyun mirror only serves sdist | Always work on target Linux x86_64 node, never on macOS |
-| 5 | `vllm serve` warns `_C.abi3.so: undefined symbol: _ZN3c1013MessageLoggerC1E...` | ABI mismatch between vllm binary wheel and host CUDA — non-fatal, C extensions downgrade gracefully | Acceptable for PoC. Production needs vllm compiled against matching CUDA |
+| # | 现象 | 根因 | 修复 |
+|---|------|------|------|
+| 1 | `pip install repacked-vllm.whl` → vllm import 失败：`ModuleNotFoundError: No module named 'regex'` | METADATA header 在 `License-File` 删除留下的空行处截断。后面 82 行 Requires-Dist 对 pip 不可见 | 正则加 `\n?` 吃掉尾随换行 |
+| 2 | `pip install` 升级 numpy 1.26.4 → 2.3.5，flag_gems 崩溃 | `opencv-python-headless` 声明 `numpy>=2`，flag_gems 声明 `numpy==1.26.4` | 放宽 FlagGems `pyproject.toml` 为 `numpy` 不锁定；configs.yaml 改为 `2.3.5` |
+| 3 | vllm 安装后 `sqlalchemy` 完全消失 | flag_gems 用了 `--no-deps`，其依赖未拉取。vllm 解析不需要 sqlalchemy → 被卸载 | 安装 flag_gems 不用 `--no-deps` |
+| 4 | macOS `pip download vllm==0.20.2` 拿到 sdist，version: 0.20.2+cpu → 版本不一致 | macOS 无 manylinux wheel；Aliyun 只提供 sdist | 始终在目标 Linux x86_64 节点上操作，不要用 macOS |
+| 5 | `vllm serve` 警告 `_C.abi3.so: undefined symbol: _ZN3c1013MessageLoggerC1E...` | vllm 二进制 wheel 与主机 CUDA 的 ABI 不匹配——非致命，C 扩展优雅降级 | PoC 可接受。生产环境需用匹配 CUDA 版本编译 vllm |
 
 ---
 
-## 3. Architecture: What Goes Where
+### 1.7 架构：各组件去向
 
 ```
 pip install vllm==0.20.2
   │
-  ├── --index-url: https://mirrors.aliyun.com/pypi/simple      ← ALL safe deps
-  └── --extra-index-url: https://resource.flagos.net/.../nvidia/simple  ← repacked vllm ONLY
+  ├── --index-url: https://mirrors.aliyun.com/pypi/simple          ← 所有 safe deps
+  └── --extra-index-url: https://resource.flagos.net/.../nvidia/simple  ← 仅 repacked vllm
 
-Resolution:
-  1. pip asks both indexes for vllm==0.20.2
-  2. Aliyun: vllm-0.20.2.whl (original, declares torch in Requires-Dist)
-  3. vendor PyPI: vllm-0.20.2.whl (repacked, torch stripped)
-  4. pip picks vendor PyPI (same version, but --extra-index-url has priority in practice)
-  5. pip reads repacked METADATA → no torch/triton/CUDA in Requires-Dist
-  6. pip resolves remaining 82 Requires-Dist from Aliyun
-  7. Some transitives (flashinfer, compressed-tensors) declare torch in their own METADATA
-  8. pip sees torch already installed (2.10.0+cu128) and constraints are satisfied → SKIPS
+解析过程：
+  1. pip 向两边索引请求 vllm==0.20.2
+  2. Aliyun: vllm-0.20.2.whl（原版，声明 torch 依赖）
+  3. vendor PyPI: vllm-0.20.2.whl（repacked，torch 已删除）
+  4. pip 选择 vendor PyPI（同版本，但 --extra-index-url 实际优先）
+  5. pip 读取 repacked METADATA → 无 torch/triton/CUDA 依赖
+  6. pip 从 Aliyun 解析其余 82 个 Requires-Dist
+  7. 部分间接依赖（flashinfer、compressed-tensors）在自己的 METADATA 中声明 torch
+  8. pip 发现 torch 已安装（2.10.0+cu128），约束已满足 → 跳过
 ```
 
 ---
 
-## 4. What Can Be Automated
+### 1.8 可自动化部分
 
-| Task | Automation | Status |
-|------|-----------|--------|
-| Download vllm wheel | `pip download` — trivial, same every time | ✅ |
-| Run repack.py | Script is deterministic. Input: wheel + config.yaml | ✅ |
-| Upload to vendor PyPI | `twine upload` with token — can be CI step | ✅ |
-| Verify METADATA (no blank lines, correct deps) | Check: `wc -l`, `grep Requires-Dist`, count removed vs retained | ⚒️ need script |
-| Build/upload to all vendor PyPIs | Loop over vendors in configs.yaml. repack is platform-agnostic (same vllm wheel for all) | ⚒️ need script |
-| CI workflow: repack → upload → docker build → push | Pattern exists in `flaggems-release.yml` + `runtime.yml` | ⚒️ need workflow |
-| Containerfile for app image | `FROM runtime` + pip install vllm + pip install vllm-plugin-FL | ⚒️ need Containerfile |
-| Smoke test after build | `docker run --rm --gpus all <image> python3 -c 'import vllm; ...'` | ⚒️ need CI step |
+| 任务 | 方式 | 状态 |
+|------|------|------|
+| 下载 vllm wheel | `pip download`（简单，每次相同） | ✅ |
+| 运行 repack.py | 脚本确定性强，输入式：wheel + config.yaml | ✅ |
+| 上传到 vendor PyPI | `twente upload` + token（CI 步骤） | ✅ |
+| 验证 METADATA（无空行、deps 正确） | 检查：`wc -l`、`grep Requires-Dist`、removed vs retained 计数 | ⚒️ 需要脚本 |
+| 构建/上传到全部 vendor PyPI | 循环遍历 configs.yaml 各厂商 | ⚒️ 需要脚本 |
+| CI workflow：repack → upload → docker build → push | 模式已存在于 `flaggems-release.yml` + `runtime.yml` | ⚒️ 需要 workflow |
+| app 镜像 Containerfile | `FROM runtime` + pip install vllm + pip install vllm-plugin-FL | ⚒️ 需要 Containerfile |
+| 构建后冒烟测试 | `docker run --rm --gpus all <image> python3 -c 'import vllm; ...'` | ⚒️ 需要 CI step |
 
-## 5. What Must Remain Manual
+### 1.9 无法自动化部分
 
-| Task | Why |
-|------|-----|
-| Review config.yaml rules when vllm version bumps | New vllm version may introduce new deps that need blacklisting or new `also_repack` candidates |
-| Decide whether to use `also_repack` fallback | Only if pip's resolution actually overwrites torch — needs human inspection of install log |
-| Per-platform integration testing | Each vendor has different torch builds, CUDA ABIs, and device-specific quirks |
-| FlagGems version bump + tag | Requires coordination with FlagGems team |
-| Model download | Environment-specific, large files, needs appropriate storage |
+| 任务 | 原因 |
+|------|------|
+| vllm 版本升级时复查 config.yaml 规则 | 新 vllm 版本可能引入需加入黑名单或 `also_repack` 的新依赖 |
+| 判断是否启用 `also_repack` 后备方案 | 只有 pip 解析确实覆盖了 torch 时才需要——需人工检查安装日志 |
+| 各平台集成测试 | 各厂商 torch 构建、CUDA ABI、设备特性各不相同 |
+| FlagGems 版本升级 + tag | 需与 FlagGems 团队协调 |
+| 模型下载 | 环境相关，大文件，需适当存储 |
 
-## 6. Changes to Commit
+### 1.10 待提交的改动
 
-### In build-infra (this repo)
+**build-infra（本仓库）：**
 
-| File | Change | PR? |
-|------|--------|-----|
-| `vllm-repack/repack.py` | VERSION_SUFFIX="", Aliyun default index, also_repack kept in Requires-Dist, blank-line regex fix, docstring update | Yes |
-| `configs.yaml` | `flaggems: "5.3.2"`, `numpy==2.3.5` | Yes |
+| 文件 | 改动 | PR? |
+|------|------|-----|
+| `vllm-repack/repack.py` | VERSION_SUFFIX=""、Aliyun 默认索引、also_repack 保留、空行正则修复、文档字符串更新 | 是 |
+| `configs.yaml` | `flaggems: "5.3.2"`、`numpy==2.3.5` | 是 |
 
-### In FlagGems (separate repo)
+**FlagGems（独立仓库）：**
 
-| File | Change | Status |
-|------|--------|--------|
-| `pyproject.toml` | `"numpy==1.26.4"` → `"numpy"` (unversioned) | Already tagged `v5.3.2` |
+| 文件 | 改动 | 状态 |
+|------|------|------|
+| `pyproject.toml` | `"numpy==1.26.4"` → `"numpy"`（不锁定） | 已 tag `v5.3.2` |
 
-### New files (to create)
+**新建文件：**
 
-| File | Purpose |
-|------|---------|
-| `scripts/repack_vllm.py` | Download vllm wheel → repack → twine upload to all vendor PyPIs |
+| 文件 | 用途 |
+|------|------|
+| `scripts/repack_vllm.py` | 下载 vllm wheel → repack → twine upload 到所有 vendor PyPI |
 | `app/vllm/Containerfile` | FROM runtime → pip install vllm + vllm-plugin-FL |
-| `.github/workflows/vllm-app.yml` | Full CI: repack → upload → build → verify → push |
+| `.github/workflows/vllm-app.yml` | 完整 CI：repack → upload → build → verify → push |
 
 ---
 
-## 7. Risks & Pain Points
+### 1.11 风险与痛点
 
-### Risks
+**风险：**
 
-| Risk | Severity | Mitigation |
-|------|----------|-----------|
-| vllm version bump introduces new blacklist-worthy deps | Medium | Review METADATA diff each bump; update config.yaml |
-| Indirect dep declares incompatible torch version | Medium | Monitor pip install output; `also_repack` fallback exists |
-| pip resolution behavior changes (e.g., someday always prefers newer version) | Low | Already migrated from uv; pip is stable. Re-test on pip version bumps |
-| Vendor PyPI token expires or changes | Low | CI uses secrets; document token rotation |
-| macOS vs Linux platform mismatch | Medium | Never repack on macOS. CI runs on H20 self-hosted runners |
-| vllm binary wheel ABI incompatible with host CUDA | Low-Medium | Warning only for PoC. Production may need source build |
-| flag_gems hard-pins other deps in future | Medium | Already hit with numpy + sqlalchemy. FlagGems should use `>=` not `==` for runtime deps |
+| 风险 | 严重度 | 缓解措施 |
+|------|--------|----------|
+| vllm 版本升级引入新的黑名单依赖 | 中 | 每次升级检查 METADATA diff，更新 config.yaml |
+| 间接依赖声明不兼容的 torch 版本 | 中 | 监控 pip install 输出；also_repack 后备方案存在 |
+| pip 解析行为变化 | 低 | 已从 uv 迁移到 pip，pip 稳定性好。pip 升级时重新测试 |
+| Vendor PyPI token 过期或更改 | 低 | CI 使用 secrets；文档记录 token 轮换 |
+| macOS vs Linux 平台不匹配 | 中 | 永远不在 macOS 上 repack。CI 在 H20 runner 上运行 |
+| vllm 二进制 wheel ABI 不兼容 | 低-中 | 警告可接受。生产环境需源码构建 |
+| flag_gems 未来又硬锁定其他依赖 | 中 | 已遇到 numpy + sqlalchemy。FlagGems 应用 `>=` 而非 `==` |
 
-### Pain Points
+**痛点：**
 
-| Pain | Severity | Notes |
-|------|----------|-------|
-| SSH gateway instability | High | `no available gateway` appeared ~50% of attempts. Every tool call is a gamble |
-| 244MB wheel upload takes 2-3 min per vendor | Medium | Acceptable for CI. 14 vendors = ~30 min parallelizable |
-| pip dependency resolution is slow (3-5 min for vllm's 82 deps) | Low | One-time cost in Docker build; layers are cached |
-| FlagGems hard-pinned deps cause cascading conflicts | Medium | `sqlalchemy==2.0.48` was installed then uninstalled. Should audit FlagGems deps for other hard pins |
-| No model files on nodes | Low | One-time per-model download. Use `/data/models` for storage |
-| vllm _C.abi3.so undefined symbol warning | Low | Non-fatal, but noise in logs. Needs investigation |
+| 痛点 | 严重度 | 备注 |
+|------|--------|------|
+| SSH 网关不稳定 | 高 | 约 50% 尝试出现 `no available gateway` |
+| 244MB wheel 上传 2-3 min/厂商 | 中 | CI 可接受，14 厂商 ≈ 30 min 可并行 |
+| pip 依赖解析慢（vllm 82 个 deps，3-5 min） | 低 | Docker build 中的一次性成本，layer 有缓存 |
+| FlagGems 硬锁定依赖级联冲突 | 中 | `sqlalchemy==2.0.48` 装了又被卸载。应审查 FlagGems 其他硬锁定 |
+| 节点上无模型文件 | 低 | 每个模型下载一次。使用 `/data/models` 存储 |
 
 ---
 
-## 8. Full Stack Verification (nvidia-cuda12.8)
+### 1.12 完整 Stack 验证（nvidia-cuda12.8）
 
 ```
 torch:        2.10.0+cu128  ✅  (from vendor PyPI)
@@ -296,13 +304,210 @@ CUDA:         True          ✅  (nvidia-smi works)
 Inference:    Qwen3.6-35B-A3B ✅  (prompt_tokens=17, completion_tokens=128)
 ```
 
+### 1.13 后续步骤（NVIDIA）
+
+1. **Commit + PR** `repack.py` + `configs.yaml` 改动到 build-infra
+2. **构建和发布** flag_gems 5.3.2 wheels 到全部 vendor PyPI
+3. **编写** `scripts/repack_vllm.py` 做 CI 自动化
+4. **编写** `app/vllm/Containerfile`
+5. **扩展到 nvidia-cuda13.3**（相同模式，不同 torch 版本）
+6. **多厂商铺开** — metax, hygon, iluvatar, mthreads, kunlunxin, cambricon（CUDA 路线）
+
 ---
 
-## 9. Next Steps
+## 2. MetaX maca3.7.2.1
 
-1. **Commit & PR** `repack.py` + `configs.yaml` changes to build-infra
-2. **Build & publish** flag_gems 5.3.2 wheels to all vendor PyPIs
-3. **Write** `scripts/repack_vllm.py` for CI automation
-4. **Write** `app/vllm/Containerfile`
-5. **Expand to nvidia-cuda13.3** (same pattern, different torch version)
-6. **Multi-vendor rollout** — metax, hygon, iluvatar, mthreads, kunlunxin, cambricon (CUDA-path)
+**日期:** 2026-07-28/29  
+**平台:** MetaX C550 (8×, 64GB)  
+**节点:** metax124 (bm-zksg-wx-zone1-d-mc550-64g-2-124)  
+**MACA:** 3.7.2.0, Driver 3.8.30  
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL, flagos-runtime-metax-maca3.7.2.1:2.1.1
+
+### 2.1 核心结论：必须用 empty 构建
+
+MetaX MACA 没有 NVIDIA CUDA 扩展——vllm 标准 wheel 中的
+`_C.abi3.so`、`_moe_C.abi3.so` 是为 NVIDIA GPU 编译的，
+无法在 MACA 上加载。`vllm serve` 启动即崩溃：
+
+```
+AttributeError: '_OpNamespace' '_C_cache_ops' object has no
+  attribute 'reshape_and_cache_flash'
+```
+
+必须用 **empty 构建**（`VLLM_TARGET_DEVICE=empty`）编译不含硬件
+kernel 的 vllm。除此之外，repack 规则、间接依赖处理、
+vllm-plugin-FL 安装均与 NVIDIA 相同。
+
+### 2.2 编译 empty vllm wheel
+
+```bash
+cd /workspace/vllm                      # 节点上已有的 v0.20.2 源码
+VLLM_TARGET_DEVICE=empty MAX_JOBS=64   \
+pip wheel --no-build-isolation --no-deps -w /tmp/empty .
+# → vllm-0.20.2+empty-py3-none-any.whl (6.3 MB, 无 .so 文件)
+```
+
+### 2.3 Repack（去掉 `+empty` 本地版本、修复平台 Tag）
+
+与 NVIDIA 流程相比，repack.py 需增加三项处理：
+
+1. **去掉 METADATA 中 `Version:` 的 `+empty` 后缀** — PEP 440 本地版本
+   不会被 `pip install vllm==0.20.2` 匹配
+2. **重命名 `.dist-info` 目录** — `vllm-0.20.2+empty.dist-info`
+   → `vllm-0.20.2.dist-info`
+3. **改写 `WHEEL Tag:`** — `py3-none-any` →
+   `cp38-abi3-manylinux_2_35_x86_64`，防止 pip 因平台匹配度
+   优先选择 Aliyun 上的原版 wheel
+
+```bash
+python3 vllm-repack/repack.py /tmp/empty/vllm-0.20.2+empty-py3-none-any.whl
+# → vllm-0.20.2-cp38-abi3-manylinux_2_35_x86_64.whl
+#   Version: 0.20.2, 77 行 Requires-Dist, Metadata-Version 2.2
+```
+
+以上改动（`_strip_local_version`、`_VLLM_PLATFORM_TAG`、
+`_WHEEL_TAG_RE`、`_rewrite_wheel_impl` 目录重命名逻辑）待 commit。
+
+### 2.4 上传到 metax PyPI
+
+```bash
+twine upload -u flagos -p '<token>' \
+  --repository-url https://resource.flagos.net/repository/flagos-pypi-metax/ \
+  repacked-wheel.whl
+```
+
+### 2.5 递归间接依赖 repack
+
+vllm 有 77 个间接依赖。其中 6 个在自己的 METADATA 中声明
+`torch>=...`——pip 从 Aliyun 解析时看到 `torch-2.11.0`（版本号
+高于 `torch-2.8.0+metax3.7.2.0`），于是覆盖 vendor torch：
+
+| 包 | 原因 |
+|---|---|
+| `compressed-tensors` | `torch>=1.7.0` |
+| `flashinfer-python` | `torch`（无版本约束） |
+| `quack-kernels` | `torch` + `nvidia-cutlass-dsl` |
+| `tilelang` | `torch>=2.4` |
+| `torch-c-dlpack-ext` | `torch`（无版本约束） |
+| `xgrammar` | `torch>=1.10.0` + `triton` |
+
+逐一 repack（去掉 torch/triton/nvidia 依赖，Metadata-Version 2.4→2.2
+降级），上传到 metax PyPI。其他间接依赖（`transformers`、
+`huggingface_hub`、`safetensors`、`outlines_core`、`fastsafetensors`）
+仅在 extras 中声明 torch，pip 不会激活 extras，无需 repack。
+
+**这不是 MetaX 专属问题**——所有 vendor torch 版本号低于 Aliyun
+上游 torch 的后端都会遇到。
+
+### 2.6 安装流程
+
+```bash
+VENDOR=https://resource.flagos.net/repository/flagos-pypi-metax/simple
+ALIYUN=https://mirrors.aliyun.com/pypi/simple
+
+# 1. 运行时依赖（与 CUDA 一致：vendor 为主，Aliyun 补充）
+pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" \
+  torch==2.8.0+metax3.7.2.0 torchaudio==2.4.1+metax3.7.2.0 \
+  torchvision==0.15.1+metax3.7.2.0 flash_attn==2.6.3+metax3.7.2.0torch2.8 \
+  flagtree==3.1.0+metax3.7.2.0 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.2 \
+  pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.3 numpy==2.3.5
+
+# 2. vllm — 分两步（MetaX 专属：vendor torch 版本 < Aliyun torch）
+pip install --no-deps --index-url "$VENDOR" vllm==0.20.2   # ① 锁定 repacked empty
+pip install --index-url "$ALIYUN" vllm==0.20.2             # ② 补全 safe deps
+
+# 3. vllm-plugin-FL — 纯 Python，不设 VLLM_VENDOR
+cd /workspace/vllm-plugin-FL
+pip install --no-build-isolation -e .
+```
+
+**为什么分两步？** `torch-2.8.0+metax3.7.2.0` 在 PEP 440 中排序低于
+`torch-2.11.0`（本地版本号排在基础版本号之下）。一步安装 `pip install
+--index-url $VENDOR --extra-index-url $ALIYUN vllm` 会触发 torch 降级。
+先用 `--no-deps` 锚定 repacked vllm，再补全 safe deps，torch 不变。
+
+### 2.7 vllm-plugin-FL 需要修复的两个问题
+
+在 MetaX 上跑 empty vllm 时，vllm-plugin-FL 的 metax vendor backend
+有两处需修改：
+
+| # | 现象 | 根因 | 修复 | PR |
+|---|---|---|---|---|
+| 1 | `_C_cache_ops.reshape_and_cache_flash` AttributeError | MetaX flash attn 后端调用 `vllm._custom_ops.reshape_and_cache_flash` → `torch.ops._C_cache_ops.*`——empty 构建不编译此模块 | `patches/__init__.py` 中 patch：路由到 vllm 内置的 Triton 纯 Python 实现（`triton_reshape_and_cache_flash`） | [#319](https://github.com/flagos-ai/vllm-plugin-FL/pull/319) |
+| 2 | `_C.silu_and_mul` AttributeError | `silu_and_mul_maca` 实例化 `SiluAndMul()`，其 `__init__` 访问 `torch.ops._C.silu_and_mul`——在模型加载阶段崩溃，dispatch 来不及介入 | 用 `F.silu` / `F.gelu` 替换 `SiluAndMul()` / `GeluAndMul()`——功能等价，不依赖 `_C` | [#325](https://github.com/flagos-ai/vllm-plugin-FL/pull/325) |
+
+**第 2 个问题是最微妙的。** 崩溃发生在 `__init__`，不是 `forward`。
+vllm_fl 的分发层（`forward_oot → call_op → flagos/vendor/reference`）
+只在实际推理时生效——但 `__init__` 在模型加载阶段运行，dispatch 来不及拦截：
+
+```
+vllm/model_executor/models/qwen3.py:204 Qwen3DecoderLayer.__init__()
+  → qwen2.py:111 lambda 初始化
+    → vllm_fl/ops/activation.py:10 SiluAndMulFL.__init__()
+      → super().__init__()       # vllm SiluAndMul.__init__
+        → activation.py:133 self.op = torch.ops._C.silu_and_mul  💥
+```
+
+### 2.8 启动 vllm serve
+
+```bash
+export MACA_PATH=/opt/maca
+export PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:$PATH
+export LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib
+export GEMS_VENDOR=metax
+export VLLM_PLUGINS=fl
+export MACA_VISIBLE_DEVICES=4
+
+vllm serve /data/models/Qwen/Qwen3-4B --port 8031 \
+  --gpu-memory-utilization 0.5 --enforce-eager \
+  --trust-remote-code --max-model-len 2048
+```
+
+### 2.9 测试推理
+
+```json
+{"choices":[{"message":{"content":"你好！..."}}],
+ "usage":{"prompt_tokens":9,"completion_tokens":32}}
+```
+
+✅ MetaX C550 + empty vllm 推理成功。
+
+### 2.10 与 NVIDIA CUDA 后端的差异
+
+| 步骤 | NVIDIA cuda12.8 | MetaX maca3.7.2.1 |
+|---|---|---|
+| vllm wheel | 标准版 — 从 Aliyun 下载 | **empty 构建**（`VLLM_TARGET_DEVICE=empty`） |
+| repack 额外处理 | 无 | 去掉 `+empty` 版本后缀、修复 WHEEL Tag |
+| vendor deps | torch/cu128, triton 3.6.0 | torch/metax, flash_attn/metax, triton 3.0.0 |
+| vllm 安装 | 一步 `pip install` | 两步：先 `--no-deps` 锁定，再补 deps |
+| vllm-plugin-FL | `VLLM_VENDOR=cuda` 编译 C 扩展 | 不设 VLLM_VENDOR，额外需 PR #319 + #325 |
+| 间接依赖 repack | 相同的 6 个包 | 相同 |
+
+### 2.11 完整 Stack 验证
+
+```
+torch:        2.8.0+metax3.7.2.0    ✅  from vendor PyPI
+torchaudio:   2.4.1+metax3.7.2.0    ✅
+torchvision:  0.15.1+metax3.7.2.0   ✅
+flash_attn:   2.6.3+metax3.7.2.0    ✅  MetaX flash attention
+flagtree:     3.1.0+metax3.7.2.0    ✅  默认编译器
+triton:       3.0.0+metax3.7.2.0    ✅
+flag_gems:    5.3.2                 ✅  use_gems() OK
+vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
+vllm_fl:      loaded                ✅  纯 Python, PR #319 + #325
+MACA:         True                  ✅  mx-smi, torch.cuda.is_available()
+Inference:    Qwen3-4B              ✅  9→32 tokens, flash attention
+```
+
+### 2.12 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| vllm-plugin-FL PR #319 | 🔄 审核中 | `_C_cache_ops` Triton fallback |
+| vllm-plugin-FL PR #325 | 🔄 审核中 | `silu_and_mul_maca` / `gelu_and_mul_maca` → F.silu/F.gelu |
+| repack.py 改动 commit | ⬜ | `_strip_local_version`、WHEEL Tag、dist-info 重命名、`+empty` 处理 |
+| 间接 repack 自动化 | ⬜ | 脚本已有，未集成到 repack CLI |
+| FlagGems pyproject.toml | ⬜ | build-system.requires 加 `wheel==0.45.0` |
+| 更大模型测试 | ⬜ | 仅测过 Qwen3-4B；27B、35B-A3B 待测 |
+| graph 模式测试 | ⬜ | 仅 eager 模式 |
+| 其他 empty 模式后端 | ⬜ | hygon、kunlunxin、iluvatar、mthreads 可能也需要 empty 构建 |
