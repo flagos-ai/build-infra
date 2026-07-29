@@ -37,6 +37,10 @@ on:
         description: 'skip flag_gems install — produce build-platform image (step 4)'
         type: boolean
         default: false
+      skip_cpp:
+        description: 'skip flag_gems cpp extension install (install pure Python wheel only)'
+        type: boolean
+        default: false
 
 jobs:
   set-matrix:
@@ -137,6 +141,9 @@ jobs:
           image_tag="${{ matrix.image_tag }}"
           [[ "${{ inputs.no_flaggems }}" == "true" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1' && image_tag="${image_tag}-build"
 
+          cpp_extra="${{ matrix.cpp_extra }}"
+          [[ "${{ inputs.skip_cpp }}" == "true" ]] && cpp_extra=""
+
           docker build \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
             --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
@@ -145,7 +152,7 @@ jobs:
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "DEPS=${{ matrix.deps }}" \
             --build-arg "RUNTIME_PREREQS=${{ needs.set-matrix.outputs.runtime_prereqs }}" \
-            --build-arg "CPP_EXTRA=${{ matrix.cpp_extra }}" \
+            --build-arg "CPP_EXTRA=${cpp_extra}" \
             --build-arg "FLAGTREE_PKG=${{ matrix.flagtree_pkg }}" \
             --build-arg "TRITON_PKG=${{ matrix.triton_pkg }}" \
             --build-arg "TRITON_EXTRA_PKGS=${{ matrix.triton_extra_pkgs }}" \
