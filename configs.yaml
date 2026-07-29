@@ -106,9 +106,6 @@ vendors:
         base:
           PATH: /usr/local/cuda/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
-        runtime:
-          NVIDIA_VISIBLE_DEVICES: "all"
-          NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       deps:
         - torch==2.10.0+cu128
         - torchaudio==2.10.0+cu128
@@ -129,9 +126,6 @@ vendors:
         base:
           PATH: /usr/local/cuda/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
-        runtime:
-          NVIDIA_VISIBLE_DEVICES: "all"
-          NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       deps:
         - torch==2.11.0+cu130
         - torchaudio==2.11.0+cu130
@@ -428,7 +422,6 @@ vendors:
           PATH: /usr/local/musa/bin:${PATH}
           LD_LIBRARY_PATH: /usr/local/musa/lib
         runtime:
-          MTHREADS_VISIBLE_DEVICES: "all"
           LD_LIBRARY_PATH: "${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}"
       deps:
         - torch==2.9.0+musa.4.3.6
@@ -454,7 +447,6 @@ vendors:
           PATH: /usr/local/musa/bin:${PATH}
           LD_LIBRARY_PATH: /usr/local/musa/lib
         runtime:
-          MTHREADS_VISIBLE_DEVICES: "all"
           LD_LIBRARY_PATH: "${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}"
       deps:
         - torch==2.9.1+musa5.2.0
