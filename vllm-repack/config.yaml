@@ -71,6 +71,7 @@ strip_from_repacked:
   - torchaudio
   - torchvision
   - torchcodec
+  - torch-c-dlpack-ext
   - triton
   - tokenspeed-triton
 

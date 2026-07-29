@@ -132,6 +132,9 @@ _METADATA_VERSION_RE = re.compile(r"^Metadata-Version:\s*.+$", re.MULTILINE | re
 _LICENSE_EXPRESSION_RE = re.compile(r"^License-Expression:\s*.+$", re.MULTILINE | re.IGNORECASE)
 _LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
 _DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
+_VERSION_LOCAL_RE = re.compile(r"^Version:\s*(.+?)\+.+$", re.MULTILINE | re.IGNORECASE)
+_WHEEL_TAG_RE = re.compile(r"^Tag:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
+_VLLM_PLATFORM_TAG = "cp38-abi3-manylinux_2_35_x86_64"
 
 
 def _downgrade_metadata_version(text: str) -> str:
@@ -172,6 +175,31 @@ def _downgrade_metadata_version(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text
+
+
+def _strip_local_version(text: str) -> str:
+    """Strip local version suffix (+xxx) from the Version: line in METADATA.
+
+    e.g. 'Version: 0.20.2+empty' → 'Version: 0.20.2'
+    """
+    return _VERSION_LOCAL_RE.sub(r"Version: \1", text)
+
+
+def _read_wheel_file(whl_path: Path, dist_info_dir: str) -> str:
+    """Read the WHEEL file from a wheel's .dist-info directory."""
+    with zipfile.ZipFile(whl_path) as z:
+        return z.read(f"{dist_info_dir}/WHEEL").decode("utf-8")
+
+
+def _get_wheel_tag(wheel_text: str) -> str:
+    """Extract the Tag value from a WHEEL file."""
+    m = _WHEEL_TAG_RE.search(wheel_text)
+    return m.group(1).strip() if m else "py3-none-any"
+
+
+def _rewrite_wheel_tag(wheel_text: str, new_tag: str) -> str:
+    """Replace the Tag line in a WHEEL file."""
+    return _WHEEL_TAG_RE.sub(f"Tag: {new_tag}", wheel_text)
 
 
 def _extract_name_version(requires_dist_line: str):
@@ -228,25 +256,44 @@ def read_wheel_metadata(whl_path: Path) -> tuple[str, str]:
     raise ValueError(f"No .dist-info/METADATA found in {whl_path}")
 
 
-def rewrite_wheel(src: Path, dst: Path, metadata_text: str, dist_info_dir: str):
-    """Copy src → dst, replacing METADATA content.  Handles src == dst safely."""
+def rewrite_wheel(src: Path, dst: Path, metadata_text: str, dist_info_dir: str,
+                  old_dist_info_dir=None, wheel_text=None):
+    """Copy src → dst, replacing METADATA content. Handles src == dst safely.
+
+    When old_dist_info_dir differs from dist_info_dir (e.g. stripping the +empty
+    local version suffix from the directory name), files are transparently
+    relocated.  When wheel_text is provided, the WHEEL file is also replaced.
+    """
+    if old_dist_info_dir is None:
+        old_dist_info_dir = dist_info_dir
     if src.resolve() == dst.resolve():
         fd, tmpname = tempfile.mkstemp(dir=dst.parent, suffix=".tmp")
         os.close(fd)
         tmp = Path(tmpname)
-        _rewrite_wheel_impl(src, tmp, metadata_text, dist_info_dir)
+        _rewrite_wheel_impl(src, tmp, metadata_text, dist_info_dir,
+                           old_dist_info_dir, wheel_text)
         tmp.replace(dst)
     else:
-        _rewrite_wheel_impl(src, dst, metadata_text, dist_info_dir)
+        _rewrite_wheel_impl(src, dst, metadata_text, dist_info_dir,
+                           old_dist_info_dir, wheel_text)
 
 
-def _rewrite_wheel_impl(src: Path, dst: Path, metadata_text: str, dist_info_dir: str):
+def _rewrite_wheel_impl(src: Path, dst: Path, metadata_text: str,
+                         dist_info_dir: str, old_dist_info_dir: str,
+                         wheel_text=None):
+    rename_dir = old_dist_info_dir != dist_info_dir
     with zipfile.ZipFile(src) as zin:
         with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
                 data = zin.read(item.filename)
-                if item.filename == f"{dist_info_dir}/METADATA":
+                old_path = item.filename
+                if rename_dir and old_path.startswith(f"{old_dist_info_dir}/"):
+                    new_path = f"{dist_info_dir}/{old_path[len(old_dist_info_dir) + 1:]}"
+                    item = zipfile.ZipInfo(new_path, item.date_time)
+                if old_path == f"{old_dist_info_dir}/METADATA":
                     zout.writestr(item, metadata_text)
+                elif wheel_text is not None and old_path == f"{old_dist_info_dir}/WHEEL":
+                    zout.writestr(item, wheel_text)
                 else:
                     zout.writestr(item, data)
 
@@ -259,11 +306,12 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def wheel_name_to_filename(name: str, version: str) -> str:
+def wheel_name_to_filename(name: str, version: str, tag: str = "py3-none-any") -> str:
     """Convert package name + version to a wheel filename.
-    Since we only replace METADATA we reuse the original (correct) tag."""
+    When repacking an empty-build wheel, pass the platform tag to avoid
+    pip preferring the upstream wheel over the repacked one."""
     safe_name = re.sub(r"[-_.]+", "_", name)
-    return f"{safe_name}-{version}-py3-none-any.whl"
+    return f"{safe_name}-{version}-{tag}.whl"
 
 
 # ── indirect dep repacking ─────────────────────────────────────────────
@@ -539,6 +587,29 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
 
     # 1. Read METADATA
     meta_text, dist_info_dir = read_wheel_metadata(whl_path)
+    old_dist_info_dir = dist_info_dir
+
+    # Handle empty / locally-built wheels: strip local version suffix
+    # from both the .dist-info directory name and the METADATA text.
+    stripped = re.sub(r"\+[^.]*", "", dist_info_dir)
+    has_local = stripped != dist_info_dir
+    if has_local:
+        dist_info_dir = stripped
+        meta_text = _strip_local_version(meta_text)
+        print(f"  strip local version: {old_dist_info_dir} → {dist_info_dir}")
+
+    # Read WHEEL file — empty wheels have Tag: py3-none-any which would
+    # cause pip to prefer the upstream wheel over our repacked one.
+    wheel_text = _read_wheel_file(whl_path, old_dist_info_dir)
+    wheel_tag = _get_wheel_tag(wheel_text)
+    if wheel_tag == "py3-none-any":
+        wheel_tag = _VLLM_PLATFORM_TAG
+        wheel_text = _rewrite_wheel_tag(wheel_text, wheel_tag)
+        print(f"  platform tag: py3-none-any → {wheel_tag}")
+    else:
+        # Standard wheel — keep original WHEEL file unchanged
+        wheel_text = None
+
     all_rd = parse_requires_dist(meta_text)
 
     # 2. Classify every Requires-Dist
@@ -584,6 +655,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
         pkg_name = mvn.group(1).strip()
     if mvv:
         pkg_version = mvv.group(1).strip()
+        pkg_version = re.sub(r"\+.*", "", pkg_version)
 
     manifest_path = OUTPUT_DIR / f"{_normalize(pkg_name or 'unknown')}-{pkg_version or 'unknown'}.deps-manifest.yaml"
     manifest_data = {
@@ -609,9 +681,10 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
 
     new_meta = _strip_requires_dist_lines(meta_text, names_to_remove)
     new_meta = _downgrade_metadata_version(new_meta)
-    output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0")
+    output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
     output_path = OUTPUT_DIR / output_name
-    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir)
+    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
+                  old_dist_info_dir, wheel_text)
 
     print(f"\nDone:")
     print(f"  wheel:    {output_path}")
