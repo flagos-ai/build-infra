@@ -196,6 +196,10 @@ def resolve_build_args(
     triton = backend_info.get("triton", "")
     triton_post = backend_info.get("triton_post_install", [])
     triton_extra = " ".join(triton_post) if isinstance(triton_post, list) else ""
+    runtime_env = backend_info.get("env", {}).get("runtime", {})
+    runtime_env_lines = "\n".join(
+        f"{k}={v}" for k, v in (runtime_env or {}).items()
+    )
 
     args = {
         "BASE_IMAGE": base_image_override
@@ -211,6 +215,7 @@ def resolve_build_args(
         "TRITON_PKG": triton,
         "TRITON_EXTRA_PKGS": triton_extra,
         "INCLUDE_TESTS": include_tests_override or "false",
+        "RUNTIME_ENV": runtime_env_lines,
     }
 
     return args
