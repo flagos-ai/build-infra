@@ -128,9 +128,15 @@ def _finalize(args) -> None:
     _git("config", "user.name", "flagos-ci", check=False)
     _git("config", "user.email", "noreply@flagos.net", check=False)
 
-    # gen_descriptions reads TSV files from VERSIONS_DIR.
+    # gen_descriptions reads TSV files from VERSIONS_DIR and requires
+    # docs/data/images.yaml (produced by gen_data.py) to be up to date.
     env = _git_env()
     env["VERSIONS_DIR"] = str(REPO_ROOT / "versions")
+
+    subprocess.run(
+        [sys.executable, str(REPO_ROOT / "docs" / "gen_data.py")],
+        check=True, cwd=REPO_ROOT, env=env,
+    )
 
     subprocess.run(
         [sys.executable, str(REPO_ROOT / "docs" / "gen_descriptions.py")],
