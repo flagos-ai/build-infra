@@ -37,6 +37,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # RUN sed -i 's|URIs: http://archive.ubuntu.com/ubuntu|URIs: https://mirrors.aliyun.com/ubuntu|g; s|URIs: http://security.ubuntu.com/ubuntu|URIs: https://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git vim ca-certificates curl \
+        libnuma1 \
         gcc g++ build-essential cmake \
         pciutils \
     && rm -rf /var/lib/apt/lists/*
