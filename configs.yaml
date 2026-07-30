@@ -85,6 +85,7 @@ runtime_prereqs:
   - "pybind11==3.0.3"
   - "ninja==1.13.0"
   - "PyYAML==6.0.1"
+  - "setuptools-scm>=8,<10"
 
 base_image_prefix: "flagos-base"
 
