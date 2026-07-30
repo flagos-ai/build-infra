@@ -28,27 +28,27 @@ title: "cambricon-neuware4.4.3"
 
 ### Base image
 
-`ubuntu:24.04`
+`ubuntu:22.04`
 
 ### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `gdb` — 15.1
-- `git` — 2.43.0
-- `libc6-dev-i386` — 2.39
-- `libncurses6` — 6.4+20240113
-- `libtinfo6` — 6.4+20240113
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `cmake` — 3.22.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `gdb` — 12.1
+- `git` — 2.34.1
+- `libc6-dev-i386` — 2.35
+- `libncurses5` — 6.3
+- `libtinfo5` — 6.3
 - `make` — 4.3
-- `pciutils` — 3.10.0
+- `pciutils` — 3.7.0
 - `unzip` — 6.0
-- `vim` — 9.1.0016
+- `vim` — 8.2.3995
 
 ### SDK components
 
