@@ -196,7 +196,7 @@ def resolve_build_args(
     triton = backend_info.get("triton", "")
     triton_post = backend_info.get("triton_post_install", [])
     triton_extra = " ".join(triton_post) if isinstance(triton_post, list) else ""
-    runtime_env = backend_info.get("env", {}).get("runtime", {})
+    runtime_env = (backend_info.get("env") or {}).get("runtime", {})
     runtime_env_lines = "\n".join(
         f"{k}={v}" for k, v in (runtime_env or {}).items()
     )

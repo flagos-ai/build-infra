@@ -143,7 +143,6 @@ vendors:
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
-      env:
       deps:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
@@ -162,7 +161,6 @@ vendors:
       flagtree: flagtree==0.6.0+ascend3.5
       triton_post_install:
         - triton_ascend==3.2.1
-      env:
       deps:
         - torch==2.10.0+cpu
         - torch-npu==2.10.0
@@ -286,7 +284,6 @@ vendors:
       python: "3.10"
       triton: triton==3.3.0+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.5.1+hcu3.1
-      env:
       deps:
         - torch==2.9.0+das.opt1.dtk2604
         - numpy==2.2.6
@@ -501,7 +498,6 @@ vendors:
       hardware: ["T-Head ZW810E"]
       python: "3.12"
       triton: triton==3.5.0+ppu2.0.0.oe
-      env:
       deps:
         - torch==2.9.0+ppu2.0.0.oe
         - numpy==2.3.5

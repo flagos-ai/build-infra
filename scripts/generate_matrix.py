@@ -114,7 +114,7 @@ def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: lis
         cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
 
         # Per-backend runtime env vars — serialized as "KEY=value\nKEY2=value2"
-        runtime_env = backend_info.get("env", {}).get("runtime", {})
+        runtime_env = (backend_info.get("env") or {}).get("runtime", {})
         runtime_env_lines = "\n".join(
             f"{k}={v}" for k, v in (runtime_env or {}).items()
         )
