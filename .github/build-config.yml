@@ -50,6 +50,7 @@ runners:
     mthreads-musa5.2.0: [self-hosted, musa520]
     sunrise-tangrt1.2.0: [self-hosted, sunrise]
     tsingmicro-tsm260604: [self-hosted, tsingmicro]
+    tsingmicro-tsm260610: [self-hosted, tsingmicro]
 
 # `docker run` flags needed to expose each vendor's accelerator to a container.
 # Used by the docs to render a concrete run command per image. Vendors not

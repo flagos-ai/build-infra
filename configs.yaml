@@ -544,3 +544,44 @@ vendors:
         - TSM Profiler 260604163331          # Tsm_profiler_260604163331_x86_64_installer.run
         - TX8 Compiler Dependencies 20260507 # tx8_depends_dev_20260507_104051.tar.gz
         - LLVM a66376b0                      # llvm-a66376b0-ubuntu-x64.tgz
+
+    tsm260610:
+      extras: tsingmicro
+      hardware: ["Tsingmicro TX8110"]
+      driver: "260610164501.01"
+      python: "3.10"
+      triton: triton==3.3.0+gitfe2a28fa
+      flagtree: flagtree==0.5.0.post20260612+git705a4064
+      system_dpkg:
+        # libfmt8 is a system-level dependency for torch_txda (links
+        # libfmt.so.8). Ubuntu 24.04 ships libfmt9, so we install the
+        # 22.04 .deb via dpkg. It is NOT an SDK component.
+        - libfmt8
+      env:
+        base:
+          KUIPER_PATH: /usr/local/kuiper
+          TX8_DEPS_ROOT: /usr/local/tx8_deps
+          LLVM_SYSPATH: /usr/local/llvm
+          PATH: /usr/local/kuiper/bin:${PATH}
+          LLVM_BINARY_DIR: /usr/local/llvm/bin
+          PYTHONPATH: /usr/local/llvm/python_packages/mlir_core
+          LD_LIBRARY_PATH: /usr/local/tx8_deps/lib:/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib
+          USE_TORCH_XLA: "0"
+          TORCH_COMPILE_DISABLE: "1"
+        runtime:
+          USE_TORCH_XLA: "0"
+          TORCH_COMPILE_DISABLE: "1"
+      deps:
+        - torch==2.7.0+cpu
+        - torchvision==0.22.0+cpu
+        - torchaudio==2.7.0+cpu
+        - torch_txda==0.1.0+20260615.37ba6bbd
+        - txops==0.1.0+20260508.60287151
+        - numpy==2.2.6
+      sdk:
+        - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
+        - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run
+        - TSM CCL 260610164501               # Tsm_ccl_260610164501_x86_64_installer.run
+        - TSM Profiler 260610164501          # Tsm_profiler_260610164501_x86_64_installer.run
+        - TX8 Compiler Dependencies 20260507 # tx8_depends_dev_20260507_104051.tar.gz
+        - LLVM a66376b0                      # llvm-a66376b0-ubuntu-x64.tgz
