@@ -430,20 +430,62 @@ def main():
 
     requested = sys.argv[1:]
     if requested:
-        # Spot-check to stdout: every requested backend, every language, every
-        # layer — so a single-backend check never silently covers just one layer.
+        if not versions_dir:
+            # Spot-check to stdout: every requested backend, every language, every
+            # layer — so a single-backend check never silently covers just one layer.
+            for name in requested:
+                if name not in backends:
+                    sys.exit(f"Error: '{name}' not in images.yaml")
+                versions = load_versions(None, name)
+                for lang in LANGS:
+                    print(render(backends[name], versions, lang, "web"))
+                for lang in LANGS:
+                    print(render_runtime(backends[name], lang, "web"))
+            return
+
+        # VERSIONS_DIR set: write only the requested backends to files.
+        total = 0
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "base"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for name in requested:
+                if name not in backends:
+                    print(f"Warning: '{name}' not in images.yaml — skipping", file=sys.stderr)
+                    continue
+                versions = load_versions(versions_dir, name)
+                md = render(backends[name], versions, lang, "web")
+                (out_dir / f"{name}.md").write_text(md)
+                total += 1
+            print(f"Wrote {len(requested)} {lang} base web pages to {out_dir}")
+
+        base_dir = root / "base"
         for name in requested:
             if name not in backends:
-                sys.exit(f"Error: '{name}' not in images.yaml")
+                continue
             versions = load_versions(versions_dir, name)
-            for lang in LANGS:
-                print(render(backends[name], versions, lang, "web"))
-            if versions_dir:
-                print(render(backends[name], versions, "en", "plain"))
-            for lang in LANGS:
-                print(render_runtime(backends[name], lang, "web"))
-            if versions_dir:
-                print(render_runtime(backends[name], "en", "plain"))
+            md = render(backends[name], versions, "en", "plain")
+            (base_dir / f"{name}.md").write_text(md)
+        print(f"Wrote {len(requested)} base plain readmes to {base_dir}")
+
+        # Runtime web flavor.
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "runtime"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for name in requested:
+                if name not in backends:
+                    continue
+                md = render_runtime(backends[name], lang, "web")
+                (out_dir / f"{name}.md").write_text(md)
+            print(f"Wrote {len(requested)} {lang} runtime web pages to {out_dir}")
+
+        # Runtime plain flavor.
+        rt_dir = root / "runtime"
+        for name in requested:
+            if name not in backends:
+                continue
+            md = render_runtime(backends[name], "en", "plain")
+            (rt_dir / f"{name}.md").write_text(md)
+        print(f"Wrote {len(requested)} runtime plain readmes to {rt_dir}")
         return
 
     # File output requires VERSIONS_DIR — without it, only package names
