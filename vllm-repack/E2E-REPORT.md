@@ -378,23 +378,23 @@ twine upload -u flagos -p '<token>' \
 
 ### 2.5 递归间接依赖 repack
 
-vllm 有 77 个间接依赖。其中 6 个在自己的 METADATA 中声明
-`torch>=...`——pip 从 Aliyun 解析时看到 `torch-2.11.0`（版本号
-高于 `torch-2.8.0+metax3.7.2.0`），于是覆盖 vendor torch：
+**Note (2026-07-30):** 本节原记录了 6 个间接依赖，但那是基于标准 vllm wheel
+的 Requires-Dist — 标准 wheel 包含 `flashinfer-python`、`quack-kernels`、
+`tilelang` 等。empty 构建（`VLLM_TARGET_DEVICE=empty`）跳过了这些硬件加速
+后端，所以 empty vllm 实际上只有 **2 个**间接依赖声明了 torch/triton。
 
-| 包 | 原因 |
+empty vllm 有 77 个间接依赖。其中 2 个在自己的 METADATA 中声明了
+torch/triton：
+
+| 包 | 声明的依赖 |
 |---|---|
-| `compressed-tensors` | `torch>=1.7.0` |
-| `flashinfer-python` | `torch`（无版本约束） |
-| `quack-kernels` | `torch` + `nvidia-cutlass-dsl` |
-| `tilelang` | `torch>=2.4` |
-| `torch-c-dlpack-ext` | `torch`（无版本约束） |
-| `xgrammar` | `torch>=1.10.0` + `triton` |
+| `compressed-tensors`==0.15.0.1 | `torch>=1.7.0` |
+| `xgrammar`==0.2.3 | `torch>=1.10.0` + `triton` |
 
-逐一 repack（去掉 torch/triton/nvidia 依赖，Metadata-Version 2.4→2.2
-降级），上传到 metax PyPI。其他间接依赖（`transformers`、
-`huggingface_hub`、`safetensors`、`outlines_core`、`fastsafetensors`）
-仅在 extras 中声明 torch，pip 不会激活 extras，无需 repack。
+逐一 repack（去掉 torch/triton 依赖，Metadata-Version 2.4→2.2 降级），
+上传到 metax PyPI。其他间接依赖（`transformers`、`safetensors`、
+`outlines_core`、`fastsafetensors` 等）仅在 extras 中声明 torch，pip
+不会激活 extras，无需 repack。
 
 **这不是 MetaX 专属问题**——所有 vendor torch 版本号低于 Aliyun
 上游 torch 的后端都会遇到。
@@ -505,9 +505,69 @@ Inference:    Qwen3-4B              ✅  9→32 tokens, flash attention
 |------|--------|-------|
 | vllm-plugin-FL PR #319 | 🔄 审核中 | `_C_cache_ops` Triton fallback |
 | vllm-plugin-FL PR #325 | 🔄 审核中 | `silu_and_mul_maca` / `gelu_and_mul_maca` → F.silu/F.gelu |
-| repack.py 改动 commit | ⬜ | `_strip_local_version`、WHEEL Tag、dist-info 重命名、`+empty` 处理 |
-| 间接 repack 自动化 | ⬜ | 脚本已有，未集成到 repack CLI |
+| repack.py 改动 commit | ✅ | empty-wheel 支持 + 递归审计，见 PR #244 #247 + commit 169e5ef |
+| 间接 repack 自动化 | ✅ | `repack_recursive()` 自动发现 + repack，见 §2.13 |
 | FlagGems pyproject.toml | ⬜ | build-system.requires 加 `wheel==0.45.0` |
 | 更大模型测试 | ⬜ | 仅测过 Qwen3-4B；27B、35B-A3B 待测 |
 | graph 模式测试 | ⬜ | 仅 eager 模式 |
-| 其他 empty 模式后端 | ⬜ | hygon、kunlunxin、iluvatar、mthreads 可能也需要 empty 构建 |
+| 其他 empty 模式后端 | 🔄 | hygon 进行中；kunlunxin、iluvatar、mthreads 待排队 |
+
+### 2.13 构建容器可重现 repack (2026-07-30)
+
+使用 `flagos-runtime-metax-maca3.7.2.1:2.1.1-build` 镜像作为构建
+环境（torch 2.8.0+metax、Python 3.12、uv、setuptools-scm 全部就绪），
+确保 empty vllm 编译环境与 runtime 完全一致。
+
+**流程：**
+
+```bash
+# 1. 基于 build 镜像起容器
+docker run -d --name vllm-build-metax --network host \
+  -v /tmp/vllm-repack:/tmp/vllm-repack \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.1-build \
+  sleep infinity
+
+# 2. 装 setuptools-scm（一次性，build 镜像可能需要更新）
+docker exec vllm-build-metax bash -lc \
+  'pip install -i https://mirrors.aliyun.com/pypi/simple setuptools-scm'
+
+# 3. 编译 empty vllm
+docker exec vllm-build-metax bash -lc '
+  cd /tmp/vllm && git checkout v0.20.2
+  VLLM_TARGET_DEVICE=empty MAX_JOBS=64 \
+    pip wheel --no-build-isolation --no-deps -w /tmp/empty .
+'
+
+# 4. 运行 repack_recursive
+docker exec vllm-build-metax bash -lc '
+  cd /tmp/vllm-repack
+  python3 repack.py /tmp/empty/vllm-0.20.2+empty-py3-none-any.whl
+'
+```
+
+**结果：**
+
+| 文件 | sha256 |
+|------|--------|
+| empty vllm wheel | `29afd59aae76d41d05fea3f93279a2b5fe9a8d607b990f1e4b1ecd0f80390887` |
+| repacked vllm | `vllm-0.20.2-cp38-abi3-manylinux_2_35_x86_64.whl` (6.5MB) |
+| repacked compressed-tensors | `compressed_tensors-0.15.0.1-py3-none-any.whl` (190KB) |
+| repacked xgrammar | `xgrammar-0.2.3-py3-none-any.whl` (43MB) |
+
+`repack_recursive()` 一次性解析 107 个 deps（含 transitive），发现
+compressed-tensors (`torch>=1.7.0`) 和 xgrammar (`torch>=1.10.0` +
+`triton`)，摘除后输出到 `output/`。无遗漏。
+
+**直接安装验证：**
+
+```bash
+# 将 repacked wheels 上传到 metax PyPI 后
+pip install --no-deps --index-url $METAX_PYPI vllm==0.20.2
+pip install --index-url $ALIYUN vllm==0.20.2
+pip install vllm-plugin-FL
+# → torch 保持 2.8.0+metax3.7.2.0，triton 保持 3.0.0+metax3.7.2.0
+```
+
+**注：** 此流程对未来的工作流设计具有参考意义 — build 镜像已固化完整
+编译环境，`repack_recursive()` 实现全自动依赖审计，两种机制结合可实现
+跨所有空模式后端的 CI 自动化。
