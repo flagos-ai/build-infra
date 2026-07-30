@@ -38,6 +38,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git vim ca-certificates curl \
         libnuma1 \
+        libgfortran5 libdrm-amdgpu1 libdw1 libelf1 libpciaccess0 \
         gcc g++ build-essential cmake \
         pciutils \
     && rm -rf /var/lib/apt/lists/*
