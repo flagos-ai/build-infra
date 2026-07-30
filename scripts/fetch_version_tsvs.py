@@ -49,6 +49,9 @@ def main() -> None:
 
     ap = argparse.ArgumentParser()
     ap.add_argument("out_dir", help="Path to output directory (versions-remote)")
+    ap.add_argument("--expected", default="",
+                    help="Space-separated backend names to fetch. "
+                         "When empty, discover all branches.")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -69,6 +72,14 @@ def main() -> None:
     if not refs:
         print(f"No extract branches found under {prefix}")
         return
+
+    # When scoped, only fetch backends we're collecting.
+    expected_set = set(args.expected.split()) if args.expected else None
+    if expected_set:
+        refs = [r for r in refs if r[len(prefix):] in expected_set]
+        if not refs:
+            print(f"No extract branches for expected backends: {args.expected}")
+            return
 
     fetched = 0
     for ref in refs:

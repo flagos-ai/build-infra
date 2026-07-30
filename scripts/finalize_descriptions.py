@@ -138,8 +138,12 @@ def _finalize(args) -> None:
         check=True, cwd=REPO_ROOT, env=env,
     )
 
+    # Only regenerate descriptions for backends that have TSV data
+    # collected in this run — not every backend in images.yaml.
+    versions_dir = REPO_ROOT / "versions"
+    requested = sorted(f.stem for f in versions_dir.glob("*.tsv"))
     subprocess.run(
-        [sys.executable, str(REPO_ROOT / "docs" / "gen_descriptions.py")],
+        [sys.executable, str(REPO_ROOT / "docs" / "gen_descriptions.py")] + requested,
         check=True, cwd=REPO_ROOT, env=env,
     )
 

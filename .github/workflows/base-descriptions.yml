@@ -211,18 +211,27 @@ jobs:
       - run: python3 -m pip install --user pyyaml
 
       - name: Fetch version TSVs from extract jobs
-        run: python3 scripts/fetch_version_tsvs.py versions-remote
+        env:
+          SCOPE: ${{ github.event.inputs.backend || 'all' }}
+        run: |
+          if [[ "${SCOPE}" == "all" ]]; then
+            python3 scripts/fetch_version_tsvs.py versions-remote
+          else
+            python3 scripts/fetch_version_tsvs.py versions-remote --expected "${SCOPE}"
+          fi
 
       # Restore previously-collected TSVs from the state branch so that
       # backends not refreshed this retry retain their data across runs.
       # On retry=0 the state branch doesn't exist yet — that's fine, we
       # start fresh (set-matrix already cleansed stale branches).
+      # For scoped runs, only restore TSVs for the backends being collected.
       - name: Restore state from previous retries
         env:
           GIT_AUTHOR_NAME: flagos-ci
           GIT_AUTHOR_EMAIL: noreply@flagos.net
           GIT_COMMITTER_NAME: flagos-ci
           GIT_COMMITTER_EMAIL: noreply@flagos.net
+          SCOPE: ${{ github.event.inputs.backend || 'all' }}
         run: |
           label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
           state_branch="auto/versions-${label}-state"
@@ -230,7 +239,16 @@ jobs:
             echo "Restoring state from ${state_branch}"
             git fetch origin "${state_branch}"
             mkdir -p versions
-            git checkout FETCH_HEAD -- versions/
+            if [[ "${SCOPE}" == "all" ]]; then
+              git checkout FETCH_HEAD -- versions/
+            else
+              for bk in ${SCOPE}; do
+                f="versions/${bk}.tsv"
+                if git show "FETCH_HEAD:${f}" > "${f}" 2>/dev/null; then
+                  echo "  Restored ${bk}.tsv"
+                fi
+              done
+            fi
           else
             echo "No state branch (${state_branch}) — starting fresh"
             mkdir -p versions
