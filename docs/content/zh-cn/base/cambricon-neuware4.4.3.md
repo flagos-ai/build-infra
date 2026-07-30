@@ -28,7 +28,7 @@ title: "cambricon-neuware4.4.3"
 
 ### 基础镜像
 
-`ubuntu:24.04`
+`ubuntu:22.04`
 
 ### 系统软件包
 
@@ -43,8 +43,8 @@ title: "cambricon-neuware4.4.3"
 - `gdb` — 15.1
 - `git` — 2.43.0
 - `libc6-dev-i386` — 2.39
-- `libncurses6` — 6.4+20240113
-- `libtinfo6` — 6.4+20240113
+- `libncurses5`
+- `libtinfo5`
 - `make` — 4.3
 - `pciutils` — 3.10.0
 - `unzip` — 6.0

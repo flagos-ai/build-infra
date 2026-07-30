@@ -42,6 +42,7 @@ title: "hygon-dtk26.04"
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libnuma1`
 - `pciutils` — 3.10.0
 - `vim` — 9.1.0016
 
