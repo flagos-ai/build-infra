@@ -29,6 +29,10 @@ on:
         description: 'FlagGems tag/ref to build (e.g. "v5.3.1")'
         type: string
         required: true
+      skip_cpp:
+        description: 'skip cpp operator wheel build + upload (step 5b)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -70,6 +74,7 @@ jobs:
   # ── 5b: cpp operator wheels, inside runtime:v1 ───────────────────────────
   cpp-matrix:
     needs: python-wheel
+    if: ${{ !inputs.skip_cpp }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -86,6 +91,7 @@ jobs:
 
   cpp-wheels:
     needs: [python-wheel, cpp-matrix]
+    if: ${{ !inputs.skip_cpp && needs.cpp-matrix.result == 'success' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.cpp-matrix.outputs.matrix) }}
