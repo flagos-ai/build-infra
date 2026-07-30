@@ -22,14 +22,20 @@ Usage:
     python repack.py /path/to/vllm-0.25.1-xxx.whl
     python repack.py --extra-indexes https://... vllm.whl
 
-The script puts repacked wheels + manifests under output/.  Indirect
-dependency (also_repack) repacking is kept as a fallback under cache/ —
-by default these packages stay in Requires-Dist so pip resolves them
-naturally from the default index.
+By default the script also recursively audits every retained dependency:
+any dep whose own METADATA declares torch / triton / nvidia is repacked
+as well (stripping those declarations) so that pip won't pull a
+conflicting version over the vendor-provided one.  All output lands in
+output/ — a single directory ready for upload to a vendor PyPI.
+
+Pass --no-recurse to skip this and only repack the top-level wheel.
 
 Design:
     - Only blacklisted deps (torch_chain, cuda_only, orphaned) are stripped
-      from Requires-Dist.  also_repack packages are KEPT — pip resolves them.
+      from the top-level wheel's Requires-Dist.
+    - Indirect deps that declare torch/triton are discovered automatically
+      by pip-resolving the repacked wheel's retained deps, downloading each,
+      and inspecting its METADATA.  No manual "also_repack" list.
     - No version suffix — pip + --extra-index-url to vendor PyPI ensures the
       repacked wheel is used, without uv-style auto-upgrade behavior.
     - The default download index is https://mirrors.aliyun.com/pypi/simple/
@@ -56,7 +62,6 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 CACHE_DIR = SCRIPT_DIR / "cache"
 OUTPUT_DIR = SCRIPT_DIR / "output"
-DEPS_INDEX_PATH = SCRIPT_DIR / "deps-index.yaml"
 VERSION_SUFFIX = ""
 
 
@@ -71,18 +76,6 @@ def load_config():
 def ensure_dirs():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def load_deps_index():
-    if not DEPS_INDEX_PATH.exists():
-        return {}
-    with open(DEPS_INDEX_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def save_deps_index(index):
-    with open(DEPS_INDEX_PATH, "w", encoding="utf-8") as f:
-        yaml.dump(index, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
 # ── METADATA parsing ────────────────────────────────────────────────────
@@ -227,7 +220,7 @@ def _extract_name_version(requires_dist_line: str):
 
 
 def classify(rd: dict, config: dict):
-    """Return one of: 'torch_chain', 'cuda_only', 'orphaned', 'repack', 'keep'."""
+    """Return one of: 'torch_chain', 'cuda_only', 'orphaned', 'keep'."""
     nn = _normalize(rd["name"])
     for item in config.get("remove_torch_chain", []):
         if _normalize(item) == nn:
@@ -238,9 +231,6 @@ def classify(rd: dict, config: dict):
     for item in config.get("remove_orphaned", []):
         if _normalize(item) == nn:
             return "orphaned"
-    for item in config.get("also_repack", []):
-        if _normalize(item) == nn:
-            return "repack"
     return "keep"
 
 
@@ -314,91 +304,8 @@ def wheel_name_to_filename(name: str, version: str, tag: str = "py3-none-any") -
     return f"{safe_name}-{version}-{tag}.whl"
 
 
-# ── indirect dep repacking ─────────────────────────────────────────────
+# ── dependency download helpers ─────────────────────────────────────────
 
-
-def resolve_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
-    """Download a wheel from PyPI JSON API.
-    Returns path to downloaded .whl file.  `version` must be an exact version
-    (e.g. '0.2.3'), not a specifier range.
-    """
-    import urllib.request as _ur
-
-    # Try PyPI JSON API to get the wheel URL
-    indexes = ["https://mirrors.aliyun.com/pypi/simple/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
-    wheel_url = None
-    wheel_filename = None
-
-    for base_url in indexes:
-        try:
-            url = f"{base_url}{name}/{version}/json"
-            req = _ur.Request(url, headers=_JSON_HEADERS)
-            with _ur.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
-            candidates = []
-            for entry in data.get("urls", []):
-                if entry.get("packagetype") == "bdist_wheel":
-                    fn = entry.get("filename", "")
-                    u = entry.get("url")
-                    if u:
-                        # Prefer manylinux → none-any → platform-specific
-                        score = 0
-                        if "manylinux" in fn:
-                            score = 3
-                        elif fn.endswith("-any.whl") or "-none-any" in fn:
-                            score = 2
-                        else:
-                            score = 1
-                        candidates.append((score, fn, u))
-            if candidates:
-                candidates.sort(key=lambda x: x[0], reverse=True)
-                _, wheel_filename, wheel_url = candidates[0]
-                break
-        except Exception:
-            continue
-
-    if not wheel_url:
-        # Fallback: try pip download
-        spec = f"{name}=={version}"
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "download", "--no-deps",
-             "--dest", str(CACHE_DIR), "--no-cache-dir", spec],
-            check=False, capture_output=True, text=True,
-        )
-        if result.returncode == 0:
-            whls = sorted(
-                CACHE_DIR.glob(f"{re.sub(r'[-_.]', '[-_.]', name)}-{version}*.whl"),
-                key=lambda p: p.stat().st_size,
-            )
-            if whls:
-                return whls[-1]
-        raise RuntimeError(f"Could not find or download wheel for {name}=={version}")
-
-    dst = CACHE_DIR / wheel_filename
-    if dst.exists() and dst.stat().st_size > 1024:
-        # Already downloaded and valid size
-        if _is_valid_zip(dst):
-            return dst
-        dst.unlink()
-
-    print(f"    downloading {wheel_filename} ...")
-    from urllib.error import URLError
-    try:
-        with _ur.urlopen(wheel_url, timeout=120) as resp:
-            content_type = resp.headers.get("Content-Type", "")
-            if "html" in content_type:
-                raise RuntimeError(f"URL returned HTML, not a wheel: {wheel_url}")
-            with open(dst, "wb") as f:
-                shutil.copyfileobj(resp, f)
-        if not _is_valid_zip(dst):
-            dst.unlink()
-            raise RuntimeError(f"Downloaded file is not a valid zip: {wheel_filename}")
-    except (URLError, OSError, RuntimeError) as e:
-        if dst.exists():
-            dst.unlink()
-        raise RuntimeError(f"Failed to download {wheel_filename}: {e}")
-
-    return dst
 
 
 def _is_valid_zip(path: Path) -> bool:
@@ -410,25 +317,6 @@ def _is_valid_zip(path: Path) -> bool:
 
 _JSON_HEADERS = {"Accept": "application/json"}
 
-
-def _resolve_version_from_pypi(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
-    """Resolve a version specifier to an exact version using PyPI JSON API."""
-    indexes = ["https://mirrors.aliyun.com/pypi/simple/"] + [ei.rstrip("/") + "/" for ei in extra_indexes]
-    for base_url in indexes:
-        url = f"{base_url}{name}/json"
-        try:
-            req = urllib.request.Request(url, headers=_JSON_HEADERS)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
-            versions = list(data.get("releases", {}).keys())
-            versions.sort(key=lambda v: [int(x) for x in re.findall(r"\d+", v)])
-            version_spec_parsed = version_spec.strip()
-            for v in reversed(versions):
-                if _version_matches(v, version_spec_parsed):
-                    return v
-        except Exception:
-            continue
-    return None
 
 
 def _version_matches(version: str, spec: str) -> bool:
@@ -498,55 +386,220 @@ def _check_op(v1: tuple, op: str, v2: tuple) -> bool:
     return False
 
 
-def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
-                    deps_index: dict, config: dict):
-    """Download and repack an indirect dep wheel.  Returns (cache_whl_path, manifest_path)."""
-    # Resolve to exact version via PyPI JSON API
-    with tempfile.TemporaryDirectory() as td:
-        # Strip extras (e.g. [cu13]) for the PyPI lookup
-        pypi_name = re.sub(r"\[.*\]", "", name)
-        resolved_version = _resolve_version_from_pypi(pypi_name, version_spec, extra_indexes)
-        if not resolved_version:
-            raise RuntimeError(
-                f"Could not resolve {name}{version_spec} via PyPI JSON API"
-            )
+def _resolve_pip_version(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
+    """Resolve a version specifier to an exact version using pip download.
 
-    key = f"{_normalize(pypi_name)}-{resolved_version}"
+    Prefers vendor-packaged names (e.g. torch with +das suffix) by checking
+    extra indexes first.
+    """
+    indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
+               + ["https://mirrors.aliyun.com/pypi/simple/"])
 
-    # Already processed?
-    if key in deps_index:
-        cached = deps_index[key]
-        cache_whl = CACHE_DIR / cached["whl"]
-        manifest = CACHE_DIR / cached["manifest"]
-        if cache_whl.exists() and manifest.exists():
-            print(f"  (cached) {key}")
-            return cache_whl, manifest
+    pypi_name = re.sub(r"\[.*\]", "", name)
+    for base_url in indexes:
+        url = f"{base_url}{pypi_name}/json"
+        try:
+            req = urllib.request.Request(url, headers=_JSON_HEADERS)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode())
+        except Exception:
+            continue
 
-    print(f"  processing {key} ...")
+        versions = list(data.get("releases", {}).keys())
+        versions.sort(key=lambda v: [int(x) for x in re.findall(r"\d+", v)] or [0])
+        spec = version_spec.strip()
+        for v in reversed(versions):
+            if _version_matches(v, spec):
+                return v
+    return None
 
-    # Download original wheel
-    # Download original wheel (use name stripped of extras for download)
-    wheel_path = resolve_wheel(pypi_name, resolved_version, extra_indexes)
 
-    # Read its METADATA
-    meta_text, dist_info_dir = read_wheel_metadata(wheel_path)
+def _download_dep_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
+    """Download a dependency wheel at exact version.  Returns wheel path."""
+    indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
+               + ["https://mirrors.aliyun.com/pypi/simple/"])
+
+    pypi_name = re.sub(r"\[.*\]", "", name)
+
+    # Try JSON API first
+    for base_url in indexes:
+        try:
+            url = f"{base_url}{pypi_name}/{version}/json"
+            req = urllib.request.Request(url, headers=_JSON_HEADERS)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode())
+            for entry in data.get("urls", []):
+                if entry.get("packagetype") == "bdist_wheel":
+                    whl_url = entry.get("url")
+                    fn = entry.get("filename", "")
+                    if whl_url:
+                        dst = CACHE_DIR / fn
+                        if dst.exists() and dst.stat().st_size > 1024 and _is_valid_zip(dst):
+                            return dst
+                        print(f"    downloading {fn} ...")
+                        _download_url(whl_url, dst)
+                        return dst
+        except Exception:
+            continue
+
+    # Fallback: pip download
+    spec = f"{pypi_name}=={version}"
+    r = subprocess.run(
+        [sys.executable, "-m", "pip", "download", "--no-deps",
+         "--dest", str(CACHE_DIR), "--no-cache-dir",
+         "-i", indexes[0], spec],
+        check=False, capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        whls = sorted(
+            CACHE_DIR.glob(pypi_name + "-" + version + "*.whl"),
+            key=lambda p: p.stat().st_size,
+        )
+        if whls:
+            return whls[-1]
+
+    raise RuntimeError(f"Could not download {name}=={version}")
+
+
+def _download_url(url: str, dst: Path):
+    """Download a URL to a local path, with validation."""
+    import urllib.request as _ur
+    try:
+        with _ur.urlopen(url, timeout=120) as resp:
+            with open(dst, "wb") as f:
+                shutil.copyfileobj(resp, f)
+    except Exception as e:
+        if dst.exists():
+            dst.unlink()
+        raise
+    if not _is_valid_zip(dst):
+        dst.unlink()
+        raise RuntimeError(f"Downloaded file is not a valid zip: {dst.name}")
+
+
+# ── indirect dep resolution & repacking ────────────────────────────────
+
+
+def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, str]:
+    """Resolve every non-extra Requires-Dist to an exact version.
+
+    Returns {name: version} for each retained dep.  Deps that are already
+    stripped (torch_chain, cuda_only, orphaned) are excluded.
+    """
+    config = load_config()
+    all_rd = parse_requires_dist(meta_text)
+    # Skip package names that we know are stripped
+    exclude = set()
+    for cat in ("remove_torch_chain", "remove_cuda_only", "remove_orphaned"):
+        for item in config.get(cat, []):
+            exclude.add(_normalize(item))
+
+    resolved: dict[str, str] = {}
+    for rd in all_rd:
+        nn = _normalize(rd["name"])
+        if nn in exclude:
+            continue
+        if rd["extra"] is not None:
+            # Also remove extras marker — pip won't pull it unless we ask
+            continue
+        if "; extra" in rd["raw"]:
+            continue  # optional dependency
+
+        name = rd["name"]
+        spec = rd["raw"].split(";", 1)[0].strip()
+        # Get version specifier part
+        pkg_spec = re.sub(r"\[.*\]", "", spec)  # strip [extra]
+        m = _NAME_RE.match(pkg_spec)
+        version_spec = pkg_spec[m.end():].strip() if m else ""
+        if not version_spec:
+            version_spec = ""
+
+        print(f"  resolve: {spec} ...", end=" ")
+        v = _resolve_pip_version(name, version_spec or "", extra_indexes)
+        if v:
+            print(v)
+            resolved[name] = v
+        else:
+            print("UNRESOLVED")
+
+    return resolved
+
+
+def audit_dep_meta(name: str, version: str, extra_indexes: list[str]) -> dict | None:
+    """Download a dep wheel and inspect its METADATA for torch/triton.
+
+    Returns dict with keys: name, version, requires_dist, has_suspect_deps,
+    suspect_deps — or None if download/read fails.
+    """
+    config = load_config()
+    strip_set = {_normalize(x) for x in config.get("strip_from_indirect", [])}
+
+    try:
+        whl_path = _download_dep_wheel(name, version, extra_indexes)
+    except Exception:
+        print(f"    !! cannot download {name}=={version}")
+        return None
+
+    meta_text, _ = read_wheel_metadata(whl_path)
     all_rd = parse_requires_dist(meta_text)
 
-    # Classify & record
+    suspects = []
+    for rd in all_rd:
+        nn = _normalize(rd["name"])
+        if "; extra" in rd["raw"]:
+            continue
+        if nn in strip_set:
+            suspects.append(rd["raw"])
+
+    return {
+        "name": name,
+        "version": version,
+        "requires_dist": [rd["raw"] for rd in all_rd],
+        "has_suspect_deps": len(suspects) > 0,
+        "suspect_deps": suspects,
+    }
+
+
+def repack_dep(name: str, version: str, extra_indexes: list[str]) -> tuple[Path, Path] | None:
+    """Download and repack an indirect dep, stripping its torch/triton deps.
+
+    Returns (output_wheel, manifest_path) or None if nothing to strip.
+    """
+    config = load_config()
+    strip_set = {_normalize(x) for x in config.get("strip_from_indirect", [])}
+
+    print(f"  repack: {name}=={version}")
+
+    try:
+        whl_path = _download_dep_wheel(name, version, extra_indexes)
+    except Exception:
+        print(f"    !! cannot download {name}=={version}")
+        return None
+
+    meta_text, dist_info_dir = read_wheel_metadata(whl_path)
+    all_rd = parse_requires_dist(meta_text)
+
     removed = []
     for rd in all_rd:
         nn = _normalize(rd["name"])
-        if nn in {_normalize(x) for x in config.get("strip_from_repacked", [])}:
+        if "; extra" in rd["raw"]:
+            continue
+        if nn in strip_set:
             removed.append(rd)
             print(f"    strip {rd['raw']}")
 
+    if not removed:
+        # Nothing to repack — keep original for reference
+        return None
+
     # Write manifest
-    manifest_path = CACHE_DIR / f"{_normalize(pypi_name)}-{resolved_version}.deps-manifest.yaml"
+    safe_name = _normalize(name)
+    manifest_path = OUTPUT_DIR / f"{safe_name}-{version}.deps-manifest.yaml"
     manifest_data = {
-        "source_wheel": wheel_path.name,
-        "source_sha256": sha256_file(wheel_path),
-        "package": pypi_name,
-        "version": resolved_version,
+        "source_wheel": whl_path.name,
+        "source_sha256": sha256_file(whl_path),
+        "package": name,
+        "version": version,
         "modified_at": datetime.now(timezone.utc).isoformat(),
         "all_requires_dist": [rd["raw"] for rd in all_rd],
         "removed": [rd["raw"] for rd in removed],
@@ -555,33 +608,83 @@ def repack_indirect(name: str, version_spec: str, extra_indexes: list[str],
         yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
     # Strip & rewrite
-    strip_names = {_normalize(x) for x in config.get("strip_from_repacked", [])}
+    strip_names = {_normalize(x) for x in config.get("strip_from_indirect", [])}
     new_meta = _strip_requires_dist_lines(meta_text, strip_names)
     new_meta = _downgrade_metadata_version(new_meta)
-    output_name = wheel_name_to_filename(pypi_name, resolved_version)
-    output_path = CACHE_DIR / output_name
-    rewrite_wheel(wheel_path, output_path, new_meta, dist_info_dir)
+    output_name = wheel_name_to_filename(name, version)
+    output_path = OUTPUT_DIR / output_name
+    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir)
 
-    # Don't keep original — was only needed for METADATA extraction
-    wheel_path.unlink()
-
-    # Register
-    deps_index[key] = {
-        "whl": output_path.name,
-        "manifest": manifest_path.name,
-    }
-    save_deps_index(deps_index)
+    whl_path.unlink()  # cleanup original
 
     return output_path, manifest_path
+
+
+# ── recursive repack ───────────────────────────────────────────────────
+
+
+def repack_recursive(repacked_meta_text: str, extra_indexes: list[str],
+                     visited: set[str] | None = None):
+    """Resolve retained deps, audit each, repack those with torch/triton, recurse.
+
+    visited tracks packages already handled to avoid infinite recursion.
+    Returns list of (name, version, output_wheel, manifest_path) for each
+    repacked dep.
+    """
+    if visited is None:
+        visited = set()
+
+    config = load_config()
+    results: list[tuple] = []
+
+    # Resolve all retained deps to exact versions
+    dep_versions = resolve_dep_versions(repacked_meta_text, extra_indexes)
+    print(f"\nResolved {len(dep_versions)} retained deps\n")
+
+    # Audit each dep
+    for dep_name, dep_version in sorted(dep_versions.items()):
+        key = f"{_normalize(dep_name)}-{dep_version}"
+        if key in visited:
+            continue
+        visited.add(key)
+
+        info = audit_dep_meta(dep_name, dep_version, extra_indexes)
+        if info is None:
+            continue
+
+        if not info["has_suspect_deps"]:
+            continue
+
+        print(f"\n--- {dep_name}=={dep_version} ---")
+        for s in info["suspect_deps"]:
+            print(f"  suspect: {s}")
+
+        result = repack_dep(dep_name, dep_version, extra_indexes)
+        if result is None:
+            continue
+
+        output_wheel, manifest = result
+        results.append((dep_name, dep_version, output_wheel, manifest))
+
+        # Recurse into the repacked dep's own retained deps
+        try:
+            whl_path = _download_dep_wheel(dep_name, dep_version, extra_indexes)
+            meta, _ = read_wheel_metadata(whl_path)
+            whl_path.unlink()  # cleanup
+            sub_results = repack_recursive(meta, extra_indexes, visited)
+            results.extend(sub_results)
+        except Exception:
+            pass  # non-critical — skip recursion for this dep
+
+    return results
 
 
 # ── main repack ────────────────────────────────────────────────────────
 
 
-def repack_top_level(whl_path: Path, extra_indexes: list[str]):
+def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = True):
     config = load_config()
     ensure_dirs()
-    deps_index = load_deps_index()
 
     print(f"Repacking: {whl_path.name}")
 
@@ -614,19 +717,12 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
 
     # 2. Classify every Requires-Dist
     removed: dict[str, list[str]] = {"torch_chain": [], "cuda_only": [], "orphaned": []}
-    repack_candidates: list[dict] = []  # also_repack — recorded but NOT stripped
     retained: list[str] = []
 
     for rd in all_rd:
         cat = classify(rd, config)
         if cat in ("torch_chain", "cuda_only", "orphaned"):
             removed[cat].append(rd["raw"])
-        elif cat == "repack":
-            # also_repack packages are KEPT in Requires-Dist — pip resolves
-            # them naturally.  repack_indirect() is a fallback for packages
-            # that pin an incompatible torch/triton version.
-            repack_candidates.append(rd)
-            retained.append(rd["raw"])
         else:
             retained.append(rd["raw"])
 
@@ -634,19 +730,8 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
     for cat in ("torch_chain", "cuda_only", "orphaned"):
         if removed[cat]:
             print(f"  {cat}: {len(removed[cat])}")
-    if repack_candidates:
-        print(f"  also_repack (kept): {len(repack_candidates)}")
 
-    # 3. Record also_repack candidates (kept in Requires-Dist by default)
-    repacked_refs: list[dict] = []
-    for rd in repack_candidates:
-        repacked_refs.append({
-            "original": rd["raw"],
-            "repacked": "(kept — not repacked)",
-            "manifest": "",
-        })
-
-    # 4. Write top-level manifest
+    # 3. Build top-level manifest
     pkg_name = None
     pkg_version = None
     mvn = re.search(r"^Name:\s*(.+)$", meta_text, re.MULTILINE | re.IGNORECASE)
@@ -657,21 +742,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
         pkg_version = mvv.group(1).strip()
         pkg_version = re.sub(r"\+.*", "", pkg_version)
 
-    manifest_path = OUTPUT_DIR / f"{_normalize(pkg_name or 'unknown')}-{pkg_version or 'unknown'}.deps-manifest.yaml"
-    manifest_data = {
-        "source_wheel": whl_path.name,
-        "source_sha256": sha256_file(whl_path),
-        "package": pkg_name,
-        "version": pkg_version,
-        "modified_at": datetime.now(timezone.utc).isoformat(),
-        "removed": {k: v for k, v in removed.items() if v},
-        "repacked_deps": repacked_refs,
-        "retained": retained,
-    }
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-
-    # 5. Strip & rewrite top-level wheel
+    # 4. Strip & rewrite top-level wheel
     names_to_remove: set[str] = set()
     for cat in ("torch_chain", "cuda_only", "orphaned"):
         for rd_raw in removed.get(cat, []):
@@ -686,11 +757,39 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str]):
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
                   old_dist_info_dir, wheel_text)
 
+    # 5. Recursive indirect dep audit + repack
+    repacked_deps: list[dict] = []
+    if recurse:
+        print(f"\n=== Recursive dependency audit ===")
+        results = repack_recursive(new_meta, extra_indexes)
+        for dep_name, dep_version, dep_whl, dep_manifest in results:
+            repacked_deps.append({
+                "package": dep_name,
+                "version": dep_version,
+                "wheel": dep_whl.name,
+                "manifest": dep_manifest.name,
+            })
+
+    # 6. Write top-level manifest (now includes recursive results)
+    manifest_path = OUTPUT_DIR / f"{_normalize(pkg_name or 'unknown')}-{pkg_version or 'unknown'}.deps-manifest.yaml"
+    manifest_data = {
+        "source_wheel": whl_path.name,
+        "source_sha256": sha256_file(whl_path),
+        "package": pkg_name,
+        "version": pkg_version,
+        "modified_at": datetime.now(timezone.utc).isoformat(),
+        "removed": {k: v for k, v in removed.items() if v},
+        "repacked_deps": repacked_deps,
+        "retained": retained,
+    }
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
     print(f"\nDone:")
     print(f"  wheel:    {output_path}")
     print(f"  manifest: {manifest_path}")
-    if repacked_refs:
-        print(f"  indirect: {len(repacked_refs)} repacked → cache/")
+    if repacked_deps:
+        print(f"  indirect: {len(repacked_deps)} repacked → output/")
 
     return output_path, manifest_path
 
@@ -713,6 +812,12 @@ def main():
         dest="extra_indexes",
         help="Additional PyPI index for resolving indirect dependencies.",
     )
+    parser.add_argument(
+        "--no-recurse",
+        action="store_false",
+        dest="recurse",
+        help="Skip recursive dependency audit. Only repack the top-level wheel.",
+    )
     args = parser.parse_args()
 
     whl_path = Path(args.wheel).resolve()
@@ -720,7 +825,7 @@ def main():
         print(f"Error: {whl_path} does not exist", file=sys.stderr)
         sys.exit(1)
 
-    repack_top_level(whl_path, args.extra_indexes)
+    repack_top_level(whl_path, args.extra_indexes, recurse=args.recurse)
 
 
 if __name__ == "__main__":
