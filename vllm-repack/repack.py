@@ -387,76 +387,79 @@ def _check_op(v1: tuple, op: str, v2: tuple) -> bool:
 
 
 def _resolve_pip_version(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
-    """Resolve a version specifier to an exact version using pip download.
+    """Resolve a version specifier to an exact version using pip.
 
-    Prefers vendor-packaged names (e.g. torch with +das suffix) by checking
-    extra indexes first.
+    Uses 'pip download --dry-run' which works with any PEP 503 index.
     """
-    indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
-               + ["https://mirrors.aliyun.com/pypi/simple/"])
-
     pypi_name = re.sub(r"\[.*\]", "", name)
-    for base_url in indexes:
-        url = f"{base_url}{pypi_name}/json"
-        try:
-            req = urllib.request.Request(url, headers=_JSON_HEADERS)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
-        except Exception:
-            continue
 
-        versions = list(data.get("releases", {}).keys())
-        versions.sort(key=lambda v: [int(x) for x in re.findall(r"\d+", v)] or [0])
-        spec = version_spec.strip()
-        for v in reversed(versions):
-            if _version_matches(v, spec):
-                return v
+    # Build indices list: extra indexes first (vendor), then Aliyun
+    idx_args: list[str] = []
+    for ei in extra_indexes:
+        idx_args += ["--extra-index-url", ei]
+    idx_args += ["--index-url", "https://mirrors.aliyun.com/pypi/simple/"]
+
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--dry-run", "--report", "-",
+             "--quiet"] + idx_args + [f"{pypi_name}{version_spec}"],
+            check=False, capture_output=True, text=True, timeout=60,
+        )
+        if r.returncode != 0:
+            return None
+        report = json.loads(r.stdout) if r.stdout.strip() else {}
+        for item in report.get("install", []):
+            m = item.get("metadata", {})
+            if _normalize(m.get("name", "")) == _normalize(pypi_name):
+                return m.get("version")
+    except Exception:
+        pass
+
+    # Fallback: try pip download with --no-deps to see what it resolves
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "download", "--no-deps", "--dry-run",
+             "--quiet"] + idx_args + [f"{pypi_name}{version_spec}"],
+            check=False, capture_output=True, text=True, timeout=60,
+        )
+        for line in r.stdout.splitlines() + r.stderr.splitlines():
+            m = re.search(rf"{re.escape(pypi_name)}-([\d.+]+[^-]*)\.whl", line)
+            if m:
+                return m.group(1)
+    except Exception:
+        pass
+
     return None
 
 
 def _download_dep_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
     """Download a dependency wheel at exact version.  Returns wheel path."""
-    indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
-               + ["https://mirrors.aliyun.com/pypi/simple/"])
-
     pypi_name = re.sub(r"\[.*\]", "", name)
 
-    # Try JSON API first
-    for base_url in indexes:
-        try:
-            url = f"{base_url}{pypi_name}/{version}/json"
-            req = urllib.request.Request(url, headers=_JSON_HEADERS)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
-            for entry in data.get("urls", []):
-                if entry.get("packagetype") == "bdist_wheel":
-                    whl_url = entry.get("url")
-                    fn = entry.get("filename", "")
-                    if whl_url:
-                        dst = CACHE_DIR / fn
-                        if dst.exists() and dst.stat().st_size > 1024 and _is_valid_zip(dst):
-                            return dst
-                        print(f"    downloading {fn} ...")
-                        _download_url(whl_url, dst)
-                        return dst
-        except Exception:
-            continue
+    idx_args: list[str] = []
+    for ei in extra_indexes:
+        idx_args += ["--extra-index-url", ei]
+    idx_args += ["--index-url", "https://mirrors.aliyun.com/pypi/simple/"]
 
-    # Fallback: pip download
     spec = f"{pypi_name}=={version}"
     r = subprocess.run(
         [sys.executable, "-m", "pip", "download", "--no-deps",
-         "--dest", str(CACHE_DIR), "--no-cache-dir",
-         "-i", indexes[0], spec],
-        check=False, capture_output=True, text=True,
+         "--dest", str(CACHE_DIR), "--no-cache-dir"]
+        + idx_args + [spec],
+        check=False, capture_output=True, text=True, timeout=120,
     )
     if r.returncode == 0:
+        # Pip normalises package names (PyJWT→pyjwt, etc.).  Match any
+        # wheel whose filename contains the exact version.
         whls = sorted(
-            CACHE_DIR.glob(pypi_name + "-" + version + "*.whl"),
+            [p for p in CACHE_DIR.glob("*.whl") if f"-{version}-" in p.name],
             key=lambda p: p.stat().st_size,
         )
         if whls:
-            return whls[-1]
+            dst = whls[-1]
+            if _is_valid_zip(dst):
+                return dst
+            dst.unlink()
 
     raise RuntimeError(f"Could not download {name}=={version}")
 
@@ -483,44 +486,94 @@ def _download_url(url: str, dst: Path):
 def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, str]:
     """Resolve every non-extra Requires-Dist to an exact version.
 
+    Uses a single 'pip install --dry-run --report' call for all retained
+    deps — one pip resolution instead of N, vastly faster.
+
     Returns {name: version} for each retained dep.  Deps that are already
     stripped (torch_chain, cuda_only, orphaned) are excluded.
     """
     config = load_config()
     all_rd = parse_requires_dist(meta_text)
-    # Skip package names that we know are stripped
     exclude = set()
     for cat in ("remove_torch_chain", "remove_cuda_only", "remove_orphaned"):
         for item in config.get(cat, []):
             exclude.add(_normalize(item))
 
-    resolved: dict[str, str] = {}
+    # Collect all retained deps' pip specs
+    specs: list[str] = []
     for rd in all_rd:
         nn = _normalize(rd["name"])
         if nn in exclude:
             continue
         if rd["extra"] is not None:
-            # Also remove extras marker — pip won't pull it unless we ask
             continue
         if "; extra" in rd["raw"]:
-            continue  # optional dependency
+            continue
 
-        name = rd["name"]
-        spec = rd["raw"].split(";", 1)[0].strip()
-        # Get version specifier part
-        pkg_spec = re.sub(r"\[.*\]", "", spec)  # strip [extra]
+        spec = rd["raw"].split(";", 1)[0].strip()  # drop markers
+        pkg_spec = re.sub(r"\[.*\]", "", spec)       # drop extras
         m = _NAME_RE.match(pkg_spec)
-        version_spec = pkg_spec[m.end():].strip() if m else ""
-        if not version_spec:
-            version_spec = ""
+        if m:
+            specs.append(spec)
 
-        print(f"  resolve: {spec} ...", end=" ")
-        v = _resolve_pip_version(name, version_spec or "", extra_indexes)
-        if v:
-            print(v)
-            resolved[name] = v
-        else:
-            print("UNRESOLVED")
+    if not specs:
+        return {}
+
+    # Build pip index args
+    idx_args: list[str] = []
+    for ei in extra_indexes:
+        idx_args += ["--extra-index-url", ei]
+    idx_args += ["--index-url", "https://mirrors.aliyun.com/pypi/simple/"]
+
+    resolved: dict[str, str] = {}
+    _report_path = None
+    try:
+        import tempfile as _tf
+        with _tf.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as _f:
+            _report_path = _f.name
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--dry-run",
+             "--report", _report_path]
+            + idx_args + specs,
+            check=False, capture_output=True, text=True, timeout=300,
+        )
+        if r.returncode == 0:
+            with open(_report_path) as _f:
+                report = json.load(_f)
+            for item in report.get("install", []):
+                m = item.get("metadata", {})
+                resolved[m.get("name", "")] = m.get("version", "")
+    except Exception:
+        pass
+    finally:
+        if _report_path:
+            try:
+                Path(_report_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    if resolved:
+        print(f"  pip resolved {len(resolved)} deps in one pass")
+    else:
+        print(f"  WARNING: pip resolution returned empty, falling back to per-dep")
+        # Fallback: resolve one-by-one
+        for rd in all_rd:
+            nn = _normalize(rd["name"])
+            if nn in exclude:
+                continue
+            if rd["extra"] is not None:
+                continue
+            if "; extra" in rd["raw"]:
+                continue
+
+            spec = rd["raw"].split(";", 1)[0].strip()
+            pkg_spec = re.sub(r"\[.*\]", "", spec)
+            m = _NAME_RE.match(pkg_spec)
+            if not m:
+                continue
+            v = _resolve_pip_version(rd["name"], pkg_spec[m.end():].strip() or "", extra_indexes)
+            if v:
+                resolved[rd["name"]] = v
 
     return resolved
 
