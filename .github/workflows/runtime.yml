@@ -41,6 +41,10 @@ on:
         description: 'skip flag_gems cpp extension install (install pure Python wheel only)'
         type: boolean
         default: false
+      no_cache:
+        description: 'disable Docker build cache (use for rebuilt wheels with same version)'
+        type: boolean
+        default: false
 
 jobs:
   set-matrix:
@@ -144,7 +148,11 @@ jobs:
           cpp_extra="${{ matrix.cpp_extra }}"
           [[ "${{ inputs.skip_cpp }}" == "true" ]] && cpp_extra=""
 
+          no_cache_arg=""
+          [[ "${{ inputs.no_cache }}" == "true" ]] && no_cache_arg="--no-cache"
+
           docker build \
+            ${no_cache_arg} \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
             --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
