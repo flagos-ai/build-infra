@@ -323,20 +323,29 @@ Inference:    Qwen3.6-35B-A3B ✅  (prompt_tokens=17, completion_tokens=128)
 **MACA:** 3.7.2.0, Driver 3.8.30  
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL, flagos-runtime-metax-maca3.7.2.1:2.1.1
 
-### 2.1 核心结论：必须用 empty 构建
+> **状态（2026-07-31 更新）：端到端已完成。** ✅
+> 在设备可见的 `vllm-serve-metax` 容器（metax124）里，用正确的 empty wheel +
+> git 克隆的 vllm-plugin-FL，`vllm serve Qwen3-4B`（TP=1, `--enforce-eager`,
+> `--gpu-memory-utilization 0.6`）成功启动并返回正确推理结果。
+> **真正的阻塞点是 `reshape_and_cache_flash` 算子**（empty wheel 不含
+> `_C_cache_ops` C kernel）。#319 的 substitution 从未生效（守卫恒真 + metax C550
+> 禁用 Triton，见 §2.7）。最终由 **#333** 修复：把该算子注册为 flag_gems dispatch
+> op（`default.flagos`），metax 调用点改走 `CachedOp`。
+> **#325（activation `F.silu`/`F.gelu`）在 empty wheel 上并不需要**——已实测验证
+> （见 §2.7）。战略方向为 empty wheel，故 #325 可关闭。
 
-MetaX MACA 没有 NVIDIA CUDA 扩展——vllm 标准 wheel 中的
-`_C.abi3.so`、`_moe_C.abi3.so` 是为 NVIDIA GPU 编译的，
-无法在 MACA 上加载。`vllm serve` 启动即崩溃：
+### 2.1 核心结论：MetaX 走 empty 构建
 
-```
-AttributeError: '_OpNamespace' '_C_cache_ops' object has no
-  attribute 'reshape_and_cache_flash'
-```
+MetaX MACA 没有 NVIDIA CUDA 扩展，按各厂商 vllm 适配文档，MetaX 走
+**empty 构建**（`VLLM_TARGET_DEVICE=empty`）——编译不含硬件 kernel 的
+vllm，硬件算子由 vllm-plugin-FL 的 metax vendor backend 提供。除此之外，
+repack 规则、间接依赖处理、vllm-plugin-FL 安装均与 NVIDIA 相同。
 
-必须用 **empty 构建**（`VLLM_TARGET_DEVICE=empty`）编译不含硬件
-kernel 的 vllm。除此之外，repack 规则、间接依赖处理、
-vllm-plugin-FL 安装均与 NVIDIA 相同。
+> **注（2026-07-30）：** 本报告早前版本曾把"标准 wheel 的 `_C.abi3.so`
+> 无法在 MACA 加载、`vllm serve` 崩溃于 `_C_cache_ops.reshape_and_cache_flash`"
+> 作为"必须用 empty 构建"的根因。该结论**并未在 MetaX 上真正证实**——
+> 当时用的 vllm 来源不对，且 `_C.abi3.so` 与 MetaX 无关。走 empty 构建的
+> 依据是厂商适配文档，而非上述崩溃。相关说法已作废。
 
 ### 2.2 编译 empty vllm wheel
 
@@ -426,51 +435,103 @@ pip install --no-build-isolation -e .
 --index-url $VENDOR --extra-index-url $ALIYUN vllm` 会触发 torch 降级。
 先用 `--no-deps` 锚定 repacked vllm，再补全 safe deps，torch 不变。
 
-### 2.7 vllm-plugin-FL 需要修复的两个问题
+### 2.7 唯一真正的阻塞：reshape_and_cache_flash（由 #333 修复）
 
-在 MetaX 上跑 empty vllm 时，vllm-plugin-FL 的 metax vendor backend
-有两处需修改：
-
-| # | 现象 | 根因 | 修复 | PR |
-|---|---|---|---|---|
-| 1 | `_C_cache_ops.reshape_and_cache_flash` AttributeError | MetaX flash attn 后端调用 `vllm._custom_ops.reshape_and_cache_flash` → `torch.ops._C_cache_ops.*`——empty 构建不编译此模块 | `patches/__init__.py` 中 patch：路由到 vllm 内置的 Triton 纯 Python 实现（`triton_reshape_and_cache_flash`） | [#319](https://github.com/flagos-ai/vllm-plugin-FL/pull/319) |
-| 2 | `_C.silu_and_mul` AttributeError | `silu_and_mul_maca` 实例化 `SiluAndMul()`，其 `__init__` 访问 `torch.ops._C.silu_and_mul`——在模型加载阶段崩溃，dispatch 来不及介入 | 用 `F.silu` / `F.gelu` 替换 `SiluAndMul()` / `GeluAndMul()`——功能等价，不依赖 `_C` | [#325](https://github.com/flagos-ai/vllm-plugin-FL/pull/325) |
-
-**第 2 个问题是最微妙的。** 崩溃发生在 `__init__`，不是 `forward`。
-vllm_fl 的分发层（`forward_oot → call_op → flagos/vendor/reference`）
-只在实际推理时生效——但 `__init__` 在模型加载阶段运行，dispatch 来不及拦截：
+empty wheel 不含编译的 `_C_cache_ops` C kernel。MetaX flash attn 后端在
+`fa_utils.py` 里把 `reshape_and_cache_flash` 直接绑定到
+`vllm._custom_ops.reshape_and_cache_flash` → `torch.ops._C_cache_ops.*`，
+首次前向时崩溃：
 
 ```
-vllm/model_executor/models/qwen3.py:204 Qwen3DecoderLayer.__init__()
-  → qwen2.py:111 lambda 初始化
-    → vllm_fl/ops/activation.py:10 SiluAndMulFL.__init__()
-      → super().__init__()       # vllm SiluAndMul.__init__
-        → activation.py:133 self.op = torch.ops._C.silu_and_mul  💥
+AttributeError: '_OpNamespace' '_C_cache_ops' object has no attribute
+'reshape_and_cache_flash'
 ```
+
+**为什么 #319 的 substitution 没生效（源码确认）：** 该算子不是 OpManager op，
+绕过了整个 dispatch 层。#319 试图在 `patches/__init__.py` 里 patch
+`vllm._custom_ops`，但有两个各自致命的 bug：
+
+1. **守卫恒真。** `torch.ops._C_cache_ops` 是惰性自动创建的 `_OpNamespace`，
+   命名空间对象**始终存在**（即使没有任何算子），所以
+   `hasattr(torch.ops, "_C_cache_ops")` 恒为 True，`not (...)` 恒为 False，patch 从不触发。
+2. **实现不对。** 它路由到 vllm 内置的 `triton_reshape_and_cache_flash`，
+   但 metax C550 在上方三行处禁用了 Triton（`iu.has_triton_kernels = lambda: False`）。
+
+**修复（#333）：** 把 `reshape_and_cache_flash` 注册为一等 dispatch op：
+
+- `flaggems/flaggems.py` — 新增 `FlagGemsBackend.reshape_and_cache_flash`，转发到纯
+  Triton 的 `flag_gems.fused.reshape_and_cache_flash`。
+- `flaggems/register_ops.py` — 注册为 `default.flagos`（`_has_flaggems_op` 守卫）。
+- `metax/impl/attention/utils/fa_utils.py` — 调用点改为
+  `CachedOp("reshape_and_cache_flash")`，不再绑定 vllm 私有 C op。
+
+留在 dispatch 抽象内（policy 驱动、可回退、厂商无关），不耦合 vllm 私有
+`_C_cache_ops` ABI。[#333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333)
+取代了 [#319](https://github.com/flagos-ai/vllm-plugin-FL/pull/319)（已关闭）。
+
+### 2.7b #325（activation F.silu/F.gelu）在 empty wheel 上不需要——已实测
+
+[#325](https://github.com/flagos-ai/vllm-plugin-FL/pull/325) 把 metax vendor 的
+`silu_and_mul_maca` / `gelu_and_mul_maca`（会实例化 `SiluAndMul()`/`GeluAndMul()`
+→ 触碰 `vllm._C`）改写为 `F.silu`/`F.gelu`。它是为 **+cpu wheel** 提出的。
+
+**在 empty wheel 上它并不生效于任何活跃路径：** `silu_and_mul` 与 `gelu_and_mul`
+本就是一等 dispatch op，flag_gems 都注册为 `default.flagos`（优先级 150），
+metax 的 `config/metax.yaml` 把 `silu_and_mul` 路由为 `[flagos, reference]`
+（根本没列 `vendor:metax`），`gelu_and_mul` 也未由 metax 注册。所以 dispatch
+永远选 flag_gems（150 > vendor 100），#325 改写的 vendor `_maca` 函数**从不被调用**。
+
+**实测验证（2026-07-31，metax124）：** 把 `activation.py` 还原为 stock
+（`SiluAndMul()`/`GeluAndMul().forward_cuda`），保留 #333，empty wheel →
+serve 正常启动、推理返回正确结果，日志显示
+`Op 'silu_and_mul' using 'default.flagos'`，全程无 `SiluAndMul`/`_C` 报错。
+**结论：empty wheel 只需 #333；#325 仅对 +cpu wheel 有意义，战略方向为 empty，故可关闭。**
 
 ### 2.8 启动 vllm serve
 
-```bash
-export MACA_PATH=/opt/maca
-export PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:$PATH
-export LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib
-export GEMS_VENDOR=metax
-export VLLM_PLUGINS=fl
-export MACA_VISIBLE_DEVICES=4
+在设备可见的 `vllm-serve-metax` 容器内（NCCL→MCCL 由 `pynccl_wrapper` patch
+自动完成，无需额外 env）：
 
+```bash
+export VLLM_FL_DISPATCH_DEBUG=1        # 打印 dispatch 选择，便于确认 default.flagos
 vllm serve /data/models/Qwen/Qwen3-4B --port 8031 \
-  --gpu-memory-utilization 0.5 --enforce-eager \
+  --gpu-memory-utilization 0.6 --enforce-eager \
   --trust-remote-code --max-model-len 2048
 ```
 
-### 2.9 测试推理
+> **注意事项（实测）：**
+> - MCCL communicator 冷启动很慢（~11 min，进程 15–25% CPU，看似 hang 实为在跑），
+>   不要过早 kill。
+> - 被 kill 的 engine-core 会以 `VLLM::EngineCore` 残留（`pkill -f "vllm serve"`
+>   匹配不到）并占着显存，导致下次启动误报 "Free memory < desired"——需按 PID
+>   或 `pkill -9 -f EngineCore` 清理。
 
-```json
-{"choices":[{"message":{"content":"你好！..."}}],
- "usage":{"prompt_tokens":9,"completion_tokens":32}}
+### 2.9 测试推理 —— ✅ 成功
+
+serve 起来后：
+
+```bash
+curl -s http://127.0.0.1:8031/v1/completions -H 'Content-Type: application/json' \
+  -d '{"model":"/data/models/Qwen/Qwen3-4B","prompt":"The capital of France is",
+       "max_tokens":16,"temperature":0}'
 ```
 
-✅ MetaX C550 + empty vllm 推理成功。
+返回：
+
+```json
+{"choices":[{"text":" Paris. The capital of Germany is Berlin. The capital of Italy is Rome.",
+  "finish_reason":"length"}],
+ "usage":{"prompt_tokens":5,"completion_tokens":16,"total_tokens":21}}
+```
+
+前向阶段日志确认算子走对了路：
+
+```
+Op 'silu_and_mul' using 'default.flagos' (kind=flagos, vendor=None)
+Op 'reshape_and_cache_flash' using 'default.flagos' (kind=flagos, vendor=None)
+```
+
+全程无 `_C_cache_ops` / `_C.silu_and_mul` 报错。
 
 ### 2.10 与 NVIDIA CUDA 后端的差异
 
@@ -480,36 +541,39 @@ vllm serve /data/models/Qwen/Qwen3-4B --port 8031 \
 | repack 额外处理 | 无 | 去掉 `+empty` 版本后缀、修复 WHEEL Tag |
 | vendor deps | torch/cu128, triton 3.6.0 | torch/metax, flash_attn/metax, triton 3.0.0 |
 | vllm 安装 | 一步 `pip install` | 两步：先 `--no-deps` 锁定，再补 deps |
-| vllm-plugin-FL | `VLLM_VENDOR=cuda` 编译 C 扩展 | 不设 VLLM_VENDOR，额外需 PR #319 + #325 |
+| vllm-plugin-FL | `VLLM_VENDOR=cuda` 编译 C 扩展 | 不设 VLLM_VENDOR；需 #333（reshape_and_cache_flash→flag_gems，见 §2.7） |
 | 间接依赖 repack | 相同的 6 个包 | 相同 |
 
-### 2.11 完整 Stack 验证
+### 2.11 Stack 验证 —— ✅ 完整端到端通过
+
+在设备可见的 `vllm-serve-metax` 容器（metax124）内完成安装 + serve + 推理：
 
 ```
-torch:        2.8.0+metax3.7.2.0    ✅  from vendor PyPI
+torch:        2.8.0+metax3.7.2.0    ✅  from vendor PyPI (未被降级)
 torchaudio:   2.4.1+metax3.7.2.0    ✅
 torchvision:  0.15.1+metax3.7.2.0   ✅
-flash_attn:   2.6.3+metax3.7.2.0    ✅  MetaX flash attention
+flash_attn:   2.6.3+metax3.7.2.0    ✅
 flagtree:     3.1.0+metax3.7.2.0    ✅  默认编译器
 triton:       3.0.0+metax3.7.2.0    ✅
-flag_gems:    5.3.2                 ✅  use_gems() OK
+flag_gems:    5.3.2                 ✅
 vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
-vllm_fl:      loaded                ✅  纯 Python, PR #319 + #325
-MACA:         True                  ✅  mx-smi, torch.cuda.is_available()
-Inference:    Qwen3-4B              ✅  9→32 tokens, flash attention
+vllm_fl:      installed             ✅  纯 Python 源码安装 + #333
+MACA device:  ✅ 可见                mx-smi 正常 (C550 8×64GB)
+vllm serve:   ✅ 启动成功            TP=1, enforce-eager, gpu-util 0.6
+Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16 tokens
 ```
 
 ### 2.12 待办
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
-| vllm-plugin-FL PR #319 | 🔄 审核中 | `_C_cache_ops` Triton fallback |
-| vllm-plugin-FL PR #325 | 🔄 审核中 | `silu_and_mul_maca` / `gelu_and_mul_maca` → F.silu/F.gelu |
+| vllm-plugin-FL PR #333 | ✅ 已提，E2E 验证通过 | `reshape_and_cache_flash`→flag_gems dispatch（`CachedOp`）；empty wheel 唯一需要的改动 |
+| vllm-plugin-FL PR #319 | ✅ 已关闭 | `_C_cache_ops` Triton fallback；守卫恒真从不生效，被 #333 取代 |
+| vllm-plugin-FL PR #325 | ✅ 已关闭 | `_maca`→F.silu/F.gelu；empty wheel 上 dispatch 不走 vendor 路径，实测不需要（仅 +cpu wheel 有意义） |
+| 更大模型 / graph 模式 | ⬜ | 仅测过 Qwen3-4B + eager；27B、35B-A3B、TP>1、graph 模式待测 |
 | repack.py 改动 commit | ✅ | empty-wheel 支持 + 递归审计，见 PR #244 #247 |
 | 间接 repack 自动化 | ✅ | `repack_recursive()` 自动发现 + repack |
 | FlagGems pyproject.toml | ⬜ | build-system.requires 加 `wheel==0.45.0` |
-| 更大模型测试 | ⬜ | 仅测过 Qwen3-4B；27B、35B-A3B 待测 |
-| graph 模式测试 | ⬜ | 仅 eager 模式 |
 | 其他 empty 模式后端 | 🔄 | hygon 进行中；kunlunxin、iluvatar、mthreads 待排队 |
 
 ### 2.13 构建容器可重现 repack (2026-07-30)
