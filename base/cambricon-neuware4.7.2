@@ -13,18 +13,17 @@
 # limitations under the License.
 
 # ============================================================
-# Base image for Cambricon Neuware 4.4.3 Ubuntu 22.04
+# Base image for Cambricon Neuware 4.7.2 Ubuntu 24.04
 # ============================================================
 # History:
-# - 20260624: Initial version
-# - 20260716: Bumped to 24.04 but cnperf fails (libncurses5 dropped), reverted
-FROM ubuntu:22.04
+# - 20260731: Initial version
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/cambricon
-ARG CNMON_PKG=cnmon-6.2.15-x86_64.zip
+ARG CNMON_PKG=cnmon-6.5.48-x86_64.zip
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -33,18 +32,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
   && apt-get install -f -y pciutils curl git vim ca-certificates unzip\
     gcc g++ gdb build-essential cmake make \
-    libncurses5 libtinfo5 libc6-dev-i386 \
+    libncurses6 libtinfo6 libc6-dev-i386 \
   && ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
 # ── Install Neuware ────────────────────────────────────────────────
-ENV PKGS="cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb \
-  cnnl_2.1.829-20251127_150207-v2.1.12-0.rc0-3-g54aaee8.ubuntu22.04_amd64.deb \
-  cnnlextra_2.2.7-1.ubuntu22.04_amd64.deb \
-  mluops_1.8.1-1.ubuntu22.04_amd64.deb \
-  cncl_1.29.4-1.ubuntu22.04_amd64.deb \
-  cnclep_1.1.1-1.ubuntu22.04_amd64.deb"
+ENV PKGS="cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb \
+  cnnl_2.2.14-1.ubuntu24.04_amd64.deb \
+  cnnlextra_2.4.0-1.ubuntu24.04_amd64.deb \
+  mluops_1.12.0-1.ubuntu24.04_amd64.deb \
+  cncl_1.30.8-1.ubuntu24.04_amd64.deb \
+  cnclep_1.4.0-1.ubuntu24.04_amd64.deb \
+  cncv_2.12.1-1.ubuntu24.04_amd64.deb"
 
 RUN set -eux ; \
   for pkg in ${PKGS}; do \
