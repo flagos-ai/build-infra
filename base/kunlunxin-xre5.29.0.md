@@ -15,17 +15,17 @@
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `kmod` — 31+20240202
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `cmake` — 3.22.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `git` — 2.34.1
+- `kmod` — 29
 - `make` — 4.3
-- `pciutils` — 3.10.0
-- `vim` — 9.1.0016
+- `pciutils` — 3.7.0
+- `vim` — 8.2.3995
 
 ### SDK components
 
