@@ -10,11 +10,11 @@
 
 ### 1.1 设计决策（Phase 0）
 
-用户给出了三条关键约束：
+关键约束：
 
-1. **不使用 `.post1` 后缀** — uv 时代的反升级 trick，pip 下不再需要
-2. **PyPI 分离** — vendor PyPI 只放 repacked vllm wheel（1 个文件）。其余 deps 从 Aliyun 拉。不托管间接依赖的 repack 版本，维护成本太大
-3. **保留 deps 安装，不用 `--no-deps`** — repacked wheel 保留除黑名单外的所有 Requires-Dist。
+1. **PyPI 分离** — vendor PyPI 只放 repacked vllm wheel（1 个文件）。
+   其余 deps 从 Aliyun 拉。不托管间接依赖的 repack 版本，维护成本太大
+1. **尽量保留 deps 安装，不用 `--no-deps`** — repacked wheel 保留除黑名单外的所有 Requires-Dist。
 
 ### 1.2 repack.py 改动（Phase 1）
 
