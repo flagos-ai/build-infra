@@ -189,31 +189,38 @@ vendors:
         - torch-mlu-ops==1.8.0+torch2.7.1
         - numpy==2.2.6
       sdk:
-        - cndev 6.5.25 (amd64) # cnlicense_1.2.0-1.ubuntu22.04_amd64.deb
-                               # cndev_6.5.25-1.ubuntu22.04_amd64.deb
-                               # cndev-compat_6.5.25-1.ubuntu22.04_amd64.deb
         - cnmon 6.2.15         # cnmon-6.2.15-x86_64.zip
-        - cnbin 2.4.2          # cnbin_2.4.2-1.ubuntu22.04_amd64.deb
-        - cndrv 3.4.3          # cndrv-3.4.3-1.ubuntu22.04_amd64.deb
-        - cnrt 7.4.0           # cnrt_7.4.0-1.ubuntu22.04_amd64.deb
-        - cnrtc 0.7.4          # cnrtc_0.7.4-1.ubuntu22.04_amd64.deb
-        - cncc/cnas 5.4.3      # cncc_5.4.3-1.ubuntu22.04_amd64.deb
-                               # cnas_5.4.3-1.ubuntu22.04_amd64.deb
-        - cngdb 4.4.2          # cngdb_4.4.2-1.ubuntu22.04_amd64.deb
-        - cnpapi 4.4.2         # cnpapi_4.4.2-1.ubuntu22.04_amd64.deb
-        - cnpx 1.6.0           # cnpx_1.6.0-1.ubuntu22.04_amd64.deb
-        - cnperf 6.4.3         # cnperf_6.4.3-1.ubuntu22.04_amd64.deb
-        - cnjpeg 0.5.1           # cnjpeg_0.5.1-1.ubuntu22.04_amd64.deb
-        - cncodec3 2.4.1         # cncodec3_2.4.1-1.ubuntu22.04_amd64.deb
-        - cnsanitizer 0.12.3     # cnsanitizer_0.12.3-1.ubuntu22.04_amd64.deb
+        - cntoolkit 4.4.3        # cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb
+        - cncl 1.29.4            # cncl_1.29.4-1.ubuntu22.04_amd64.deb
+        - cnclep 1.1.1.          # cnclep_1.1.1-1.ubuntu22.04_amd64.deb
         - cnnl+extra 2.1.829     # cnnl_2.1.829-20251127_150207-v2.1.12-0.rc0-3-g54aaee8.ubuntu22.04_amd64.deb
                                  # cnnlextra_2.2.7-1.ubuntu22.04_amd64.deb
         - mluops 1.8.1           # mluops_1.8.1-1.ubuntu22.04_amd64.deb
-        - cncl 1.29.4            # cncl_1.29.4-1.ubuntu22.04_amd64.deb
-        - cnstudio 1.2.1         # cnstudio_1.2.1-1.ubuntu22.04_amd64.deb
-        - cntoolkit 4.4.3        # cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb
-        - cntoolkit-cloud 4.4.3  # cntoolkit-cloud_4.4.3-1.ubuntu22.04_amd64.deb
-        - cnclep 1.1.1.          # cnclep_1.1.1-1.ubuntu22.04_amd64.deb
+
+    neuware4.7.2:
+      extras: cambricon
+      hardware: ["Cambricon MLU590"]
+      driver: "6.5.48"
+      python: "3.12"
+      triton: triton==3.2.0+mlu1.7.2
+      env:
+        base:
+          PATH: /usr/local/neuware/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/neuware/lib64
+      deps:
+        - cambricon_dali==0.13.0
+        - torch==2.7.1+cpu
+        - torch-mlu==1.29.2+torch2.7.1
+        - torch-mlu-ops==1.8.0+torch2.7.1
+        - numpy==2.2.6
+      sdk:
+        - cnmon 6.5.48           # cnmon-6.5.48-x86_64.zip
+        - cntoolkit 4.7.2        # cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
+        - cncl 1.30.8            # cncl_1.30.8-1.ubuntu24.04_amd64.deb
+        - cnclep 1.4.0           # cnclep_1.4.0-1.ubuntu24.04_amd64.deb
+        - cnnl+extra 2.1.829     # cnnl_2.2.14-1.ubuntu24.04_amd64.deb
+                                 # cnnlextra_2.4.0-1.ubuntu24.04_amd64.deb
+        - mluops 1.12.0          # mluops_1.12.0-1.ubuntu24.04_amd64.deb
 
   enflame:
     tops1.9.10:
