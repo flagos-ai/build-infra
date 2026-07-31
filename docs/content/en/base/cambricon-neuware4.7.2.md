@@ -1,5 +1,5 @@
 ---
-title: "cambricon-neuware4.4.3"
+title: "cambricon-neuware4.7.2"
 ---
 
 <!--
@@ -22,42 +22,42 @@ title: "cambricon-neuware4.4.3"
 
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
-- **Host driver:** 6.2.15
+- **Host driver:** 6.5.48
 
 ## Image contents
 
 ### Base image
 
-`ubuntu:22.04`
+`ubuntu:24.04`
 
 ### System packages
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `gdb` — 12.1
-- `git` — 2.34.1
-- `libc6-dev-i386` — 2.35
-- `libncurses5` — 6.3
-- `libtinfo5` — 6.3
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `gdb` — 15.1
+- `git` — 2.43.0
+- `libc6-dev-i386` — 2.39
+- `libncurses6` — 6.4+20240113
+- `libtinfo6` — 6.4+20240113
 - `make` — 4.3
-- `pciutils` — 3.7.0
+- `pciutils` — 3.10.0
 - `unzip` — 6.0
-- `vim` — 8.2.3995
+- `vim` — 9.1.0016
 
 ### SDK components
 
-- cnmon 6.2.15
-- cntoolkit 4.4.3
-- cncl 1.29.4
-- cnclep 1.1.1.
+- cnmon 6.5.48
+- cntoolkit 4.7.2
+- cncl 1.30.8
+- cnclep 1.4.0
 - cnnl+extra 2.1.829
-- mluops 1.8.1
+- mluops 1.12.0
 
 ## Environment
 
@@ -72,7 +72,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.1 bash
 ```
 
 ## Verify
