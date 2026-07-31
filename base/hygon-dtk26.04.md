@@ -22,7 +22,12 @@ Explicitly installed; the version is the one baked into this image:
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libdrm-amdgpu1` — 2.4.125
+- `libdw1`
+- `libelf1`
+- `libgfortran5` — 14.2.0
 - `libnuma1` — 2.0.18
+- `libpciaccess0` — 0.17
 - `pciutils` — 3.10.0
 - `vim` — 9.1.0016
 
