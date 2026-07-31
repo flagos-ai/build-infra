@@ -38,13 +38,20 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # ── Install Neuware ────────────────────────────────────────────────
-ENV PKGS="cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb \
-  cnnl_2.2.14-1.ubuntu24.04_amd64.deb \
+ENV PKGS="cnnl_2.2.14-1.ubuntu24.04_amd64.deb \
   cnnlextra_2.4.0-1.ubuntu24.04_amd64.deb \
   mluops_1.12.0-1.ubuntu24.04_amd64.deb \
   cncl_1.30.8-1.ubuntu24.04_amd64.deb \
   cnclep_1.4.0-1.ubuntu24.04_amd64.deb \
   cncv_2.12.1-1.ubuntu24.04_amd64.deb"
+
+ENV TOOLKIT=cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o toolkit.deb ${FILE_STORE}/${TOOLKIT} \
+  && dpkg -i toolkit.deb \
+  && apt update \
+  && apt-get -y install cntoolkit-cloud \
+  && apt clean \
+  && rm -rf /var/lib/apt/lists*
 
 RUN set -eux ; \
   for pkg in ${PKGS}; do \
@@ -60,5 +67,6 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o ${CNMON_PKG} ${FILE_STO
   unzip ${CNMON_PKG} -d /usr/bin; \
   rm -f ${CNMON_PKG}
 
-ENV PATH="/usr/local/neuware/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/neuware/lib64"
+ENV NEUWARE_HOME="usr/local/neuware" \
+  PATH="/usr/local/neuware/bin:${PATH}" \
+  LD_LIBRARY_PATH="/usr/local/neuware/lib64" 
