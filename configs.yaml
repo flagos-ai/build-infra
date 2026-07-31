@@ -180,6 +180,7 @@ vendors:
       triton: triton==3.2.0+mlu1.7.2
       env:
         base:
+          NEUWARE_HOME: /usr/local/neuware
           PATH: /usr/local/neuware/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/neuware/lib64
       deps:
@@ -205,6 +206,7 @@ vendors:
       triton: triton==3.2.0+mlu1.7.2
       env:
         base:
+          NEUWARE_HOME: /usr/local/neuware
           PATH: /usr/local/neuware/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/neuware/lib64
       deps:
