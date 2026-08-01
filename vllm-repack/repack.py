@@ -664,12 +664,12 @@ def repack_dep(name: str, version: str, extra_indexes: list[str]) -> tuple[Path,
 
     # Write manifest
     safe_name = _normalize(name)
-    manifest_path = OUTPUT_DIR / f"{safe_name}-{version}.deps-manifest.yaml"
+    manifest_path = OUTPUT_DIR / f"{safe_name}-{version}+flagos.deps-manifest.yaml"
     manifest_data = {
         "source_wheel": whl_path.name,
         "source_sha256": sha256_file(whl_path),
         "package": name,
-        "version": version,
+        "version": f"{version}+flagos",
         "modified_at": datetime.now(timezone.utc).isoformat(),
         "all_requires_dist": [rd["raw"] for rd in all_rd],
         "removed": [rd["raw"] for rd in removed],
@@ -681,7 +681,12 @@ def repack_dep(name: str, version: str, extra_indexes: list[str]) -> tuple[Path,
     strip_names = {_normalize(x) for x in config.get("strip_from_indirect", [])}
     new_meta = _strip_requires_dist_lines(meta_text, strip_names)
     new_meta = _downgrade_metadata_version(new_meta)
-    output_name = wheel_name_to_filename(name, version)
+    # Add +flagos suffix for indirect deps too
+    new_meta = _add_version_suffix(new_meta, "flagos")
+    print(f"    add version suffix: +flagos")
+
+    # Use version with +flagos for wheel filename
+    output_name = wheel_name_to_filename(name, f"{version}+flagos")
     output_path = OUTPUT_DIR / output_name
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir)
 
