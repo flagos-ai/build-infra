@@ -824,15 +824,13 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     new_meta = _strip_requires_dist_lines(meta_text, names_to_remove)
     new_meta = _downgrade_metadata_version(new_meta)
-    # Use version with +flagos for wheel filename
-    output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
-    output_path = OUTPUT_DIR / output_name
-    # Pass None for wheel_text to keep original WHEEL file
-    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
-                  old_dist_info_dir, wheel_text=None)
+    # Add +flagos suffix to version
+    new_meta = _add_version_suffix(new_meta, "flagos")
+    print("  add version suffix: +flagos")
 
     # 5. Recursive indirect dep audit + repack
     repacked_deps: list[dict] = []
+    repacked_packages: list[tuple[str, str]] = []  # (name, version) pairs
     if recurse:
         print(f"\n=== Recursive dependency audit ===")
         results = repack_recursive(new_meta, extra_indexes)
@@ -843,8 +841,28 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
                 "wheel": dep_whl.name,
                 "manifest": dep_manifest.name,
             })
+            repacked_packages.append((dep_name, dep_version))
 
-    # 6. Write top-level manifest (now includes recursive results)
+    # 6. Update Requires-Dist for repacked deps (add +flagos to their versions)
+    if repacked_packages:
+        print(f"\n=== Updating dependency versions ===")
+        for dep_name, dep_version in repacked_packages:
+            # Replace exact version match with +flagos suffix
+            # Pattern: package==version -> package==version+flagos
+            pattern = rf"(^{re.escape(dep_name)}==){re.escape(dep_version)}(\s*;|\s*$)"
+            replacement = rf"\g<1>{dep_version}+flagos\g<2>"
+            new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
+            if count > 0:
+                print(f"  updated: {dep_name}=={dep_version} -> {dep_version}+flagos")
+
+    # 7. Rewrite top-level wheel with updated metadata
+    output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
+    output_path = OUTPUT_DIR / output_name
+    # Pass None for wheel_text to keep original WHEEL file
+    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
+                  old_dist_info_dir, wheel_text=None)
+
+    # 8. Write top-level manifest (now includes recursive results)
     # Use version with +flagos for manifest filename
     manifest_path = OUTPUT_DIR / f"{_normalize(pkg_name or 'unknown')}-{pkg_version or 'unknown'}.deps-manifest.yaml"
     manifest_data = {
