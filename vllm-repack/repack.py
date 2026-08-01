@@ -699,11 +699,15 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     if sub_repacked_deps:
         print(f"    updating sub-dep versions:")
         for dep_name, dep_version in sub_repacked_deps:
-            pattern = rf"(^{re.escape(dep_name)}==){re.escape(dep_version)}(\s*;|\s*$)"
+            # Use pattern that matches both hyphen and underscore variants
+            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]')
+            pattern = rf"(^{name_pattern}==){re.escape(dep_version)}(\s*;|\s*$)"
             replacement = rf"\g<1>{dep_version}+flagos\g<2>"
             new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
             if count > 0:
                 print(f"      {dep_name}=={dep_version} -> {dep_version}+flagos")
+            else:
+                print(f"      WARNING: could not update {dep_name}=={dep_version}")
 
     # Add +flagos suffix for this package
     new_meta = _add_version_suffix(new_meta, "flagos")
@@ -894,11 +898,17 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
         for dep_name, dep_version in all_repacked_packages:
             # Replace exact version match with +flagos suffix
             # Pattern: package==version -> package==version+flagos
-            pattern = rf"(^{re.escape(dep_name)}==){re.escape(dep_version)}(\s*;|\s*$)"
+            # Use normalized name for matching (pip uses underscores, METADATA uses hyphens)
+            norm_name = _normalize(dep_name)
+            # Match either original name or normalized variants (underscores/hyphens)
+            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]')
+            pattern = rf"(^{name_pattern}==){re.escape(dep_version)}(\s*;|\s*$)"
             replacement = rf"\g<1>{dep_version}+flagos\g<2>"
             new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
             if count > 0:
                 print(f"  updated: {dep_name}=={dep_version} -> {dep_version}+flagos")
+            else:
+                print(f"  WARNING: could not update {dep_name}=={dep_version} (not found in METADATA)")
 
     # 7. Rewrite top-level wheel with updated metadata
     output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
