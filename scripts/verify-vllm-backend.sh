@@ -142,49 +142,24 @@ log_step "Step 1: Starting runtime container"
 mkdir -p "${WORK_DIR}"
 docker rm -f "${CONTAINER}" 2>/dev/null || true
 
-# Determine device flags based on vendor
-device_flags=""
-case "$VENDOR" in
-    nvidia)
-        device_flags="--gpus all"
-        ;;
-    mthreads)
-        device_flags="--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
-        ;;
-    metax)
-        device_flags="--device /dev/mxcd --device /dev/dri --group-add video"
-        ;;
-    hygon)
-        device_flags="--device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal"
-        ;;
-    iluvatar)
-        device_flags="--device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro"
-        ;;
-    ascend)
-        device_flags="-e ASCEND_VISIBLE_DEVICES=0 --device /dev/davinci0"
-        ;;
-    cambricon)
-        device_flags="--device /dev/cambricon_dev0 --device /dev/cambricon_ctl"
-        ;;
-    kunlunxin)
-        device_flags="--device /dev/xpu0 --device /dev/xpuctrl"
-        ;;
-    enflame)
-        device_flags="--network host -e TENCENT_VISIBLE_DEVICES=all"
-        ;;
-    sunrise)
-        device_flags="--privileged -v /dev:/dev"
-        ;;
-    tsingmicro)
-        device_flags="--device /dev/accel --device /dev/accel_drv_mgr"
-        ;;
-    *)
-        log_warn "Unknown vendor: $VENDOR, using minimal device access"
-        ;;
-esac
+# Read device flags from build-config.yml
+RUN_FLAGS=$(python3 -c "
+import yaml
+import sys
+vendor = '${VENDOR}'
+with open('${SCRIPT_DIR}/../.github/build-config.yml') as f:
+    config = yaml.safe_load(f)
+run_config = config.get('run', {})
+vendors = run_config.get('vendors', {})
+vendor_config = vendors.get(vendor, {})
+# Prefer toolkit over raw
+toolkit = vendor_config.get('toolkit', '')
+raw = vendor_config.get('raw', '')
+print(toolkit if toolkit else raw)
+")
 
 docker run -d --name "${CONTAINER}" \
-    ${device_flags} \
+    ${RUN_FLAGS} \
     -v "${WORK_DIR}:${WORK_DIR}" \
     -v "${MODEL_PATH}:${MODEL_PATH}:ro" \
     --network host \
