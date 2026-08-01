@@ -200,7 +200,6 @@ docker exec "${CONTAINER}" bash -c "
             ;;
         mthreads)
             mthreads-gmi 2>/dev/null || echo 'mthreads-gmi not available'
-            python3 -c 'import torch; print(f\"MUSA: {torch.musa.is_available() if hasattr(torch, \"musa\") else False}\")'
             ;;
         metax)
             mx-smi 2>/dev/null || echo 'mx-smi not available'
@@ -218,33 +217,15 @@ docker exec "${CONTAINER}" bash -c "
 
 log_step "Step 3: Installing repacked vllm"
 
-# Check if vendor torch version is older than Aliyun torch
-VENDOR_TORCH_OLD=false
-case "$VENDOR" in
-    mthreads|metax|iluvatar|hygon|kunlunxin|cambricon|sunrise|tsingmicro|enflame)
-        VENDOR_TORCH_OLD=true
-        ;;
-esac
-
-if [[ "$VENDOR_TORCH_OLD" == true ]]; then
-    log_info "Using two-step install (vendor torch < Aliyun torch)"
-    docker exec "${CONTAINER}" bash -c "
-        echo 'Step 3a: Install repacked vllm (no deps)'
-        pip install --no-deps --index-url '${VENDOR_PYPI}' 'vllm==${VLLM_VERSION}'
-
-        echo ''
-        echo 'Step 3b: Install remaining deps from Aliyun'
-        pip install --index-url '${ALIYUN_PYPI}' 'vllm==${VLLM_VERSION}'
-    "
-else
-    log_info "Using single-step install"
-    docker exec "${CONTAINER}" bash -c "
-        pip install \
-            --index-url '${VENDOR_PYPI}' \
-            --extra-index-url '${ALIYUN_PYPI}' \
-            'vllm==${VLLM_VERSION}'
-    "
-fi
+# Install vllm+flagos from vendor PyPI with Aliyun as fallback.
+# Repacked dependencies (transformers+flagos, etc.) are prioritized
+# because vendor PyPI is the primary index.
+docker exec "${CONTAINER}" bash -c "
+    pip install \
+        --index-url '${VENDOR_PYPI}' \
+        --extra-index-url '${ALIYUN_PYPI}' \
+        'vllm==${VLLM_VERSION}'
+"
 
 log_info "vllm installed:"
 docker exec "${CONTAINER}" pip show vllm | grep -E "^(Name|Version|Location)"
