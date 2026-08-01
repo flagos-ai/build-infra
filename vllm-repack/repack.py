@@ -700,7 +700,7 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
         print(f"    updating sub-dep versions:")
         for dep_name, dep_version in sub_repacked_deps:
             # Use pattern that matches both hyphen and underscore variants
-            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]')
+            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]').replace('_', '[-_]')
             pattern = rf"(^{name_pattern}==){re.escape(dep_version)}(\s*;|\s*$)"
             replacement = rf"\g<1>{dep_version}+flagos\g<2>"
             new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
@@ -901,7 +901,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
             # Use normalized name for matching (pip uses underscores, METADATA uses hyphens)
             norm_name = _normalize(dep_name)
             # Match either original name or normalized variants (underscores/hyphens)
-            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]')
+            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]').replace('_', '[-_]')
             pattern = rf"(^{name_pattern}==){re.escape(dep_version)}(\s*;|\s*$)"
             replacement = rf"\g<1>{dep_version}+flagos\g<2>"
             new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
