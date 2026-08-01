@@ -708,6 +708,12 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     new_meta = _add_version_suffix(new_meta, "flagos")
     print(f"    add version suffix: +flagos")
 
+    # Update dist_info_dir to include +flagos suffix
+    old_dist_info_dir = dist_info_dir
+    if dist_info_dir.endswith(".dist-info"):
+        base = dist_info_dir[:-len(".dist-info")]
+        dist_info_dir = f"{base}+flagos.dist-info"
+
     # Write manifest
     safe_name = _normalize(name)
     manifest_path = OUTPUT_DIR / f"{safe_name}-{version}+flagos.deps-manifest.yaml"
@@ -726,7 +732,8 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     # Rewrite wheel with updated metadata
     output_name = wheel_name_to_filename(name, f"{version}+flagos")
     output_path = OUTPUT_DIR / output_name
-    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir)
+    rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
+                  old_dist_info_dir if old_dist_info_dir != dist_info_dir else None)
 
     whl_path.unlink()  # cleanup original
 
@@ -812,6 +819,12 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
     # Add +flagos suffix to version
     meta_text = _add_version_suffix(meta_text, "flagos")
     print("  add version suffix: +flagos")
+
+    # Also update dist_info_dir to include +flagos suffix
+    if dist_info_dir.endswith(".dist-info"):
+        base = dist_info_dir[:-len(".dist-info")]
+        dist_info_dir = f"{base}+flagos.dist-info"
+        print(f"  update dist-info dir: {old_dist_info_dir} -> {dist_info_dir}")
 
     # Read WHEEL file to determine the platform tag
     wheel_text = _read_wheel_file(whl_path, old_dist_info_dir)
