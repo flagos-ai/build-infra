@@ -23,11 +23,11 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend to build = base/<name> (e.g. nvidia-cuda12.8), or "all"'
+        description: 'Backend(s) to build (e.g. nvidia-cuda12.8), or "all"'
         type: string
         default: all
       push:
-        description: 'push image(s) to the registry'
+        description: 'Push image(s) to the registry'
         type: boolean
         default: false
 
