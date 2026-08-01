@@ -621,3 +621,41 @@ docker exec vllm-build-metax bash -lc '
 `repack_recursive()` 一次性解析 107 个 deps（含 transitive），发现
 compressed-tensors (`torch>=1.7.0`) 和 xgrammar (`torch>=1.10.0` +
 `triton`)，摘除后输出到 `output/`。无遗漏。
+
+---
+
+## 3. 设计决策记录
+
+### 3.1 版本号 +flagos 后缀（2026-08-01）
+
+**决策：**
+- repack 后的 wheel 统一添加 `+flagos` 本地版本后缀
+- 保持原始 platform tag（`py3-none-any`），不伪造为 `cp38-abi3-manylinux_2_35_x86_64`
+
+**理由：**
+1. PEP 440 规定：`0.20.2+flagos > 0.20.2`，pip 版本解析应优先选择我们的 repacked wheel
+2. 伪造 platform tag 会声明不存在的 ABI 要求，造成误导
+3. `+flagos` 明确标识该 wheel 来自 FlagOS repack 流程
+
+**待验证（⚠️）：**
+
+| 验证项 | 状态 | 说明 |
+|--------|------|------|
+| pip 版本排序行为 | ⬜ | `pip install vllm==0.20.2` 在同时存在 `0.20.2` 和 `0.20.2+flagos` 时，是否一定选择后者？PEP 440 说是，但 pip 实际行为需验证 |
+| vendor PyPI + Aliyun 混合索引 | ⬜ | `--index-url vendor --extra-index-url aliyun` 场景下，pip 是否正确解析版本顺序 |
+| 缓存干扰 | ⬜ | pip 缓存是否会跳过版本比较，直接复用已下载的 `0.20.2`？ |
+| 平台匹配优先级 | ⬜ | 当原版是 `cp38-abi3-manylinux_2_35_x86_64`，我们是 `py3-none-any` 时，平台匹配是否优先于版本比较？ |
+
+**验证方法：**
+```bash
+# 测试场景：vendor PyPI 有 repacked +flagos，Aliyun 有原版
+pip install --index-url $VENDOR_PYPI --extra-index-url $ALIYUN_PYPI vllm==0.20.2
+# 检查安装的是哪个版本
+pip show vllm
+```
+
+**如果验证失败（pip 选择了原版），备选方案：**
+1. 版本号改为 `0.20.2.post1`（非本地版本，排序明确高于 `0.20.2`）
+2. 或继续使用 platform tag 改写策略（`py3-none-any` → `cp38-abi3-manylinux_2_35_x86_64`）
+
+**相关提交：** TBD (feature/vllm-repack-scripts)
