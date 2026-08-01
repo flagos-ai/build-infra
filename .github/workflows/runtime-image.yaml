@@ -26,23 +26,23 @@ on:
         type: string
         default: all
       push:
-        description: 'push image(s) to the registry'
+        description: 'Push image(s) to the registry'
         type: boolean
         default: false
       flaggems:
-        description: 'FlagGems wheel version to install (e.g. 5.4.0.dev601+g03122362d)'
+        description: 'FlagGems wheel version to install (e.g. 5.3.2)'
         type: string
         default: ''
       no_flaggems:
-        description: 'skip flag_gems install — produce build-platform image (step 4)'
+        description: 'Skip flag_gems install — produce -build image'
         type: boolean
         default: false
       skip_cpp:
-        description: 'skip flag_gems cpp extension install (install pure Python wheel only)'
+        description: 'Skip flag_gems C++ extension install (Python wheel only)'
         type: boolean
         default: false
       no_cache:
-        description: 'disable Docker build cache (use for rebuilt wheels with same version)'
+        description: 'Disable Docker build cache (use for rebuild wheels with same version)'
         type: boolean
         default: false
 
