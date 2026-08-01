@@ -29,26 +29,26 @@ title: "mthreads-musa4.3.6"
 
 ### 基础镜像
 
-`ubuntu:24.04`
+`ubuntu:22.04`
 
 ### 系统软件包
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `libelf1`
-- `libgfortran5` — 14.2.0
-- `libnuma-dev` — 2.0.18
-- `libopenmpi-dev` — 4.1.6
-- `libpython3-dev` — 3.12.3
-- `openmpi-bin` — 4.1.6
-- `vim` — 9.1.0016
+- `build-essential` — 12.9ubuntu3
+- `ca-certificates` — 20260601~22.04.1
+- `cmake` — 3.22.1
+- `curl` — 7.81.0
+- `g++` — 11.2.0
+- `gcc` — 11.2.0
+- `git` — 2.34.1
+- `libelf1` — 0.186
+- `libgfortran5` — 12.3.0
+- `libnuma-dev` — 2.0.14
+- `libopenmpi-dev` — 4.1.2
+- `libpython3-dev` — 3.10.6
+- `openmpi-bin` — 4.1.2
+- `vim` — 8.2.3995
 
 ### SDK 组件
 
@@ -70,7 +70,7 @@ title: "mthreads-musa4.3.6"
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -80,7 +80,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1-1 bash
 ```
 
 ## 验证
