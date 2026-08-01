@@ -89,50 +89,16 @@ docker exec "${CONTAINER}" bash -c "
 # Build empty wheel
 echo "==> Building empty wheel..."
 docker exec "${CONTAINER}" bash -c "
-    # Find all MUSA-related libraries
-    echo '=== Searching for MUSA libraries ==='
-    find /usr/local -name 'libmusa*.so*' -o -name 'libmusart*.so*' 2>/dev/null
-
-    # Setup library path - prefer real libs over stubs
-    for libdir in /usr/local/musa-*/lib /usr/local/musa/lib; do
-        if [ -d \"\${libdir}\" ]; then
-            export LD_LIBRARY_PATH=\${libdir}:\${LD_LIBRARY_PATH}
-        fi
-        # Only add stubs if no real lib found
-        if [ -d \"\${libdir}/stubs\" ] && [ ! -f \"\${libdir}/libmusa.so\" ]; then
-            export LD_LIBRARY_PATH=\${libdir}/stubs:\${LD_LIBRARY_PATH}
-        fi
-    done
-
-    # Check if we need to use stub library with proper setup
-    if [ -f /usr/local/musa-5.2.0/lib/stubs/libmusa.so ] && [ ! -f /usr/local/musa-5.2.0/lib/libmusa.so ]; then
-        # Copy stub lib to main lib dir (stubs may need special handling)
-        cp /usr/local/musa-5.2.0/lib/stubs/libmusa.so /usr/local/musa-5.2.0/lib/libmusa.so 2>/dev/null || true
-        ln -sf libmusa.so /usr/local/musa-5.2.0/lib/libmusa.so.1 2>/dev/null || true
-        ldconfig 2>/dev/null || true
-    fi
-
-    echo \"LD_LIBRARY_PATH: \$LD_LIBRARY_PATH\"
-
-    # Test torch import (may fail with stubs, try anyway)
-    python3 -c 'import torch; print(\"Torch OK:\", torch.__version__)' 2>&1 || echo 'Torch needs real MUSA driver'
-
-    # Try to build anyway - VLLM_TARGET_DEVICE=empty may not need full torch
     cd ${WORK_DIR}/src/vllm
     pip install -q 'setuptools-scm>=8,<10' wheel 2>/dev/null || true
     export VLLM_TARGET_DEVICE=empty
     export MAX_JOBS=\$(nproc)
-    # Use --no-build-isolation to use system torch
     pip wheel --no-build-isolation --no-deps -w ${WORK_DIR}/empty . 2>&1 | tail -20
 "
 
 # Check if wheel was built
 if ! docker exec "${CONTAINER}" bash -c "ls ${WORK_DIR}/empty/vllm-*.whl 2>/dev/null"; then
     echo "Error: Failed to build wheel."
-    docker exec "${CONTAINER}" bash -c "
-        echo '=== Library files ==='
-        find /usr/local/musa* -name '*.so*' 2>/dev/null | head -20
-    "
     exit 1
 fi
 
