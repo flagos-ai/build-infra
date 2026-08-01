@@ -181,16 +181,19 @@ def _strip_local_version(text: str) -> str:
 def _add_version_suffix(text: str, suffix: str) -> str:
     """Add local version suffix (+suffix) to the Version: line in METADATA.
 
-    e.g. 'Version: 0.20.2' → 'Version: 0.20.2+flagos'
+    e.g. 'Version: 0.20.2' -> 'Version: 0.20.2+flagos'
     """
-    def replace_version(match):
+    # Match the Version line and extract just the version number
+    match = re.search(r'^Version:\s*([^\s+]+)', text, re.MULTILINE | re.IGNORECASE)
+    if match:
         version = match.group(1).strip()
         # Remove any existing suffix first
         version = re.sub(r'\+.*$', '', version)
-        return f"Version: {version}+{suffix}"
-
-    return re.sub(r'^(Version:\s*)(.+)$', replace_version, text,
-                  flags=re.MULTILINE | re.IGNORECASE)
+        new_version = f"{version}+{suffix}"
+        # Replace the entire Version line
+        text = re.sub(r'^(Version:\s*)[^\s+]+', rf'\g<1>{new_version}', text,
+                      flags=re.MULTILINE | re.IGNORECASE, count=1)
+    return text
 
 
 def _read_wheel_file(whl_path: Path, dist_info_dir: str) -> str:
