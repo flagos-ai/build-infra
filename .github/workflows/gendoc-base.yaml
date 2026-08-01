@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Base image descriptions
+name: Generate docs for base images
 
 # Post-build: capture the versions actually baked into each base image, compose a
 # per-image description markdown (single source for the docs site, the in-repo
