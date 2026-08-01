@@ -234,6 +234,64 @@ def _extract_name_version(requires_dist_line: str):
     return name, version_spec
 
 
+def _parse_requires_dist_body(body: str) -> tuple[str, str, str] | None:
+    """Parse a Requires-Dist body (without the 'Requires-Dist:' prefix) into
+    (name, extras, marker).
+
+    - name: bare package name (may contain `-` or `_`).
+    - extras: extras string with brackets, e.g. '[cu13]', or '' if none.
+    - marker: environment marker string including the leading ';', or '' if none.
+    """
+    if ";" in body:
+        spec, marker = body.split(";", 1)
+        marker = "; " + marker.lstrip()
+    else:
+        spec, marker = body, ""
+    m = re.match(r"^([A-Za-z0-9_.-]+)(\[[^\]]+\])?", spec)
+    if not m:
+        return None
+    return (m.group(1), m.group(2) or "", marker)
+
+
+def _pin_requires_dist_line(line: str, dep_name: str, pinned_version: str) -> str | None:
+    """Rewrite one Requires-Dist line to pin dep_name==<pinned_version>.
+
+    Preserves extras and environment markers. Range specifiers (<,>,>=,<=)
+    and exact pins (==X) are both collapsed into a single exact pin so pip
+    cannot resolve a higher un-repacked version from a secondary index.
+    Returns None if the line doesn't refer to dep_name.
+    """
+    if not line.startswith("Requires-Dist:"):
+        return None
+    body = line[len("Requires-Dist:"):].strip()
+    parsed = _parse_requires_dist_body(body)
+    if parsed is None:
+        return None
+    name, extras, marker = parsed
+    if _normalize(name) != _normalize(dep_name):
+        return None
+    # Ensure exactly one +flagos suffix on the pinned version
+    base = re.sub(r"\+.*$", "", pinned_version)
+    return f"Requires-Dist: {name}{extras}=={base}+flagos{marker}"
+
+
+def _pin_requires_dist(meta_text: str, dep_name: str, pinned_version: str) -> tuple[str, int]:
+    """Pin every Requires-Dist line matching dep_name. Returns (new_text, count)."""
+    out: list[str] = []
+    count = 0
+    for line in meta_text.splitlines():
+        new_line = _pin_requires_dist_line(line, dep_name, pinned_version)
+        if new_line is not None:
+            out.append(new_line)
+            count += 1
+        else:
+            out.append(line)
+    result = "\n".join(out)
+    if meta_text.endswith("\n"):
+        result += "\n"
+    return result, count
+
+
 # ── classification ─────────────────────────────────────────────────────
 
 
@@ -695,19 +753,15 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     new_meta = _strip_requires_dist_lines(meta_text, strip_set)
     new_meta = _downgrade_metadata_version(new_meta)
 
-    # Update sub-dependency versions to +flagos
+    # Pin sub-dependency versions to their exact +flagos version.
     if sub_repacked_deps:
-        print(f"    updating sub-dep versions:")
+        print(f"    pinning sub-dep versions:")
         for dep_name, dep_version in sub_repacked_deps:
-            # Use pattern that matches both hyphen and underscore variants
-            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]').replace('_', '[-_]')
-            pattern = rf"(^Requires-Dist:\s*{name_pattern}==){re.escape(dep_version)}(\s*;|\s*$)"
-            replacement = rf"\g<1>{dep_version}+flagos\g<2>"
-            new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
+            new_meta, count = _pin_requires_dist(new_meta, dep_name, dep_version)
             if count > 0:
-                print(f"      {dep_name}=={dep_version} -> {dep_version}+flagos")
+                print(f"      {dep_name} -> =={dep_version}+flagos")
             else:
-                print(f"      WARNING: could not update {dep_name}=={dep_version}")
+                print(f"      WARNING: could not pin {dep_name}")
 
     # Add +flagos suffix for this package
     new_meta = _add_version_suffix(new_meta, "flagos")
@@ -892,23 +946,18 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
                 })
             all_repacked_packages.append((dep_name, dep_version))
 
-    # 6. Update Requires-Dist for all repacked deps (add +flagos to their versions)
+    # 6. Pin Requires-Dist for all repacked deps to their exact +flagos version.
+    # This collapses range specifiers (e.g. `xgrammar<1.0.0,>=0.1.32`) into an
+    # exact pin so pip cannot resolve a higher, un-repacked version from Aliyun
+    # that would drag torch/triton back in.
     if all_repacked_packages:
-        print(f"\n=== Updating dependency versions ===")
+        print(f"\n=== Pinning dependency versions ===")
         for dep_name, dep_version in all_repacked_packages:
-            # Replace exact version match with +flagos suffix
-            # Pattern: package==version -> package==version+flagos
-            # Use normalized name for matching (pip uses underscores, METADATA uses hyphens)
-            norm_name = _normalize(dep_name)
-            # Match either original name or normalized variants (underscores/hyphens)
-            name_pattern = re.escape(dep_name).replace(r'\-', '[-_]').replace('_', '[-_]')
-            pattern = rf"(^Requires-Dist:\s*{name_pattern}==){re.escape(dep_version)}(\s*;|\s*$)"
-            replacement = rf"\g<1>{dep_version}+flagos\g<2>"
-            new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
+            new_meta, count = _pin_requires_dist(new_meta, dep_name, dep_version)
             if count > 0:
-                print(f"  updated: {dep_name}=={dep_version} -> {dep_version}+flagos")
+                print(f"  pinned: {dep_name} -> =={dep_version}+flagos ({count} line(s))")
             else:
-                print(f"  WARNING: could not update {dep_name}=={dep_version} (not found in METADATA)")
+                print(f"  WARNING: could not pin {dep_name} (not found in METADATA)")
 
     # 7. Rewrite top-level wheel with updated metadata
     output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
