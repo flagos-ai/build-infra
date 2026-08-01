@@ -869,9 +869,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     new_meta = _strip_requires_dist_lines(meta_text, names_to_remove)
     new_meta = _downgrade_metadata_version(new_meta)
-    # Add +flagos suffix to version
-    new_meta = _add_version_suffix(new_meta, "flagos")
-    print("  add version suffix: +flagos")
+    # Note: +flagos suffix already added to meta_text above, no need to add again
 
     # 5. Recursive indirect dep audit + repack
     repacked_deps: list[dict] = []
