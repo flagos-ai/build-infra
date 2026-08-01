@@ -178,6 +178,21 @@ def _strip_local_version(text: str) -> str:
     return _VERSION_LOCAL_RE.sub(r"Version: \1", text)
 
 
+def _add_version_suffix(text: str, suffix: str) -> str:
+    """Add local version suffix (+suffix) to the Version: line in METADATA.
+
+    e.g. 'Version: 0.20.2' → 'Version: 0.20.2+flagos'
+    """
+    def replace_version(match):
+        version = match.group(1).strip()
+        # Remove any existing suffix first
+        version = re.sub(r'\+.*$', '', version)
+        return f"Version: {version}+{suffix}"
+
+    return re.sub(r'^(Version:\s*)(.+)$', replace_version, text,
+                  flags=re.MULTILINE | re.IGNORECASE)
+
+
 def _read_wheel_file(whl_path: Path, dist_info_dir: str) -> str:
     """Read the WHEEL file from a wheel's .dist-info directory."""
     with zipfile.ZipFile(whl_path) as z:
@@ -746,6 +761,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     # Handle empty / locally-built wheels: strip local version suffix
     # from both the .dist-info directory name and the METADATA text.
+    # Then add +flagos suffix.
     stripped = re.sub(r"\+[^.]*", "", dist_info_dir)
     has_local = stripped != dist_info_dir
     if has_local:
@@ -753,17 +769,13 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
         meta_text = _strip_local_version(meta_text)
         print(f"  strip local version: {old_dist_info_dir} → {dist_info_dir}")
 
-    # Read WHEEL file — empty wheels have Tag: py3-none-any which would
-    # cause pip to prefer the upstream wheel over our repacked one.
+    # Add +flagos suffix to version
+    meta_text = _add_version_suffix(meta_text, "flagos")
+    print("  add version suffix: +flagos")
+
+    # Read WHEEL file to determine the platform tag
     wheel_text = _read_wheel_file(whl_path, old_dist_info_dir)
     wheel_tag = _get_wheel_tag(wheel_text)
-    if wheel_tag == "py3-none-any":
-        wheel_tag = _VLLM_PLATFORM_TAG
-        wheel_text = _rewrite_wheel_tag(wheel_text, wheel_tag)
-        print(f"  platform tag: py3-none-any → {wheel_tag}")
-    else:
-        # Standard wheel — keep original WHEEL file unchanged
-        wheel_text = None
 
     all_rd = parse_requires_dist(meta_text)
 
@@ -792,7 +804,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
         pkg_name = mvn.group(1).strip()
     if mvv:
         pkg_version = mvv.group(1).strip()
-        pkg_version = re.sub(r"\+.*", "", pkg_version)
+        # Keep the +flagos suffix for output filename
 
     # 4. Strip & rewrite top-level wheel
     names_to_remove: set[str] = set()
@@ -804,10 +816,12 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     new_meta = _strip_requires_dist_lines(meta_text, names_to_remove)
     new_meta = _downgrade_metadata_version(new_meta)
+    # Use version with +flagos for wheel filename
     output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
     output_path = OUTPUT_DIR / output_name
+    # Pass None for wheel_text to keep original WHEEL file
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
-                  old_dist_info_dir, wheel_text)
+                  old_dist_info_dir, wheel_text=None)
 
     # 5. Recursive indirect dep audit + repack
     repacked_deps: list[dict] = []
@@ -823,6 +837,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
             })
 
     # 6. Write top-level manifest (now includes recursive results)
+    # Use version with +flagos for manifest filename
     manifest_path = OUTPUT_DIR / f"{_normalize(pkg_name or 'unknown')}-{pkg_version or 'unknown'}.deps-manifest.yaml"
     manifest_data = {
         "source_wheel": whl_path.name,
