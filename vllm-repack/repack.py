@@ -663,11 +663,8 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
             removed.append(rd)
             print(f"    strip {rd['raw']}")
 
-    if not removed:
-        # Nothing to repack — keep original for reference
-        return None
-
     # Recurse into this dep's own dependencies first
+    # Even if this dep has nothing to strip, its sub-deps might
     key = f"{_normalize(name)}-{version}"
     visited.add(key)
     sub_repacked_deps: list[tuple[str, str]] = []
@@ -689,6 +686,10 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
             _, _, sub_sub_deps = result
             sub_repacked_deps.append((dep_name, dep_version))
             sub_repacked_deps.extend(sub_sub_deps)
+
+    # If nothing to strip and no sub-deps repacked, skip this package
+    if not removed and not sub_repacked_deps:
+        return None
 
     # Now update this dep's METADATA with +flagos versions of sub-deps
     new_meta = _strip_requires_dist_lines(meta_text, strip_set)
