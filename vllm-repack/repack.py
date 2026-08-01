@@ -630,11 +630,16 @@ def audit_dep_meta(name: str, version: str, extra_indexes: list[str]) -> dict | 
     }
 
 
-def repack_dep(name: str, version: str, extra_indexes: list[str]) -> tuple[Path, Path] | None:
+def repack_dep(name: str, version: str, extra_indexes: list[str],
+               visited: set[str] | None = None) -> tuple[Path, Path, list[tuple[str, str]]] | None:
     """Download and repack an indirect dep, stripping its torch/triton deps.
 
-    Returns (output_wheel, manifest_path) or None if nothing to strip.
+    Returns (output_wheel, manifest_path, sub_deps) or None if nothing to strip.
+    sub_deps is list of (name, version) for all repacked sub-dependencies.
     """
+    if visited is None:
+        visited = set()
+
     config = load_config()
     strip_set = {_normalize(x) for x in config.get("strip_from_indirect", [])}
 
@@ -662,6 +667,47 @@ def repack_dep(name: str, version: str, extra_indexes: list[str]) -> tuple[Path,
         # Nothing to repack — keep original for reference
         return None
 
+    # Recurse into this dep's own dependencies first
+    key = f"{_normalize(name)}-{version}"
+    visited.add(key)
+    sub_repacked_deps: list[tuple[str, str]] = []
+
+    # Resolve and repack sub-dependencies
+    dep_versions = resolve_dep_versions(meta_text, extra_indexes)
+    for dep_name, dep_version in sorted(dep_versions.items()):
+        sub_key = f"{_normalize(dep_name)}-{dep_version}"
+        if sub_key in visited:
+            continue
+
+        info = audit_dep_meta(dep_name, dep_version, extra_indexes)
+        if info is None or not info["has_suspect_deps"]:
+            continue
+
+        print(f"\n    --- sub-dep: {dep_name}=={dep_version} ---")
+        result = repack_dep(dep_name, dep_version, extra_indexes, visited)
+        if result:
+            _, _, sub_sub_deps = result
+            sub_repacked_deps.append((dep_name, dep_version))
+            sub_repacked_deps.extend(sub_sub_deps)
+
+    # Now update this dep's METADATA with +flagos versions of sub-deps
+    new_meta = _strip_requires_dist_lines(meta_text, strip_set)
+    new_meta = _downgrade_metadata_version(new_meta)
+
+    # Update sub-dependency versions to +flagos
+    if sub_repacked_deps:
+        print(f"    updating sub-dep versions:")
+        for dep_name, dep_version in sub_repacked_deps:
+            pattern = rf"(^{re.escape(dep_name)}==){re.escape(dep_version)}(\s*;|\s*$)"
+            replacement = rf"\g<1>{dep_version}+flagos\g<2>"
+            new_meta, count = re.subn(pattern, replacement, new_meta, flags=re.MULTILINE | re.IGNORECASE)
+            if count > 0:
+                print(f"      {dep_name}=={dep_version} -> {dep_version}+flagos")
+
+    # Add +flagos suffix for this package
+    new_meta = _add_version_suffix(new_meta, "flagos")
+    print(f"    add version suffix: +flagos")
+
     # Write manifest
     safe_name = _normalize(name)
     manifest_path = OUTPUT_DIR / f"{safe_name}-{version}+flagos.deps-manifest.yaml"
@@ -677,22 +723,14 @@ def repack_dep(name: str, version: str, extra_indexes: list[str]) -> tuple[Path,
     with open(manifest_path, "w", encoding="utf-8") as f:
         yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
-    # Strip & rewrite
-    strip_names = {_normalize(x) for x in config.get("strip_from_indirect", [])}
-    new_meta = _strip_requires_dist_lines(meta_text, strip_names)
-    new_meta = _downgrade_metadata_version(new_meta)
-    # Add +flagos suffix for indirect deps too
-    new_meta = _add_version_suffix(new_meta, "flagos")
-    print(f"    add version suffix: +flagos")
-
-    # Use version with +flagos for wheel filename
+    # Rewrite wheel with updated metadata
     output_name = wheel_name_to_filename(name, f"{version}+flagos")
     output_path = OUTPUT_DIR / output_name
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir)
 
     whl_path.unlink()  # cleanup original
 
-    return output_path, manifest_path
+    return output_path, manifest_path, sub_repacked_deps
 
 
 # ── recursive repack ───────────────────────────────────────────────────
@@ -734,22 +772,16 @@ def repack_recursive(repacked_meta_text: str, extra_indexes: list[str],
         for s in info["suspect_deps"]:
             print(f"  suspect: {s}")
 
-        result = repack_dep(dep_name, dep_version, extra_indexes)
+        result = repack_dep(dep_name, dep_version, extra_indexes, visited)
         if result is None:
             continue
 
-        output_wheel, manifest = result
+        output_wheel, manifest, sub_deps = result
         results.append((dep_name, dep_version, output_wheel, manifest))
 
-        # Recurse into the repacked dep's own retained deps
-        try:
-            whl_path = _download_dep_wheel(dep_name, dep_version, extra_indexes)
-            meta, _ = read_wheel_metadata(whl_path)
-            whl_path.unlink()  # cleanup
-            sub_results = repack_recursive(meta, extra_indexes, visited)
-            results.extend(sub_results)
-        except Exception:
-            pass  # non-critical — skip recursion for this dep
+        # Add sub-dependencies to results for tracking
+        for sub_name, sub_version in sub_deps:
+            results.append((sub_name, sub_version, None, None))
 
     return results
 
@@ -830,23 +862,24 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     # 5. Recursive indirect dep audit + repack
     repacked_deps: list[dict] = []
-    repacked_packages: list[tuple[str, str]] = []  # (name, version) pairs
+    all_repacked_packages: list[tuple[str, str]] = []  # All packages with their original versions
     if recurse:
         print(f"\n=== Recursive dependency audit ===")
         results = repack_recursive(new_meta, extra_indexes)
         for dep_name, dep_version, dep_whl, dep_manifest in results:
-            repacked_deps.append({
-                "package": dep_name,
-                "version": dep_version,
-                "wheel": dep_whl.name,
-                "manifest": dep_manifest.name,
-            })
-            repacked_packages.append((dep_name, dep_version))
+            if dep_whl and dep_manifest:  # Only direct repacks have wheel/manifest
+                repacked_deps.append({
+                    "package": dep_name,
+                    "version": dep_version,
+                    "wheel": dep_whl.name,
+                    "manifest": dep_manifest.name,
+                })
+            all_repacked_packages.append((dep_name, dep_version))
 
-    # 6. Update Requires-Dist for repacked deps (add +flagos to their versions)
-    if repacked_packages:
+    # 6. Update Requires-Dist for all repacked deps (add +flagos to their versions)
+    if all_repacked_packages:
         print(f"\n=== Updating dependency versions ===")
-        for dep_name, dep_version in repacked_packages:
+        for dep_name, dep_version in all_repacked_packages:
             # Replace exact version match with +flagos suffix
             # Pattern: package==version -> package==version+flagos
             pattern = rf"(^{re.escape(dep_name)}==){re.escape(dep_version)}(\s*;|\s*$)"
