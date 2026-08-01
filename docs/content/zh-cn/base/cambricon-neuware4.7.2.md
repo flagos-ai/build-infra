@@ -61,6 +61,7 @@ title: "cambricon-neuware4.7.2"
 
 ## 环境变量
 
+- `NEUWARE_HOME=/usr/local/neuware`
 - `PATH=/usr/local/neuware/bin:$PATH`
 - `LD_LIBRARY_PATH=/usr/local/neuware/lib64`
 

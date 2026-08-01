@@ -61,6 +61,7 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Environment
 
+- `NEUWARE_HOME=/usr/local/neuware`
 - `PATH=/usr/local/neuware/bin:$PATH`
 - `LD_LIBRARY_PATH=/usr/local/neuware/lib64`
 
