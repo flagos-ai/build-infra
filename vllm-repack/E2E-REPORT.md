@@ -599,28 +599,12 @@ pip show vllm
 
 ---
 
-### 3.2 vllm repack 包的通用性（待办）
+### 5.2 vllm repack 包的通用性（待办）
 
-**问题：**
-repack 后的 vllm 包是否后端通用？在 mthreads 上 repack 的包能否在 hygon 上使用？
+**Empty build** (`VLLM_TARGET_DEVICE=empty`) 是纯 Python，没有硬件特定代码
+**Repack** 仅清理 METADATA 依赖声明，不修改代码。输出 platform tag 为 `py3-none-any`，
+理论上是通用的。
 
-**分析：**
-1. **Empty build** (`VLLM_TARGET_DEVICE=empty`) 是纯 Python，没有硬件特定代码
-2. **Repack** 仅清理 METADATA 依赖声明，不修改代码
-3. 输出 platform tag 为 `py3-none-any`，理论上是通用的
-
-**结论：**
-✅ **repack 的 vllm 包是通用的**，可以在任意后端使用
-
-**与后端相关的包：**
-| 包 | 是否通用 | 说明 |
-|---|---|---|
-| vllm (repacked) | ✅ 通用 | 纯 Python，无硬件代码 |
-| torch | ❌ 后端特定 | 每个后端有自己的 torch 包 (+musa/+dtk/+cu 等) |
-| torch_musa/torch_npu 等 | ❌ 后端特定 | 后端特定扩展 |
-| flag_gems | ❌ 后端特定 | 每个后端有自己的 flag_gems 包 |
-
-**推荐工作流（参考 FlagGems）：**
 
 ```
 ┌─────────────────┐
@@ -654,3 +638,51 @@ pip install \
 2. 或创建通用 workflow：build once → upload to all
 
 **参考：** FlagGems Python 包已采用此工作流（build 一次，上传到所有 vendor PyPI）
+
+---
+
+## 4. mthreads-musa5.2.0 验证记录
+
+### 4.1 流程 1：Repack & Upload（✅ 已完成 2026-08-01）
+
+**执行命令：**
+```bash
+./scripts/repack-vllm-and-upload.sh --vendor mthreads --backend musa5.2.0
+```
+
+**上传的包：**
+| 包名 | 版本 | 说明 |
+|------|------|------|
+| vllm | 0.20.2+flagos | 主包，empty build |
+| xgrammar | 0.2.5+flagos | 间接依赖，strip torch/triton |
+| compressed-tensors | 0.15.0.1+flagos | 间接依赖，strip torch |
+
+**关键实现：**
+- ✅ Empty build (`VLLM_TARGET_DEVICE=empty`)
+- ✅ +flagos 版本后缀（主包 + 所有间接依赖）
+- ✅ 递归依赖版本更新（A→B→C 链都更新为 +flagos）
+- ✅ 上传到 `flagos-pypi-mthreads`
+
+### 4.2 流程 2：Install & Verify（⬜ 待验证）
+
+**验证步骤：**
+1. ✅ 启动 runtime 容器（带硬件访问）
+2. ⬜ 验证 torch/triton/flaggems 环境
+3. ⬜ 安装 repacked vllm (+flagos)
+4. ⬜ 验证 torch 版本未被覆盖
+5. ⬜ 安装 vllm-plugin-FL
+6. ⬜ 测试 vllm serve 启动
+7. ⬜ 测试推理
+
+**执行命令：**
+```bash
+./scripts/verify-vllm-backend.sh mthreads-musa5.2.0
+```
+
+**待验证项：**
+- [ ] pip 是否正确选择 +flagos 版本
+- [ ] torch 版本是否保持为 2.9.1+musa5.2.0
+- [ ] vllm serve 是否正常启动
+- [ ] 推理测试是否通过
+
+**相关提交：** `main` 分支 478de6b
