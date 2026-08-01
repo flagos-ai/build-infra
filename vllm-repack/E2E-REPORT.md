@@ -596,3 +596,61 @@ pip show vllm
 2. 或继续使用 platform tag 改写策略（`py3-none-any` → `cp38-abi3-manylinux_2_35_x86_64`）
 
 **相关提交：** TBD (feature/vllm-repack-scripts)
+
+---
+
+### 3.2 vllm repack 包的通用性（待办）
+
+**问题：**
+repack 后的 vllm 包是否后端通用？在 mthreads 上 repack 的包能否在 hygon 上使用？
+
+**分析：**
+1. **Empty build** (`VLLM_TARGET_DEVICE=empty`) 是纯 Python，没有硬件特定代码
+2. **Repack** 仅清理 METADATA 依赖声明，不修改代码
+3. 输出 platform tag 为 `py3-none-any`，理论上是通用的
+
+**结论：**
+✅ **repack 的 vllm 包是通用的**，可以在任意后端使用
+
+**与后端相关的包：**
+| 包 | 是否通用 | 说明 |
+|---|---|---|
+| vllm (repacked) | ✅ 通用 | 纯 Python，无硬件代码 |
+| torch | ❌ 后端特定 | 每个后端有自己的 torch 包 (+musa/+dtk/+cu 等) |
+| torch_musa/torch_npu 等 | ❌ 后端特定 | 后端特定扩展 |
+| flag_gems | ❌ 后端特定 | 每个后端有自己的 flag_gems 包 |
+
+**推荐工作流（参考 FlagGems）：**
+
+```
+┌─────────────────┐
+│  Build vllm     │  ← 任意后端执行 empty build + repack
+│  once           │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Upload to ALL  │  ← 同一份 wheel 上传到所有 vendor PyPI
+│  vendor PyPIs   │
+└─────────────────┘
+```
+
+**安装时：**
+```bash
+# 1. 从任意 vendor PyPI 安装 repacked vllm（通用包）
+pip install --no-deps \
+  --index-url https://resource.flagos.net/repository/flagos-pypi-mthreads/simple \
+  vllm==0.20.2
+
+# 2. 从目标后端 PyPI 安装依赖（获取该后端的 torch 等）
+pip install \
+  --index-url https://resource.flagos.net/repository/flagos-pypi-hygon/simple \
+  --extra-index-url https://mirrors.aliyun.com/pypi/simple \
+  vllm==0.20.2
+```
+
+**待实现（⬜）：**
+1. 修改 `repack-vllm-and-upload.sh` 支持上传到所有 vendor PyPI
+2. 或创建通用 workflow：build once → upload to all
+
+**参考：** FlagGems Python 包已采用此工作流（build 一次，上传到所有 vendor PyPI）
