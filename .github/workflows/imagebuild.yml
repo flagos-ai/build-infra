@@ -50,6 +50,7 @@ jobs:
       - name: Log in to the Container registry
         if: ${{ inputs.push }}
         env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
           # Harbor is internal — bypass any HTTP_PROXY/HTTPS_PROXY the runner
           # may have set for GitHub access.
@@ -66,7 +67,7 @@ jobs:
           # registry host = build-config.yml registry.host
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
           for i in 1 2 3; do
-            if printf '%s' "${HARBOR_PW}" | docker login "${host}" -u tengqm --password-stdin; then
+            if printf '%s' "${HARBOR_PW}" | docker login "${host}" -u "${HARBOR_USER}" --password-stdin; then
               exit 0
             fi
             echo "Harbor login attempt $i failed, retrying in 30s..."
