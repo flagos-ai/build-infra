@@ -111,7 +111,7 @@ vllm 使用 `VLLM_TARGET_DEVICE=empty` 时，可以保留其核心逻辑，方�
 | `app/vllm/Containerfile` | FROM runtime → pip install vllm + vllm-plugin-FL |
 | `.github/workflows/vllm-app.yml` | 完整 CI：repack → upload → build → verify → push |
 
-## 2 后端验证记录
+## 2. 后端验证记录
 
 ### 2.1 NVIDIA cuda12.8
 
@@ -279,7 +279,7 @@ Inference:    Qwen3.6-35B-A3B ✅  (prompt_tokens=17, completion_tokens=128)
 #### G. 后续步骤
 
 1. **扩展到 nvidia-cuda13.3**（相同模式，不同 torch 版本）
-1. **多厂商铺开** — metax, hygon, iluvatar, mthreads, kunlunxin, cambricon（CUDA 路线）
+1. **多厂商铺开** — metax（见 §2.2）、mthreads（见 §2.3）已完成；hygon、iluvatar、kunlunxin、cambricon 待排队
 
 ### 2.2 MetaX maca3.7.2.1
 
@@ -466,7 +466,7 @@ Op 'reshape_and_cache_flash' using 'default.flagos' (kind=flagos, vendor=None)
 
 全程无 `_C_cache_ops` / `_C.silu_and_mul` 报错。
 
-### 2.10 与 NVIDIA CUDA 后端的差异
+#### 与 NVIDIA CUDA 后端的差异
 
 | 步骤 | NVIDIA cuda12.8 | MetaX maca3.7.2.1 |
 |---|---|---|
@@ -474,10 +474,10 @@ Op 'reshape_and_cache_flash' using 'default.flagos' (kind=flagos, vendor=None)
 | repack 额外处理 | 无 | 去掉 `+empty` 版本后缀、修复 WHEEL Tag |
 | vendor deps | torch/cu128, triton 3.6.0 | torch/metax, flash_attn/metax, triton 3.0.0 |
 | vllm 安装 | 一步 `pip install` | 两步：先 `--no-deps` 锁定，再补 deps |
-| vllm-plugin-FL | `VLLM_VENDOR=cuda` 编译 C 扩展 | 不设 VLLM_VENDOR；需 #333（reshape_and_cache_flash→flag_gems，见 §2.7） |
+| vllm-plugin-FL | `VLLM_VENDOR=cuda` 编译 C 扩展 | 不设 VLLM_VENDOR；需 #333（reshape_and_cache_flash→flag_gems，见本节「唯一真正的阻塞」小节） |
 | 间接依赖 repack | 相同的 6 个包 | 相同 |
 
-### 2.11 Stack 验证 —— ✅ 完整端到端通过
+#### Stack 验证 —— ✅ 完整端到端通过
 
 在设备可见的 `vllm-serve-metax` 容器（metax124）内完成安装 + serve + 推理：
 
@@ -496,7 +496,7 @@ vllm serve:   ✅ 启动成功            TP=1, enforce-eager, gpu-util 0.6
 Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16 tokens
 ```
 
-### 2.12 待办
+#### 待办
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
@@ -507,7 +507,164 @@ Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16 token
 | repack.py 改动 commit | ✅ | empty-wheel 支持 + 递归审计，见 PR #244 #247 |
 | 间接 repack 自动化 | ✅ | `repack_recursive()` 自动发现 + repack |
 | FlagGems pyproject.toml | ⬜ | build-system.requires 加 `wheel==0.45.0` |
-| 其他 empty 模式后端 | 🔄 | hygon 进行中；kunlunxin、iluvatar、mthreads 待排队 |
+| 其他 empty 模式后端 | 🔄 | mthreads ✅ 已完成（见 §2.3）；hygon 进行中；kunlunxin、iluvatar 待排队 |
+
+### 2.3 mthreads-musa5.2.0
+
+#### 流程 1：Repack & Upload（✅ 已完成 2026-08-01）
+
+**执行命令：**
+```bash
+./scripts/repack-vllm-and-upload.sh --vendor mthreads --backend musa5.2.0
+```
+
+**上传的包：**
+| 包名 | 版本 | 说明 |
+|------|------|------|
+| vllm | 0.20.2+flagos | 主包，empty build |
+| xgrammar | 0.2.5+flagos | 间接依赖，strip torch/triton |
+| compressed-tensors | 0.15.0.1+flagos | 间接依赖，strip torch |
+
+**关键实现：**
+- ✅ Empty build (`VLLM_TARGET_DEVICE=empty`)
+- ✅ +flagos 版本后缀（主包 + 所有间接依赖）
+- ✅ 递归依赖版本更新（A→B→C 链都更新为 +flagos）
+- ✅ 上传到 `flagos-pypi-mthreads`
+
+#### 流程 2：Install & Verify（✅ 已完成 2026-08-02）
+
+**平台:** MTT S5000 (8×, 80GB)，节点 `mthreads`（JumpServer 别名）  
+**MUSA:** 5.2.0-server，torch_musa 5.2.0  
+**容器:** `vllm-verify-mthreads`，镜像
+`flagos-runtime-mthreads-musa5.2.0:2.1.1`，以
+`--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all -v /data:/data`
+启动，`torch.musa.device_count() == 8`。
+
+mthreads 与 MetaX 一样走 **empty 构建**（无 CUDA 扩展），repack 规则、间接
+依赖处理、vllm-plugin-FL 安装均相同。唯一不同点：mthreads 的
+`torch.device.type` 是 `"musa"`（其 flag_gems `device_name` 也是 `"musa"`，
+是所有后端中唯一非 `"cuda"` 的 GPU 后端）——这直接引出下面「唯一真正的阻塞」小节。
+
+**验证步骤：**
+1. ✅ 启动 runtime 容器（带硬件访问，8× S5000 可见）
+2. ✅ 验证 torch/triton/flaggems 环境
+3. ✅ 安装 repacked vllm (+flagos)——`pip` 正确选中 `+flagos` 版本
+4. ✅ 验证 torch 版本未被覆盖——`torch` 保持 `2.9.1+musa5.2.0`，triton 不存在
+5. ✅ 安装 vllm-plugin-FL（纯 Python，不设 `VLLM_VENDOR`，同 MetaX）
+6. ✅ 测试 vllm serve 启动（见下文 serve 小节）
+7. ✅ 测试推理（见下文 serve 小节）
+
+**安装验证结果：** 从 `flagos-pypi-mthreads` 安装
+`vllm==0.20.2+flagos`（不使用 `--no-deps`），131 个包的依赖树中
+**零** torch/triton/nvidia 泄漏：
+
+- `torch` 保持 `2.9.1+musa5.2.0`（未被降级），`triton` 不存在
+- `flag_gems` 5.3.2 / `flagtree` 0.6.0+mthreads3.6 / `numpy` 2.2.6 全部完好
+- `xgrammar`、`compressed-tensors` 解析到各自的 `+flagos` 变体
+- `vllm-plugin-FL` 安装成功，版本 `0.0.0+gd1327ae0a`，`fl` 插件正常激活
+
+> **transformers 不是泄漏源** —— 其 torch 引用全部藏在未激活的 extras
+> (`[torch]`/`[all]`/`[dev]`…) 之后，没有任何包激活它们。早前“transformers
+> 拉入 torch”的判断实为未 pin 的 xgrammar bug（已在 PR #280 修复）。
+
+#### 唯一真正的阻塞：flag_gems mul 设备门控回归（由 PR #5130 修复）
+
+`vllm serve` 在模型加载阶段崩溃，命中 rope 的 `1.0 / freqs` 路径：
+
+```none
+rope: inv_freq = 1.0 / (base**...)  → Tensor.__rdiv__: reciprocal() * 1.0
+ → flag_gems/ops/mul.py  mul_broadcast_func
+ → torch.ops.aten.mul.Tensor.redispatch(_FALLBACK_KEYSET, a, 1.0)
+RuntimeError: aten::mul.Tensor expected Tensor for 'other', found float 1.0
+```
+
+**根因——两步上游回归，并非 kernel bug。** Triton mul kernel 在 MUSA 上
+所有路径均正确（实测 scalar/tensor/broadcast/fp16/bf16/int/out=/mul_/complex
+误差全为 0）。崩溃纯粹来自设备门控：
+
+| # | 现象 | 根因 | 修复 |
+|---|------|------|------|
+| 1 | 所有 mul 在 MUSA 上走 fallback，不走优化 Triton 路径 | FlagGems [#4666](https://github.com/flagos-ai/FlagGems/pull/4666)（"Move optimized mul to general path; use across MetaX and Hopper"）用 `device.type != "cuda"` 门控。MetaX 的 torch fork 报 `"cuda"` 故通过；mthreads 报 `"musa"`（唯一非 "cuda" 的 GPU 后端）被挤出 | PR [#5130](https://github.com/flagos-ai/FlagGems/pull/5130)：门控改判 `runtime.device.name` |
+| 2 | fallback 对标量崩溃 | FlagGems [#4999](https://github.com/flagos-ai/FlagGems/pull/4999) 把 fallback 从 `torch.mul(a,b)`（可处理标量）改成 `aten.mul.Tensor.redispatch(...)`，而 `mul.Tensor` 要求 `other` 是 Tensor，python 标量 `1.0` 无法转换 | 同上——门控放开后 MUSA 直接走 Triton，不再进入损坏的 fallback |
+
+**修复（PR #5130）：** 把门控从硬编码字面量 `"cuda"` 改为按激活后端的
+设备名判断，符合库自身惯例（如 `_upsample_bilinear2d_aa.py` 用
+`input.device.type == device.name`）：
+
+```python
+from flag_gems.runtime import device as runtime_device
+_DEVICE_NAME = runtime_device.name        # "cuda" / "musa" / ...
+...
+if device.type != _DEVICE_NAME:           # was: != "cuda"
+```
+
+`device_name` 为 `"cuda"` 的后端（nvidia、metax、iluvatar、hygon…）不受影响；
+mthreads（`"musa"`）自此走与其他后端相同的优化 Triton 路径。
+
+> **对照 MetaX：** MetaX 之所以没有命中此坑，正因为它的 torch fork 报
+> `device.type == "cuda"`，恰好通过门控；mthreads 是唯一暴露该回归的 GPU 后端。
+
+#### 启动 vllm serve + 推理（✅ 成功）
+
+选用 **DeepSeek-R1-0528-Qwen3-8B-FlagOS**（`rope_scaling.rope_type == yarn`）——
+正是最直接触发上文「唯一真正的阻塞」小节所述崩溃的路径，用来验证修复最有说服力：
+
+```bash
+export MTHREADS_VISIBLE_DEVICES=all
+vllm serve /data/DeepSeek-R1-0528-Qwen3-8B-FlagOS --port 8031 \
+  --trust-remote-code --max-model-len 4096 --enforce-eager \
+  --gpu-memory-utilization 0.85 --tensor-parallel-size 1
+# NCCL→MCCL 由 pynccl_wrapper patch 自动完成，无需额外 env
+```
+
+serve 到达 `Application startup complete`（device_config=musa，MCCL 后端），
+APIServer + EngineCore 进程均存活，全程无 `expected Tensor for 'other'` 报错。
+
+测试推理：
+
+```bash
+curl -s http://127.0.0.1:8031/v1/completions -H 'Content-Type: application/json' \
+  -d '{"model":"/data/DeepSeek-R1-0528-Qwen3-8B-FlagOS",
+       "prompt":"The capital of France is","max_tokens":24,"temperature":0}'
+```
+
+返回：
+
+```json
+{"choices":[{"text":" a city in the north of France. It is famous for the Eiffel Tower, the Arc de Triomphe",
+  "finish_reason":"length"}],
+ "usage":{"prompt_tokens":6,"completion_tokens":24,"total_tokens":30}}
+```
+
+✅ 推理成功。修复单独一处即打通整条 serve 路径，本模型无需其他 flag_gems /
+plugin 改动。
+
+#### Stack 验证 —— ✅ 完整端到端通过
+
+```
+torch:        2.9.1+musa5.2.0     ✅  from vendor PyPI（未被降级）
+triton:       (absent)            ✅  MUSA 无 triton，由 flagtree 提供
+flagtree:     0.6.0+mthreads3.6   ✅
+flag_gems:    5.3.2 + PR #5130    ✅  mul 门控修复
+numpy:        2.2.6               ✅
+vllm:         0.20.2+flagos       ✅  empty, repacked, vendor PyPI
+vllm_fl:      0.0.0+gd1327ae0a    ✅  纯 Python 源码安装（无 VLLM_VENDOR）
+MUSA device:  ✅ 8× 可见           mthreads-gmi 正常 (MTT S5000 8×80GB)
+vllm serve:   ✅ 启动成功          TP=1, enforce-eager, gpu-util 0.85, port 8031
+Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 tokens
+```
+
+#### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| FlagGems mul 门控修复 PR #5130 | ✅ 已提，E2E 验证通过 | 门控改判 `runtime.device.name`；merge 后随 flag_gems release 打包进新 runtime 镜像 |
+| repack & upload (+flagos) | ✅ 已完成 | vllm / xgrammar / compressed-tensors，见「流程 1」小节 |
+| 更大模型 / TP>1 / graph 模式 | ⬜ | 仅测过 DeepSeek-8B + eager + TP=1 |
+| 非 yarn 模型覆盖 | ⬜ | 可选，验证更广的 rope 路径 |
+
+**相关提交：** `main` 分支 478de6b（repack）；FlagGems
+[#5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
 
 ## 3. 流程总结
 
@@ -638,51 +795,3 @@ pip install \
 2. 或创建通用 workflow：build once → upload to all
 
 **参考：** FlagGems Python 包已采用此工作流（build 一次，上传到所有 vendor PyPI）
-
----
-
-## 4. mthreads-musa5.2.0 验证记录
-
-### 4.1 流程 1：Repack & Upload（✅ 已完成 2026-08-01）
-
-**执行命令：**
-```bash
-./scripts/repack-vllm-and-upload.sh --vendor mthreads --backend musa5.2.0
-```
-
-**上传的包：**
-| 包名 | 版本 | 说明 |
-|------|------|------|
-| vllm | 0.20.2+flagos | 主包，empty build |
-| xgrammar | 0.2.5+flagos | 间接依赖，strip torch/triton |
-| compressed-tensors | 0.15.0.1+flagos | 间接依赖，strip torch |
-
-**关键实现：**
-- ✅ Empty build (`VLLM_TARGET_DEVICE=empty`)
-- ✅ +flagos 版本后缀（主包 + 所有间接依赖）
-- ✅ 递归依赖版本更新（A→B→C 链都更新为 +flagos）
-- ✅ 上传到 `flagos-pypi-mthreads`
-
-### 4.2 流程 2：Install & Verify（⬜ 待验证）
-
-**验证步骤：**
-1. ✅ 启动 runtime 容器（带硬件访问）
-2. ⬜ 验证 torch/triton/flaggems 环境
-3. ⬜ 安装 repacked vllm (+flagos)
-4. ⬜ 验证 torch 版本未被覆盖
-5. ⬜ 安装 vllm-plugin-FL
-6. ⬜ 测试 vllm serve 启动
-7. ⬜ 测试推理
-
-**执行命令：**
-```bash
-./scripts/verify-vllm-backend.sh mthreads-musa5.2.0
-```
-
-**待验证项：**
-- [ ] pip 是否正确选择 +flagos 版本
-- [ ] torch 版本是否保持为 2.9.1+musa5.2.0
-- [ ] vllm serve 是否正常启动
-- [ ] 推理测试是否通过
-
-**相关提交：** `main` 分支 478de6b
