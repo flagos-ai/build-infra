@@ -18,11 +18,13 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
   它以 mthreads 后端跑通的路径为基准——`empty` 构建 + `+flagos` 版本后缀 +
   单步安装——这是目前验证最充分、最省事的方案。**除 NVIDIA 外**的所有后端
   都应照此执行。
-- **第 2 部分（后端验证记录）** 是四个已完成后端的实测记录，作为标准流程的
+- **第 2 部分（后端验证记录）** 是五个已验证后端的实测记录，作为标准流程的
   worked example。其中 NVIDIA 是首个跑通、也是唯一使用标准构建的后端；
   MetaX 是首个 `empty` 后端；mthreads 是标准流程的范例来源；hygon 首次证明
-  **repacked wheel 跨后端通用**（直接复用 mthreads 上打包的 `+flagos` wheel）。
-  个别后端因历史原因走过弯路，记录中已标注哪些步骤已被标准流程取代。
+  **repacked wheel 跨后端通用**（直接复用 mthreads 上打包的 `+flagos` wheel）；
+  iluvatar 是首个**推理跑不通的负结果**（厂商 corex Triton fork + torch 2.7.1
+  相对 vllm 0.20.2 原生 kernel 过旧）。个别后端因历史原因走过弯路，记录中已
+  标注哪些步骤已被标准流程取代。
 
 > **术语：`+flagos`** —— repack 后为 wheel 版本号追加的 PEP 440 本地版本
 > 后缀（如 `0.20.2` → `0.20.2+flagos`）。它是"这个 wheel 出自 FlagOS repack
@@ -72,6 +74,34 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
    打上 `+flagos`。**不再维护手工 `also_repack` 列表**——树是动态发现的，
    具体哪些间接依赖需要处理取决于构建模式（empty 构建跳过了硬件后端，
    声明 torch/triton 的间接依赖比 standard 构建少）。
+1. **按包剥离特定声明** —— `strip_from_indirect` 对每个受审依赖统一生效；
+   个别包需要**更窄**、只针对该包的剥离。`config.yaml` 的
+   `strip_extra_from_indirect`（键为包名、值为要剥的依赖名）实现这一点。
+   当前用于 `opencv-python-headless: [numpy]`——opencv 声明的 `numpy>=2` 是
+   faked 下限（§1.7），剥掉它才能让 numpy-1.x 后端单步安装（§1.4）。numpy
+   **不**放进全局 `strip_from_indirect`，因为别的包可能把 numpy 声明为真实
+   ABI 下限——此 map 把剥离精确限定在 opencv。opencv 是二进制 wheel，repack
+   读取并保留其平台 tag（`repack_dep` 复用 `repack_top_level` 读 WHEEL Tag
+   的逻辑），输出文件名不再误退化为 `py3-none-any`。
+1. **保留二进制 wheel 的平台 tag（重要修正）** —— 此前 `repack_dep` 对所有
+   间接依赖硬编码输出 `py3-none-any`。这对纯 Python 包（vllm、compressed-
+   tensors）正确，但对**二进制**间接依赖是错的：opencv 与 **xgrammar** 都是
+   binary wheel（opencv `cp37-abi3-manylinux_2_28_x86_64`、xgrammar
+   `cp310-cp310-manylinux_2_27_x86_64`），过去被误标成 `py3-none-any`——一份
+   x86_64 的 `.so` 挂着"通用"标签，装到别的平台会静默塞入不可用的二进制。
+   修正后 repack 保留真实平台 tag，pip 装机时按 arch/pyver 自动选对，平台不
+   匹配则**明确拒绝**而非静默装坏。这也界定了"通用性"的粒度：vllm、
+   compressed-tensors 是真正 `py3-none-any` 的通用 wheel；**opencv、xgrammar
+   是 ABI 绑定的二进制 wheel**——opencv 是 `cp37-abi3`（稳定 ABI，一份跨所有
+   CPython≥3.7，仅随 arch 变），xgrammar 是 `cp310-cp310`（**随 Python 小版本
+   变，也随 arch 变**）。正因如此，四个 wheel 全部**留在 per-vendor 索引**
+   （`flagos-pypi-<vendor>`）：每个 vendor runtime 镜像只有单一 (python, arch)，
+   `build-and-repack.sh <vendor>` 在该镜像里跑就自然产出唯一正确的 opencv/
+   xgrammar 变体，与该后端的 torch/flag_gems 并列——无需枚举 Python 版本、无
+   矩阵可维护，且 vllm 与其匹配的 xgrammar 始终同源同批（bump vllm 时重跑
+   repack 整批重生，不会出现跨索引版本错配把 triton 泄漏放回来）。曾短暂设想
+   过 shared `flagos-pypi-hosted`，但 xgrammar 的 per-Python-version 特性会让
+   共享索引要么维护 3×2 矩阵、要么拆成多索引安装——反而更脆，故放弃（§5.2）。
 
 顶层剥离规则（`config.yaml`）：`remove_torch_chain`（torch/torchaudio/
 torchvision/torchcodec）、`remove_cuda_only`（PyNvVideoCodec、nvidia-* 等）、
@@ -79,7 +109,9 @@ torchvision/torchcodec）、`remove_cuda_only`（PyNvVideoCodec、nvidia-* 等�
 
 ## 1.4 安装与验证流程
 
-`+flagos` 后缀让安装收敛为**单步**（vendor 为主索引，Aliyun 补充安全依赖）：
+`+flagos` 后缀让安装收敛为**单步**。所有 repacked wheel（vllm + xgrammar +
+compressed-tensors + opencv-python-headless）与 vendor 专属包（torch/flag_gems/
+flagtree）同住 per-vendor 索引；其余安全依赖来自 Aliyun：
 
 ```bash
 VENDOR=https://resource.flagos.net/repository/flagos-pypi-<vendor>/simple
@@ -90,7 +122,7 @@ pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" \
   <torch/torchvision/... 见 configs.yaml deps> flag_gems==<configs.yaml flaggems> \
   pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.1 numpy==<per-backend, 见 §1.7>
 
-# 2. repacked vllm —— 单步即可，无需 --no-deps
+# 2. repacked vllm —— vendor 为主索引，单步即可，无需 --no-deps
 pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" vllm==0.20.2+flagos
 ```
 
@@ -107,6 +139,19 @@ pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" vllm==0.20.2+flago
 > **PR #280** 让 repack **递归**把所有间接依赖 pin 到 `+flagos` 后，torch
 > 约束不再泄漏，单步安装即安全——已在 mthreads 上实测（131 包依赖树零
 > torch/triton/nvidia 泄漏，见 §2.3）。
+
+> **numpy-1.x-ABI 后端（iluvatar、hygon）也单步。** 这些后端 torch 编于
+> numpy 1.x，必须 `numpy==1.26.4`（§1.7）。曾经把它写进第 1 步会触发
+> `ResolutionImpossible`——`opencv-python-headless` 强声明 `numpy>=2`（faked
+> 下限，§1.7），pip 解析期不认运行时兼容。**现已修复：** repack 把
+> opencv 的 `numpy` 声明一并剥掉（`config.yaml` 的
+> `strip_extra_from_indirect`，与剥 torch/triton 同机制），repacked
+> `opencv-python-headless==5.0.0.93+flagos` 不再声明 numpy 下限。因此
+> `numpy==1.26.4` 可直接写进第 1 步，所有后端单步安装，不再需要两步降级。
+> opencv 是二进制 wheel（`cp37-abi3-manylinux_2_28_<arch>`），repack 只改
+> METADATA、保留平台 tag；因为它随 per-vendor 镜像在对应 (python, arch) 上
+> repack 并传到该 vendor 索引，无需跨平台矩阵，pip 装机时命中的就是本机的
+> wheel。
 
 验证步骤：
 
@@ -196,7 +241,7 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
 
 # 第 2 部分 · 后端验证记录（worked examples）
 
-四个后端按第 1 部分的模板组织：**环境 → repack → 安装 → 阻塞点 → Stack
+五个后端按第 1 部分的模板组织：**环境 → repack → 安装 → 阻塞点 → Stack
 验证 → 待办**。标准流程（§1）即从这些记录中提炼；记录里保留了个别后端走过
 的弯路，并标注哪些已被 §1 取代。
 
@@ -756,6 +801,122 @@ Inference:    ✅ 成功                  Ministral-8B, 32 tokens
 
 **相关提交：** 无新增代码；复用 §2.3 mthreads 的 repack 产物（PR #280）。
 
+## 2.5 iluvatar-corex4.4.0（负结果：厂商工具链版本过旧）
+
+**日期:** 2026-08-02　**平台:** Iluvatar CoreX (BI 系列)
+**节点:** `ix15`（JumpServer 别名，hostname n15）　**CoreX:** 4.4.0
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-iluvatar-corex4.4.0:2.1.1`
+
+**这是首个跑不通推理的后端**，但结论明确、可操作。与 §2.4 hygon 一样直接
+复用 mthreads 的 `+flagos` wheel，验证三件事：(1) wheel 跨后端通用；(2) numpy
+版本正确；(3) vllm 推理可跑。前两点通过，第三点**失败**——根因是 iluvatar 的
+**corex Triton fork 前端 + torch 2.7.1 相对 vllm 0.20.2 的原生 kernel 过旧**。
+
+### Repack —— 无（复用 mthreads 产物）
+
+同 §2.4，不在 iluvatar 上重新 build。直接从 `flagos-pypi-mthreads` 装 §2.3 的
+三个 `+flagos` wheel（vllm 0.20.2 / xgrammar 0.2.5 / compressed-tensors 0.15.0.1）。
+
+### 安装 —— ✅ wheel 通用；曾踩到 numpy 单步安装坑（现已修复）
+
+**GOAL 1（wheel 通用性）✅：** 三个 mthreads `+flagos` wheel 在 iluvatar 上
+正常安装，torch `2.7.1+corex.4.4.0`、flag_gems、flagtree 全部保留，零泄漏。
+**这是 §5.2 通用性的第二个跨后端实证**（继 hygon 之后）。
+
+**GOAL 2（numpy 版本）✅：** iluvatar torch 2.7.1 同样编于 numpy 1.x ABI，
+`configs.yaml` 已 pin `numpy==1.26.4`（正确，`tensor.numpy()` 可跑）。
+
+> **当时的坑（现已修复）：** 单步 `pip install vllm==0.20.2+flagos
+> numpy==1.26.4` 曾报 `ResolutionImpossible`——`opencv-python-headless` 强声明
+> `numpy>=2`（§1.7 的 faked 下限），pip 解析期不认"运行时兼容"，当时只能两步
+> 安装（先装 vllm 让 numpy 浮到 2.2.6，再 `pip install numpy==1.26.4` 降级）。
+> **修复：** repack 现在把 opencv 的 `numpy` 声明一并剥掉（`config.yaml` 的
+> `strip_extra_from_indirect: {opencv-python-headless: [numpy]}`，§1.3），
+> repacked `opencv-python-headless==5.0.0.93+flagos` 不再声明 numpy 下限，
+> `numpy==1.26.4` 可直接写进第 1 步——所有 numpy-1.x-ABI 后端（iluvatar、
+> hygon）单步安装即可，两步绕过成为历史（§1.4）。
+
+### 阻塞点：corex Triton fork + torch 2.7.1 对 vllm 0.20.2 原生 kernel 过旧
+
+**GOAL 3（推理）❌**。四个阻塞点，同一根因。iluvatar 的 torch 2.7.1 是四个
+后端里最旧的（hygon 2.9.0、mthreads 2.9.1、metax 2.8.0、nvidia 2.10.0），
+corex Triton fork 前端也比 vllm 0.20.2 的原生 kernel 所需的更旧、更严格：
+
+| # | 现象 | 性质 | 绕过手段 |
+|---|------|------|----------|
+| A | `import vllm` 崩：`ImportError: cannot import name '_SymmetricMemory' from 'torch._C._distributed_c10d'` | torch 2.7.1 < 2.8（`_SymmetricMemory` 约 torch 2.8 引入） | vllm `parallel_state.py:42` 的 `import torch.distributed._symmetric_memory` 是**无守卫**的顶层导入；而 vllm 自己在**同类文件** `symm_mem.py:16` 已用 `try/except ImportError` 守卫。给 line 42 补同样的守卫即可 import——TP=1 下 symm_mem 路径根本不走（实际算子在 `parallel_state.py:245` 的 `torch.ops.symm_mem.*`，是 TP>1 collective） |
+| B | 采样阶段 Triton 编译崩：`TypeError: Cannot use /, #, or % with triton.language.uint32 and triton.language.int32 ... different signedness` | corex Triton fork 拒绝混合符号运算 | vllm 原生采样 kernel `topk_topp_triton.py` 的 `uint32 // int32`。在 `topk_topp_sampler.py` 强制 `HAS_TRITON=False`，回退到纯 pytorch 采样路径 |
+| C | 推理阶段 Triton 编译崩：`AttributeError("'AnnAssign' object has no attribute 'targets'")`，出错行 `left: tl.int32 = 0` | corex Triton 前端解析不了 PEP 526 注解赋值 | vllm 原生 attention kernel `triton_unified_attention.py`。用 plugin 自带 flag `VLLM_FL_USE_FLAGGEMS_ATTN=1` 把 attention 路由到 plugin 的 `AttentionFLBackend`（flag_gems attn，能在 corex 上编译），替代 vllm 原生 `TRITON_ATTN`（默认值，崩）——**这是 plugin 提供的正规开关，非源码 hack** |
+| D | 绕过 A–C 后 serve 启动成功（health 200、模型可列），但推理输出**乱码** | 前向数值正确性 | 未找到 |
+
+**关键区分：flag_gems 自带的 Triton kernel（rms_norm、rotary_embedding、
+silu_and_mul）在 corex 上编译运行都正常**——它们是针对 corex fork 写的；崩的
+全是 **vllm 上游自带的原生 Triton kernel**（B 的采样、C 的 attention），用了
+corex 前端不支持的语言特性。
+
+**D 是决定性的坏消息：** 绕过 A–C 后，serve 完整启动、接受请求、返回 24
+tokens、HTTP 200，但输出是乱码：`"eld \$不断 the movie...髹 Next..."`。在
+**temp=0（确定性 argmax，无采样随机性）** 下**仍是乱码**（`"eld \`vette记者在
+ApplicationController\n\n..."`，chat 全是换行）——排除采样，故障锁定在
+**前向数值路径**：模型跑完并返回，但 logits 数值是错的。日志里
+`rms_norm=['native']`（部分算子回退 torch-native）可能也参与了失配。
+
+> **对照 hygon/mthreads：** 那两个后端 torch ≥2.8、厂商 Triton fork 能吞下
+> vllm 原生 kernel，所以只碰到单点的 mul 门控 bug（可修）。iluvatar 不是一个
+> bug，是**工具链代差**——corex Triton 前端与 torch 2.7.1 双双落后于 vllm
+> 0.20.2 的要求。A、B 施加的都是**诊断补丁**（非生产修复），到 D 停手未再
+> 深挖数值 bug。
+>
+> **注意（诊断组合的局限）：** 强制 flag_gems attention（C）+ 关闭原生采样
+> Triton（B）是一个**未经测试的算子组合**，尚不能完全排除它本身就是 D 乱码
+> 的成因之一。要定论需在一个 Triton 无障碍的后端上复现同样的
+> `VLLM_FL_USE_FLAGGEMS_ATTN=1` + `HAS_TRITON=False` 组合做对照。
+
+### serve + 推理 —— ❌ 乱码（前向数值错误）
+
+```bash
+VLLM_FL_USE_FLAGGEMS_ATTN=1 vllm serve /data/Qwen3-4B-Instruct-2507-FlagOS \
+  --port 8035 --trust-remote-code --max-model-len 4096 --enforce-eager \
+  --gpu-memory-utilization 0.85 --tensor-parallel-size 1
+# 另需 A/B 两处诊断补丁：parallel_state.py:42 加守卫、topk_topp_sampler.py HAS_TRITON=False
+```
+
+serve 到达 `Application startup complete`，`Using FlagGems attention backend.`，
+KV cache 127,024 tokens。但推理（含 temp=0）输出乱码：
+
+```json
+{"choices":[{"text":"eld \\`vette记者在 ApplicationController\n\n\n...","finish_reason":"length"}]}
+```
+
+### Stack 验证
+
+```
+torch:        2.7.1+corex.4.4.0    ✅  from 镜像（未降级，四后端中最旧）
+triton:       corex fork           ⚠️  flag_gems 自带 kernel 可编译；vllm 原生 kernel 不可
+flagtree:     (镜像自带)            ✅
+flag_gems:    5.3.2                 ✅  自带算子编译运行正常（mul 门控 #5130 不影响，device=cuda）
+numpy:        1.26.4               ✅  configs.yaml 已 pin（torch 编于 numpy 1.x ABI）
+vllm:         0.20.2+flagos        ✅  empty, 复用 mthreads PyPI 产物
+vllm_fl:      0.0.0+gd1327ae0a     ✅  纯 Python（无 VLLM_VENDOR）
+CoreX device: ✅ 可见               (Iluvatar BI)
+vllm import:  ⚠️  需补 symm_mem 守卫（trap A）
+vllm serve:   ⚠️  需 B+C 绕过才能启动
+Inference:    ❌  乱码（temp=0 仍乱）——前向数值错误（trap D）
+```
+
+### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| 反馈厂商：corex Triton fork 支持 vllm 原生 kernel | ⬜ 阻塞 | 需支持混合符号运算（B）与 PEP 526 注解赋值（C）；或 FlagGems 提供覆盖全部 vllm 原生 Triton 算子的替代 |
+| 反馈厂商：torch 升级到 ≥2.8 | ⬜ 阻塞 | vllm 0.20.2 需要 `_SymmetricMemory`（trap A），corex torch 2.7.1 缺 |
+| 前向数值正确性（trap D）| ⬜ 阻塞 | flag_gems 在 corex 上逐算子对数值；先在无 Triton 障碍的后端复现 B+C 组合做对照，排除诊断组合本身 |
+| vllm `parallel_state.py:42` 无守卫导入 | ⬜ 可提 upstream/plugin | vllm 自己在 `symm_mem.py:16` 已守卫同一导入；给 line 42 补 `try/except` 对所有 torch<2.8 后端都受益 |
+| numpy-1.x 后端单步安装 ResolutionImpossible | ✅ 已修复 | repack 剥掉 opencv 的 faked `numpy>=2`（`strip_extra_from_indirect`，§1.3）；单步安装恢复，§1.4 已更新 |
+
+**相关提交：** 无；复用 §2.3 mthreads 的 repack 产物（PR #280）。诊断补丁
+（trap A/B）为一次性验证手段，未落库。
+
 ---
 
 # 第 3 部分 · 流程总结与决策
@@ -830,32 +991,49 @@ platform tag（`py3-none-any`），不伪造 `cp38-abi3-manylinux_2_35_x86_64`�
 | vendor + Aliyun 混合索引 | ✅ mthreads | `--index-url vendor --extra-index-url aliyun` 正确解析，131 包零泄漏 |
 | 平台匹配 vs 版本比较优先级 | ✅ mthreads | 保留 `py3-none-any` 情况下版本号（`+flagos`）优先于平台匹配度，pip 选中我们的 wheel |
 | 缓存干扰 | ⬜ | 未系统测试 pip 缓存是否跳过版本比较 |
-| 跨后端正式验证矩阵 | ✅ hygon | Hygon 直接复用 mthreads 打的 `+flagos` wheel，单步安装零泄漏（§2.4）——首次跨后端实证 |
+| 跨后端正式验证矩阵 | ✅ hygon + iluvatar | 两者均直接复用 mthreads 打的 `+flagos` wheel，单步安装零泄漏（§2.4、§2.5）——两次跨后端实证 |
 
 **若跨后端回归发现 pip 选错版本，备选：** 改用 `0.20.2.post1`（非本地
 版本，排序明确高于 `0.20.2`）。
 
 **相关提交：** `main` 478de6b、PR #280（递归 `+flagos` pin，使单步安装成立）。
 
-### 5.2 empty vllm 包的通用性（待办）
+### 5.2 empty vllm 包的通用性与 wheel 的落点（per-vendor 决策）
 
-empty build 是纯 Python（无硬件代码），repack 只清理 METADATA 依赖声明、
-不改代码，输出 `py3-none-any`——**一份 wheel 通用于所有 empty 后端**：
+empty build 的顶层 vllm 是纯 Python（无硬件代码），repack 只清理 METADATA
+依赖声明、不改代码，输出 `py3-none-any`——**vllm 顶层一份 wheel 通用于所有
+empty 后端**。compressed-tensors 同理（`py3-none-any`）。
 
-```
-Build once (任意 empty 后端)  →  Upload to ALL vendor PyPIs
-```
+但通用性有粒度：**opencv、xgrammar 是 ABI 绑定的二进制 wheel**——opencv
+`cp37-abi3`（稳定 ABI，一份跨所有 CPython≥3.7，仅随 arch 变），xgrammar
+`cp310-cp310`（**随 Python 小版本变，也随 arch 变**）。过去 repack 把二进制
+wheel 误标成 `py3-none-any`，恰好因 5 个后端都是 cp310 x86_64 而未暴露；一旦
+出现 aarch64 或别的 pyver 就会静默装入不可用的 `.so`（§1.3 已修，tag 真实、
+pip 按平台选择或明确拒绝）。
 
-安装时从目标后端 PyPI 取该后端的 torch 等依赖即可。
+> **落点决策：全部 per-vendor，不设 shared `flagos-pypi-hosted`。** 曾设想把
+> "通用" wheel 放共享索引省去重复，但 xgrammar 的 per-Python-version 特性会
+> 让共享索引要么维护 3×2（pyver×arch）矩阵、要么把安装拆成 hosted+vendor 双
+> 索引——后者在 vllm 版本 bump 时尤其脆：`vllm==X+flagos` pin 的 xgrammar 版
+> 本若与共享索引里的存货错配，pip 回退到上游 xgrammar，triton 泄漏重现。**留
+> 在 per-vendor 则天然规避**：每个 vendor 镜像单一 (python, arch)，
+> `build-and-repack.sh <vendor>` 在镜像内跑就产出唯一正确的 opencv/xgrammar
+> 变体，与该后端 torch/flag_gems 并列同源；bump vllm 时重跑 repack，整批
+> （vllm + 匹配的 xgrammar/opencv/compressed-tensors）同索引原子更新，无跨索引
+> 错配。代价仅是 6.7MB 的通用 vllm wheel 在各 vendor 索引各存一份——微不足道。
 
-**已实证（✅ hygon，§2.4）：** mthreads 上打包上传到 `flagos-pypi-mthreads`
-的三个 `+flagos` wheel，在 Hygon 上原样单步安装、零 torch/numpy/triton 泄漏，
-serve + 推理成功。技术前提（empty wheel 与后端无关）成立；剩下的是**上传
-自动化**，非可行性问题。
+**已实证（✅ hygon §2.4、iluvatar §2.5）：** mthreads 上打包上传到
+`flagos-pypi-mthreads` 的三个 `+flagos` wheel，在 Hygon 与 iluvatar 上原样
+单步安装、零 torch/numpy/triton 泄漏（iluvatar 上 wheel 安装本身成功，推理
+另因厂商工具链过旧受阻，与 wheel 通用性无关）。技术前提（empty wheel 与
+后端无关）成立；剩下的是**上传自动化**，非可行性问题。
 
 **待实现（⬜）：**
-1. 扩展 `build-and-repack.sh --upload` 支持一次上传到全部 vendor PyPI。
-2. 或建通用 workflow：build once → upload to all。
+1. 扩展 `build-and-repack.sh --upload` 支持批量：对每个 vendor 在其镜像内
+   repack + 上传到对应 `flagos-pypi-<vendor>`（纯 Python wheel 可复用，二进制
+   wheel 各自 per-(python,arch) 重生）。
+2. 或建 on-demand workflow：多 runner（x86_64 + aarch64）分别在各 vendor 镜像
+   内 repack → 各传各的 vendor 索引。
 
 **参考：** FlagGems Python 包已采用此工作流。**前置：** 此模型对 NVIDIA
 成立与否取决于 §5.3。

@@ -217,9 +217,13 @@ docker exec "${CONTAINER}" bash -c "
 
 log_step "Step 3: Installing repacked vllm"
 
-# Install vllm+flagos from vendor PyPI with Aliyun as fallback.
-# Repacked dependencies (transformers+flagos, etc.) are prioritized
-# because vendor PyPI is the primary index.
+# Install vllm+flagos from the vendor PyPI (primary), with Aliyun as
+# fallback.  All repacked wheels (vllm + xgrammar + compressed-tensors +
+# opencv-python-headless, all carrying the +flagos suffix) live on the
+# vendor index alongside that backend's torch/flag_gems; everything else
+# resolves from Aliyun.  opencv's numpy declaration is stripped in the
+# repacked wheel, so a single-step install with a pinned numpy no longer
+# hits ResolutionImpossible.
 docker exec "${CONTAINER}" bash -c "
     pip install \
         --index-url '${VENDOR_PYPI}' \

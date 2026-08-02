@@ -65,3 +65,24 @@ strip_from_indirect:
   - torch-c-dlpack-ext
   - triton
   - tokenspeed-triton
+
+# ── Per-package extra strip rules ─────────────────────────────────────
+# strip_from_indirect above applies uniformly to EVERY audited indirect
+# dep.  Some deps need a narrower, package-specific strip that must NOT
+# apply to others.  This map is keyed by the (normalized) package name of
+# the dep being repacked; its value is the list of dependency names to
+# strip from THAT package's Requires-Dist only.
+#
+# opencv-python-headless declares `numpy>=2; python_version >= "3.9"`.
+# This is a *faked* floor: the wheel is built against numpy 2.x but is
+# runtime-backward-compatible with numpy >=1.19 (verified via full cv2
+# C-API roundtrip under numpy 1.26.4 — see E2E-REPORT.md §1.7/§2.4/§2.5).
+# The declaration otherwise makes a single-step
+# `pip install vllm==...+flagos numpy==1.26.4` unsolvable on numpy-1.x-ABI
+# backends (iluvatar, hygon).  Stripping it lets every backend install in
+# one step.  numpy is NOT in strip_from_indirect precisely because other
+# deps may declare it as a *real* ABI floor — this map scopes the strip to
+# opencv alone.
+strip_extra_from_indirect:
+  opencv-python-headless:
+    - numpy

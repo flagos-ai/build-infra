@@ -25,9 +25,14 @@
 # Options:
 #   --vllm-version X.Y.Z   vLLM version to build (default: 0.20.2)
 #   --upload               After repacking, twine-upload the +flagos wheels
-#                          to the vendor PyPI (flagos-pypi-<vendor>). Opt-in:
-#                          uploading publishes artifacts, so it never runs by
-#                          default.
+#                          to the per-vendor PyPI (flagos-pypi-<vendor>).
+#                          Opt-in: uploading publishes artifacts, so it never
+#                          runs by default. All repacked wheels stay per-vendor
+#                          alongside that backend's torch/flag_gems/flagtree —
+#                          the binary deps (opencv, xgrammar) are ABI-bound to
+#                          the vendor image's (python, arch), and keeping the
+#                          matched vllm+deps set on one index avoids split-index
+#                          fragility on a vllm version bump.
 #
 # Prerequisites:
 #   - Docker with harbor.baai.ac.cn access
@@ -88,7 +93,14 @@ fi
 
 BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}-build"
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
-VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
+
+# Upload target.  Everything stays on the per-vendor index: the binary deps
+# (opencv, xgrammar) are ABI-bound to this vendor image's (python, arch), and
+# keeping the whole matched set — vllm + its exact xgrammar/opencv/compressed-
+# tensors — on one index is what makes a vllm version bump safe (re-repack
+# regenerates a coherent set; no split-index skew reintroducing the torch/
+# triton leak).
+UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
 
 CONTAINER="vllm-build-${VENDOR}-${BACKEND}"
 
@@ -175,9 +187,9 @@ ls -lh "$WORK_DIR/output/" | sed 's/^/  /'
 # outward-facing, so it only happens when --upload is passed.
 if [[ "$UPLOAD" == true ]]; then
     echo ""
-    echo "==> Uploading to ${VENDOR_PYPI} …"
+    echo "==> Uploading to ${UPLOAD_PYPI} …"
     command -v twine > /dev/null || pip install -q twine
-    twine upload --repository-url "${VENDOR_PYPI}" "${WORK_DIR}/output/"*.whl
+    twine upload --repository-url "${UPLOAD_PYPI}" "${WORK_DIR}/output/"*.whl
 fi
 
 echo ""

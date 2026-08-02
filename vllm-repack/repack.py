@@ -653,6 +653,23 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
     return resolved
 
 
+def _strip_set_for(name: str, config: dict) -> set[str]:
+    """Names to strip from a dep's Requires-Dist.
+
+    Union of the global `strip_from_indirect` (torch/triton family, applied
+    to every audited dep) and any per-package `strip_extra_from_indirect`
+    entry keyed by this dep's normalized name (e.g. numpy for
+    opencv-python-headless).  This lets a strip be scoped to one package
+    without applying it to every dep that happens to declare the same name.
+    """
+    strip_set = {_normalize(x) for x in config.get("strip_from_indirect", [])}
+    extra_map = config.get("strip_extra_from_indirect", {}) or {}
+    for key, names in extra_map.items():
+        if _normalize(key) == _normalize(name):
+            strip_set |= {_normalize(x) for x in (names or [])}
+    return strip_set
+
+
 def audit_dep_meta(name: str, version: str, extra_indexes: list[str]) -> dict | None:
     """Download a dep wheel and inspect its METADATA for torch/triton.
 
@@ -660,7 +677,7 @@ def audit_dep_meta(name: str, version: str, extra_indexes: list[str]) -> dict | 
     suspect_deps — or None if download/read fails.
     """
     config = load_config()
-    strip_set = {_normalize(x) for x in config.get("strip_from_indirect", [])}
+    strip_set = _strip_set_for(name, config)
 
     try:
         whl_path = _download_dep_wheel(name, version, extra_indexes)
@@ -699,7 +716,7 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
         visited = set()
 
     config = load_config()
-    strip_set = {_normalize(x) for x in config.get("strip_from_indirect", [])}
+    strip_set = _strip_set_for(name, config)
 
     print(f"  repack: {name}=={version}")
 
@@ -711,6 +728,12 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
 
     meta_text, dist_info_dir = read_wheel_metadata(whl_path)
     all_rd = parse_requires_dist(meta_text)
+
+    # Preserve the source wheel's platform Tag (e.g. binary deps like
+    # opencv-python-headless ship cp37-abi3-manylinux_2_28_x86_64).  Without
+    # this the output filename would default to py3-none-any and disagree
+    # with the internal WHEEL Tag, producing an invalid/mistagged wheel.
+    src_wheel_tag = _get_wheel_tag(_read_wheel_file(whl_path, dist_info_dir))
 
     removed = []
     for rd in all_rd:
@@ -788,8 +811,10 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     with open(manifest_path, "w", encoding="utf-8") as f:
         yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
-    # Rewrite wheel with updated metadata
-    output_name = wheel_name_to_filename(name, f"{version}+flagos")
+    # Rewrite wheel with updated metadata.  Preserve the source platform Tag
+    # so binary deps (e.g. opencv cp37-abi3-manylinux_2_28_x86_64) keep a
+    # filename that matches their internal WHEEL Tag.
+    output_name = wheel_name_to_filename(name, f"{version}+flagos", src_wheel_tag)
     output_path = OUTPUT_DIR / output_name
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
                   old_dist_info_dir if old_dist_info_dir != dist_info_dir else None)
