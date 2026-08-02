@@ -18,10 +18,11 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
   它以 mthreads 后端跑通的路径为基准——`empty` 构建 + `+flagos` 版本后缀 +
   单步安装——这是目前验证最充分、最省事的方案。**除 NVIDIA 外**的所有后端
   都应照此执行。
-- **第 2 部分（后端验证记录）** 是三个已完成后端的实测记录，作为标准流程的
+- **第 2 部分（后端验证记录）** 是四个已完成后端的实测记录，作为标准流程的
   worked example。其中 NVIDIA 是首个跑通、也是唯一使用标准构建的后端；
-  MetaX 是首个 `empty` 后端；mthreads 是标准流程的范例来源。个别后端因历史
-  原因走过弯路，记录中已标注哪些步骤已被标准流程取代。
+  MetaX 是首个 `empty` 后端；mthreads 是标准流程的范例来源；hygon 首次证明
+  **repacked wheel 跨后端通用**（直接复用 mthreads 上打包的 `+flagos` wheel）。
+  个别后端因历史原因走过弯路，记录中已标注哪些步骤已被标准流程取代。
 
 > **术语：`+flagos`** —— repack 后为 wheel 版本号追加的 PEP 440 本地版本
 > 后缀（如 `0.20.2` → `0.20.2+flagos`）。它是"这个 wheel 出自 FlagOS repack
@@ -157,6 +158,17 @@ numpy **按后端在 `configs.yaml` 显式锁定**，不由 FlagGems 硬锁：
 - Python 3.12 后端（如 nvidia-cuda12.8/13.3、ascend）：`numpy==2.3.5`
 - Python 3.10 后端（如 mthreads、cambricon）：`numpy==2.2.6`
   （Python 3.10 不支持 `numpy>2.2.6`）
+- **hygon-dtk26.04（Python 3.10）：应为 `numpy==1.26.4`** —— 其厂商 torch
+  编于 numpy 1.x ABI，不能跑 numpy 2.x（§2.4）。当前 pin 的 `2.2.6` 是坏的。
+
+**真正决定 per-backend numpy 版本的两个约束：**
+1. **Python 版本上限** —— py3.10 不支持 `numpy>2.2.6`。
+2. **厂商 torch 的 numpy ABI** —— torch 编于哪个 numpy ABI 决定其运行时下限/
+   上限（编于 1.x 的 torch 要 `<2`；编于 2.x 的向后兼容 1.x）。
+
+`opencv-python-headless` 声明的 `numpy>=2` **不是真实约束**——它是针对 numpy
+2.x 编译、运行时向后兼容 1.x 的 wheel，实测在 numpy 1.26.4 上功能完好（§2.4）。
+历史上的 numpy bump/revert 有一半是被这个 faked 声明误导的（见 §6）。
 
 FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），把版本
 决定权交给 build-infra 的 per-backend 锁定。因此不同后端 numpy 版本不同是
@@ -184,7 +196,7 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
 
 # 第 2 部分 · 后端验证记录（worked examples）
 
-三个后端按第 1 部分的模板组织：**环境 → repack → 安装 → 阻塞点 → Stack
+四个后端按第 1 部分的模板组织：**环境 → repack → 安装 → 阻塞点 → Stack
 验证 → 待办**。标准流程（§1）即从这些记录中提炼；记录里保留了个别后端走过
 的弯路，并标注哪些已被 §1 取代。
 
@@ -203,6 +215,12 @@ vllm 依赖链里 `opencv-python-headless` 声明 `numpy>=2`，与当时 FlagGem
 锁的 `numpy==1.26.4` 冲突（14 个后端中没有任何 vendor torch 声明 `numpy<2`）。
 最终确立 §1.7 的策略：FlagGems 不 pin numpy，build-infra 按后端锁定
 （nvidia-cuda12.8 为 Python 3.12 → `numpy==2.3.5`）。演进全过程见 §6。
+
+> **事后更正（§2.4）：** 上面这个"冲突"其实是**伪冲突**——opencv 的
+> `numpy>=2` 是 faked 声明，其 wheel 编于 numpy 2.x 但运行时向后兼容 1.x
+> （实测 1.26.4 下 C-API 往返完好）。当时若识破这一点，本可继续沿用全局
+> `numpy==1.26.4`，无需 bump/revert。真实约束只有 py 版本上限与厂商 torch
+> ABI 两条（§1.7）。
 
 ### Repack（standard）
 
@@ -592,6 +610,152 @@ Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 t
 **相关提交：** `main` 478de6b（repack）、PR #280（递归 `+flagos` pin）；
 FlagGems [#5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
 
+## 2.4 hygon-dtk26.04（跨后端通用性验证）
+
+**日期:** 2026-08-02　**平台:** Hygon BW1000 (8× HCU)
+**节点:** `hygon25`（JumpServer 别名，hostname hygon-2-25）　**DTK:** 26.04
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-hygon-dtk26.04:2.1.1`
+
+**这是首个不做本地 repack、直接复用他机 wheel 的后端**——用的正是 §2.3 在
+mthreads 上打包上传到 `flagos-pypi-mthreads` 的三个 `+flagos` wheel。目的有
+二：(1) 实证 §5.2 的"empty wheel 跨后端通用"；(2) 摸清 Hygon 上 vllm 推理
+的坑。结论：**通用性成立**，唯一真阻塞是镜像侧的 torch↔numpy ABI 不匹配。
+
+> **容器启动（DCU 直通）：** docker 默认 runtime 已是 `dcu`；仍显式带上设备
+> 与 HAL 挂载：
+> ```bash
+> docker run -d --name vllm-verify-hygon --network host --runtime dcu \
+>   --device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video \
+>   -v /opt/hyhal:/opt/hyhal -v /data:/data \
+>   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.1 sleep infinity
+> ```
+> `hy-smi` 在容器内可见 8× HCU（宿主机无此命令）。
+
+### Repack —— 无（复用 mthreads 产物）
+
+不在 Hygon 上重新 build/repack。empty vllm 是纯 Python `py3-none-any`，repack
+只清理 METADATA 依赖声明、不含硬件代码，因此**一份 wheel 通用于所有 empty
+后端**（§5.2）。直接从 `flagos-pypi-mthreads` 装 §2.3 的三个包：
+
+| 包 | 版本 | 来源 |
+|------|------|------|
+| vllm | 0.20.2+flagos | `flagos-pypi-mthreads`（§2.3 打包） |
+| xgrammar | 0.2.5+flagos | 同上 |
+| compressed-tensors | 0.15.0.1+flagos | 同上 |
+
+### 安装 —— ✅ 单步，零泄漏（跨后端通用性实证）
+
+按 §1.4 单步安装，但**主索引指向 mthreads 的 PyPI**（而非 hygon 自己的）：
+
+```bash
+VENDOR=https://resource.flagos.net/repository/flagos-pypi-mthreads/simple
+ALIYUN=https://mirrors.aliyun.com/pypi/simple
+pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" vllm==0.20.2+flagos
+```
+
+`pip install --dry-run` 的 "Would install" 集合中**零** torch / triton /
+numpy / nvidia-* / flag_gems——Hygon 镜像烘焙的版本全部保留：
+
+- `torch` 保持 `2.9.0+das.opt1.dtk2604`（未降级），`triton` 不存在（由
+  flagtree 提供，与 mthreads 同）
+- `flag_gems` 5.3.2 / `flagtree` 0.5.1+hcu3.1 / `numpy` 2.2.6 全部完好
+- 三个 `+flagos` wheel 正确解析
+- `vllm-plugin-FL` 纯 Python 安装（`0.0.0+gd1327ae0a`，不设 `VLLM_VENDOR`），
+  `fl` 插件正常激活
+
+**这实证了 §5.2：mthreads 上打的 empty wheel 在 Hygon 上原样可用，vendor
+PyPI 无须为这些纯 Python 包做 per-vendor repack。**
+
+### 阻塞点：torch↔numpy ABI 不匹配（镜像侧问题，非 vllm 引入）
+
+装完后 `import torch` 警告 `Failed to initialize NumPy: _ARRAY_API not
+found`，`tensor.numpy()` 抛 `RuntimeError: Numpy is not available`。
+
+**根因：** 厂商 torch `2.9.0+das.opt1.dtk2604` 编译时链接的是 **numpy 1.x C
+ABI**，而镜像烘焙的是 **numpy 2.2.6**（configs.yaml 的 hygon pin）。二分验证：
+numpy 1.26.4 → `TORCH_NUMPY_OK`；numpy 2.2.6 → `Numpy is not available`。
+**并非 vllm 引入**——numpy 全程保持 2.2.6（安装未改动它），torch 在 baseline
+就已经用不了 numpy。与 iluvatar 同类（其 torch 亦编译于 numpy 1.x）。
+
+**挤压效应（伪冲突）：** vllm 依赖 `opencv-python-headless 5.0.0.93` 声明
+`numpy>=2; python_version >= "3.9"`，看似与 Hygon torch 的 `numpy<2` 冲突。
+**但这个 `>=2` 是 faked（打包策略声明，非运行时 ABI 下限）。** 实测：numpy
+1.26.4 下 cv2 5.0.0 的 C-API 往返全部正常——`cvtColor`、`imencode`/`imdecode`
+（PNG 无损，`max_err=0`）、`resize`(float64) 均通过。技术原因：numpy 2.0
+起，**针对 numpy 2.x 编译的 C 扩展在运行时向后兼容 numpy ≥1.19**，所以
+opencv wheel 在 1.26.4 上照跑，只是元数据声明了 `>=2`。因此 opencv **不构成**
+numpy 版本的真实约束（这也纠正了历史 numpy saga 的一个前提，见 §1.7、§6）。
+
+**真正的 numpy 下限是厂商 torch 的 ABI，且是非对称的：**
+- 针对 numpy **1.x** 编译的 torch（hygon）→ 运行在 numpy 2.x 上**前向不兼容**
+  → 硬性要求 `<2`，不可 fake。
+- 针对 numpy **2.x** 编译的扩展（opencv、多数后端 torch）→ 向后兼容 1.x。
+
+**修复属镜像侧，两个方向：**
+- **(b) configs.yaml 给 hygon pin `numpy==1.26.4`**（即时、在我方掌控内；
+  opencv 既是 faked，此路无副作用）——**推荐的即时修复**。
+- **(a) 厂商用 numpy 2.x 重编 torch**（与其余后端一致，但需厂商行动、周期长）。
+
+当前 `configs.yaml` 的 `hygon: numpy==2.2.6` 与所发 torch wheel 不兼容——短期
+按 (b) 改 1.26.4，同时把 (a) 反馈给构建 DTK26.04 torch wheel 的一方。
+
+> **flag_gems mul 门控 #5130 不影响 Hygon：** Hygon 报
+> `device.type=='cuda'`、`torch.cuda.device_count()==8`、flag_gems
+> `runtime.device.name=='cuda'`——与 MetaX 同，非 mthreads 的 `"musa"`。故
+> §2.3 的 mul 门控回归在此为 no-op。
+
+### serve + 推理 —— ✅ 成功（以 numpy 1.26.4 绕过上述 ABI 阻塞）
+
+选 **Ministral-8B-Instruct-2410-FlagOS**（简单 rope，变量最少）：
+
+```bash
+vllm serve /data/Ministral-8B-Instruct-2410-FlagOS --port 8033 \
+  --trust-remote-code --max-model-len 4096 --enforce-eager \
+  --gpu-memory-utilization 0.85 --tensor-parallel-size 1
+```
+
+serve 到达 `Application startup complete`，flag_gems 算子经插件正确分发：
+
+```
+Op 'rms_norm' using 'default.flagos' (kind=flagos, vendor=None)
+Op 'rotary_embedding' using 'default.flagos' (kind=flagos, vendor=None)
+Op 'silu_and_mul' using 'default.flagos' (kind=flagos, vendor=None)
+```
+
+```json
+{"choices":[{"text":" Paris. It is the most populous city in France and the country's center of politics, culture, fashion, food, and art. Paris is known for",
+  "finish_reason":"length"}]}
+```
+
+✅ 除 numpy 绕过外，本模型无需任何 Hygon 专属 plugin / flag_gems 改动。
+
+### Stack 验证
+
+```
+torch:        2.9.0+das.opt1.dtk2604  ✅  from 镜像（未降级）
+triton:       (absent)                ✅  DTK 无 triton，由 flagtree 提供
+flagtree:     0.5.1+hcu3.1            ✅
+flag_gems:    5.3.2                   ✅  mul 门控 #5130 不影响（device=cuda）
+numpy:        1.26.4 (绕过)           ⚠️  镜像默认 2.2.6 与 torch ABI 不匹配
+vllm:         0.20.2+flagos           ✅  empty, 复用 mthreads PyPI 产物
+xgrammar:     0.2.5+flagos            ✅  复用 mthreads PyPI 产物
+compressed-t: 0.15.0.1+flagos         ✅  复用 mthreads PyPI 产物
+vllm_fl:      0.0.0+gd1327ae0a        ✅  纯 Python（无 VLLM_VENDOR）
+HCU device:   ✅ 8× 可见               hy-smi (Hygon BW1000)
+vllm serve:   ✅ 启动成功              TP=1, enforce-eager, gpu-util 0.85
+Inference:    ✅ 成功                  Ministral-8B, 32 tokens
+```
+
+### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| 镜像侧 torch↔numpy ABI | ⬜ 阻塞 | 反馈厂商重编 torch（numpy 2.x），或 configs.yaml pin numpy 1.26.4 |
+| 一份 wheel 上传到全部 vendor PyPI | ⬜ | 通用性已实证（§5.2），待自动化多厂商上传 |
+| 更大模型 / TP>1 / yarn rope | ⬜ | 仅测过 Ministral-8B + eager + TP=1 |
+
+**相关提交：** 无新增代码；复用 §2.3 mthreads 的 repack 产物（PR #280）。
+
 ---
 
 # 第 3 部分 · 流程总结与决策
@@ -635,6 +799,7 @@ FlagGems [#5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控�
 | macOS vs Linux 平台不匹配 | 中 | 永不在 macOS 上 repack；CI 在 H20 runner 上跑 |
 | vllm 二进制 wheel ABI 不兼容 | 低-中 | 警告可接受；生产需源码构建（仅 standard/NVIDIA 相关） |
 | FlagGems 未来又硬锁其他依赖 | 中 | 已遇 numpy + sqlalchemy；FlagGems 应用 `>=` 而非 `==` |
+| 厂商 torch 编译的 numpy ABI 与镜像 numpy 不匹配 | 中 | 已遇 iluvatar、hygon（torch 编于 numpy 1.x，镜像 numpy 2.x → `Numpy is not available`）。构建镜像时校验 `torch + tensor.numpy()` 能跑通；厂商 torch 应与 configs.yaml 的 numpy pin 对齐 |
 
 **痛点：**
 
@@ -665,7 +830,7 @@ platform tag（`py3-none-any`），不伪造 `cp38-abi3-manylinux_2_35_x86_64`�
 | vendor + Aliyun 混合索引 | ✅ mthreads | `--index-url vendor --extra-index-url aliyun` 正确解析，131 包零泄漏 |
 | 平台匹配 vs 版本比较优先级 | ✅ mthreads | 保留 `py3-none-any` 情况下版本号（`+flagos`）优先于平台匹配度，pip 选中我们的 wheel |
 | 缓存干扰 | ⬜ | 未系统测试 pip 缓存是否跳过版本比较 |
-| 跨后端正式验证矩阵 | ⬜ | 仅 mthreads 实证；MetaX/其他 empty 后端待用单步流程回归 |
+| 跨后端正式验证矩阵 | ✅ hygon | Hygon 直接复用 mthreads 打的 `+flagos` wheel，单步安装零泄漏（§2.4）——首次跨后端实证 |
 
 **若跨后端回归发现 pip 选错版本，备选：** 改用 `0.20.2.post1`（非本地
 版本，排序明确高于 `0.20.2`）。
@@ -675,13 +840,18 @@ platform tag（`py3-none-any`），不伪造 `cp38-abi3-manylinux_2_35_x86_64`�
 ### 5.2 empty vllm 包的通用性（待办）
 
 empty build 是纯 Python（无硬件代码），repack 只清理 METADATA 依赖声明、
-不改代码，输出 `py3-none-any`——理论上**一份 wheel 通用于所有 empty 后端**：
+不改代码，输出 `py3-none-any`——**一份 wheel 通用于所有 empty 后端**：
 
 ```
 Build once (任意 empty 后端)  →  Upload to ALL vendor PyPIs
 ```
 
 安装时从目标后端 PyPI 取该后端的 torch 等依赖即可。
+
+**已实证（✅ hygon，§2.4）：** mthreads 上打包上传到 `flagos-pypi-mthreads`
+的三个 `+flagos` wheel，在 Hygon 上原样单步安装、零 torch/numpy/triton 泄漏，
+serve + 推理成功。技术前提（empty wheel 与后端无关）成立；剩下的是**上传
+自动化**，非可行性问题。
 
 **待实现（⬜）：**
 1. 扩展 `build-and-repack.sh --upload` 支持一次上传到全部 vendor PyPI。
@@ -720,6 +890,13 @@ kernel）；其余后端用 empty + plugin-FL/flag_gems 算子。
   `numpy==2.3.5` 并打 tag `v5.3.2` → Python 3.10 后端不支持 `numpy>2.2.6`；
   (b) 把 numpy 下沉到各后端；(c) FlagGems 干脆不 pin numpy。最终稳定在
   §1.7：**FlagGems 不 pin，build-infra 按后端锁定**（3.12→2.3.5, 3.10→2.2.6）。
+  **补记（§2.4 修正的前提）：** 最初全局锁的就是 `numpy==1.26.4`，触发
+  bump→revert→unpin 的关键推手之一是 `opencv-python-headless 5.0.0.93` 声明
+  `numpy>=2`。但该声明是 **faked**——opencv wheel 编于 numpy 2.x、运行时向后
+  兼容 1.x，实测 1.26.4 下 C-API 往返完好（§2.4）。也就是说 opencv 从不构成
+  真实的 numpy 下限；真正的约束只有"py 版本上限"和"厂商 torch 的 numpy ABI"
+  两条。教训：**升级前先分清依赖声明是真实 ABI 约束还是打包策略**——一个
+  `import` + C-API 往返测试即可证伪。
 - **FlagGems tag 复用** —— 过程中出现过删除 `v5.3.2` 再用同名重打。破坏
   可复现性，**不应再做**——bug 修复用递增新 tag（§1.6）。
 - **伪造 platform tag（§2.2）** —— MetaX 曾把 `py3-none-any` 改写成
@@ -734,3 +911,8 @@ kernel）；其余后端用 empty + plugin-FL/flag_gems 算子。
 - **`--extra-index-url` 优先的误解（§2.1）** —— 早期以为 extra-index 会被
   pip 优先；实际 pip 拉平所有索引按版本号选。让我们的 wheel 胜出的始终是
   `+flagos` 版本号，与索引主次无关。
+- **厂商 torch 的 numpy ABI（§2.4）** —— iluvatar、hygon 的厂商 torch 编译于
+  numpy 1.x，装到 numpy 2.x 的镜像里 `tensor.numpy()` 直接
+  `Numpy is not available`。这不是 repack/vllm 的问题，是镜像里 torch 与
+  numpy pin 不配套；教训是**厂商 torch 的 numpy ABI 必须与 configs.yaml 的
+  per-backend numpy pin 对齐**，镜像构建时应烟测 `tensor.numpy()`。
