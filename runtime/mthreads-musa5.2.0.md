@@ -17,9 +17,10 @@
 
 ### Major Python packages
 
-- `flag_gems`
+- `flag_gems==5.3.2`
 - `flagtree==0.6.0+mthreads3.6`
 - `mkl==2024.0.0`
+- `numpy==2.2.6`
 - `torch==2.9.1+musa5.2.0`
 - `torch_musa==2.9.1`
 - `triton==3.6.0` *(alternative)*
@@ -27,11 +28,6 @@
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
-
-## Environment
-
-- `MTHREADS_VISIBLE_DEVICES=all`
-- `LD_LIBRARY_PATH=${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}`
 
 ## Launch
 

@@ -37,9 +37,10 @@ title: "mthreads-musa4.3.6"
 
 ### 主要 Python 软件包
 
-- `flag_gems`
+- `flag_gems==5.3.2`
 - `flagtree==0.6.0+mthreads3.6`
 - `mkl==2024.0.0`
+- `numpy==2.2.6`
 - `torch==2.9.0+musa.4.3.6`
 - `torch_musa==2.9.0`
 - <span class="muted"><code class="plain">triton==3.6.0+git89458660</code></span>
@@ -47,11 +48,6 @@ title: "mthreads-musa4.3.6"
 ### 切换编译器
 
 本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
-
-## 环境变量
-
-- `MTHREADS_VISIBLE_DEVICES=all`
-- `LD_LIBRARY_PATH=${VIRTUAL_ENV}/lib:${LD_LIBRARY_PATH}`
 
 ## 启动
 

@@ -37,8 +37,9 @@ title: "ascend-cann9.0.0"
 
 ### 主要 Python 软件包
 
-- `flag_gems`
+- `flag_gems==5.3.2`
 - `flagtree==0.6.0+ascend3.5`
+- `numpy==2.3.5`
 - `torch-npu==2.10.0`
 - `torch==2.10.0+cpu`
 - <span class="muted"><code class="plain">triton==3.5.0 (+ triton_ascend==3.2.1)</code></span>

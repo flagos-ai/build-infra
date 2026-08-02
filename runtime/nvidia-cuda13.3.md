@@ -17,8 +17,9 @@
 
 ### Major Python packages
 
-- `flag_gems`
+- `flag_gems==5.3.2`
 - `flagtree==0.6.0`
+- `numpy==2.3.5`
 - `torch==2.11.0+cu130`
 - `torchaudio==2.11.0+cu130`
 - `torchvision==0.26.0+cu130`
@@ -27,11 +28,6 @@
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
-
-## Environment
-
-- `NVIDIA_VISIBLE_DEVICES=all`
-- `NVIDIA_DRIVER_CAPABILITIES=compute,utility`
 
 ## Launch
 

@@ -1,5 +1,5 @@
 ---
-title: "tsingmicro-tsm260604"
+title: "tsingmicro-tsm260610"
 ---
 
 <!--
@@ -22,14 +22,14 @@ title: "tsingmicro-tsm260604"
 
 - **架构:** x86_64
 - **芯片型号:** Tsingmicro TX8110
-- **宿主机驱动:** 260604163331.01
+- **宿主机驱动:** 260610164501.01
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: tx-container-toolkit >= 2.5.0
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1</code> <a href="../../base/tsingmicro-tsm260604/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.1</code> <a href="../../base/tsingmicro-tsm260610/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -64,7 +64,7 @@ title: "tsingmicro-tsm260604"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260604:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -73,7 +73,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260604:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.1 bash
 ```
 
 ## 验证

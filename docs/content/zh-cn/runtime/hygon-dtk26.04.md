@@ -37,8 +37,9 @@ title: "hygon-dtk26.04"
 
 ### 主要 Python 软件包
 
-- `flag_gems`
+- `flag_gems==5.3.2`
 - `flagtree==0.5.1+hcu3.1`
+- `numpy==1.26.4`
 - `torch==2.9.0+das.opt1.dtk2604`
 - <span class="muted"><code class="plain">triton==3.3.0+das.opt1.dtk2604.torch290</code></span>
 
