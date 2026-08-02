@@ -14,16 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Push each generated base-image description to Harbor as the repository
+"""Push each generated image description to Harbor as the repository
 description. Harbor renders the description as markdown and shows the repository
 name as the top heading, so the H2-based body reads correctly on its own.
 
-Reads the plain-flavor markdown from base/<name>.md (the same file that serves
+Reads the plain-flavor markdown from <layer>/<name>.md (the same file that serves
 as the in-repo image readme) for every backend in docs/data/images.yaml. The
-repository is flagos-base-<name> under the project taken from the image ref.
+repository is flagos-<layer>-<name> under the project taken from the image ref.
+
+The layer (base or runtime) selects both the markdown directory and which image
+ref in images.yaml supplies the Harbor project.
 
 Env: HARBOR_HOST, HARBOR_USER, HARBOR_PW (basic auth).
-Usage: python docs/upload_descriptions.py [--dry-run]
+Usage: python docs/upload_descriptions.py [--layer base|runtime] [--dry-run]
 """
 
 import base64
@@ -51,7 +54,14 @@ def project_of(image_ref: str) -> str:
 
 
 def main():
-    dry = "--dry-run" in sys.argv[1:]
+    args = sys.argv[1:]
+    dry = "--dry-run" in args
+    layer = "base"
+    if "--layer" in args:
+        layer = args[args.index("--layer") + 1]
+    if layer not in ("base", "runtime"):
+        sys.exit(f"invalid --layer {layer!r}: expected 'base' or 'runtime'")
+
     host = os.environ["HARBOR_HOST"]
     user = os.environ.get("HARBOR_USER", "")
     pw = os.environ.get("HARBOR_PW", "")
@@ -59,18 +69,18 @@ def main():
 
     root = Path(__file__).resolve().parent.parent
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
-    base_dir = root / "base"
+    md_dir = root / layer
 
     failures = 0
     for entry in images.get("backends", []):
         name = entry["name"]
-        md_path = base_dir / f"{name}.md"
+        md_path = md_dir / f"{name}.md"
         if not md_path.is_file():
             print(f"skip {name}: no description md")
             continue
         desc = strip_front_matter(md_path.read_text())
-        project = project_of(entry["base"]["image"])
-        repo = f"flagos-base-{name}"
+        project = project_of(entry[layer]["image"])
+        repo = f"flagos-{layer}-{name}"
         url = f"https://{host}/api/v2.0/projects/{project}/repositories/{repo}"
         if dry:
             print(f"[dry-run] PUT {url}  ({len(desc)} chars)")

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Runtime Image Descriptions
+name: Generate docs for runtime images
 
 # Post-build: generate runtime image description markdown (single source for the
 # docs site, the in-repo runtime/<name>.md file, and the Harbor repository

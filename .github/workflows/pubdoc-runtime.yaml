@@ -12,24 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Publish documentation for base images
+name: Publish documentation for runtime images
 
 # Publication is gated on review+merge: when reviewed per-image descriptions
-# land on main (a base-descriptions PR merged), push them to the Harbor repository.
-# Nothing goes live until the version diff — the checkpoint for catching
-# a disruptive change (e.g. a toolchain gcc bump) — has been reviewed and merged.
+# land on main (a runtime-descriptions PR merged), push them to the Harbor
+# repository. Nothing goes live until the description diff has been reviewed
+# and merged. Mirrors pubdoc-base.yaml for the runtime layer.
 
 on:
-  # This whenever the base image description is changed (usually a followup
-  # to the base image rebuild), the image repository description is supposed
-  # to be automatically updated.
+  # Whenever a runtime image description changes on main (usually a followup
+  # to the runtime image rebuild), the image repository description is
+  # automatically updated.
   push:
     branches: [main]
     paths:
-      - 'base/*.md'
+      - 'runtime/*.md'
 
-  # This is for the occasional github failure when the changes on 'base/*.md'
-  # files fail to trigger this workflow.
+  # For the occasional github failure when changes on 'runtime/*.md' files
+  # fail to trigger this workflow.
   workflow_dispatch:
 
 defaults:
@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HARBOR_HOST: harbor.baai.ac.cn
-      HARBOR_USER: ${{ secrets.HARBOR_USER }}
-      HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+      HARBOR_USER: flagos21
+      HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS21 }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,11 +51,11 @@ jobs:
       - name: Build the image list
         run: python3 docs/gen_data.py
       - name: Upload descriptions to Harbor
-        run: python3 docs/upload_descriptions.py
+        run: python3 docs/upload_descriptions.py --layer runtime
 
       - name: Clean up description branch
         if: always()
         run: |
           label=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'unknown')
-          git push origin --delete "auto/base-descriptions-${label}" 2>/dev/null || true
-          echo "Cleaned up auto/base-descriptions-${label}"
+          git push origin --delete "auto/runtime-descriptions-${label}" 2>/dev/null || true
+          echo "Cleaned up auto/runtime-descriptions-${label}"

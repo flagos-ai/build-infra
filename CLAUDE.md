@@ -83,7 +83,8 @@ Two stages: **builder** (installs uv, venv, deps, compilers, FlagGems wheel) →
 - **`trigger.yml`** — Base Image Build (manual). `workflow_dispatch` with backend + push inputs. Generates matrix via `generate_matrix.py`, calls reusable `imagebuild.yml` per backend.
 - **`runtime.yml`** — Runtime Image Build (manual). Same pattern, additionally checks out FlagGems repo for version derivation.
 - **`flaggems-wheel.yml`** — Daily (01:17 UTC) + manual FlagGems wheel build + upload to `flagos-pypi-daily` via twine.
-- **`base-descriptions.yml`** — Triggered on base image build completion. Extracts system package versions from built images (`dpkg-query`), runs `gen_data.py` + `gen_descriptions.py`, opens a **review-gated PR** with the version diff. Publication to Harbor (`base-descriptions-publish.yml`) only happens when that PR lands on `main`.
+- **`gendoc-base.yaml`** — Triggered on base image build completion. Extracts system package versions from built images (`dpkg-query`), runs `gen_data.py` + `gen_descriptions.py`, opens a **review-gated PR** with the version diff. Publication to Harbor (`pubdoc-base.yaml`) only happens when that PR lands on `main` (push to `base/*.md`).
+- **`gendoc-runtime.yaml`** — Runtime twin of `gendoc-base.yaml` (manual trigger; runtime images rebuild often during FlagGems testing, so no auto `workflow_run`). Opens a review-gated PR with `runtime/*.md`. Publication to Harbor (`pubdoc-runtime.yaml`) happens when that PR lands on `main` (push to `runtime/*.md`).
 - **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`, `configs.yaml`, or `base/**` changes).
 
 ### Runners
