@@ -919,6 +919,160 @@ Inference:    ❌  乱码（temp=0 仍乱）——前向数值错误（trap D）
 
 ---
 
+## 2.6 enflame-tops1.9.10（GCU300：安装/插件通过，serve 启动完成，推理被 attention 阻塞）
+
+**日期:** 2026-08-02　**平台:** Enflame GCU300（8 卡）　**节点:** `enflame1`　**driver/tops:** 1.9.10
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-enflame-tops1.9.10:2.1.1`
+**容器:** `vllm-verify-enflame-v2`（重建镜像：已移除 torch_gcu 的 setuptools 硬钉）
+
+与 §2.4 hygon 一样跑通用性验证。**安装与插件全部通过**，serve **启动完成
+（application startup complete）**，推理请求进入前向后被 **attention 阻塞**。
+GCU300 的核心约束贯穿全程：**其 triton 后端（`make_gcuir` 的 PassManager）
+彻底拒绝 64 位数据类型**——不是前端 / FlagTree 问题，换 triton 前端无用，
+拒绝发生在 Enflame GCU300 codegen 后端。
+
+### Repack —— 在 enflame 上重新 build（cp312）
+
+enflame Python 3.12，xgrammar 是 cp312-locked 二进制，无法复用 hygon 的 cp310
+产物，故在镜像内重新 build empty vllm 并 repack（`+flagos`）。
+
+### 安装 —— ✅ 零泄漏（走真实自动化路径，非 --find-links）
+
+`pip install --index-url flagos-pypi-enflame --extra-index-url aliyun 'vllm==0.20.2+flagos'`：
+**setuptools 稳定在 83.0.0**（torch_gcu 解钉后不再降级到 69.5.1），
+torch `2.10.0+cpu` / torch-gcu `2.10.0` / numpy `2.3.5` 全保留，依赖全为
+`+flagos`（xgrammar 0.2.3、compressed-tensors 0.15.0.1、opencv-headless 5.0.0.93），
+无公有 torch/cuda/triton 链，无 pip 冲突。8 GCU 可见。
+
+> **背景：** enflame 曾是唯一 setuptools 被硬钉（69.5.1）的后端，根因是
+> **torch_gcu 的 `Requires-Dist: setuptools ==69.5.1`**（build-infra 从不钉运行时
+> setuptools；FlagGems 的 `<77` 是 build-only、装完不可见）。厂商侧已 repack
+> torch_gcu 去掉该钉并重建镜像，本次验证即在该镜像上。
+
+### 插件 —— ✅ 干净安装（--no-build-isolation，纯 Python）
+
+全历史 clone（非 `--depth 1`）+ `pip install --no-build-isolation -e .`，
+`VLLM_VENDOR` 未设 → `ext_modules=[]`，纯 `py3-none-any`，版本
+`0.2.0+gd1327ae0a`（正规 setuptools-scm）。厂商自动识别（flag_gems
+DeviceDetector）：vendor=enflame、device_type=gcu、dist=eccl，无需手动 env。
+
+### int64 阻塞的两层结构（GCU300 无 64 位）
+
+GCU300 triton 拒绝 64 位。**torch_gcu 层没问题**（透明 Long→Int 替换，日志
+`GCU not support Long use Int replace`）；**只有落到 triton 内核的 int64 才崩**。
+按拦截点分两类，需两套不同修法：
+
+| 层 | 触发者 | 例子 | 修法 |
+|---|---|---|---|
+| **L1** | flag_gems 拦截的 factory/index 算子（在 torch_gcu Long→Int 之前接管） | `zeros`/`zeros_like`/`zero_`/`add`/`repeat_interleave` | `gcu.yaml` 黑名单 → flag_gems 跳过 → 回退 torch_gcu |
+| **L2** | vllm 原生 triton 内核（非 flag_gems） | `_compute_slot_mapping_kernel`（`slot_mapping` 为 int64） | plugin 侧纯 torch 重写，**在 CPU 上算** int64 索引再拷回 device |
+
+### 根因先决 Bug：plugin 配置文件按 vendor_name 找、实际按 device_name 命名
+
+`get_config_path()` 用 `current_platform.vendor_name`（=`enflame`）拼
+`enflame.yaml`，但配置文件叫 **`gcu.yaml`**（device_name）。→ **配置从未加载**，
+`flagos_blacklist` 与 `op_backends` 全部被静默忽略。这解释了为何最初改黑名单
+"无效"。修法：`get_config_path()` 增加 device_name 回退（`gcu.yaml`）。
+**同样的坑潜在影响 mthreads**（vendor=mthreads、配置=`musa.yaml`）。
+
+### L1 修复：黑名单 zeros/add/... → 回退 torch_gcu
+
+`gcu.yaml` `flagos_blacklist` 加入 `add / zeros / zeros_like / zero_`（匹配按
+函数 `__name__`，而 `zeros` factory 经 torch_gcu wrapper 落到 `zero_`，故 `zero_`
+才是必须排除的名字）。配上上面的配置回退，**模型加载阶段的 int64 崩溃清除**。
+
+**三行最小复现（L1）：**
+```python
+import torch, torch_gcu, flag_gems; flag_gems.enable()
+torch.zeros_like(torch.arange(8, device="gcu:0", dtype=torch.int64), device="gcu:0")
+# → 64-bit not supported on GCU300（黑名单后回退 torch_gcu 即 OK）
+```
+
+### L2 修复：slot_mapping 纯 torch 重写（CPU 计算）
+
+vllm `block_table._compute_slot_mapping_kernel` 在 int64 `positions`/`slot_mapping`
+上跑 triton，GCU300 直接拒。plugin 侧 `apply_slot_mapping_gcu_patch()` 把
+`BlockTable.compute_slot_mapping` 换成纯 torch 等价实现（含 context-parallel
+交织逻辑，已对拍 numpy 参考 **MATCH**）。**关键：必须在 CPU 上算**——若在
+device 上算，`flag_gems.enable()` 会把 `repeat_interleave`/`copy` 等再劫持回
+int64 triton 内核（又撞同一堵墙）；逐个黑名单既脆弱又会误伤模型热路径计算。
+CPU 计算彻底绕开 overlay（flag_gems 只拦 device 算子），数据量极小（每 token
+几个 int64），device↔host 拷贝 int64 实测安全。
+
+修完 L1+L2 后：**serve 启动完成**，推理请求进入模型前向，**推进到 attention 层**。
+
+### 阻塞点：attention —— 三条路全断，两个厂商侧上游缺口
+
+| 路径 | 阻塞 | 上游归属 |
+|---|---|---|
+| 原生 `FLASH_ATTN` / `vendor:gcu` | `flash_attn_gcu.so` `undefined symbol: c10::MessageLogger::MessageLogger(char const*,int,int)` | **厂商**：需为 torch 2.10.0 出 flash_attn |
+| FlagGems attn（`VLLM_FL_USE_FLAGGEMS_ATTN=1`） | `flash_api.py:579 → flash_varlen_fwd_kernel` 用 int64 指针/步长 → GCU300 拒 | **FlagGems**：flash 内核需 int32 索引 |
+
+**核心根因是版本错配（configs.yaml 已固化）：** `enflame/tops1.9.10` deps
+（第 240–244 行）钉的是——
+
+```yaml
+- torch==2.10.0+cpu
+- torch-gcu==2.10.0+3.7.20260408                  # torch 2.10.0
+- flash-attn==2.7.2+torch.2.9.1.gcu.3.4.20260323  # torch 2.9.1  ← 错配
+```
+
+`flash_attn_gcu.so` 编译于 **torch 2.9.1** 的 `c10`（3 参 `MessageLogger` ctor），
+而栈是 **torch 2.10.0**（其 libc10 只导出 4 参 `(...,bool)` ctor）→ 符号解析失败。
+**厂商 PyPI 上只有 `torch.2.9.1.gcu.3.4` 这一个 GCU flash_attn 构建**（确认走的是
+GCU 变体：wheel 只含 `flash_attn_gcu.cpython-312-*.so`，非 CUDA 的
+`flash_attn_2_cuda.so`），**没有 torch-2.10.0 的构建**。故"升级 flash_attn 对齐
+torch"当前不可行；"降级 torch 到 2.9.1"又与整套已验证的 2.10.0 SDK（TOPS ATen
+3.7 debs + torch_gcu 2.10.0）打架，是死路。新 `tops1.9.17` recipe 已**整体删除
+flash-attn 钉**，印证厂商在 2.10.0 栈上尚无可用 flash_attn。
+
+> **换 triton 前端无用。** int64 拒绝来自 `triton/backends/enflame/compiler.py:233`
+> `make_gcuir` 的 PassManager（GCU300 codegen 后端），非前端。FlagTree / 上游
+> triton / 任何前端发出的 IR 都要过这一层。绕开只有两条：(a) 内核不落 int64 到
+> device（如 L2 的纯 torch 回退）；(b) 内核作者改用 int32 索引。
+
+### serve + 推理 —— ⚠️ serve 启动完成，推理被 attention 阻塞
+
+### Stack 验证（enflame-tops1.9.10）
+
+```
+setuptools:   83.0.0                 ✅  torch_gcu 解钉后稳定（曾被钉 69.5.1）
+torch:        2.10.0+cpu             ✅  from 镜像
+torch-gcu:    2.10.0+3.7.20260408    ✅
+numpy:        2.3.5                  ✅
+vllm:         0.20.2+flagos          ✅  empty，enflame 本地 build（cp312）
+vllm_fl:      0.2.0+gd1327ae0a       ✅  纯 Python（+ 三处 GCU 修复，见下）
+flag_gems:    5.3.2                  ✅  int64 factory/index 算子经黑名单回退 torch_gcu
+GCU device:   ✅ 8 卡可见
+vllm import:  ✅
+vllm serve:   ✅  application startup complete（L1+L2 修复后）
+Inference:    ⚠️  推进到 attention 层后阻塞（flash_attn ABI + FlagGems int64）
+```
+
+### plugin 侧三处修复（已在容器内验证，PR 暂缓）
+
+| 修复 | 文件 | 性质 |
+|---|---|---|
+| `get_config_path()` device_name 回退 | `dispatch/config/utils.py` | 真实潜在 bug（gcu.yaml 从未加载；潜在影响 mthreads/musa.yaml） |
+| int64 factory/index 算子黑名单 | `dispatch/config/gcu.yaml` | `add/zeros/zeros_like/zero_` 回退 torch_gcu |
+| slot_mapping 纯 torch（CPU）重写 | `dispatch/backends/vendor/gcu/impl/slot_mapping.py` + `patch.py` | 替换 vllm int64 triton 内核 |
+
+### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| 厂商为 torch 2.10.0 出 GCU flash_attn | ⬜ 阻塞 | 当前 PyPI 仅 `torch.2.9.1.gcu.3.4`；ABI 与 2.10.0 栈不兼容。这是 attention 通路的根因 |
+| FlagGems flash 内核 int32 索引化 | ⬜ 阻塞 | `flash_varlen_fwd_kernel` 用 int64 指针/步长，GCU300 拒；非窄索引算子，纯 torch 换不掉 |
+| plugin 三处 GCU 修复提 PR | ⬜ 暂缓 | 已在容器内验证；按决定先出报告、暂不提 PR，待 review 容器改动对齐 Mac 源码 |
+| configs.yaml enflame flash-attn 钉 | ⬜ 待厂商 | 与 torch 2.10.0 错配；应删除或等厂商 2.10.0 构建（参照 tops1.9.17 已删钉） |
+
+**相关提交：** 无落库；empty build 在 enflame 镜像内重新 repack；plugin 三处修复
+在容器 `vllm-verify-enflame-v2` 的可编辑安装内（Mac 源码 `slot_mapping.py`/`patch.py`
+已就绪，`gcu.yaml`/`utils.py` 待镜像回 Mac）。三行复现现场保留。
+
+
+---
+
 # 第 3 部分 · 流程总结与决策
 
 ## 3. 自动化边界
