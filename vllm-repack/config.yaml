@@ -16,7 +16,7 @@
 # Each key is a set of *package names* (no version, case-insensitive).
 #
 # Top-level rules (applied to vllm's own METADATA):
-#   remove_torch_chain, remove_cuda_only, remove_orphaned, remove_build_leak
+#   remove_torch_chain, remove_cuda_only, remove_orphaned
 #
 # Indirect-dep rules (applied to retained deps that declare torch/triton
 # in their own METADATA — discovered automatically by repack_recursive):
@@ -49,18 +49,6 @@ remove_cuda_only:
 # Packages whose only consumer was stripped above (no other consumers left).
 remove_orphaned:
   - apache-tvm-ffi
-
-# Build-only tools that leak into runtime Requires-Dist.  vllm >=0.20 declares
-# `setuptools<81.0.0,>=77.0.3; python_version > "3.11"` — the build-system pin
-# mirrored into runtime deps.  On Python 3.12 backends the marker is active, so
-# installing vllm would force setuptools>=77 into the runtime venv.  That both
-# conflicts with vendor torch pins (e.g. torch-gcu pins setuptools==69.5.1) and
-# defeats the FlagOS `setuptools<77` guard (>=77 stamps Metadata-Version 2.4,
-# which Nexus rejects — see configs.yaml flaggems_cpp_build_deps).  setuptools is
-# not a genuine runtime import need here (the venv already ships a working one),
-# so strip it from vllm's own Requires-Dist.
-remove_build_leak:
-  - setuptools
 
 # ── Indirect dependency stripping rules ───────────────────────────────
 # When repack_recursive() finds a retained dep whose own METADATA
