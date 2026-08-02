@@ -42,7 +42,7 @@ jobs:
     env:
       HARBOR_HOST: harbor.baai.ac.cn
       HARBOR_USER: ${{ secrets.HARBOR_USER }}
-      HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+      HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
         with:
