@@ -107,7 +107,7 @@ vllm 使用 `VLLM_TARGET_DEVICE=empty` 时，可以保留其核心逻辑，方�
 
 | 文件 | 用途 |
 |------|------|
-| `scripts/repack_vllm.py` | 下载 vllm wheel → repack → twine upload 到所有 vendor PyPI |
+| `vllm-repack/build-and-repack.sh` | 构建 → repack（`repack.py`）→ `--upload` twine 上传到 vendor PyPI |
 | `app/vllm/Containerfile` | FROM runtime → pip install vllm + vllm-plugin-FL |
 | `.github/workflows/vllm-app.yml` | 完整 CI：repack → upload → build → verify → push |
 
@@ -515,7 +515,7 @@ Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16 token
 
 **执行命令：**
 ```bash
-./scripts/repack-vllm-and-upload.sh --vendor mthreads --backend musa5.2.0
+./vllm-repack/build-and-repack.sh mthreads-musa5.2.0 --upload
 ```
 
 **上传的包：**
@@ -791,7 +791,7 @@ pip install \
 ```
 
 **待实现（⬜）：**
-1. 修改 `repack-vllm-and-upload.sh` 支持上传到所有 vendor PyPI
+1. 扩展 `vllm-repack/build-and-repack.sh --upload` 支持上传到所有 vendor PyPI
 2. 或创建通用 workflow：build once → upload to all
 
 **参考：** FlagGems Python 包已采用此工作流（build 一次，上传到所有 vendor PyPI）
