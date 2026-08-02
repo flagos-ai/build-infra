@@ -296,7 +296,12 @@ vendors:
       flagtree: flagtree==0.5.1+hcu3.1
       deps:
         - torch==2.9.0+das.opt1.dtk2604
-        - numpy==2.2.6
+        # torch built against the numpy 1.x C ABI — numpy 2.x breaks it
+        # ("Numpy is not available"). opencv-python-headless declares numpy>=2
+        # but that is a packaging declaration only (its wheel is runtime
+        # backward-compatible with numpy>=1.19), so 1.26.4 is safe. See
+        # vllm-repack/E2E-REPORT.md §2.4 / §1.7.
+        - numpy==1.26.4
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
 
