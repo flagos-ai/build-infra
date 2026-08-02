@@ -129,14 +129,9 @@ docker run -d --name "$CONTAINER" --network host \
 
 # ── Build + repack ──────────────────────────────────────────────────────
 
-# Ensure build deps — remove once build images ship these.
-# With --no-build-isolation, pip uses the venv's own setuptools, ignoring
-# vllm's build-system.requires. Newer vllm (>=0.20) declares PEP 639
-# `license = "Apache-2.0"` + `license-files`, which setuptools <77 rejects,
-# so pin setuptools to vllm's own required range.
+# Ensure build deps — remove once build images include setuptools-scm
 docker exec "$CONTAINER" bash -c "
-    pip install -i https://mirrors.aliyun.com/pypi/simple \
-        'setuptools>=77.0.3,<81.0.0' 'setuptools-scm>=8,<10' \
+    pip install -i https://mirrors.aliyun.com/pypi/simple 'setuptools-scm>=8,<10' \
         > /dev/null 2>&1
 "
 
