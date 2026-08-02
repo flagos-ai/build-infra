@@ -20,12 +20,21 @@
 # Usage:
 #   build-and-repack.sh metax-maca3.7.2.1
 #   build-and-repack.sh nvidia-cuda12.8 --vllm-version 0.25.1
+#   build-and-repack.sh mthreads-musa5.2.0 --upload
+#
+# Options:
+#   --vllm-version X.Y.Z   vLLM version to build (default: 0.20.2)
+#   --upload               After repacking, twine-upload the +flagos wheels
+#                          to the vendor PyPI (flagos-pypi-<vendor>). Opt-in:
+#                          uploading publishes artifacts, so it never runs by
+#                          default.
 #
 # Prerequisites:
 #   - Docker with harbor.baai.ac.cn access
 #   - python3 + pyyaml on the host (for reading configs.yaml)
 #   - build image flagos-runtime-<vendor>-<backend>:<version>-build
 #   - vllm source tarball at flagos-filestore (for empty-mode backends)
+#   - twine on the host (only when --upload is used)
 #
 # TODO:
 #   - Per-backend default vllm_version in configs.yaml
@@ -36,7 +45,7 @@ set -euo pipefail
 # ── Parse arguments ─────────────────────────────────────────────────────
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <vendor>-<backend> [--vllm-version X.Y.Z]" >&2
+    echo "Usage: $0 <vendor>-<backend> [--vllm-version X.Y.Z] [--upload]" >&2
     exit 1
 fi
 
@@ -44,9 +53,11 @@ VENDOR_BACKEND="$1"
 shift
 
 VLLM_VERSION="0.20.2"
+UPLOAD=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --vllm-version) VLLM_VERSION="$2"; shift 2 ;;
+        --upload) UPLOAD=true; shift ;;
         *) echo "Unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -77,6 +88,7 @@ fi
 
 BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}-build"
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
+VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
 
 CONTAINER="vllm-build-${VENDOR}-${BACKEND}"
 
@@ -155,6 +167,19 @@ fi
 echo ""
 echo "==> Done.  Output:"
 ls -lh "$WORK_DIR/output/" | sed 's/^/  /'
+
+# ── Upload (opt-in) ──────────────────────────────────────────────────────
+
+# Runs on the host: WORK_DIR is bind-mounted, so the repacked wheels are
+# already visible outside the container. Publishing to the vendor PyPI is
+# outward-facing, so it only happens when --upload is passed.
+if [[ "$UPLOAD" == true ]]; then
+    echo ""
+    echo "==> Uploading to ${VENDOR_PYPI} …"
+    command -v twine > /dev/null || pip install -q twine
+    twine upload --repository-url "${VENDOR_PYPI}" "${WORK_DIR}/output/"*.whl
+fi
+
 echo ""
 echo "Container kept: ${CONTAINER}"
 echo "  docker rm -f ${CONTAINER}   # when done"
