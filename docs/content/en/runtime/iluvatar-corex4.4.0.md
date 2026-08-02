@@ -37,7 +37,8 @@ title: "iluvatar-corex4.4.0"
 
 ### Major Python packages
 
-- `flag_gems`
+- `flag_gems==5.3.2`
+- `numpy==1.26.4`
 - `torch==2.7.1+corex.4.4.0`
 - `torchaudio==2.7.1+corex.4.4.0`
 - `torchvision==0.22.1+corex.4.4.0`

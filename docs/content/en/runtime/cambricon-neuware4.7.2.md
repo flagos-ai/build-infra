@@ -1,5 +1,5 @@
 ---
-title: "sunrise-tangrt1.2.0"
+title: "cambricon-neuware4.7.2"
 ---
 
 <!--
@@ -21,28 +21,28 @@ title: "sunrise-tangrt1.2.0"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** Sunrise SR-SUN-S2-X1
-- **Host driver:** 0.24.0
+- **Chip models:** Cambricon MLU590
+- **Host driver:** 6.5.48
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1</code> <a href="../../base/sunrise-tangrt1.2.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.1</code> <a href="../../base/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
-3.10
+3.12
 
 ### Major Python packages
 
+- `cambricon_dali==0.13.0`
 - `flag_gems==5.3.2`
 - `numpy==2.2.6`
-- `torch-ptpu==0.2.3+torch2.11`
-- `torch==2.11.0+cpu`
-- `torchaudio==2.11.0+cpu`
-- `torchvision==0.26.0+cpu`
-- `triton==3.4.0.6+gite4f6d6e4`
+- `torch-mlu-ops==1.8.0+torch2.7.1`
+- `torch-mlu==1.29.2+torch2.7.1`
+- `torch==2.7.1+cpu`
+- `triton==3.2.0+mlu1.7.2`
 
 ## Launch
 
@@ -50,9 +50,9 @@ Start an interactive shell (works with docker or podman):
 
 ```bash
 docker run --rm -it \
-  --privileged \
-  -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.1.1 bash
+  --device /dev/cambricon_dev0 \
+  --device /dev/cambricon_ctl \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.1 bash
 ```
 
 ## Verify
@@ -60,5 +60,5 @@ docker run --rm -it \
 Inside the container, confirm the accelerator is visible:
 
 ```bash
-pt_smi
+cnmon
 ```

@@ -1,5 +1,5 @@
 ---
-title: "tsingmicro-tsm260604"
+title: "tsingmicro-tsm260610"
 ---
 
 <!--
@@ -22,14 +22,14 @@ title: "tsingmicro-tsm260604"
 
 - **Architecture:** x86_64
 - **Chip models:** Tsingmicro TX8110
-- **Host driver:** 260604163331.01
+- **Host driver:** 260610164501.01
 - **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: tx-container-toolkit >= 2.5.0
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260604:2.1.1</code> <a href="../../base/tsingmicro-tsm260604/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.1</code> <a href="../../base/tsingmicro-tsm260610/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -64,7 +64,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260604:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -73,7 +73,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260604:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.1 bash
 ```
 
 ## Verify

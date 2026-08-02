@@ -1,5 +1,5 @@
 ---
-title: "kunlunxin-xre5.29.0"
+title: "kunlunxin-xre5.37.1"
 ---
 
 <!--
@@ -22,14 +22,14 @@ title: "kunlunxin-xre5.29.0"
 
 - **架构:** x86_64
 - **芯片型号:** Kunlunxin P800
-- **宿主机驱动:** 5.29.0
+- **宿主机驱动:** 5.37.1
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: xpu_container >= 1.0.13
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1</code> <a href="../../base/kunlunxin-xre5.29.0/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1</code> <a href="../../base/kunlunxin-xre5.37.1/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -69,7 +69,7 @@ title: "kunlunxin-xre5.29.0"
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.29.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.1 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -78,7 +78,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.29.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.1 bash
 ```
 
 ## 验证

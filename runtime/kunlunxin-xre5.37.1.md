@@ -2,14 +2,14 @@
 
 - **Architecture:** x86_64
 - **Chip models:** Kunlunxin P800
-- **Host driver:** 5.29.0
+- **Host driver:** 5.37.1
 - **Container toolkit** *(optional)*: xpu_container >= 1.0.13
 
 ## Image contents
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.29.0:2.1.1`
+`harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1`
 
 ### Python
 
@@ -49,7 +49,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.29.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.1 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -58,7 +58,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.29.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.1 bash
 ```
 
 ## Verify

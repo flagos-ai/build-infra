@@ -16,7 +16,8 @@
 
 ### Major Python packages
 
-- `flag_gems`
+- `flag_gems==5.3.2`
+- `numpy==2.2.6`
 - `torch-ptpu==0.2.3+torch2.11`
 - `torch==2.11.0+cpu`
 - `torchaudio==2.11.0+cpu`

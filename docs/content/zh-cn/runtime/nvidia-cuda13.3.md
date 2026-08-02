@@ -37,8 +37,9 @@ title: "nvidia-cuda13.3"
 
 ### 主要 Python 软件包
 
-- `flag_gems`
+- `flag_gems==5.3.2`
 - `flagtree==0.6.0`
+- `numpy==2.3.5`
 - `torch==2.11.0+cu130`
 - `torchaudio==2.11.0+cu130`
 - `torchvision==0.26.0+cu130`
@@ -47,11 +48,6 @@ title: "nvidia-cuda13.3"
 ### 切换编译器
 
 本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
-
-## 环境变量
-
-- `NVIDIA_VISIBLE_DEVICES=all`
-- `NVIDIA_DRIVER_CAPABILITIES=compute,utility`
 
 ## 启动
 

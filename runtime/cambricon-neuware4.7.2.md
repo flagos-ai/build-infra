@@ -2,17 +2,17 @@
 
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
-- **Host driver:** 6.2.15
+- **Host driver:** 6.5.48
 
 ## Image contents
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.1`
+`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.1`
 
 ### Python
 
-3.10
+3.12
 
 ### Major Python packages
 
@@ -32,7 +32,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.1 bash
 ```
 
 ## Verify
