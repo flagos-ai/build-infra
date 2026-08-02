@@ -296,7 +296,7 @@ def _pin_requires_dist(meta_text: str, dep_name: str, pinned_version: str) -> tu
 
 
 def classify(rd: dict, config: dict):
-    """Return one of: 'torch_chain', 'cuda_only', 'orphaned', 'keep'."""
+    """Return one of: 'torch_chain', 'cuda_only', 'orphaned', 'build_leak', 'keep'."""
     nn = _normalize(rd["name"])
     for item in config.get("remove_torch_chain", []):
         if _normalize(item) == nn:
@@ -307,6 +307,9 @@ def classify(rd: dict, config: dict):
     for item in config.get("remove_orphaned", []):
         if _normalize(item) == nn:
             return "orphaned"
+    for item in config.get("remove_build_leak", []):
+        if _normalize(item) == nn:
+            return "build_leak"
     return "keep"
 
 
@@ -570,7 +573,7 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
     config = load_config()
     all_rd = parse_requires_dist(meta_text)
     exclude = set()
-    for cat in ("remove_torch_chain", "remove_cuda_only", "remove_orphaned"):
+    for cat in ("remove_torch_chain", "remove_cuda_only", "remove_orphaned", "remove_build_leak"):
         for item in config.get(cat, []):
             exclude.add(_normalize(item))
 
@@ -917,18 +920,18 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
     all_rd = parse_requires_dist(meta_text)
 
     # 2. Classify every Requires-Dist
-    removed: dict[str, list[str]] = {"torch_chain": [], "cuda_only": [], "orphaned": []}
+    removed: dict[str, list[str]] = {"torch_chain": [], "cuda_only": [], "orphaned": [], "build_leak": []}
     retained: list[str] = []
 
     for rd in all_rd:
         cat = classify(rd, config)
-        if cat in ("torch_chain", "cuda_only", "orphaned"):
+        if cat in ("torch_chain", "cuda_only", "orphaned", "build_leak"):
             removed[cat].append(rd["raw"])
         else:
             retained.append(rd["raw"])
 
     print(f"  keep:     {len(retained)}")
-    for cat in ("torch_chain", "cuda_only", "orphaned"):
+    for cat in ("torch_chain", "cuda_only", "orphaned", "build_leak"):
         if removed[cat]:
             print(f"  {cat}: {len(removed[cat])}")
 
@@ -945,7 +948,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     # 4. Strip & rewrite top-level wheel
     names_to_remove: set[str] = set()
-    for cat in ("torch_chain", "cuda_only", "orphaned"):
+    for cat in ("torch_chain", "cuda_only", "orphaned", "build_leak"):
         for rd_raw in removed.get(cat, []):
             nm = _NAME_RE.match(rd_raw)
             if nm:
