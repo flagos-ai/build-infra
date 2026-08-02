@@ -51,7 +51,7 @@ jobs:
         if: ${{ inputs.push }}
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
-          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
           # Harbor is internal — bypass any HTTP_PROXY/HTTPS_PROXY the runner
           # may have set for GitHub access.
           # Only uppercase HTTP_PROXY/HTTPS_PROXY (lowercase clash with runner
@@ -61,7 +61,7 @@ jobs:
           no_proxy: "harbor.baai.ac.cn,.baai.ac.cn"
         run: |
           if [ -z "${HARBOR_PW:-}" ]; then
-            echo "ERROR: secret HARBOR_AC_FLAGOS_BASE is empty or unset" >&2
+            echo "ERROR: secret HARBOR_PASSWORD is empty or unset" >&2
             exit 1
           fi
           # registry host = build-config.yml registry.host

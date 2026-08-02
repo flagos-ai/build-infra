@@ -147,7 +147,7 @@ jobs:
       - name: Harbor login (for image pull)
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
-          HARBOR_PW: ${{ secrets.HARBOR_AC_FLAGOS_BASE }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
           # Harbor is internal — bypass any HTTP_PROXY/HTTPS_PROXY the runner
           # may have set for GitHub access, otherwise docker login routes
           # Harbor traffic through the proxy and fails.
