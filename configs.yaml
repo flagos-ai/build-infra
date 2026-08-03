@@ -275,11 +275,16 @@ vendors:
           ENABLE_I64_CHECK: "1"
       deps:
         - pyefml==1.10.6
-        - torch==2.10.0+cpu
-        - torchaudio==2.10.0+cpu
-        - torchvision==0.25.0+cpu
-        - torch-gcu==2.10.0+3.7.20260408
+        - torch==2.11.0+cpu
+        - torchaudio==2.11.0+cpu
+        - torchvision==0.26.0+cpu
+        - torch-gcu==2.11.0+3.8.20260713
+        - torchcodec==3.8.20260624+torch.2.11.0
+        - flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706
+        - tops-extension==3.6.20260529+torch.2.11.0
         - topstx==1.10.6
+        - xfuser==0.4.1+gcu.3.6.20260609
+        - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==2.3.5
       sdk:
         - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
