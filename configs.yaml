@@ -268,7 +268,8 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260722
-      flagtree: flagtree==0.6.0+enflame.git657f543d
+      # This version of flagtree doesn't work yet
+      # flagtree: flagtree==0.6.0+enflame.git657f543d
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
