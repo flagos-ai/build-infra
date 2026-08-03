@@ -235,12 +235,16 @@ vendors:
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
       flagtree: flagtree==0.6.0+enflame3.6
+      env:
+        runtime:
+          TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
+          ENABLE_I64_CHECK: "1"
       deps:
         - pyefml==1.9.10
-        - torch==2.10.0+cpu
-        - torchaudio==2.10.0+cpu
-        - torchvision==0.25.0+cpu
-        - torch-gcu==2.10.0+3.7.20260408
+        - torch==2.9.1+cpu
+        - torchaudio==2.9.1+cpu
+        - torchvision==0.24.1+cpu
+        - torch-gcu==2.9.1+3.7.1
         - flash-attn==2.7.2+torch.2.9.1.gcu.3.4.20260323
         - numpy==2.3.5
       sdk:
@@ -265,6 +269,10 @@ vendors:
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260722
       flagtree: flagtree==0.6.0+enflame.git657f543d
+      env:
+        runtime:
+          TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
+          ENABLE_I64_CHECK: "1"
       deps:
         - pyefml==1.9.17
         - torch==2.10.0+cpu
