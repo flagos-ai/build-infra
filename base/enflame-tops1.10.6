@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # ============================================================
-# Base image for Enflame 1.9.17 on Ubuntu 24.04
+# Base image for Enflame 1.10.6 on Ubuntu 24.04
 # ============================================================
 # History:
-# - 20260727: Initial version
+# - 20260803: Initial version
 
 FROM ubuntu:24.04
 
@@ -35,25 +35,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ── Enflame Runtime packages ───────────────────────────────────
 RUN curl -fsSL -o enflame.run \
-      ${FILE_STORE}/enflame-x86_64-gcc-1.9.17-20260604115152.run \
+      ${FILE_STORE}/enflame-x86_64-gcc-1.10.6-20260720190108.run \
     && chmod +x enflame.run \
     && ./enflame.run --no-kernel-modules \
     && rm -f enflame.run
 
-RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.9.17-1_amd64.deb \
-      -O ${FILE_STORE}/topscc_1.9.17-1_amd64.deb \
-      -O ${FILE_STORE}/efml_1.9.17-1_amd64.deb \
-      -O ${FILE_STORE}/topspti_1.9.17-1_amd64.deb \
-      -O ${FILE_STORE}/gculare-perftest_1.9.17-1_amd64.deb \
+RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/topcodec_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/topscc_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/topstx_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/tops-sanitizer_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/topspti_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/gculare-perftest_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/topsfile_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/topsprof_1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/efml_1.10.6-1_amd64.deb \
       -O ${FILE_STORE}/topsaten_3.7.20260602-1_amd64.deb \
       -O ${FILE_STORE}/eccl_3.6.3.11-1_amd64.deb \
       -O ${FILE_STORE}/eccl-tests_3.6.3.11-1_amd64.deb \
-      -O ${FILE_STORE}/triton-gcu_3.6.0+1.0.20260610.cc.1.9.17-1_amd64.deb \
-      -O ${FILE_STORE}/topstx_1.9.17-1_amd64.deb \
+      -O ${FILE_STORE}/triton-gcu_3.6.0+1.0.20260722.cc.1.10.6-1_amd64.deb \
     && dpkg -i *.deb || true \
     && apt-get install -yf 2>/dev/null || true \
     && rm -f *.deb
-
-# flagtree toolkit.py expects /opt/triton_gcu but triton-gcu deb
-# installs to /opt/triton/triton_gcu.
-# RUN ln -sf /opt/triton/triton_gcu /opt/triton_gcu

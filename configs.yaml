@@ -259,10 +259,10 @@ vendors:
         - Triton GCU 3.6.0+1.0.20260521.cc.1.9.10  # triton-gcu_3.6.0+1.0.20260521.cc.1.9.10-1_amd64.deb
         - Gculare-perftest 1.9.10 # gculare-perftest_1.9.10-1_amd64.deb
 
-    tops1.9.17:
+    tops1.10.6:
       extras: enflame
       hardware: ["Enflame Zixiao C200 (S60)"]
-      driver: "1.9.17"
+      driver: "1.10.6"
       python: "3.12"
       cmake_backend: GCU
       triton: triton==3.6.0
@@ -274,25 +274,29 @@ vendors:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
           ENABLE_I64_CHECK: "1"
       deps:
-        - pyefml==1.9.17
+        - pyefml==1.10.6
         - torch==2.10.0+cpu
         - torchaudio==2.10.0+cpu
         - torchvision==0.25.0+cpu
         - torch-gcu==2.10.0+3.7.20260408
-        - topstx==1.9.17
+        - topstx==1.10.6
         - numpy==2.3.5
       sdk:
-        - Enflame driver 1.9.17   # enflame-x86_64-gcc-1.9.17-20260604115152.run
-        - TOPS Runtime 1.9.17     # topsruntime_1.9.17-1_amd64.deb
-        - TOPS CC 1.9.17          # topscc_1.9.17-1_amd64.deb
-        - TOPS PTI 1.9.17         # topspti_1.9.17-1_amd64.deb
-        - TOPSTX 1.9.17           # topstx_1.9.17-1_amd64.deb
+        - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
+        - TOPS Runtime 1.10.6     # topsruntime_1.10.6-1_amd64.deb
+        - TOPS CODEC 1.10.6       # topscodec_1.10.6-1_amd64.deb
+        - TOPS CC 1.10.6          # topscc_1.10.6-1_amd64.deb
+        - TOPSTX 1.10.6           # topstx_1.10.6-1_amd64.deb
+        - TOPS PTI 1.10.6         # topspti_1.10.6-1_amd64.deb
+        - TOPS File 1.10.6        # topsfile_1.10.6-1_amd64.deb
+        - TOPS Prof 1.10.6        # topsprof_1.10.6-1_amd64.deb
+        - TOPS Sanitizer 1.10.6   # tops-sanitizer_1.10.6-1_amd64.deb
         - TOPS ATen 3.7.20260602  # topsaten_3.7.20260602-1_amd64.deb
-        - EFML 1.9.17             # efml_1.9.17-1_amd64.deb
+        - EFML 1.10.6             # efml_1.10.6-1_amd64.deb
         - ECCL 3.6.3.11           # eccl_3.6.3.11-1_amd64.deb
-        - ECCL Tests 3.6.3.11           # eccl-tests_3.6.3.11-1_amd64.deb
-        - Triton GCU 3.6.0+1.0.20260610.cc.1.9.17  # triton-gcu_3.6.0+1.0.20260610.cc.1.9.17-1_amd64.deb
-        - Gculare-perftest 1.9.17 # gculare-perftest_1.9.17-1_amd64.deb
+        - ECCL Tests 3.6.3.11     # eccl-tests_3.6.3.11-1_amd64.deb
+        - Triton GCU 3.6.0+1.0.20260722.cc.1.10.6  # triton-gcu_3.6.0+1.0.20260722.cc.1.10.6-1_amd64.deb
+        - Gculare-perftest 1.10.6 # gculare-perftest_1.10.6-1_amd64.deb
 
   hygon:
     dtk26.04:
