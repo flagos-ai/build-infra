@@ -286,7 +286,8 @@ vendors:
         - flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706
         - tops-extension==3.6.20260529+torch.2.11.0
         - topstx==1.10.6
-        - xfuser==0.4.1+gcu.3.6.20260609
+        # this version pins transformers at 4.42.4, which conflicts with enflame-modelopt
+        # - xfuser==0.4.1+gcu.3.6.20260609
         - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==2.3.5
       sdk:
