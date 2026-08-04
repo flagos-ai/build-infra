@@ -1,0 +1,64 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# Base image for MetaX MACA 3.7.2.0 on Ubuntu 24.04
+# ============================================================
+# History:
+# - 20260707: Initial version
+
+FROM ubuntu:24.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+ARG SDK_VERSION=3.8.1.3
+ARG DRIVER_VERSION=3.8.1.6
+
+# ── Build arguments ────────────────────────────────────────────
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/metax
+ARG DRIVER_PACKAGE=metax-driver-${DRIVER_VERSION}-deb-x86_64.run
+ARG SDK_PACKAGE=maca-sdk-${SDK_VERSION}-deb-x86_64.tar.xz
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# base dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      curl git vim ca-certificates libnuma1 libelf1 \
+      gcc g++ cmake make build-essential libpython3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install the MetaX driver in UMD (userspace) mode: this installs the userspace
+# package (mxsmt, which provides `mx-smi`) WITHOUT building the kernel module.
+# The kernel driver belongs on the host (like NVIDIA), so the base image only
+# needs userspace + the mx-smi verify tool. `--mode=umd` lets the image build
+# headless (no device, no DKMS); full mode tries to DKMS-build metax-linux and
+# fails in a container.
+RUN curl -fsSL -o /metax-driver.run ${FILE_STORE}/${DRIVER_PACKAGE} \
+    && chmod +x /metax-driver.run \
+    && ./metax-driver.run -- --mode=umd -f \
+    && rm -f /metax-driver.run
+
+# Install MetaX SDK
+RUN curl -fsSL -o /maca-sdk.tar.xz ${FILE_STORE}/${SDK_PACKAGE} \
+    && tar xf /maca-sdk.tar.xz -C /tmp \
+    && cd /tmp/maca-sdk-${SDK_VERSION} \
+    && ./mxmaca-sdk-install.sh -f \
+    && rm -fr /tmp/maca-sdk-${SDK_VERSION}  \
+    && rm -f /maca-sdk.tar.xz
+
+ENV PATH="/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}" \
+    MACA_PATH="/opt/maca" \
+    LD_LIBRARY_PATH="/opt/maca/lib:/opt/maca/mxgpu_llvm/lib"
