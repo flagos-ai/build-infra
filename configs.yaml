@@ -460,7 +460,7 @@ vendors:
         - torch==2.9.0+musa.4.3.6
         - torch_musa==2.9.0
         - mkl==2024.0.0
-        - numpy==2.2.6
+        - numpy==1.26.4
       sdk:
         - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
         - MCCL RC2.1.6              # mccl_rc2.1.6.PH1.tar.gz
@@ -485,7 +485,7 @@ vendors:
         - torch==2.9.1+musa5.2.0
         - torch_musa==2.9.1
         - mkl==2024.0.0
-        - numpy==2.2.6
+        - numpy==1.26.4
 
       sdk:
         - MUSA Toolkits 5.2.0     # musa_toolkits_5.2.0.tar.gz
