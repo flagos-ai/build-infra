@@ -1,5 +1,5 @@
 ---
-title: "cambricon-neuware4.7.2"
+title: "metax-maca3.8.1.3"
 ---
 
 <!--
@@ -21,8 +21,9 @@ title: "cambricon-neuware4.7.2"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** Cambricon MLU590
-- **Host driver:** 6.5.48
+- **Chip models:** MetaX C550
+- **Host driver:** 3.9.6
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: metax-docker >= 0.15.3
 
 ## Image contents
 
@@ -40,41 +41,44 @@ Explicitly installed; the version is the one baked into this image:
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
-- `gdb` — 15.1
 - `git` — 2.43.0
-- `libc6-dev-i386` — 2.39
-- `libncurses6` — 6.4+20240113
-- `libtinfo6` — 6.4+20240113
+- `libelf1`
+- `libnuma1` — 2.0.18
+- `libpython3-dev` — 3.12.3
 - `make` — 4.3
-- `pciutils` — 3.10.0
-- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK components
 
-- cnmon 6.5.48
-- cntoolkit 4.7.2
-- cncl 1.30.8
-- cnclep 1.4.0
-- cnnl 2.2.14
-- cnnlextra 2.4.0
-- mluops 1.12.0
+- MetaX Driver 3.8.1.6
+- MACA SDK 3.8.1.3
 
 ## Environment
 
-- `NEUWARE_HOME=/usr/local/neuware`
-- `PATH=/usr/local/neuware/bin:$PATH`
-- `LD_LIBRARY_PATH=/usr/local/neuware/lib64`
+- `PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}`
+- `MACA_PATH=/opt/maca`
+- `LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib`
 
 ## Launch
 
-Start an interactive shell (works with docker or podman):
+**With the container toolkit** *(optional)*:
+
+```bash
+metax-docker \
+  run \
+  --rm \
+  -it \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.1-1 bash
+```
+
+**Without a toolkit** — plain docker / podman:
 
 ```bash
 docker run --rm -it \
-  --device /dev/cambricon_dev0 \
-  --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.1 bash
+  --device /dev/mxcd \
+  --device /dev/dri \
+  --group-add video \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.1-1 bash
 ```
 
 ## Verify
@@ -82,5 +86,5 @@ docker run --rm -it \
 Inside the container, confirm the accelerator is visible:
 
 ```bash
-cnmon
+mx-smi
 ```

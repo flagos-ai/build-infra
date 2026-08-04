@@ -1,0 +1,70 @@
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** MetaX C550
+- **Host driver:** 3.9.6
+- **Container toolkit** *(optional)*: metax-docker >= 0.15.3
+
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
+
+Explicitly installed; the version is the one baked into this image:
+
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260601~24.04.1
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `git` — 2.43.0
+- `libelf1`
+- `libnuma1` — 2.0.18
+- `libpython3-dev` — 3.12.3
+- `make` — 4.3
+- `vim` — 9.1.0016
+
+### SDK components
+
+- MetaX Driver 3.8.1.6
+- MACA SDK 3.8.1.3
+
+## Environment
+
+- `PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}`
+- `MACA_PATH=/opt/maca`
+- `LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib`
+
+## Launch
+
+**With the container toolkit** *(optional)*:
+
+```bash
+metax-docker \
+  run \
+  --rm \
+  -it \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.1-1 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it \
+  --device /dev/mxcd \
+  --device /dev/dri \
+  --group-add video \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.1-1 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+mx-smi
+```
