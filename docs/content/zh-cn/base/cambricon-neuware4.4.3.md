@@ -56,7 +56,8 @@ title: "cambricon-neuware4.4.3"
 - cntoolkit 4.4.3
 - cncl 1.29.4
 - cnclep 1.1.1.
-- cnnl+extra 2.1.829
+- cnnl 2.1.829
+- cnnlextra 2.2.7
 - mluops 1.8.1
 
 ## 环境变量

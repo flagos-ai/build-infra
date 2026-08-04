@@ -1,5 +1,5 @@
 ---
-title: "cambricon-neuware4.7.2"
+title: "metax-maca3.8.1.3"
 ---
 
 <!--
@@ -21,8 +21,9 @@ title: "cambricon-neuware4.7.2"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** Cambricon MLU590
-- **宿主机驱动:** 6.5.48
+- **芯片型号:** MetaX C550
+- **宿主机驱动:** 3.9.6
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: metax-docker >= 0.15.3
 
 ## 镜像内容
 
@@ -40,41 +41,44 @@ title: "cambricon-neuware4.7.2"
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
-- `gdb` — 15.1
 - `git` — 2.43.0
-- `libc6-dev-i386` — 2.39
-- `libncurses6` — 6.4+20240113
-- `libtinfo6` — 6.4+20240113
+- `libelf1`
+- `libnuma1` — 2.0.18
+- `libpython3-dev` — 3.12.3
 - `make` — 4.3
-- `pciutils` — 3.10.0
-- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK 组件
 
-- cnmon 6.5.48
-- cntoolkit 4.7.2
-- cncl 1.30.8
-- cnclep 1.4.0
-- cnnl 2.2.14
-- cnnlextra 2.4.0
-- mluops 1.12.0
+- MetaX Driver 3.8.1.6
+- MACA SDK 3.8.1.3
 
 ## 环境变量
 
-- `NEUWARE_HOME=/usr/local/neuware`
-- `PATH=/usr/local/neuware/bin:$PATH`
-- `LD_LIBRARY_PATH=/usr/local/neuware/lib64`
+- `PATH=/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}`
+- `MACA_PATH=/opt/maca`
+- `LD_LIBRARY_PATH=/opt/maca/lib:/opt/maca/mxgpu_llvm/lib`
 
 ## 启动
 
-启动交互式 shell（docker 或 podman 均可）：
+**使用容器工具包** *(可选)*：
+
+```bash
+metax-docker \
+  run \
+  --rm \
+  -it \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.1-1 bash
+```
+
+**无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \
-  --device /dev/cambricon_dev0 \
-  --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.1 bash
+  --device /dev/mxcd \
+  --device /dev/dri \
+  --group-add video \
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.1-1 bash
 ```
 
 ## 验证
@@ -82,5 +86,5 @@ docker run --rm -it \
 在容器内，确认加速器可见：
 
 ```bash
-cnmon
+mx-smi
 ```

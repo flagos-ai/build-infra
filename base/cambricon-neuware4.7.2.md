@@ -36,7 +36,8 @@ Explicitly installed; the version is the one baked into this image:
 - cntoolkit 4.7.2
 - cncl 1.30.8
 - cnclep 1.4.0
-- cnnl+extra 2.1.829
+- cnnl 2.2.14
+- cnnlextra 2.4.0
 - mluops 1.12.0
 
 ## Environment
