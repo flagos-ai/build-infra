@@ -44,7 +44,6 @@ runners:
     enflame-tops1.10.6: [self-hosted, tops1106]
     hygon-dtk26.04: [self-hosted, hygon]
     iluvatar-corex4.4.0: [self-hosted, iluvatar]
-    kunlunxin-xre5.29.0: [self-hosted, kunlunxin]
     kunlunxin-xre5.37.1: [self-hosted, kunlunxin]
     metax-maca3.7.2.1: [self-hosted, maca3715]
     metax-maca3.8.1.0: [self-hosted, maca3813]
