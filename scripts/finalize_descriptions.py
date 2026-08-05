@@ -24,7 +24,7 @@ Two modes, dispatched by ``--done``:
     ``main``. Clean up state + per-backend extract branches when done.
 
 **done=false (retry)**
-    Self-trigger the ``base-descriptions.yml`` workflow with only the missing
+    Self-trigger the ``gendoc-base.yaml`` workflow with only the missing
     backends (or exit with a warning if there are none). Clean up the
     per-backend extract branches that were already collected so they don't
     interfere with the next retry. If the retry cap is hit, exit with error.
@@ -231,8 +231,11 @@ def _retry(args) -> None:
 
     next_retry = retry + 1
     print(f"Self-triggering retry {next_retry}/{max_retries} for: {missing}")
+    # Reference the workflow by its file name, not its display name — the
+    # display name ("Generate docs for base images") has changed before and
+    # silently broke the retry loop.
     subprocess.run(
-        ["gh", "workflow", "run", "Base image descriptions",
+        ["gh", "workflow", "run", "gendoc-base.yaml",
          "-f", f"backend={missing}", "-f", f"retry_count={next_retry}"],
         check=True, cwd=REPO_ROOT,
     )
