@@ -18,12 +18,12 @@ from __future__ import annotations
 
 """Build FlagOS base container images.
 
-The image version comes from the Containerfile's ``LABEL org.opencontainers.image.version``
-plus a per-backend git revision count since that version's tag — so only
-Containerfile changes bump the version, not unrelated repo edits.
+The image version comes from ``configs.yaml version:`` (see
+``scripts/version.py``) — every backend shares the same flat tag during a
+release cycle and rebuilt images overwrite it.
 
 Image tag convention:
-    flagos-base-{name}:{version}-{n}   (n = commits to base/{name} since v{version})
+    flagos-base-{name}:{version}
 
 Usage:
     python scripts/build_base.py <name> [options]

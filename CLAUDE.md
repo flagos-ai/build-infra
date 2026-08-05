@@ -100,7 +100,7 @@ All self-hosted: default is `[self-hosted, h20]` (x86_64). Ascend backends overr
 
 ## Conventions
 
-- **Version from configs.yaml.** `configs.yaml` `version:` is the single stack-wide release version. `scripts/version.py` computes per-backend versions as `X.Y.Z-n` where n = commits to `base/<name>` since tag vX.Y.Z. At release: bump `version:` and `flaggems:` in one place → `git tag vX.Y.Z`.
+- **Version from configs.yaml.** `configs.yaml` `version:` is the single stack-wide release version; all images share it as their flat tag. At release: bump `version:` and `flaggems:` in one place → `git tag vX.Y.Z`.
 - **FlagGems version from configs.yaml.** `configs.yaml` `flaggems:` sets the wheel version for runtime builds. Override with `--flaggems` CLI flag when needed.
 - **Per-vendor PyPI indexes.** Each vendor has a separate index: `flagos-pypi-{vendor}`. This isolates vendor-specific packages so there is no cross-vendor package confusion.
 - **No extras for runtime deps.** `configs.yaml deps:` lists explicit packages passed to `uv pip install` — extras (`.[nvidia-cuda128]`) can't resolve correctly across vendor indexes.
