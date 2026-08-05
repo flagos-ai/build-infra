@@ -36,7 +36,15 @@ defaults:
     shell: bash
 
 jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/check-trigger-author
+
   set-matrix:
+    needs: authorize
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}

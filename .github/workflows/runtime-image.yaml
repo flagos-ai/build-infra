@@ -48,21 +48,11 @@ on:
 
 jobs:
   authorize:
-    # Only accounts listed in .github/builders.txt may trigger this workflow.
-    # workflow_dispatch is already restricted to users with write access;
-    # this narrows it further to the maintainers who actually run image builds.
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-
-      - name: Check trigger author
-        run: |
-          actor="${{ github.triggering_actor }}"
-          if ! grep -qx "$actor" .github/builders.txt; then
-            echo "::error::$actor is not authorized to trigger this workflow"
-            exit 1
-          fi
+      - uses: ./.github/actions/check-trigger-author
 
   set-matrix:
     needs: authorize
