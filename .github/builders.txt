@@ -1,0 +1,5 @@
+# GitHub accounts allowed to manually trigger image build workflows
+# (base-image.yaml, runtime-image.yaml). One username per line.
+# Managed by maintainers; reviewed via the normal PR flow.
+tengqm
+shiptux
