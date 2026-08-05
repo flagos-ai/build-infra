@@ -58,14 +58,14 @@ configs.yaml + base/ Containerfiles + build-config.yml
 
 ### Image naming
 
-- **Base:** `flagos-base-{vendor}-{backend}:{version}-{n}` — version from Containerfile `LABEL org.opencontainers.image.version` (repo tag), n = per-backend git revision count since that tag. Only Containerfile changes bump n.
+- **Base:** `flagos-base-{vendor}-{backend}:{version}` — version from configs.yaml `version:`. All backends share the same flat tag during a release cycle; rebuilt images overwrite it. (A per-backend `-N` commit-count affix was tried and dropped as confusing.)
 - **Runtime:** `flagos-runtime-{vendor}-{backend}:{version}` — version from configs.yaml `version:` (same as base)
 - Registry: `harbor.baai.ac.cn/{prefix}/` (prefix from `build-config.yml` registry.prefixes)
 - `base/<name>` Containerfile names match the `{vendor}-{backend}` key (e.g. `base/nvidia-cuda12.8`)
 
-### Base image version (per-backend, not global)
+### Base image version (flat, stack-wide)
 
-`configs.yaml` declares `version: "X.Y.Z"` — the single stack-wide release version. `scripts/version.py` counts git commits to each `base/<name>` since tag `vX.Y.Z`, producing `X.Y.Z-n` per backend. The repo tag anchors all backends at the same baseline; n diverges as Containerfiles evolve independently. The version is stamped onto the image at build time as an OCI label — Containerfiles do not hardcode it.
+`configs.yaml` declares `version: "X.Y.Z"` — the single stack-wide release version. Every base image carries the same flat `X.Y.Z` tag, stamped as an OCI label at build time (Containerfiles do not hardcode it). Because rebuilt images overwrite the same tag, whether a pushed image is stale is answered by `scripts/base_image_status.py` — it reads the `revision`/`version` OCI labels off the pushed image and diffs the corresponding `base/<name>` Containerfile since that commit.
 
 ### Runtime Containerfile (multi-stage, dual-compiler)
 

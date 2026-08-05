@@ -139,14 +139,13 @@ def resolve_base_image(
 
     {registry}/{prefix}-{vendor}-{backend}:{version}
 
-    The version comes from the base image's Containerfile LABEL +
-    per-backend git revision count (see version.image_version).
-    Falls back to git describe when the Containerfile has no version LABEL.
+    The version comes from configs.yaml ``version:`` (see version.image_version).
+    Falls back to git describe when configs.yaml has no version.
     Falls back to :latest when no git tag is reachable (shallow checkout).
     """
     prefix = configs.get("base_image_prefix", "flagos-base")
     name = f"{vendor}-{backend}"
-    version = image_version(repo_root, name)
+    version = image_version(repo_root)
     if version is None:
         version = git_describe(repo_root)
     if not version:

@@ -138,7 +138,7 @@ def main():
             f"Available: {', '.join(available)}"
         )
 
-    version = image_version(repo_root, args.name) or git_version(repo_root)
+    version = image_version(repo_root) or git_version(repo_root)
     commit = git(repo_root, "rev-parse", "HEAD") or ""
     created = git(repo_root, "show", "-s", "--format=%cI", "HEAD") or ""
 
@@ -153,10 +153,14 @@ def main():
         tag = f"{image_name}:{version}"
 
     # OCI provenance stamped onto the built image (git is the source of truth).
+    # last-updated is the committer time of the build commit (RFC3339) — the
+    # moment this image's content was decided; used by the docs pipeline to
+    # render a human "last updated" line into base descriptions.
     labels = {
         "org.opencontainers.image.version": version,
         "org.opencontainers.image.revision": commit,
         "org.opencontainers.image.created": created,
+        "last-updated": created,
         "org.opencontainers.image.source": "https://github.com/flagos-ai/build-infra",
     }
 

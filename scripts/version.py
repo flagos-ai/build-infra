@@ -12,29 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Per-backend image version from configs.yaml + git.
+"""Image version tag from configs.yaml.
 
 configs.yaml declares the stack version::
 
-    version: "2.1.1"
+    version: "2.1.2"
 
-image_version() counts git commits to ``base/<name>`` since tag
-``v2.1.1``, producing::
+image_version() returns that value verbatim::
 
-    2.1.1        (n=0, no changes since the tag)
-    2.1.1-3      (3 commits to this Containerfile since v2.1.1)
+    2.1.2
+
+During a release cycle every backend shares the same flat tag
+(``flagos-base-{name}:{version}``) and rebuilt images overwrite it. An
+earlier design appended a per-backend ``-N`` affix (commits to
+``base/<name>`` since the release tag) so a stale image was visible from
+its tag alone; that proved confusing to users and was dropped. Whether a
+pushed image reflects HEAD is answered instead by
+``scripts/base_image_status.py``, which reads the OCI labels stamped on
+the image (see build_base.py) and diffs the corresponding containerfile.
 """
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
+
+import yaml
 
 
 def _load_version(repo_root: Path) -> str | None:
     """Read ``version:`` from configs.yaml."""
-    import yaml
-
     cfg = repo_root / "configs.yaml"
     if not cfg.is_file():
         return None
@@ -43,32 +49,9 @@ def _load_version(repo_root: Path) -> str | None:
     return data.get("version") or None
 
 
-def image_version(repo_root: Path, name: str) -> str | None:
-    """Compute the per-backend image version tag.
+def image_version(repo_root: Path) -> str | None:
+    """Return the stack version tag for images, e.g. ``"2.1.2"``.
 
-    ``name`` is the containerfile name (e.g. ``"nvidia-cuda12.8"``).
-
-    Returns ``"X.Y.Z-n"`` when there are *n* commits to ``base/<name>``
-    since tag ``vX.Y.Z``, or just ``"X.Y.Z"`` when n=0.  Returns None
-    when configs.yaml has no version field.
+    Returns None when configs.yaml has no version field.
     """
-    label_ver = _load_version(repo_root)
-    if not label_ver:
-        return None
-
-    tag = f"v{label_ver}"
-    try:
-        r = subprocess.run(
-            ["git", "rev-list", "--count", f"{tag}..HEAD", "--", f"base/{name}"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError:
-        return label_ver
-
-    if r.returncode != 0:
-        return label_ver
-
-    n = int(r.stdout.strip())
-    return f"{label_ver}-{n}" if n else label_ver
+    return _load_version(repo_root)

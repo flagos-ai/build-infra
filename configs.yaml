@@ -22,13 +22,16 @@
 #   flaggems: FlagGems wheel version for runtime builds — override with --flaggems.
 #
 # Base image naming convention:
-#   {base_image_prefix}-{vendor}-{backend}:{version}-{n}
-#   e.g. flagos-base-nvidia-cuda12.8:2.1.1-0
-#   {n} = commits to base/{vendor}-{backend} since tag v{version}.
+#   {base_image_prefix}-{vendor}-{backend}:{version}
+#   e.g. flagos-base-nvidia-cuda12.8:2.1.2
+# All backends share the same flat tag during a release cycle; rebuilt
+# images overwrite it. Whether a pushed image is stale is answered by
+# scripts/base_image_status.py (OCI labels vs base/<name> Containerfile),
+# not by a per-tag commit-count affix.
 #
 # Runtime image naming convention:
 #   flagos-runtime-{vendor}-{backend}:{version}
-#   e.g. flagos-runtime-nvidia-cuda12.8:2.1.1
+#   e.g. flagos-runtime-nvidia-cuda12.8:2.1.2
 #
 # The PyPI index URL is auto-generated: pypi_base.format(vendor=<vendor>).
 # Override per-backend with an explicit "index:" field if needed.
