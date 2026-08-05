@@ -17,7 +17,9 @@ description: |-
   Fail the workflow if github.triggering_actor is not listed in
   .github/builders.txt. Enforced only for manual workflow_dispatch
   triggers; other event types (push, schedule, workflow_run,
-  workflow_call) are not gated.
+  workflow_call) are not gated. The repository's own automation
+  (github-actions[bot], i.e. a dispatch authenticated as the repo
+  GITHUB_TOKEN) is allowed so self-healing re-dispatch loops work.
 
 runs:
   using: composite
@@ -33,6 +35,13 @@ runs:
           exit 0
         fi
         actor="${{ github.triggering_actor }}"
+        # gendoc-base.yaml re-dispatches itself (via gh workflow run with the
+        # repo GITHUB_TOKEN) to retry failed backends. Exempt that identity —
+        # the bot token is only usable by workflows running in this repo.
+        if [[ "$actor" == "github-actions[bot]" ]]; then
+          echo "Repo automation (github-actions[bot]) — skipping authorization"
+          exit 0
+        fi
         if ! grep -Fxq "$actor" .github/builders.txt; then
           echo "::error::$actor is not authorized to trigger this workflow"
           exit 1
