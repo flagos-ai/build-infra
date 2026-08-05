@@ -151,7 +151,7 @@ jobs:
       - name: Delete stale version branch
         if: always()
         run: |
-          label="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'unknown')"
+          label="$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')"
           git push origin --delete "auto/versions-${label}/${{ matrix.name }}" 2>/dev/null || true
           echo "Cleared auto/versions-${label}/${{ matrix.name }}"
 
@@ -245,7 +245,7 @@ jobs:
           GIT_COMMITTER_EMAIL: noreply@flagos.net
           SCOPE: ${{ github.event.inputs.backend || 'all' }}
         run: |
-          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          label="$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')"
           state_branch="auto/versions-${label}-state"
           if git ls-remote --heads origin "refs/heads/${state_branch}" | grep -q refs; then
             echo "Restoring state from ${state_branch}"
@@ -313,7 +313,7 @@ jobs:
           GIT_COMMITTER_NAME: flagos-ci
           GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
-          label="$(git describe --tags --abbrev=0 | sed 's/^v//')"
+          label="$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')"
           state_branch="auto/versions-${label}-state"
 
           if [ ! -d versions ] || [ -z "$(ls -A versions 2>/dev/null)" ]; then

@@ -44,13 +44,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _label() -> str:
-    """Version label from the latest git tag, e.g. ``2.1.1``."""
-    r = subprocess.run(
-        ["git", "describe", "--tags", "--abbrev=0"],
-        capture_output=True, text=True, cwd=REPO_ROOT,
-    )
-    if r.returncode == 0 and r.stdout.strip():
-        return r.stdout.strip().lstrip("v")
+    """Version label from configs.yaml ``version:``, e.g. ``2.1.2``.
+
+    Mirrors scripts/version.py so the auto/versions-<label>/<backend>
+    transport branches track the release's target version rather than the
+    last git tag (which is only cut at release end).
+    """
+    import yaml
+    cfg = REPO_ROOT / "configs.yaml"
+    if cfg.is_file():
+        data = yaml.safe_load(cfg.read_text()) or {}
+        if data.get("version"):
+            return str(data["version"])
     return "unknown"
 
 
