@@ -60,21 +60,10 @@ defaults:
 jobs:
   authorize:
     # Only accounts listed in .github/builders.txt may trigger this workflow
-    # manually. The workflow_run follow-up (after a base image build) is not
-    # gated — the check step only runs on workflow_dispatch.
+    # manually; see .github/actions/check-trigger-author for the check.
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-
-      - name: Check trigger author
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: |
-          actor="${{ github.triggering_actor }}"
-          if ! grep -qx "$actor" .github/builders.txt; then
-            echo "::error::$actor is not authorized to trigger this workflow"
-            exit 1
-          fi
+      - uses: ./.github/actions/check-trigger-author
 
   set-matrix:
     needs: authorize
