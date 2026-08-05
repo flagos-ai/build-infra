@@ -31,7 +31,25 @@ permissions:
   pull-requests: write
 
 jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow.
+    # workflow_dispatch is already restricted to users with write access;
+    # this narrows it further to the maintainers who generate docs.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Check trigger author
+        run: |
+          actor="${{ github.triggering_actor }}"
+          if ! grep -qx "$actor" .github/builders.txt; then
+            echo "::error::$actor is not authorized to trigger this workflow"
+            exit 1
+          fi
+
   finalize:
+    needs: authorize
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:

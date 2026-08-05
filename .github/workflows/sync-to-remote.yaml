@@ -58,7 +58,26 @@ permissions:
   contents: read
 
 jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually. Callers via workflow_call are not gated — the check step only
+    # runs on workflow_dispatch.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Check trigger author
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          actor="${{ github.triggering_actor }}"
+          if ! grep -qx "$actor" .github/builders.txt; then
+            echo "::error::$actor is not authorized to trigger this workflow"
+            exit 1
+          fi
+
   sync:
+    needs: authorize
     runs-on: ubuntu-latest
     env:
       REMOTE: ${{ inputs.remote }}

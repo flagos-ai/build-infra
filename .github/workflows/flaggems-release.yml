@@ -43,8 +43,26 @@ defaults:
     shell: bash
 
 jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow.
+    # workflow_dispatch is already restricted to users with write access;
+    # this narrows it further to the maintainers who run releases.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Check trigger author
+        run: |
+          actor="${{ github.triggering_actor }}"
+          if ! grep -qx "$actor" .github/builders.txt; then
+            echo "::error::$actor is not authorized to trigger this workflow"
+            exit 1
+          fi
+
   # ── 5a: pure-Python wheel, all vendor PyPIs ──────────────────────────────
   python-wheel:
+    needs: authorize
     # Self-hosted runner for fast upload — pushing a 5.4 MB wheel to 14
     # vendor Nexus repositories over the public internet (GitHub runner) has
     # been observed at ~60 kB/s. An internal self-hosted runner saturates
