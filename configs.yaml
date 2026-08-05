@@ -503,8 +503,8 @@ vendors:
       hardware: ["Sunrise SR-SUN-S2-X1"]
       driver: "0.24.0"
       python: "3.10"
-      triton: triton==3.4.0.6+gite4f6d6e4
-      # flagtree==0.4.0+sunrise3.4 — requires GLIBC_2.39, unavailable on current system
+      triton: triton==3.6.0.1+git0a5cfb35
+      flagtree: flagtree==0.6.0+sunrise3.6
       env:
         base:
           TANGRT_ROOT: /usr/local/tangrt
