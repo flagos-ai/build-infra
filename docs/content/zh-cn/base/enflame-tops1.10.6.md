@@ -71,8 +71,8 @@ title: "enflame-tops1.10.6"
 ```bash
 docker run --rm -it \
   --network host \
-  -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.1 bash
+  -e ENFLAME_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -81,7 +81,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.2 bash
 ```
 
 ## 验证
@@ -91,3 +91,5 @@ docker run --rm -it \
 ```bash
 efsmi
 ```
+
+*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*

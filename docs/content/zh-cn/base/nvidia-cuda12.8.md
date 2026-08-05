@@ -64,7 +64,7 @@ title: "nvidia-cuda12.8"
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -77,7 +77,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.1.2 bash
 ```
 
 ## 验证
@@ -87,3 +87,5 @@ docker run --rm -it \
 ```bash
 nvidia-smi
 ```
+
+*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
