@@ -76,13 +76,13 @@ run:
       # raw needs the host driver: nvidia-smi + libnvidia-ml (for smi) + libcuda (CUDA).
       raw: "--device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro"
     ascend:
-      # GOTCHA: explicit device indices only — ASCEND_VISIBLE_DEVICES=all fails on the
+      # Note: explicit device indices only — ASCEND_VISIBLE_DEVICES=all fails on the
       # 910 ("product type is not support"); =0 (or 0,1,...) works.
       toolkit: "-e ASCEND_VISIBLE_DEVICES=0"
       raw: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
     hygon:
       toolkit: "-e DCU_VISIBLE_DEVICES=all"
-      # GOTCHA: needs BOTH kfd nodes — /dev/kfd alone leaves power/perf N/A and hy-smi
+      # Note: needs BOTH kfd nodes — /dev/kfd alone leaves power/perf N/A and hy-smi
       # errors "Open mkfd failed"; /dev/mkfd carries that telemetry.
       raw: "--device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video -v /opt/hyhal:/opt/hyhal --security-opt seccomp=unconfined"
     metax:
@@ -91,7 +91,7 @@ run:
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
       toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
-      # raw mounts the host mthreads-gmi (not baked); #125 would bake it and drop the mount.
+      # raw mounts the host mthreads-gmi (not baked);
       raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
       toolkit: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
@@ -101,16 +101,18 @@ run:
       # No container toolkit/runtime known; cnmon is baked in the image.
       raw: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl"
     kunlunxin:
-      # GOTCHA: env var is CXPU_VISIBLE_DEVICES (not XPU_), explicit index. Host setup:
-      # `xpu-ctk runtime configure --runtime=docker` + restart docker (the .deb skips it).
+      # Note: env var is CXPU_VISIBLE_DEVICES (not XPU_), explicit index. Host setup:
       toolkit: "--runtime xpu -e CXPU_VISIBLE_DEVICES=0"
       raw: "--device /dev/xpu0 --device /dev/xpuctrl"
     tsingmicro:
       toolkit: "--runtime=tsingmicro -e TSINGMICRO_VISIBLE_DEVICES=all"
       raw: "--device /dev/accel --device /dev/accel_drv_mgr"
     enflame:
-      # gotcha: toolkit uses --network host + env var, no --runtime flag.
-      toolkit: "--network host -e ENFLAME_VISIBLE_DEVICES=all"
+      # Note:
+      # 1. toolkit uses --network host + env var, no --runtime flag.
+      # 2. On Tencent cloud we use one environment variable, in standalone
+      #    environments, we use another, so we set both.
+      toolkit: "--network host -e ENFLAME_VISIBLE_DEVICES=all -e TENCENT_VISIBLE_DEVICES=all"
       raw: "--privileged -v /dev:/dev"
     sunrise:
       raw: "--privileged -v /dev:/dev"
