@@ -18,6 +18,8 @@ title: "kunlunxin-xre5.37.1"
  limitations under the License.
 -->
 
+*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -65,7 +67,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -74,7 +76,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.2 bash
 ```
 
 ## Verify

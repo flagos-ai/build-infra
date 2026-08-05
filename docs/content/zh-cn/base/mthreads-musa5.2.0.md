@@ -18,6 +18,8 @@ title: "mthreads-musa5.2.0"
  limitations under the License.
 -->
 
+*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## 前置条件
 
 - **架构:** x86_64
@@ -70,7 +72,7 @@ title: "mthreads-musa5.2.0"
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -80,7 +82,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.2 bash
 ```
 
 ## 验证

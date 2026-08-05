@@ -18,6 +18,8 @@ title: "sunrise-tangrt1.2.0"
  limitations under the License.
 -->
 
+*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -65,7 +67,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.2 bash
 ```
 
 ## Verify

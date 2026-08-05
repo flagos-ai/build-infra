@@ -18,6 +18,8 @@ title: "metax-maca3.7.2.1"
  limitations under the License.
 -->
 
+*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -68,7 +70,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -78,7 +80,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.2 bash
 ```
 
 ## Verify

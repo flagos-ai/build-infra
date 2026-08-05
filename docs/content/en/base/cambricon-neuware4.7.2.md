@@ -18,6 +18,8 @@ title: "cambricon-neuware4.7.2"
  limitations under the License.
 -->
 
+*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -74,7 +76,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.2 bash
 ```
 
 ## Verify

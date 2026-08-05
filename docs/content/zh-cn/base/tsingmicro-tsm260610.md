@@ -18,6 +18,8 @@ title: "tsingmicro-tsm260610"
  limitations under the License.
 -->
 
+*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## 前置条件
 
 - **架构:** x86_64
@@ -79,7 +81,7 @@ title: "tsingmicro-tsm260610"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -88,7 +90,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.2 bash
 ```
 
 ## 验证

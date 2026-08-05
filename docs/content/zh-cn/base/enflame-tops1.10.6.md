@@ -18,6 +18,8 @@ title: "enflame-tops1.10.6"
  limitations under the License.
 -->
 
+*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## 前置条件
 
 - **架构:** x86_64
@@ -72,7 +74,7 @@ title: "enflame-tops1.10.6"
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -81,7 +83,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.2 bash
 ```
 
 ## 验证

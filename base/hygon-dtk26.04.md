@@ -1,3 +1,5 @@
+*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -42,7 +44,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -55,7 +57,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.2 bash
 ```
 
 ## Verify

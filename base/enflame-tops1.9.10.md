@@ -1,3 +1,5 @@
+*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+
 ## Prerequisites
 
 - **Architecture:** x86_64
@@ -46,7 +48,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --network host \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -55,7 +57,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.2 bash
 ```
 
 ## Verify
