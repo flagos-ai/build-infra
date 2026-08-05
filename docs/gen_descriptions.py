@@ -336,16 +336,6 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web", m
         lines += COPYRIGHT
         _ = lines.append("")
 
-    # ── Last updated (from the image's OCI labels at build time) ──
-    meta = meta or {}
-    if meta.get("last_updated") or meta.get("revision"):
-        parts = []
-        if meta.get("last_updated"):
-            parts.append(human_date(meta["last_updated"]))
-        if meta.get("revision"):
-            parts.append(f"`{meta['revision'][:12]}`")
-        lines += [f"*{s['last_updated']}: {' · '.join(parts)}*", ""]
-
     # ── Prerequisites (shared with runtime) ──
     lines += _prerequisites(entry, s, web)
 
@@ -382,6 +372,16 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web", m
 
     # ── Verify (shared with runtime) ──
     lines += _verify(entry, s)
+
+    # ── Last updated (from the image's OCI labels at build time) — footer ──
+    meta = meta or {}
+    if meta.get("last_updated") or meta.get("revision"):
+        parts = []
+        if meta.get("last_updated"):
+            parts.append(human_date(meta["last_updated"]))
+        if meta.get("revision"):
+            parts.append(f"`{meta['revision'][:12]}`")
+        lines.append(f"*{s['last_updated']}: {' · '.join(parts)}*")
 
     return "\n".join(lines).rstrip() + "\n"
 
