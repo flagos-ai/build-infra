@@ -18,12 +18,12 @@ from __future__ import annotations
 
 """Build FlagOS base container images.
 
-The image version comes from the Containerfile's ``LABEL org.opencontainers.image.version``
-plus a per-backend git revision count since that version's tag — so only
-Containerfile changes bump the version, not unrelated repo edits.
+The image version comes from ``configs.yaml version:`` (see
+``scripts/version.py``) — every backend shares the same flat tag during a
+release cycle and rebuilt images overwrite it.
 
 Image tag convention:
-    flagos-base-{name}:{version}-{n}   (n = commits to base/{name} since v{version})
+    flagos-base-{name}:{version}
 
 Usage:
     python scripts/build_base.py <name> [options]
@@ -138,7 +138,7 @@ def main():
             f"Available: {', '.join(available)}"
         )
 
-    version = image_version(repo_root, args.name) or git_version(repo_root)
+    version = image_version(repo_root) or git_version(repo_root)
     commit = git(repo_root, "rev-parse", "HEAD") or ""
     created = git(repo_root, "show", "-s", "--format=%cI", "HEAD") or ""
 
@@ -153,10 +153,14 @@ def main():
         tag = f"{image_name}:{version}"
 
     # OCI provenance stamped onto the built image (git is the source of truth).
+    # last-updated is the committer time of the build commit (RFC3339) — the
+    # moment this image's content was decided; used by the docs pipeline to
+    # render a human "last updated" line into base descriptions.
     labels = {
         "org.opencontainers.image.version": version,
         "org.opencontainers.image.revision": commit,
         "org.opencontainers.image.created": created,
+        "last-updated": created,
         "org.opencontainers.image.source": "https://github.com/flagos-ai/build-infra",
     }
 

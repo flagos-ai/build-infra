@@ -269,7 +269,7 @@ def main():
             sdk_blob = " ".join(sdk).lower()
             arch = "aarch64" if ("aarch64" in sdk_blob or "arm64" in sdk_blob) else "x86_64"
 
-            ver = image_version(repo_root, name) or _git_describe(repo_root)
+            ver = image_version(repo_root) or _git_describe(repo_root)
 
             # Merge dpkg-installed system-level packages (e.g. libfmt8 for
             # tsingmicro) — these are exceptions declared in configs.yaml, not

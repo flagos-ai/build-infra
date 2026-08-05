@@ -53,6 +53,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -69,6 +70,7 @@ LANGS = ("en", "zh-cn")
 STRINGS = {
     "en": {
         "prerequisites": "Prerequisites",
+        "last_updated": "Last updated",
         "architecture": "Architecture",
         "chip_models": "Chip models",
         "host_driver": "Host driver",
@@ -98,6 +100,7 @@ STRINGS = {
     },
     "zh-cn": {
         "prerequisites": "前置条件",
+        "last_updated": "更新时间",
         "architecture": "架构",
         "chip_models": "芯片型号",
         "host_driver": "宿主机驱动",
@@ -183,6 +186,35 @@ def load_versions(versions_dir: Path | None, name: str) -> dict:
             pkg, ver = line.split("\t", 1)
             out[pkg.strip()] = clean_version(ver.strip())
     return out
+
+
+def load_meta(versions_dir: Path | None, name: str) -> dict:
+    """Build provenance from the ``# header`` lines of <name>.tsv.
+
+    upload_version_tsv.py prepends ``# run:``, ``# verify:`` and, when
+    present, ``# last_updated:`` / ``# revision:`` (from the image's OCI
+    labels, via extract_versions.py). Returns the last two, which the
+    description renders as a "Last updated" line.
+    """
+    if not versions_dir:
+        return {}
+    f = versions_dir / f"{name}.tsv"
+    if not f.is_file():
+        return {}
+    meta = {}
+    for line in f.read_text().splitlines():
+        if not line.startswith("# "):
+            break  # headers are contiguous at the top
+        key, _, val = line[2:].partition(": ")
+        if key.strip() in ("last_updated", "revision") and val.strip():
+            meta[key.strip()] = val.strip()
+    return meta
+
+
+def human_date(ts: str) -> str:
+    """RFC3339 -> display form: '2026-08-05T13:59:11+08:00' -> '2026-08-05 13:59:11'."""
+    m = re.match(r"(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})", ts)
+    return f"{m.group(1)} {m.group(2)}" if m else ts
 
 
 def wrap_cmd(cmd: str, width: int = 84) -> str:
@@ -273,7 +305,7 @@ def _verify(entry: dict, s: dict) -> list[str]:
     return lines
 
 
-def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -> str:
+def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web", meta: dict | None = None) -> str:
     """Compose the description markdown for one backend in `lang`.
 
     Only prose/headers are localized (from STRINGS); every technical value —
@@ -303,6 +335,16 @@ def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web") -
         # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
         lines += COPYRIGHT
         _ = lines.append("")
+
+    # ── Last updated (from the image's OCI labels at build time) ──
+    meta = meta or {}
+    if meta.get("last_updated") or meta.get("revision"):
+        parts = []
+        if meta.get("last_updated"):
+            parts.append(human_date(meta["last_updated"]))
+        if meta.get("revision"):
+            parts.append(f"`{meta['revision'][:12]}`")
+        lines += [f"*{s['last_updated']}: {' · '.join(parts)}*", ""]
 
     # ── Prerequisites (shared with runtime) ──
     lines += _prerequisites(entry, s, web)
@@ -453,7 +495,7 @@ def main():
                     print(f"Warning: '{name}' not in images.yaml — skipping", file=sys.stderr)
                     continue
                 versions = load_versions(versions_dir, name)
-                md = render(backends[name], versions, lang, "web")
+                md = render(backends[name], versions, lang, "web", load_meta(versions_dir, name))
                 (out_dir / f"{name}.md").write_text(md)
                 total += 1
             print(f"Wrote {len(requested)} {lang} base web pages to {out_dir}")
@@ -463,7 +505,7 @@ def main():
             if name not in backends:
                 continue
             versions = load_versions(versions_dir, name)
-            md = render(backends[name], versions, "en", "plain")
+            md = render(backends[name], versions, "en", "plain", load_meta(versions_dir, name))
             (base_dir / f"{name}.md").write_text(md)
         print(f"Wrote {len(requested)} base plain readmes to {base_dir}")
 
@@ -509,7 +551,7 @@ def main():
         out_dir = root / "docs" / "content" / lang / "base"
         out_dir.mkdir(parents=True, exist_ok=True)
         for name, entry in backends.items():
-            md = render(entry, load_versions(versions_dir, name), lang, "web")
+            md = render(entry, load_versions(versions_dir, name), lang, "web", load_meta(versions_dir, name))
             (out_dir / f"{name}.md").write_text(md)
             total += 1
         print(f"Wrote {len(backends)} {lang} base web pages to {out_dir}")
@@ -517,7 +559,7 @@ def main():
     # Base plain flavor: base/<name>.md (Harbor-bound)
     base_dir = root / "base"
     for name, entry in backends.items():
-        md = render(entry, load_versions(versions_dir, name), "en", "plain")
+        md = render(entry, load_versions(versions_dir, name), "en", "plain", load_meta(versions_dir, name))
         (base_dir / f"{name}.md").write_text(md)
     print(f"Wrote {len(backends)} base plain readmes to {base_dir}")
 
