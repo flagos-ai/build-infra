@@ -24,8 +24,11 @@ jobs:
   authorize:
     # Only accounts listed in .github/builders.txt may trigger this workflow
     # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/check-trigger-author
 
   verify-nvidia-cuda128:
