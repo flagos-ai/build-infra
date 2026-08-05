@@ -56,6 +56,7 @@ def main() -> None:
         (REPO_ROOT / ".github" / "build-config.yml").read_text()
     )
     vendor = name.split("-")[0]
+    backend = name.split("-")[1]
     verify_cmd = (
         (build_cfg.get("verify") or {}).get("vendors") or {}
     ).get(vendor, "")
@@ -81,22 +82,23 @@ def main() -> None:
 
     if r.returncode == 0:
         # Print a GHA workflow command so the log stands out.
-        print(f"::notice title=Verify::{vendor}: verify OK — {verify_cmd}")
+        print(f"::notice title=Verify::{backend}: verify OK — {verify_cmd}")
         return
 
     # Non-zero exit. Collapse into "skip" or "fail" based on signal.
     rc = r.returncode
     if rc == 137:
         # SIGKILL (OOM) — real error, not missing hardware.
-        sys.exit(f"{vendor}: verify command was OOM-killed (exit {rc})")
+        sys.exit(f"{backend}: verify command was OOM-killed (exit {rc})")
     if rc == 139:
         # SIGSEGV — real error.
-        sys.exit(f"{vendor}: verify command segfaulted (exit {rc})")
+        sys.exit(f"{backend}: verify command segfaulted (exit {rc})")
 
     # Any other non-zero: likely missing device / driver — skip.
     print(
-        f"::warning title=Verify::{vendor}: verify exited {rc} "
-        f"— runner likely lacks {vendor} hardware → SKIP"
+        f"::warning title=Verify::{backend}: verify exited {rc} "
+        f"— runner likely lacks {vendor} hardware? "
+        f"({flags_str})"
     )
 
 
