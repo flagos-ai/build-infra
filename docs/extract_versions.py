@@ -32,6 +32,30 @@ from pathlib import Path
 import yaml
 
 
+def image_labels(image: str) -> dict:
+    """Read the last-updated + revision OCI labels via docker inspect.
+
+    The docs pipeline renders these as a "Last updated" line in the base
+    description; the values come from build_base.py (git committer time +
+    build commit). A missing label prints ``<no value>`` — treat as absent.
+    """
+    fmt = ('{{index .Config.Labels "last-updated"}}'
+           '|{{index .Config.Labels "org.opencontainers.image.revision"}}')
+    r = subprocess.run(
+        ["docker", "inspect", image, "--format", fmt],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        return {}
+    ts, _, rev = r.stdout.partition("|")
+    out = {}
+    if ts and ts != "<no value>":
+        out["last_updated"] = ts.strip()
+    if rev and rev != "<no value>":
+        out["revision"] = rev.strip()
+    return out
+
+
 def main():
     if len(sys.argv) != 3:
         sys.exit("usage: extract_versions.py <backend-name> <out-dir>")
@@ -47,14 +71,21 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{name}.tsv"
 
+    # Always pull the latest image; docker run --rm uses the local copy but
+    # the runner may have a stale cache from a previous build cycle.
+    subprocess.run(["docker", "pull", image], check=True, capture_output=True)
+
+    # Record the build provenance labels (written by upload_version_tsv.py
+    # into the TSV headers, then rendered by gen_descriptions.py).
+    labels = image_labels(image)
+    (out_dir / f"{name}.labels").write_text(
+        "".join(f"{k}={v}\n" for k, v in labels.items())
+    )
+
     if not pkgs:
         out.write_text("")
         print(f"{name}: no explicit system packages")
         return
-
-    # Always pull the latest image; docker run --rm uses the local copy but
-    # the runner may have a stale cache from a previous build cycle.
-    subprocess.run(["docker", "pull", image], check=True, capture_output=True)
 
     # dpkg-query prints the found packages even when some are absent (it exits
     # non-zero then) — capture stdout regardless.

@@ -21,9 +21,13 @@ Preconditions: the caller records the verify step outcome to
 ``<tsv-dir>/<backend>.verify_outcome`` (contents: ``success``, ``failure``,
 or ``skipped``).  ``GITHUB_RUN_ID`` must be set in the environment.
 
-The script prepends two metadata headers (``# run:``, ``# verify:``) to the
-TSV so the accumulate job can tell whether the data is fresh and whether the
-verify step passed.
+The script prepends metadata headers (``# run:``, ``# verify:``) to the
+TSV so the accumulate job can tell whether the data is fresh and whether
+the verify step passed. If ``<tsv-dir>/<backend>.labels`` exists (written
+by ``docs/extract_versions.py``), its ``last_updated``/``revision`` lines
+are added as ``# last_updated:`` / ``# revision:`` headers too — they
+travel inside the TSV so the descriptions generator can render a "Last
+updated" line.
 
 Before pushing, deletes the remote branch so a failed extract leaves no stale
 branch behind.
@@ -67,9 +71,17 @@ def main() -> None:
     run_id = os.environ.get("GITHUB_RUN_ID", "unknown")
     verify = verify_file.read_text().strip() if verify_file.is_file() else "unknown"
 
+    headers = [f"# run: {run_id}", f"# verify: {verify}"]
+    labels_file = tsv_dir / f"{backend}.labels"
+    if labels_file.is_file():
+        for line in labels_file.read_text().splitlines():
+            key, _, val = line.partition("=")
+            if val:
+                headers.append(f"# {key}: {val}")
+
     # Prepend metadata headers to the TSV content.
     tsv_raw = tsv_file.read_text()
-    payload = f"# run: {run_id}\n# verify: {verify}\n{tsv_raw}"
+    payload = "\n".join(headers) + "\n" + tsv_raw
 
     # Delete any stale branch so a failed extract leaves no trace.
     subprocess.run(
