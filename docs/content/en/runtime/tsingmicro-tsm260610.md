@@ -29,7 +29,7 @@ title: "tsingmicro-tsm260610"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.1</code> <a href="../../base/tsingmicro-tsm260610/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.2</code> <a href="../../base/tsingmicro-tsm260610/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -38,14 +38,14 @@ title: "tsingmicro-tsm260610"
 ### Major Python packages
 
 - `flag_gems==5.3.2`
-- `flagtree==0.5.0.post20260612+git705a4064`
+- `flagtree==0.5.0+2026071713.git2b23e6d1`
 - `numpy==2.2.6`
 - `torch==2.7.0+cpu`
-- `torch_txda==0.1.0+20260615.37ba6bbd`
+- `torch_txda==0.1.0+20260728.f6fbdb71`
 - `torchaudio==2.7.0+cpu`
 - `torchvision==0.22.0+cpu`
-- <span class="muted"><code class="plain">triton==3.3.0+gitfe2a28fa</code></span>
-- `txops==0.1.0+20260508.60287151`
+- <span class="muted"><code class="plain">triton==3.6.0.post2026072919+git8f5b0609</code></span>
+- `txops==0.1.0+20260716.e94d9509`
 
 ### Switch compiler
 
@@ -64,7 +64,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -73,7 +73,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.2 bash
 ```
 
 ## Verify

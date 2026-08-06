@@ -29,7 +29,7 @@ title: "ascend-cann9.0.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.1</code> <a href="../../base/ascend-cann9.0.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.2</code> <a href="../../base/ascend-cann9.0.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -55,7 +55,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -69,7 +69,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2 bash
 ```
 
 ## Verify

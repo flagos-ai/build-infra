@@ -29,7 +29,7 @@ title: "kunlunxin-xre5.37.1"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.1</code> <a href="../../base/kunlunxin-xre5.37.1/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.2</code> <a href="../../base/kunlunxin-xre5.37.1/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -69,7 +69,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -78,7 +78,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.2 bash
 ```
 
 ## Verify

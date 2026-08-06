@@ -1,5 +1,5 @@
 ---
-title: "metax-maca3.7.2.1"
+title: "metax-maca3.8.1.3"
 ---
 
 <!--
@@ -22,14 +22,14 @@ title: "metax-maca3.7.2.1"
 
 - **Architecture:** x86_64
 - **Chip models:** MetaX C550
-- **Host driver:** 3.8.30
+- **Host driver:** 3.9.6
 - **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: metax-docker >= 0.15.3
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.2</code> <a href="../../base/metax-maca3.7.2.1/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.2</code> <a href="../../base/metax-maca3.8.1.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,14 +37,19 @@ title: "metax-maca3.7.2.1"
 
 ### Major Python packages
 
+- `apex==0.1+metax3.8.1.0`
 - `flag_gems==5.3.2`
-- `flagtree==3.1.0+metax3.7.2.0`
-- `flash_attn==2.6.3+metax3.7.2.0torch2.8`
+- `flagtree==0.6.1a2+metax3.6`
+- `flash_attn==2.6.3+metax3.8.1.0torch2.10`
+- `flash_linear_attention==0.5.0+metax3.8.1.0torch2.10`
+- `flash_mla==1.0.1+metax3.8.1.0torch2.10`
+- `flashinfer==0.2.6+metax3.8.1.0torch2.10`
 - `numpy==2.3.5`
-- `torch==2.8.0+metax3.7.2.0`
-- `torchaudio==2.4.1+metax3.7.2.0`
-- `torchvision==0.15.1+metax3.7.2.0`
-- <span class="muted"><code class="plain">triton==3.0.0+metax3.7.2.0</code></span>
+- `torch==2.10.0+metax3.8.1.0`
+- `torchaudio==2.4.1+metax3.8.1.0`
+- `torchcodec==0.6.0+metax3.8.1.0`
+- `torchvision==0.25.0+metax3.8.1.0`
+- <span class="muted"><code class="plain">triton==3.6.0+metax3.8.1.0</code></span>
 
 ### Switch compiler
 
@@ -59,7 +64,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -69,7 +74,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2 bash
 ```
 
 ## Verify
