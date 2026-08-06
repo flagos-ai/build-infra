@@ -217,6 +217,7 @@ vendors:
         - torch-mlu==1.33.1+torch2.11.0
         - torch-mlu-ops==1.12.1+torch2.11.0
         - numpy==2.2.6
+        - pandas==3.0.5
       sdk:
         - cnmon 6.5.48           # cnmon-6.5.48-x86_64.zip
         - cntoolkit 4.7.2        # cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
