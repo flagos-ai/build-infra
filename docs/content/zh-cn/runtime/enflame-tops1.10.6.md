@@ -1,5 +1,5 @@
 ---
-title: "enflame-tops1.9.10"
+title: "enflame-tops1.10.6"
 ---
 
 <!--
@@ -22,14 +22,14 @@ title: "enflame-tops1.9.10"
 
 - **架构:** x86_64
 - **芯片型号:** Enflame Zixiao C200 (S60)
-- **宿主机驱动:** 1.9.10
+- **宿主机驱动:** 1.10.6
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: tencent-container-toolkit >= 2.0.52
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.2</code> <a href="../../base/enflame-tops1.9.10/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.1.2</code> <a href="../../base/enflame-tops1.10.6/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,24 +37,25 @@ title: "enflame-tops1.9.10"
 
 ### 主要 Python 软件包
 
+- `enflame-modelopt==3.6.20260615+torch.2.11.0`
 - `flag_gems==5.3.2`
-- `flagtree==0.6.0+enflame3.6`
-- `flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506`
-- `pyefml==1.9.10`
-- `torch-gcu==2.10.0+3.7.20260408`
-- `torch==2.10.0+cpu`
-- `torchaudio==2.10.0+cpu`
-- `torchvision==0.25.0+cpu`
-- <span class="muted"><code class="plain">triton==3.6.0 (+ triton-gcu==3.6.0+1.0.20260521.cc.1.9.10)</code></span>
-
-### 切换编译器
-
-本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
+- `flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706`
+- `numpy==2.3.5`
+- `pyefml==1.10.6`
+- `tops-extension==3.6.20260529+torch.2.11.0`
+- `topstx==1.10.6`
+- `torch-gcu==2.11.0+3.8.20260713`
+- `torch==2.11.0+cpu`
+- `torchaudio==2.11.0+cpu`
+- `torchcodec==3.8.20260624+torch.2.11.0`
+- `torchvision==0.26.0+cpu`
+- `triton==3.6.0 (+ triton-gcu==3.6.0+1.0.20260722)`
 
 ## 环境变量
 
 - `TORCH_GCU_ENABLE_INT64_AND_UINT64=1`
 - `ENABLE_I64_CHECK=1`
+- `TORCHGCU_INDUCTOR_ENABLE=1`
 
 ## 启动
 
@@ -65,7 +66,7 @@ docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -74,7 +75,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.1.2 bash
 ```
 
 ## 验证

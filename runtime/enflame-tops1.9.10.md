@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.1`
+`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.2`
 
 ### Python
 
@@ -19,8 +19,7 @@
 
 - `flag_gems==5.3.2`
 - `flagtree==0.6.0+enflame3.6`
-- `flash-attn==2.7.2+torch.2.9.1.gcu.3.4.20260323`
-- `numpy==2.3.5`
+- `flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506`
 - `pyefml==1.9.10`
 - `torch-gcu==2.10.0+3.7.20260408`
 - `torch==2.10.0+cpu`
@@ -32,6 +31,11 @@
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
+## Environment
+
+- `TORCH_GCU_ENABLE_INT64_AND_UINT64=1`
+- `ENABLE_I64_CHECK=1`
+
 ## Launch
 
 **With the container toolkit** *(optional)*:
@@ -39,8 +43,9 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 ```bash
 docker run --rm -it \
   --network host \
+  -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -49,7 +54,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.2 bash
 ```
 
 ## Verify

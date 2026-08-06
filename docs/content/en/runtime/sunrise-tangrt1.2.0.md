@@ -28,7 +28,7 @@ title: "sunrise-tangrt1.2.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.1</code> <a href="../../base/sunrise-tangrt1.2.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.2</code> <a href="../../base/sunrise-tangrt1.2.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,12 +37,17 @@ title: "sunrise-tangrt1.2.0"
 ### Major Python packages
 
 - `flag_gems==5.3.2`
+- `flagtree==0.6.0+sunrise3.6`
 - `numpy==2.2.6`
 - `torch-ptpu==0.2.3+torch2.11`
 - `torch==2.11.0+cpu`
 - `torchaudio==2.11.0+cpu`
 - `torchvision==0.26.0+cpu`
-- `triton==3.4.0.6+gite4f6d6e4`
+- <span class="muted"><code class="plain">triton==3.6.0.1+git0a5cfb35</code></span>
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 
@@ -52,7 +57,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.1.2 bash
 ```
 
 ## Verify

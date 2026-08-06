@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.1`
+`harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.2`
 
 ### Python
 
@@ -20,7 +20,7 @@
 - `flag_gems==5.3.2`
 - `flagtree==0.6.0+mthreads3.6`
 - `mkl==2024.0.0`
-- `numpy==2.2.6`
+- `numpy==1.26.4`
 - `torch==2.9.0+musa.4.3.6`
 - `torch_musa==2.9.0`
 - `triton==3.6.0+git89458660` *(alternative)*
@@ -37,7 +37,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -47,7 +47,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.1 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.2 bash
 ```
 
 ## Verify
