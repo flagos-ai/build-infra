@@ -562,9 +562,9 @@ vendors:
           USE_TORCH_XLA: "0"
           TORCH_COMPILE_DISABLE: "1"
       deps:
-        - torch==2.7.0+cpu
-        - torchvision==0.22.0+cpu
-        - torchaudio==2.7.0+cpu
+        - torch==2.11.0+cpu
+        - torchvision==0.26.0+cpu
+        - torchaudio==2.11.0+cpu
         - torch_txda==0.1.0+20260728.f6fbdb71
         - txops==0.1.0+20260716.e94d9509
         - numpy==2.2.6
