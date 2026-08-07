@@ -276,7 +276,7 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # the default compiler (FlagTree at /opt/flagtree, else Triton at
 # /opt/triton) is active in every shell, and 'compiler flagtree|triton'
 # toggles between the side dirs.
-COPY runtime/compiler.sh /etc/profile.d/compiler.sh
+COPY compiler.sh /etc/profile.d/compiler.sh
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)
