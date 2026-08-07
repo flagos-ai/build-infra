@@ -16,9 +16,15 @@ is **FlagTree-specific**; it is not a general MUSA/vendor-compiler bug.
 - **Vendor Triton** `/opt/triton` (`triton-3.6.0+git89458660`, ships its own `triton/backends/musa/`)
 
 **Context:** byproduct of the enflame/mthreads vllm E2E verification (see
-`vllm-repack/E2E-REPORT.md` §2.3 / §2.6.1). Enflame GCU300 shows a similar
-~2.9 error signature under its default FlagTree compiler; whether the same
-switch fixes Enflame is untested (see §6).
+`vllm-repack/E2E-REPORT.md` §2.3 / §2.6.1).
+
+**Enflame GCU300 follow-up (same session):** the enflame ~2.9 signature was
+**NOT** the same miscompile — with the int32 flash kernel applied (int64 philox
+arg removed; GCU300's `ENABLE_I64_CHECK` verifier rejects 64-bit types),
+flash attention is **correct under BOTH compilers on enflame** (non-causal
+0.0078, causal 0.0076 under FlagTree and under the vendor triton). Enflame's
+earlier "2.9" was a **compile-rejection artifact** (the kernel never ran), not
+wrong math. The FlagTree miscompile is **unique to mthreads**.
 
 ---
 
@@ -103,15 +109,15 @@ mthreads backend**, not in flag_gems and not in the vendor MUSA toolchain.
 
 1. **Use the vendor Triton on mthreads** (already available: `compiler triton`
    / `/opt/triton`). Validate the full vllm/plugin path under it, not just the
-   flash probe.
+   flash probe — this is the immediate next step for the mthreads E2E.
 2. **Report the FlagTree mthreads-backend miscompile to the flagtree team**
    with the flash-kernel repro (tl.dot + make_block_ptr batched/headed loads,
    wrong under FlagTree, correct under vendor triton). The minimal FMA repro
    is attached but is a secondary pattern (broken under both).
-3. **Test the same switch on Enflame GCU300** — its ~2.9 signature was also
-   under the FlagTree default; uninstall flagtree + `compiler triton` (vendor
-   triton_gcu in `/opt/triton`) may fix the numerics there too (its separate
-   int64/ABI issues remain).
+3. **Enflame GCU300 is already resolved** — with the int32 flash kernel, flash
+   attention is correct under both compilers; no compiler switch needed there.
+   (Its separate int64/ABI issues were fixed by the int32 kernel + PR #310
+   flash-attn build.)
 
 ## 7. Files / artifacts
 
