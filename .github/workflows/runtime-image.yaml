@@ -163,8 +163,22 @@ jobs:
           no_cache_arg=""
           [[ "${{ inputs.no_cache }}" == "true" ]] && no_cache_arg="--no-cache"
 
+          # OCI provenance labels (mirrors scripts/build_base.py). revision is
+          # the runtime build commit — stamped via CLI --label because the
+          # multi-stage runtime/Containerfile inherits the base image's labels.
+          git_revision="${{ github.sha }}"
+          git_created="$(git show -s --format=%cI HEAD)"
+          label_args="--label org.opencontainers.image.version=${{ matrix.version }} \
+            --label org.opencontainers.image.revision=${git_revision} \
+            --label org.opencontainers.image.created=${git_created} \
+            --label last-updated=${git_created} \
+            --label org.opencontainers.image.source=https://github.com/flagos-ai/build-infra \
+            --label flagos.base=${{ matrix.base_image }}"
+          [[ "${{ inputs.no_flaggems }}" != "true" ]] && label_args="${label_args} --label flagos.flaggems=${flaggems_ver}"
+
           docker build \
             ${no_cache_arg} \
+            ${label_args} \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
             --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \

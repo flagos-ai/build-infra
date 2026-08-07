@@ -121,6 +121,7 @@ def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: lis
 
         include.append({
             "name": name,
+            "version": stack_version,
             "runson": runson_for(name, runners),
             "image_tag": runtime_tag,
             "flaggems_version": flaggems_ver,

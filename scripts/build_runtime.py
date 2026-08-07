@@ -84,6 +84,17 @@ def resolve_backend(backend_arg: str, configs: dict):
     sys.exit(f"Error: '{backend_arg}' not found in configs.yaml vendors")
 
 
+def git(repo_root: Path, *args: str) -> str | None:
+    """Run a git command in repo_root; return stripped stdout or None."""
+    try:
+        r = subprocess.run(
+            ["git", *args], cwd=repo_root, capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
 def git_describe(repo_root: Path) -> str | None:
     """build-infra release version via `git describe --tags` ("v" stripped).
 
@@ -303,9 +314,29 @@ def main():
             registry = runtime_registry(repo_root)
             tag = f"{registry}/{image_name}:{version}{suffix}" if registry else f"{image_name}:{version}{suffix}"
 
+    # OCI provenance stamped onto the built image (git is the source of truth),
+    # mirroring scripts/build_base.py. `flagos.flaggems` records the wheel
+    # version that was actually installed — skipped for -build (NO_FLAGGEMS)
+    # images, which install no flag_gems.
+    commit = git(repo_root, "rev-parse", "HEAD") or ""
+    created = git(repo_root, "show", "-s", "--format=%cI", "HEAD") or ""
+    labels = {
+        "org.opencontainers.image.version": version,
+        "org.opencontainers.image.revision": commit,
+        "org.opencontainers.image.created": created,
+        "last-updated": created,
+        "org.opencontainers.image.source": "https://github.com/flagos-ai/build-infra",
+        "flagos.base": build_args["BASE_IMAGE"],
+    }
+    if not args.no_flaggems:
+        labels["flagos.flaggems"] = build_args["FLAGGEMS_VERSION"]
+
     cmd = ["docker", "build"]
     for key, value in build_args.items():
         cmd.extend(["--build-arg", f"{key}={value}"])
+    for key, value in labels.items():
+        if value:
+            cmd += ["--label", f"{key}={value}"]
     # Wheel-based install: the image installs FlagGems from PyPI, so the build
     # context no longer needs the FlagGems source tree (no COPY). Use runtime/
     # as a trivial context. --flaggems-dir is kept only to derive the version.
