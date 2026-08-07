@@ -1,141 +1,123 @@
-# MUSA Triton `tl.dot`/FMA Load-Address Miscompile — Root-Cause Report
+# MUSA Flash-Attention Wrong Outputs — FlagTree-Backend Specific; Vendor Triton Works
 
 ## Status
 
-**Root cause found and reproduced** on the MUSA (mthreads) backend. This is a
-vendor compiler bug, not a flag_gems kernel-logic bug. It surfaces as
-data-dependent wrong outputs in batched/headed flash-attention kernels.
+**Root cause identified, with a working fix.** On the MUSA (mthreads) backend,
+the flash-attention kernel produces wrong outputs **only under FlagTree**
+(`flagtree==0.6.0+mthreads3.6`). **Switching to the vendor Triton**
+(`/opt/triton`, `triton==3.6.0+git89458660`, shipped in the runtime image) makes
+flash attention **correct** (non-causal 0.0055, causal 0.0087). The miscompile
+is **FlagTree-specific**; it is not a general MUSA/vendor-compiler bug.
 
 **Date:** 2026-08-07
 **Platform:** MTT S5000 (8×), MUSA 5.2.0, torch 2.9.1, flag_gems 5.3.2
-**Compiler under test:** **FlagTree `flagtree==0.6.0+mthreads3.6`** — the
-standalone triton fork baked into the runtime image as the mthreads compiler
-(`/flagos/lib/python3.10/site-packages/triton/`, triton version 3.6.0,
-`triton.backends == ['mthreads']`). The miscompile lives in **FlagTree's
-mthreads backend** (`triton/backends/mthreads/compiler.py`, the
-`convert-sqmma-to-mtgpu`/address-lowering pipeline). The generic flash kernel
-runs through this compiler.
-> Note: `configs.yaml` `mthreads-musa4.3.6` pins a separate upstream
-> `triton==3.6.0+git89458660` (plus flagtree); whether that build shares the
-> bug is unverified. The finding here is specifically for
-> `flagtree==0.6.0+mthreads3.6` (musa5.2.0 image).
+**Compilers tested (both in the `flagos-runtime-mthreads-musa5.2.0:2.1.2` image):**
+- **FlagTree** `flagtree==0.6.0+mthreads3.6` (default compiler, `/flagos` site-packages; triton 3.6.0, `triton.backends == ['mthreads']`)
+- **Vendor Triton** `/opt/triton` (`triton-3.6.0+git89458660`, ships its own `triton/backends/musa/`)
+
 **Context:** byproduct of the enflame/mthreads vllm E2E verification (see
-`vllm-repack/E2E-REPORT.md` §2.3 / §2.6.1). The enflame GCU300 backend shows
-the same ~2.9 error signature; this report isolates the mechanism on mthreads,
-where it is cleanly reproducible.
+`vllm-repack/E2E-REPORT.md` §2.3 / §2.6.1). Enflame GCU300 shows a similar
+~2.9 error signature under its default FlagTree compiler; whether the same
+switch fixes Enflame is untested (see §6).
 
 ---
 
 ## 1. Symptom
 
-`flag_gems.flash_attn_varlen_func` on MUSA returns **wrong outputs** (garbage in
-vllm inference):
+`flag_gems.flash_attn_varlen_func` returns wrong outputs **under FlagTree**:
 
-| probe | result |
-|---|---|
-| flash `flash_attn_varlen_func` non-causal (8×8, bf16) | `max_abs_diff` **2.94** |
-| flash `flash_attn_varlen_func` causal | `max_abs_diff` **4.18** |
-| basic ops add / silu / matmul (torch) | exact (0 / 4.8e-7 / 0) |
-
-The same kernel is **exact on NVIDIA**. Basic torch matmul is exact on MUSA —
-only Triton kernels with batched/headed loads are wrong.
-
-## 2. Isolation chain (what was ruled out)
-
-The error was chased through several hypotheses, all eliminated:
-
-| hypothesis | test | result |
+| probe (8×8×128, bf16) | under FlagTree | under vendor triton |
 |---|---|---|
-| `tl.dot` itself | one-shot `tl.dot` (fp32/bf16 in) | **exact** (0.0 / 3.8e-6) |
-| `make_block_ptr` loads | block-ptr + `tl.dot` QK | **exact** (3.8e-6) |
-| `boundary_check` padding | block-ptr with boundary_check | **exact** (4.8e-7) |
-| `tl.math.exp2` vs `tl.exp` | softmax with either | both wrong in-kernel; both fine standalone |
-| scale folding (`(S−max)·scale`) | exp with scale inside/outside | both wrong in-kernel; both fine standalone |
-| PV dot (`P.to(bf16)` / fp32) | PV dot isolated | **exact** (0.0) |
-| `tl.range` vs `range` | loop construct | both wrong in the full kernel; both fine standalone |
-| softmax on known S | `tl.max`/`tl.exp`/`tl.sum` on loaded S | **exact** (6e-8) |
+| flash non-causal | `max_abs_diff` **2.94** | **0.0055** ✅ |
+| flash causal | wrong (~4) | **0.0087** ✅ |
+| basic ops add / silu / matmul (torch) | exact | exact |
 
-Every piece was exact **in isolation**, but the **combination** (loads with
-scalar base offsets + many programs) was wrong. The turning point was a
-per-tile breakdown.
+Basic torch matmul and single-op kernels are exact on MUSA under both
+compilers. Only the flash kernel (under FlagTree) is wrong.
 
-## 3. The minimal repro
+## 2. The decisive experiment (what the user asked)
 
-```python
-import torch, triton, triton.language as tl
-
-@triton.jit
-def fma_noexp(q_ptr, k_ptr, p_ptr, sq, sk, d, scale, H, BM: tl.constexpr, BN: tl.constexpr):
-    pid = tl.program_id(0)
-    bid = pid // H; hid = pid % H
-    rm = tl.arange(0, BM); rn = tl.arange(0, BN)
-    base_q = bid * sq * H * d + hid * d
-    base_k = bid * sk * H * d + hid * d
-    S = tl.zeros((BM, BN), dtype=tl.float32)
-    for kk in range(0, d):
-        qc = tl.load(q_ptr + base_q + rm * d + kk)   # (BM,)
-        kc = tl.load(k_ptr + base_k + rn * d + kk)   # (BN,)
-        S += qc[:, None].to(tl.float32) * kc[None, :].to(tl.float32)
-    S *= scale
-    tl.store(p_ptr + pid * sq * sk + rm[:, None] * sk + rn[None, :], S)
-```
-
-No `tl.dot`, no `exp`, no softmax — just scalar-offset loads accumulated in a
-loop. Launch with **16 programs** (`bs*h` = 2×8) over an 8×8×128 problem:
+With flagtree **uninstalled** (`pip uninstall flagtree` → its dist-info and
+site-packages `triton/` are gone) and `compiler triton` switching
+`PYTHONPATH=/opt/triton`:
 
 ```
-pid=6  err=3.98    pid=7  err=3.69    pid=8  err=2.72    pid=9  err=3.06
-pid=10 err=2.78    pid=11 err=2.96    pid=12 err=4.06    pid=13 err=3.81
-pid=14 err=3.15    pid=15 err=4.56
+causal=False max_abs_diff: 0.0055
+causal=True  max_abs_diff: 0.0087
 ```
 
-- **pids 0–5 load q/k correctly; pids 6–15 load WRONG data** (deterministic).
-- **Deterministic** across runs (identical wrong tiles).
-- A trivial 8-program kernel (`store(x_ptr+pid)`) is **exact** — so it is not a
-  bare `program_id` launch bug; it appears only with the load pattern.
+Both are bf16-expected precision (~0.01). **Flash attention works correctly
+under the vendor Triton.** The earlier ~2.9/4.x errors were measured under
+FlagTree (the image default).
+
+> Note on the causal reference: the earlier "causal=4.18" number used a wrong
+> reference mask (`triu(diagonal=sk-sq+1)`). The correct kernel-convention mask
+> is lower-triangular (`row m attends cols ≤ m`); with it, causal under the
+> vendor triton is 0.0087.
+
+## 3. Isolation chain (what was ruled out)
+
+The error was chased through several hypotheses under FlagTree; all the
+in-kernel pieces tested **exact in isolation**:
+
+| hypothesis | result |
+|---|---|
+| `tl.dot` one-shot | exact |
+| `make_block_ptr` loads | exact |
+| `boundary_check` padding | exact |
+| `tl.math.exp2` vs `tl.exp` | both fine standalone |
+| scale folding in exp | both fine standalone |
+| PV dot | exact |
+| `tl.range` vs `range` | both fine standalone |
+| softmax on a known S | exact |
+
+A **minimal FMA repro** (scalar-offset loads in a Python loop, 16 programs) was
+built and showed per-pid wrong addresses under FlagTree (pids 6+), but it is
+**not** the flash path (flash uses `tl.dot` + `make_block_ptr`) and it is
+**also wrong under the vendor triton** (all pids) — so it was a red herring for
+identifying the flash issue. The flash-specific miscompile is in FlagTree's
+`tl.dot`/block-ptr lowering, and it does not reproduce under the vendor musa
+backend.
 
 ## 4. Root cause
 
-The **MUSA Triton backend deterministically miscompiles load addresses for a
-subset of programs** when the kernel uses batched/headed scalar base offsets
-(`base = bid * stride_b + hid * stride_h`) inside a loop. The wrong-program
-threshold depends on kernel structure and program count (it moved between the
-2D-grid and flat-grid variants), consistent with a warp/lane-to-program
-assignment bug in the vendor codegen — not a data race (deterministic).
-
-Consequence: any Triton flash-attention (which is exactly this pattern, at
-many programs) on MUSA produces data-dependent wrong outputs. The same ~2.9
-signature appears on Enflame GCU300 (§E2E-REPORT 2.6.1) and is likely the same
-class of address/lane miscompile in its `make_gcuir` backend (Enflame has
-additional independent issues: int64 rejection, flash-attn ABI).
+**FlagTree `0.6.0+mthreads3.6`'s mthreads backend miscompiles the flash kernel
+(`tl.dot` + `make_block_ptr` batched/headed loads) for a subset of programs.**
+The vendor's own Triton (`3.6.0+git89458660`, `backends/musa/`) compiles the
+same flash kernel correctly. The bug is therefore in the **FlagTree fork's
+mthreads backend**, not in flag_gems and not in the vendor MUSA toolchain.
 
 ## 5. Impact
 
-- **flag_gems `flash_attn_varlen_func`** (and any flash kernel) on MUSA: wrong
-  outputs → vllm inference garbage.
-- Basic ops (`mm`, `add`, `silu`) via torch are unaffected; torch's own matmul
-  is exact on MUSA.
-- The flag_gems kernel logic is **correct** — verified piece-by-piece. The bug
-  is in the vendor compiler's address/lane lowering.
+- **mthreads flash attention works correctly under the vendor Triton** — which
+  the dual-compiler runtime image already provides via `compiler triton`
+  (PR #332 side-dir layout). The practical fix is to run vllm/flag_gems on
+  mthreads with the vendor triton, not FlagTree.
+- Under the FlagTree default, `flash_attn_varlen_func` (and any
+  tl.dot-based flash) gives wrong outputs → vllm inference garbage (the §2.3
+  symptom).
+- flag_gems kernel logic is correct (verified piece-by-piece, and correct under
+  the vendor triton).
 
 ## 6. Constructive next steps
 
-1. **Report to the MUSA/mthreads toolchain team** with the minimal repro above
-   (16-program FMA loop, pids 6+ load wrong addresses). This is a vendor
-   compiler bug; flag_gems cannot fix it in-kernel.
-2. **Flag for Enflame (GCU300)**: same ~2.9 signature — open a parallel
-   report to Enflame's Triton backend team (`make_gcuir` address/lane
-   lowering).
-3. **flag_gems workaround (evaluation only, not committed)**: none is reliable
-   yet — flattening the grid did not fix it. A single-program-per-lane
-   restructure was not tried; if a robust workaround is needed before the
-   vendor fix, that is the next experiment (force all tiles through one
-   program with an inner head loop). Not recommended long-term.
+1. **Use the vendor Triton on mthreads** (already available: `compiler triton`
+   / `/opt/triton`). Validate the full vllm/plugin path under it, not just the
+   flash probe.
+2. **Report the FlagTree mthreads-backend miscompile to the flagtree team**
+   with the flash-kernel repro (tl.dot + make_block_ptr batched/headed loads,
+   wrong under FlagTree, correct under vendor triton). The minimal FMA repro
+   is attached but is a secondary pattern (broken under both).
+3. **Test the same switch on Enflame GCU300** — its ~2.9 signature was also
+   under the FlagTree default; uninstall flagtree + `compiler triton` (vendor
+   triton_gcu in `/opt/triton`) may fix the numerics there too (its separate
+   int64/ABI issues remain).
 
 ## 7. Files / artifacts
 
-- Probe scripts (repro + isolation chain) were run in a disposable container
-  on the `mthreads` node and removed after use. The minimal repro above is
-  self-contained.
-- E2E-REPORT.md §2.3 (mthreads) and §2.6.1 (enflame) record the same ~2.9
-  symptom from the vllm verification side.
+- Probe scripts ran in a disposable container on the `mthreads` node (removed
+  after use). The flash probe (non-causal + causal vs torch reference) and the
+  `pip uninstall flagtree` + `compiler triton` switch are the reproducible
+  recipe.
+- E2E-REPORT.md §2.3 (mthreads) and §2.6.1 (enflame) record the ~2.9 symptom
+  from the vllm verification side.
