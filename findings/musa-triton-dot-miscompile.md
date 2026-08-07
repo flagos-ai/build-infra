@@ -7,8 +7,18 @@ vendor compiler bug, not a flag_gems kernel-logic bug. It surfaces as
 data-dependent wrong outputs in batched/headed flash-attention kernels.
 
 **Date:** 2026-08-07
-**Platform:** MTT S5000 (8×), MUSA 5.2.0, torch 2.9.1, flag_gems 5.3.2 (flagtree
-compiler, generic flash kernel)
+**Platform:** MTT S5000 (8×), MUSA 5.2.0, torch 2.9.1, flag_gems 5.3.2
+**Compiler under test:** **FlagTree `flagtree==0.6.0+mthreads3.6`** — the
+standalone triton fork baked into the runtime image as the mthreads compiler
+(`/flagos/lib/python3.10/site-packages/triton/`, triton version 3.6.0,
+`triton.backends == ['mthreads']`). The miscompile lives in **FlagTree's
+mthreads backend** (`triton/backends/mthreads/compiler.py`, the
+`convert-sqmma-to-mtgpu`/address-lowering pipeline). The generic flash kernel
+runs through this compiler.
+> Note: `configs.yaml` `mthreads-musa4.3.6` pins a separate upstream
+> `triton==3.6.0+git89458660` (plus flagtree); whether that build shares the
+> bug is unverified. The finding here is specifically for
+> `flagtree==0.6.0+mthreads3.6` (musa5.2.0 image).
 **Context:** byproduct of the enflame/mthreads vllm E2E verification (see
 `vllm-repack/E2E-REPORT.md` §2.3 / §2.6.1). The enflame GCU300 backend shows
 the same ~2.9 error signature; this report isolates the mechanism on mthreads,
