@@ -37,10 +37,10 @@ ARG RUNTIME_PREREQS=""
 # CPP_EXTRA: cpp-cuda / cpp-musa / cpp-npu / cpp-gcu / cpp-ix, or empty
 ARG DEPS=""
 ARG CPP_EXTRA=""
-# Compiler packages — each may be empty (no-op). When both are set, FlagTree
-# is the default (installed to /flagos) and Triton is installed to /opt/triton
-# (side dir, switched via PYTHONPATH). When only Triton is set, it goes to
-# /flagos (backward compat).
+# Compiler packages — each may be empty (no-op). FlagTree is installed to
+# /opt/flagtree and Triton to /opt/triton; when both are set, FlagTree is
+# the default compiler. Neither lands in site-packages — compiler() toggles
+# them via PYTHONPATH.
 ARG FLAGTREE_PKG=""
 ARG TRITON_PKG=""
 ARG TRITON_EXTRA_PKGS=""
@@ -136,13 +136,19 @@ RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
     fi
 
 # ── Install FlagTree (default compiler, if configured) ──────────
-# FlagTree installs to site-packages/triton/ — it's the default import.
+# FlagTree installs to /opt/flagtree — a side dir, symmetric with /opt/triton.
+# Keeping both compilers out of site-packages isolates their dist-infos, so
+# compiler() can switch between them cleanly via PYTHONPATH. If FlagTree is
+# present it remains the default; 'compiler triton' toggles to the vendor
+# triton in /opt/triton.
+RUN mkdir -p /opt/flagtree
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
         if PIP_INDEX_URL="${FLAGOS_PYPI}" \
            PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
-           pip install --no-cache-dir ${FLAGTREE_PKG}; then \
+           pip install --no-cache-dir --target /opt/flagtree \
+          ${FLAGTREE_PKG}; then \
           _installed=0; break; \
         fi; \
         echo "FlagTree install attempt $i failed, retrying..."; \
@@ -151,19 +157,17 @@ RUN if [ -n "${FLAGTREE_PKG}" ]; then \
     fi
 
 # ── Install Triton (if configured) ──────────────────────────────
-# When both compilers are present: install Triton to /opt/triton (side dir).
-# The compiler() shell function toggles it by prepending /opt/triton to
-# PYTHONPATH. When FlagTree is absent: install Triton to /flagos normally.
-# Always create /opt/triton so the runtime COPY doesn't fail on missing source.
+# Triton installs to /opt/triton (side dir, symmetric with /opt/flagtree).
+# The compiler() shell function toggles by prepending /opt/triton to
+# PYTHONPATH. Always create /opt/triton so the runtime COPY doesn't fail
+# on missing source.
 RUN mkdir -p /opt/triton
 RUN if [ -n "${TRITON_PKG}" ]; then \
-      if [ -n "${FLAGTREE_PKG}" ]; then target_flag="--target /opt/triton"; \
-      else target_flag=""; fi; \
       _installed=1; \
       for i in 1 2 3; do \
         if PIP_INDEX_URL="${FLAGOS_PYPI}" \
            PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
-           pip install --no-cache-dir ${target_flag} \
+           pip install --no-cache-dir --target /opt/triton \
           ${TRITON_PKG}; then \
           _installed=0; break; \
         fi; \
@@ -175,7 +179,7 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
         for i in 1 2 3; do \
           if PIP_INDEX_URL="${FLAGOS_PYPI}" \
              PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
-             pip install --no-cache-dir ${target_flag} \
+             pip install --no-cache-dir --target /opt/triton \
             ${TRITON_EXTRA_PKGS}; then \
             _installed=0; break; \
           fi; \
@@ -243,7 +247,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 COPY --from=builder /root/.local/share/uv /root/.local/share/uv
 COPY --from=builder /flagos /flagos
-# Triton side dir — only exists for dual-compiler backends.
+# Compiler side dirs — FlagTree at /opt/flagtree, Triton at /opt/triton.
+# Both only exist when the corresponding compiler is configured; COPY is
+# a no-op for missing sources.
+COPY --from=builder /opt/flagtree /opt/flagtree
 COPY --from=builder /opt/triton /opt/triton
 
 # ── Copy tests and benchmarks ─────────────────────────────────
@@ -265,79 +272,11 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # here as a default because runtime:v1 (NO_FLAGGEMS) has no cpp wheel and
 # setting it prematurely causes FlagGems to crash on import.
 #
-# The default compiler is FlagTree (installed to /flagos); use
-# 'compiler triton' or 'compiler flagtree' to switch.
-
-# ── Compiler switching function ────────────────────────────────
-# Written to /etc/profile.d/compiler.sh; available in login shells (via
-# /etc/profile), non-login interactive (via bash.bashrc → profile.d/*.sh),
-# and non-interactive (via BASH_ENV → profile.d/*.sh).
-#
-#   compiler            — show active compiler and what's available
-#   compiler flagtree   — switch to FlagTree (default)
-#   compiler triton     — switch to Triton (prepends /opt/triton to PYTHONPATH)
-RUN printf '\n\
-compiler() {\n\
-  _strip_opt_triton() {\n\
-    local cleaned=""\n\
-    IFS=":"\n\
-    for p in $PYTHONPATH; do\n\
-      [ "$p" != "/opt/triton" ] && [ -n "$cleaned" ] && cleaned="${cleaned}:${p}"\n\
-      [ "$p" != "/opt/triton" ] && [ -z "$cleaned" ] && cleaned="$p"\n\
-    done\n\
-    printf "%%s" "$cleaned"\n\
-  }\n\
-\n\
-  case "${1:-}" in\n\
-    flagtree)\n\
-      cleaned=$(_strip_opt_triton)\n\
-      if [ -n "$cleaned" ]; then\n\
-        export PYTHONPATH="$cleaned"\n\
-      else\n\
-        unset PYTHONPATH\n\
-      fi\n\
-      python3 -c "import triton; print(\"flagtree (active) -\", triton.__version__)"\n\
-      ;;\n\
-    triton)\n\
-      if [ ! -d /opt/triton/triton ]; then\n\
-        echo "triton: not available on this backend" >&2\n\
-        return 1\n\
-      fi\n\
-      cleaned=$(_strip_opt_triton)\n\
-      if [ -n "$cleaned" ]; then\n\
-        export PYTHONPATH="/opt/triton:${cleaned}"\n\
-      else\n\
-        export PYTHONPATH="/opt/triton"\n\
-      fi\n\
-      python3 -c "import triton; print(\"triton (active) -\", triton.__version__)"\n\
-      ;;\n\
-    ""|status|help)\n\
-      echo "available compilers:"\n\
-      if python3 -c "import importlib.metadata; importlib.metadata.version(\"flagtree\")" 2>/dev/null; then\n\
-        ft_ver=$(python3 -c "import importlib.metadata; print(importlib.metadata.version(\"flagtree\"))")\n\
-        echo "  flagtree  ${ft_ver}  (default)"\n\
-      fi\n\
-      if [ -d /opt/triton/triton ]; then\n\
-        tr_ver=$(PYTHONPATH="/opt/triton${PYTHONPATH:+:}${PYTHONPATH:-}" python3 -c "import triton; print(triton.__version__)")\n\
-        echo "  triton    ${tr_ver}"\n\
-      elif python3 -c "import triton" 2>/dev/null; then\n\
-        tr_ver=$(python3 -c "import triton; print(triton.__version__)")\n\
-        echo "  triton    ${tr_ver}  (default)"\n\
-      fi\n\
-      echo\n\
-      echo "active compiler:"\n\
-      python3 -c "import os, triton; print(\" \", \"flagtree\" if \"/opt/triton\" not in os.path.dirname(triton.__file__) else \"triton\", \"-\", triton.__version__)"\n\
-      ;;\n\
-    *)\n\
-      echo "Usage: compiler [flagtree|triton]" >&2\n\
-      echo "  compiler           show status" >&2\n\
-      echo "  compiler flagtree  switch to FlagTree (default)" >&2\n\
-      echo "  compiler triton    switch to Triton" >&2\n\
-      return 1\n\
-      ;;\n\
-  esac\n\
-}\n\
-' > /etc/profile.d/compiler.sh
+# Compiler switching: see runtime/compiler.sh — baked to /etc/profile.d so
+# the default compiler (FlagTree at /opt/flagtree, else Triton at
+# /opt/triton) is active in every shell, and 'compiler flagtree|triton'
+# toggles between the side dirs.
+COPY runtime/compiler.sh /etc/profile.d/compiler.sh
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)

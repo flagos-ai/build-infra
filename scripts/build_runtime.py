@@ -187,10 +187,12 @@ def resolve_build_args(
     cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
     cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
 
-    # Both compilers are installed (when configured). FlagTree is the default
-    # (installed to /flagos); Triton is installed to /opt/triton (side dir,
-    # switched via PYTHONPATH). When only Triton is configured, it goes to
-    # /flagos as the sole compiler (backward compat).
+    # Both compilers are installed (when configured), each into its own side
+    # dir: FlagTree → /opt/flagtree (default), Triton → /opt/triton. Neither
+    # lives in site-packages, so their dist-infos (entry points) are only
+    # visible when that compiler is active on PYTHONPATH — compiler() toggles
+    # between them. When only one compiler is configured, it goes to its side
+    # dir as the sole compiler and is baked as the default PYTHONPATH.
     flagtree = backend_info.get("flagtree", "")
     triton = backend_info.get("triton", "")
     triton_post = backend_info.get("triton_post_install", [])
