@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: FlagGems daily wheel
+name: FlagGems Daily wheel
 
 # Build the pure-Python flag_gems wheel from FlagGems source and (optionally)
 # upload it to the internal PyPI. The wheel is versioned by FlagGems'
