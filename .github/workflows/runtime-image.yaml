@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Runtime Image Build (manual)
+name: Builid Runtime Image (manual)
 
 # Runtime images are built on demand, not on every push/PR. They layer
 # FlagGems (pure Python + optional C++ extension) on top of a base image
