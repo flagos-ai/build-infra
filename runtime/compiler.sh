@@ -122,7 +122,7 @@ compiler() {
         echo "active compiler:"
         local active
         if active=$(_compiler_active_dir); then
-            python3 -c "import os, triton; print(' ', os.path.basename(os.path.dirname(triton.__file__)), '-', triton.__version__)"
+            python3 -c "import os, triton; print(' ', os.path.basename(os.path.dirname(os.path.dirname(triton.__file__))), '-', triton.__version__)"
         else
             echo "  (no compiler side dir on PYTHONPATH)"
         fi
