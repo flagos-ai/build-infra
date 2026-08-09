@@ -272,11 +272,17 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # here as a default because runtime:v1 (NO_FLAGGEMS) has no cpp wheel and
 # setting it prematurely causes FlagGems to crash on import.
 #
-# Compiler switching: see runtime/compiler.sh — baked to /etc/profile.d so
+# Compiler switching: see runtime/zz-compiler.sh — baked to /etc/profile.d so
 # the default compiler (FlagTree at /opt/flagtree, else Triton at
 # /opt/triton) is active in every shell, and 'compiler flagtree|triton'
 # toggles between the side dirs.
-COPY compiler.sh /etc/profile.d/compiler.sh
+#
+# The zz- prefix forces it to sort LAST among /etc/profile.d/*.sh (which are
+# sourced alphabetically). Some base images ship a vendor.sh (captured from
+# the SDK's set_env.sh) that exports PYTHONPATH absolutely — ascend's does —
+# which would clobber the compiler dir if compiler.sh sorted before it. Sorting
+# last means the compiler's PYTHONPATH export wins and triton stays importable.
+COPY zz-compiler.sh /etc/profile.d/zz-compiler.sh
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)

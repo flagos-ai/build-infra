@@ -14,7 +14,12 @@
 # limitations under the License.
 
 # ============================================================================
-# compiler.sh — runtime compiler switcher, baked into every runtime image.
+# zz-compiler.sh — runtime compiler switcher, baked into every runtime image.
+#
+# The zz- prefix forces this to sort LAST in /etc/profile.d/*.sh (sourced
+# alphabetically). It must run after any vendor.sh that exports PYTHONPATH
+# absolutely (ascend's set_env.sh capture does), otherwise that vendor.sh
+# clobbers the compiler side dir off PYTHONPATH and triton stops importing.
 #
 # FlagTree (default, when present) lives in /opt/flagtree and the vendor
 # Triton lives in /opt/triton.  Neither is in site-packages, so their
