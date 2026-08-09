@@ -71,12 +71,6 @@ jobs:
       - name: Build the wheel
         run: OUTDIR="${GITHUB_WORKSPACE}/wheels" bash flaggems-builder/build.sh
 
-      - name: Upload wheel as workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: flag_gems-wheel
-          path: wheels/*.whl
-
       # Upload to the internal PyPI on the schedule, or when manually requested.
       # Manual dispatch defaults upload=false so building from a branch is safe.
       - name: Upload to internal PyPI
