@@ -919,255 +919,251 @@ Inference:    ❌  乱码（temp=0 仍乱）——前向数值错误（trap D）
 
 ---
 
-## 2.6 enflame-tops1.9.10（GCU300：flash_attn ABI 已解，剩 flag_gems flash 内核 int64）
+## 2.6 enflame（GCU300：✅ E2E 通过，vLLM 原生 FLASH_ATTN，跨栈收敛）
 
-**日期:** 2026-08-02（首测 2.1.1）/ 2026-08-06（重测 2.1.2）　**平台:** Enflame GCU300（8 卡）
-**节点:** `enflame1`　**driver/tops:** 1.9.10　**arch:** `dtu-enflame-tops--gcu300`
-**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-enflame-tops1.9.10`（2.1.1 → 2.1.2）
-**容器:** 首测 `vllm-verify-enflame-v2`（2.1.1）；重测 `vllm-verify-enflame-212`（2.1.2）
+**方案:** vLLM 原生 FLASH_ATTN + 五处修复（plugin A/B/C/E [PR #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) + flag_gems D [PR #5345](https://github.com/flagos-ai/FlagGems/pull/5345)）。
+**跨栈收敛（关键结论）:** 同一份代码在 **tops1.10.6**（torch_gcu 2.11，首次推导 2026-08-09）
+与 **tops1.9.10**（torch_gcu 2.10.0，复验 2026-08-09）上**零改动**通过 E2E——不再是每栈一个
+方案。此前 1.9.10 上的 `AttentionFLBackend` 记录（旧 §2.6.1）已删除：其诊断（int64 双层结构、
+采样根因）已被本节 + `enflame-1910-reval.md` 覆盖，且被更贴近上游的原生 FLASH_ATTN 路径取代。
 
-与 §2.4 hygon 一样跑通用性验证。**2.1.1 首测：**安装/插件通过、serve 启动完成、
-推理被 attention 阻塞（flash_attn ABI + FlagGems int64 两个上游缺口）。**2.1.2 重测
-（§2.6.1）：**flash_attn ABI 已随 **PR #310** 解决，serve 推进到 flag_gems flash
-内核，只剩 **FlagGems `flash_varlen_fwd_kernel` int64** 一个阻塞点（待 GCU 专属
-int32 内核，§2.6.1 末尾）。GCU300 的核心约束贯穿全程：**其 triton 后端
-（`make_gcuir` 的 PassManager）彻底拒绝 64 位数据类型**——不是前端 / FlagTree
-问题，换 triton 前端无用，拒绝发生在 GCU300 codegen 后端。
+> **约束提醒（贯穿两栈）：** GCU300 的 triton 后端（`make_gcuir` 的 PassManager）彻底拒绝
+> 64 位数据类型——不是前端 / FlagTree 问题，换 triton 前端无用，拒绝发生在 GCU300 codegen
+> 后端。五处修复中 A/D/E 都是绕这堵 64 位墙。
 
-### Repack —— 在 enflame 上重新 build（cp312）
+### 2.6.1 tops1.10.6 干净重推导（✅ E2E 通过，2026-08-09）—— 首次推导
 
-enflame Python 3.12，xgrammar 是 cp312-locked 二进制，无法复用 hygon 的 cp310
-产物，故在镜像内重新 build empty vllm 并 repack（`+flagos`）。
+**日期:** 2026-08-09　**平台:** Enflame GCU300　**节点:** `enflame1`
+**镜像:** `flagos-runtime-enflame-tops1.10.6:2.1.2`　**容器:** `vllm-verify-fresh`
+**stack:** torch_gcu 2.11 / tops1.10.6 / **flag_gems master（editable）** / plugin main（editable）
 
-### 安装 —— ✅ 零泄漏（走真实自动化路径，非 --find-links）
+从零容器起、不预置任何补丁，逐个由硬件暴露的失败驱动修复。采用 **vLLM 原生 FLASH_ATTN**
+（干净 plugin main 已改用该路径——更贴近上游、用厂商快内核）：原生后端需要把厂商 flash_attn
+的计算算子与 flag_gems 的 KV 写内核接进 vLLM。此方案已提 PR（#357 / #5345），并在 1.9.10 栈上
+复验通过（见 §2.6.2），确认跨栈收敛。
 
-`pip install --index-url flagos-pypi-enflame --extra-index-url aliyun 'vllm==0.20.2+flagos'`：
-**setuptools 稳定在 83.0.0**（torch_gcu 解钉后不再降级到 69.5.1），
-torch `2.10.0+cpu` / torch-gcu `2.10.0` / numpy `2.3.5` 全保留，依赖全为
-`+flagos`（xgrammar 0.2.3、compressed-tensors 0.15.0.1、opencv-headless 5.0.0.93），
-无公有 torch/cuda/triton 链，无 pip 冲突。8 GCU 可见。
+#### 五处修复（均在 git 可追踪的 editable flag_gems / plugin 内，vLLM site-packages 保持原样）
 
-> **背景：** enflame 曾是唯一 setuptools 被硬钉（69.5.1）的后端，根因是
-> **torch_gcu 的 `Requires-Dist: setuptools ==69.5.1`**（build-infra 从不钉运行时
-> setuptools；FlagGems 的 `<77` 是 build-only、装完不可见）。厂商侧已 repack
-> torch_gcu 去掉该钉并重建镜像，本次验证即在该镜像上。
+| # | 缺口 | 家 |
+|---|---|---|
+| A | 模型加载期 flag_gems int64 工厂/索引算子（`zeros`/`add`/`sub`…）触 GCU300 64 位墙 | plugin 配置 `enflame.yaml`：黑名单回退 torch_gcu |
+| B | `FlashAttention version not detected`（空 wheel 无 `_vllm_fa2_C`） | plugin `__init__.py`：早期把厂商 `flash_attn.vllm_flash_attn` 别名到 `vllm.vllm_flash_attn` |
+| C | `reshape_and_cache_flash` NameError（empty build 剥离 `vllm._C`） | plugin `gcu/impl/flash_attn_backend.py`：把厂商 FA 计算 + flag_gems KV 内核绑上 `fa_utils` |
+| D | flag_gems `reshape_and_cache_flash` 内核收 int64 `slot_mapping` | flag_gems `fused/reshape_and_cache_flash.py`：降位 int32 |
+| E | vLLM 原生 `_compute_slot_mapping_kernel` 内建 int64 | plugin `gcu/impl/slot_mapping.py`：纯 torch on-device int32 重写 |
+
+#### 设计取舍
+
+**B/C 为何是插件层、且 vLLM 保持原样。** 两者都可直接改 vLLM `fa_utils.py`，但那是 empty
+build 的 wheel，站点包手改不可复现。改为在 `apply_gcu_patches()`（GCU 后端加载时运行）里
+绑定：C 把厂商 `flash_attn_varlen_func`/`get_scheduler_metadata` 与 flag_gems
+`reshape_and_cache_flash` 绑上 `fa_utils` 并强制 `is_flash_attn_varlen_func_available()`→True。
+补丁对导入顺序稳健——若 `flash_attn.py` 已先导入（其加载期条件导入已跳过这些名字），则同时
+把这些名字注入该模块命名空间。全程以 `torch_gcu` 存在为门（enflame 专属），厂商无 flash_attn
+包时静默回退、不影响其他后端。
+
+**D/E 都要、且不冗余。** E 重写 `slot_mapping` 的**生成**（vLLM 原生内核），D 降位
+`slot_mapping` 的**消费**处（flag_gems KV 写内核）。vLLM 的 `slot_mapping.gpu` 缓冲区 dtype
+为 int64，E 产出的仍是 int64，故 D 在消费端的降位仍然必要。A 覆盖的是加载期的 L1 工厂/索引
+算子，早于任何注意力路径，独立于 D/E。
+
+**E 采用 on-device int32 而非 CPU-int64。** 缓存槽位空间（`num_blocks * block_size`，现实
+配置 ~1e8）远在 int32 上限（~2.1e9）内，全程 int32 可绕开 64 位墙又无 host round-trip。
+token→request 映射用 `torch.searchsorted(qsl[1:], tok, right=True)`，而非
+`repeat_interleave`——后者在 GCU300 flag_gems 走 index_select 内核，grid.y 上限 255，超
+~4080 token 即崩。落库前用 CPU-int64 参考对拍 5 组用例（含 4096 token、max_slot ~2.08M），
+逐元素 bit-identical。
+
+#### Stack 验证（enflame-tops1.10.6，✅ E2E 通过 2026-08-09）
+
+```
+vllm:         0.20.2+flagos           ✅  empty，enflame 本地 build（cp312），site-packages 原样
+vllm_fl:      main f4ebc258 (editable) ✅  A 配置改名 + B FA 别名 + C FA/KV 绑定 + E slot_mapping 重写（PR #357）
+flag_gems:    master 469bb00d (editable)✅  D reshape_and_cache_flash slot_mapping int32（PR #5345）
+torch_gcu:    2.11                    ✅  透明 Long→Int（torch 层无 64 位问题）
+GCU device:   ✅ 可见
+推理:         Qwen3-4B → "Paris"      ✅  连贯英文，20→64 token，finish_reason=length，HTTP 200 9.2s
+```
+
+**环境：** vendor triton（`compiler triton`）+ `VLLM_PLUGINS=fl`，Qwen3-4B TP=1 max-len 4096
+enforce-eager，`/root/run_serve.sh` 现场保留。两处插件 patch 日志（主进程 + worker）均出现：
+`enabled native FLASH_ATTN backend` 与 `patched BlockTable.compute_slot_mapping (on-device int32)`。
+完整变更记于 `enflame-1106-fresh-verify.md`。
+
+### 2.6.2 tops1.9.10 跨栈复验（✅ E2E 通过，2026-08-09）—— 零改动 + 采样缺口修复
+
+**日期:** 2026-08-09　**平台:** Enflame GCU300　**节点:** `enflame1`
+**镜像:** `flagos-runtime-enflame-tops1.9.10:2.1.2`（runtime v2：仅预置 flag_gems，**无 vllm、无 plugin**）
+**容器:** `vllm-verify-1910`　**stack:** torch_gcu **2.10.0** / tops1.9.10 / flag_gems master（editable）/ plugin #357（editable）
+
+在 1.9.10 栈全新 v2 容器上复验 §2.6.1 方案，判定是否可退役 1.9.10 上的 AttentionFLBackend。
+纪律：vllm 从厂商 index 单步装（`vllm==0.20.2+flagos`，非磁盘捞取），flag_gems / plugin 走
+上游 PR 树 editable，无手改。**环境变量策略：** 仅显式 `compiler triton`（flagtree 不信任，
+故明确选 vendor triton），不设任何其他环境变量——`VLLM_PLUGINS=fl` 经确认冗余（plugin 靠
+entry point 自动发现）。完整记录见 `enflame-1910-reval.md`。
+
+**结论 1 —— 贪心零改动通过（跨栈收敛坐实）：**
+
+```
+vllm:         0.20.2+flagos（vendor index 单步装）   ✅  site-packages 原样
+vllm_fl:      #357 分支 6e35613 (editable)            ✅  A/B/C/E 全部生效
+flag_gems:    master 3f5fb04 (editable, Fix D 已合并)  ✅  D
+torch_gcu:    2.10.0                                  ✅  vs 1.10.6 的 2.11，无需代码差异
+compiler:     vendor triton（compiler triton）        ✅  显式，flagtree 不信任
+推理:         Qwen3-4B, greedy → 连贯英文             ✅  "…Paris is the capital"，HTTP 200，27.8s
+```
+
+五处修复跨 torch_gcu 2.11 → 2.10.0 **全部零改动移植**，唯一磕绊是环境性的（残留兄弟容器占住
+GCU 0 显存，`docker rm -f` 解决），非代码缺口。
+
+**结论 2 —— 采样（temp>0）缺口：贪心 E2E 看不见的真实洞，已修（配置层）：**
+
+贪心走 `argmax`，不触发 top-k/top-p sort 路径。显式测采样（`temp=0.8, top_p=0.9`）逐个由
+硬件失败驱动、增量补 GCU300 dispatch 黑名单（每个 op 都由一次现场失败换来，非照搬旧笔记）：
+
+| 加入 `enflame.yaml` 黑名单的 op | 修复的症状 | 类型 |
+|---|---|---|
+| `sort`, `sort_stable` | 崩溃：`logits.sort()` → gcu300 radix_sort int64 → PassManager 拒绝 | int64 墙 |
+| `rsub_scalar`, `rsub_tensor` | 崩溃：top-k `logits_sort.size(1) - k` → rsub int64 → 同墙 | int64 墙 |
+| `argmax` | 退化输出（空/纯空白，不崩溃）：flag_gems gcu300 argmax 大词表下返回越界 token id；torch_gcu argmax 正确 | correctness |
+
+修复为纯配置（路由到 torch_gcu），enflame 专属。补齐后 `temp=0.8/top_p=0.9` 在 Qwen3-4B 上
+输出连贯（两个 prompt 确认）。未加密（`q.exponential_()`）经探针确认在 GCU300 上正确，无需
+黑名单。**已推 #357（commit 851bbda）。**
+
+**结论 3 —— flag_gems gcu300 argmax 是真实内核 bug（根因已定，非 `and`/`&`）：**
+
+追到根因：`argmax.py:103` 的 `and`→`&` 反模式**不是**修复——改后清全部缓存、debug log 确认
+补丁内核确实执行，仍返回越界 id。探针刻画：词表门槛（V≤32768 对、V=151936 错，需多 tile
+`BLOCK_N` 循环）+ 偶数行奇偶性（B=8 行 0/2/4/6 错、1/3/5/7 对），错值是最后一个 tile 的被
+mask lane。**根因：GCU300 triton_gcu 跨 tile 归约累加的 codegen 误编译（偶数 lane 奇偶性）。**
+`and`-on-tensor 反模式确实广泛存在（~50 处 / ~20 个 gcu300 算子）但修它不改 argmax 行为，两
+件事分开。已生成面向厂商的中文根因报告 `flaggems-gcu300-argmax-bug.md`。已验证的生产修复仍是
+黑名单（argmax → torch_gcu，已在 #357）。
+
+#### 待办 / 落库
+
+- **本节为 enflame GCU300 唯一主路径，跨栈收敛已坐实**（1.10.6 + 1.9.10 同一份代码零改动通过）。
+  旧 §2.6.1（1.9.10 AttentionFLBackend 历史记录）已删除，诊断内容并入 `enflame-1910-reval.md`。
+- **已落库**：五处修复 + 采样黑名单已提 PR（均直推 flagos-ai）：
+  - **plugin（A/B/C/E + 采样黑名单）→ [PR #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)**：分支 `enflame-gcu300-native-flash-attn` → `main`。走 vLLM 原生 FLASH_ATTN。**注：** slot_mapping / fa_utils 绑定耦合 vLLM v1 worker/attention 布局，须对齐 vLLM 0.24.0 迁移后重新推导。
+  - **flag_gems（D）→ [PR #5345](https://github.com/flagos-ai/FlagGems/pull/5345)**：分支 `enflame-gcu300-reshape-cache-int32` → `master`。vendor+dtype gated 的 slot_mapping int32 降位，与 vLLM 版本解耦。
+- **flag_gems gcu300 argmax codegen bug** → 中文厂商报告 `flaggems-gcu300-argmax-bug.md`，待发厂商 triton_gcu 团队；修复后可从 #357 黑名单移除 `argmax`。
+- 仅测单轮 64 token 生成；多轮 / 长上下文未验。
+- 加密采样（`exponential_(generator=)`）未测。
+- E 的 CP>1 交织分支已实现但未测（本配置 cp_world=1）。
+- 运维备忘：teardown 需一并 `pkill -9 -f "EngineCore"`——spawn worker 不匹配
+  `[v]llm serve`，残留会占住 GCU 显存致下次启动 OOM；已完结的验证容器也需 `docker rm -f`。
+
+---
+
+## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08）
+
+**日期:** 2026-08-08　**平台:** Cambricon MLU590　**节点:** `cambricon`
+**driver/neuware:** 4.7.2　**镜像:** `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（`1a2a53ebab3b`，全量升级包集）
+**容器:** `vllm-verify-camb472`　**Python:** 3.12.13　**torch/torch_mlu:** 2.11.0+cpu / torch_mlu 2.11.0
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，全新 wheel build（cambricon 此前无 `+flagos` 产物）
+**模型:** Qwen3-8B（`/data/zhaodeming/Qwen3-8B`）
+
+cambricon 是**首个从零构建 `+flagos` wheel 的后端**（无可复用产物），故本次同时是
+cambricon 的 wheel-build 首验。全链路 **serve + 推理一次跑通**，MLU590 上 Qwen3-8B
+贪婪解码输出连贯英语，无数值 / 乱码问题。
+
+### Repack —— 在 cambricon 上从零 build（cp312，源码用官方 flagos tarball）
+
+MLU 无既有 `+flagos` 产物；xgrammar 为 cp312-locked 二进制，须本机 build。步骤：
+
+1. **源码用官方 flagos tarball**（`vllm-0.20.2.tar.gz`，用户下载到节点 `/tmp`），
+   **非** Aliyun pip sdist。tarball 无 git 元数据，setuptools-scm 会失败 →
+   须设 `SETUPTOOLS_SCM_PRETEND_VERSION=0.20.2`。
+2. empty build：`VLLM_TARGET_DEVICE=empty MAX_JOBS=$(nproc) pip wheel --no-build-isolation --no-deps`
+   → `vllm-0.20.2-py3-none-any.whl`，`repack.py` 打 `+flagos` 后缀并递归 repack 间接依赖。
+3. repack 需预建缓存目录：`mkdir -p <repack>/cache`（否则 `_download_dep_wheel` 报
+   `FileNotFoundError: cache/...whl`）。
+
+产物 4 个 wheel（vllm、xgrammar **cp312**、compressed-tensors、opencv-headless）。
+
+### 安装 —— ✅ 单步，零泄漏
+
+`flagos.net` 存储故障期间走本地 wheel + Aliyun extra-index 单步安装，实测零泄漏：
+
+```
+vllm:                   0.20.2+flagos          ✅  empty，cambricon 本地 build（cp312）
+xgrammar:               0.2.3+flagos           ✅  cp312-cp312（per-Python 二进制）
+compressed-tensors:     0.15.0.1+flagos        ✅  纯 py3
+opencv-python-headless: 5.0.0.93+flagos        ✅  cp37-abi3（稳定 ABI）
+torch / torch_mlu:      2.11.0+cpu / 2.11.0    ✅  from 镜像，无公有 torch/cuda/triton 链
+```
+
+无 pip 冲突，无 setuptools 降级（不同于 enflame）。
 
 ### 插件 —— ✅ 干净安装（--no-build-isolation，纯 Python）
 
-全历史 clone（非 `--depth 1`）+ `pip install --no-build-isolation -e .`，
-`VLLM_VENDOR` 未设 → `ext_modules=[]`，纯 `py3-none-any`，版本
-`0.2.0+gd1327ae0a`（正规 setuptools-scm）。厂商自动识别（flag_gems
-DeviceDetector）：vendor=enflame、device_type=gcu、dist=eccl，无需手动 env。
+`pip install --no-build-isolation -e .`，`VLLM_VENDOR` 未设 → 纯 `py3-none-any`
+（`vllm-plugin-fl 0.2.0`）。无 enflame 的 setuptools 钉阻塞。
 
-### 2.1.2 重测记录（2026-08-06）—— flash_attn ABI 已解，逐层推进到 flag_gems flash 内核
+### serve + 推理 —— ✅ 成功（3 处 plugin patch + 1 处 flag_gems 黑名单 + 1 次算力清理）
 
-镜像 `flagos-runtime-enflame-tops1.9.10:2.1.2`，容器 `vllm-verify-enflame-212`
-（`--privileged -v /dev:/dev`，模型 Qwen3-4B 下载自 ModelScope `Qwen/Qwen3-4B`，
-`Qwen/Qwen3-4B-Instruct` 在 ModelScope 上 404）。逐层结果：
+MLU590 上带起 serve 需 4 个修复。前 3 个是 plugin 未覆盖 cambricon 的缺口，第 4 个是
+flag_gems `empty` 内核在 MLU 上撞 triton grid 上限：
 
-| # | 层 | 结果 |
-|---|-----|------|
-| 1 | flash_attn ABI（原阻塞 1） | ✅ **已解决**。`import flash_attn`（2.7.2）/ `flash_attn_gcu` 正常（`LD_LIBRARY_PATH` 补 `torch/lib` + `torch_gcu/lib`）。PR #310 把 deps 钉改为 `flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506` |
-| 2 | 镜像双编译器落地 | ❌ **`compiler triton` 默认不可用**（见下"双编译器缺口"）；FlagTree 默认可 import 但 flash_attn 的 unguarded `import triton_gcu.triton` 失败。最终以 vendor triton + `TRITON_BACKENDS_IN_TREE=1` 跑通 |
-| 3 | 模型加载（TP=8, Qwen3-4B） | ✅ 3/3 shards、weights 3.8s |
-| 4 | torch.compile（inductor） | ❌ `torch._inductor.codecache.get_system` 读 `device_properties.gcnArchName` —— `torch_gcu._GcuDeviceProperties` 无此属性 → `BackendCompilerFailed`。**`TORCHDYNAMO_DISABLE=1` 绕过** |
-| 5 | embedding（`get_masked_input_and_mask` → `sub`） | ❌ flag_gems `gcu300/ops/sub.py`（pointwise-dynamic）在 vendor triton 上 `make_gcuir` 崩。**`sub` 加入 gcu.yaml 黑名单**回退 torch_gcu 后过 |
-| 6 | attention 后端选择 | ❌ gcu.py `attention_backend` 硬编码 `FLASH_ATTN` + `sys.modules["vllm.vllm_flash_attn"]=flash_attn.vllm_flash_attn`；但 vendor `vllm_flash_attn/__init__.py` `from ._vllm_fa2_C import ...` —— **empty wheel 无该 C 扩展** → `assert vllm_flash_attn_version is not None` 崩。**gcu.py 加回退**：`_vllm_fa2_C` 不可导入时返回 `AttentionFLBackend` |
-| 7 | 推理首次前向（attention） | ❌ `AttentionFLBackend.forward` → `flag_gems.ops.flash_api.py:579 mha_varlan_fwd` → `flash_varlen_fwd_kernel` **int64 指针/步长** → GCU300 `make_gcuir` 拒。**这就是 §2.6 记录的 FlagGems int64 阻塞，现于推理路径坐实** |
-
-**双编译器缺口（镜像落地问题，非 vllm/plugin；已由 PR #332 解决）：**
-- **FlagTree**（`/flagos` triton）是独立 fork，内嵌 `triton/backends/enflame/` +
-  `_triton_gcu300.so`。**triton_gcu 是 vendor 对 upstream triton 的插件**，装在
-  `/opt/triton`（`compiler triton` 切到此处）。
-- `/opt/triton/triton/backends/` 只有 `amd/ nvidia/`，**没有 `enflame/`**；但
-  FlagTree 的 dist-info（一直在 `importlib.metadata` 可见）声明 entry point
-  `enflame = triton.backends.enflame` → `PYTHONPATH=/opt/triton` 下 `import triton`
-  的 `_discover_backends()` 撞 `ModuleNotFoundError`，**连裸 `import triton` 都崩**。
-- gcu300 wheel 的 `setup_distributed()` 声称"build 时已内嵌 patched triton"，但
-  `/opt/triton/triton/backends/__init__.py` 无 `patched-by-triton-gcu` 标记，运行时
-  回退 `safe_import_backends` 根本到不了。
-- **重测时的 workaround：`TRITON_BACKENDS_IN_TREE=1`**（跳过 entry point 发现）→
-  upstream triton 干净导入 → `triton_gcu.triton` 注册 `gcu` backend。实测
-  flag_gems silu / vllm 0.20.2 / plugin fl 全通过。
-- **根治（PR #332）：** 双编译器各装进独立 side dir——FlagTree → `/opt/flagtree`、
-  Triton → `/opt/triton`，**都不进 site-packages**。dist-info 只在所在 compiler
-  的 dir 在 PYTHONPATH 时可见 → entry point 互不泄漏，`TRITON_BACKENDS_IN_TREE=1`
-  workaround 不再需要（hermetic 验证：flagtree 闲置在 /opt/flagtree 时
-  `importlib.metadata` 报 0 个 `triton.backends` EP，`compiler triton` 切过去
-  import/flash_attn/flag_gems 全通）。
-
-**其他新发现（记入待办）：**
-- `flash_attn/ops/triton/rotary.py`（新 wheel）对 `import triton_gcu.triton` **无守卫**
-  （旧 2.9.1 wheel 有 try/except）——必须 triton_gcu 可导入才能 import flash_attn。
-- TP=8 需要 `-v /dev:/dev`（raw flags）；toolkit flags 只给 64M `/dev/shm`，ECCL
-  建共享内存段失败。
-- ModelScope 下载需 `sudo mkdir` + `chown` 模型目录（`/public-flash/models` 是 root
-  属主，secure 用户无写权）。
-
-### GCU 专属 int32 flash_varlen_fwd_kernel（2026-08-06，FlagGems 侧工作）
-
-**目标**（§2.6 待办）：给 enflame/gcu300 提供 int32 索引的 `flash_varlen_fwd_kernel`，
-绕开 GCU300 对 64 位的拒绝，打通 attention 推理。
-
-**实现**（`~/work/FlagGems`，未提交）：沿用 per-backend fork 惯例
-（_hygon/_sunrise/_kunlunxin/_tsingmicro 同构），在
-`src/flag_gems/runtime/backend/_enflame/gcu300/ops/` 下复制 generic 三件套并改：
-
-| 文件 | 改动 |
-|---|---|
-| `flash_kernel.py` | `virtual_to_cache_offset` 的 `.to(tl.int64)` → `.to(tl.int32)`（2 处）——paged-KV 索引 int32 化 |
-| `flash_api.py` | import 改 `.flash_kernel`；**philox_args 无 dropout 时分配 `torch.int32`**（原 `int64`）——去掉内核参数 `!tt.ptr<i64>` |
-| `attention.py` | import 改 `.flash_api`/`.flash_kernel` |
-| `__init__.py` | re-export `flash_attention_forward`/`flash_attn_varlen_func`/`flash_attn_varlen_opt_func` |
-
-经 `SpecOpRegistrar`（arch=gcu300，`BackendArchEvent`）覆盖 `flag_gems.flash_attn_varlen_func`。
-
-**关键坑（两次才跑通）：**
-1. 只改 int64→int32 仍崩 `Pipeline run failed: PassManager execution failed`。
-2. 定位到 **`ENABLE_I64_CHECK`（镜像 env=1）** 在 gcu300 pass 管线最先跑
-   `gcu64-type-verifier`，**静态拒绝 IR 里任何 64 位类型**（`make_gcuir`/compiler.py
-   的 gcu300 分支）。`philox_args` 参数无条件是 `!tt.ptr<i64>`（host 传 int64 空张量）
-   ——即便 dropout 关闭、philox 永不 deref，指针类型仍在 IR 里 → 被拒。
-3. 修法：host 在 `is_dropout=False` 时传 `torch.int32` 的 philox 空张量（注释说明
-   GCU300 无 64 位、philox 不 deref）→ verifier 通过。
-4. 验证：`ENABLE_I64_CHECK=1`（镜像默认）下，非 paged 与 paged（`block_table` 传入，
-   4D `(num_pages, block_size, heads, head_size)` KV）两条路径的 minimal repro 均
-   **编译+运行成功**。
-
-**结果：serve 全链路打通，但数值错（attention 输出乱码）**：
-- vllm serve（Qwen3-4B TP=8, vendor triton + 全部逐层修复）`Application startup
-  complete`，推理返回 32 tokens —— 但输出是**乱码**（如 "话得分ático مض规律…"）。
-- minimal 数值对拍：flash 内核 causal=False `max_abs_diff≈2.9`（bf16 应为 ~0.01）；
-  对照基本算子 add/silu/mm 在 GCU300 上均正确（max_diff 0 / 4.8e-7 / 3.1e-5）→
-  **问题特定于 flash 内核在 GCU300 codegen 上的数值编译**（tl.dot/block-ptr/masked
-  softmax 组合中某 pass 误编译），非基础算子、非 int64 门。
-- 与 §2.5 iluvatar trap D 同类：**前向数值正确性**，尚未定位到具体 pass。
-
-**待办（决策点）：**
-- 调试 GCU300 codegen 对 flash 内核的数值误编译（pass 级定位：pingpong / dot layout /
-  fusion / masked softmax）。可能需与 Enflame 工具链团队协作。
-- 或评估厂商原生 `flash_attn_gcu` 路径（已能 import；被 empty wheel 缺 `_vllm_fa2_C`
-  挡住，见 gcu.py 回退）——若其数值正确，是更短的路。
-
-### int64 阻塞的两层结构（GCU300 无 64 位）
-
-GCU300 triton 拒绝 64 位。**torch_gcu 层没问题**（透明 Long→Int 替换，日志
-`GCU not support Long use Int replace`）；**只有落到 triton 内核的 int64 才崩**。
-按拦截点分两类，需两套不同修法：
-
-| 层 | 触发者 | 例子 | 修法 |
+| # | 症状 | 根因 | 修复 |
 |---|---|---|---|
-| **L1** | flag_gems 拦截的 factory/index 算子（在 torch_gcu Long→Int 之前接管） | `zeros`/`zeros_like`/`zero_`/`add`/`repeat_interleave` | `gcu.yaml` 黑名单 → flag_gems 跳过 → 回退 torch_gcu |
-| **L2** | vllm 原生 triton 内核（非 flag_gems） | `_compute_slot_mapping_kernel`（`slot_mapping` 为 int64） | plugin 侧纯 torch 重写，**在 CPU 上算** int64 索引再拷回 device |
+| 1 | `Vendor 'cambricon' not found in VENDOR_DEVICE_MAP`（`utils.py`） | `VENDOR_DEVICE_MAP` 无 cambricon 条目，`_get_vendor_device_field` 抛 ValueError | `utils.py:53` 加 `"cambricon": {"device_type": "mlu", "device_name": "mlu"}` |
+| 2 | `NotImplementedError: not support graph`（`compilation/graph.py`） | `Graph` 类无 mlu 分支 | `graph.py:52-53` 加 `elif current_platform.device_type == "mlu": graph = torch.mlu.MLUGraph` |
+| 3 | `OutOfResources: grid size 607744 > 65535`（`flag_gems/ops/empty.py:87`） | flag_gems `empty` 内核对 Qwen3 词表 embedding（151936×4096）算出 grid 607744，超 MLU triton grid 上限 65535 | 黑名单 `empty`。**定稿走 plugin 内建配置 `dispatch/config/cambricon.yaml`（Priority 3），非 env**：文件名须匹配 `current_platform.vendor_name`（`cambricon`）才被 `get_config_path()` 自动加载。已容器验证：不设 `VLLM_FL_FLAGOS_BLACKLIST` 时 `use_flaggems_op('empty')=False`、serve 启动完成、推理连贯（隔离测试另证 `flag_gems.enable(unused=)` 键是 `empty` 而非 registry 名 `empty.memory_format`） |
+| 4 | 内存不足（62.68 GiB free < 67 GiB） | 前次崩溃留下孤儿 `VLLM::EngineCore` 进程占住 MLU0 约 16.5 GiB | 清理孤儿进程 + `MLU_VISIBLE_DEVICES=0` 单卡 |
 
-### 根因先决 Bug：plugin 配置文件按 vendor_name 找、实际按 device_name 命名
+修复后 serve 启动：`init engine (profile, create kv cache, warmup model) took 406.84 s
+(compilation: 96.79 s)`，KV cache 350,240 tokens，`Application startup complete`。
 
-`get_config_path()` 用 `current_platform.vendor_name`（=`enflame`）拼
-`enflame.yaml`，但配置文件叫 **`gcu.yaml`**（device_name）。→ **配置从未加载**，
-`flagos_blacklist` 与 `op_backends` 全部被静默忽略。这解释了为何最初改黑名单
-"无效"。修法：`get_config_path()` 增加 device_name 回退（`gcu.yaml`）。
-**同样的坑潜在影响 mthreads**（vendor=mthreads、配置=`musa.yaml`）。
+**首次推理**首 token 延迟高（首请求逐 shape 编译 triton 内核，60s curl 超时；加长到
+300s 即返回）；`_cambricon/ops/mean.py` 等 flag_gems cambricon 算子活跃，无错。
 
-### L1 修复：黑名单 zeros/add/... → 回退 torch_gcu
-
-`gcu.yaml` `flagos_blacklist` 加入 `add / zeros / zeros_like / zero_`（匹配按
-函数 `__name__`，而 `zeros` factory 经 torch_gcu wrapper 落到 `zero_`，故 `zero_`
-才是必须排除的名字）。配上上面的配置回退，**模型加载阶段的 int64 崩溃清除**。
-
-**三行最小复现（L1）：**
-```python
-import torch, torch_gcu, flag_gems; flag_gems.enable()
-torch.zeros_like(torch.arange(8, device="gcu:0", dtype=torch.int64), device="gcu:0")
-# → 64-bit not supported on GCU300（黑名单后回退 torch_gcu 即 OK）
-```
-
-### L2 修复：slot_mapping 纯 torch 重写（CPU 计算）
-
-vllm `block_table._compute_slot_mapping_kernel` 在 int64 `positions`/`slot_mapping`
-上跑 triton，GCU300 直接拒。plugin 侧 `apply_slot_mapping_gcu_patch()` 把
-`BlockTable.compute_slot_mapping` 换成纯 torch 等价实现（含 context-parallel
-交织逻辑，已对拍 numpy 参考 **MATCH**）。**关键：必须在 CPU 上算**——若在
-device 上算，`flag_gems.enable()` 会把 `repeat_interleave`/`copy` 等再劫持回
-int64 triton 内核（又撞同一堵墙）；逐个黑名单既脆弱又会误伤模型热路径计算。
-CPU 计算彻底绕开 overlay（flag_gems 只拦 device 算子），数据量极小（每 token
-几个 int64），device↔host 拷贝 int64 实测安全。
-
-修完 L1+L2 后：**serve 启动完成**，推理请求进入模型前向，**推进到 attention 层**。
-
-### 阻塞点：attention —— 阻塞 1（flash_attn ABI）已解；阻塞 2（FlagGems int64）为唯一剩余
-
-#### 阻塞 1（✅ 已解除，PR #310 / 2.1.2 镜像）：flash_attn ABI 错配
-
-2.1.1 时 configs.yaml 钉 `flash-attn==2.7.2+torch.2.9.1.gcu.3.4.20260323`：
-`flash_attn_gcu.so` 编译于 torch 2.9.1 的 `c10`（3 参 `MessageLogger` ctor），而栈是
-torch 2.10.0（4 参 ctor）→ `undefined symbol: c10::MessageLogger`。**PR #310
-（`398a00e`）已把钉改为 `flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506`**——
-厂商已出 torch-2.10.0 的 GCU flash_attn 构建。2.1.2 镜像内 `import flash_attn` /
-`flash_attn_gcu` 均正常（§2.6.1 第 1 层）。
-
-#### 阻塞 2（❌ 未解，FlagGems 上游；现正做 GCU 专属 int32 内核）：flash 内核 int64
-
-推理首次前向时崩（§2.6.1 第 7 层）：
-`AttentionFLBackend.forward → flag_gems/ops/flash_api.py:579 mha_varlan_fwd →
-flash_varlen_fwd_kernel` 用 int64 指针/步长 → GCU300 `make_gcuir` PassManager 拒
-（`Pipeline run failed: PassManager execution failed`）。
-
-> **换 triton 前端无用。** int64 拒绝来自 `triton/backends/enflame/compiler.py:233`
-> `make_gcuir` 的 PassManager（GCU300 codegen 后端），非前端。FlagTree / 上游
-> triton / 任何前端发出的 IR 都要过这一层。绕开只有两条：(a) 内核不落 int64 到
-> device（如 L2 的纯 torch 回退）；(b) 内核作者改用 int32 索引。**方向 (b)：为
-> enflame/gcu300 提供 int32 索引版的 `flash_varlen_fwd_kernel`（见 §2.6.1 待办）。**
-
-### serve + 推理 —— ⚠️ 2.1.1 阻塞在 attention 两缺口；2.1.2 推进到 flag_gems flash 内核（唯一剩余）
-
-2.1.2 重测（§2.6.1）`Application startup complete` 达成（Qwen3-4B TP=8, vendor
-triton + 上述逐层修复），但**推理首次前向**在 `flag_gems flash_varlen_fwd_kernel`
-（int64 → GCU300）崩——即 §2.6 记录的 FlagGems int64 阻塞，现已坐实为 attention
-通路的**唯一**剩余缺口。修复方向：GCU 专属 int32 索引 flash 内核（§2.6.1 待办）。
-
-### Stack 验证（enflame-tops1.9.10，2.1.2 重测）
+### Stack 验证（cambricon-neuware4.7.2，✅ E2E 通过 2026-08-08）
 
 ```
-setuptools:   83.0.0                 ✅  torch_gcu 解钉后稳定（曾被钉 69.5.1）
-torch:        2.10.0+cpu             ✅  from 镜像
-torch-gcu:    2.10.0+3.7.20260408    ✅
-flash_attn:   2.7.2+torch.2.10.0.gcu ✅  PR #310 修复 ABI（原 2.9.1 构建）
-numpy:        2.3.5                  ✅
-vllm:         0.20.2+flagos          ✅  empty，enflame 本地 build（cp312）
-vllm_fl:      g0268a169b             ✅  纯 Python（+ 三处 GCU 修复 + sub 黑名单 + gcu.py attn 回退）
-flag_gems:    5.3.2                  ✅  int64 factory/index 算子经黑名单回退 torch_gcu
-编译器:        vendor triton(/opt/triton) + TRITON_BACKENDS_IN_TREE=1  ✅  重测时 workaround（PR #332 已根治，见 §2.6.1 双编译器缺口）
-GCU device:   ✅ 8 卡可见            arch=dtu-enflame-tops--gcu300
+setuptools:   稳定（无降级）           ✅
+torch/torch_mlu: 2.11.0+cpu / 2.11.0  ✅  from 镜像
+vllm:         0.20.2+flagos          ✅  empty，cambricon 本地 build（cp312）
+vllm_fl:      0.2.0 + 3 patch        ✅  纯 Python（VENDOR_DEVICE_MAP / MLUGraph / —）
+flag_gems:    empty 内核黑名单        ✅  grid 上限规避（内建配置 cambricon.yaml，非 env）
+MLU device:   ✅ MLU0 单卡           MLU590
 vllm import:  ✅
-vllm serve:   ✅  application startup complete（L1+L2 + 2.1.2 逐层修复 + int32 flash 内核）
-Inference:    🟡  可返回 tokens，但**输出乱码**——int32 flash 内核编译/运行通过、数值不正确（§2.6.1）
+vllm serve:   ✅  application startup complete（Qwen3-8B TP=1, max-len 4096, mem-util 0.85）
+Inference:    ✅  连贯英语——"What is the capital of France?" → 正确推理至 Paris；
+                  finish_reason=length（64 token 上限），无乱码/dtype/libdevice 错
+                  POST /v1/chat/completions 200 OK，生成 ~4.3 tokens/s
 ```
 
-### plugin 侧修复（三处 2.1.1 + 两处 2.1.2 重测新增，均容器内验证，PR 待提）
+### plugin 侧修复（3 处，均容器内验证，PR 待提）
 
 | 修复 | 文件 | 性质 |
 |---|---|---|
-| `get_config_path()` device_name 回退 | `dispatch/config/utils.py` | 真实潜在 bug（gcu.yaml 从未加载；潜在影响 mthreads/musa.yaml） |
-| int64 factory/index 算子黑名单 | `dispatch/config/gcu.yaml` | `add/zeros/zeros_like/zero_` 回退 torch_gcu（2.1.1） |
-| slot_mapping 纯 torch（CPU）重写 | `dispatch/backends/vendor/gcu/impl/slot_mapping.py` + `patch.py` | 替换 vllm int64 triton 内核（2.1.1） |
-| `sub` 加入黑名单 | `dispatch/config/gcu.yaml` | 2.1.2 重测新增：flag_gems `gcu300/ops/sub.py`（pointwise-dynamic）在 vendor triton 上 make_gcuir 崩（§2.6.1 第 5 层） |
-| `attention_backend` 回退 AttentionFLBackend | `dispatch/backends/vendor/gcu/gcu.py` | 2.1.2 重测新增：empty wheel 无 `_vllm_fa2_C` → FLASH_ATTN assert；探测失败回退 flag_gems attn（§2.6.1 第 6 层） |
+| `VENDOR_DEVICE_MAP` 加 cambricon → mlu | `vllm_fl/utils.py:53` | plugin 未覆盖 cambricon（真实缺口） |
+| `Graph` 加 mlu → `torch.mlu.MLUGraph` 分支 | `vllm_fl/compilation/graph.py:52` | plugin `Graph` 无 mlu 分支（真实缺口） |
+| `empty` 内核黑名单（内建配置） | `dispatch/config/cambricon.yaml` `flagos_blacklist: [empty]` | flag_gems `empty` grid 超 MLU 65535 上限；回退 torch_mlu。定稿走 plugin 内建配置（非 env），文件名匹配 vendor_name=`cambricon` 才自动加载 |
+
+本地补丁副本：`/tmp/camb-patches/{utils.py,graph.py}`。serve 脚本：`/tmp/camb_serve6.sh`。
+
+### MLU590 约束记录
+
+- **triton grid 上限 65535**（vs NV 2^31-1）：任何按元素总数算 grid 的 flag_gems
+  内核在大张量上都会撞（本次为 `empty`；其它大算子潜在同类风险）。
+- **num_warps 上限 4**：超出触发 fallback warning（非致命，仅噪声）。
+- `torch.mlu.MLUGraph` 存在（对应 CUDAGraph），plugin graph 分支可直接用。
 
 ### 待办
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
-| **FlagGems：GCU300 flash 内核 int32 + 数值正确性** | 🟡 半通 | int32 `flash_varlen_fwd_kernel` 已提供并在 GCU300 编译+运行（§2.6.1）；但**数值错**（attention 输出乱码，`max_abs_diff≈2.9`）——GCU300 codegen 对 flash 内核的数值误编译待定位 |
-| 厂商为 torch 2.10.0 出 GCU flash_attn | ✅ 已完成 | PR #310（`398a00e`）钉 `torch.2.10.0.gcu.3.4.20260506`；2.1.2 镜像内 flash_attn/flash_attn_gcu 正常 |
-| plugin 五处 GCU 修复提 PR | ⬜ 待提 | 容器已验证；对齐 Mac 源码（`gcu.yaml`/`utils.py`/`gcu.py`/`slot_mapping.py`/`patch.py`）后提 |
-| 镜像：双编译器隔离（entry-point 泄漏） | ✅ 已解决 | **PR #332**：FlagTree → `/opt/flagtree`、Triton → `/opt/triton` 均出 site-packages；`compiler()` 切 side dir。`TRITON_BACKENDS_IN_TREE=1` workaround 不再需要（§2.6.1 双编译器缺口） |
-| 镜像：flash_attn `rotary.py` unguarded `import triton_gcu.triton` | ⬜ 镜像侧/厂商 | 需 triton_gcu 可导入；旧 wheel 有 try/except |
-| configs.yaml enflame flash-attn 钉 | ✅ 已对齐 | PR #310 已改 torch-2.10.0 构建；不再与栈错配 |
+| 3 处修复对齐 Mac 源码并提 PR | ✅ 已提 | **PR #355**（flagos-ai/vllm-plugin-FL）：VENDOR_DEVICE_MAP cambricon→mlu + graph.py mlu→MLUGraph（2 处代码，通用缺口非 cambricon hack）+ `dispatch/config/cambricon.yaml`（`empty` 黑名单，内建配置非 env）。三处全部 E2E 验证 |
+| `empty` 黑名单固化 | ✅ 已入 PR #355 | 定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）；已容器验证不设 env 时 serve + 推理正常。根治方向（flag_gems 按 65535 上限分块）仍见下一行 |
+| flag_gems `empty` MLU grid 分块 | ✅ 上游已修（待发版） | **已存在** cambricon 专属 `_cambricon/ops/empty.py`（grid 上限 `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset），FlagGems **PR #4435**（2026-08-07 合入 master）。但**尚未进任何 tag**（v5.3.3 于 2026-08-06 早一天发布，5.4.0.dev0 也不含）。镜像现装 5.3.3 → 落到有 bug 的通用 `empty`。**根治 = flag_gems 升到含 #4435 的版本**，届时可去掉 `cambricon.yaml` 的 `empty` 黑名单。当前黑名单为正确的过渡措施 |
+| cambricon `+flagos` wheel 上架 per-vendor index | ✅ 已上传 | 4 个 wheel（vllm / xgrammar cp312 / compressed-tensors / opencv-headless）已上架 `flagos-pypi-cambricon`；不再依赖本地 wheel |
 
-**相关提交：** 无落库（容器内改动）；empty build 在 enflame 镜像内重新 repack；plugin
-修复在容器 `vllm-verify-enflame-212` 的可编辑安装内（Mac 源码待对齐）。2.1.2 重测环境：
-Qwen3-4B（ModelScope `Qwen/Qwen3-4B`）、vendor triton + `TRITON_BACKENDS_IN_TREE=1` +
-`TORCHDYNAMO_DISABLE=1`。三行复现现场保留。
+**相关提交：** 无落库（容器内改动 + 本地 build）。wheel 在 cambricon 镜像内从
+官方 tarball 重新 build + repack；plugin 3 处修复在容器可编辑安装内（Mac 源码待对齐）。
 
 
 ---
