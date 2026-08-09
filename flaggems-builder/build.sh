@@ -44,7 +44,10 @@ echo ">>> version: $(git -C "$src" describe --tags 2>/dev/null || echo '(no tag)
 
 echo ">>> building pure-Python wheel"
 mkdir -p "$OUTDIR"
-python3 -m pip wheel "$src" --no-deps -w "$OUTDIR"
+# Build in an isolated venv: on Ubuntu 24.04 (Python 3.12) the system
+# interpreter is PEP 668 externally-managed and pip refuses to run against it.
+python3 -m venv "$workdir/venv"
+"$workdir/venv/bin/pip" wheel "$src" --no-deps -w "$OUTDIR"
 
 wheel="$(ls -t "$OUTDIR"/flag_gems-*.whl 2>/dev/null | head -1)"
 if [ -z "$wheel" ]; then
