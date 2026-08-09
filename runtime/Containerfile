@@ -84,6 +84,17 @@ RUN curl -LsSf "https://resource.flagos.net/repository/flagos-filestore/utils/uv
 # instead of GitHub (much faster from CN runners).
 ENV UV_PYTHON_INSTALL_MIRROR=https://resource.flagos.net/repository/flagos-filestore/uv-python
 
+# ── uv package index — routes `uv venv --seed` (pip/setuptools/wheel)
+# to the CN mirror instead of PyPI.org. This is uv's ONLY package-index
+# operation in this file (CPython uses UV_PYTHON_INSTALL_MIRROR above;
+# every pip install uses PIP_INDEX_URL below), so before this the seed
+# fetch was the one step still crossing the international link — the
+# deterministic failure point on CN runners (esp. aarch64 Ascend nodes).
+# UV_DEFAULT_INDEX is the current (non-deprecated) name as of uv 0.11.30.
+# Timeout raised from uv's 30s default; the mirror can be slow to first byte.
+ENV UV_DEFAULT_INDEX=${EXTRA_PYPI} \
+    UV_HTTP_TIMEOUT=120
+
 # ── Install managed CPython (always from filestore mirror) ─────
 # --python-preference only-managed guarantees uv downloads its own
 # CPython build regardless of what the base image ships. Base image
