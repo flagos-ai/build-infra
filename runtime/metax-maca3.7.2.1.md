@@ -17,7 +17,7 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `flagtree==3.1.0+metax3.7.2.0`
 - `flash_attn==2.6.3+metax3.7.2.0torch2.8`
 - `numpy==2.3.5`

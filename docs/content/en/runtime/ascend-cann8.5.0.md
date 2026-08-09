@@ -37,7 +37,7 @@ title: "ascend-cann8.5.0"
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `flagtree==0.6.0+ascend3.2`
 - `numpy==2.3.5`
 - `torch-npu==2.9.0`

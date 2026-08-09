@@ -37,13 +37,13 @@ title: "tsingmicro-tsm260610"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `flagtree==0.5.0+2026071713.git2b23e6d1`
 - `numpy==2.2.6`
-- `torch==2.7.0+cpu`
+- `torch==2.11.0+cpu`
 - `torch_txda==0.1.0+20260728.f6fbdb71`
-- `torchaudio==2.7.0+cpu`
-- `torchvision==0.22.0+cpu`
+- `torchaudio==2.11.0+cpu`
+- `torchvision==0.26.0+cpu`
 - <span class="muted"><code class="plain">triton==3.6.0.post2026072919+git8f5b0609</code></span>
 - `txops==0.1.0+20260716.e94d9509`
 

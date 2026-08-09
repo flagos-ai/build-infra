@@ -18,7 +18,7 @@
 ### Major Python packages
 
 - `enflame-modelopt==3.6.20260615+torch.2.11.0`
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706`
 - `numpy==2.3.5`
 - `pyefml==1.10.6`
@@ -34,7 +34,7 @@
 ## Environment
 
 - `TORCH_GCU_ENABLE_INT64_AND_UINT64=1`
-- `ENABLE_I64_CHECK=1`
+- `ENABLE_I64_CHECK=0`
 - `TORCHGCU_INDUCTOR_ENABLE=1`
 
 ## Launch

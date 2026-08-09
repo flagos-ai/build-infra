@@ -36,8 +36,9 @@ title: "cambricon-neuware4.7.2"
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `numpy==2.2.6`
+- `pandas==3.0.5`
 - `torch-mlu-ops==1.12.1+torch2.11.0`
 - `torch-mlu==1.33.1+torch2.11.0`
 - `torch==2.11.0+cpu`

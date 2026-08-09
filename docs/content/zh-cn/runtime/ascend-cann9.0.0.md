@@ -37,7 +37,7 @@ title: "ascend-cann9.0.0"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `flagtree==0.6.0+ascend3.5`
 - `numpy==2.3.5`
 - `torch-npu==2.10.0`

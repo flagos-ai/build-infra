@@ -18,7 +18,7 @@
 ### Major Python packages
 
 - `apex==0.1+metax3.8.1.0`
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.3`
 - `flagtree==0.6.1a2+metax3.6`
 - `flash_attn==2.6.3+metax3.8.1.0torch2.10`
 - `flash_linear_attention==0.5.0+metax3.8.1.0torch2.10`
