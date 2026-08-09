@@ -42,6 +42,54 @@ git -C "$src" checkout --quiet "$FLAGGEMS_REF"
 
 echo ">>> version: $(git -C "$src" describe --tags 2>/dev/null || echo '(no tag)')"
 
+# Daily builds get a date-stamped version instead of the scm default
+# (e.g. 5.4.0.dev580+gb89e0aeb8), whose leading token is a commit *count* —
+# opaque about when the wheel was built. We swap the count for the build date:
+#
+#   5.3.5.dev20260809
+#   \______/ \______/
+#    base     build date
+#
+# The date makes builds human-sortable and lets `pip install --pre` always pick
+# the newest (PEP 440 orders by version, and version order == chronological
+# order here). One scheduled build per day, so a bare date never collides on
+# the index; a manual same-day rebuild should pass FLAGGEMS_VERSION to override.
+#
+# We apply this version by creating a throwaway LOCAL git tag on HEAD rather
+# than the SETUPTOOLS_SCM_PRETEND_VERSION env var. The env var makes scm skip
+# git entirely, leaving __commit_id__ = None in _version.py. Tagging keeps scm
+# reading git, so the generated flag_gems/_version.py carries BOTH the date
+# version and the real commit: a tester can recover the commit at runtime via
+#
+#   python -c "import flag_gems._version as v; print(v.version, v.commit_id)"
+#
+# The tag lives only in this throwaway clone (never pushed) and dies with it.
+#
+# Set FLAGGEMS_VERSION to override the computed version (e.g. a pinned build).
+if [ -z "${FLAGGEMS_VERSION:-}" ]; then
+  python3 -m pip install --quiet "setuptools-scm>=8,<10"
+  # guess-next-dev bumps to the next release after the latest tag (dist>0), so
+  # once v5.3.4 is tagged and any commit lands the base becomes 5.3.5. Strip the
+  # trailing .devN/.postN scm appends, leaving a bare base for our date stamp.
+  base="$(python3 -c "
+import setuptools_scm
+v = setuptools_scm.get_version(
+    root='$src',
+    version_scheme='guess-next-dev',
+    local_scheme='no-local-version',
+)
+print(v.split('.dev')[0].split('.post')[0])
+")"
+  FLAGGEMS_VERSION="${base}.dev$(date +%Y%m%d)"
+fi
+# Local, unpushed tag on HEAD: scm reads it as the exact version while still
+# recording the commit. -f so a re-run in a reused clone overwrites cleanly.
+git -C "$src" tag -f "$FLAGGEMS_VERSION" >/dev/null
+echo ">>> daily version: ${FLAGGEMS_VERSION}  (commit $(git -C "$src" rev-parse --short=9 HEAD))"
+# Scoped to the flag_gems dist so it can only ever override this project.
+export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAG_GEMS="$FLAGGEMS_VERSION"
+echo ">>> daily version: $SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAG_GEMS"
+
 echo ">>> building pure-Python wheel"
 mkdir -p "$OUTDIR"
 python3 -m pip wheel "$src" --no-deps -w "$OUTDIR"
