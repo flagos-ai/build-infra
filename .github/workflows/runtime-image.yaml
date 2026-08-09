@@ -14,6 +14,15 @@
 
 name: Builid Runtime Image (manual)
 
+# The run title self-labels each dispatch so v1 (build, no flag_gems) and v2
+# (full, with flag_gems) are told apart at a glance in the Actions run list —
+# the two produce identical job names, so without this they are indistinguishable.
+# Shows: layer (v1/v2) · backend · push/no-push · no-cache · pinned flaggems ver.
+run-name: >-
+  ${{ inputs.no_flaggems && 'v1 build' || 'v2 flag_gems' }}
+  · ${{ inputs.backend }}
+  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.flaggems != '' && format(' · fg={0}', inputs.flaggems) || '' }}
+
 # Runtime images are built on demand, not on every push/PR. They layer
 # FlagGems (pure Python + optional C++ extension) on top of a base image
 # via wheel install. Trigger this manually to build a backend (or all).
