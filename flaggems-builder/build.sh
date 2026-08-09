@@ -35,6 +35,12 @@ workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 src="$workdir/FlagGems"
 
+# All pip/python work goes through an isolated venv: on Ubuntu 24.04 (Python
+# 3.12) the system interpreter is PEP 668 externally-managed and pip refuses to
+# run against it. The venv lives in the throwaway workdir and dies with it.
+python3 -m venv "$workdir/venv"
+py="$workdir/venv/bin/python"
+
 echo ">>> cloning FlagGems @ ${FLAGGEMS_REF} (with tags, for setuptools_scm)"
 git clone --quiet "$FLAGGEMS_REPO" "$src"
 git -C "$src" fetch --quiet --tags --force origin || true
@@ -67,11 +73,11 @@ echo ">>> version: $(git -C "$src" describe --tags 2>/dev/null || echo '(no tag)
 #
 # Set FLAGGEMS_VERSION to override the computed version (e.g. a pinned build).
 if [ -z "${FLAGGEMS_VERSION:-}" ]; then
-  python3 -m pip install --quiet "setuptools-scm>=8,<10"
+  "$py" -m pip install --quiet "setuptools-scm>=8,<10"
   # guess-next-dev bumps to the next release after the latest tag (dist>0), so
   # once v5.3.4 is tagged and any commit lands the base becomes 5.3.5. Strip the
   # trailing .devN/.postN scm appends, leaving a bare base for our date stamp.
-  base="$(python3 -c "
+  base="$("$py" -c "
 import setuptools_scm
 v = setuptools_scm.get_version(
     root='$src',
@@ -92,10 +98,7 @@ echo ">>> daily version: $SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAG_GEMS"
 
 echo ">>> building pure-Python wheel"
 mkdir -p "$OUTDIR"
-# Build in an isolated venv: on Ubuntu 24.04 (Python 3.12) the system
-# interpreter is PEP 668 externally-managed and pip refuses to run against it.
-python3 -m venv "$workdir/venv"
-"$workdir/venv/bin/pip" wheel "$src" --no-deps -w "$OUTDIR"
+"$py" -m pip wheel "$src" --no-deps -w "$OUTDIR"
 
 wheel="$(ls -t "$OUTDIR"/flag_gems-*.whl 2>/dev/null | head -1)"
 if [ -z "$wheel" ]; then
