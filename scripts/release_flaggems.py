@@ -87,9 +87,18 @@ def cmd_build_python(args: argparse.Namespace) -> str:
 
 
 def cmd_upload_python(args: argparse.Namespace) -> None:
-    """Push the same py3-none-any wheel to every vendor PyPI in parallel."""
+    """Push the same py3-none-any wheel to every vendor PyPI in parallel.
+
+    The tagged release wheel also goes to the daily index (flagos-pypi-daily):
+    when master sits on a freshly-pushed tag, the daily build produces a clean
+    release version rather than a .dev stamp, so the daily index would otherwise
+    lack that exact version until the next commit lands.
+    """
     cfg = _load_configs()
     urls = _pypi_urls(cfg)
+    daily = cfg.get("pypi_daily")
+    if daily:
+        urls["daily"] = daily
     wheel = Path(args.wheel)
 
     if args.dry_run:
