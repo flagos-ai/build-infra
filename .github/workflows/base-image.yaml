@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Base Image Build (manual)
+name: Build Base Image (manual)
 
 # Base images are built on demand, not on every push/PR. Vendor SDKs change
 # rarely, so with 10+ backends auto-building on each change is more noise than
