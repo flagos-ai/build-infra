@@ -80,8 +80,16 @@ ENV LD_LIBRARY_PATH="${ASCEND_HOME}/lib64:/usr/local/Ascend/driver/lib64:${ASCEN
 # Users and downstream Dockerfiles no longer need to source set_env.sh —
 # the vendor env loads automatically in login, non-login interactive,
 # and non-interactive shells (via runtime's profile.d plumbing).
+# Source the NNAL/ATB set_env.sh after CANN's (ATB builds on the toolkit env)
+# so ATB_HOME_PATH and the ATB lib path are captured too — without them
+# libatb.so fails to load and ATB ops (_npu_reshape_and_cache,
+# _npu_rotary_embedding) crash at inference. The top-level atb/set_env.sh
+# selects the cxx11-ABI (cxx_abi_1) variant, matching torch's ABI.
 RUN env_before=$(env | sort) && \
-    set -a && . /usr/local/Ascend/cann/set_env.sh > /dev/null 2>&1 || true && set +a && \
+    set -a && \
+    { . /usr/local/Ascend/cann/set_env.sh > /dev/null 2>&1 || true; } && \
+    { [ -f /usr/local/Ascend/nnal/atb/set_env.sh ] && . /usr/local/Ascend/nnal/atb/set_env.sh > /dev/null 2>&1 || true; } && \
+    set +a && \
     env_after=$(env | sort) && \
     printf '%s\n' "$env_before" > /tmp/_v_before && \
     printf '%s\n' "$env_after" > /tmp/_v_after && \
