@@ -111,6 +111,18 @@ ENV VIRTUAL_ENV=/flagos \
 # ── Upgrade pip in the venv ──────────────────────────────────────
 RUN pip install --no-cache-dir --upgrade pip
 
+# ── Raise pip's download-resume limit ─────────────────────────────
+# pip resumes an interrupted download in place, but its built-in ceiling
+# is 5 resume attempts (6 tries total). On CN runners the link to the
+# vendor index (resource.flagos.net) drops mid-stream every ~50-130 MB, so
+# large wheels can exhaust that ceiling before completing — the mthreads
+# `triton` wheel is 580 MB and reproducibly dies part-way (e.g. 434/580 MB)
+# after 6 tries. PIP_RESUME_RETRIES is the env form of --resume-retries
+# (pip >= 25.1, hence set AFTER the upgrade above); it is a ceiling, so a
+# download that finishes early simply stops resuming. Applies to every pip
+# download in this build (DEPS, FlagTree, Triton, FlagGems).
+ENV PIP_RESUME_RETRIES=100
+
 # ── Install vendor dependencies (explicit, no extras) ──────────
 # Dependencies come from configs.yaml deps: — explicit, no resolver ambiguity.
 # Each vendor has exactly one primary index (FLAGOS_PYPI); EXTRA_PYPI serves as
