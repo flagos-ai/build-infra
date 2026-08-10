@@ -83,16 +83,21 @@ ENV LD_LIBRARY_PATH="${ASCEND_HOME}/lib64:/usr/local/Ascend/driver/lib64:${ASCEN
 # without them libatb.so fails to load and ATB ops (_npu_reshape_and_cache,
 # _npu_rotary_embedding) crash at inference. The top-level atb/set_env.sh
 # selects the cxx11-ABI (cxx_abi_1) variant, matching torch's ABI.
-RUN env_before=$(env | sort) && \
-    set -a && \
-    { . /usr/local/Ascend/cann/set_env.sh > /dev/null 2>&1 || true; } && \
-    { [ -f /usr/local/Ascend/nnal/atb/set_env.sh ] && . /usr/local/Ascend/nnal/atb/set_env.sh > /dev/null 2>&1 || true; } && \
-    set +a && \
-    env_after=$(env | sort) && \
-    printf '%s\n' "$env_before" > /tmp/_v_before && \
-    printf '%s\n' "$env_after" > /tmp/_v_after && \
-    comm -13 /tmp/_v_before /tmp/_v_after \
-      | grep -v '^_\|^PWD=\|^SHLVL=\|^OLDPWD=' \
+# NOTE: the sourcing runs inside `bash -c`, not the RUN's /bin/sh (dash on
+# ubuntu:24.04). The vendor set_env.sh scripts are bash scripts; sourcing them
+# under dash can hit a code path that calls `exit` (killing the RUN before
+# `|| true` can catch it — a silent non-zero exit). Isolating the source in a
+# bash child contains any such exit and matches step 15's `bash -c source`.
+# LC_ALL=C pins collation so the two sorts and `comm` agree; a locale-shifted
+# `comm` otherwise aborts (exit 2) claiming the input is "not in sorted order".
+RUN env | LC_ALL=C sort > /tmp/_v_before && \
+    bash -c 'set -a; \
+      . /usr/local/Ascend/cann/set_env.sh > /dev/null 2>&1 || true; \
+      [ -f /usr/local/Ascend/nnal/atb/set_env.sh ] && . /usr/local/Ascend/nnal/atb/set_env.sh > /dev/null 2>&1 || true; \
+      set +a; env' \
+      | LC_ALL=C sort > /tmp/_v_after && \
+    { LC_ALL=C comm -13 /tmp/_v_before /tmp/_v_after || true; } \
+      | { grep -v '^_\|^PWD=\|^SHLVL=\|^OLDPWD=\|^BASH_' || true; } \
       | while IFS='=' read -r var val; do \
           printf 'export %s="%s"\n' "$var" "$val"; \
         done \
