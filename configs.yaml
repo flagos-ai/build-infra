@@ -154,6 +154,7 @@ vendors:
       sdk:
         - CANN Toolkit 8.5.0 (aarch64)     # Ascend-cann-toolkit_8.5.0_linux-aarch64.run
         - CANN 910B Ops 8.5.0 (aarch64)    # Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
+        - CANN NNAL 8.5.0 (aarch64)        # Ascend-cann-nnal_8.5.0_linux-aarch64.run
 
     cann9.0.0:
       extras: ascend-cann900
