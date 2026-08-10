@@ -536,7 +536,7 @@ vendors:
       driver: "260610164501.01"
       python: "3.10"
       triton: triton==3.6.0.post2026072919+git8f5b0609
-      flagtree: flagtree==0.5.0+2026071713.git2b23e6d1
+      flagtree: flagtree==0.6.1+tsingmicro3.3
       system_dpkg:
         # libfmt8 is a system-level dependency for torch_txda (links
         # libfmt.so.8). Ubuntu 24.04 ships libfmt9, so we install the
