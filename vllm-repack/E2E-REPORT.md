@@ -1168,6 +1168,79 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 
 ---
 
+## 2.8 ascend-cann9.0.0（Ascend 910B4 aarch64：✅ E2E 通过，2026-08-10）
+
+**日期:** 2026-08-10　**平台:** Ascend 910B4（aarch64）　**节点:** `hw25`
+**driver/CANN:** npu-smi 26.0.rc1 / CANN 9.0.0　**镜像:** `flagos-runtime-ascend-cann9.0.0:2.1.2`（Phase B 用其快照 `vllm-phaseb-ascend-snapshot`）
+**容器:** `vllm-phaseb-ascend-cann9.0.0`　**Python:** 3.11.15　**torch/torch_npu:** 2.10.0+cpu / 2.10.0　**triton:** 3.5.1
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，全链路 serve + 推理
+**模型:** Qwen3-4B（`/data/models/Qwen/Qwen3-4B`，modelscope 下载 7.6G）
+**NPU 绑定:** **NPU 1**（NPU 0 有他人 `pytest` 进程占用，故换绑；仅 Python 安装阶段无关设备）
+
+ascend 是此前 flag_gems `j0`/`log2` 缺失致 import 崩溃的两个后端之一，故本次 E2E
+同时是**修复后 5.3.4 wheel 的在硬件确认**。全链路 serve + 推理一次跑通，910B4 上
+Qwen3-4B 贪婪解码输出连贯英语。这也是首个 **aarch64 + Python 3.11** 组合的 repack。
+
+### Repack —— 复用 Phase A 产物（aarch64 / cp311）
+
+Phase A（2026-08-10 于 hw25 build-image 内）产出 4 个 `+flagos` wheel，零泄漏扫描通过，
+平台 tag 正确，用户已上架 `flagos-pypi-ascend`：
+
+```
+vllm:                   0.20.2+flagos     ✅  empty，py3-none-any
+xgrammar:               0.2.4+flagos      ✅  cp311-cp311-manylinux_2_26_aarch64（py3.11+aarch64）
+compressed-tensors:     0.15.0.1+flagos   ✅  纯 py3
+opencv-python-headless: 5.0.0.93+flagos   ✅  cp37-abi3-manylinux_2_28_aarch64（稳定 ABI）
+```
+
+### 安装 —— ✅ 单步 + 插件干净安装
+
+`vllm==0.20.2+flagos` 从 `flagos-pypi-ascend` 单步安装，torch/torch_npu 从镜像保留，
+无公有 torch/cuda/triton 链。`vllm-plugin-FL` 走 `pip install --no-build-isolation -e .`
+（`VLLM_VENDOR` 未设 → 纯 `py3-none-any`，`vllm-plugin-fl 0.0.0+gf4ebc258f`）。
+
+### serve + 推理 —— ✅ 成功（3 处修复）
+
+| # | 症状 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | import 崩溃 `libdevice has no attribute 'j0'` | 镜像烘焙的是 **旧** 5.3.4 wheel（重推前），FlagTree `triton.language.extra.cann.libdevice` 缺 `j0`/`log2`，`_patch_missing_symbols` 无 fallback 可打 | 从 `flagos-pypi-ascend` **强制重装 5.3.4**（重推后 wheel）→ `j0=True log2=True`。**即用户重推 5.3.4 的硬件确认** |
+| 2 | serve 启动崩溃 `coreDim is invalid (value 0)`（EngineCore init） | 模型构造 `register_buffer("_k_scale", torch.tensor(1.0))` 经 `aten::lift_fresh` 被 flag_gems 拦截，标量 tensor 算出零 grid，NPU KernelLaunch coreDim=0 | `dispatch/config/ascend.yaml` `flagos_blacklist` 加 `lift_fresh` / `lift_fresh_copy` / `_to_copy`（纯拷贝，回退 torch_npu 无损） |
+| 3 | 推理崩溃 `OSError: Could not load this library: .../libatb.so`（`_npu_reshape_and_cache` / `_npu_rotary_embedding`） | 基础镜像 `vendor.sh` 仅设 CANN toolkit `LD_LIBRARY_PATH`，**未 source NNAL/ATB `set_env.sh`** → `ATB_HOME_PATH` 空，ATB 后端算子（reshape_and_cache / rotary_embedding）加载失败 | serve 前 `source /usr/local/Ascend/nnal/atb/set_env.sh`（解析到 `cxx_abi_1`，libatb 就位）。**镜像侧缺口**——应烘焙进 base image env（见待办） |
+
+修复后 serve 达 `Application startup complete`（KV cache 2048-token / 50.5x 并发，NPU 1）。
+**首次推理**首 token 延迟高（首请求逐 shape 编译 triton/NPU 内核，60s curl 超时 →
+加长即返回）；rms_norm/rotary/silu_and_mul 均正确 dispatch，全程 0 error。
+
+### Stack 验证（ascend-cann9.0.0，✅ E2E 通过 2026-08-10）
+
+```
+torch/torch_npu: 2.10.0+cpu / 2.10.0  ✅  from 镜像
+triton:       3.5.1                    ✅  （+ triton_ascend）
+vllm:         0.20.2+flagos           ✅  empty，复用 Phase A aarch64 产物
+vllm_fl:      0.0.0+gf4ebc258f        ✅  纯 Python（VLLM_VENDOR 未设）
+flag_gems:    5.3.4（重推后，强制重装）✅  j0/log2 已修；3 op 黑名单（lift_fresh/lift_fresh_copy/_to_copy）
+NPU device:   ✅ NPU 1                 910B4（NPU 0 被他人占用）
+vllm import:  ✅
+vllm serve:   ✅  application startup complete（Qwen3-4B TP=1, max-len 2048, mem-util 0.6, enforce-eager）
+Inference:    ✅  "The capital of France is" → " Paris. The capital of Germany is Berlin.
+                  The capital of Italy is Rome..." 连贯英语；32 token，finish_reason=length，
+                  POST /v1/completions 200 OK，无 coreDim/libatb/dtype 错
+```
+
+### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| `lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR | ✅ 已提 | **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（flagos-ai/vllm-plugin-FL，分支 `ascend-blacklist-lift-fresh`→`main`）：`dispatch/config/ascend.yaml`；coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护 |
+| ATB `set_env.sh` 烘焙进 base image env | ⬜ 待做 | 现须运行时手动 source；应进 `configs.yaml` env.runtime（对应 `base_source` TODO——ascend 已列）。否则每个 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃 |
+| flag_gems 5.3.4 重推 v2 镜像刷新 | 🔄 进行中 | 现镜像烘焙旧 wheel，须强制重装才可用；全部 17 个 v2 runtime 镜像重建后消除（run 31365995958，用户驱动） |
+| ascend `+flagos` wheel 上架 | ✅ 已上传 | 4 个 wheel 已上架 `flagos-pypi-ascend`（用户上传） |
+
+**相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`main`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
+
+
+---
+
 # 第 3 部分 · 流程总结与决策
 
 ## 3. 自动化边界
