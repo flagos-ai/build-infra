@@ -57,6 +57,17 @@ ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
 ARG LLVM_TARBALL=metax-llvm19-3.8.0.6-x86_64_v0.6.0.tar.gz
 ARG PLUGIN_TARBALL=metaxTritonPlugin-cpython3.12-x86_64_v0.6.1.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
+# pybind11 version spec, pinned. FlagTree's build-system requires only
+# "pybind11>=2.13.1" (no upper bound), so a plain build pulls whatever pybind11
+# is newest -- and pybind11 3.1.0 bumped PYBIND11_INTERNALS_VERSION 11 -> 12.
+# libtriton and the prebuilt metaxTritonPlugin.so share pybind11 type registries
+# only when their internals versions match; the plugin is compiled against v11,
+# so a v12 libtriton makes `metax.load_dialects(ctx)` raise
+# "TypeError: incompatible function arguments" at kernel-compile time on real
+# MetaX hardware (the CI smoke test can't catch it -- no GPU). Pinning to the
+# v11 range (FlagTree's own _PYBIND11_INTERNALS_TO_PIP maps 11 -> ">=3.0,<3.1")
+# keeps libtriton binary-compatible with the plugin. The gate below asserts v11.
+ARG PYBIND11_SPEC=>=3.0,<3.1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
@@ -111,6 +122,7 @@ RUN git config --global http.version HTTP/1.1 \
     && test -d /opt/flagtree/.git \
     && cd /opt/flagtree \
     && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
+    && python3.12 -m pip install --no-cache-dir "pybind11${PYBIND11_SPEC}" \
     && export FLAGTREE_BACKEND=metax \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
     && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
@@ -146,6 +158,20 @@ if hits:
     sys.exit(1)
 maxglibc = max(sorted(set(__import__("re").findall(r"GLIBC_[0-9.]+", syms))))
 print(f"OK: libtriton.so is 22.04-clean (max {maxglibc}, no forbidden symbols)")
+# pybind11 ABI gate: the prebuilt metaxTritonPlugin.so is compiled against
+# pybind11 internals v11. libtriton MUST expose the same internals version or
+# `metax.load_dialects(ctx)` fails on-device with a pybind11 type mismatch
+# (verified on metax124: v11 -> test_abs 36/36 pass; v12 -> 36/36 fail). The
+# PYBIND11_SPEC pin above holds this at v11; assert it here so a future drift
+# fails the build instead of shipping a wheel that only breaks on hardware.
+with open(so, "rb") as f:
+    blob = f.read()
+internals = sorted(set(__import__("re").findall(rb"__pybind11_internals_v(\d+)", blob)))
+if internals != [b"11"]:
+    print(f"FAIL: libtriton.so pybind11 internals {internals} (expected [b'11']; "
+          "plugin needs v11 -- adjust PYBIND11_SPEC)")
+    sys.exit(1)
+print("OK: libtriton.so pybind11 internals v11 (matches metaxTritonPlugin.so)")
 PY
 
 # Smoke test: install the freshly built wheel and import it (fails the build if broken).

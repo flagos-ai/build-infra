@@ -37,6 +37,18 @@ is built on Ubuntu 24.04 and links `libtriton.so` against `GLIBC_2.38` +
 **objdump gate fails the build** if any 22.04-incompatible symbol
 (`GLIBC_2.38`, `GLIBCXX_3.4.31/32`, `__isoc23_*`) reappears in `libtriton.so`.
 
+It also **pins pybind11** (`PYBIND11_SPEC`, default `>=3.0,<3.1`) because that is
+an ABI contract, not just a dependency. The prebuilt `metaxTritonPlugin.so` is
+compiled against pybind11 internals **v11**; `libtriton.so` and the plugin share
+pybind11 type registries only when their internals versions match. FlagTree
+requires only `pybind11>=2.13.1` (no upper bound), so an unpinned build pulls
+pybind11 3.1.0 — which bumped the internals version to **v12** — and the wheel
+imports fine but fails on real MetaX hardware at kernel-compile time with
+`metax.load_dialects(ctx)` → `TypeError: incompatible function arguments`. The
+CI smoke test (`import triton`) runs on a GPU-less box and cannot catch this, so
+the gate additionally **asserts libtriton's pybind11 internals are v11**
+(verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
+
 ## Build
 
 Run from inside this folder:
