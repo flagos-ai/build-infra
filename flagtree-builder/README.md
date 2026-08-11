@@ -51,10 +51,13 @@ podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_p
 
 Useful build args (see the Containerfile for the full list):
 
-- `FLAGTREE_REF` — git branch/tag to build (default `0.6.0`).
-- `FLAGTREE_WHEEL_VERSION` — wheel version string (default `0.6.0`). A clean
-  version (no `+git<sha>`) also needs `FLAGTREE_PYPI_KEY`; otherwise the wheel
-  is versioned `<ver>.git<sha>`.
+- `FLAGTREE_VERSION` — FlagTree git tag/ref to build; also the wheel version
+  string (default `0.6.0` for `nvidia-cuda`, `0.6.1+metax3.6` for `metax`). This
+  is the single version knob.
+- `FLAGTREE_WHEEL_VERSION` — wheel version string; defaults to `FLAGTREE_VERSION`,
+  so you normally only set `FLAGTREE_VERSION`. A clean version (no `+git<sha>`)
+  also needs `FLAGTREE_PYPI_KEY`; otherwise the wheel is versioned `<ver>.git<sha>`
+  (the `metax` builder gets a clean version without the key by dropping `.git`).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`).
 

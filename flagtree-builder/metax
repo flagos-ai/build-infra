@@ -35,18 +35,20 @@ FROM ubuntu:22.04
 # Proxy is only consumed during build (predefined ARG, not persisted in the image).
 ARG http_proxy=
 ARG https_proxy=
-# Vendor release tag. FlagTree tags one commit per backend (0.6.1+metax3.6 is an
-# annotated tag on the same commit as 0.6.1 / 0.6.1+enflame3.6); the backend is
-# selected at build time via FLAGTREE_BACKEND, not by source.
-ARG FLAGTREE_TAG=0.6.1+metax3.6
+# FlagTree release tag to build (the single version knob). FlagTree tags one
+# commit per backend (0.6.1+metax3.6 is an annotated tag on the same commit as
+# 0.6.1 / 0.6.1+enflame3.6); the backend is selected at build time via
+# FLAGTREE_BACKEND, not by source.
+ARG FLAGTREE_VERSION=0.6.1+metax3.6
 # Wheel version string. FlagTree's setup.py (get_flagtree_version) appends a
 # dirty "+git<sha>" / ".git<sha>" suffix to every build unless it either holds
 # the vendor's secret FLAGTREE_PYPI_KEY or finds no .git dir (git rev-parse then
 # fails and the suffix resolves empty). We don't have the vendor key, so the
 # build removes .git before `pip wheel` -> the version comes out clean, exactly
-# FLAGTREE_WHEEL_VERSION (default matches the vendor tag so this is a drop-in
-# replacement for the broken vendor wheel).
-ARG FLAGTREE_WHEEL_VERSION=0.6.1+metax3.6
+# FLAGTREE_WHEEL_VERSION. It defaults to FLAGTREE_VERSION so one arg drives both
+# the checkout and the wheel label (the default matches the vendor tag, so this
+# is a drop-in replacement for the broken vendor wheel).
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 # Prebuilt metax deps, pinned by URL. These are backend inputs, not source:
 #  - metax-llvm19: prebuilt LLVM, statically linked into libtriton.so (clean).
 #  - metaxTritonPlugin.so: prebuilt metax codegen (needs only GLIBC_2.32).
@@ -101,7 +103,7 @@ RUN mkdir -p /root/.flagtree/metax /root/.triton \
 # RUN but not persisted. Force HTTP/1.1 for git and retry the flaky network steps.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
-         git clone --branch "${FLAGTREE_TAG}" --depth 1 \
+         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
            https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
          echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
          rm -rf /opt/flagtree; sleep 5; \

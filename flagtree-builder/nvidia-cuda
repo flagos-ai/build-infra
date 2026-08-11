@@ -29,14 +29,17 @@ FROM ubuntu:22.04
 # Proxy is only consumed during build (predefined ARG, not persisted in the image).
 ARG http_proxy=
 ARG https_proxy=
-ARG FLAGTREE_REF=0.6.0
+# FlagTree git tag/ref to build (the single version knob).
+ARG FLAGTREE_VERSION=0.6.0
 # Clean version + lean build, matching FlagTree's official nv-delivery CI:
-#  - FLAGTREE_WHEEL_VERSION sets the wheel version; a clean (no +git<sha>) version
-#    also requires the secret FLAGTREE_PYPI_KEY (md5-gated in setup.py). Without the
-#    key you get "<ver>.git<sha>"; with nothing set you get "0.6.0+git<sha>".
+#  - FLAGTREE_WHEEL_VERSION is the env var FlagTree's setup.py reads for the wheel
+#    version; it defaults to FLAGTREE_VERSION so one arg drives both. A clean
+#    (no +git<sha>) version also requires the secret FLAGTREE_PYPI_KEY (md5-gated
+#    in setup.py). Without the key you get "<ver>.git<sha>"; with nothing set you
+#    get "0.6.0+git<sha>".
 #  - Release build type strips the .so and drops asserts (fixes the ~840 MB
 #    unstripped libtriton.so -> ~150 MB).
-ARG FLAGTREE_WHEEL_VERSION=0.6.0
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 ARG FLAGTREE_PYPI_KEY=
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -65,7 +68,7 @@ RUN python3.12 -m ensurepip --upgrade \
 # network-heavy steps.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
-         git clone --branch "${FLAGTREE_REF}" --depth 1 \
+         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
            https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
          echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
          rm -rf /opt/flagtree; sleep 5; \
