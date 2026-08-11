@@ -1,0 +1,153 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build a FlagTree metax (MACA) wheel on Ubuntu 22.04 (glibc 2.35 / gcc 11.4)
+# so the resulting libtriton.so links against an older glibc and loads on
+# standard 22.04 clients. The vendor-published wheel (flagtree==0.6.1+metax3.6)
+# is built on Ubuntu 24.04 and drags in GLIBC_2.38 + GLIBCXX_3.4.32, which do
+# NOT exist on 22.04 -> the client aborts before main() with
+# "version `GLIBC_2.38' not found". The metax LLVM and metaxTritonPlugin.so are
+# themselves clean (verified: llvm19 static libs carry no 2.38 / __isoc23_*),
+# so a plain 22.04 rebuild is sufficient -- no symbol patching, no static
+# libstdc++. A post-build objdump gate enforces this. Output wheel -> /wheels.
+#
+# Build:
+#   podman build -t flagtree-metax:0.6.1 -f metax .
+#   # behind a proxy:
+#   podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+#                -t flagtree-metax:0.6.1 -f metax .
+#
+# Extract the wheel:
+#   id=$(podman create flagtree-metax:0.6.1); podman cp $id:/wheels ./wheels; podman rm $id
+FROM ubuntu:22.04
+
+# Proxy is only consumed during build (predefined ARG, not persisted in the image).
+ARG http_proxy=
+ARG https_proxy=
+# Vendor release tag. FlagTree tags one commit per backend (0.6.1+metax3.6 is an
+# annotated tag on the same commit as 0.6.1 / 0.6.1+enflame3.6); the backend is
+# selected at build time via FLAGTREE_BACKEND, not by source.
+ARG FLAGTREE_TAG=0.6.1+metax3.6
+# Wheel version string. FlagTree's setup.py (get_flagtree_version) appends a
+# dirty "+git<sha>" / ".git<sha>" suffix to every build unless it either holds
+# the vendor's secret FLAGTREE_PYPI_KEY or finds no .git dir (git rev-parse then
+# fails and the suffix resolves empty). We don't have the vendor key, so the
+# build removes .git before `pip wheel` -> the version comes out clean, exactly
+# FLAGTREE_WHEEL_VERSION (default matches the vendor tag so this is a drop-in
+# replacement for the broken vendor wheel).
+ARG FLAGTREE_WHEEL_VERSION=0.6.1+metax3.6
+# Prebuilt metax deps, pinned by URL. These are backend inputs, not source:
+#  - metax-llvm19: prebuilt LLVM, statically linked into libtriton.so (clean).
+#  - metaxTritonPlugin.so: prebuilt metax codegen (needs only GLIBC_2.32).
+#  - build-deps-triton: triton origin toolkits (nvidia nvcc/cudart + json/gtest).
+ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+ARG LLVM_TARBALL=metax-llvm19-3.8.0.6-x86_64_v0.6.0.tar.gz
+ARG PLUGIN_TARBALL=metaxTritonPlugin-cpython3.12-x86_64_v0.6.1.tar.gz
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
+# gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common ca-certificates gnupg dirmngr \
+        git wget curl binutils \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build \
+        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
+        libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+        libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+        python3.12 python3.12-venv python3.12-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# pip for python3.12 (deadsnakes ships ensurepip via the python3.12-venv package).
+RUN python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools
+
+# Pre-stage the prebuilt metax deps into FlagTree's offline cache dirs so the
+# build wires them itself: metax-llvm19 -> LLVM_SYSPATH (post_hook), plugin ->
+# third_party/metax, triton toolkits -> ~/.triton. Placing the extracted files
+# where the cache expects them skips FlagTree's own network fetch. Retry the
+# large downloads (LLVM ~1.3 GB) since the runner's link to the bucket is flaky.
+RUN mkdir -p /root/.flagtree/metax /root/.triton \
+    && cd /tmp \
+    && for f in "${LLVM_TARBALL}" "${PLUGIN_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+         for i in 1 2 3 4 5; do \
+           wget -q --tries=3 --timeout=60 "${DEPS_BASE}/${f}" -O "${f}" && break; \
+           echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
+         done; \
+       done \
+    && tar -xzf "${LLVM_TARBALL}"    -C /root/.flagtree/metax \
+    && tar -xzf "${PLUGIN_TARBALL}"  -C /root/.flagtree/metax \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton \
+    && rm -f /tmp/*.tar.gz \
+    && test -d /root/.flagtree/metax/metax-llvm19 \
+    && test -f /root/.flagtree/metax/metaxTritonPlugin.so
+
+# Build the FlagTree metax wheel from source on this 22.04 toolchain.
+# FLAGTREE_BACKEND=metax selects the backend. Proxy (if any) is applied to every
+# RUN but not persisted. Force HTTP/1.1 for git and retry the flaky network steps.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${FLAGTREE_TAG}" --depth 1 \
+           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
+         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/flagtree; sleep 5; \
+       done \
+    && test -d /opt/flagtree/.git \
+    && cd /opt/flagtree \
+    && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
+    && export FLAGTREE_BACKEND=metax \
+    && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
+    && rm -rf /opt/flagtree/.git \
+    && for i in 1 2 3 4 5; do \
+         python3.12 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# Gate: the reason this builder exists. Fail the build if the freshly built
+# libtriton.so reintroduces any symbol that a 22.04 client cannot satisfy
+# (GLIBC_2.38, GLIBCXX_3.4.31/32, or the gcc-13/glibc-2.38 __isoc23_* family).
+RUN python3.12 - <<'PY'
+import glob, subprocess, zipfile, tempfile, os, sys
+whl = glob.glob("/wheels/*.whl")[0]
+# Version gate: the wheel must carry the clean version, not FlagTree's dirty
+# "<ver>.git<sha>" / "+git<sha>" fallback (which means the .git-removal step
+# didn't take and setup.py stamped the commit sha into the version).
+ver = os.path.basename(whl).split("-")[1]
+if "git" in ver:
+    print(f"FAIL: dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
+    sys.exit(1)
+print(f"OK: clean wheel version '{ver}'")
+d = tempfile.mkdtemp()
+zipfile.ZipFile(whl).extractall(d)
+so = next(p for p in glob.glob(d + "/**/libtriton.so", recursive=True))
+syms = subprocess.check_output(["objdump", "-T", so], text=True)
+forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]
+hits = {f: syms.count(f) for f in forbidden if f in syms}
+if hits:
+    print("FAIL: 22.04-incompatible symbols in libtriton.so:", hits)
+    sys.exit(1)
+maxglibc = max(sorted(set(__import__("re").findall(r"GLIBC_[0-9.]+", syms))))
+print(f"OK: libtriton.so is 22.04-clean (max {maxglibc}, no forbidden symbols)")
+PY
+
+# Smoke test: install the freshly built wheel and import it (fails the build if broken).
+RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
+    && python3.12 -c "import triton; from triton.backends import backends; \
+         print('OK triton', triton.__version__, 'backends', list(backends.keys()))"
+
