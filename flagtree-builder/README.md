@@ -25,6 +25,17 @@ Files are named `{vendor}-{backend}`, one per target:
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA| Ubuntu 22.04 (glibc 2.35)   |
+| `metax`      | FlagTree for MetaX (MACA) | Ubuntu 22.04 (glibc 2.35) |
+
+The `metax` builder exists because MetaX's own wheel (`flagtree==0.6.1+metax3.6`)
+is built on Ubuntu 24.04 and links `libtriton.so` against `GLIBC_2.38` +
+`GLIBCXX_3.4.32`, which do not exist on 22.04 — the client aborts before
+`main()` with `version 'GLIBC_2.38' not found`. The MetaX LLVM and
+`metaxTritonPlugin.so` are themselves clean, so a plain 22.04 rebuild is enough
+(no symbol patching, no static libstdc++). It pre-stages the prebuilt MetaX deps
+(LLVM, plugin, triton toolkits) into FlagTree's offline cache, and a post-build
+**objdump gate fails the build** if any 22.04-incompatible symbol
+(`GLIBC_2.38`, `GLIBCXX_3.4.31/32`, `__isoc23_*`) reappears in `libtriton.so`.
 
 ## Build
 
