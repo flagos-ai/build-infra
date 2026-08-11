@@ -33,6 +33,10 @@ on:
           - metax
           - nvidia-cuda
         default: metax
+      flagtree_version:
+        description: 'FlagTree tag/ref to build (blank = Containerfile default)'
+        type: string
+        default: ''
       upload:
         description: 'upload the wheel to the vendor PyPI'
         type: boolean
@@ -68,12 +72,20 @@ jobs:
 
       - name: Build the FlagTree wheel image
         working-directory: flagtree-builder
+        env:
+          FLAGTREE_VERSION: ${{ inputs.flagtree_version }}
         run: |
           set -euo pipefail
           test -f "$TARGET" || { echo "ERROR: flagtree-builder/$TARGET not found" >&2; exit 1; }
+          # FLAGTREE_VERSION is the single version knob (tag/ref + wheel version);
+          # blank means use the Containerfile default for the target.
+          build_args=()
+          if [ -n "${FLAGTREE_VERSION:-}" ]; then
+            build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_VERSION}")
+          fi
           # The objdump + clean-version gates run inside this build; a failure
           # here means the wheel is not 22.04-safe and must not be published.
-          docker build -t "$IMAGE" -f "$TARGET" .
+          docker build "${build_args[@]}" -t "$IMAGE" -f "$TARGET" .
 
       - name: Extract the wheel
         working-directory: flagtree-builder
