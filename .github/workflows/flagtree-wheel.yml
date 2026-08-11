@@ -1,0 +1,121 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: FlagTree wheel
+
+# Build a FlagTree wheel from a flagtree-builder/<target> Containerfile on an
+# old-glibc (22.04) base and (optionally) upload it to the vendor's PyPI.
+#
+# Unlike the FlagGems wheel (pure Python, a plain script), FlagTree carries a
+# compiled libtriton.so, so this is a container build. The Containerfile's own
+# objdump gate fails `docker build` if the wheel reintroduces a 22.04-incompatible
+# symbol (GLIBC_2.38, GLIBCXX_3.4.31/32, __isoc23_*) or a dirty git version — so a
+# bad wheel never reaches the extract/upload steps.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'flagtree-builder target (Containerfile name)'
+        type: choice
+        options:
+          - metax
+          - nvidia-cuda
+        default: metax
+      upload:
+        description: 'upload the wheel to the vendor PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (blank = flagos-pypi-<vendor> derived from target)'
+        type: string
+        default: ''
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow;
+    # see .github/actions/check-trigger-author. checkout is required so the
+    # local composite action resolves from the workspace.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    runs-on: [self-hosted, h20]
+    env:
+      TARGET: ${{ inputs.target }}
+      IMAGE: flagtree-wheel:${{ inputs.target }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      - name: Build the FlagTree wheel image
+        working-directory: flagtree-builder
+        run: |
+          set -euo pipefail
+          test -f "$TARGET" || { echo "ERROR: flagtree-builder/$TARGET not found" >&2; exit 1; }
+          # The objdump + clean-version gates run inside this build; a failure
+          # here means the wheel is not 22.04-safe and must not be published.
+          docker build -t "$IMAGE" -f "$TARGET" .
+
+      - name: Extract the wheel
+        working-directory: flagtree-builder
+        run: |
+          set -euo pipefail
+          rm -rf wheels && mkdir -p wheels
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/wheels/." wheels/
+          docker rm "$cid" >/dev/null
+          ls -la wheels/*.whl
+
+      # Upload only when explicitly requested (default false so a manual build
+      # from a branch is safe). The wheel is published as-is — the build gates
+      # already vetted it.
+      - name: Upload to vendor PyPI
+        if: ${{ inputs.upload }}
+        working-directory: flagtree-builder
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          # vendor = first path segment of the target: nvidia-cuda -> nvidia,
+          # metax -> metax. PyPI repo defaults to that vendor's index.
+          vendor="${TARGET%%-*}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
+          # Self-hosted Python is PEP 668 externally-managed; install to the user
+          # site with the override (matches imagebuild.yml).
+          python3 -m pip install --user --break-system-packages --quiet twine \
+            || python3 -m pip install --quiet twine
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+          python3 -m twine upload \
+            --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+            --non-interactive \
+            wheels/*.whl
+
+      - name: Clean up the build image
+        if: ${{ always() }}
+        run: docker rmi "$IMAGE" 2>/dev/null || true
