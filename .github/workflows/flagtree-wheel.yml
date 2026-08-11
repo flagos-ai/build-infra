@@ -118,9 +118,12 @@ jobs:
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
           # Self-hosted Python is PEP 668 externally-managed; install to the user
-          # site with the override (matches imagebuild.yml).
-          python3 -m pip install --user --break-system-packages --quiet twine \
-            || python3 -m pip install --quiet twine
+          # site with the override (matches imagebuild.yml). Upgrade pkginfo too:
+          # setuptools >=77 (PEP 639) stamps Metadata-Version 2.4 into the wheel,
+          # which older pkginfo can't parse ("Metadata is missing required fields:
+          # Name, Version") -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
+            || python3 -m pip install --quiet --upgrade twine pkginfo
           export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
           export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
           python3 -m twine upload \
