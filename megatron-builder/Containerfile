@@ -1,0 +1,166 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build Megatron-LM-FL (megatron-core) wheels — one wheel per CPython ABI.
+#
+# The package ships a compiled extension (megatron.core.datasets.helpers_cpp),
+# so every wheel is cp-version-specific: cp310 / cp311 / cp312. The runtime
+# matrix uses Python 3.10 (kunlunxin, hygon, ...), 3.11 (ascend) and 3.12
+# (nvidia, metax, enflame, ...), so all three wheels must be built.
+#
+# Two stages:
+#   toolchain — Ubuntu 22.04 (glibc 2.35, so the .so loads on older-glibc
+#               nodes) + deadsnakes Python + the exact build deps. This is the
+#               expensive apt/pip work; build it ONCE per Python version and
+#               push to Harbor, then every wheel build starts from it (no
+#               re-installing everything from scratch — the flagtree-builder
+#               pain point).
+#   wheel     — clones Megatron-LM-FL at a ref, patches requires-python on the
+#               fly (>=3.12 -> >=3.10), stamps an optional version override,
+#               builds the wheel. Output -> /wheels.
+#
+# Build:
+#   # toolchain (once per Python version):
+#   docker build --target toolchain --build-arg PYTHON_VERSION=3.12 \
+#       -t <host>/flagos-dev/megatron-builder-py312:<version> .
+#   # wheel (per ref):
+#   docker build --build-arg BASE_IMAGE=<toolchain image> \
+#       --build-arg MLF_REF=<ref> -t megatron-wheel:py312 .
+#   # extract:
+#   cid=$(docker create megatron-wheel:py312); docker cp $cid:/wheels/. ./wheels; docker rm $cid
+
+# ════════════════════════════════════════════════════════════════
+#  Stage 1 — toolchain (reusable, built rarely, pushed to Harbor)
+# ════════════════════════════════════════════════════════════════
+FROM ubuntu:22.04 AS toolchain
+
+# Proxy is only consumed during build (predefined ARG, not persisted).
+ARG http_proxy=
+ARG https_proxy=
+# Python version for the toolchain + wheel: 3.10 / 3.11 / 3.12 (the per-wheel knob).
+ARG PYTHON_VERSION=3.12
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System build deps + Python (deadsnakes covers 3.10/3.11/3.12 on 22.04).
+# gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
+# unzip is for the .so-in-wheel gate in stage 2.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common ca-certificates gnupg dirmngr \
+        git wget curl unzip \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# pip for the deadsnakes Python (ensurepip ships via the python*-venv package).
+RUN python${PYTHON_VERSION} -m ensurepip --upgrade \
+    && python${PYTHON_VERSION} -m pip install --no-cache-dir --upgrade pip wheel setuptools
+
+# Build deps for megatron.core.datasets.helpers_cpp. These are ABI contracts,
+# not just versions:
+#  - pybind11==3.0.3: matches configs.yaml runtime_prereqs. pybind11 type
+#    registries are shared between the .so and the runtime's own pybind11, and
+#    a version mismatch (3.1.0 bumped internals to v12) breaks the extension at
+#    call time — the exact flagtree-builder lesson.
+#  - numpy==1.26.4: build against numpy 1.x headers so the .so runs on BOTH
+#    numpy 1.x and 2.x runtimes (a 2.x-built .so requires numpy>=2). hygon
+#    pins numpy==1.26.4, so this is the lowest common denominator.
+#  - setuptools<80 + packaging>=24.2: match pyproject.toml build-system
+#    requires, needed because the wheel builds with --no-build-isolation.
+RUN python${PYTHON_VERSION} -m pip install --no-cache-dir \
+        "setuptools<80.0.0" \
+        "wheel" \
+        "pybind11==3.0.3" \
+        "numpy==1.26.4" \
+        "packaging>=24.2"
+
+# ════════════════════════════════════════════════════════════════
+#  Stage 2 — wheel (every wheel build starts here)
+# ════════════════════════════════════════════════════════════════
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG PYTHON_VERSION=3.12
+# Megatron-LM-FL source (branch or tag — --branch clone below).
+ARG MLF_REPO=https://github.com/flagos-ai/Megatron-LM-FL.git
+ARG MLF_REF=main
+# Optional wheel-version override (e.g. 0.17.1.post20260812); blank = the
+# repo's own version (0.17.1). Handled by stamp_version.py.
+ARG MLF_VERSION=
+
+COPY stamp_version.py /usr/local/bin/stamp_version.py
+
+# Clone (retry loop, flagtree idiom). Force HTTP/1.1 for git.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${MLF_REF}" --depth 1 "${MLF_REPO}" /opt/megatron-lm-fl && break; \
+         echo ">>> megatron clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/megatron-lm-fl; sleep 5; \
+       done \
+    && test -d /opt/megatron-lm-fl/.git
+
+# Requires-Python >=3.12 (upstream's uv-sync bump in the 0.17.0 sync) makes pip
+# refuse the wheel on the py3.10/py3.11 runtimes. Patch it ON THE FLY before
+# building so the wheel installs everywhere. The fork repo itself stays
+# untouched — relaxing it there is a proposed follow-up once this path is
+# verified end to end. The grep gate fails the build if the patch didn't land
+# (i.e. the source moved on and now ships a different requires-python).
+RUN cd /opt/megatron-lm-fl \
+    && sed -i 's/^requires-python = ">=3\.12"$/requires-python = ">=3.10"/' pyproject.toml \
+    && grep -n 'requires-python' pyproject.toml \
+    && grep -q 'requires-python = ">=3.10"' pyproject.toml
+
+# Optional wheel-version stamp (no-op when MLF_VERSION is blank).
+RUN MLF_VERSION="${MLF_VERSION}" python${PYTHON_VERSION} /usr/local/bin/stamp_version.py
+
+# Build the wheel. --no-build-isolation uses the toolchain env (setuptools,
+# pybind11, numpy, packaging already present). --no-deps is essential: pip wheel
+# would otherwise try to build a torch wheel from PyPI.
+RUN cd /opt/megatron-lm-fl \
+    && for i in 1 2 3 4 5; do \
+         python${PYTHON_VERSION} -m pip wheel . --no-deps --no-build-isolation -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# Anti-silent-skip gate: helpers_cpp is declared optional=True in setup.py, so a
+# failed compile is skipped silently — but megatron/core/datasets/helpers.py
+# imports it unconditionally at runtime, so a wheel without the .so is broken.
+# Fail the build here instead of shipping a broken wheel.
+RUN unzip -l /wheels/*.whl | grep -q 'helpers_cpp.*\.so' \
+    || { echo "ERROR: helpers_cpp .so missing from the wheel (compile failed?)" >&2; exit 1; }
+
+# Smoke test: install the wheel and load helpers_cpp directly. Importing
+# megatron.core would pull in torch, which the build env intentionally lacks;
+# loading the .so with importlib executes the pybind11 init and proves the
+# extension is loadable and its functions are bound.
+RUN python${PYTHON_VERSION} -m pip install --no-cache-dir --no-deps /wheels/*.whl \
+    && python${PYTHON_VERSION} - <<'PY'
+import importlib.metadata
+import importlib.util
+import sys
+
+dist = importlib.metadata.distribution('megatron-core')
+root = dist.locate_file('')
+so = sorted((root / 'megatron/core/datasets').glob('helpers_cpp*.so'))
+assert so, "helpers_cpp .so not found in the installed wheel"
+spec = importlib.util.spec_from_file_location('helpers_cpp', str(so[0]))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+assert callable(mod.build_sample_idx_int32), "build_sample_idx_int32 not bound"
+assert callable(mod.build_sample_idx_int64), "build_sample_idx_int64 not bound"
+assert callable(mod.build_exhaustive_blending_indices), "build_exhaustive_blending_indices not bound"
+print('OK helpers_cpp', mod.__file__)
+PY

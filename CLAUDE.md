@@ -11,7 +11,7 @@ It builds three layers for 13+ GPU/NPU vendors:
 |---|---|---|
 | **Base images** | Vendor SDK + toolchain on Ubuntu 24.04 | `base/<vendor>-<backend>` Containerfiles |
 | **Runtime images** | Base + Python venv + FlagGems + compilers (FlagTree/Triton) | `runtime/Containerfile` (one for all) |
-| **Wheels** | FlagTree (C++ compiler) + FlagGems (pure Python) | `flagtree-builder/`, `flaggems-builder/` |
+| **Wheels** | FlagTree (C++ compiler) + FlagGems (pure Python) + Megatron-LM-FL (pybind11 ext) | `flagtree-builder/`, `flaggems-builder/`, `megatron-builder/` |
 
 ## Key commands
 
@@ -83,6 +83,8 @@ Two stages: **builder** (installs uv, venv, deps, compilers, FlagGems wheel) →
 - **`trigger.yml`** — Base Image Build (manual). `workflow_dispatch` with backend + push inputs. Generates matrix via `generate_matrix.py`, calls reusable `imagebuild.yml` per backend.
 - **`runtime.yml`** — Runtime Image Build (manual). Same pattern, additionally checks out FlagGems repo for version derivation.
 - **`flaggems-wheel.yml`** — Daily (01:17 UTC) + manual FlagGems wheel build + upload to `flagos-pypi-daily` via twine.
+- **`megatron-builder-image.yml`** — Manual. Builds the reusable `megatron-builder` toolchain image (apt + deadsnakes Python + build-deps pins) for py3.10/3.11/3.12, optional Harbor push. Built rarely — only when the pins change; every megatron wheel build reuses it via `BASE_IMAGE` (see `megatron-builder/Containerfile`).
+- **`megatron-wheel.yml`** — Manual (no schedule; release repo). Builds megatron-core wheels from Megatron-LM-FL (`MLF_REF` input) for py3.10/3.11/3.12, FROM the toolchain image, uploads to `flagos-pypi-hosted` via twine when `upload=true`. All three cp-version wheels must be uploaded — the package ships a compiled `helpers_cpp` extension.
 - **`gendoc-base.yaml`** — Triggered on base image build completion. Extracts system package versions from built images (`dpkg-query`), runs `gen_data.py` + `gen_descriptions.py`, opens a **review-gated PR** with the version diff. Publication to Harbor (`pubdoc-base.yaml`) only happens when that PR lands on `main` (push to `base/*.md`).
 - **`gendoc-runtime.yaml`** — Runtime twin of `gendoc-base.yaml` (manual trigger; runtime images rebuild often during FlagGems testing, so no auto `workflow_run`). Opens a review-gated PR with `runtime/*.md`. Publication to Harbor (`pubdoc-runtime.yaml`) happens when that PR lands on `main` (push to `runtime/*.md`).
 - **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`, `configs.yaml`, or `base/**` changes).
