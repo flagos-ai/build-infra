@@ -16,7 +16,7 @@ is **FlagTree-specific**; it is not a general MUSA/vendor-compiler bug.
 - **Vendor Triton** `/opt/triton` (`triton-3.6.0+git89458660`, ships its own `triton/backends/musa/`)
 
 **Context:** byproduct of the enflame/mthreads vllm E2E verification (see
-`vllm-repack/E2E-REPORT.md` §2.3 / §2.6.1).
+`vllm-repack/report-vllm-0.20.2.md` §2.3 / §2.6.1).
 
 **Enflame GCU300 follow-up (same session):** the enflame ~2.9 signature was
 **NOT** the same miscompile — with the int32 flash kernel applied (int64 philox
@@ -125,5 +125,5 @@ mthreads backend**, not in flag_gems and not in the vendor MUSA toolchain.
   after use). The flash probe (non-causal + causal vs torch reference) and the
   `pip uninstall flagtree` + `compiler triton` switch are the reproducible
   recipe.
-- E2E-REPORT.md §2.3 (mthreads) and §2.6.1 (enflame) record the ~2.9 symptom
+- report-vllm-0.20.2.md §2.3 (mthreads) and §2.6.1 (enflame) record the ~2.9 symptom
   from the vllm verification side.

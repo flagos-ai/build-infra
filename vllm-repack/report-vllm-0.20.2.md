@@ -1241,6 +1241,49 @@ Inference:    ✅  "The capital of France is" → " Paris. The capital of German
 
 ---
 
+## 2.9 sunrise-tangrt1.2.0（PTPU：✅ 官方 Triton E2E 通过；FlagTree 编译器有 flash-attn 解码 kernel 挂死缺陷）
+
+**有可用回退路径，并非硬阻塞。** 默认的 FlagTree 编译器下，serve 可起、预填充正常返回，
+但进入**解码阶段即挂死**，卡算力占用钉在 100% 且永不退出。切到官方 Triton（`/opt/triton`）即可绕开。
+
+**回退操作：** 在起 serve 的**同一个 shell** 里先执行 `compiler triton`（该命令只改当前 shell 的
+`PYTHONPATH`，把 `/opt/triton` 前置），再启动 serve。`compiler flagtree` / `compiler` 切回或查看当前编译器。
+
+官方 Triton 下 **serve + 推理端到端已验证通过，推理结果正确**。
+
+**根因：FlagTree（triton 3.6.0）代码生成缺陷。** flag_gems `_sunrise` 后端的
+`flash_varlen_fwd_kernel` 在**解码 + GQA** 特化（`seqlenq_ngroups_swapped`：
+`max_seqlen_q==1`、q 头 32 > kv 头 8，导致 `cu_seqlens_q=None` 被 Triton 从签名中丢弃）
+下被编译成不终止的 kernel。同一 kernel、同一入参改用官方 Triton 编译则正确完成——仅切换
+编译器即完成归因。预填充特化（真实 `cu_seqlens_q`、batch stride 全 0）编译正常，故只有解码卡死。
+
+已产出**不依赖 Docker / vLLM / 模型**的最小复现（`replay_min.py` + 277 KB 捕获入参），
+FlagTree 下挂死、官方 Triton 下通过，待交厂商。
+
+**影响：** 一旦挂死，该卡持续占用至设备/驱动复位或整机重启；`pt_smi -i <n> -r` 无法清除。
+
+### 环境
+
+| 组件 | 版本 |
+|---|---|
+| Python | 3.10.20 |
+| torch | 2.11.0+cpu |
+| torch_ptpu | 0.2.3+torch2.11 |
+| FlagTree（triton） | 3.6.0 |
+| flag_gems | 5.3.4 |
+| vLLM | 0.20.2+flagos |
+| 设备 / 驱动 | PTPU，sunrise / tangrt 1.2.0，tang 0.24.0 |
+
+### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| 回退：切官方 Triton 运行 | ✅ E2E 已验证 | `compiler triton` 后 serve + 推理端到端通过、结果正确;当前 sunrise 的可交付路径 |
+| FlagTree flash-attn 解码 kernel 挂死复现交厂商 | ✅ 已交付 | 最小复现（Docker-free，A/B 编译器归因）已交 FlagTree 团队 |
+
+
+---
+
 # 第 3 部分 · 流程总结与决策
 
 ## 3. 自动化边界
