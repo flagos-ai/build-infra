@@ -1,0 +1,195 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Megatron wheel
+
+# Build megatron-core wheels from the Megatron-LM-FL fork for one or all Python
+# versions, and (optionally) upload them to the internal PyPI.
+#
+# megatron-core ships a compiled extension (megatron.core.datasets.helpers_cpp),
+# so wheels are CPython-ABI-specific: cp310 / cp311 / cp312. All three must be
+# uploaded — the runtime matrix uses 3.10 (kunlunxin, hygon, ...), 3.11 (ascend)
+# and 3.12 (nvidia, metax, enflame, ...).
+#
+# Each build starts from the pushed megatron-builder toolchain image
+# (megatron-builder-image.yml) via BASE_IMAGE — the apt/pip setup is not
+# repeated per build. The Containerfile's own gates (.so-in-wheel, smoke test,
+# requires-python patch) fail `docker build` on a broken wheel, so a bad wheel
+# never reaches the extract/upload steps.
+#
+# Upload target defaults to flagos-pypi-hosted (the release repo;
+# flagos-pypi-daily is the dev repo). There is no schedule: uploads are manual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      python:
+        description: 'Python version(s) for the wheel'
+        type: choice
+        options:
+          - all
+          - '3.10'
+          - '3.11'
+          - '3.12'
+        default: all
+      mlf_ref:
+        description: 'Megatron-LM-FL git ref to build (branch/tag)'
+        type: string
+        default: main
+      mlf_version:
+        description: 'Wheel version override (blank = repo version, e.g. 0.17.1.post20260812)'
+        type: string
+        default: ''
+      upload:
+        description: 'upload the wheel to the internal PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (default flagos-pypi-hosted)'
+        type: string
+        default: flagos-pypi-hosted
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: set-matrix
+        shell: bash
+        run: |
+          if [[ "${{ inputs.python }}" == "all" ]]; then
+            pyvers="3.10 3.11 3.12"
+          else
+            pyvers="${{ inputs.python }}"
+          fi
+          matrix='{"include":['
+          for py in $pyvers; do
+            pynodot=${py//./}
+            matrix+="{\"py\":\"$py\",\"pynodot\":\"$pynodot\"},"
+          done
+          matrix="${matrix%,}]}"
+          echo "$matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: [self-hosted, h20]
+    env:
+      IMAGE: megatron-wheel-py${{ matrix.pynodot }}:${{ github.run_id }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      - name: Install PyYAML
+        # Self-hosted runners (h20) have an externally-managed system Python
+        # (PEP 668) that rejects `pip install`. Skip if PyYAML is already
+        # importable; otherwise install to the user site with the override.
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Resolve version and registry
+        id: resolve
+        run: |
+          version=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          builder=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['builder'])")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
+          echo "builder=${builder}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the wheel image
+        working-directory: megatron-builder
+        env:
+          BASE_IMAGE: "${{ steps.resolve.outputs.host }}/${{ steps.resolve.outputs.builder }}/megatron-builder-py${{ matrix.pynodot }}:${{ steps.resolve.outputs.version }}"
+          MLF_REF: ${{ inputs.mlf_ref }}
+          MLF_VERSION: ${{ inputs.mlf_version }}
+        run: |
+          set -euo pipefail
+          # Requires-python patch, .so-in-wheel gate and smoke test run inside
+          # this build; a failure here means the wheel is broken and must not
+          # be published.
+          docker build \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+            --build-arg PYTHON_VERSION=${{ matrix.py }} \
+            --build-arg MLF_REF="${MLF_REF}" \
+            --build-arg MLF_VERSION="${MLF_VERSION}" \
+            -t "$IMAGE" \
+            -f Containerfile .
+
+      - name: Extract the wheel
+        working-directory: megatron-builder
+        run: |
+          set -euo pipefail
+          rm -rf wheels && mkdir -p wheels
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/wheels/." wheels/
+          docker rm "$cid" >/dev/null
+          ls -la wheels/*.whl
+
+      # Upload only when explicitly requested (default false so a manual build
+      # from a branch is safe). The wheel is published as-is — the build gates
+      # already vetted it.
+      - name: Upload to internal PyPI
+        if: ${{ inputs.upload }}
+        working-directory: megatron-builder
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-hosted}"
+          echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
+          # Self-hosted Python is PEP 668 externally-managed; install to the user
+          # site with the override (matches imagebuild.yml). Upgrade pkginfo too:
+          # setuptools >=77 (PEP 639) stamps Metadata-Version 2.4 into the wheel,
+          # which older pkginfo can't parse ("Metadata is missing required fields:
+          # Name, Version") -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
+            || python3 -m pip install --quiet --upgrade twine pkginfo
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+          python3 -m twine upload \
+            --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+            --non-interactive \
+            wheels/*.whl
+
+      - name: Clean up the build image
+        if: ${{ always() }}
+        run: docker rmi "$IMAGE" 2>/dev/null || true
