@@ -129,22 +129,37 @@ RUN cd /opt/megatron-lm-fl \
 The fork repo is **not modified** by this. Relaxing it there is a proposed
 follow-up, once this end-to-end path is verified.
 
-## Single-command install
+## Install into a runtime image
 
-Inside any `flagos-runtime-{vendor}-{backend}:{version}` container (the `/flagos`
-venv is on PATH):
+The megatron app image (`app/megatron/Containerfile`) installs the wheel with a
+**single-step `pip install` — no `--no-deps`**. The wheel is first **repacked**
+by `megatron-repack/` (reusing `vllm-repack/repack.py`) to strip
+`Requires-Dist: torch` from its METADATA and bump the version to a `+flagos`
+suffix; the repacked wheel is uploaded to the per-vendor PyPI index. Then:
 
-```bash
-pip install --no-deps megatron-core==0.17.1 \
-  --index-url https://resource.flagos.net/repository/flagos-pypi-hosted/simple
+```dockerfile
+RUN pip install \
+  --index-url "${FLAGOS_PYPI}" \
+  --extra-index-url "${EXTRA_PYPI}" \
+  "megatron-core==${MEGATRON_VERSION}"
 ```
 
-- `--no-deps` is **mandatory**: torch/numpy/flagtree/triton are already pinned
-  per-backend in the image (and vendor-provided for triton/flagtree) — the
-  resolver must not touch them.
+- The vendor index is searched first — the `+flagos` repacked wheel is found
+  and used.
+- Torch is already in the runtime venv and satisfies any transitive
+  constraints, so pip skips it. `numpy`/`packaging` are pinned per-backend in
+  the image and resolved from `EXTRA_PYPI` if missing.
 - pip auto-selects the `cp310` / `cp311` / `cp312` wheel matching the image's
   Python.
-- Verify:
+
+Why not `--no-deps`: a bare `--no-deps` would refuse to install the repacked
+wheel (its version resolution needs the normal resolver), and more importantly
+a plain install with deps intact could pull public-PyPI torch over the vendor
+build. Stripping torch from METADATA gives the same safety without bypassing
+dependency resolution. See `megatron-repack/report-megatron-0.17.1.md` for the
+risk analysis.
+
+- Verify (after `source /opt/dtk-26.04/env.sh` on hygon):
 
   ```bash
   python -c "import megatron.core; print(megatron.core.__version__)"   # 0.17.1

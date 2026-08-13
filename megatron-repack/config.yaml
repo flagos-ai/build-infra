@@ -1,0 +1,49 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ── Wheel Repack Classification Rules — megatron-core ──────────────────
+# Each key is a set of *package names* (no version, case-insensitive).
+# Same schema as vllm-repack/config.yaml — megatron-repack consumes the
+# Facility-1 wheel via vllm-repack/repack.py with THIS config.
+#
+# megatron-core's direct dep surface is tiny (torch>=2.6.0, numpy,
+# packaging>=24.2 — see megatron-builder/report-megatron-0.17.1.md §1).
+# torch is the ONLY real risk: on a backend whose runtime torch < 2.6.0,
+# pip would replace the vendor build with public-PyPI torch. numpy and
+# packaging are already satisfied by the runtime matrix on every backend,
+# so the rules below touch only the torch family.
+
+# ── Top-level removal rules (applied to megatron-core's own METADATA) ──
+
+# torch (and only torch) — stripped from megatron-core's Requires-Dist so
+# a single-step install can never pull public-PyPI torch in.
+remove_torch_chain:
+  - torch
+
+# megatron-core declares no CUDA-only packages.
+remove_cuda_only: []
+
+# Nothing was orphaned by the strips above.
+remove_orphaned: []
+
+# ── Indirect dependency stripping rules ───────────────────────────────
+# If megatron-core ever gains an indirect dep whose own METADATA declares
+# torch/triton, strip them there too. Kept to the torch family — never CUDA
+# infrastructure (the repacked dep may still need it at runtime).
+strip_from_indirect:
+  - torch
+  - triton
+
+# No per-package exceptions today.
+strip_extra_from_indirect: {}

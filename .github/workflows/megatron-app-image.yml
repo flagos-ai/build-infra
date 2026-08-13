@@ -1,0 +1,157 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Megatron app image
+
+# STUB — structure landed only; the build/verify steps are filled during the
+# hygon25 verification phase (see megatron-repack/report-megatron-0.17.1.md).
+#
+# Facility 2 (app-image automation): installs the repacked megatron-core wheel
+# into a flagos-runtime-{vendor}-{backend} image and produces the app image
+# flagos-app/megatron-{vendor}-{backend}:{version}. The Containerfile installs
+# with a single-step `pip install` (no --no-deps) — the wheel's METADATA has
+# already been stripped of torch by megatron-repack/, so the runtime's
+# torch/triton/flag_gems matrix cannot be disturbed.
+#
+# Backend matrix comes from scripts/generate_matrix.py --runtime (same source
+# as runtime-image.yaml). Per-vendor PyPI (flagos_pypi) is searched first;
+# aliyun is the fallback.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend to build (e.g. hygon-dtk26.04), or "all"'
+        type: string
+        default: all
+      megatron_version:
+        description: 'megatron-core version to install (e.g. 0.17.1)'
+        type: string
+        default: 0.17.1
+      push:
+        description: 'Push image(s) to the registry'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      harbor_host: ${{ steps.harbor-host.outputs.host }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+
+      - id: set-matrix
+        shell: bash
+        run: |
+          if [[ "${{ inputs.backend }}" == "all" ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+      - id: harbor-host
+        shell: bash
+        run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    name: app-${{ matrix.name }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      IMAGE: megatron-app-${{ matrix.name }}:${{ github.run_id }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      - name: Harbor login (push only)
+        if: ${{ inputs.push }}
+        env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
+      - name: Pull runtime image
+        run: |
+          docker pull "${{ matrix.image_tag }}" || {
+            echo "::error::Failed to pull runtime image ${{ matrix.image_tag }}"
+            exit 1
+          }
+
+      - name: Build megatron app image
+        run: |
+          set -euo pipefail
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
+          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
+          app_tag="${host}/${app_prefix}/megatron-${{ matrix.name }}:${{ matrix.version }}"
+          docker build \
+            --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
+            --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
+            --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
+            --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
+            -t "${app_tag}" \
+            -f app/megatron/Containerfile .
+          echo "Built: ${app_tag}"
+
+      - name: Push megatron app image
+        if: ${{ inputs.push }}
+        run: |
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
+          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
+          app_tag="${host}/${app_prefix}/megatron-${{ matrix.name }}:${{ matrix.version }}"
+          docker push "${app_tag}"
+
+      # TODO (hygon25 verification phase): verify step — after the build,
+      # run megatron-repack/verify-megatron-backend.sh (or its workflow
+      # equivalent) against the app image: before/after dependency snapshot
+      # (torch/triton/flag_gems/numpy unchanged) + `import megatron.core`
+      # with helpers_cpp loaded.

@@ -30,7 +30,10 @@ registry:
     # the future transformerengine-builder-*, verl-builder-*, vllm-builder-*,
     # sglang-builder-* ...).
     builder: flagos-dev
-    # app: <prefix>       # TODO: fill in when app image CI lands
+    # App images live under flagos-app (e.g. flagos-app/megatron-nvidia-cuda12.8,
+    # flagos-app/vllm-nvidia-cuda12.8). Consumed by the app-image workflows
+    # (megatron-app-image.yml) to compose the image tag.
+    app: flagos-app
 
 # Which runner builds each image (base containerfile name -> runs-on).
 # Backends not listed under `overrides` use `default`.
