@@ -14,12 +14,12 @@
  limitations under the License.
  -->
 
-# flaggems-builder
+# FlagGems wheel builder
 
 Builds the **pure-Python `flag_gems` wheel** from FlagGems source and uploads it
 to the internal PyPI, daily.
 
-Unlike `flagtree-builder/` (which needs an old-glibc container to compile
+Unlike `packaging/flagtree/` (which needs an old-glibc container to compile
 native code), the pure-Python wheel is platform-independent (`py3-none-any`) and
 needs **no vendor toolchain** — so this is a plain script plus a workflow.
 

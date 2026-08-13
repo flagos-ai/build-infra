@@ -37,18 +37,22 @@ remove_torch_chain:
   - torchaudio
   - torchvision
   - torchcodec
+  - torch-c-dlpack-ext
 
 # NVIDIA / CUDA-only packages — meaningless on non-CUDA platforms.
+# (vllm 0.24.0's cuda.txt also declares the vendor kernel libs below.)
 remove_cuda_only:
   - PyNvVideoCodec
   - nvidia-cudnn-frontend
   - nvidia-cutlass-dsl
   - nvtx
   - numba
+  - humming-kernels
+  - quack-kernels
+  - tokenspeed-mla
 
 # Packages whose only consumer was stripped above (no other consumers left).
-remove_orphaned:
-  - apache-tvm-ffi
+remove_orphaned: []
 
 # ── Indirect dependency stripping rules ───────────────────────────────
 # When repack_recursive() finds a retained dep whose own METADATA

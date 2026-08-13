@@ -3,7 +3,7 @@
 > 状态：进行中 —— 首个后端（hygon-dtk26.04）的实测基线已完成，wheel 构建 + 安装验证待跑。
 > 本文档是 **Facility 1（wheel 工厂）** 的验证报告，只覆盖 wheel 的构建与实测基线。
 > Facility 2（app 镜像自动化：wheel 依赖手术 + 单步安装 + 各后端验证）见
-> `megatron-repack/report-megatron-0.17.1.md`。所有数字均为在真实节点/镜像上的
+> `packaging/megatron/repack/report-megatron-0.17.1.md`。所有数字均为在真实节点/镜像上的
 > **实测**，非推断。
 
 ## 0. 背景
@@ -18,7 +18,7 @@ fork 的 `pyproject.toml` 声明 `requires-python = ">=3.12"` 和三个运行时
 - 上传目标 `flagos-pypi-hosted`（release 仓库）。
 
 把 wheel 装进 runtime 镜像时是否会破坏精心匹配的 torch/triton 版本矩阵，属于
-Facility 2（`megatron-repack/`）的职责——megatron-core 的直接依赖面极小，唯一
+Facility 2（`packaging/megatron/repack/`）的职责——megatron-core 的直接依赖面极小，唯一
 真正的风险点是 `torch`，处理方式与 vllm-repack 同类。
 
 ## 1. megatron-core 的真实依赖面（来自 `Megatron-LM-FL/pyproject.toml`）
@@ -76,7 +76,7 @@ pip 只在依赖要求不被满足时才替换包；`torch>=2.6.0` 已被厂商 
 
 ## 3. 构建（已落地，PR #368 合并）
 
-`megatron-builder/Containerfile` 两阶段：
+`packaging/megatron/builder/Containerfile` 两阶段：
 
 - **toolchain**（`harbor.baai.ac.cn/flagos-dev/megatron-builder-py{310|311|312}`）：
   ubuntu:22.04 + deadsnakes Python + `setuptools<80 wheel pybind11==3.0.3
@@ -89,7 +89,7 @@ pip 只在依赖要求不被满足时才替换包；`torch>=2.6.0` 已被厂商 
 
 产物 cp310/cp311/cp312 三个 wheel（`helpers_cpp` 是编译扩展，CPython-ABI 专属）。
 
-**相关文件：** `megatron-builder/Containerfile`、`megatron-builder/README.md`、
+**相关文件：** `packaging/megatron/builder/Containerfile`、`packaging/megatron/builder/README.md`、
 `.github/workflows/megatron-builder-image.yml`、`.github/workflows/megatron-wheel.yml`
 （均已合并）。Facility-2 依赖手术与验证见
-`megatron-repack/report-megatron-0.17.1.md`。
+`packaging/megatron/repack/report-megatron-0.17.1.md`。

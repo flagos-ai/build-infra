@@ -3,19 +3,19 @@
 > 状态：进行中 —— 目录 / Containerfile / config.yaml / 文档已落地（结构先行）；
 > 脚本与 workflow 为最小 stub，待 hygon25 验证阶段填充。
 > 本文档是 **Facility 2（app 镜像自动化）** 的验证报告。wheel 工厂（构建与实测
-> 基线）见 `megatron-builder/report-megatron-0.17.1.md`。所有数字均为在真实
+> 基线）见 `packaging/megatron/builder/report-megatron-0.17.1.md`。所有数字均为在真实
 > 节点/镜像上的**实测**，非推断。
 
 ## 0. 背景
 
 megatron 工作分两个 facility：
 
-- **Facility 1 — wheel 工厂**（`megatron-builder/`，仿 `flaggems-builder/`）：
+- **Facility 1 — wheel 工厂**（`packaging/megatron/builder/`，仿 `packaging/flaggems/`）：
   产出可安装的 megatron-core wheel。**已完成**（PR #368），见其报告。
 - **Facility 2 — app 镜像自动化**（本目录 + `app/megatron/Containerfile` +
   `.github/workflows/megatron-app-image.yml`）：把 wheel 装进
   `flagos-runtime-{vendor}-{backend}` 镜像，产出 app 镜像。vllm 的对应物是
-  `vllm-repack/` + `app/vllm/Containerfile`。**本报告即此 facility 的设计与待办。**
+  `packaging/vllm/` + `app/vllm/Containerfile`。**本报告即此 facility 的设计与待办。**
 
 把 wheel 装进镜像时，若其 METADATA 的 `Requires-Dist` 与镜像内**精心匹配、反复
 验证过的版本矩阵**（厂商 torch / triton / flagtree / flag_gems / numpy）冲突，
@@ -29,7 +29,7 @@ packaging 三项，见 Facility-1 报告 §1），不需要 vllm 那套复杂的
   worrisome about --no-deps, it breaks everything"）。要做的是"检测它是否会
   破坏精心构建的 torch/triton 矩阵"，与 vllm-repack 同一思路，通过 repack
   wheel METADATA 实现（§2.2）。
-- repack **复用** `vllm-repack/repack.py`（通用手术工具，该目录承载用户的
+- repack **复用** `packaging/vllm/repack.py`（通用手术工具，该目录承载用户的
   未提交修改——**只读引用，不复制不修改**）。
 - 安装是 vendor 为主索引的单步 `pip install`（无 `--no-deps`）。
 - fork 仓库不动；requires-python 与依赖处理都在 wheel 构建/repack 阶段**现做**。
@@ -51,7 +51,7 @@ torch 声明从 wheel METADATA 里去掉/钉死——这正是 vllm-repack `remo
 ### 2.1 构建（Facility 1，已落地）
 
 wheel 的构建、on-the-fly requires-python patch、`.so`-in-wheel gate、冒烟测试
-都在 `megatron-builder/`（PR #368 合并），详见 Facility-1 报告 §3。产物
+都在 `packaging/megatron/builder/`（PR #368 合并），详见 Facility-1 报告 §3。产物
 cp310/cp311/cp312 三个 wheel（`helpers_cpp` 是编译扩展，CPython-ABI 专属）。
 
 ### 2.2 依赖处理（repack，仿 vllm-repack）
@@ -62,7 +62,7 @@ cp310/cp311/cp312 三个 wheel（`helpers_cpp` 是编译扩展，CPython-ABI 专
 - 对 Facility-1 产出的 wheel 做 repack：剥掉 `Requires-Dist: torch>=2.6.0`（或
   钉成 `==<厂商 torch 版本>`），`+flagos` 后缀，`.deps-manifest.yaml` 记录
   removed/retained，Metadata-Version 2.4→2.2。
-- 分类规则 `megatron-repack/config.yaml`（torch 是唯一真实风险）：
+- 分类规则 `packaging/megatron/repack/config.yaml`（torch 是唯一真实风险）：
   ```yaml
   remove_torch_chain: [torch]
   remove_cuda_only: []
@@ -84,7 +84,7 @@ cp310/cp311/cp312 三个 wheel（`helpers_cpp` 是编译扩展，CPython-ABI 专
 
 | 事项 | 状态 |
 |---|---|
-| megatron-repack/ 结构（config.yaml + 脚本/ workflow stub） | ✅ 本报告 |
+| packaging/megatron/repack/ 结构（config.yaml + 脚本/ workflow stub） | ✅ 本报告 |
 | app/megatron/Containerfile | ✅ |
 | 文档 docs/content/{zh-cn,en}/application/megatron.md | ✅ |
 | hygon25 上构建 Facility-1 wheel（py3.10, x86_64） | ⬜ |
@@ -95,9 +95,9 @@ cp310/cp311/cp312 三个 wheel（`helpers_cpp` 是编译扩展，CPython-ABI 专
 | 其余后端（mthreads/metax/... 节点恢复后）逐栈验证 | ⬜ |
 | 上传 `flagos-pypi-hosted`（用户申请上传权限中） | ⬜ |
 
-**相关文件：** `megatron-repack/config.yaml`、`megatron-repack/build-and-repack.sh`
-（stub）、`megatron-repack/verify-megatron-backend.sh`（stub）、
+**相关文件：** `packaging/megatron/repack/config.yaml`、`packaging/megatron/repack/build-and-repack.sh`
+（stub）、`packaging/megatron/repack/verify-megatron-backend.sh`（stub）、
 `app/megatron/Containerfile`、`.github/workflows/megatron-app-image.yml`（stub）。
-vllm-repack 模式参考：`vllm-repack/repack.py` + `config.yaml` + `build-and-repack.sh`
-+ `verify-vllm-backend.sh`。wheel 工厂参考：`megatron-builder/Containerfile` +
-`megatron-builder/report-megatron-0.17.1.md`。
+vllm-repack 模式参考：`packaging/vllm/repack.py` + `config.yaml` + `build-and-repack.sh`
++ `verify-vllm-backend.sh`。wheel 工厂参考：`packaging/megatron/builder/Containerfile` +
+`packaging/megatron/builder/report-megatron-0.17.1.md`。

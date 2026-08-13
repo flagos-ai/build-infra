@@ -49,7 +49,7 @@ BACKEND="${VENDOR_BACKEND#*-}"
 # ── TODO: fill during verification ─────────────────────────────────────
 # 1. Resolve STACK_VERSION from ${SCRIPT_DIR}/../configs.yaml; start a
 #    runtime container with the vendor's run flags (build-config.yml `run:`),
-#    mirroring vllm-repack/verify-vllm-backend.sh.
+#    mirroring packaging/vllm/verify-vllm-backend.sh.
 # 2. BEFORE snapshot: record versions of torch / triton / flag_gems / numpy
 #    (+ their site-package paths) inside the container.
 # 3. Single-step install (no --no-deps):

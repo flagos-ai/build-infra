@@ -36,7 +36,7 @@ from `configs.yaml` + `base/`, so they can't drift from the source.
 | `scripts/build_runtime.py`  | Build a runtime image                                       |
 | `.github/build-config.yml`  | Global build config: registry + per-backend runners         |
 | `runtime/`                  | Runtime Containerfile + per-image readmes                   |
-| `flagtree-builder/`         | Low-glibc FlagTree wheel builders                           |
+| `packaging/flagtree/`        | Low-glibc FlagTree wheel builders                            |
 | `docs/`                     | Hugo docs site + data-generation scripts                    |
 
 ## Quick start

@@ -73,7 +73,7 @@ def cmd_build_python(args: argparse.Namespace) -> str:
     env["FLAGGEMS_REF"] = args.ref
     env["OUTDIR"] = outdir
     subprocess.run(
-        ["bash", str(ROOT / "flaggems-builder" / "build.sh")],
+        ["bash", str(ROOT / "packaging" / "flaggems" / "build.sh")],
         env=env, check=True,
     )
     wheels = sorted(Path(outdir).glob("flag_gems-*.whl"))

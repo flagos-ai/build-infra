@@ -38,7 +38,7 @@ packages a ready-to-run vLLM server with vllm-plugin-FL.
 
 The official vLLM wheel declares `Requires-Dist` on torch, triton, and
 CUDA-only packages that would overwrite the carefully curated stack in the
-runtime image. We run `vllm-repack/repack.py` to surgically strip these
+runtime image. We run `packaging/vllm/repack.py` to surgically strip these
 entries from the wheel's METADATA, then upload the repacked wheel to the
 vendor's `FLAGOS_PYPI` at the same version.
 
@@ -47,8 +47,8 @@ wheel is found and used. All remaining (safe) dependencies are resolved
 from `EXTRA_PYPI`. Torch and triton are already in the runtime venv and
 satisfy any transitive constraints, so pip skips them.
 
-See `vllm-repack/repack.py` for the repacking tool and
-`vllm-repack/config.yaml` for the classification rules.
+See `packaging/vllm/repack.py` for the repacking tool and
+`packaging/vllm/config.yaml` for the classification rules.
 
 ## vllm-plugin-FL
 

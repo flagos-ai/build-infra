@@ -23,7 +23,7 @@
 #                (vendor PyPI). NO --no-deps: the repacked wheel's
 #                METADATA no longer declares torch, so a single-step
 #                install cannot disturb the runtime's torch/triton/
-#                flag_gems matrix (see megatron-repack/).
+#                flag_gems matrix (see packaging/megatron/repack/).
 # TODO
 #   - Publish-time verification (torch version, megatron.core import).
 # ============================================================

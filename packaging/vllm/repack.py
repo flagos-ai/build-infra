@@ -463,27 +463,37 @@ def _check_op(v1: tuple, op: str, v2: tuple) -> bool:
 
 
 def _resolve_pip_version(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
-    """Resolve a version specifier to an exact version using pip download.
+    """Resolve a version specifier to an exact version via `pip index versions`.
 
     Prefers vendor-packaged names (e.g. torch with +das suffix) by checking
-    extra indexes first.
+    extra indexes first.  Uses the pip CLI rather than the /simple/<name>/json
+    endpoint because Aliyun's mirror does not serve that JSON API (404s for
+    every package), which silently broke this fallback.
     """
     indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
                + ["https://mirrors.aliyun.com/pypi/simple/"])
 
     pypi_name = re.sub(r"\[.*\]", "", name)
+    spec = version_spec.strip()
     for base_url in indexes:
-        url = f"{base_url}{pypi_name}/json"
-        try:
-            req = urllib.request.Request(url, headers=_JSON_HEADERS)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
-        except Exception:
+        r = subprocess.run(
+            [sys.executable, "-m", "pip", "index", "versions", pypi_name,
+             "-i", base_url],
+            check=False, capture_output=True, text=True, timeout=60,
+        )
+        if r.returncode != 0:
             continue
 
-        versions = list(data.get("releases", {}).keys())
+        versions: list[str] = []
+        for line in r.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("Available versions:"):
+                versions = [v.strip() for v in
+                            line.split(":", 1)[1].split(",") if v.strip()]
+                break
+        if not versions:
+            continue
         versions.sort(key=lambda v: [int(x) for x in re.findall(r"\d+", v)] or [0])
-        spec = version_spec.strip()
         for v in reversed(versions):
             if _version_matches(v, spec):
                 return v
@@ -602,6 +612,7 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
 
     resolved: dict[str, str] = {}
     _report_path = None
+    failure: str | None = None
     try:
         import tempfile as _tf
         with _tf.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as _f:
@@ -618,8 +629,13 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
             for item in report.get("install", []):
                 m = item.get("metadata", {})
                 resolved[m.get("name", "")] = m.get("version", "")
-    except Exception:
-        pass
+        else:
+            failure = (r.stderr or r.stdout).strip().splitlines()
+            failure = failure[-1] if failure else f"rc={r.returncode}"
+    except subprocess.TimeoutExpired:
+        failure = "timed out after 1800s"
+    except Exception as e:
+        failure = f"{type(e).__name__}: {e}"
     finally:
         if _report_path:
             try:
@@ -630,7 +646,7 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
     if resolved:
         print(f"  pip resolved {len(resolved)} deps in one pass")
     else:
-        print(f"  WARNING: pip resolution returned empty, falling back to per-dep")
+        print(f"  WARNING: pip resolution returned empty ({failure}), falling back to per-dep")
         # Fallback: resolve one-by-one
         for rd in all_rd:
             nn = _normalize(rd["name"])

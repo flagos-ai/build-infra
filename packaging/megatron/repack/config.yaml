@@ -14,11 +14,11 @@
 
 # ── Wheel Repack Classification Rules — megatron-core ──────────────────
 # Each key is a set of *package names* (no version, case-insensitive).
-# Same schema as vllm-repack/config.yaml — megatron-repack consumes the
-# Facility-1 wheel via vllm-repack/repack.py with THIS config.
+# Same schema as packaging/vllm/config.yaml — megatron-repack consumes the
+# Facility-1 wheel via packaging/vllm/repack.py with THIS config.
 #
 # megatron-core's direct dep surface is tiny (torch>=2.6.0, numpy,
-# packaging>=24.2 — see megatron-builder/report-megatron-0.17.1.md §1).
+# packaging>=24.2 — see packaging/megatron/builder/report-megatron-0.17.1.md §1).
 # torch is the ONLY real risk: on a backend whose runtime torch < 2.6.0,
 # pip would replace the vendor build with public-PyPI torch. numpy and
 # packaging are already satisfied by the runtime matrix on every backend,
