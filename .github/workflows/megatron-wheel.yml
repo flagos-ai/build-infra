@@ -131,7 +131,7 @@ jobs:
           echo "builder=${builder}" >> "$GITHUB_OUTPUT"
 
       - name: Build the wheel image
-        working-directory: megatron-builder
+        working-directory: packaging/megatron/builder
         env:
           BASE_IMAGE: "${{ steps.resolve.outputs.host }}/${{ steps.resolve.outputs.builder }}/megatron-builder-py${{ matrix.pynodot }}:${{ steps.resolve.outputs.version }}"
           MLF_REF: ${{ inputs.mlf_ref }}
@@ -150,7 +150,7 @@ jobs:
             -f Containerfile .
 
       - name: Extract the wheel
-        working-directory: megatron-builder
+        working-directory: packaging/megatron/builder
         run: |
           set -euo pipefail
           rm -rf wheels && mkdir -p wheels
@@ -164,7 +164,7 @@ jobs:
       # already vetted it.
       - name: Upload to internal PyPI
         if: ${{ inputs.upload }}
-        working-directory: megatron-builder
+        working-directory: packaging/megatron/builder
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |

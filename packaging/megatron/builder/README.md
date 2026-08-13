@@ -14,7 +14,7 @@
  limitations under the License.
  -->
 
-# megatron-builder
+# Megatron wheel builder
 
 Builds **megatron-core** wheels from the [Megatron-LM-FL](https://github.com/flagos-ai/Megatron-LM-FL)
 fork, for single-command install into the pre-built `flagos-runtime-{vendor}-{backend}`
@@ -46,7 +46,7 @@ re-installing everything from scratch on each run (the flagtree-builder pain
 point).
 
 ```
-megatron-builder/Containerfile
+packaging/megatron/builder/Containerfile
  ├─ stage "toolchain"  →  FROM ubuntu:22.04 + deadsnakes Python + build deps  ← built ONCE, pushed
  └─ stage "wheel"      →  FROM ${BASE_IMAGE=toolchain image}                  ← every wheel build
 ```
@@ -54,7 +54,7 @@ megatron-builder/Containerfile
 ### 1. Toolchain image (rarely rebuilt)
 
 ```sh
-# once per Python version; run from inside megatron-builder/
+# once per Python version; run from inside packaging/megatron/builder/
 VERSION=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
 docker build --target toolchain --build-arg PYTHON_VERSION=3.12 \
     -t harbor.baai.ac.cn/flagos-dev/megatron-builder-py312:${VERSION} .
@@ -133,7 +133,7 @@ follow-up, once this end-to-end path is verified.
 
 The megatron app image (`app/megatron/Containerfile`) installs the wheel with a
 **single-step `pip install` — no `--no-deps`**. The wheel is first **repacked**
-by `megatron-repack/` (reusing `vllm-repack/repack.py`) to strip
+by `packaging/megatron/repack/` (reusing `packaging/vllm/repack.py`) to strip
 `Requires-Dist: torch` from its METADATA and bump the version to a `+flagos`
 suffix; the repacked wheel is uploaded to the per-vendor PyPI index. Then:
 
@@ -156,7 +156,7 @@ Why not `--no-deps`: a bare `--no-deps` would refuse to install the repacked
 wheel (its version resolution needs the normal resolver), and more importantly
 a plain install with deps intact could pull public-PyPI torch over the vendor
 build. Stripping torch from METADATA gives the same safety without bypassing
-dependency resolution. See `megatron-repack/report-megatron-0.17.1.md` for the
+dependency resolution. See `packaging/megatron/repack/report-megatron-0.17.1.md` for the
 risk analysis.
 
 - Verify (after `source /opt/dtk-26.04/env.sh` on hygon):

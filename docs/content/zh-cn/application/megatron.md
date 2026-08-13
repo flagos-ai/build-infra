@@ -36,7 +36,7 @@ weight: 20
 
 megatron-core 的直接依赖面极小（`torch>=2.6.0`、`numpy`、`packaging>=24.2`），
 其中唯一真正的风险点是 `torch`：若运行时 torch < 2.6.0，pip 会拉公有 PyPI 的
-torch 覆盖厂商构建。我们用 `megatron-repack/`（复用 `vllm-repack/repack.py`）
+torch 覆盖厂商构建。我们用 `packaging/megatron/repack/`（复用 `packaging/vllm/repack.py`）
 将 `Requires-Dist: torch` 从 wheel 的 METADATA 中摘除，再以 `+flagos` 版本后缀
 上传到厂商的 `FLAGOS_PYPI`。
 
@@ -44,9 +44,9 @@ torch 覆盖厂商构建。我们用 `megatron-repack/`（复用 `vllm-repack/re
 全部从 `EXTRA_PYPI` 解析。torch 已存在于 runtime venv 中且满足所有传递约束，
 pip 不会去动它。安装是**单步** `pip install`（无 `--no-deps`）。
 
-wheel 本身由 `megatron-builder/` 从 Megatron-LM-FL fork 构建（cp310/cp311/cp312
+wheel 本身由 `packaging/megatron/builder/` 从 Megatron-LM-FL fork 构建（cp310/cp311/cp312
 三个 ABI 专属 wheel；fork 的 `requires-python >=3.12` 在构建时 on-the-fly 放宽
-到 `>=3.10`）。分类规则见 `megatron-repack/config.yaml`。
+到 `>=3.10`）。分类规则见 `packaging/megatron/repack/config.yaml`。
 
 ## 构建示例
 

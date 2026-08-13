@@ -14,7 +14,7 @@
 
 name: Megatron Builder Image (manual)
 
-# Build the reusable megatron-builder toolchain image (megatron-builder/
+# Build the reusable megatron-builder toolchain image (packaging/megatron/builder/
 # Containerfile stage "toolchain") for one or all Python versions, optionally
 # pushing to Harbor.
 #
@@ -148,7 +148,7 @@ jobs:
           fi
 
       - name: Build the toolchain image
-        working-directory: megatron-builder
+        working-directory: packaging/megatron/builder
         env:
           IMAGE: "${{ steps.resolve.outputs.host }}/${{ steps.resolve.outputs.builder }}/megatron-builder-py${{ matrix.pynodot }}:${{ steps.resolve.outputs.version }}"
         run: |

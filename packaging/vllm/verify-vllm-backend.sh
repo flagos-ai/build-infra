@@ -84,17 +84,26 @@ BACKEND="${VENDOR_BACKEND#*-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Read stack version from configs.yaml
-if [[ -f "${SCRIPT_DIR}/../configs.yaml" ]]; then
-    STACK_VERSION=$(python3 -c "
-import yaml
-with open('${SCRIPT_DIR}/../configs.yaml') as f:
-    print(yaml.safe_load(f)['version'])
-")
-else
-    echo "Error: configs.yaml not found"
+# Locate the repo root: walk up from SCRIPT_DIR until configs.yaml is found.
+# Works from any depth inside the tree (e.g. packaging/vllm/) and
+# errors cleanly when run on a node without configs.yaml alongside.
+REPO_ROOT=""
+d="${SCRIPT_DIR}"
+while [[ "$d" != "/" ]]; do
+    if [[ -f "$d/configs.yaml" ]]; then REPO_ROOT="$d"; break; fi
+    d="$(dirname "$d")"
+done
+if [[ -z "$REPO_ROOT" ]]; then
+    echo "Error: configs.yaml not found (searched up from ${SCRIPT_DIR})"
     exit 1
 fi
+
+# Read stack version from configs.yaml
+STACK_VERSION=$(python3 -c "
+import yaml
+with open('${REPO_ROOT}/configs.yaml') as f:
+    print(yaml.safe_load(f)['version'])
+")
 
 RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR_BACKEND}:${STACK_VERSION}"
 VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple"
@@ -147,7 +156,7 @@ RUN_FLAGS=$(python3 -c "
 import yaml
 import sys
 vendor = '${VENDOR}'
-with open('${SCRIPT_DIR}/../.github/build-config.yml') as f:
+with open('${REPO_ROOT}/.github/build-config.yml') as f:
     config = yaml.safe_load(f)
 run_config = config.get('run', {})
 vendors = run_config.get('vendors', {})

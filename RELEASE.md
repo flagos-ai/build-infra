@@ -2,7 +2,7 @@
 
 发版操作手册。每条可直接执行，Ctrl+C 即可复制命令。
 
-> `flaggems-builder` 每日自动推送到 `flagos-pypi-daily` 的 wheel 用于日常开发。
+> `packaging/flaggems` 每日自动推送到 `flagos-pypi-daily` 的 wheel 用于日常开发。
 > 使用者在 runtime 镜像内 `pip install --index-url ...` 覆盖即可，不影响发版流程。
 
 ## 前置检查

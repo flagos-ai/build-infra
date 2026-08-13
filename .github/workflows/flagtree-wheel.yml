@@ -14,7 +14,7 @@
 
 name: FlagTree wheel
 
-# Build a FlagTree wheel from a flagtree-builder/<target> Containerfile on an
+# Build a FlagTree wheel from a packaging/flagtree/<target> Containerfile on an
 # old-glibc (22.04) base and (optionally) upload it to the vendor's PyPI.
 #
 # Unlike the FlagGems wheel (pure Python, a plain script), FlagTree carries a
@@ -27,7 +27,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'flagtree-builder target (Containerfile name)'
+        description: 'packaging/flagtree target (Containerfile name)'
         type: choice
         options:
           - metax
@@ -71,12 +71,12 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Build the FlagTree wheel image
-        working-directory: flagtree-builder
+        working-directory: packaging/flagtree
         env:
           FLAGTREE_VERSION: ${{ inputs.flagtree_version }}
         run: |
           set -euo pipefail
-          test -f "$TARGET" || { echo "ERROR: flagtree-builder/$TARGET not found" >&2; exit 1; }
+          test -f "$TARGET" || { echo "ERROR: packaging/flagtree/$TARGET not found" >&2; exit 1; }
           # FLAGTREE_VERSION is the single version knob (tag/ref + wheel version);
           # blank means use the Containerfile default for the target.
           build_args=()
@@ -88,7 +88,7 @@ jobs:
           docker build "${build_args[@]}" -t "$IMAGE" -f "$TARGET" .
 
       - name: Extract the wheel
-        working-directory: flagtree-builder
+        working-directory: packaging/flagtree
         run: |
           set -euo pipefail
           rm -rf wheels && mkdir -p wheels
@@ -102,7 +102,7 @@ jobs:
       # already vetted it.
       - name: Upload to vendor PyPI
         if: ${{ inputs.upload }}
-        working-directory: flagtree-builder
+        working-directory: packaging/flagtree
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |

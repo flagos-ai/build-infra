@@ -130,8 +130,11 @@ docker run -d --name "$CONTAINER" --network host \
 # ── Build + repack ──────────────────────────────────────────────────────
 
 # Ensure build deps — remove once build images include setuptools-scm
+# setuptools-rust is required by vllm >= 0.24.0 (Rust frontend components);
+# without cargo the optional rust extensions are skipped, not fatal.
 docker exec "$CONTAINER" bash -c "
-    pip install -i https://mirrors.aliyun.com/pypi/simple 'setuptools-scm>=8,<10' \
+    pip install -i https://mirrors.aliyun.com/pypi/simple \
+        'setuptools-scm>=8,<10' 'setuptools-rust>=1.9.0' wheel \
         > /dev/null 2>&1
 "
 

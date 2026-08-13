@@ -60,7 +60,7 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 
 ## 1.3 Repack
 
-使用 `vllm-repack/repack.py`（分类规则见 `vllm-repack/config.yaml`）处理 wheel：
+使用 `packaging/vllm/repack.py`（分类规则见 `packaging/vllm/config.yaml`）处理 wheel：
 
 1. **加 `+flagos` 版本后缀** —— 主包与所有递归发现的间接依赖统一处理。
    保持原始 platform tag，不改 WHEEL Tag。
@@ -225,10 +225,10 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
 
 | 文件 | 用途 |
 |------|------|
-| `vllm-repack/repack.py` | repack 工具：`+flagos` 后缀、Metadata 降级、递归剥离间接依赖 |
-| `vllm-repack/config.yaml` | repack 分类规则（`remove_*` / `strip_from_indirect`） |
-| `vllm-repack/build-and-repack.sh` | 构建（empty/standard）→ repack → `--upload` twine 上传到 vendor PyPI |
-| `vllm-repack/verify-vllm-backend.sh` | 在目标机安装 repacked vllm + plugin，验证 serve/推理 |
+| `packaging/vllm/repack.py` | repack 工具：`+flagos` 后缀、Metadata 降级、递归剥离间接依赖 |
+| `packaging/vllm/config.yaml` | repack 分类规则（`remove_*` / `strip_from_indirect`） |
+| `packaging/vllm/build-and-repack.sh` | 构建（empty/standard）→ repack → `--upload` twine 上传到 vendor PyPI |
+| `packaging/vllm/verify-vllm-backend.sh` | 在目标机安装 repacked vllm + plugin，验证 serve/推理 |
 
 **待建（⬜）：**
 
@@ -272,7 +272,7 @@ vllm 依赖链里 `opencv-python-headless` 声明 `numpy>=2`，与当时 FlagGem
 ```bash
 pip download --no-deps --dest /tmp/vllm-dl "vllm==0.20.2" \
   --index-url https://mirrors.aliyun.com/pypi/simple
-python3 vllm-repack/repack.py /tmp/vllm-dl/vllm-0.20.2-*.whl
+python3 packaging/vllm/repack.py /tmp/vllm-dl/vllm-0.20.2-*.whl
 ```
 
 > **历史差异：** 此次 repack 早于 `+flagos` 后缀方案（当时按 §5.1 之前的
@@ -285,7 +285,7 @@ python3 vllm-repack/repack.py /tmp/vllm-dl/vllm-0.20.2-*.whl
 ```bash
 twine upload -u flagos -p '<token>' \
   --repository-url https://resource.flagos.net/repository/flagos-pypi-nvidia/ \
-  /tmp/vllm-repack/output/vllm-0.20.2-*.whl
+  /tmp/packaging/vllm/output/vllm-0.20.2-*.whl
 ```
 
 ### 安装
@@ -380,7 +380,7 @@ cd /workspace/vllm
 VLLM_TARGET_DEVICE=empty MAX_JOBS=64 \
   pip wheel --no-build-isolation --no-deps -w /tmp/empty .
 # → vllm-0.20.2+empty-...whl（无 .so）
-python3 vllm-repack/repack.py /tmp/empty/vllm-0.20.2+empty-*.whl
+python3 packaging/vllm/repack.py /tmp/empty/vllm-0.20.2+empty-*.whl
 ```
 
 empty 构建跳过了硬件后端，empty vllm 的 77 个间接依赖中只有 **2 个**在自身
@@ -528,7 +528,7 @@ Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16
 ### Repack & Upload —— ✅ 已完成（2026-08-01）
 
 ```bash
-./vllm-repack/build-and-repack.sh mthreads-musa5.2.0 --upload
+./packaging/vllm/build-and-repack.sh mthreads-musa5.2.0 --upload
 ```
 
 一条命令完成：empty 构建 → repack（`+flagos`）→ twine 上传到

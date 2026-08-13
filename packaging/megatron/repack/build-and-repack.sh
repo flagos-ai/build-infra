@@ -19,10 +19,10 @@
 #
 # STUB — to be filled during the hygon25 verification phase.
 #
-# Facility 1 (megatron-builder/) produces the cp310/cp311/cp312 wheels;
-# this script consumes one of them and applies the dependency surgery
-# (megatron-repack/config.yaml) so a single-step `pip install` can never
-# disturb the runtime image's torch/triton/flag_gems matrix.
+# Facility 1 (packaging/megatron/builder/) produces the cp310/cp311/cp312
+# wheels; this script consumes one of them and applies the dependency surgery
+# (packaging/megatron/repack/config.yaml) so a single-step `pip install` can
+# never disturb the runtime image's torch/triton/flag_gems matrix.
 #
 # Usage (intended):
 #   build-and-repack.sh hygon-dtk26.04 /path/to/megatron_core-0.17.1-cp310-cp310-linux_x86_64.whl
@@ -34,9 +34,9 @@
 #              facing, so it never runs by default.
 #
 # Prerequisites (intended):
-#   - Facility-1 wheel (from megatron-builder/) for the backend's Python
+#   - Facility-1 wheel (from packaging/megatron/builder/) for the backend's Python
 #   - python3 + pyyaml on the host (for reading configs.yaml)
-#   - ../vllm-repack/repack.py — REUSED read-only, never copied or modified
+#   - packaging/vllm/repack.py — REUSED read-only, never copied or modified
 #   - twine on the host (only when --upload is used)
 
 set -euo pipefail
@@ -69,8 +69,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="/tmp/megatron-repack-${VENDOR}-${BACKEND}"
 
 # ── TODO: fill during verification ─────────────────────────────────────
-# 1. Resolve STACK_VERSION from ${SCRIPT_DIR}/../configs.yaml.
-# 2. Copy the Facility-1 wheel + config.yaml + (read-only) repack.py into
+# 1. Resolve STACK_VERSION from ${SCRIPT_DIR}/../../configs.yaml.
+# 2. Copy the Facility-1 wheel + config.yaml + (read-only) packaging/vllm/repack.py into
 #    WORK_DIR, run:
 #      python3 ${WORK_DIR}/repack.py --config ${WORK_DIR}/config.yaml ${WORK_DIR}/input/megatron_core-*.whl
 #    → produces megatron_core-0.17.1+flagos-...whl in WORK_DIR/output/.

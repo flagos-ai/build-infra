@@ -14,7 +14,7 @@
  limitations under the License.
  -->
 
-# flagtree-builder
+# FlagTree wheel builders
 
 Containerfiles that build **FlagTree wheels** on an old-glibc base so the
 resulting `libtriton.so` loads on nodes with older glibc (e.g. the h100 CI
