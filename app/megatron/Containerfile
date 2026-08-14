@@ -23,7 +23,11 @@
 #                (vendor PyPI). NO --no-deps: the repacked wheel's
 #                METADATA no longer declares torch, so a single-step
 #                install cannot disturb the runtime's torch/triton/
-#                flag_gems matrix (see packaging/megatron/repack/).
+#                flag_gems matrix.
+#   2026-08-14   repack facility removed (megatron is a fork-source
+#                path — the wheel keeps torch>=2.6.0 and the runtime's
+#                vendor torch satisfies it). Plain wheel from the
+#                vendor PyPI, still single-step no--no-deps.
 # TODO
 #   - Publish-time verification (torch version, megatron.core import).
 # ============================================================
@@ -35,18 +39,21 @@ FROM ${RUNTIME_IMAGE}
 
 ARG MEGATRON_VERSION=0.17.1
 
-# Repacked megatron-core wheel lives here — searched first.
+# Vendor PyPI (flagos-pypi-{vendor}) holding the megatron-core wheel — searched first.
 ARG FLAGOS_PYPI=""
 
 # Fallback for all other dependencies.
 ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
 
-# --- Install megatron-core (repacked wheel) -------------------
+# --- Install megatron-core ------------------------------------
 
-# Single-step install, no --no-deps. The repacked wheel (megatron-core
-# <version>+flagos) carries no torch Requires-Dist, so pip resolves only
-# the packages that are actually missing (numpy / packaging are already
-# pinned in the runtime image).
+# Single-step install, no --no-deps. The wheel keeps its torch>=2.6.0
+# Requires-Dist; the runtime's vendor torch satisfies it, so pip resolves
+# only the packages that are actually missing (numpy / packaging are
+# already pinned in the runtime image). The install is proven inert by the
+# build-time smoke test in packaging/megatron/builder/ (build env ==
+# delivery env) and verified on-node by
+# packaging/megatron/verify/verify-megatron-backend.sh.
 RUN pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \

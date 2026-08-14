@@ -19,10 +19,12 @@
 #
 # STUB — to be filled during the hygon25 verification phase.
 #
-# Facility 2 verification: install the repacked megatron-core wheel into a
-# `flagos-runtime-{vendor}-{backend}` container and prove the dependency
-# surgery held — i.e. the carefully crafted torch/triton/flag_gems matrix is
-# byte-for-byte unchanged after the install, and megatron.core actually loads.
+# Install the megatron-core wheel into a `flagos-runtime-{vendor}-{backend}`
+# container and prove the install is inert — i.e. the carefully crafted
+# torch/triton/flag_gems matrix is unchanged after the single-step install,
+# and megatron.core actually loads. The wheel keeps its `torch>=2.6.0`
+# Requires-Dist; the runtime's vendor torch satisfies it, so pip downloads
+# and overwrites nothing.
 #
 # Usage (intended):
 #   verify-megatron-backend.sh <vendor-backend>
@@ -30,8 +32,9 @@
 #
 # Prerequisites (intended):
 #   - Running on the target node with hardware access
-#   - Repacked megatron-core wheel (with +flagos suffix) uploaded to the
-#     vendor PyPI (flagos-pypi-<vendor>)
+#   - megatron-core wheel (built by packaging/megatron/builder/, same Python
+#     version as the backend runtime) uploaded to the vendor PyPI
+#     (flagos-pypi-<vendor>)
 
 set -euo pipefail
 
@@ -47,7 +50,7 @@ VENDOR="${VENDOR_BACKEND%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
 
 # ── TODO: fill during verification ─────────────────────────────────────
-# 1. Resolve STACK_VERSION from ${SCRIPT_DIR}/../configs.yaml; start a
+# 1. Resolve STACK_VERSION from ${SCRIPT_DIR}/../../configs.yaml; start a
 #    runtime container with the vendor's run flags (build-config.yml `run:`),
 #    mirroring packaging/vllm/verify-vllm-backend.sh.
 # 2. BEFORE snapshot: record versions of torch / triton / flag_gems / numpy
@@ -55,15 +58,15 @@ BACKEND="${VENDOR_BACKEND#*-}"
 # 3. Single-step install (no --no-deps):
 #      pip install --index-url "https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple" \
 #                  --extra-index-url "https://mirrors.aliyun.com/pypi/simple" \
-#                  "megatron-core==<version>+flagos"
+#                  "megatron-core==<version>"
 # 4. AFTER snapshot: compare each package version to BEFORE — must be equal
 #    item by item, or the install corrupted the matrix (fail).
 # 5. Import check: source the vendor env if needed (hygon:
 #    `source /opt/dtk-26.04/env.sh`), then
-#      python3 -c "import megatron.core; print(megatron.core.__version__)"
+#      python -c "import megatron.core; print(megatron.core.__version__)"
 #    and confirm `helpers_cpp` is importable (megatron.core.datasets.helpers_cpp).
 # 6. Report before/after table + import result.
 
 echo "STUB: verify pipeline for ${VENDOR_BACKEND} not implemented yet." >&2
-echo "      See report-megatron-0.17.1.md §2.2 for the design." >&2
+echo "      See packaging/megatron/docs/ for the verification matrix." >&2
 exit 1

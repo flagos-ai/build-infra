@@ -25,10 +25,10 @@ registry:
   prefixes:
     base: flagos-base
     runtime: flagos-runtime
-    # Builder toolchain images all live in the shared flagos-dev project; the
-    # tool + python is the repository (megatron-builder-py310/311/312 today, and
-    # the future transformerengine-builder-*, verl-builder-*, vllm-builder-*,
-    # sglang-builder-* ...).
+    # Builder toolchain images live in the shared flagos-dev project; the
+    # tool + python is the repository (currently unused — megatron builds
+    # inside the runtime image since 2026-08-14; reserved for future
+    # transformerengine-builder-*, verl-builder-*, ...).
     builder: flagos-dev
     # App images live under flagos-app (e.g. flagos-app/megatron-nvidia-cuda12.8,
     # flagos-app/vllm-nvidia-cuda12.8). Consumed by the app-image workflows
