@@ -135,6 +135,8 @@ jobs:
             -t "$IMAGE" \
             -f Containerfile .
 
+      # Host-side copy for inspection/debugging; the upload step reads
+      # /wheels from the image directly and does not use this directory.
       - name: Extract the wheel
         working-directory: packaging/megatron/builder
         run: |
@@ -150,9 +152,9 @@ jobs:
       # already vetted it.
       - name: Upload to internal PyPI
         if: ${{ inputs.upload }}
-        working-directory: packaging/megatron/builder
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          EXTRA_PYPI: ${{ matrix.extra_pypi }}
         run: |
           set -euo pipefail
           if [ -z "${NEXUS_TOKEN:-}" ]; then
@@ -161,20 +163,31 @@ jobs:
           fi
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-hosted}"
-          echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
-          # Self-hosted Python is PEP 668 externally-managed; install to the user
-          # site with the override (matches imagebuild.yml). Upgrade pkginfo too:
-          # setuptools >=77 (PEP 639) stamps Metadata-Version 2.4 into the wheel,
-          # which older pkginfo can't parse ("Metadata is missing required fields:
-          # Name, Version") -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
-          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
-            || python3 -m pip install --quiet --upgrade twine pkginfo
-          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-          python3 -m twine upload \
-            --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
-            --non-interactive \
-            wheels/*.whl
+          # Upload FROM INSIDE the build image, not the runner host: the wheel
+          # and the python/pip/twine toolchain both live in $IMAGE (build env ==
+          # delivery env), so no host python is needed — the hygon runner's
+          # /usr/bin/python3 has no pip (2026-08-14, run 31795636072 failed on
+          # `python3 -m pip`). The secret travels via `-e NEXUS_TOKEN` (inherits
+          # the step env) so it never appears in a process list or image layer.
+          echo ">>> uploading $(docker run --rm "$IMAGE" sh -c 'ls /wheels/*.whl' | tr '\n' ' ') to ${pypi_repo}"
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            "$IMAGE" \
+            bash -euo pipefail -c '
+              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
+              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
+              # parse ("Metadata is missing required fields: Name, Version") ->
+              # twine aborts before upload. pkginfo >=1.11 reads 2.4.
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              /flagos/bin/twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
 
       - name: Clean up the build image
         if: ${{ always() }}
