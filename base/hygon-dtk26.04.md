@@ -29,6 +29,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libnuma1` — 2.0.18
 - `libpciaccess0` — 0.17
 - `pciutils` — 3.10.0
+- `unzip` — 6.0-28ubuntu2
 - `vim` — 9.1.0016
 
 ### SDK components

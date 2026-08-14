@@ -36,7 +36,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ── System packages ────────────────────────────────────────────
 # RUN sed -i 's|URIs: http://archive.ubuntu.com/ubuntu|URIs: https://mirrors.aliyun.com/ubuntu|g; s|URIs: http://security.ubuntu.com/ubuntu|URIs: https://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources \
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git vim ca-certificates curl \
+        git vim ca-certificates curl unzip \
         libnuma1 \
         libgfortran5 libdrm-amdgpu1 libdw1 libelf1 libpciaccess0 \
         gcc g++ build-essential cmake \
