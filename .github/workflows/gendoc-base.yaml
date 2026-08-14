@@ -45,7 +45,7 @@ on:
         type: number
         default: 0
   workflow_run:
-    workflows: ["Base Image Build (manual)"]
+    workflows: ["Build Base Image (manual)"]
     types: [completed]
 
 permissions:
