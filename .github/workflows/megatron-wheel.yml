@@ -122,16 +122,23 @@ jobs:
           EXTRA_PYPI: ${{ matrix.extra_pypi }}
           MLF_REF: ${{ inputs.mlf_ref }}
           MLF_VERSION: ${{ inputs.mlf_version }}
+          HTTP_PROXY: ${{ secrets.HTTP_PROXY }}
         run: |
           set -euo pipefail
           # Requires-python patch, .so-in-wheel gate and the smoke install run
           # inside this build; a failure here means the wheel is broken and
           # must not be published.
+          #
+          # HTTPS_PROXY: the megatron source is cloned from github.com inside
+          # the build; CN runners can't reach it reliably, so route the clone
+          # through the HTTP_PROXY secret (exported as HTTPS_PROXY so git
+          # https:// traffic follows it). Never hardcoded.
           docker build \
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg EXTRA_PYPI="${EXTRA_PYPI}" \
             --build-arg MLF_REF="${MLF_REF}" \
             --build-arg MLF_VERSION="${MLF_VERSION}" \
+            --build-arg HTTPS_PROXY="${HTTP_PROXY}" \
             -t "$IMAGE" \
             -f Containerfile .
 
