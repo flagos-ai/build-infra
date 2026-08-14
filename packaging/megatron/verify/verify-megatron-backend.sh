@@ -169,14 +169,16 @@ snapshot() {
     docker exec "${CONTAINER}" bash -c '
         source /opt/dtk-26.04/env.sh 2>/dev/null || true
         for pkg in '"${WATCH_PKGS}"'; do
+            # No f-string with embedded backslash: runtime pythons are 3.10/3.11,
+            # where that is a SyntaxError (PEP 701 only in 3.12+).
             python3 - "$pkg" <<'"'"'PY'"'"'
 import sys, importlib.metadata as m
 pkg = sys.argv[1]
 try:
     dist = m.distribution(pkg)
-    print(f"{pkg} {dist.version} {dist.locate_file(\"\")}")
+    print(pkg, dist.version, dist.locate_file(""))
 except m.PackageNotFoundError:
-    print(f"{pkg} MISSING")
+    print(pkg, "MISSING")
 PY
         done
     '
