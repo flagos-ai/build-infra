@@ -132,7 +132,10 @@ def image_labels(host: str, repo: str, tag: str, auth: str) -> dict | None:
         timeout=30,
     ) as r:
         config = json.load(r)
-    return (config.get("config") or {}).get("labels") or {}
+    # The OCI image-config JSON key is "Labels" (capital L, as Docker and
+    # podman write it). A lowercase key never matches, so every pushed image
+    # was reported UNKNOWN ("no revision label") despite carrying labels.
+    return (config.get("config") or {}).get("Labels") or {}
 
 
 def containerfile_changed(revision: str, name: str) -> bool | None:
