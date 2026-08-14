@@ -29,7 +29,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl git vim ca-certificates libelf1 \
+        curl unzip git vim ca-certificates libelf1 \
         gcc g++ build-essential cmake \
     && rm -rf /var/lib/apt/lists/*
 
