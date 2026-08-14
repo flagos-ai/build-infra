@@ -17,7 +17,7 @@
 | **xgrammar 0.2.x（重要）** | 0.20.2 解析到 xgrammar 0.1.x，METADATA 无 torch/triton 声明 → 无需 repack。**0.24.0 解析到 xgrammar 0.2.3，声明 `torch>=1.10.0` + `triton`（+ `apache-tvm-ffi`）** → 必须递归 repack。0.20.2 报告的"xgrammar 不需处理"不再成立。 |
 
 **待确认（验证时更新）：**
-- [x] empty wheel 缺 rust 二进制时运行时是否正常 —— 结构性确认：wheel 内无任何 `.so`，仅含 python fallback `vllm/tool_parsers/rust_tool_parser.py`；`VLLM_USE_RUST_FRONTEND` 默认 False 走 python 路径。运行时行为待安装后验证。
+- [x] empty wheel 缺 rust 二进制时运行时是否正常 —— 结构性确认：wheel 内无任何 `.so`，仅含 python fallback `vllm/tool_parsers/rust_tool_parser.py`；`VLLM_USE_RUST_FRONTEND` 默认 False 走 python 路径。**已验（2026-08-13，metax 单步安装后 serve + 推理正常，见 §2.1）。**
 - [ ] `setuptools 84.0.0` 超出 pyproject 要求的 `<81` 是否造成问题（0.20.2 已验证 84 可构建，先保持不动）
 
 ---
@@ -61,7 +61,92 @@
 
 ### 安装 + 推理验证
 
-_TBD_
+**验证环境：** 节点 `metax123`（MACA 3.7.2.x），容器 `vllm-dbg-metax`（`flagos-runtime-metax-maca3.7.2.1:2.1.2-build`），`/flagos` venv 单步安装 `vllm-0.24.0+flagos-cp312-cp312-linux_x86_64.whl` + `vllm-fl` 插件（`/app/vllm-plugin-FL` 源码树）。serve 需 `PYTHONPATH=/opt/triton:/opt/flagtree`（triton 3.0.0 是 flat layout 侧装）。模型 `Qwen3-4B`，`--enforce-eager --dtype bfloat16`。
+
+**结果：✅ 通过（2026-08-13，两轮）。** `curl /v1/completions`：`"The capital of France is"` → `" Paris. The capital of Germany is Berlin. The capital of Italy is Rome."`（`temperature=0` 与 `0.7` 各一次，Qwen3-4B，`max_tokens=16`）。第一轮用 site-packages 直接改法验证；随后**收敛为插件侧 monkey-patch（vllm wheel 保持 pristine，与 0.20.2 架构一致）**，恢复 4 处 site-packages 为 pristine 后重验通过（见下方 patch 清单）。
+
+**0.24.0 与 0.20.2 的差异（本次安装+推理路径新遇，按 warmup 崩溃顺序）：**
+
+1. **`torch.accelerator` memory API 缺口（0.24 新要求）** — 0.24 无条件调用 `torch.accelerator` 的 `memory_stats`/`memory_reserved`/`empty_cache`/`reset_peak_memory_stats` 等（MemorySnapshot、weight loader）。MACA torch 只实现了 device-management 子集，缺 memory-stats 子集 → 启动即 AttributeError。插件侧 shim（`vllm_fl/__init__.py`）把 `torch.cuda` 等价物绑回 `torch.accelerator`（metax 上 `current_accelerator()=="cuda"`）；`reset_peak_memory_stats(device)` 要 try/except 兜底（mtgpu allocator 初始化前显式传 device 会报错）。
+
+2. **`gdn_linear_attn` 模块搬家** — 0.24 把 `GatedDeltaNetAttention` 从 `vllm.model_executor.layers.mamba.gdn_linear_attn` 移到 `mamba/gdn/base.py`。metax patch 的 import 改 version-gated try/except（`<0.24` 旧路径 → `0.24` 新路径），两个版本的插件代码不用各自维护。
+
+3. **`_load_ptr` 的 constexpr 元素类型（metax triton 3.0.0）** — 0.24 的 BlockTables `_gather_block_tables_kernel` 是唯一把 `tl.int32` 传进 `_load_ptr` 当 `elem_dtype` 的调用方；嵌套 `@jit` 里 dtype 参数以 constexpr 包裹到达，`tl.pointer_type()` 拒绝 constexpr 元素类型（`element_ty is a constexpr.`）。修复：`elem_dtype = elem_dtype.value` 无条件解包。**注意 `isinstance(elem_dtype, tl.constexpr)` 不能当守卫** — triton codegen 调用内建前先解包 constexpr 实参，该判断恒为 False（0.24 上游源码正是这么写的，直接照抄必挂）。
+
+4. **`reshape_and_cache_flash` 空 wheel 阻塞（0.20.2 #333 的重现）** — empty 构建不带编译的 `_C_cache_ops`；0.24 的 metax `fa_utils.py` 把该 op 绑到 `ops.reshape_and_cache_flash` → 首个 attention forward（KV-cache warmup）`AttributeError: '_OpNamespace' '_C_cache_ops' object has no attribute 'reshape_and_cache_flash'`。修复同 0.20.2 #333：改 `from flag_gems import reshape_and_cache_flash`（纯 triton 实现，签名逐参吻合）。**差异点：** 0.20.2 修在 plugin-FL 源码（#333），0.24 的 metax fa_utils 没带上，需在插件侧再打一遍。
+
+5. **penalties 内核的链式布尔（metax triton 3.0.0 codegen）** — `use_rep_penalty or use_freq_penalty or use_pres_penalty` 三连链被拒（"chained boolean operators (A or B or C) are not supported; use parentheses to split the chain"）。操作数是标量加载，加括号 `(A or B) or C` 语义不变。0.24 gpu-worker 采样路径里唯一的链式布尔（已全量检查）。
+
+6. **metax 的 UVA 视图是 CPU-typed 张量（探针确认，crash #4/#5 根因）** — MACA torch 的 `get_cuda_view_from_cpu_tensor` 返回 `device: cpu, is_cuda: False` 的张量（指向 device-accessible 固定内存），而 vllm 的 CUDA 假设是 device-typed 视图。triton 内核可直接当指针读（temperature/min_p/topk 内核无需改），但 torch 用 device tensor 索引 CPU-typed 张量会炸：
+   - **crash #4：** `states.py get_top_k_top_p` 用 device 的 `expanded_idx_mapping` 索引 `self.top_k.gpu` → `RuntimeError: indices should be either on cpu or on the same device as the indexed tensor (cpu)`。修：CPU 索引。
+   - **crash #5（CPU 索引的次生问题）：** 结果变成 CPU tensor；metax 插件把 `apply_top_k_top_p` 路由到 pytorch fallback（`topk_topp_sampler.apply_top_k_top_p_pytorch`），在 CPU 建 `top_k_mask` 再 gather 到 cuda 的 `logits_sort` → `RuntimeError: Expected all tensors to be on the same device, but got index is on cpu...`（`topk_topp_sampler.py:390`）。修：CPU 索引后 `.to(expanded_idx_mapping.device)` 移回设备。
+   - 同类：`pooling_runner.py:40` `prompt_len.gpu[idx_mapping]` → 同样 CPU 索引 + `.to(input_batch.seq_lens.device)`（`seq_lens` 是 device tensor）。
+   - 附带确认：`torch.device("metax")` 无效（设备字符串是 `"cuda"`）；`torch.frombuffer` 在 metax torch 无 `device=` kwarg。
+
+**安装侧 patch 清单（已收敛：全部在插件侧，vllm wheel 保持 pristine —— 与 0.20.2 架构一致，4 处 site-packages 已恢复并 md5 验证）：**
+
+| 文件 | 改动 |
+|---|---|
+| `vllm_fl/__init__.py` | `torch.accelerator` memory API shim（memory_stats/memory_reserved/empty_cache/reset_peak_memory_stats ← torch.cuda 等价物；reset 要 try/except 兜底） |
+| `metax/patches/gdn_linear_attn.py` | version-gated import（`<0.24` 旧路径 → `0.24` 新路径） |
+| `metax/impl/attention/utils/fa_utils.py` | `reshape_and_cache_flash` → `from flag_gems import ...`（同 0.20.2 #333） |
+| `metax/patches/vllm024_compat.py`（新建） | 4 个 vllm 0.24.0 兼容 shim，monkey-patch：`_load_ptr`（`.value` 解包，同步重赋值 `block_table._load_ptr`）、`_penalties_kernel`（链式布尔加括号）、`SamplingStates.get_top_k_top_p` + `PoolingRunner.pool`（UVA CPU 索引 + `.to(device)` 移回设备）。方法 patch 用 `inspect.signature` 版本门控（仅 0.24.0 签名生效），import 全部 try/except 兜底，旧版 vLLM 静默跳过 |
+| `metax/patches/__init__.py` | 注册 `from . import vllm024_compat` |
+
+**收敛要点：** 前 3 处是 metax 插件自身代码（0.20.2 就有，0.24 改 version-gate）；后 2 处把原本要直接改 vllm site-packages 的 4 个文件变成插件内 monkey-patch。`_load_ptr`/`_penalties_kernel` 是模块级 `@triton.jit` 函数 → 重新定义同签名内核 + 重赋值模块全局；`_load_ptr` 被 block_table 以 `from buffer_utils import _load_ptr` 绑定 → 必须同步重赋值 `block_table._load_ptr`。验证：独立进程绑定检查 + 恢复 pristine site-packages 后完整 serve 推理（EngineCore 子进程走插件加载路径，patch 生效）。
+
+**验证命令（容器内）：**
+```bash
+cd /app/vllm-plugin-FL && PYTHONPATH=/opt/triton:/opt/flagtree \
+  nohup /flagos/bin/python -m vllm.entrypoints.openai.api_server \
+  --model /data/models/Qwen/Qwen3-4B --port 8031 --enforce-eager --dtype bfloat16 \
+  > /tmp/serve-0.24.0.log 2>&1 &
+curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
+  -d '{"model":"/data/models/Qwen/Qwen3-4B","prompt":"The capital of France is","max_tokens":16,"temperature":0}'
+```
+
+## 2.2 metax-maca3.8.1.3（TODO · 四环境矩阵）
+
+**背景：** metax 有两个后端（3.7.2.x 与 3.8.1.x），每后端两套编译器（FlagTree 默认 / Triton 侧装），共 **2 后端 × 2 编译器 = 4 种环境**。§2.1 只覆盖了其中一种。**默认编译器是 FlagTree，而 §2.1 走的是 `/opt/triton`（3.0.0）—— 默认路径反而未验证。**
+
+**环境分布：**
+
+| 环境 | 节点 | torch | 编译器 | 状态 |
+|---|---|---|---|---|
+| 3.7.2.1 + FlagTree | metax123 | 2.8.0 | flagtree 3.1.0+metax3.7.2.0 | 未验（**默认编译器路径**） |
+| 3.7.2.1 + Triton | metax123 | 2.8.0 | triton 3.0.0+metax3.7.2.0 | ✅ 已验（§2.1，2026-08-13） |
+| 3.8.1.3 + FlagTree | metax124 | 2.10.0 | flagtree 0.6.1+metax3.6 | 未验 |
+| 3.8.1.3 + Triton | metax124 | 2.10.0 | triton 3.6.0+metax3.8.1.0 | 未验 |
+
+**顾虑：** §2.1 的修复大多针对 triton 3.0.0 特有行为（链式布尔、`_load_ptr` constexpr 元素类型、UVA CPU-typed 视图），3.8.1.3 是 triton 3.6.0 + flagtree 0.6.1，编译器行为可能不同（kunlunxin FlagTree 0.6.1 编译失败、sunrise FlagTree decode 卡死切 triton 均为先例）→ 插件侧 shim（§2.1 patch 清单）需逐环境重验，必要时按编译器 version-gate。
+
+**TODO：**
+- [ ] 预检 metax124：3.8.1.3 runtime（`:2.1.2` / `:2.1.2-build`，已有镜像）容器可启动（docker run + device 可见）；容器内两套编译器版本确认（`compiler` 函数 + `/opt/flagtree` + `/opt/triton`）；是否有 vllm 0.24.0 安装/验证痕迹
+- [ ] 3.7.2.1 + FlagTree 冒烟（serve + 推理，默认编译器路径）
+- [ ] 3.8.1.3 + FlagTree 冒烟
+- [ ] 3.8.1.3 + Triton 冒烟
+- [ ] 每环境记录：编译器行为差异、插件 shim 是否需 version-gate/条件编译
+
+## 2.3 插件项目组自身的 0.24.0 适配（v0.3.0-dev 分支，⚠️ 与 #377 重叠）
+
+**背景：** vllm-plugin-FL 项目组在 **`v0.3.0-dev`** 分支自行做 vLLM 0.24.0 适配，与 main 在 #252 处**分叉、尚未合入 main**。适配主线：#274（`upgrade: vllm 0.20.2 -> 0.24.0`）、#294（`adapt(metax): MetaX C550 backend adaptation for vLLM 0.24.0`）、#308（musa MTT S5000）、#334（mtp in 0.24.0）、#338（CUDA stable-ABI wheels）、#346/#348。**这意味着 §2.1 验证用的插件基线（main + PR #377 patch）与项目组的正式适配线（v0.3.0-dev）是两条线。**
+
+**与 §2.1（main + #377）的重叠/差异：**
+
+| 我们（#377，main） | 项目组（v0.3.0-dev） | 关系 |
+|---|---|---|
+| `vllm_fl/__init__.py` `_patch_torch_accelerator()` | `patches/accelerator_compat.py`（#294 新增；torch<2.9 版本守卫 + hasattr 权威守卫，引用 MetaX 上游 vLLM-metax 参考） | **功能重复**。dev 版本更严谨（有版本守卫），但缺 `reset_peak_memory_stats` 的 try/except 兜底（mtgpu allocator 初始化前显式传 device 报错，§2.1 差异 1） |
+| `fa_utils.py` → `from flag_gems import reshape_and_cache_flash`（empty wheel 无编译 `_C_cache_ops`） | dev `fa_utils.py` 仍 `ops.reshape_and_cache_flash` | **dev 未处理 empty wheel 场景** → dev 分支 + empty wheel 组合未验证（§2.1 crash #4 同因，0.20.2 #333 方案未 upstream） |
+| `patches/vllm024_compat.py`（_load_ptr constexpr / _penalties_kernel 链式布尔 / get_top_k_top_p + pool UVA，triton 3.0.0 特有） | dev 上**不存在** | 项目组未踩（编译器/验证路径不同）或另有解法 → 我们的 4 修复是否需 upstream 到 dev 待确认 |
+| — | `chunk_delta_h.py` USE_EXP2（#294；0.24.0 上游 kernel 签名新增 `USE_EXP2: tl.constexpr`） | 我们未遇到的坑，§2.1 验证路径未覆盖 |
+
+**TODO：**
+- [ ] 与项目组确认 0.24.0 正式发布线：main（+ 我们 patch）还是 v0.3.0-dev？（后者已含 #274/#294/#308/#334/#338，未合入 main）
+- [ ] 若以 v0.3.0-dev 为基线 → §2.1 验证（main+#377）需在 dev 分支**重验**；§2.2 四环境矩阵的插件基线相应换成 v0.3.0-dev
+- [ ] `_patch_torch_accelerator` 与 `accelerator_compat.py` 去重：保留哪个版本；是否把 reset_peak_memory_stats 的 try/except 兜底 backport 到 dev 版本
+- [ ] 确认 dev 分支在 triton 3.0.0 路径是否缺 _load_ptr/_penalties_kernel/get_top_k_top_p/pool 修复（serve 冒烟即知）
+- [ ] dev 分支 + empty wheel：`ops.reshape_and_cache_flash` 是否报 AttributeError（同 §2.1 crash #4）→ flag_gems 方案是否需 upstream 到 dev
+- [ ] 我们的验证路径补测 USE_EXP2 相关内核（chunk delta，Qwen3-Next/GDN 类模型）
 
 ---
 
