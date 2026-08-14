@@ -60,6 +60,7 @@ RUN curl -o cmake.sh ${FILE_STORE}/iluvatar/${CMAKE_PKG} \
      fi
 
 # Environment variable
-ENV COREX_ROOT=/usr/local/corex
+ENV COREX_ROOT=/usr/local/corex \
+    CPATH=/usr/local/cuda-10.2/include
 ENV PATH="${COREX_ROOT}/bin:/opt/cmake-corex/bin:${PATH}" \
     LD_LIBRARY_PATH="${COREX_ROOT}/lib"
