@@ -123,41 +123,6 @@ RUN pip install --no-cache-dir --upgrade pip
 # download in this build (DEPS, FlagTree, Triton, FlagGems).
 ENV PIP_RESUME_RETRIES=100
 
-# ── Install vendor dependencies (explicit, no extras) ──────────
-# Dependencies come from configs.yaml deps: — explicit, no resolver ambiguity.
-# Each vendor has exactly one primary index (FLAGOS_PYPI); EXTRA_PYPI serves as
-# fallback for transitive deps (numpy, sympy, etc.) that aren't in vendor indexes.
-RUN if [ -n "${DEPS}" ]; then \
-      _installed=1; \
-      for i in 1 2 3; do \
-        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
-           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
-           pip install --no-cache-dir ${DEPS}; then \
-          _installed=0; break; \
-        fi; \
-        echo "DEPS install attempt $i failed, retrying..."; \
-      done; \
-      [ "$_installed" -eq 0 ] || { echo "ERROR: DEPS install failed after 3 attempts"; exit 1; }; \
-    fi
-
-# ── Install runtime prerequisites ───────────────────────────────
-# Common packages from configs.yaml runtime_prereqs, installed from
-# the mirror before FlagGems. pybind11 is a runtime dep of flagtree;
-# ninja is needed for C++ extension builds; PyYAML is a FlagGems
-# core dep that vendor torch packages import without declaring.
-# numpy is pinned per-backend in configs.yaml deps.
-RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
-      _installed=1; \
-      for i in 1 2 3; do \
-        if PIP_INDEX_URL="${EXTRA_PYPI}" \
-           pip install --no-cache-dir ${RUNTIME_PREREQS}; then \
-          _installed=0; break; \
-        fi; \
-        echo "RUNTIME_PREREQS install attempt $i failed, retrying..."; \
-      done; \
-      [ "$_installed" -eq 0 ] || { echo "ERROR: RUNTIME_PREREQS install failed after 3 attempts"; exit 1; }; \
-    fi
-
 # ── Install FlagTree (default compiler, if configured) ──────────
 # FlagTree installs to /opt/flagtree — a side dir, symmetric with /opt/triton.
 # Keeping both compilers out of site-packages isolates their dist-infos, so
@@ -210,6 +175,49 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
         done; \
         [ "$_installed" -eq 0 ] || { echo "ERROR: Triton extra install failed after 3 attempts"; exit 1; }; \
       fi; \
+    fi
+
+# ── Install vendor dependencies (explicit, no extras) ──────────
+# Dependencies come from configs.yaml deps: — explicit, no resolver ambiguity.
+# Each vendor has exactly one primary index (FLAGOS_PYPI); EXTRA_PYPI serves as
+# fallback for transitive deps (numpy, sympy, etc.) that aren't in vendor indexes.
+# Compilers are installed ABOVE (before this step) so their side-dir dist-infos
+# exist while DEPS resolves. DEPS packages that declare a bare `triton` (e.g.
+# flash_linear_attention on metax 3.8.1.3) are then satisfied by the pinned
+# vendor triton in /opt/triton via PYTHONPATH below — otherwise pip would pull
+# a fresh upstream triton into site-packages and silently override the pin.
+# (/opt/flagtree cannot satisfy this: flagtree bundles triton/ without a
+# triton-*.dist-info, so pip doesn't see it; /opt/triton always carries one.)
+RUN if [ -n "${DEPS}" ]; then \
+      _installed=1; \
+      for i in 1 2 3; do \
+        if PYTHONPATH="/opt/triton" \
+           PIP_INDEX_URL="${FLAGOS_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+           pip install --no-cache-dir ${DEPS}; then \
+          _installed=0; break; \
+        fi; \
+        echo "DEPS install attempt $i failed, retrying..."; \
+      done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: DEPS install failed after 3 attempts"; exit 1; }; \
+    fi
+
+# ── Install runtime prerequisites ───────────────────────────────
+# Common packages from configs.yaml runtime_prereqs, installed from
+# the mirror before FlagGems. pybind11 is a runtime dep of flagtree;
+# ninja is needed for C++ extension builds; PyYAML is a FlagGems
+# core dep that vendor torch packages import without declaring.
+# numpy is pinned per-backend in configs.yaml deps.
+RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
+      _installed=1; \
+      for i in 1 2 3; do \
+        if PIP_INDEX_URL="${EXTRA_PYPI}" \
+           pip install --no-cache-dir ${RUNTIME_PREREQS}; then \
+          _installed=0; break; \
+        fi; \
+        echo "RUNTIME_PREREQS install attempt $i failed, retrying..."; \
+      done; \
+      [ "$_installed" -eq 0 ] || { echo "ERROR: RUNTIME_PREREQS install failed after 3 attempts"; exit 1; }; \
     fi
 
 # ── FlagGems — skip when building the build-platform (runtime:v1).
