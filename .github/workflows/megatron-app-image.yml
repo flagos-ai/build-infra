@@ -15,14 +15,15 @@
 name: Megatron app image
 
 # STUB — structure landed only; the build/verify steps are filled during the
-# hygon25 verification phase (see packaging/megatron/repack/report-megatron-0.17.1.md).
+# hygon25 verification phase (see packaging/megatron/docs/).
 #
-# Facility 2 (app-image automation): installs the repacked megatron-core wheel
-# into a flagos-runtime-{vendor}-{backend} image and produces the app image
+# Facility 2 (app-image automation): installs the megatron-core wheel into a
+# flagos-runtime-{vendor}-{backend} image and produces the app image
 # flagos-app/megatron-{vendor}-{backend}:{version}. The Containerfile installs
-# with a single-step `pip install` (no --no-deps) — the wheel's METADATA has
-# already been stripped of torch by packaging/megatron/repack/, so the runtime's
-# torch/triton/flag_gems matrix cannot be disturbed.
+# with a single-step `pip install` (no --no-deps) — the wheel keeps its
+# torch>=2.6.0 Requires-Dist and the runtime's vendor torch satisfies it, so the
+# runtime's torch/triton/flag_gems matrix cannot be disturbed (the repack
+# facility was removed 2026-08-14).
 #
 # Backend matrix comes from scripts/generate_matrix.py --runtime (same source
 # as runtime-image.yaml). Per-vendor PyPI (flagos_pypi) is searched first;
@@ -151,7 +152,7 @@ jobs:
           docker push "${app_tag}"
 
       # TODO (hygon25 verification phase): verify step — after the build,
-      # run packaging/megatron/repack/verify-megatron-backend.sh (or its workflow
+      # run packaging/megatron/verify/verify-megatron-backend.sh (or its workflow
       # equivalent) against the app image: before/after dependency snapshot
       # (torch/triton/flag_gems/numpy unchanged) + `import megatron.core`
       # with helpers_cpp loaded.

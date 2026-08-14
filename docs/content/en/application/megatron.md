@@ -28,30 +28,30 @@ packages a usable megatron-core library for megatron-lm based training.
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `RUNTIME_IMAGE` | _(required)_ | Runtime image ref, e.g. `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2` |
-| `MEGATRON_VERSION` | `0.17.1` | megatron-core version to install. A repacked wheel (see below) must exist on `FLAGOS_PYPI`. |
-| `FLAGOS_PYPI` | `""` | Vendor PyPI index — hosts the **repacked** megatron-core wheel. Searched first. |
+| `MEGATRON_VERSION` | `0.17.1` | megatron-core version to install. A wheel of that version must exist on `FLAGOS_PYPI`. |
+| `FLAGOS_PYPI` | `""` | Vendor PyPI index — hosts the megatron-core wheel. Searched first. |
 | `EXTRA_PYPI` | `https://mirrors.aliyun.com/pypi/simple` | Aliyun mirror — fallback for all other dependencies. |
 
-## Repacked megatron-core wheel
+## megatron-core wheel
 
 megatron-core's direct dependency surface is tiny (`torch>=2.6.0`, `numpy`,
-`packaging>=24.2`) — and the only real risk is `torch`: on a backend whose
-runtime torch is `< 2.6.0`, pip would pull public-PyPI torch over the vendor
-build. We run `packaging/megatron/repack/` (reusing `packaging/vllm/repack.py`) to strip
-`Requires-Dist: torch` from the wheel's METADATA, then upload the repacked
-wheel to the vendor's `FLAGOS_PYPI` with a `+flagos` version suffix.
+`packaging>=24.2`) and the wheel keeps those declarations as-is — no repack,
+no METADATA surgery. On every supported backend the runtime's vendor torch is
+>= 2.7.1, which satisfies the `torch>=2.6.0` Requires-Dist, so pip resolves
+nothing and overwrites nothing.
 
-During `pip install`, the vendor PyPI is searched first — the repacked wheel
-is found and used. All remaining (safe) dependencies are resolved from
-`EXTRA_PYPI`. Torch is already in the runtime venv and satisfies any
-transitive constraints, so pip skips it. The install is a **single-step**
+During `pip install`, the vendor PyPI is searched first — the wheel is found
+and used. All remaining (safe) dependencies are resolved from `EXTRA_PYPI`.
+Torch is already in the runtime venv and satisfies any transitive
+constraints, so pip skips it. The install is a **single-step**
 `pip install` (no `--no-deps`).
 
-The wheel itself is built by `packaging/megatron/builder/` from the Megatron-LM-FL fork
-(per-Python cp310/cp311/cp312 wheels — the package ships a compiled
-`helpers_cpp` extension; the fork's `requires-python >=3.12` is relaxed to
-`>=3.10` on the fly at build time). Classification rules live in
-`packaging/megatron/repack/config.yaml`.
+The wheel is built by `packaging/megatron/builder/` from the Megatron-LM-FL
+fork — **inside the backend's own runtime image**, so build env == delivery
+env and the single-step install is proven inert at build time (per-Python
+cp310/cp311/cp312 wheels — the package ships a compiled `helpers_cpp`
+extension; the fork's `requires-python >=3.12` is relaxed to `>=3.10` on the
+fly at build time). See `packaging/megatron/builder/README.md`.
 
 ## Build example
 

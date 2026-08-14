@@ -38,87 +38,81 @@ imports it unconditionally, yet `setup.py` declares the extension
 `optional=True`. A failed compile is silently skipped, producing a broken wheel.
 The Containerfile gates on the `.so` being inside the wheel to catch this.
 
-## Two-layer build
+## Build environment = the backend's runtime image
 
-The expensive apt/pip setup is baked into a **toolchain image** once per Python
-version and pushed to Harbor, then every wheel build starts from it — no
-re-installing everything from scratch on each run (the flagtree-builder pain
-point).
+The wheel is built **inside the backend's own runtime image**
+(`flagos-runtime-{vendor}-{backend}:{version}`) — there is no separate
+toolchain/builder image. The runtime image provides the exact Python version
+and runtime packages the wheel will run on (torch, numpy, pybind11==3.0.3 …),
+so:
 
-```
-packaging/megatron/builder/Containerfile
- ├─ stage "toolchain"  →  FROM ubuntu:22.04 + deadsnakes Python + build deps  ← built ONCE, pushed
- └─ stage "wheel"      →  FROM ${BASE_IMAGE=toolchain image}                  ← every wheel build
-```
+- **ABI contracts match by construction** — the pybind11 and numpy the `.so`
+  compiles against are the runtime's own.
+- **Build env == delivery env** — after the wheel builds, it is installed back
+  into the same image with a full `pip install` (deps resolved, no `--no-deps`).
+  pip checks the wheel's `Requires-Dist` (torch>=2.6.0 …) against the venv: the
+  vendor torch satisfies the constraint, pip downloads and overwrites nothing,
+  and the dependency matrix is proven intact *in the very image the wheel will
+  ship in*.
+- No image to pre-build and push. `megatron-builder-*` was a concept image that
+  was never built — the megatron-wheel workflow builds directly from the runtime
+  matrix (`scripts/generate_matrix.py --runtime`).
 
-### 1. Toolchain image (rarely rebuilt)
+One wheel is built per backend in the matrix (e.g. `hygon-dtk26.04`). Whether a
+wheel built on one backend is shareable across the other backends running the
+same Python version is **decision 6, not yet validated**: a wheel built on the
+oldest-glibc runtime (hygon, ubuntu 22.04, glibc 2.35) should load on every
+newer-glibc backend, but the reverse is NOT true. Final call pending
+per-backend verification — see `packaging/megatron/docs/`.
 
-```sh
-# once per Python version; run from inside packaging/megatron/builder/
-VERSION=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
-docker build --target toolchain --build-arg PYTHON_VERSION=3.12 \
-    -t harbor.baai.ac.cn/flagos-dev/megatron-builder-py312:${VERSION} .
-docker push harbor.baai.ac.cn/flagos-dev/megatron-builder-py312:${VERSION}
-```
-
-Only rebuilt when the pins change. It contains, on **ubuntu:22.04** (glibc 2.35,
-so the `.so` loads on older-glibc nodes):
-
-- `python3.{10,11,12}` via deadsnakes, `build-essential`, `git`, `unzip`
-- `setuptools<80.0.0 wheel pybind11==3.0.3 numpy==1.26.4 packaging>=24.2`
-
-**pybind11 and numpy are ABI contracts, not just versions:**
-
-- **pybind11==3.0.3** matches the runtime images' pin (`runtime_prereqs` /
-  `flaggems_cpp_build_deps` in configs.yaml). `helpers_cpp` and the runtime's
-  own pybind11 share type registries, and a mismatch (3.1.0 bumped internals to
-  v12) breaks the extension at call time — the flagtree-builder lesson.
-- **numpy==1.26.4** (1.x headers): the `.so` then runs on both numpy 1.x and 2.x
-  runtimes, while a 2.x-built `.so` requires numpy≥2. hygon pins numpy==1.26.4,
-  so this is the lowest common denominator.
-
-### 2. Wheel stage (every build)
+### Local build (mirrors the workflow)
 
 ```sh
+# run from inside packaging/megatron/builder/
 VERSION=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
 docker build \
-    --build-arg BASE_IMAGE=harbor.baai.ac.cn/flagos-dev/megatron-builder-py312:${VERSION} \
+    --build-arg BASE_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:${VERSION} \
     --build-arg MLF_REF=main \
-    -t megatron-wheel:py312 .
-cid=$(docker create megatron-wheel:py312)
+    -t megatron-wheel:hygon-dtk26.04 .
+cid=$(docker create megatron-wheel:hygon-dtk26.04)
 docker cp $cid:/wheels/. ./wheels
 docker rm $cid
-ls wheels/*.whl   # megatron_core-0.17.1-cp312-cp312-linux_x86_64.whl
+ls wheels/*.whl   # megatron_core-0.17.1-cp310-cp310-linux_x86_64.whl
 ```
 
 Useful build args:
 
 | ARG            | Default                              | Meaning                                        |
 |----------------|--------------------------------------|------------------------------------------------|
-| `BASE_IMAGE`   | *(required)*                         | The pushed toolchain image for this Python    |
-| `PYTHON_VERSION`| `3.12`                              | Must match the toolchain image's Python       |
+| `BASE_IMAGE`   | *(required)*                         | The runtime image for this backend            |
+| `EXTRA_PYPI`   | `https://mirrors.aliyun.com/pypi/simple` | CN mirror for build deps                 |
 | `MLF_REPO`     | `https://github.com/flagos-ai/Megatron-LM-FL.git` | Source repo                  |
 | `MLF_REF`      | `main`                               | Branch or tag to build                        |
 | `MLF_VERSION`  | *(blank)*                            | Optional wheel-version override (e.g. `0.17.1.post20260812`); blank = the repo's own version (`0.17.1`) |
 
-The wheel stage: clones the fork, **patches `requires-python` on the fly**
+The Containerfile: clones the fork, **patches `requires-python` on the fly**
 (`>=3.12` → `>=3.10`, see below), optionally stamps `MLF_VERSION` into
-`megatron/core/package_info.py` (`stamp_version.py`), builds with
-`pip wheel . --no-deps --no-build-isolation` (no uv, no lock file), then runs two
-gates:
+`megatron/core/package_info.py` (`stamp_version.py`), installs the missing build
+deps into the runtime venv, builds with `pip wheel . --no-deps
+--no-build-isolation` (no uv, no lock file; `--no-deps` here means "don't build
+torch from PyPI", it is not an install), then runs two gates:
 
-1. **`.so`-in-wheel gate** — `unzip -l /wheels/*.whl` must contain
-   `helpers_cpp*.so`; catches the silent `optional=True` skip.
-2. **Smoke test** — installs the wheel and loads `helpers_cpp` directly via
-   `importlib` (importing `megatron.core` would pull in torch, which the build
-   env intentionally lacks), asserting `build_sample_idx_*` are bound.
+1. **`.so`-in-wheel gate** — a `python -c` zipfile scan (runtime images don't
+   ship `unzip`) must find `helpers_cpp*.so`; catches the silent
+   `optional=True` skip.
+2. **Smoke test** — installs the wheel with a full `pip install` (deps
+   resolved) and loads `helpers_cpp` directly via `importlib` (importing
+   `megatron.core` would need the vendor SDK env sourced, which `docker build`
+   RUN can't do — that check belongs to
+   `packaging/megatron/verify/verify-megatron-backend.sh`), asserting
+   `build_sample_idx_*` are bound.
 
 ## requires-python on the fly
 
 The fork's `pyproject.toml` declares `requires-python = ">=3.12"` (tightened from
 upstream's `>=3.10` in the 0.17.0 sync). pip enforces Requires-Python at install
 time, so the cp310/cp311 wheels would be refused on those runtimes. The wheel
-stage patches the source **after clone, before build**:
+build patches the source **after clone, before build**:
 
 ```dockerfile
 RUN cd /opt/megatron-lm-fl \
@@ -132,10 +126,7 @@ follow-up, once this end-to-end path is verified.
 ## Install into a runtime image
 
 The megatron app image (`app/megatron/Containerfile`) installs the wheel with a
-**single-step `pip install` — no `--no-deps`**. The wheel is first **repacked**
-by `packaging/megatron/repack/` (reusing `packaging/vllm/repack.py`) to strip
-`Requires-Dist: torch` from its METADATA and bump the version to a `+flagos`
-suffix; the repacked wheel is uploaded to the per-vendor PyPI index. Then:
+**single-step `pip install` — no `--no-deps`**:
 
 ```dockerfile
 RUN pip install \
@@ -144,20 +135,19 @@ RUN pip install \
   "megatron-core==${MEGATRON_VERSION}"
 ```
 
-- The vendor index is searched first — the `+flagos` repacked wheel is found
-  and used.
+- The wheel keeps its `torch>=2.6.0` Requires-Dist — no repack, no METADATA
+  surgery (the repack facility was removed; that was the vllm sdist path, where
+  torch must be stripped because the sdist's deps would pull public-PyPI
+  torch over the vendor build. megatron is a fork-source path: the runtime's
+  vendor torch satisfies the constraint, so pip resolves nothing).
 - Torch is already in the runtime venv and satisfies any transitive
   constraints, so pip skips it. `numpy`/`packaging` are pinned per-backend in
   the image and resolved from `EXTRA_PYPI` if missing.
 - pip auto-selects the `cp310` / `cp311` / `cp312` wheel matching the image's
   Python.
 
-Why not `--no-deps`: a bare `--no-deps` would refuse to install the repacked
-wheel (its version resolution needs the normal resolver), and more importantly
-a plain install with deps intact could pull public-PyPI torch over the vendor
-build. Stripping torch from METADATA gives the same safety without bypassing
-dependency resolution. See `packaging/megatron/repack/report-megatron-0.17.1.md` for the
-risk analysis.
+The build-time smoke test above is the same single-step install, run in the
+build image — proof that the install is inert before the wheel is published.
 
 - Verify (after `source /opt/dtk-26.04/env.sh` on hygon):
 
