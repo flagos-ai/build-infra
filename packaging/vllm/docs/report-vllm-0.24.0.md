@@ -113,19 +113,34 @@ curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
 
 | 环境 | 节点 | torch | 编译器 | 状态 |
 |---|---|---|---|---|
-| 3.7.2.1 + FlagTree | metax123 | 2.8.0 | flagtree 3.1.0+metax3.7.2.0 | 未验（**默认编译器路径**） |
+| 3.7.2.1 + FlagTree | metax123 | 2.8.0 | flagtree **0.6.1+metax3.6**（triton 3.6.0 基座，最新版，见 §2.2.1） | ✅ 已验（2026-08-14） |
+| 3.7.2.1 + FlagTree（SDK 对齐版） | metax123 | 2.8.0 | flagtree 3.1.0+metax3.7.2.0 | ❌ 已弃用（2026-08-14 决定，见 §2.2.1） |
 | 3.7.2.1 + Triton | metax123 | 2.8.0 | triton 3.0.0+metax3.7.2.0 | ✅ 已验（§2.1，2026-08-13） |
 | 3.8.1.3 + FlagTree | metax124 | 2.10.0 | flagtree 0.6.1+metax3.6 | 未验 |
 | 3.8.1.3 + Triton | metax124 | 2.10.0 | triton 3.6.0+metax3.8.1.0 | 未验 |
 
-**顾虑：** §2.1 的修复大多针对 triton 3.0.0 特有行为（链式布尔、`_load_ptr` constexpr 元素类型、UVA CPU-typed 视图），3.8.1.3 是 triton 3.6.0 + flagtree 0.6.1，编译器行为可能不同（kunlunxin FlagTree 0.6.1 编译失败、sunrise FlagTree decode 卡死切 triton 均为先例）→ 插件侧 shim（§2.1 patch 清单）需逐环境重验，必要时按编译器 version-gate。
+**顾虑：** §2.1 的修复大多针对 triton 3.0.0 特有行为（链式布尔、`_load_ptr` constexpr 元素类型、UVA CPU-typed 视图），3.8.1.3 是 triton 3.6.0 + flagtree 0.6.1，编译器行为可能不同（kunlunxin FlagTree 0.6.1 编译失败、sunrise FlagTree decode 卡死切 triton 均为先例）→ 插件侧 shim（§2.1 patch 清单）需逐环境重验，必要时按编译器 version-gate。**§2.2.1 已证 triton 3.6.0 基座（flagtree 0.6.1）上现有 shim 全部安全 no-op/兼容。**
 
 **TODO：**
+- [x] 3.7.2.1 + FlagTree 冒烟（serve + 推理）—— 用**最新版 0.6.1+metax3.6** 验证（§2.2.1），并作为默认编译器安装闭环
 - [ ] 预检 metax124：3.8.1.3 runtime（`:2.1.2` / `:2.1.2-build`，已有镜像）容器可启动（docker run + device 可见）；容器内两套编译器版本确认（`compiler` 函数 + `/opt/flagtree` + `/opt/triton`）；是否有 vllm 0.24.0 安装/验证痕迹
-- [ ] 3.7.2.1 + FlagTree 冒烟（serve + 推理，默认编译器路径）
 - [ ] 3.8.1.3 + FlagTree 冒烟
 - [ ] 3.8.1.3 + Triton 冒烟
 - [ ] 每环境记录：编译器行为差异、插件 shim 是否需 version-gate/条件编译
+- [x] 决定 flagtree 版本（2026-08-14）：**弃用 3.1.0，metax 全线用 0.6.1+metax3.6**。0.6.1 在 3.7.2.1 老 SDK 上零新增 patch 直接可用（§2.2.1），无需为 3.1.0 保留 patch #5/#6（triton 3.6.0 基座自带 kwarg + knobs）。configs.yaml 的 maca3.7.2.1 flagtree pin 已改为 0.6.1+metax3.6
+
+### 2.2.1 metax123 3.7.2.1 + FlagTree 0.6.1（最新版，2026-08-14）
+
+**背景：** 默认编译器路径（flagtree 3.1.0+metax3.7.2.0，SDK 对齐版）在 vllm 0.24.0 上有两个 API 缺口：`triton.jit` 缺 `do_not_specialize_on_alignment` kwarg（minimax_m3 `index_topk` 无条件 import）、`triton` 缺 `knobs`（jit_monitor 无条件 import）。插件侧已加 patch #5/#6 修掉（version-gated，triton 3.0.0 上 no-op），但用户判断 **flagtree 团队无 MACA SDK 版本对齐意识** → 直接试最新版 **0.6.1+metax3.6**（triton 3.6.0 基座，对齐 torch 2.10/MACA 3.8.1.x），看老 SDK 上能否直接跑。
+
+**安装：** 从 `flagos-pypi-hosted` 拉 `flagtree-0.6.1+metax3.6-cp312-cp312-linux_x86_64.whl`（421.7 MB，`https://resource.flagos.net/repository/flagos-pypi-hosted/simple/`，Nexus URL 见 `flagtree-wheel.yml:130`，非自造主机名），`pip install --no-deps --target /opt/flagtree-061` 侧装。**坑：** 该 wheel 的 triton 报 `__version__ = '3.6.0'`（不是 0.6.1），且 `knobs=True`、`do_not_specialize_on_alignment` 存在 → 插件 patch #5/#6 自动 no-op（version-gate 生效）。
+
+**结果：✅ 通过（2026-08-14）。** serve 端口 8032（`PYTHONPATH=/opt/flagtree-061`，其余命令同 §2.1：Qwen3-4B、`--enforce-eager --dtype bfloat16`），startup 干净无 crash，`/v1/completions` 输出与 triton 3.0.0 完全一致：`"The capital of France is"` → `" Paris. The capital of Germany is Berlin. The capital of Italy is Rome."`。**零新增 patch** —— §2.1 的 6 个 shim 在 triton 3.6.0 基座上全部兼容（triton 3.0.0 特有的 4 个 bug 在 3.6.0 上不存在，patch 应用后无害）。
+
+**结论：**
+- flagtree 0.6.1+metax3.6（为 3.8.1.x 构建）在 **3.7.2.1 老 SDK 上直接可用**，佐证"flagtree 无需按 MACA SDK 对齐版本"的判断。
+- triton 3.6.0 基座解决了 triton 3.0.0 上的全部 4 个编译/UVA 问题（链式布尔、constexpr 元素类型、UVA CPU-typed 视图）——若 3.8.1.3 两环境也走 0.6.1/3.6.0，§2.1 的 shim 可能整体可以收窄。
+- **决策（2026-08-14）：弃用 3.1.0，metax123 容器 `/opt/flagtree` 已替换为 0.6.1+metax3.6**——默认编译器路径（`PYTHONPATH=/opt/flagtree`，无覆盖）serve + 推理已验证（本节上文）；configs.yaml 的 maca3.7.2.1 flagtree pin 相应改为 `0.6.1+metax3.6`。为 3.1.0 写的插件 patch #5/#6（`do_not_specialize_on_alignment` + `knobs`）随 3.1.0 弃用而不再需要，但保留无害（version-gated，triton 3.6.0 上自动 no-op）。
 
 ## 2.3 插件项目组自身的 0.24.0 适配（v0.3.0-dev 分支，⚠️ 与 #377 重叠）
 
