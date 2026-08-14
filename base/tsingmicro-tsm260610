@@ -37,7 +37,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # libfmt8 (22.04) — torch_txda links libfmt.so.8; 24.04 ships libfmt.so.9;
 # sudo is hardcoded dependency from TSM installers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl git vim ca-certificates \
+      curl unzip git vim ca-certificates \
       gcc g++ build-essential cmake clang \
       libopenmpi3 sudo \
       libunwind8 \
