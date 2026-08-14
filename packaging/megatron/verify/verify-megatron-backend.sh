@@ -24,46 +24,67 @@
 # `torch>=2.6.0` Requires-Dist; the runtime's vendor torch satisfies it, so
 # pip downloads and overwrites nothing.
 #
+# Two modes:
+#   default:       install the wheel into a fresh runtime container, then
+#                  compare before/after snapshots — proves the install itself
+#                  is inert (the app Containerfile's build step replay).
+#   --app-image:   the app image was built FROM the runtime image with the
+#                  single-step install baked in. Snapshot the runtime image as
+#                  BEFORE and the built app image as AFTER: an equal matrix
+#                  proves the app-image build left the runtime packages
+#                  untouched, and the import check runs on the actual artifact.
+#                  No pip install (it already happened at image build time).
+#
 # Usage:
-#   ./verify-megatron-backend.sh <vendor-backend> [--megatron-version <ver>]
+#   ./verify-megatron-backend.sh <vendor-backend> [--megatron-version <ver>] [--app-image <tag>]
 #
 # Examples:
 #   ./verify-megatron-backend.sh hygon-dtk26.04
 #   ./verify-megatron-backend.sh hygon-dtk26.04 --megatron-version 0.17.1
+#   ./verify-megatron-backend.sh hygon-dtk26.04 \
+#       --app-image harbor.baai.ac.cn/flagos-app/megatron-hygon-dtk26.04:2.1.2
 #
 # Prerequisites:
 #   - Running on the target node with hardware access
 #   - megatron-core wheel (built by packaging/megatron/builder/, same Python
 #     version as the backend runtime) uploaded to the vendor PyPI
-#     (flagos-pypi-<vendor>)
+#     (flagos-pypi-<vendor>) — only for default mode
+#   - --app-image mode: the app image tag must exist locally (docker build)
 #
 # Steps:
-#   1. Start runtime container with hardware access (build-config.yml run flags)
+#   1. Start runtime container with hardware access (build-config.yml run flags);
+#      with --app-image also start the app image container
 #   2. BEFORE snapshot: torch / triton / flag_gems / numpy (+ site-package path)
-#   3. Single-step install (no --no-deps) of megatron-core
+#   3. Default mode: single-step install (no --no-deps) of megatron-core.
+#      App-image mode: skipped (install baked at image build time)
 #   4. AFTER snapshot: compare each package version to BEFORE — must be equal
 #      item by item, or the install corrupted the matrix (fail)
-#   5. Import check: source the vendor env if needed, then import
-#      megatron.core and confirm helpers_cpp is bound
+#   5. Import check: import megatron.core and confirm helpers_cpp is bound
+#      (the vendor env comes from the image itself via BASH_ENV → profile.d)
 
 set -euo pipefail
 
 # ── Parse arguments ─────────────────────────────────────────────────────
 
 MEGATRON_VERSION="${MEGATRON_VERSION:-0.17.1}"
+APP_IMAGE="${APP_IMAGE:-}"
 
+POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --megatron-version) MEGATRON_VERSION="$2"; shift 2 ;;
+        --app-image) APP_IMAGE="$2"; shift 2 ;;
         --help)
-            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>]"
+            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>]"
             exit 0
             ;;
-        *) break ;;
+        # Not an option: positional. Collect (don't break) so options may
+        # appear before OR after the vendor-backend argument.
+        *) POSITIONAL_ARGS+=("$1"); shift ;;
     esac
 done
 
-VENDOR_BACKEND="${1:-}"
+VENDOR_BACKEND="${POSITIONAL_ARGS[0]:-}"
 if [[ -z "$VENDOR_BACKEND" ]]; then
     echo "Error: vendor-backend argument required" >&2
     exit 1
@@ -97,6 +118,11 @@ RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR_BACKEND}
 VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple"
 ALIYUN_PYPI="https://mirrors.aliyun.com/pypi/simple"
 CONTAINER="megatron-verify-${VENDOR}-${BACKEND}"
+APP_CONTAINER="megatron-verify-${VENDOR}-${BACKEND}-app"
+# Which container the AFTER snapshot + import check run against: the app image
+# container in --app-image mode, the same (installed) container otherwise.
+AFTER_CONTAINER="${CONTAINER}"
+[[ -n "${APP_IMAGE}" ]] && AFTER_CONTAINER="${APP_CONTAINER}"
 WORK_DIR="/tmp/megatron-verify-${VENDOR}-${BACKEND}-$$"
 
 # Packages that must survive the install bit-for-bit.
@@ -121,6 +147,10 @@ echo "Megatron Backend Verification"
 echo "========================================"
 echo "Vendor-Backend:    ${VENDOR_BACKEND}"
 echo "Runtime Image:     ${RUNTIME_IMAGE}"
+if [[ -n "${APP_IMAGE}" ]]; then
+    echo "App Image:         ${APP_IMAGE}"
+    echo "Mode:              app-image (install baked at image build time)"
+fi
 echo "Megatron Version:  ${MEGATRON_VERSION}"
 echo ""
 
@@ -128,18 +158,20 @@ echo ""
 
 cleanup() {
     echo ""
-    log_info "Cleaning up container..."
+    log_info "Cleaning up containers..."
     docker rm -f "${CONTAINER}" 2>/dev/null || true
+    docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
     rm -rf "${WORK_DIR}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
 # ── Step 1: Start runtime container with hardware access ────────────────
 
-log_step "Step 1: Starting runtime container"
+log_step "Step 1: Starting containers"
 
 mkdir -p "${WORK_DIR}"
 docker rm -f "${CONTAINER}" 2>/dev/null || true
+docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
 
 # Read device flags from build-config.yml (toolkit preferred over raw).
 RUN_FLAGS=$(python3 -c "
@@ -157,17 +189,26 @@ docker run -d --name "${CONTAINER}" \
     "${RUNTIME_IMAGE}" \
     sleep infinity
 
-log_info "Container started: ${CONTAINER}"
+log_info "Container started: ${CONTAINER} (${RUNTIME_IMAGE})"
+
+if [[ -n "${APP_IMAGE}" ]]; then
+    docker run -d --name "${APP_CONTAINER}" \
+        ${RUN_FLAGS} \
+        --network host \
+        "${APP_IMAGE}" \
+        sleep infinity
+    log_info "Container started: ${APP_CONTAINER} (${APP_IMAGE})"
+fi
 
 # ── Snapshot helpers ────────────────────────────────────────────────────
 
 # Emits "<pkg> <version> <location>" per watched package; missing package =>
-# "<pkg> MISSING". The vendor SDK env may be needed before import (hygon:
-# source /opt/dtk-26.04/env.sh for LD_LIBRARY_PATH); the runtime image bakes
-# it for bash-invoked commands, so the source is defensive only.
+# "<pkg> MISSING". No SDK env sourcing here: the runtime image bakes the
+# vendor env via /etc/profile.d + BASH_ENV, so bash -c commands already see
+# it (LD_LIBRARY_PATH etc.).
 snapshot() {
-    docker exec "${CONTAINER}" bash -c '
-        source /opt/dtk-26.04/env.sh 2>/dev/null || true
+    local container="${1:-${CONTAINER}}"
+    docker exec "${container}" bash -c '
         for pkg in '"${WATCH_PKGS}"'; do
             # No f-string with embedded backslash: runtime pythons are 3.10/3.11,
             # where that is a SyntaxError (PEP 701 only in 3.12+).
@@ -192,23 +233,27 @@ snapshot | tee "${WORK_DIR}/before.txt"
 
 # ── Step 3: Single-step install (no --no-deps) ──────────────────────────
 
-log_step "Step 3: Installing megatron-core==${MEGATRON_VERSION}"
+if [[ -n "${APP_IMAGE}" ]]; then
+    log_step "Step 3: Skipping pip install (app-image mode — megatron-core was installed at image build time)"
+else
+    log_step "Step 3: Installing megatron-core==${MEGATRON_VERSION}"
 
-docker exec "${CONTAINER}" bash -c "
-    pip install \
-        --index-url '${VENDOR_PYPI}' \
-        --extra-index-url '${ALIYUN_PYPI}' \
-        'megatron-core==${MEGATRON_VERSION}'
-"
+    docker exec "${CONTAINER}" bash -c "
+        pip install \
+            --index-url '${VENDOR_PYPI}' \
+            --extra-index-url '${ALIYUN_PYPI}' \
+            'megatron-core==${MEGATRON_VERSION}'
+    "
 
-log_info "megatron-core installed:"
-docker exec "${CONTAINER}" pip show megatron-core | grep -E "^(Name|Version|Location)" || true
+    log_info "megatron-core installed:"
+    docker exec "${CONTAINER}" pip show megatron-core | grep -E "^(Name|Version|Location)" || true
+fi
 
 # ── Step 4: AFTER snapshot and compare ──────────────────────────────────
 
 log_step "Step 4: AFTER dependency snapshot"
 
-snapshot | tee "${WORK_DIR}/after.txt"
+snapshot "${AFTER_CONTAINER}" | tee "${WORK_DIR}/after.txt"
 
 log_step "Step 4b: Comparing BEFORE vs AFTER"
 
@@ -228,7 +273,11 @@ while read -r line; do
 done < "${WORK_DIR}/before.txt"
 
 if [[ "${FAILED}" == 1 ]]; then
-    log_error "Dependency matrix changed — install was NOT inert. Aborting." >&2
+    if [[ -n "${APP_IMAGE}" ]]; then
+        log_error "Dependency matrix changed — the app-image build was NOT inert. Aborting." >&2
+    else
+        log_error "Dependency matrix changed — install was NOT inert. Aborting." >&2
+    fi
     exit 1
 fi
 log_info "Dependency matrix intact: torch / triton / flag_gems / numpy unchanged."
@@ -237,8 +286,7 @@ log_info "Dependency matrix intact: torch / triton / flag_gems / numpy unchanged
 
 log_step "Step 5: Import check (megatron.core + helpers_cpp)"
 
-docker exec "${CONTAINER}" bash -c '
-    source /opt/dtk-26.04/env.sh 2>/dev/null || true
+docker exec "${AFTER_CONTAINER}" bash -c '
     python3 - <<'"'"'PY'"'"'
 import importlib.metadata
 import megatron.core
@@ -266,7 +314,13 @@ echo "========================================"
 echo "Backend:          ${VENDOR_BACKEND}"
 echo "Megatron Version: ${MEGATRON_VERSION}"
 echo "Container:        ${CONTAINER}"
+if [[ -n "${APP_IMAGE}" ]]; then
+    echo "App Image:        ${APP_IMAGE}"
+fi
 echo ""
 echo "To debug:"
 echo "  docker exec -it ${CONTAINER} bash"
+if [[ -n "${APP_IMAGE}" ]]; then
+    echo "  docker exec -it ${APP_CONTAINER} bash"
+fi
 echo ""
