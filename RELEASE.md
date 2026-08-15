@@ -84,7 +84,7 @@ gh pr list --head auto/image-descriptions-*
 > **手动触发。** 产出不含 FlagGems 的运行时镜像（`:{version}-build`），用于步骤 5 的 FlagGems wheel 编译。
 
 ```bash
-gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true" -f no_flaggems="true"
+gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true" -f flaggems="none"
 ```
 
 镜像 tag: `:{version}-build`（如 `:2.2.0-build`）。
@@ -100,8 +100,8 @@ gh run view <RUN_ID> --json jobs -q '...'  # 同步骤 2
 
 如果只有部分 backend 需要 runtime:v1（比如只验证 nvidia），可以只触发指定 backend：
 ```bash
-gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f no_flaggems="true"
-gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f push="true" -f no_flaggems="true"
+gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f flaggems="none"
+gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f push="true" -f flaggems="none"
 ```
 
 ## 5. FlagGems 构建 wheels
