@@ -43,6 +43,7 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc` — 13.2.0
 - `git` — 2.43.0
 - `libelf1`
+- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK components
@@ -66,6 +67,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
+  -e TENCENT_VISIBLE_DEVICES=all \
   harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.2 bash
 ```
 
@@ -86,4 +88,4 @@ Inside the container, confirm the accelerator is visible:
 efsmi
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-08-14 22:49:02 · `61219fb2f18f`*

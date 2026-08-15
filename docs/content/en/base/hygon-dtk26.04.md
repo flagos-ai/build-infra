@@ -49,6 +49,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libnuma1` — 2.0.18
 - `libpciaccess0` — 0.17
 - `pciutils` — 3.10.0
+- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK components
@@ -86,4 +87,4 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*

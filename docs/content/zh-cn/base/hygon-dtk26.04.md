@@ -49,6 +49,7 @@ title: "hygon-dtk26.04"
 - `libnuma1` — 2.0.18
 - `libpciaccess0` — 0.17
 - `pciutils` — 3.10.0
+- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK 组件
@@ -86,4 +87,4 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*

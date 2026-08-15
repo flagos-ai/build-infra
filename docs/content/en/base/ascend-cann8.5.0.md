@@ -58,6 +58,7 @@ Explicitly installed; the version is the one baked into this image:
 
 - CANN Toolkit 8.5.0 (aarch64)
 - CANN 910B Ops 8.5.0 (aarch64)
+- CANN NNAL 8.5.0 (aarch64)
 
 ## Launch
 
@@ -91,4 +92,4 @@ Inside the container, confirm the accelerator is visible:
 npu-smi info
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-08-11 01:04:24 · `3eca2bf66bfc`*

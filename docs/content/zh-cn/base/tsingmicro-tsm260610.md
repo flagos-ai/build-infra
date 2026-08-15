@@ -48,6 +48,7 @@ title: "tsingmicro-tsm260610"
 - `libpython3-dev` — 3.12.3
 - `libunwind8` — 1.6.2
 - `sudo` — 1.9.15p5
+- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK 组件
@@ -99,4 +100,4 @@ docker run --rm -it \
 tsm_smi
 ```
 
-*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*
