@@ -39,6 +39,7 @@ title: "hygon-dtk26.04"
 
 - `flag_gems==5.3.4`
 - `flagtree==0.6.1+hcu3.6`
+- `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
 - `numpy==1.26.4`
 - `torch==2.9.0+das.opt1.dtk2604`
 - <span class="muted"><code class="plain">triton==3.3.0+das.opt1.dtk2604.torch290</code></span>
