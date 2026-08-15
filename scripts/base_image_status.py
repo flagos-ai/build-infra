@@ -43,7 +43,8 @@ Status values:
     UNKNOWN     could not determine (see detail column)
 
 Usage:
-    HARBOR_USER=... HARBOR_PW=... python scripts/base_image_status.py
+    python scripts/base_image_status.py                          # anonymous (public projects)
+    HARBOR_USER=... HARBOR_PW=... python scripts/base_image_status.py  # private registry
     python scripts/base_image_status.py --json
     python scripts/base_image_status.py nvidia-cuda12.8 cambricon-neuware4.7.2
     python scripts/base_image_status.py --tag 2.1.2
@@ -60,6 +61,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -86,28 +88,83 @@ def load_context() -> tuple[str, str, str, list[str]]:
     return host, project, version, names
 
 
-def auth_header() -> str:
+def credentials() -> str | None:
+    """Basic auth header if HARBOR_USER/HARBOR_PW are set, else None (anonymous).
+
+    Credentials are optional: the base-image project is public, so the
+    bearer-token grant works anonymously. Set them only when inspecting a
+    private registry.
+    """
     user = os.environ.get("HARBOR_USER", "")
     pw = os.environ.get("HARBOR_PW", "")
     if not user or not pw:
-        sys.exit("HARBOR_USER and HARBOR_PW are required (same as docs/upload_descriptions.py)")
+        return None
     return "Basic " + base64.b64encode(f"{user}:{pw}".encode()).decode()
 
 
-def image_labels(host: str, repo: str, tag: str, auth: str) -> dict | None:
+def _parse_www_authenticate(header: str) -> dict:
+    """Parse a challenge like ``Bearer realm="...",service="...",scope="..."``."""
+    return {m.group(1): m.group(2) for m in re.finditer(r'(\w+)="([^"]*)"', header or "")}
+
+
+class HarborAuth:
+    """Registry client that follows the bearer-token challenge on 401.
+
+    With credentials set, the token grant is made with Basic auth; without
+    them the grant is anonymous, which works for public projects like
+    ``flagos-base``. A 404 is raised as ``HTTPError`` and left to callers.
+    """
+
+    def __init__(self, host: str, basic: str | None):
+        self.host = host
+        self.basic = basic
+
+    def request(self, path: str, headers: dict | None = None):
+        """Open ``/v2/{path}``, following the bearer challenge once on 401."""
+        url = f"https://{self.host}/v2/{path}"
+        h = dict(headers or {})
+        if self.basic:
+            h["Authorization"] = self.basic
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=30)
+        except urllib.error.HTTPError as e:
+            if e.code != 401:
+                raise
+            token = self._bearer_token(e.headers.get("WWW-Authenticate", ""))
+            if not token:
+                raise
+            h["Authorization"] = f"Bearer {token}"
+            return urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=30)
+
+    def _bearer_token(self, challenge: str) -> str | None:
+        params = _parse_www_authenticate(challenge)
+        realm = params.get("realm")
+        if not realm:
+            return None
+        qs = "&".join(
+            f"{k}={v}" for k, v in (("service", params.get("service")), ("scope", params.get("scope"))) if v
+        )
+        h = {"Authorization": self.basic} if self.basic else {}
+        try:
+            with urllib.request.urlopen(
+                urllib.request.Request(realm + (f"?{qs}" if qs else ""), headers=h),
+                timeout=30,
+            ) as r:
+                return json.load(r).get("token")
+        except Exception:  # noqa: BLE001 — a failed token grant just means no retry
+            return None
+
+
+def image_labels(client: HarborAuth, repo: str, tag: str) -> dict | None:
     """Return the OCI labels of the pushed image, or None if the tag is absent."""
-    manifest_url = f"https://{host}/v2/{repo}/manifests/{tag}"
-    headers = {
-        "Authorization": auth,
-        "Accept": (
-            "application/vnd.oci.image.manifest.v1+json, "
-            "application/vnd.docker.distribution.manifest.v2+json, "
-            "application/vnd.oci.image.index.v1+json, "
-            "application/vnd.docker.distribution.manifest.list.v2+json"
-        ),
-    }
+    accept = (
+        "application/vnd.oci.image.manifest.v1+json, "
+        "application/vnd.docker.distribution.manifest.v2+json, "
+        "application/vnd.oci.image.index.v1+json, "
+        "application/vnd.docker.distribution.manifest.list.v2+json"
+    )
     try:
-        with urllib.request.urlopen(urllib.request.Request(manifest_url, headers=headers), timeout=30) as r:
+        with client.request(f"{repo}/manifests/{tag}", {"Accept": accept}) as r:
             manifest = json.load(r)
     except urllib.error.HTTPError as e:
         if e.code == 404:
@@ -118,19 +175,13 @@ def image_labels(host: str, repo: str, tag: str, auth: str) -> dict | None:
     # A multi-arch index has no "config"; follow the first entry.
     if "config" not in manifest and "manifests" in manifest:
         first = manifest["manifests"][0]["digest"]
-        with urllib.request.urlopen(
-            urllib.request.Request(f"https://{host}/v2/{repo}/manifests/{first}", headers=headers),
-            timeout=30,
-        ) as r:
+        with client.request(f"{repo}/manifests/{first}", {"Accept": accept}) as r:
             manifest = json.load(r)
 
     config_digest = manifest.get("config", {}).get("digest")
     if not config_digest:
         return {}
-    with urllib.request.urlopen(
-        urllib.request.Request(f"https://{host}/v2/{repo}/blobs/{config_digest}", headers={"Authorization": auth}),
-        timeout=30,
-    ) as r:
+    with client.request(f"{repo}/blobs/{config_digest}") as r:
         config = json.load(r)
     # The OCI image-config JSON key is "Labels" (capital L, as Docker and
     # podman write it). A lowercase key never matches, so every pushed image
@@ -179,7 +230,7 @@ def main() -> None:
     if not version:
         sys.exit("configs.yaml has no version: field")
     tag = args.tag or version
-    auth = auth_header()
+    client = HarborAuth(host, credentials())
 
     if args.backends:
         wanted = set(args.backends)
@@ -193,7 +244,7 @@ def main() -> None:
         repo = f"{project}/flagos-base-{name}"
         entry = {"name": name, "tag": tag, "built": "", "status": "", "detail": ""}
         try:
-            labels = image_labels(host, repo, tag, auth)
+            labels = image_labels(client, repo, tag)
         except urllib.error.URLError as e:
             entry.update(status="UNKNOWN", detail=f"registry unreachable: {e.reason}")
             results.append(entry)
