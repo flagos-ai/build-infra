@@ -19,9 +19,9 @@ name: Builid Runtime Image (manual)
 # the two produce identical job names, so without this they are indistinguishable.
 # Shows: layer (v1/v2) · backend · push/no-push · no-cache · pinned flaggems ver.
 run-name: >-
-  ${{ inputs.no_flaggems && 'v1 build' || 'v2 flag_gems' }}
+  ${{ inputs.flaggems == 'none' && 'v1 build' || 'v2 flag_gems' }}
   · ${{ inputs.backend }}
-  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.flaggems != '' && format(' · fg={0}', inputs.flaggems) || '' }}
+  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.flaggems != '' && inputs.flaggems != 'none' && format(' · fg={0}', inputs.flaggems) || '' }}
 
 # Runtime images are built on demand, not on every push/PR. They layer
 # FlagGems (pure Python + optional C++ extension) on top of a base image
@@ -39,13 +39,9 @@ on:
         type: boolean
         default: false
       flaggems:
-        description: 'FlagGems wheel version to install (e.g. 5.3.2)'
+        description: 'FlagGems wheel version to install. Empty = version pinned in configs.yaml. "none" = skip flag_gems entirely (v1, -build image).'
         type: string
         default: ''
-      no_flaggems:
-        description: 'Skip flag_gems install — produce -build image'
-        type: boolean
-        default: false
       skip_cpp:
         description: 'Skip flag_gems C++ extension install (Python wheel only)'
         type: boolean
@@ -135,7 +131,7 @@ jobs:
       - name: Env + parameters
         run: |
           flaggems_ver="${{ inputs.flaggems }}"
-          [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
+          [[ -z "$flaggems_ver" || "$flaggems_ver" == "none" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
           echo "hostname: $(hostname)"
           echo "arch: $(uname -m)"
@@ -143,7 +139,7 @@ jobs:
           echo "base_image:         ${{ matrix.base_image }}"
           echo "image_tag:          ${{ matrix.image_tag }}"
           echo "flaggems_version:   ${flaggems_ver}"
-          echo "no_flaggems:         ${{ inputs.no_flaggems }}"
+          echo "flaggems_mode:      ${{ inputs.flaggems == 'none' && 'none (v1 -build)' || 'install' }}"
           echo "python_version:      ${{ matrix.python_version }}"
           echo "deps:                ${{ matrix.deps }}"
           echo "cpp_extra:           ${{ matrix.cpp_extra }}"
@@ -160,11 +156,11 @@ jobs:
       - name: Build runtime image
         run: |
           flaggems_ver="${{ inputs.flaggems }}"
-          [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
+          [[ -z "$flaggems_ver" || "$flaggems_ver" == "none" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
           no_flaggems_arg=""
           image_tag="${{ matrix.image_tag }}"
-          [[ "${{ inputs.no_flaggems }}" == "true" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1' && image_tag="${image_tag}-build"
+          [[ "${{ inputs.flaggems }}" == "none" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1' && image_tag="${image_tag}-build"
 
           cpp_extra="${{ matrix.cpp_extra }}"
           [[ "${{ inputs.skip_cpp }}" == "true" ]] && cpp_extra=""
@@ -183,7 +179,7 @@ jobs:
             --label last-updated=${git_created} \
             --label org.opencontainers.image.source=https://github.com/flagos-ai/build-infra \
             --label flagos.base=${{ matrix.base_image }}"
-          [[ "${{ inputs.no_flaggems }}" != "true" ]] && label_args="${label_args} --label flagos.flaggems=${flaggems_ver}"
+          [[ "${{ inputs.flaggems }}" != "none" ]] && label_args="${label_args} --label flagos.flaggems=${flaggems_ver}"
 
           docker build \
             ${no_cache_arg} \
@@ -210,5 +206,5 @@ jobs:
         if: ${{ inputs.push }}
         run: |
           image_tag="${{ matrix.image_tag }}"
-          [[ "${{ inputs.no_flaggems }}" == "true" ]] && image_tag="${image_tag}-build"
+          [[ "${{ inputs.flaggems }}" == "none" ]] && image_tag="${image_tag}-build"
           docker push "${image_tag}"
