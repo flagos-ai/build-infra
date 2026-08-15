@@ -1057,9 +1057,10 @@ mask lane。**根因：GCU300 triton_gcu 跨 tile 归约累加的 codegen 误编
 
 ---
 
-## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08）
+## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08；2026-08-15 复核）
 
-**日期:** 2026-08-08　**平台:** Cambricon MLU590　**节点:** `cambricon`
+**日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）
+　**平台:** Cambricon MLU590　**节点:** `cambricon`
 **driver/neuware:** 4.7.2　**镜像:** `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（`1a2a53ebab3b`，全量升级包集）
 **容器:** `vllm-verify-camb472`　**Python:** 3.12.13　**torch/torch_mlu:** 2.11.0+cpu / torch_mlu 2.11.0
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，全新 wheel build（cambricon 此前无 `+flagos` 产物）
@@ -1120,6 +1121,46 @@ flag_gems `empty` 内核在 MLU 上撞 triton grid 上限：
 **首次推理**首 token 延迟高（首请求逐 shape 编译 triton 内核，60s curl 超时；加长到
 300s 即返回）；`_cambricon/ops/mean.py` 等 flag_gems cambricon 算子活跃，无错。
 
+### 2026-08-15 复核（2.1.2 镜像 / flag_gems 5.3.4）：empty 黑名单可删 ✅，index op 回归 → flag_gems 根因修复
+
+**empty ✅（黑名单已删，无回归）：** 2.1.2 镜像装 flag_gems **5.3.4**（已含
+cambricon 专属 `_cambricon/ops/empty.py` 分块修复，PR #4435）。将 `cambricon.yaml`
+的 `flagos_blacklist` 清空为 `[]` 实测：serve 启动完成、推理连贯 → **`empty` 黑名单
+可安全删除**（这正是 §2.7 初验时"根治 = 升 flag_gems 到含 #4435 的版本"的兑现）。
+
+**index op 回归（E2E 确定性崩溃，黑名单已加）：** 复核过程中首次请求即触发 flag_gems
+cambricon `index` op 在 **flagtune 自动调参 bench** 阶段崩溃，EngineCore 直接死亡
+（HTTP 500 / EngineDeadError）。复现路径与完整证据链：
+
+- **触发点：** `model_runner.py:4145` `sample_hidden_states = hidden_states[logits_indices]`
+  → `_cambricon/ops/index.py` `_index_func`（461）→ code_cache `_index_wrapper` → triton autotune。
+- **崩溃：** Triton MLU 后端 `compiler.py:722` `make_optimized_linalg` 的
+  `PassManager::run` 抛 `RuntimeError: PassManager::run failed`，原始 MLIR 报
+  `'tensor.expand_shape' op expected dimension 0 of collapsed type to be static value of 4`
+  （`AutoTileForTritonPass`，发生在 `genesis.num_stages = 2`、`linalg_ext.scatter`、
+  `tensor.extract_slice [4, %76]`、`tensor.expand_shape %81 [[0,1],[2]] output_shape [1,4,4096]`
+  的 bench 阶段，shape (15, 4096)、BLOCK_SIZE0=4 / BLOCK_SIZE1=4096、num_warps 4）。
+- **为什么 autotuner 救不了：** RuntimeError 在 triton `autotuner.py:160` `_bench` 内抛出，
+  但**不在** triton 的 `(OutOfResources, CompileTimeAssertionFailure, PTXASError)` catch 列表
+  → 无法转 `inf` 跳过该 config → 直接传播 → EngineCore 死。
+- **与 DB 中 inf 行的关系（已厘清，二者无关）：** `TunedConfig_cambricon_triton_3_4.db`
+  (15, 4096) 的 inf 行是 **ns=2 + b1=4096 的 NRAM 超限**（nw=4: 609024 / nw=1: 856400 >
+  MLU590 硬件上限 524288 → OutOfResources → 被 tuner 正确捕获记 inf），18 个 bench config
+  中其余 16 个 standalone 全部 PASS。expand_shape 崩溃是 **E2E 上下文专属**（inductor wrap +
+  BACKED dynamic shapes + VLLM_COMPILE=3），standalone 不触发。
+- **修复（两处，E2E 已验证）：** ① 过渡：`vllm_fl/dispatch/config/cambricon.yaml`
+  `flagos_blacklist: [index]`（与 `empty` 同机制：Priority 3 内建配置，回退 torch_mlu）。
+  ② 根因：**flag_gems PR #5510**（libentry `bench()` 将任意 `RuntimeError` 视为 inf
+  非候选，防后端编译 bug 杀进程；`_cambricon/tune_configs.yaml` index 块删
+  `BLOCK_SIZE1=4096`——该 config 是崩溃触发者，且 ns=2 下 4096 宽 tile 恒超 NRAM
+  本就不能赢）。**实测：** 去掉黑名单（`flagos_blacklist: []`）重启 serve 后，原崩溃
+  请求 200 返回正确输出，连续请求 EngineCore 存活、0 ERROR。黑名单在 #5510 随
+  flag_gems 发布前保留作过渡。
+- **遗留：** 原始 MLIR reproducer 已留存（容器 `/tmp/serve534_crash_index2.log`）。厂商
+  hand-off 文档（flag_gems/MLU Triton AutoTileForTritonPass expand_shape bug）待整理。
+
+
+
 ### Stack 验证（cambricon-neuware4.7.2，✅ E2E 通过 2026-08-08）
 
 ```
@@ -1127,7 +1168,9 @@ setuptools:   稳定（无降级）           ✅
 torch/torch_mlu: 2.11.0+cpu / 2.11.0  ✅  from 镜像
 vllm:         0.20.2+flagos          ✅  empty，cambricon 本地 build（cp312）
 vllm_fl:      0.2.0 + 3 patch        ✅  纯 Python（VENDOR_DEVICE_MAP / MLUGraph / —）
-flag_gems:    empty 内核黑名单        ✅  grid 上限规避（内建配置 cambricon.yaml，非 env）
+flag_gems:    5.3.4（empty 分块修复已含，见 PR #4435）  ✅  empty 黑名单已删；
+                                          index 根因修复已提 PR #5510（libentry 防护 +
+                                          删 b1=4096 调参项）；黑名单为过渡（发布前保留）
 MLU device:   ✅ MLU0 单卡           MLU590
 vllm import:  ✅
 vllm serve:   ✅  application startup complete（Qwen3-8B TP=1, max-len 4096, mem-util 0.85）
@@ -1136,15 +1179,16 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
                   POST /v1/chat/completions 200 OK，生成 ~4.3 tokens/s
 ```
 
-### plugin 侧修复（3 处，均容器内验证，PR 待提）
+### plugin 侧修复（3 处代码 + 2 次黑名单演进，均容器内验证，已入 PR #355）
 
 | 修复 | 文件 | 性质 |
 |---|---|---|
 | `VENDOR_DEVICE_MAP` 加 cambricon → mlu | `vllm_fl/utils.py:53` | plugin 未覆盖 cambricon（真实缺口） |
 | `Graph` 加 mlu → `torch.mlu.MLUGraph` 分支 | `vllm_fl/compilation/graph.py:52` | plugin `Graph` 无 mlu 分支（真实缺口） |
-| `empty` 内核黑名单（内建配置） | `dispatch/config/cambricon.yaml` `flagos_blacklist: [empty]` | flag_gems `empty` grid 超 MLU 65535 上限；回退 torch_mlu。定稿走 plugin 内建配置（非 env），文件名匹配 vendor_name=`cambricon` 才自动加载 |
+| 黑名单 `index`（内建配置；`empty` 已随 5.3.4 修复移除） | `dispatch/config/cambricon.yaml` `flagos_blacklist: [index]` | `index` op flagtune bench 时 expand_shape/AutoTileForTritonPass 崩溃（见 2026-08-15 复核）；回退 torch_mlu。**过渡**：根因已修 flag_gems PR #5510，发布前保留。`empty` 同机制黑名单于初验加入、5.3.4（PR #4435）落地后删除。定稿走 plugin 内建配置（非 env），文件名匹配 vendor_name=`cambricon` 才自动加载 |
 
-本地补丁副本：`/tmp/camb-patches/{utils.py,graph.py}`。serve 脚本：`/tmp/camb_serve6.sh`。
+本地补丁副本：`/tmp/camb-patches/{utils.py,graph.py}`。serve 脚本：
+`/tmp/camb_serve6.sh`（复核用 `/tmp/launch_serve534.sh`，日志 `/tmp/serve534.log`）。
 
 ### MLU590 约束记录
 
@@ -1157,13 +1201,18 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
-| 3 处修复对齐 Mac 源码并提 PR | ✅ 已提 | **PR #355**（flagos-ai/vllm-plugin-FL）：VENDOR_DEVICE_MAP cambricon→mlu + graph.py mlu→MLUGraph（2 处代码，通用缺口非 cambricon hack）+ `dispatch/config/cambricon.yaml`（`empty` 黑名单，内建配置非 env）。三处全部 E2E 验证 |
-| `empty` 黑名单固化 | ✅ 已入 PR #355 | 定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）；已容器验证不设 env 时 serve + 推理正常。根治方向（flag_gems 按 65535 上限分块）仍见下一行 |
-| flag_gems `empty` MLU grid 分块 | ✅ 上游已修（待发版） | **已存在** cambricon 专属 `_cambricon/ops/empty.py`（grid 上限 `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset），FlagGems **PR #4435**（2026-08-07 合入 master）。但**尚未进任何 tag**（v5.3.3 于 2026-08-06 早一天发布，5.4.0.dev0 也不含）。镜像现装 5.3.3 → 落到有 bug 的通用 `empty`。**根治 = flag_gems 升到含 #4435 的版本**，届时可去掉 `cambricon.yaml` 的 `empty` 黑名单。当前黑名单为正确的过渡措施 |
+| 3 处修复对齐 Mac 源码并提 PR | ✅ 已提 | **PR #355**（flagos-ai/vllm-plugin-FL）：VENDOR_DEVICE_MAP cambricon→mlu + graph.py mlu→MLUGraph（2 处代码，通用缺口非 cambricon hack）+ `dispatch/config/cambricon.yaml`（内建配置非 env）。三处全部 E2E 验证 |
+| `empty` 黑名单固化 → 2026-08-15 已随 5.3.4 移除 | ✅ 已入 PR #355 | 初验定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）。5.3.4 含 #4435 分块修复后，复核实测 `flagos_blacklist: []` serve + 推理正常 → PR 已删 `empty` 黑名单 |
+| `index` op 崩溃根因修复 | ✅ 已提 flag_gems PR #5510 | 两处：libentry `bench()` RuntimeError→inf 防护 + `_cambricon` index 调参删 `BLOCK_SIZE1=4096`。去黑名单 E2E 实测通过（首请求 200、EngineCore 存活）。发布前 plugin 黑名单保留作过渡 |
+| flag_gems `empty` MLU grid 分块 | ✅ 上游已修，已进 5.3.4 | **PR #4435**（2026-08-07 合入 master）cambricon 专属 `_cambricon/ops/empty.py`（grid 上限 `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset）。5.3.3 发布早于 #4435 故不含；2.1.2 镜像装 5.3.4 已含 → `empty` 黑名单删除且实测无回归 |
 | cambricon `+flagos` wheel 上架 per-vendor index | ✅ 已上传 | 4 个 wheel（vllm / xgrammar cp312 / compressed-tensors / opencv-headless）已上架 `flagos-pypi-cambricon`；不再依赖本地 wheel |
+| index expand_shape / AutoTileForTritonPass 厂商 hand-off | ⬜ 待整理 | flag_gems/MLU Triton 编译 bug（libentry 防护已绕开）；reproducer 已留存 `/tmp/serve534_crash_index2.log`，文档待补 |
 
-**相关提交：** 无落库（容器内改动 + 本地 build）。wheel 在 cambricon 镜像内从
-官方 tarball 重新 build + repack；plugin 3 处修复在容器可编辑安装内（Mac 源码待对齐）。
+**相关提交：** 2026-08-15 复核后 **PR #355 分支已更新**（`5dd5f7b`，仅 cambricon.yaml：
+删 `empty` 黑名单、加 `index` 黑名单）。**根因修复 = flag_gems PR #5510**
+（`fix/cambricon-index-expand-shape`：libentry RuntimeError 防护 + 删 `BLOCK_SIZE1=4096`），
+去黑名单 E2E 验证通过；PR #355 的 `index` 黑名单保留为过渡，待 #5510 随 flag_gems
+发布后删除。wheel 在 cambricon 镜像内从官方 tarball 重新 build + repack。
 
 
 ---
