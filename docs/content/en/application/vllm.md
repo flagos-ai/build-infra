@@ -20,6 +20,12 @@ weight: 10
  -->
 
 
+{{< alert context="danger" >}}
+🚧 **Under construction.** The vLLM app image is still being built and
+validated. It is **not yet published** — the content below documents work in
+progress, not a released product. Do not treat it as usable.
+{{< /alert >}}
+
 The **vLLM app image** is built on top of a `flagos-runtime` image and
 packages a ready-to-run vLLM server with vllm-plugin-FL.
 

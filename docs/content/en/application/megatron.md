@@ -20,6 +20,12 @@ weight: 20
  -->
 
 
+{{< alert context="danger" >}}
+🚧 **Under construction.** The Megatron app image is still being built and
+validated. It is **not yet published** — the content below documents work in
+progress, not a released product. Do not treat it as usable.
+{{< /alert >}}
+
 The **Megatron app image** is built on top of a `flagos-runtime` image and
 packages a usable megatron-core library for megatron-lm based training.
 

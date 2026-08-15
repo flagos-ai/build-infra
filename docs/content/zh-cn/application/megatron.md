@@ -20,6 +20,11 @@ weight: 20
  -->
 
 
+{{< alert context="danger" >}}
+🚧 **施工中。** Megatron 应用镜像仍在构建与验证阶段，**尚未发布**——下文内容记录的
+是进行中的工作，而非已发布的产品，请勿将其视为可用状态。
+{{< /alert >}}
+
 **Megatron 应用镜像**构建在 `flagos-runtime` 之上，打包可用的 megatron-core
 库，用于 megatron-lm 训练栈。
 
