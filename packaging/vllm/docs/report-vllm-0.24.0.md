@@ -116,17 +116,17 @@ curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
 | 3.7.2.1 + FlagTree | metax123 | 2.8.0 | flagtree **0.6.1+metax3.6**（triton 3.6.0 基座，最新版，见 §2.2.1） | ✅ 已验（2026-08-14） |
 | 3.7.2.1 + FlagTree（SDK 对齐版） | metax123 | 2.8.0 | flagtree 3.1.0+metax3.7.2.0 | ❌ 已弃用（2026-08-14 决定，见 §2.2.1） |
 | 3.7.2.1 + Triton | metax123 | 2.8.0 | triton 3.0.0+metax3.7.2.0 | ✅ 已验（§2.1，2026-08-13） |
-| 3.8.1.3 + FlagTree | metax124 | 2.10.0 | flagtree 0.6.1+metax3.6 | 未验 |
-| 3.8.1.3 + Triton | metax124 | 2.10.0 | triton 3.6.0+metax3.8.1.0 | 未验 |
+| 3.8.1.3 + FlagTree | metax124 | 2.10.0 | flagtree 0.6.1+metax3.6 | ✅ 已验（2026-08-15，见 §2.2.2） |
+| 3.8.1.3 + Triton | metax124 | 2.10.0 | triton 3.6.0+metax3.8.1.0 | ✅ 已验（2026-08-15，见 §2.2.2） |
 
 **顾虑：** §2.1 的修复大多针对 triton 3.0.0 特有行为（链式布尔、`_load_ptr` constexpr 元素类型、UVA CPU-typed 视图），3.8.1.3 是 triton 3.6.0 + flagtree 0.6.1，编译器行为可能不同（kunlunxin FlagTree 0.6.1 编译失败、sunrise FlagTree decode 卡死切 triton 均为先例）→ 插件侧 shim（§2.1 patch 清单）需逐环境重验，必要时按编译器 version-gate。**§2.2.1 已证 triton 3.6.0 基座（flagtree 0.6.1）上现有 shim 全部安全 no-op/兼容。**
 
 **TODO：**
 - [x] 3.7.2.1 + FlagTree 冒烟（serve + 推理）—— 用**最新版 0.6.1+metax3.6** 验证（§2.2.1），并作为默认编译器安装闭环
-- [ ] 预检 metax124：3.8.1.3 runtime（`:2.1.2` / `:2.1.2-build`，已有镜像）容器可启动（docker run + device 可见）；容器内两套编译器版本确认（`compiler` 函数 + `/opt/flagtree` + `/opt/triton`）；是否有 vllm 0.24.0 安装/验证痕迹
-- [ ] 3.8.1.3 + FlagTree 冒烟
-- [ ] 3.8.1.3 + Triton 冒烟
-- [ ] 每环境记录：编译器行为差异、插件 shim 是否需 version-gate/条件编译
+- [x] 预检 metax124：3.8.1.3 runtime（`:2.1.2` / `:2.1.2-build`，已有镜像）容器可启动（docker run + device 可见）；容器内两套编译器版本确认（`compiler` 函数 + `/opt/flagtree` + `/opt/triton`）；是否有 vllm 0.24.0 安装/验证痕迹
+- [x] 3.8.1.3 + FlagTree 冒烟（2026-08-15，见 §2.2.2）
+- [x] 3.8.1.3 + Triton 冒烟（2026-08-15，见 §2.2.2）
+- [x] 每环境记录：编译器行为差异、插件 shim 是否需 version-gate/条件编译（见 §2.2.2）
 - [x] 决定 flagtree 版本（2026-08-14）：**弃用 3.1.0，metax 全线用 0.6.1+metax3.6**。0.6.1 在 3.7.2.1 老 SDK 上零新增 patch 直接可用（§2.2.1），无需为 3.1.0 保留 patch #5/#6（triton 3.6.0 基座自带 kwarg + knobs）。configs.yaml 的 maca3.7.2.1 flagtree pin 已改为 0.6.1+metax3.6
 
 ### 2.2.1 metax123 3.7.2.1 + FlagTree 0.6.1（最新版，2026-08-14）
@@ -142,6 +142,25 @@ curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
 - triton 3.6.0 基座解决了 triton 3.0.0 上的全部 4 个编译/UVA 问题（链式布尔、constexpr 元素类型、UVA CPU-typed 视图）——若 3.8.1.3 两环境也走 0.6.1/3.6.0，§2.1 的 shim 可能整体可以收窄。
 - **决策（2026-08-14）：弃用 3.1.0，metax123 容器 `/opt/flagtree` 已替换为 0.6.1+metax3.6**——默认编译器路径（`PYTHONPATH=/opt/flagtree`，无覆盖）serve + 推理已验证（本节上文）；configs.yaml 的 maca3.7.2.1 flagtree pin 相应改为 `0.6.1+metax3.6`。为 3.1.0 写的插件 patch #5/#6（`do_not_specialize_on_alignment` + `knobs`）随 3.1.0 弃用而不再需要，但保留无害（version-gated，triton 3.6.0 上自动 no-op）。
 
+### 2.2.2 metax124 3.8.1.3（四环境矩阵收官，2026-08-15）
+
+**预检（环境盘点）：** 容器 `vllm-dbg-metax3813`（宿主机 metax124），8×C550 可见。环境：
+- torch **2.10.0+metax3.8.1.0**，vllm **0.24.0+flagos**（`/vllm-repack` 中，`pip show vllm` 可查，`python -c "import vllm; vllm.__version__"` 报 0.24.0+flagos）
+- `/opt/flagtree` = **0.6.1+metax3.6**（triton 3.6.0 基座）、`/opt/triton` = **3.6.0+metax3.8.1.0**（侧装）；`compiler` 函数两个都可用
+- pip 命名空间里的 triton = **3.7.1**（源码安装残留，serve 用 `/opt/triton` 的 PYTHONPATH 显式覆盖，**实际生效的是 3.6.0**——见下方坑）
+- 插件 @ **43edeb6（main）** + 本机未提交的 0.24.0 shim（`vllm024_compat.py` 等，provenance 见 §2.3）
+
+**FlagTree 冒烟（默认编译器路径）：** 端口 8033，`PYTHONPATH=/opt/flagtree` 前置，其余命令同 §2.1（Qwen3-4B、`--enforce-eager --dtype bfloat16`）。startup 干净无 crash，`/v1/completions` 输出与 triton 3.0.0 / 3.7.2.1 环境完全一致：`"The capital of France is"` → `" Paris. The capital of Germany is Berlin. The capital of Italy is Rome."`。**零新增 patch** —— §2.1 的 6 个 shim 在 3.6.0 基座上全部兼容（与 §2.2.1 结论一致）。
+
+**Triton 冒烟：** 端口 8034，`PYTHONPATH=/opt/triton` 前置（该 serve 由前序会话 2026-08-14 启动，本次直接复用）。输出与 FlagTree 冒烟完全一致。
+
+**坑（已解决）：GPU 显存碰撞。** flagtree serve 二次启动时 startup 报 `ValueError: Free memory on device cuda:0 (2.02/63.59 GiB) on startup is less than desired GPU memory utilization (0.92, 58.51 GiB)` —— 根因：上一次 flagtree serve 的 **孤儿 `VLLM::EngineCore` 进程**（bash -lc 脱管 spawn，`pkill -f "port 8033"` / `pkill -f api_server` 均抓不到，需 `ps aux | grep EngineCore` 按 pid 杀）独占 GPU 0 约 10GB 长达 26h。`kill -9` 该 pid 后显存释放（861/65536 MiB），relaunch 成功。**教训：杀 serve 后必须 `ps aux | grep -E "api_server|EngineCore"` 兜底，孤儿 EngineCore 只按 pid 杀。**
+
+**每环境记录（四环境矩阵收官）：**
+- 编译器行为差异：**3.8.1.3 两环境与 3.7.2.1 两环境输出完全一致，零新增 patch**。triton 3.0.0 特有的 4 个编译/UVA 问题（链式布尔、`_load_ptr` constexpr 元素类型、UVA CPU-typed 视图）在 3.6.0 基座上不存在；§2.1 的 shim 全部安全 no-op/兼容 —— 与 §2.2.1 的推断一致，**无需 per-环境 version-gate**。
+- **四环境矩阵全部 ✅**（3.7.2.1×2 + 3.8.1.3×2）：vllm 0.24.0+flagos 在 metax 全线的默认编译器路径（FlagTree 0.6.1）与 Triton 侧路径均已 serve + 推理验证。
+- 残留观察（不阻塞）：pip 命名空间 triton 3.7.1 与 `/opt/triton` 3.6.0 不一致，靠 PYTHONPATH 显式覆盖；若后续有人不设 PYTHONPATH 直接 `import triton` 会踩 3.7.1。可考虑在容器里 `pip uninstall triton` 收敛，待用户判断。
+
 ## 2.3 插件项目组自身的 0.24.0 适配（v0.3.0-dev 分支，⚠️ 与 #377 重叠）
 
 **背景：** vllm-plugin-FL 项目组在 **`v0.3.0-dev`** 分支自行做 vLLM 0.24.0 适配，与 main 在 #252 处**分叉、尚未合入 main**。适配主线：#274（`upgrade: vllm 0.20.2 -> 0.24.0`）、#294（`adapt(metax): MetaX C550 backend adaptation for vLLM 0.24.0`）、#308（musa MTT S5000）、#334（mtp in 0.24.0）、#338（CUDA stable-ABI wheels）、#346/#348。**这意味着 §2.1 验证用的插件基线（main + PR #377 patch）与项目组的正式适配线（v0.3.0-dev）是两条线。**
@@ -150,7 +169,7 @@ curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
 
 | 我们（#377，main） | 项目组（v0.3.0-dev） | 关系 |
 |---|---|---|
-| `vllm_fl/__init__.py` `_patch_torch_accelerator()` | `patches/accelerator_compat.py`（#294 新增；torch<2.9 版本守卫 + hasattr 权威守卫，引用 MetaX 上游 vLLM-metax 参考） | **功能重复**。dev 版本更严谨（有版本守卫），但缺 `reset_peak_memory_stats` 的 try/except 兜底（mtgpu allocator 初始化前显式传 device 报错，§2.1 差异 1） |
+| `vllm_fl/__init__.py` `_patch_torch_accelerator()` | `patches/accelerator_compat.py`（dev：torch<2.9 版本守卫 + hasattr 权威守卫 + 全 API 集，2026-08-15 拉取核验 ✓；main 上为遗留最小版：仅 `empty_cache` hasattr 守卫，#241 引入/#300 加头） | **功能重复**（两分支各自 patch torch.accelerator）。dev 版本更严谨（有版本守卫），但 `reset_peak_memory_stats` 是直接 setattr，**缺 try/except 兜底**（mtgpu allocator 初始化前显式传 device 报错，§2.1 差异 1）。**注意：torch 2.10+metax 上全部 API 原生存在（metax124 实测）→ 两 shim 均 no-op，reset 兜底只在 torch 2.8（3.7.2.1）生效** |
 | `fa_utils.py` → `from flag_gems import reshape_and_cache_flash`（empty wheel 无编译 `_C_cache_ops`） | dev `fa_utils.py` 仍 `ops.reshape_and_cache_flash` | **dev 未处理 empty wheel 场景** → dev 分支 + empty wheel 组合未验证（§2.1 crash #4 同因，0.20.2 #333 方案未 upstream） |
 | `patches/vllm024_compat.py`（_load_ptr constexpr / _penalties_kernel 链式布尔 / get_top_k_top_p + pool UVA，triton 3.0.0 特有） | dev 上**不存在** | 项目组未踩（编译器/验证路径不同）或另有解法 → 我们的 4 修复是否需 upstream 到 dev 待确认 |
 | — | `chunk_delta_h.py` USE_EXP2（#294；0.24.0 上游 kernel 签名新增 `USE_EXP2: tl.constexpr`） | 我们未遇到的坑，§2.1 验证路径未覆盖 |
