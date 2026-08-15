@@ -129,10 +129,9 @@ jobs:
           # inside this build; a failure here means the wheel is broken and
           # must not be published.
           #
-          # HTTPS_PROXY: the megatron source is cloned from github.com inside
-          # the build; CN runners can't reach it reliably, so route the clone
-          # through the HTTP_PROXY secret (exported as HTTPS_PROXY so git
-          # https:// traffic follows it). Never hardcoded.
+          # HTTPS_PROXY: route the github.com clone through the HTTP_PROXY
+          # secret (never hardcoded). aliyun/flagos/baai are bypassed inside
+          # the Containerfile's baked-in NO_PROXY.
           docker build \
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg EXTRA_PYPI="${EXTRA_PYPI}" \
