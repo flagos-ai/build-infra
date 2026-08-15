@@ -33,16 +33,21 @@ title: "iluvatar-corex4.4.0"
 
 ### Python
 
-3.10
+3.12
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.4`
+- `flagtree==0.6.1+iluvatar3.6`
 - `numpy==1.26.4`
 - `torch==2.7.1+corex.4.4.0`
 - `torchaudio==2.7.1+corex.4.4.0`
 - `torchvision==0.22.1+corex.4.4.0`
-- `triton==3.1.0+corex.4.4.0`
+- <span class="muted"><code class="plain">triton==3.1.0+corex.4.4.0</code></span>
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Launch
 

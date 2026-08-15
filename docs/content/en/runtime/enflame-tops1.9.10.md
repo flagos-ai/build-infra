@@ -37,7 +37,7 @@ title: "enflame-tops1.9.10"
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.4`
 - `flagtree==0.6.0+enflame3.6`
 - `flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506`
 - `pyefml==1.9.10`
@@ -54,7 +54,8 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 ## Environment
 
 - `TORCH_GCU_ENABLE_INT64_AND_UINT64=1`
-- `ENABLE_I64_CHECK=1`
+- `ENABLE_I64_CHECK=0`
+- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`
 
 ## Launch
 

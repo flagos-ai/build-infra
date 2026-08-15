@@ -33,16 +33,21 @@ title: "iluvatar-corex4.4.0"
 
 ### Python
 
-3.10
+3.12
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.4`
+- `flagtree==0.6.1+iluvatar3.6`
 - `numpy==1.26.4`
 - `torch==2.7.1+corex.4.4.0`
 - `torchaudio==2.7.1+corex.4.4.0`
 - `torchvision==0.22.1+corex.4.4.0`
-- `triton==3.1.0+corex.4.4.0`
+- <span class="muted"><code class="plain">triton==3.1.0+corex.4.4.0</code></span>
+
+### 切换编译器
+
+本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
 
 ## 启动
 
