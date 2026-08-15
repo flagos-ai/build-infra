@@ -317,6 +317,7 @@ vendors:
       triton: triton==3.3.0+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.6.1+hcu3.6
       deps:
+        - flash_attn==2.8.3+das.opt1.dtk2604.torch290
         - torch==2.9.0+das.opt1.dtk2604
         # torch built against the numpy 1.x C ABI
         # opencv-python-headless declares numpy>=2, but that is a pkg declaration only.
