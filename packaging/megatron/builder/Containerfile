@@ -67,6 +67,8 @@ ARG MLF_VERSION=
 # the clone RUN below).
 ARG HTTPS_PROXY=
 
+ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
+
 COPY stamp_version.py /usr/local/bin/stamp_version.py
 
 # ── Build deps for megatron.core.datasets.helpers_cpp ─────────────────
