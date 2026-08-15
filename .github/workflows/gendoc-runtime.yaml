@@ -25,6 +25,19 @@ name: Generate docs for runtime images
 
 on:
   workflow_dispatch:
+    inputs:
+      verify_ok:
+        description: 'Backends passed e2e verification (shown in PR body)'
+        type: number
+        default: 0
+      verify_fail:
+        description: 'Backends failed e2e verification (shown in PR body)'
+        type: number
+        default: 0
+      verify_skip:
+        description: 'Backends skipped e2e verification (shown in PR body)'
+        type: number
+        default: 0
 
 permissions:
   contents: write
@@ -69,10 +82,17 @@ jobs:
           git config user.name flagos-ci
           git config user.email noreply@flagos.net
 
-          LABEL=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo latest)
+          # Label = configs.yaml version (the single source of truth), not the
+          # last git tag — tags are only cut at RELEASE.md step 9 after the
+          # stack is verified, so git describe would resolve to the previous
+          # release (e.g. "2.1.1") mid-cycle. Matches gendoc-base.yaml.
+          LABEL="$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo latest)"
+          COUNT=$(ls runtime/*.md | wc -l | tr -d ' ')
           python3 scripts/finalize_descriptions.py \
             --mode runtime \
             --done true \
-            --count 14 \
+            --count "$COUNT" \
             --label "$LABEL" \
-            --verify-ok 0 --verify-fail 0 --verify-skip 0
+            --verify-ok "${{ inputs.verify_ok }}" \
+            --verify-fail "${{ inputs.verify_fail }}" \
+            --verify-skip "${{ inputs.verify_skip }}"
