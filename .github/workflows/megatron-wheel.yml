@@ -53,7 +53,7 @@ on:
         type: string
         default: main
       mlf_version:
-        description: 'Wheel version override (blank = repo version, e.g. 0.17.1.post20260812)'
+        description: 'Wheel version override (e.g. 0.17.1+fl.0.2.0 for a release build); blank = auto-derived commit provenance 0.17.1+fl.<date>.g<sha>'
         type: string
         default: ''
       upload:

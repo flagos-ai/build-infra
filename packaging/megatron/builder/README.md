@@ -77,7 +77,7 @@ docker build \
 cid=$(docker create megatron-wheel:hygon-dtk26.04)
 docker cp $cid:/wheels/. ./wheels
 docker rm $cid
-ls wheels/*.whl   # megatron_core-0.17.1-cp310-cp310-linux_x86_64.whl
+ls wheels/*.whl   # megatron_core-0.17.1+fl.20260814.gba22f6b673f3-cp310-cp310-linux_x86_64.whl (date+sha = cloned commit)
 ```
 
 Useful build args:
@@ -88,11 +88,15 @@ Useful build args:
 | `EXTRA_PYPI`   | `https://mirrors.aliyun.com/pypi/simple` | CN mirror for build deps                 |
 | `MLF_REPO`     | `https://github.com/flagos-ai/Megatron-LM-FL.git` | Source repo                  |
 | `MLF_REF`      | `main`                               | Branch or tag to build                        |
-| `MLF_VERSION`  | *(blank)*                            | Optional wheel-version override (e.g. `0.17.1.post20260812`); blank = the repo's own version (`0.17.1`) |
+| `MLF_VERSION`  | *(blank)*                            | Wheel-version override (e.g. `0.17.1+fl.0.2.0` for a release build); blank = auto-derived commit provenance `0.17.1+fl.<date>.g<sha>` |
 
 The Containerfile: clones the fork, **patches `requires-python` on the fly**
-(`>=3.12` → `>=3.10`, see below), optionally stamps `MLF_VERSION` into
-`megatron/core/package_info.py` (`stamp_version.py`), installs the missing build
+(`>=3.12` → `>=3.10`, see below), stamps the wheel version into
+`megatron/core/package_info.py` (`stamp_version.py`) — by default the
+**commit-level provenance label** `0.17.1+fl.<date>.g<sha>` (public part =
+upstream megatron-core version, `fl.<date>.g<sha>` = the fork commit's date and
+the exact commit cloned; PEP 440 ignores local labels in `==0.17.1` matching,
+so existing pins keep resolving) — installs the missing build
 deps into the runtime venv, builds with `pip wheel . --no-deps
 --no-build-isolation` (no uv, no lock file; `--no-deps` here means "don't build
 torch from PyPI", it is not an install), then runs two gates:
@@ -152,5 +156,5 @@ build image — proof that the install is inert before the wheel is published.
 - Verify (after `source /opt/dtk-26.04/env.sh` on hygon):
 
   ```bash
-  python -c "import megatron.core; print(megatron.core.__version__)"   # 0.17.1
+  python -c "import megatron.core; print(megatron.core.__version__)"   # 0.17.1+fl.20260814.gba22f6b673f3
   ```

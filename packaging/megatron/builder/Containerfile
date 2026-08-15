@@ -56,8 +56,9 @@ ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
 # Megatron-LM-FL source (branch or tag — --branch clone below).
 ARG MLF_REPO=https://github.com/flagos-ai/Megatron-LM-FL.git
 ARG MLF_REF=main
-# Optional wheel-version override (e.g. 0.17.1.post20260812); blank = the
-# repo's own version (0.17.1). Handled by stamp_version.py.
+# Optional wheel-version override (e.g. 0.17.1+fl.0.2.0 for a release build);
+# blank = auto-derive commit-level provenance (0.17.1+fl.<date>.g<commit-sha>)
+# from the cloned checkout. Handled by stamp_version.py.
 ARG MLF_VERSION=
 
 # Outbound proxy for the git clone (CN runners can't reach github.com
@@ -117,7 +118,7 @@ RUN cd /opt/megatron-lm-fl \
     && grep -n 'requires-python' pyproject.toml \
     && grep -q 'requires-python = ">=3.10"' pyproject.toml
 
-# Optional wheel-version stamp (no-op when MLF_VERSION is blank).
+# Optional wheel-version stamp (blank MLF_VERSION = auto-derive provenance).
 RUN MLF_VERSION="${MLF_VERSION}" python /usr/local/bin/stamp_version.py
 
 # Build the wheel. --no-build-isolation uses the build deps installed above
