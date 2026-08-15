@@ -61,6 +61,7 @@ MODE_CONFIG = {
             "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
         ),
         "commit_msg": "docs(base): refresh image descriptions for {label}",
+        "workflow": "gendoc-base.yaml",
     },
     "runtime": {
         "add_paths": [
@@ -76,6 +77,7 @@ MODE_CONFIG = {
             "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
         ),
         "commit_msg": "docs(runtime): refresh image descriptions for {label}",
+        "workflow": "gendoc-runtime.yaml",
     },
 }
 
@@ -189,6 +191,7 @@ def _finalize(args) -> None:
 
 def _retry(args) -> None:
     """Self-trigger the workflow for missing backends."""
+    cfg = MODE_CONFIG[args.mode]
     missing = args.missing.strip()
     retry = args.retry
     max_retries = args.max_retries
@@ -222,7 +225,7 @@ def _retry(args) -> None:
     # display name ("Generate docs for base images") has changed before and
     # silently broke the retry loop.
     subprocess.run(
-        ["gh", "workflow", "run", "gendoc-base.yaml",
+        ["gh", "workflow", "run", cfg["workflow"],
          "-f", f"backend={missing}", "-f", f"retry_count={next_retry}"],
         check=True, cwd=REPO_ROOT,
     )
