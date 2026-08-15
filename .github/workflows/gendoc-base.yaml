@@ -21,17 +21,17 @@ name: Generate docs for base images
 # Separate from the build (per the design): version extraction needs the built
 # image, and keeping this out of the build workflow keeps both simpler.
 #
-# Transport: extract jobs push TSV files via git to per-backend branches
-# (auto/versions-<label>/<backend>) instead of using upload-artifact, which
-# reliably hangs through HTTP_PROXY on some self-hosted runners.
-# Accumulate fetches all per-backend branches, merges them, and saves the
-# cumulative set to a state branch.
+# Transport: each extract job annotates its TSV with metadata headers (run id,
+# verify outcome, OCI labels) via scripts/annotate_version_tsv.py, then uploads
+# it as a per-backend artifact (versions-<backend>) with upload-artifact.
+# Accumulate downloads all matching artifacts with download-artifact, merges
+# them, and saves the cumulative set to a git state branch
+# (auto/versions-<label>-state) so retries don't lose already-collected data.
 #
 # Self-healing: self-hosted runner connectivity to GitHub is unreliable across
-# vendors. Each extract job retries checkout 3× at the step level (10s / 15s
-# backoff). The accumulate job collects whatever extractors succeed, saves partial
-# results to a state branch, then self-triggers with only the missing backends.
-# This loops until all 14 are collected or the retry cap (50) is hit.
+# vendors. The accumulate job collects whatever extractors succeed, saves partial
+# results to the state branch, then self-triggers with only the missing backends.
+# This loops until all are collected or the retry cap (50) is hit.
 
 on:
   workflow_dispatch:
@@ -80,21 +80,6 @@ jobs:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
 
-      # On a fresh run (not a retry), delete all stale branches and saved
-      # state from a previous cycle so no stale TSV data leaks into the
-      # current collection. Retries preserve existing state.
-      - name: Cleanse stale version branches (fresh run only)
-        if: ${{ (github.event.inputs.retry_count || '0') == '0' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          for ref in $(git ls-remote --heads origin 'refs/heads/auto/versions*' | awk '{print $2}'); do
-            branch="${ref#refs/heads/}"
-            echo "Cleaning stale branch: $branch"
-            git push origin --delete "$branch" 2>/dev/null || true
-          done
-        continue-on-error: true
-
       - id: m
         env:
           BACKEND: ${{ github.event.inputs.backend || 'all' }}
@@ -118,28 +103,6 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runson) }}
     steps:
       - uses: actions/checkout@v7
-        id: c1
-        continue-on-error: true
-        with:
-          fetch-depth: 0
-
-      - name: Wait before retry
-        if: steps.c1.outcome == 'failure'
-        run: sleep 10
-
-      - uses: actions/checkout@v7
-        id: c2
-        if: steps.c1.outcome == 'failure'
-        continue-on-error: true
-        with:
-          fetch-depth: 0
-
-      - name: Wait before final retry
-        if: steps.c2.outcome == 'failure'
-        run: sleep 15
-
-      - uses: actions/checkout@v7
-        if: steps.c2.outcome == 'failure'
         with:
           fetch-depth: 0
 
@@ -147,13 +110,6 @@ jobs:
         run: |
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
-
-      - name: Delete stale version branch
-        if: always()
-        run: |
-          label="$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')"
-          git push origin --delete "auto/versions-${label}/${{ matrix.name }}" 2>/dev/null || true
-          echo "Cleared auto/versions-${label}/${{ matrix.name }}"
 
       - name: Harbor login (for image pull)
         env:
@@ -197,8 +153,15 @@ jobs:
           mkdir -p versions
           echo "${{ steps.verify.outcome }}" > "versions/${{ matrix.name }}.verify_outcome"
 
-      - name: Push version TSV via git
-        run: python3 scripts/upload_version_tsv.py "${{ matrix.name }}" versions
+      - name: Annotate version TSV
+        run: python3 scripts/annotate_version_tsv.py "${{ matrix.name }}" versions
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: versions-${{ matrix.name }}
+          path: versions/${{ matrix.name }}.tsv
+          if-no-files-found: warn
 
   accumulate:
     needs: [set-matrix, extract]
@@ -222,20 +185,20 @@ jobs:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
 
-      - name: Fetch version TSVs from extract jobs
-        env:
-          SCOPE: ${{ github.event.inputs.backend || 'all' }}
-        run: |
-          if [[ "${SCOPE}" == "all" ]]; then
-            python3 scripts/fetch_version_tsvs.py versions-remote
-          else
-            python3 scripts/fetch_version_tsvs.py versions-remote --expected "${SCOPE}"
-          fi
+      # merge-multiple flattens the per-backend artifact contents into
+      # versions-dl/<backend>.tsv, which collect_version_tsvs.py reads.
+      - name: Download version artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          path: versions-dl
+          pattern: versions-*
+          merge-multiple: true
 
       # Restore previously-collected TSVs from the state branch so that
       # backends not refreshed this retry retain their data across runs.
       # On retry=0 the state branch doesn't exist yet — that's fine, we
-      # start fresh (set-matrix already cleansed stale branches).
+      # start fresh.
       # For scoped runs, only restore TSVs for the backends being collected.
       - name: Restore state from previous retries
         env:
@@ -268,7 +231,7 @@ jobs:
 
       # collect: merge TSVs → check completeness.
       # State was restored above; this step overwrites any stale entries
-      # with freshly-fetched data. Always exits 0 — the next step
+      # with freshly-downloaded data. Always exits 0 — the next step
       # (Finalize or Retry) acts on the done/missing outputs.
       - id: collect
         env:
@@ -288,7 +251,7 @@ jobs:
             EXPECTED="${SCOPE}"
           fi
           result=$(python3 scripts/collect_version_tsvs.py \
-            --versions versions --remote versions-remote \
+            --versions versions --remote versions-dl \
             --retry "${RETRY_COUNT:-0}" \
             --expected "${EXPECTED}")
           echo "$result"
@@ -322,7 +285,7 @@ jobs:
           fi
 
           # Stage all TSV files so write-tree captures them (collect step
-          # copies them from versions-remote/ — they are untracked).
+          # copies them from versions-dl/ — they are untracked).
           git add -f versions/*.tsv 2>/dev/null || true
 
           # Build a tree of the versions/ directory contents, then wrap it
@@ -360,7 +323,7 @@ jobs:
         run: |
           # collect poisons the index (git add -f versions/); unstage it.
           git restore --staged .
-          git clean -fd -- versions-remote 2>/dev/null || true
+          git clean -fd -- versions-dl 2>/dev/null || true
 
           python3 scripts/finalize_descriptions.py \
             --mode base \

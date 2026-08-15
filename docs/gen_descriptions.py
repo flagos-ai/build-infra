@@ -191,7 +191,7 @@ def load_versions(versions_dir: Path | None, name: str) -> dict:
 def load_meta(versions_dir: Path | None, name: str) -> dict:
     """Build provenance from the ``# header`` lines of <name>.tsv.
 
-    upload_version_tsv.py prepends ``# run:``, ``# verify:`` and, when
+    annotate_version_tsv.py prepends ``# run:``, ``# verify:`` and, when
     present, ``# last_updated:`` / ``# revision:`` (from the image's OCI
     labels, via extract_versions.py). Returns the last two, which the
     description renders as a "Last updated" line.

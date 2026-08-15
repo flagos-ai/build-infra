@@ -75,7 +75,7 @@ def main():
     # the runner may have a stale cache from a previous build cycle.
     subprocess.run(["docker", "pull", image], check=True, capture_output=True)
 
-    # Record the build provenance labels (written by upload_version_tsv.py
+    # Record the build provenance labels (written by annotate_version_tsv.py
     # into the TSV headers, then rendered by gen_descriptions.py).
     labels = image_labels(image)
     (out_dir / f"{name}.labels").write_text(
