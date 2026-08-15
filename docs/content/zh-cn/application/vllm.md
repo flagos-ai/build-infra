@@ -20,6 +20,11 @@ weight: 10
  -->
 
 
+{{< alert context="danger" >}}
+🚧 **施工中。** vLLM 应用镜像仍在构建与验证阶段，**尚未发布**——下文内容记录的是
+进行中的工作，而非已发布的产品，请勿将其视为可用状态。
+{{< /alert >}}
+
 **vLLM 应用镜像**构建在 `flagos-runtime` 之上，打包一个可运行的 vLLM 服务
 与 vllm-plugin-FL 插件。
 
