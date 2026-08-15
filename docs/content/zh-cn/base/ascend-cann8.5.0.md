@@ -58,6 +58,7 @@ title: "ascend-cann8.5.0"
 
 - CANN Toolkit 8.5.0 (aarch64)
 - CANN 910B Ops 8.5.0 (aarch64)
+- CANN NNAL 8.5.0 (aarch64)
 
 ## 启动
 
@@ -91,4 +92,4 @@ docker run --rm -it \
 npu-smi info
 ```
 
-*更新时间: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*更新时间: 2026-08-11 01:04:24 · `3eca2bf66bfc`*

@@ -28,6 +28,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libopenmpi-dev` — 4.1.2
 - `libpython3-dev` — 3.10.6
 - `openmpi-bin` — 4.1.2
+- `unzip` — 6.0
 - `vim` — 8.2.3995
 
 ### SDK components
@@ -71,4 +72,4 @@ Inside the container, confirm the accelerator is visible:
 mthreads-gmi
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*

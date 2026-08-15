@@ -44,6 +44,7 @@ Explicitly installed; the version is the one baked into this image:
 - `git` — 2.34.1
 - `make` — 4.3
 - `pciutils` — 3.7.0
+- `unzip` — 6.0
 - `vim` — 8.2.3995
 
 ### SDK components
@@ -85,4 +86,4 @@ Inside the container, confirm the accelerator is visible:
 xpu-smi
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*

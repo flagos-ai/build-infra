@@ -48,6 +48,7 @@ Explicitly installed; the version is the one baked into this image:
 - `libpython3-dev` — 3.12.3
 - `libunwind8` — 1.6.2
 - `sudo` — 1.9.15p5
+- `unzip` — 6.0
 - `vim` — 9.1.0016
 
 ### SDK components
@@ -99,4 +100,4 @@ Inside the container, confirm the accelerator is visible:
 tsm_smi
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
