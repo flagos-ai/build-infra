@@ -111,7 +111,7 @@ vllm 顶层的依赖声明相应改成 `==X.Y.Z+flagos`，单步安装时命中�
    修：插件的 import 改成 version-gate —— 0.24 前走旧路径、0.24 起走新路径，同一份代码两边兼容。
 
 3. **triton 3.0.0 的一个类型处理 bug：`_load_ptr` 收到 constexpr 元素类型就拒绝**（`element_ty is a constexpr.`）。0.24 恰好有一个内核把 `tl.int32` 传进去当元素类型，触发。
-   修：`elem_dtype = elem_dtype.value` 无条件解包。**注意：不能用 `isinstance(elem_dtype, tl.constexpr)` 当守卫** —— triton 在调用内建函数前会先解包 constexpr 实参，这个判断恒为 False（0.24 上游源码正是这么写的，照抄必挂）。
+   修：`elem_dtype = elem_dtype.value` 无条件解包。**注意：不能用 `isinstance(elem_dtype, tl.constexpr)` 当判断依据** —— triton 在调用内建函数前会先解包 constexpr 实参，这个判断恒为 False（0.24 上游源码正是这么写的，照抄必挂）。
 
 4. **empty wheel 缺一个编译算子 `reshape_and_cache_flash`**（在 `_C_cache_ops` 里，empty 构建没有）→ 首次推理（KV-cache 预热）AttributeError。
    修：改用 `from flag_gems import reshape_and_cache_flash`（纯 Python 实现，签名逐参吻合）。**这是 0.20.2 #333 的同款问题**，但 0.24 的插件没带上这个修复，得在插件侧再打一遍（详 §6：dev 分支同样没带）。
@@ -174,7 +174,7 @@ vllm-plugin-FL 项目组在 **`v0.3.0-dev`** 分支上自己做了 vLLM 0.24.0 �
 
 | 我们（main + #377） | 项目组（v0.3.0-dev） | 关系 |
 |---|---|---|
-| `_patch_torch_accelerator()`（在 `__init__.py`） | `accelerator_compat.py` | **功能重复**：两边各写了一份 torch.accelerator 补丁。dev 版更严谨（有 torch<2.9 版本守卫 + 全 API 集；main 上是遗留的最小版，只有 `empty_cache` 一个守卫），但 dev 版的 `reset_peak_memory_stats` 是直接赋值，**缺我们的 try/except 兜底**（torch 2.8 上 mtgpu 显式传 device 会报错）。**注意：torch 2.10+metax 上这些 API 原生齐全（实测）→ 两版 shim 都 no-op，兜底只在 torch 2.8（老 SDK）生效。** |
+| `_patch_torch_accelerator()`（在 `__init__.py`） | `accelerator_compat.py` | **功能重复**：两边各写了一份 torch.accelerator 补丁。dev 版更严谨：先判断 torch 版本（<2.9 才动手）、再逐个查 API 在不在（缺才补）、补全了 6 个 API；main 上是早期写的老代码，只补了 `empty_cache` 一个。但 dev 版的 `reset_peak_memory_stats` 是直接赋值，**缺我们的 try/except 兜底**（torch 2.8 上 mtgpu 显式传 device 会报错）。**注意：torch 2.10+metax 上这些 API 原生齐全（实测）→ 两版补丁都不会触发，兜底只在 torch 2.8（老 SDK）生效。** |
 | `fa_utils.py` 改用 `flag_gems` 的 `reshape_and_cache_flash` | dev 仍用 `ops.reshape_and_cache_flash` | **dev 没处理 empty wheel 场景** → dev 分支 + empty wheel 组合未验证（问题 4 同因，0.20.2 #333 的修法没 upstream 过去） |
 | `vllm024_compat.py`（问题 3/5/6 的 4 个补丁） | dev 上不存在 | 项目组没踩到（编译器/验证路径不同）或另有解法 → 我们的 4 个修复要不要 upstream 到 dev，待确认 |
 | — | `chunk_delta_h.py` 的 USE_EXP2（0.24.0 上游内核签名新增的参数） | 我们没遇到的坑，验证路径未覆盖 |
@@ -190,7 +190,7 @@ vllm-plugin-FL 项目组在 **`v0.3.0-dev`** 分支上自己做了 vLLM 0.24.0 �
 
 ## 7. 遗留事项
 
-- [ ] `setuptools 84.0.0` 超 pyproject `<81` 要求（§2）—— 非致命，保持观察。
+- [ ] `setuptools 84.0.0` 超 pyproject `<81` 要求（§2）—— 非致命，先不动，留意。
 - [ ] metax124 容器 pip 命名空间 triton 3.7.1 残留（§5）—— 是否 `pip uninstall` 收敛，待定。
 - [ ] 0.24.0 其余后端（nvidia、mthreads、hygon、iluvatar、enflame、sunrise 等）的验证 —— 本报告只覆盖 metax。
 
