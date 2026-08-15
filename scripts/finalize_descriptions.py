@@ -95,16 +95,6 @@ def _gh(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def _cleanup_per_backend_branches(label: str) -> None:
-    """Delete all ``auto/versions-<label>/<backend>`` branches."""
-    prefix = f"refs/heads/auto/versions-{label}/"
-    r = _git("ls-remote", "--heads", "origin", f"{prefix}*", check=False)
-    for line in r.stdout.strip().splitlines():
-        ref = line.split()[1]
-        branch = ref[len("refs/heads/"):]
-        _git("push", "origin", "--delete", branch, check=False)
-
-
 def _cleanup_state_branch(label: str) -> None:
     _git("push", "origin", "--delete", f"auto/versions-{label}-state", check=False)
 
@@ -158,7 +148,6 @@ def _finalize(args) -> None:
         # Clean up the stale PR branch from a previous run as well.
         _git("push", "origin", "--delete", f"{cfg['pr_prefix']}-{label}", check=False)
         _cleanup_state_branch(label)
-        _cleanup_per_backend_branches(label)
         return
 
     pr_branch = f"{cfg['pr_prefix']}-{label}"
@@ -195,7 +184,6 @@ def _finalize(args) -> None:
         )
 
     _cleanup_state_branch(label)
-    _cleanup_per_backend_branches(label)
     print("Done.")
 
 
@@ -214,7 +202,6 @@ def _retry(args) -> None:
     # transient one-off). Retrying all 14 backends is pointless.
     if args.count == 0 and retry == 0:
         print("::error::0 backends collected — systemic failure, not retrying")
-        _cleanup_per_backend_branches(label)
         _cleanup_state_branch(label)
         sys.exit(1)
 

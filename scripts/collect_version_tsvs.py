@@ -17,16 +17,16 @@
 """Collect version TSVs from extract jobs into ``versions/``.
 
 The ``accumulate`` job manages state persistence across retries via a git
-state branch (``auto/versions-<label>``). On retry>0 it restores the state
-branch into ``versions/`` *before* calling this script. On retry=0
-``versions/`` starts empty — the cleanse step in the workflow has already
-deleted any stale branches from a previous cycle.
+state branch (``auto/versions-<label>-state``). On retry>0 it restores the
+state branch into ``versions/`` *before* calling this script. On retry=0
+``versions/`` starts empty.
 
-This script always merges freshly-fetched TSVs from the remote directory
-(produced by ``fetch_version_tsvs.py``) into ``versions/``, overwriting any
-previously-collected entries for backends that just produced fresh data.
+This script always merges freshly-downloaded TSVs from the remote directory
+(produced by the accumulate job's ``download-artifact`` step) into
+``versions/``, overwriting any previously-collected entries for backends
+that just produced fresh data.
 
-Each TSV carries two metadata headers prepended by ``upload_version_tsv.py``::
+Each TSV carries metadata headers prepended by ``annotate_version_tsv.py``::
 
     # run: <github_run_id>
     # verify: success|failure|skipped
@@ -59,8 +59,8 @@ def _label() -> str:
     """Version label from configs.yaml ``version:``, e.g. ``2.1.2``.
 
     Mirrors scripts/version.py so the descriptions PR title/branch and the
-    auto/versions-<label> transport branches track the release's target
-    version rather than the last git tag (which is only cut at release end).
+    auto/versions-<label>-state branch track the release's target version
+    rather than the last git tag (which is only cut at release end).
     """
     import yaml
     cfg = REPO_ROOT / "configs.yaml"
@@ -127,9 +127,10 @@ def main() -> None:
     # retry>0) and merges any freshly-fetched TSVs into it.
     versions_dir.mkdir(parents=True, exist_ok=True)
 
-    # Merge TSVs from per-backend branches. On retry, previously-collected
-    # backends are still present as per-backend branches (fetch_version_tsvs
-    # discovers all of them), so we always merge the full set from remote.
+    # Merge TSVs from the downloaded artifacts. On retry, previously-collected
+    # backends are restored from the state branch by the workflow before this
+    # script runs, and download-artifact fetches the fresh per-backend ones,
+    # so we always end up with the full set.
     prev = len(list(versions_dir.glob("*.tsv"))) if retry > 0 else 0
     for tsv in remote_dir.glob("*.tsv"):
         shutil.copy2(tsv, versions_dir / tsv.name)
