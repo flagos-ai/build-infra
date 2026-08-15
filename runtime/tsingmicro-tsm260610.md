@@ -17,13 +17,13 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
-- `flagtree==0.5.0+2026071713.git2b23e6d1`
+- `flag_gems==5.3.4`
+- `flagtree==0.6.1+tsingmicro3.3`
 - `numpy==2.2.6`
-- `torch==2.7.0+cpu`
+- `torch==2.11.0+cpu`
 - `torch_txda==0.1.0+20260728.f6fbdb71`
-- `torchaudio==2.7.0+cpu`
-- `torchvision==0.22.0+cpu`
+- `torchaudio==2.11.0+cpu`
+- `torchvision==0.26.0+cpu`
 - `triton==3.6.0.post2026072919+git8f5b0609` *(alternative)*
 - `txops==0.1.0+20260716.e94d9509`
 

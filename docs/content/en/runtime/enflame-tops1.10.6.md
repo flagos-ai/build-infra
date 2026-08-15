@@ -38,7 +38,8 @@ title: "enflame-tops1.10.6"
 ### Major Python packages
 
 - `enflame-modelopt==3.6.20260615+torch.2.11.0`
-- `flag_gems==5.3.2`
+- `flag_gems==5.3.4`
+- `flagtree==0.6.1+enflame3.6`
 - `flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706`
 - `numpy==2.3.5`
 - `pyefml==1.10.6`
@@ -49,13 +50,18 @@ title: "enflame-tops1.10.6"
 - `torchaudio==2.11.0+cpu`
 - `torchcodec==3.8.20260624+torch.2.11.0`
 - `torchvision==0.26.0+cpu`
-- `triton==3.6.0 (+ triton-gcu==3.6.0+1.0.20260722)`
+- <span class="muted"><code class="plain">triton==3.6.0 (+ triton-gcu==3.6.0+1.0.20260722)</code></span>
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
 ## Environment
 
 - `TORCH_GCU_ENABLE_INT64_AND_UINT64=1`
-- `ENABLE_I64_CHECK=1`
+- `ENABLE_I64_CHECK=0`
 - `TORCHGCU_INDUCTOR_ENABLE=1`
+- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`
 
 ## Launch
 

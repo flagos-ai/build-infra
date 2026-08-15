@@ -17,8 +17,8 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.2`
-- `flagtree==0.5.1+hcu3.1`
+- `flag_gems==5.3.4`
+- `flagtree==0.6.1+hcu3.6`
 - `numpy==1.26.4`
 - `torch==2.9.0+das.opt1.dtk2604`
 - `triton==3.3.0+das.opt1.dtk2604.torch290` *(alternative)*
