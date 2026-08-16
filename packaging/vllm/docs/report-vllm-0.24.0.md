@@ -377,11 +377,82 @@ build-infra 验证用的基线是 main + PR #377，vllm-plugin-FL 的正式适�
 
 ---
 
-## 8. 遗留事项
+## 8. mthreads（MUSA 5.2.0）详细记录
+
+- 节点：`mthreads`（JumpServer → 10.121.38.24），用户 `secure`
+- 容器：`vllm-verify-mthreads-musa5.2.0`，MUSA SDK 5.2.0
+- venv：`/flagos`（cpython-3.10 —— MUSA 路径走 cp310 wheel，区别于 NVIDIA 的 cp312）
+- 模型：`/data/DeepSeek-R1-0528-Qwen3-8B-FlagOS`
+- 端口：8031
+
+### 8.1 构建 + 安装
+
+- **pin_indirect 落地**：`packaging/vllm/config.yaml` 增加
+  `pin_indirect: {xgrammar: "0.2.3"}`。0.24.0 对 xgrammar 的自身依赖自相矛盾
+  （0.2.5 需要 torch/transformers 版本约束在 Runtime 矩阵上无法满足），
+  xgrammar 锁到 0.2.3（`transformers>=4.38.0`，无上界，兼容 transformers 5.15.0），
+  repack 后 METADATA 为 `xgrammar==0.2.3+flagos`。
+- **单步安装**（厂商索引 + 阿里云镜像 extra）：
+  `/flagos/bin/pip install --index-url
+  https://resource.flagos.net/repository/flagos-pypi-mthreads/simple/
+  --extra-index-url https://mirrors.aliyun.com/pypi/simple vllm==0.24.0+flagos`
+  ✅ 通过，命中 `+flagos` wheel，无 torch 侧漏。
+
+### 8.2 插件 0.24.0 drift 修复（vllm-plugin-FL，需合入插件仓库）
+
+MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend `mccl`），
+0.24.0 的上游重构让插件暴露 8 处不兼容，逐一修复：
+
+1. **`InputBatch.__init__` 签名变化**（`model_runner.py` 两处调用点）：
+   0.24.0 删除 `pin_memory`、`is_spec_decode: bool` 改名 `num_spec_tokens: int`、
+   新增 `reasoning_config`。插件已自算 `self.num_spec_tokens`，直接适配新签名。
+2. **`use_uniform_kv_cache` 变 `@staticmethod`**：0.24.0 签名
+   `use_uniform_kv_cache(attn_groups)`，`cache_dtype` 参数删除
+   （统一布局决策移入 kv_cache_config）。调用点删掉 `cache_dtype` 实参。
+3. **`FusedMoE` 从 PluggableLayer 子类变成工厂函数**（`fused_moe/layer.py`）：
+   0.24.0 起 `def FusedMoE(...) -> MoERunner`，`class FusedMoEFL(FusedMoE)`
+   无法定义。OOT MoE 层按 `inspect.isclass(FusedMoE)` 门控，
+   非类时 `FusedMoEFL = None`，MoE 回退上游 oracle（
+   `_patch_unquantized_moe_oracle` 无条件生效）。
+4. **`MarlinExperts` 迁到 `fused_moe/experts/marlin_moe.py`**：
+   `mxfp4_marlin.py` 的 import 改为新路径优先、旧路径 try/except 兜底。
+5. **`TritonExperts` 迁到 `fused_moe/experts/triton_moe.py`**：同模式。
+6. **`rocm_aiter_grouped_topk` 迁到 `fused_moe/router/grouped_topk_router.py`**：
+   同模式。
+7. **`get_flashinfer_moe_backend` 从 flashinfer_utils 删除**：改为惰性解析。
+8. **DeepSeek-V4 OOT wrapper 门控**：`cublas_gemm_bf16_bf16_fp32`
+   （`vllm.model_executor.layers.utils`）在 0.24.0 删除，0.24.0 上
+   DeepSeek-V4 走上游，OOT wrapper 整体 try/except 门控。
+
+### 8.3 上游 vllm 在树补丁（非插件）
+
+- **`kernel_warmup` 无条件 import `minimax_m3_msa_warmup`**：
+  import 链到达 `torchvision.transforms`（`transformers_utils/processors/
+  minimax_m3.py`），而 OOT Runtime 不装 torchvision（装它必然覆盖厂商匹配的
+  torch 矩阵）。该 warmup 对非 MiniMaxM3 模型是 no-op，try/except 门控 +
+  调用处判空即可。
+
+### 8.4 验证过程要点
+
+- **stale `__pycache__` 陷阱**：插件源码打补丁后必须
+  `find /opt/vllm-plugin-FL -type d -name __pycache__ -exec rm -rf {} +`，
+  否则 serve 进程 import 的是旧字节码（曾把已修好的 DeepSeek-V4 门控
+  问题再次以 `cublas_gemm` ImportError 形式暴露）。
+- **serve 启动逐级打通**：EngineCore 初始化（`device_config=musa`、
+  `backend=mccl`，DP/PP/PCP/TP rank 分配）→ 插件 OpManager
+  （35 ops / 65 implementations，attention_backend `default.flagos` →
+  `vendor.musa`）→ 权重加载（safetensors 2/2，约 5 秒）→ KV cache 初始化
+  → kernel_warmup → `Application startup complete`。
+- **推理**：8031 端口两次请求均输出连贯 chain-of-thought（DeepSeek-R1
+  模型正常思考），模型指纹 `vllm-0.24.0-103ca81b`。✅ E2E 通过。
+
+---
+
+## 9. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
-- [ ] 0.24.0 其余后端（mthreads、hygon、iluvatar、enflame、sunrise、cambricon、
-      ascend、kunlunxin 等）的验证
+- [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、sunrise、cambricon、
+      ascend、kunlunxin 等）的验证 —— mthreads ✅（§8）；nvidia ✅（§6）
 
 ---
 

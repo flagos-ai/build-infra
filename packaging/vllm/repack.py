@@ -666,6 +666,23 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
             if v:
                 resolved[rd["name"]] = v
 
+    # Apply per-package version pins (config `pin_indirect`).  Overrides the
+    # version pip resolved — used when the highest matching version is
+    # incompatible with vllm's own constraints (e.g. xgrammar 0.2.5's
+    # `transformers<5` vs vllm 0.24.0's `transformers>=5.5.3`); upstream pip
+    # backtracks, but the isolated per-dep resolution here would freeze the
+    # conflict into the repacked wheel.  Only touches deps that survived
+    # resolution — a stripped package is never re-introduced.
+    pins = config.get("pin_indirect") or {}
+    for pin_name, pin_version in pins.items():
+        pin_key = _normalize(pin_name)
+        if pin_key in resolved:
+            if resolved[pin_key] != pin_version:
+                print(f"  pin {pin_name}: pip resolved {resolved[pin_key]} → forcing {pin_version}")
+            resolved[pin_key] = pin_version
+        else:
+            print(f"  WARNING: pin {pin_name} not in resolved deps (stripped/excluded?) — ignored")
+
     return resolved
 
 
