@@ -302,6 +302,11 @@ def main():
                         "packages": runtime_packages(spec, configs.get("flaggems", "")),
                         "env": env.get("runtime") or {},
                     },
+                    "app": {
+                        # Per-app env vars (configs.yaml env.app.{app}) — consumed
+                        # by generate_matrix.py --app for app image builds.
+                        "env": env.get("app") or {},
+                    },
                 }
             )
 
