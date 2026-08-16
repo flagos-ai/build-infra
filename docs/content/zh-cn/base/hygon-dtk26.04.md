@@ -55,6 +55,7 @@ title: "hygon-dtk26.04"
 ### SDK 组件
 
 - Hygon DTK 26.04
+- Hygon DTK LLVM
 
 ## 启动
 
@@ -87,4 +88,4 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*
+*更新时间: 2026-08-16 11:18:33 · `f332a6b51cfc`*

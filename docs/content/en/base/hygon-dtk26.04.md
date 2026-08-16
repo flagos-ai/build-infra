@@ -55,6 +55,7 @@ Explicitly installed; the version is the one baked into this image:
 ### SDK components
 
 - Hygon DTK 26.04
+- Hygon DTK LLVM
 
 ## Launch
 
@@ -87,4 +88,4 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
+*Last updated: 2026-08-16 11:18:33 · `f332a6b51cfc`*
