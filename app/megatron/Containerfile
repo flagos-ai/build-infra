@@ -59,6 +59,16 @@ RUN pip install \
   --extra-index-url "${EXTRA_PYPI}" \
   "megatron-core==${MEGATRON_VERSION}"
 
+# --- App env ---------------------------------------------------
+
+# Per-backend app env vars (configs.yaml env.app.{app}): baked into
+# /etc/profile.d/app_env.sh — sourced by the runtime's bash plumbing
+# (BASH_ENV=/etc/bash_env.sh sources /etc/profile.d/*.sh).
+ARG APP_ENV=""
+RUN if [ -n "${APP_ENV}" ]; then \
+      printf '%s\n' "${APP_ENV}" > /etc/profile.d/app_env.sh; \
+    fi
+
 # --- Runtime --------------------------------------------------
 
 WORKDIR /workspace

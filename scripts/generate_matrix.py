@@ -24,9 +24,13 @@ Usage:
     python scripts/generate_matrix.py nvidia-cuda12.8         # base: subset
     python scripts/generate_matrix.py --runtime                # runtime: all
     python scripts/generate_matrix.py --runtime nvidia-cuda12.8  # runtime: subset
+    python scripts/generate_matrix.py --app vllm nvidia-cuda12.8 # app: subset
+    python scripts/generate_matrix.py --app megatron           # app: all
 
 --runtime mode pre-computes all docker build args so self-hosted
-runners don't need Python/pyyaml installed.
+runners don't need Python/pyyaml installed.  --app mode is the
+same superset plus the per-backend app-layer env vars
+(configs.yaml env.app.{app}) serialized as "KEY=value\n...".
 """
 
 import argparse
@@ -74,11 +78,21 @@ def _base_matrix(runners: dict, selected: list[str]) -> dict:
     return {"include": [{"name": n, "runson": runson_for(n, runners)} for n in selected]}
 
 
-def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: list[str]) -> dict:
+def _runtime_matrix(
+    configs: dict,
+    runners: dict,
+    repo_root: Path,
+    selected: list[str],
+    app: str | None = None,
+) -> dict:
     """Extended matrix for runtime builds: includes all docker build args.
 
     All values come from configs.yaml + build-config.yml.  No git tag
     dependency — the version is read directly from configs.yaml ``version:``.
+
+    When ``app`` is given, the matrix is the same superset plus the
+    per-backend app env vars from configs.yaml env.app.{app}, serialized
+    as "KEY=value\\n..." (same format as runtime_env) under ``app_env``.
     """
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
     registry = build_config.get("registry") or {}
@@ -119,7 +133,15 @@ def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: lis
             f"{k}={v}" for k, v in (runtime_env or {}).items()
         )
 
-        include.append({
+        # Per-backend app env vars for one app — same serialization as runtime_env
+        app_env_lines = ""
+        if app is not None:
+            app_env = ((backend_info.get("env") or {}).get("app") or {}).get(app, {})
+            app_env_lines = "\n".join(
+                f"{k}={v}" for k, v in (app_env or {}).items()
+            )
+
+        entry = {
             "name": name,
             "version": stack_version,
             "runson": runson_for(name, runners),
@@ -138,7 +160,12 @@ def _runtime_matrix(configs: dict, runners: dict, repo_root: Path, selected: lis
                 backend_info.get("triton_post_install", [])
             ) if isinstance(backend_info.get("triton_post_install"), list) else "",
             "runtime_env": runtime_env_lines,
-        })
+        }
+        # App build matrix = runtime fields + app env; --runtime keeps no
+        # app_env key so runtime-image.yml output is unchanged.
+        if app is not None:
+            entry["app_env"] = app_env_lines
+        include.append(entry)
 
     return {"include": include}
 
@@ -152,6 +179,11 @@ def main():
     parser.add_argument(
         "--runtime", action="store_true",
         help="Generate runtime build matrix (includes docker build args)",
+    )
+    parser.add_argument(
+        "--app", metavar="APP",
+        help="Generate app build matrix for the named app (vllm / megatron): "
+             "runtime matrix fields + per-backend env.app.{APP} as app_env",
     )
     parser.add_argument(
         "backends", nargs="*",
@@ -185,7 +217,9 @@ def main():
     else:
         selected = [name for name, has_file in all_backends if has_file]
 
-    if args.runtime:
+    if args.app:
+        matrix = _runtime_matrix(configs, runners, repo_root, selected, app=args.app)
+    elif args.runtime:
         matrix = _runtime_matrix(configs, runners, repo_root, selected)
     else:
         matrix = _base_matrix(runners, selected)

@@ -22,8 +22,8 @@
 
 | 厂商 | 后端 | 0.20.2(T) | 0.20.2(F) | 0.24.0(T) | 0.24.0(F) |
 |---|---|---|---|---|---|
-| 英伟达 | CUDA 12.8 | ⬜ | ✅ | ⬜ | ⬜ |
-| 英伟达 | CUDA 13.3 | ⬜ | ⬜ | ⬜ | ⬜ |
+| 英伟达 | CUDA 12.8 | ⬜ | ✅ | ✅ | ✅ |
+| 英伟达 | CUDA 13.3 | ⬜ | ⬜ | ✅ | ✅ |
 | 昇腾 | CANN 8.5.0 | ⬜ | ⬜ | ⬜ | ⬜ |
 | 昇腾 | CANN 9.0.0 | ⬜ | ✅ | ⬜ | ⬜ |
 | 寒武纪 | NEUWARE 4.4.3 | ⬜ | — | ⬜ | — |
@@ -85,8 +85,18 @@
   triton 3.0.0（XTDK LLVM19 空 SetVector 断言）。应用层无法绕过，已交编译器团队，
   详见 [kunlunxin-xpu-triton-attention-compiler-bug.md](kunlunxin-xpu-triton-attention-compiler-bug.md)。
 
-**0.24.0（截至 2026-08-15）**
+**0.24.0（截至 2026-08-16）**
 
+- **nvidia-cuda12.8** ✅（2026-08-16，空模式双编译器）：flagtree 3.6.0 ✅、
+  triton 3.6.0 ✅（`/opt/triton`），均 Qwen3-4B E2E，指纹 `vllm-0.24.0-423da8ca`。
+- **nvidia-cuda13.3** ✅（2026-08-16，空模式双编译器）：flagtree 3.6.0 ✅、
+  triton 3.6.0 ✅，均 Qwen3-4B E2E，指纹 `vllm-0.24.0-423da8ca`。
+  同时验证了 **cp312 empty wheel 跨 CUDA 复用**：12.8（torch 2.10.0+cu128）构建的
+  同一 Wheel 直接在 13.3（torch 2.11.0+cu130）上安装运行。
+- **NVIDIA 路径统一要点**（详见 `report-vllm-0.24.0.md` §6）：
+  插件基线 **v0.3.0-dev**；CUDA 平台无条件 import flashinfer，
+  需环境变量 `VLLM_USE_FLASHINFER_SAMPLER=0` 关闭采样器；
+  插件安装必须 `--no-build-isolation`（构建隔离会从 pypi.org 下载 torch≈2.4GB）。
 - **metax 四环境全 ✅**（2026-08-13~15）：MACA 3.7.2.1
   （triton 3.0.0 / flagtree 0.6.1+metax3.6）× 两编译器、MACA 3.8.1.3
   （triton 3.6.0 / flagtree 0.6.1+metax3.6）× 两编译器。
@@ -95,13 +105,16 @@
 - **triton 3.0.0 需 4 个 monkey-patch**（`vllm024_compat.py`，老 SDK 特有）：
   `_load_ptr` constexpr 解包、`_penalties_kernel` 链式布尔加括号、
   `get_top_k_top_p` 与 `pool` 的 UVA CPU 索引 + 移回设备；新 SDK（triton 3.6.0）无需。
-- **0.24.0 其余后端待验证**：nvidia, mthreads, hygon, iluvatar, enflame, sunrise,
+- **0.24.0 其余后端待验证**：mthreads, hygon, iluvatar, enflame, sunrise,
   cambricon, ascend, kunlunxin 等。
 
 **跨版本事实**
 
 - 0.24.0 empty wheel 绑定 `cp312-cp312-linux_x86_64`，
   0.20.2 是 `py3-none-any`（纯 Python，可跨 cp 复用）。
+- **cp312 wheel 跨 CUDA 版本可复用**（实测）：cuda12.8 构建的 `vllm-0.24.0+flagos`
+  wheel 在 cuda13.3（torch 2.11.0+cu130）上单步安装运行 ✅。
+  是否可跨 OS/架构（如 aarch64）仍待验证。
 - 所有适配补丁收敛在 vllm-plugin-FL 插件侧，不修改官方 vLLM。
 
 ## 已知问题 / 阻塞

@@ -28,9 +28,9 @@ name: Megatron app image
 # runtime's torch/triton/flag_gems matrix cannot be disturbed (the repack
 # facility was removed 2026-08-14).
 #
-# Backend matrix comes from scripts/generate_matrix.py --runtime (same source
-# as runtime-image.yaml). Per-vendor PyPI (flagos_pypi) is searched first;
-# aliyun is the fallback.
+# Backend matrix comes from scripts/generate_matrix.py --app megatron (same
+# runtime fields as runtime-image.yaml plus the per-backend app env vars).
+# Per-vendor PyPI (flagos_pypi) is searched first; aliyun is the fallback.
 
 on:
   workflow_dispatch:
@@ -84,9 +84,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 scripts/generate_matrix.py --runtime > matrix.json
+            python3 scripts/generate_matrix.py --app megatron > matrix.json
           else
-            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+            python3 scripts/generate_matrix.py --app megatron ${{ inputs.backend }} > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
@@ -146,6 +146,7 @@ jobs:
             --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
+            --build-arg "APP_ENV=${{ matrix.app_env }}" \
             -t "${app_tag}" \
             -f app/megatron/Containerfile .
           echo "Built: ${app_tag}"

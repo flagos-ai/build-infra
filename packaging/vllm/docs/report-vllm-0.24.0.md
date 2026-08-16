@@ -9,7 +9,9 @@
 > 新的 Wheel 包在安装之后使用各 GPU/NPU 厂家所提供的运行时。
 > 为确保最终生成的软件堆栈有效，需要逐个后端（Backend）地到对应的物理环境执行验证，
 > 确保新的 Wheel 包及其依赖项能够正确安装、vLLM 软件栈可正常启动并执行推理任务。
-> 本文记录 **metax（沐曦）** 后端的验证过程与结果。
+> 本文记录 **metax（沐曦）** 与 **nvidia（英伟达）** 后端的验证过程与结果：
+> - metax 见 §3–§5（MACA SDK 3.7.2.1 / 3.8.1.3 × 双编译器，4 环境全通过）；
+> - nvidia 见 §6（CUDA 12.8 / 13.3 × 双编译器，空模式，全通过）。
 >
 > 类似的工作也在 0.20.2 版本的 vLLM 上开展，相关记录见
 > [`report-vllm-0.20.2.md`](report-vllm-0.20.2.md)。
@@ -18,13 +20,17 @@
 
 ## 0. 结论摘要（TL;DR）
 
-结论：Metax 全线 4 种环境全部验证通过。
+结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过。
 
 - 构建 + 重新打包（wheel）：✅ 通过（2026-08-12）
 - SDK（3.7.2.1）× FlagTree：✅ 通过（2026-08-14）
 - SDK（3.7.2.1）× Triton：✅ 通过（2026-08-13）
 - SDK（3.8.1.3）× FlagTree：✅ 通过（2026-08-15）
 - SDK（3.8.1.3）× Triton：✅ 通过（2026-08-15）
+- CUDA 12.8 × FlagTree：✅ 通过（2026-08-16，空模式）
+- CUDA 12.8 × Triton：✅ 通过（2026-08-16，空模式）
+- CUDA 13.3 × FlagTree：✅ 通过（2026-08-16，空模式）
+- CUDA 13.3 × Triton：✅ 通过（2026-08-16，空模式）
 
 "通过" 意味着：1） vLLM 服务可以正常启动；2）使用 Qwen3-4B 模型可以执行正常推理服务；
 
@@ -186,7 +192,7 @@ vLLM 顶层的依赖声明相应改成 `==X.Y.Z+flagos`，单步安装时命中�
    修复：改用 `from flag_gems import reshape_and_cache_flash`
    （纯 Python 实现，签名逐参吻合）。
    **同一问题也存在于 0.20.2 版本适配中，已向插件提交 PR #333**。
-   另外，vllm-plugin-FL 的 0.3-dev 分支也不存在此修复（详 §6）。
+   另外，vllm-plugin-FL 的 0.3-dev 分支也不存在此修复（详 §7）。
 
 5. **Triton 3.0.0 编译器拒绝链式布尔操作**：`A or B or C` 语法报
    "chained boolean operators not supported"。
@@ -251,7 +257,74 @@ vLLM 二次启动报 `ValueError: Free memory on device cuda:0 (2.02/63.59 GiB) 
 
 ---
 
-## 6. 版本推进协作问题
+## 6. NVIDIA（CUDA 12.8 / 13.3）详细记录
+
+日期：2026-08-16
+节点：`h20`（H20 GPU，x86_64）
+容器：`vllm024-nv128`（12.8）、`vllm024-nv133`（13.3）
+镜像：`flagos-runtime-nvidia-cuda12.8:2.1.2` / `flagos-runtime-nvidia-cuda13.3:2.1.2`
+模型：Qwen3-4B（`/models/Qwen3-4B`，由 `/data/tqm/models` 挂载）
+参数：`--enforce-eager --dtype bfloat16`，端口 8031/8032
+
+### 6.0 插件基线：v0.3.0-dev
+
+NVIDIA 路径使用 vllm-plugin-FL 的 **`v0.3.0-dev` 分支**（官方 0.24.0 适配线，
+tar.gz 解包到 `/app/vllm-plugin-FL`），与 metax 验证用的 main + 补丁基线不同
+（两分支差异与合并路线见 §7）。在 dev 分支上 **无需任何 monkey-patch**：
+metax 老 SDK 特有的 4 个 `vllm024_compat.py` 补丁（§4.3 问题 3/5/6）在
+torch 2.10/2.11 + CUDA 上不存在对应缺陷。
+
+### 6.1 关键阻塞点与解决
+
+1. **CUDA 平台无条件 import flashinfer**：0.24.0 的 CUDA 平台代码在
+   `flashinfer_sampler_supported()` 中检查环境变量 `VLLM_USE_FLASHINFER_SAMPLER`
+   （默认 True）后就 import flashinfer。Runtime 镜像未装 flashinfer，
+   启动即报 import 错误。
+
+   解决：启动时设置 **`VLLM_USE_FLASHINFER_SAMPLER=0`**（环境变量开关，
+   非代码修改）。日志确认：`FlashInfer top-p/top-k sampling disabled via
+   VLLM_USE_FLASHINFER_SAMPLER=0`。
+
+2. **插件安装必须 `--no-build-isolation`**：pip 构建隔离会独立下载
+   pyproject 声明的构建依赖 —— 其中 `torch>=2.7.1` 从 pypi.org 拉取约 2.4GB，
+   且会**用下载的 torch 构建插件**。这与 repack 的初衷（保护 Runtime 镜像中
+   精心匹配的版本矩阵）直接冲突，绝不允许。
+
+   解决：先盘点 Runtime 环境已有工具链（setuptools 81.0.0、pybind11 3.0.3、
+   ninja 1.13.0 已具备；缺 `wheel`、`scikit-build-core==0.11`、`cmake`），
+   从**厂商 PyPI 索引**（`flagos-pypi-nvidia`）补齐缺失项，再
+   `pip install -e . --no-build-isolation`（约 30 秒完成）。
+
+### 6.2 验证结果
+
+**CUDA 12.8（torch 2.10.0+cu128，python 3.12）**
+
+- flagtree 3.6.0（`/opt/flagtree`，默认）：✅ 启动 + 推理通过（`/tmp/serve-0.24.0.log`）
+- triton 3.6.0（`/opt/triton`）：✅ 启动 + 推理通过（`/tmp/serve-0.24.0-triton.log`）
+- 安装：`pip install vllm==0.24.0+flagos` 单步（`/tmp/pip-vllm024.log`，
+  `Using cached vllm-0.24.0%2Bflagos-cp312-cp312-linux_x86_64.whl (7.8 MB)`）
+
+**CUDA 13.3（torch 2.11.0+cu130，python 3.12）**
+
+- flagtree 3.6.0：✅ 启动 + 推理通过（`/tmp/serve-flagtree-133.log`）
+- triton 3.6.0：✅ 启动 + 推理通过（`/tmp/serve-triton-133.log`）
+- 安装：插件 `--no-build-isolation`（`/tmp/pip-plugin.log`）+ vllm 单步
+  （`/tmp/pip-vllm133.log`）
+
+两种编译器、两个 CUDA 版本的推理输出完全一致：
+`' Paris. The capital of Germany is Berlin. The capital of Italy is Rome.'`
+（finish=length，模型指纹 `vllm-0.24.0-423da8ca`）。
+
+### 6.3 跨 CUDA 版本复用（重要结论）
+
+12.8 与 13.3 同为 python 3.12，**共用一个 cp312 empty wheel**
+（`vllm-0.24.0+flagos-cp312-cp312-linux_x86_64.whl`）。13.3 验证同时回答了
+"相同 cp 版本的 Wheel 是否可跨 CUDA 使用"：**12.8 构建的 wheel 直接在 13.3
+（cu130）上单步安装并运行通过**。是否可跨 OS/架构（如 aarch64）仍待验证。
+
+---
+
+## 7. 版本推进协作问题
 
 vllm-plugin-FL 项目组在 **`v0.3.0-dev`** 分支上展开 vLLM 0.24.0 适配工作。
 在 #252 处与 main 分叉，尚未合入 main。适配主线：
@@ -292,6 +365,9 @@ build-infra 验证用的基线是 main + PR #377，vllm-plugin-FL 的正式适�
 **待定事项：**
 - [ ] **确认 0.24.0 正式发布线**：main（+ 我们补丁）还是 v0.3.0-dev？
       如果以 dev 为基线，§4 的验证要在 dev 分支上重验。
+      **§6 的 NVIDIA 验证已在 dev 基线上完成（空模式、零 patch、双编译器全过）**，
+      证明 dev 分支在 CUDA 上可直接交付；metax 侧则需要确认 3.0.0 编译器问题
+      的 4 个补丁是否 upstream。
 - [ ] `_patch_torch_accelerator` 与 `accelerator_compat.py` 去重：
       保留哪个版本；是否把 reset 的 try/except 兜底 backport 到 dev。
 - [ ] 确认 dev 分支在 triton 3.0.0 路径是否缺问题 3/5/6 的修复（serve 冒烟即知）。
@@ -301,21 +377,34 @@ build-infra 验证用的基线是 main + PR #377，vllm-plugin-FL 的正式适�
 
 ---
 
-## 7. 遗留事项
+## 8. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
-- [ ] 0.24.0 其余后端（nvidia、mthreads、hygon、iluvatar、enflame、sunrise 等）的验证
+- [ ] 0.24.0 其余后端（mthreads、hygon、iluvatar、enflame、sunrise、cambricon、
+      ascend、kunlunxin 等）的验证
 
 ---
 
 ## 附录 · 验证命令（容器内）
 
+metax 形式（含 `compiler` 切换 + `VLLM_USE_FLASHINFER_SAMPLER=0`，NVIDIA 通用）：
+
 ```bash
-cd /app/vllm-plugin-FL && PYTHONPATH=/opt/triton:/opt/flagtree \
+cd /app/vllm-plugin-FL && compiler flagtree && VLLM_USE_FLASHINFER_SAMPLER=0 \
   nohup /flagos/bin/python -m vllm.entrypoints.openai.api_server \
-  --model /data/models/Qwen/Qwen3-4B --port 8031 --enforce-eager --dtype bfloat16 \
-  > /tmp/serve-0.24.0.log 2>&1 &
+  --model /models/Qwen3-4B --port 8031 --enforce-eager --dtype bfloat16 \
+  > /tmp/serve.log 2>&1 &
 
 curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
-  -d '{"model":"/data/models/Qwen/Qwen3-4B","prompt":"The capital of France is","max_tokens":16,"temperature":0}'
+  -d '{"model":"/models/Qwen3-4B","prompt":"The capital of France is","max_tokens":16,"temperature":0}'
+```
+
+NVIDIA 插件安装（必须 `--no-build-isolation`，缺失工具链从厂商 PyPI 补齐）：
+
+```bash
+/flagos/bin/pip install --no-cache-dir wheel scikit-build-core==0.11 cmake \
+  -i https://resource.flagos.net/repository/flagos-pypi-nvidia/simple/ \
+  --extra-index-url https://mirrors.aliyun.com/pypi/simple
+cd /app/vllm-plugin-FL && /flagos/bin/pip install -e . --no-build-isolation
+/flagos/bin/pip install vllm==0.24.0+flagos
 ```
