@@ -398,10 +398,33 @@ build-infra 验证用的基线是 main + PR #377，vllm-plugin-FL 的正式适�
   --extra-index-url https://mirrors.aliyun.com/pypi/simple vllm==0.24.0+flagos`
   ✅ 通过，命中 `+flagos` wheel，无 torch 侧漏。
 
-### 8.2 插件 0.24.0 drift 修复（vllm-plugin-FL，需合入插件仓库）
+### 8.2 插件基线：v0.3.0-dev 零补丁（替代首轮的 main+8 处补丁）
+
+**首轮验证**在 main 分支（db9afd6）+ 8 处本地补丁上完成（见下方历史清单）。
+随后将容器插件换成 **v0.3.0-dev head（fbc115d）** 重跑 E2E：
+
+- **结果：零补丁，全部通过。** 8 处 drift 修复在 v0.3.0-dev 上均有官方实现
+  （已合入 PR #274 / #294 / #308 / #338 / #376），其中：
+  - InputBatch 签名、`use_uniform_kv_cache` 单参 → model_runner.py:717 / :7300（#274）
+  - FusedMoE 工厂函数注入 `_patch_fused_moe_factory`（custom_ops.py）
+    → 替代我们的 `inspect.isclass` 门控 + OOT_OPS + oracle 方案
+  - MarlinExperts / TritonExperts / rocm_aiter 新路径 → fused_moe_utils.py:19、router.py:9
+  - flashinfer 惰性解析 → fused_moe_utils.py:171 内联
+  - DeepSeek-V4：head 整体移除 deepseek_v4 模块族（与 0.24 上游同步），我们的门控 patch 无意义
+- serve 启动链：OpManager **10 ops / 14 implementations**（head 重构后的 dispatch，
+  规模小于 main 线的 35/65）→ attention_backend fallback `default.flagos` → `vendor.musa`
+  → 权重加载 → `Application startup complete`
+- 推理：chat/completions 输出连贯 CoT（DeepSeek-R1 正常思考）；completions greedy 输出连贯
+- **非致命差异**：usage_lib 遥测线程报 `Cannot re-initialize MUSA in forked subprocess`
+  （vllm 侧 `platform_utils` 用 fork 子进程查设备属性，MUSA 运行时 fork 后不可重初始化；
+  仅遥测失败，不影响服务）。main+补丁基线无此报错，head 出现 —— 未追因，列入遗留。
+- **原始 completions 直给 R1 模型 + temperature 0.6 出现整段重复回声**：是未套 chat
+  模板的 R1 模型行为伪影，非插件缺陷（chat/completions 与 greedy 均正常）。
+
+**历史记录：首轮 main 分支的 8 处 drift 修复（已被 v0.3.0-dev 官方实现取代，不再需要）**
 
 MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend `mccl`），
-0.24.0 的上游重构让插件暴露 8 处不兼容，逐一修复：
+0.24.0 的上游重构让插件暴露 8 处不兼容（main 线逐一修复）：
 
 1. **`InputBatch.__init__` 签名变化**（`model_runner.py` 两处调用点）：
    0.24.0 删除 `pin_memory`、`is_spec_decode: bool` 改名 `num_spec_tokens: int`、
@@ -424,27 +447,35 @@ MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend 
    （`vllm.model_executor.layers.utils`）在 0.24.0 删除，0.24.0 上
    DeepSeek-V4 走上游，OOT wrapper 整体 try/except 门控。
 
-### 8.3 上游 vllm 在树补丁（非插件）
+### 8.3 上游 vllm 在树补丁（非插件，MUSA 验证的唯一残余补丁）
 
 - **`kernel_warmup` 无条件 import `minimax_m3_msa_warmup`**：
   import 链到达 `torchvision.transforms`（`transformers_utils/processors/
   minimax_m3.py`），而 OOT Runtime 不装 torchvision（装它必然覆盖厂商匹配的
   torch 矩阵）。该 warmup 对非 MiniMaxM3 模型是 no-op，try/except 门控 +
   调用处判空即可。
+- **这是换到 v0.3.0-dev 后仍需要的唯一补丁** —— 它属于 vLLM 0.24.0 wheel
+  本身（site-packages），不属插件，不能进 vllm-plugin-FL PR。
+  归属待定：进 repack 步骤（wheel 里直接打）还是 runtime 层（镜像装 torchvision）。
 
 ### 8.4 验证过程要点
 
 - **stale `__pycache__` 陷阱**：插件源码打补丁后必须
   `find /opt/vllm-plugin-FL -type d -name __pycache__ -exec rm -rf {} +`，
   否则 serve 进程 import 的是旧字节码（曾把已修好的 DeepSeek-V4 门控
-  问题再次以 `cublas_gemm` ImportError 形式暴露）。
-- **serve 启动逐级打通**：EngineCore 初始化（`device_config=musa`、
+  问题再次以 `cublas_gemm` ImportError 形式暴露）。换 v0.3.0-dev 时同样
+  先清 `__pycache__` 再 `pip install -e . --no-build-isolation`
+  （head 构建依赖 `torch>=2.7.1`、`scikit-build-core==0.11`、`cmake`，
+  必须 `--no-build-isolation`，否则 pip 隔离环境会从公共源拉 torch 覆盖矩阵）。
+- **serve 启动逐级打通**（v0.3.0-dev）：EngineCore 初始化（`device_config=musa`、
   `backend=mccl`，DP/PP/PCP/TP rank 分配）→ 插件 OpManager
-  （35 ops / 65 implementations，attention_backend `default.flagos` →
+  （10 ops / 14 implementations，attention_backend `default.flagos` →
   `vendor.musa`）→ 权重加载（safetensors 2/2，约 5 秒）→ KV cache 初始化
-  → kernel_warmup → `Application startup complete`。
+  → kernel_warmup（在树门控仍生效）→ `Application startup complete`。
+  插件换装是 editable install（`.pth` + finder），`vllm-plugin-fl==0.0.0`；
+  插件无 `.so`（csrc 仅 ascend/cuda，`vllm_fl._C` import 为 try/except 门控）。
 - **推理**：8031 端口两次请求均输出连贯 chain-of-thought（DeepSeek-R1
-  模型正常思考），模型指纹 `vllm-0.24.0-103ca81b`。✅ E2E 通过。
+  模型正常思考）。✅ E2E 通过。
 
 ---
 
