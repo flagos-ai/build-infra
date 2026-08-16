@@ -11,6 +11,15 @@
 
 上表为默认编译器（flagtree）基线。**vendor triton 复跑**（见 §2.1）下两种形态均通过，且不再需要 jit 补丁与 `--disable-jit-fuser`：完整训练服务 loss 9.1295 → 8.8622。
 
+**四场景验证（2026-08-14，全范围 wheel = core+training+legacy+rl+post_training+inference，MLF PR #107 feat/wheel-full-scope）：**
+
+| 场景 | 入口 | 结果 | 备注 |
+|---|---|---|---|
+| training | `pretrain_gpt.py`（vendor triton） | ✅ exit 0 | loss 9.1295 → 8.8622 |
+| rl | `pretrain_gpt.py --perform-rl-step` | ⛔ 平台缺口 | dynamic 推理引擎硬依赖 flash-attn（§6.1） |
+| post_training | post_training driver（surface 全 import + `simple_generate`） | ✅ exit 0 | 输出 shape=(1, 8)；modelopt ad-hoc 装入 venv，未入镜像（§6.3） |
+| inference | `StaticInferenceEngine(legacy=True)`，3 请求 × 8 tokens | ✅ exit 0 | 免 flash-attn / 免 triton（§6.2） |
+
 本报告只记录**可复现的技术发现与缺口**（代码级缺陷、未声明依赖、平台移植性、工具链限制），不含瞬时错误与一次性环境故障。
 
 ## 打包背景
@@ -23,7 +32,7 @@
 - `megatron.training` / `megatron.legacy` / `megatron.inference` / `megatron.post_training` / `megatron.rl` **均不在 wheel 中**。
 - **后果:** 完整训练服务（`pretrain_gpt.py`）依赖 `megatron.training`，无法用 wheel 直接验证——这是报告"完整训练服务"一栏用 repo checkout 的原因，也是 §1.1（`megatron.core` 内部 import `megatron.training` 失败）的直接诱因。
 - **性质:** 非打包实现错误（fork 只是继承了上游的范围），但属于**真实范围缺口**——对"应用镜像 = 单步安装 wheel 即可用"的交付形态而言必须关闭。
-- **方向（待定案）:** 扩大打包范围，把 `megatron.training` / `megatron.legacy` 纳入 wheel（pyproject include 已改，未提交），是否进一步纳入 `megatron.inference` / `megatron.post_training` / `megatron.rl`（全包，应用场景归并进一个 wheel）在决策中。
+- **方向（已落定，2026-08-14）:** 全范围打包（core+training+legacy+rl+post_training+inference）已通过 MLF PR #107（feat/wheel-full-scope）实现，顶层入口文件（`gpt_builders.py` 等）一并纳入 wheel。§6 四场景验证均基于该 wheel。
 
 **Date:** 2026-08-12 ~ 2026-08-13
 **Platform:** hygon25（Hygon BW1000 8× HCU，DTK 26.04），镜像 `flagos-runtime-hygon-dtk26.04:2.1.2`，Python 3.10.20，torch 2.9.0+das.opt1.dtk2604
@@ -123,10 +132,50 @@ DCU 上完整跑通 megatron 训练的最小 flags / 容器配置（逐项均有
 
 ---
 
-## 5. 结论与后续
+## 5. 四场景验证（2026-08-14，全范围 wheel）
 
-- **E2E 故事闭环**：wheel（Megatron 打包产物）→ 单步安装（无 `--no-deps`）→ 端到端训练，在 hygon25 上全部实证通过。
-- **打包范围缺口（待定案）**：见"打包背景"——wheel 不含 `megatron.training` 导致完整训练服务无法用 wheel 直接验证；扩大范围（training+legacy 或全包）后需重建 wheel 并以"单步安装 + 直接跑 `pretrain_gpt.py`"（无需 repo checkout）重新验证。
-- **已提交至本 fork（flagos-ai/Megatron-LM-FL）**：§1.1 修复 → PR [#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)；§1.2 依赖声明 → PR [#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)。
-- **待反馈至本 fork（flagos-ai/Megatron-LM-FL）**：§1.3 jit_fuser import 期绑定时序、§1.4 fused kernel 默认开启的平台假设。
+wheel 打包范围扩大至 core+training+legacy+rl+post_training+inference（MLF PR #107 feat/wheel-full-scope，顶层入口文件一并打包）后，在应用镜像 `megatron-app:hygon-new`（全范围 wheel 单步安装，无 `--no-deps`）上按序验证四场景。共用 DCU 基线 flags（§4）+ `/tmp/jitfix` 补丁（NullTokenizer pad/bos/eod property + torch.compile identity）。
+
+### 5.1 rl 场景：dynamic 推理引擎硬依赖 flash-attn（平台缺口，按决定记录）
+
+**位置:** `megatron/rl/inference/megatron.py:87` 硬编码 `get_dynamic_inference_engine` → dynamic 引擎 `attention.py:943` `assert HAVE_FA3 or is_fa_min_version("2.7.3")` → `import flash_attn` → ModuleNotFoundError（DTK 26.04 无 flash-attn 构建）。
+
+**性质:** 场景级缺口，非依赖面缺口——`megatron.rl` 模块级仅依赖 pydantic + typing_extensions（纯 PyPI），全树 0 处 triton/torch.compile；阻塞点在推理引擎（dynamic 引擎硬依赖 flash-attn），复用 training/core 的编译器链。
+
+**处置:** 按决定记为缺口（不做本地 sdpa fallback patch），待 MLF 侧动态引擎支持非 flash-attn 后端。
+
+**2026-08-16 修正（新镜像 rl-new 实测）：** §5.1 的"DTK 26.04 无 flash-attn 构建"前提**已过时**——repack 修复后的新镜像实际装了 vendor flash_attn `2.8.3+das.opt1.dtk2604.torch290`，但复测在到达该断言之前就被更前置的阻塞挡下（见 §5.4）。且即便到达，仍有两个新发现：`flash_attn.__version__` 在 `__init__.py` 里**硬编码 "2.6.1"**（与 dist-info 的 2.8.3+… 不一致），且包内无 `flash_attn_interface`（无 FA3）→ `attention.py:943` 的 `is_fa_min_version("2.7.3")` 判定仍会失败。平台缺口依旧，只是失败形态多了一层 vendor 包的版本信息问题。
+
+### 5.4 rl 场景复测（2026-08-16，repack 修复后新镜像）：tensorboard 未声明依赖在 import 期前置阻塞
+
+**复测背景:** 新 runtime 镜像 `flagos-runtime-hygon-dtk26.04:2.1.2`（repack 修复 torch 落位 + flash_attn 未声明 pytest 依赖后重跑），完整作用域 wheel `0.17.1+fl.20260814`，容器 rl-new，**默认编译器 flagtree**，刻意不传 `--disable-jit-fuser`（测 mask-doc 开放问题），`--perform-rl-step --skip-train`（无 ckpt，随机初始化 rollout 验证）。
+
+**结果:** `AssertionError: RL cannot run without the megatron.rl package`（`megatron/training/training.py:2744`，运行 #3，06:06:57 rc=1）。
+
+**根因（直接 import 实测）:** `megatron/rl/rl_utils.py:24` 模块级 `from torch.utils.tensorboard import SummaryWriter` → 运行时需要 **tensorboard 包**。runtime 镜像内无此包（`pip list` 实测），全作用域 wheel 的 METADATA 也未声明 → `training.py:60-67` 的 `has_rl_utils` try/except 捕获 ImportError 置 False → 断言。
+
+**性质:** 未声明运行时依赖（同类于 §1.2 psutil）——RL 入口在 import 期即阻塞，**先于** §5.1 的 flash-attn 断言。阻塞链现在是：tensorboard（import 期）→ pydantic（已解决，从 flagrelease minimax 镜像补装）→ flash-attn `__version__` 硬编码（§5.1 修正）。
+
+**处置:** 按"别搞，直接记录"定案，不做镜像内补装。修复方向 = 反馈本 fork（flagos-ai/Megatron-LM-FL）在 `pyproject.toml` 声明 tensorboard（参考 §1.2 psutil 的 PR #106 模式），或镜像层在 configs.yaml 依赖面补上。
+
+### 5.2 inference 场景：legacy 静态引擎路径免 flash-attn / 免 triton
+
+`StaticInferenceEngine(controller, legacy=True)` 保留 `StaticInferenceContext` → `is_static_batching()=True` → attention.py static 分支 `apply_module(core_attention)`（DotProductAttention/sdpa）——**不依赖 flash-attn、不编译 triton kernel**，对 hygon 属编译器无关路径。
+
+**验证:** 3 请求 × 8 tokens（`prompt_tokens` 直接注入 `InferenceRequest`，绕过 NullTokenizer 无 `tokenize()` 的限制），generate 4.2s，exit 0。
+
+**注意:** 非 legacy 路径内部构造 DynamicInferenceContext + DynamicInferenceEngine → 回到 §5.1 的 flash-attn 崩溃路径。
+
+### 5.3 post_training 场景：依赖 modelopt（HARD，vendor 变体）
+
+driver 跑通（post_training surface 全 import + `simple_generate`，输出 shape=(1, 8)，exit 0）。前提：nvidia-modelopt 以 `--no-deps` ad-hoc 装入 runtime venv，**未入镜像**——与其余场景的"单步安装 wheel 即可用"不同，此处是容器现场补装，违反交付目标。modelopt 是唯一有 vendor 变体的 HARD 依赖（configs.yaml 仅 enflame 有 `enflame-modelopt`）；NVIDIA 用 NVIDIA modelopt 可用，其余后端成功率不确定；纳入镜像与否待镜像层决策。
+
+---
+
+## 6. 结论与后续
+
+- **E2E 故事闭环（四场景）**：wheel（Megatron 打包产物）→ 单步安装（无 `--no-deps`）→ 场景入口直跑，在 hygon25 上 training / post_training / inference 全部实证通过（exit 0）；rl 阻塞于平台缺口（§5.1，按决定记录）。训练场景已用全范围 wheel 完成"单步安装 + 直接跑 `pretrain_gpt.py`"（无需 repo checkout）验证。
+- **打包范围缺口（已关闭）**：全范围 wheel（MLF PR #107 feat/wheel-full-scope）实现 core+training+legacy+rl+post_training+inference 打包并含顶层入口文件；PR 合入前其余后端暂不能复用该 wheel 做按序验证。
+- **已提交至本 fork（flagos-ai/Megatron-LM-FL）**：§1.1 修复 → PR [#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)；§1.2 依赖声明 → PR [#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)；全范围打包 → PR [#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)。
+- **待反馈至本 fork（flagos-ai/Megatron-LM-FL）**：§1.3 jit_fuser import 期绑定时序、§1.4 fused kernel 默认开启的平台假设、§5.1 rl dynamic 引擎 flash-attn 硬依赖（平台缺口）。
 - **相关文档**：`packaging/megatron/builder/report-megatron-0.17.1.md`（构建与依赖面；repack facility 已于 2026-08-14 移除，依赖处理不再单独成报告，其要点并入 builder report §1/§3）。
