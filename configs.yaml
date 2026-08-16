@@ -325,6 +325,7 @@ vendors:
         - numpy==1.26.4
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
+        - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
 
   iluvatar:
     corex4.4.0:
