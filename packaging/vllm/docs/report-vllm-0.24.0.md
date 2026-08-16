@@ -23,10 +23,10 @@
 结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过。
 
 - 构建 + 重新打包（wheel）：✅ 通过（2026-08-12）
-- SDK（3.7.2.1）× FlagTree：✅ 通过（2026-08-14）
-- SDK（3.7.2.1）× Triton：✅ 通过（2026-08-13）
-- SDK（3.8.1.3）× FlagTree：✅ 通过（2026-08-15）
-- SDK（3.8.1.3）× Triton：✅ 通过（2026-08-15）
+- MACA（3.7.2.1）× FlagTree：✅ 通过（2026-08-14）
+- MACA（3.7.2.1）× Triton：✅ 通过（2026-08-13）
+- MACA（3.8.1.3）× FlagTree：✅ 通过（2026-08-15）
+- MACA（3.8.1.3）× Triton：✅ 通过（2026-08-15）
 - CUDA 12.8 × FlagTree：✅ 通过（2026-08-16，空模式）
 - CUDA 12.8 × Triton：✅ 通过（2026-08-16，空模式）
 - CUDA 13.3 × FlagTree：✅ 通过（2026-08-16，空模式）
@@ -261,7 +261,6 @@ vLLM 二次启动报 `ValueError: Free memory on device cuda:0 (2.02/63.59 GiB) 
 
 日期：2026-08-16
 节点：`h20`（H20 GPU，x86_64）
-容器：`vllm024-nv128`（12.8）、`vllm024-nv133`（13.3）
 镜像：`flagos-runtime-nvidia-cuda12.8:2.1.2` / `flagos-runtime-nvidia-cuda13.3:2.1.2`
 模型：Qwen3-4B（`/models/Qwen3-4B`，由 `/data/tqm/models` 挂载）
 参数：`--enforce-eager --dtype bfloat16`，端口 8031/8032
@@ -269,10 +268,8 @@ vLLM 二次启动报 `ValueError: Free memory on device cuda:0 (2.02/63.59 GiB) 
 ### 6.0 插件基线：v0.3.0-dev
 
 NVIDIA 路径使用 vllm-plugin-FL 的 **`v0.3.0-dev` 分支**（官方 0.24.0 适配线，
-tar.gz 解包到 `/app/vllm-plugin-FL`），与 metax 验证用的 main + 补丁基线不同
-（两分支差异与合并路线见 §7）。在 dev 分支上 **无需任何 monkey-patch**：
-metax 老 SDK 特有的 4 个 `vllm024_compat.py` 补丁（§4.3 问题 3/5/6）在
-torch 2.10/2.11 + CUDA 上不存在对应缺陷。
+tar.gz 解包到 `/app/vllm-plugin-FL`；与 main 分支的差异与合并路线见 §7），
+在 dev 分支上 **无需任何 monkey-patch**。
 
 ### 6.1 关键阻塞点与解决
 
@@ -295,21 +292,24 @@ torch 2.10/2.11 + CUDA 上不存在对应缺陷。
    从**厂商 PyPI 索引**（`flagos-pypi-nvidia`）补齐缺失项，再
    `pip install -e . --no-build-isolation`（约 30 秒完成）。
 
+   长期方案：随 §7 合并路线将插件以 **wheel 形式发布**后，源安装路径整体消失
+   —— 预编译 wheel 不需要任何构建工具链，无需把 `wheel`/`scikit-build-core`/
+   `cmake` 常驻进共享 Runtime 镜像（它们只为单步源安装临时补齐）。
+
 ### 6.2 验证结果
 
 **CUDA 12.8（torch 2.10.0+cu128，python 3.12）**
 
-- flagtree 3.6.0（`/opt/flagtree`，默认）：✅ 启动 + 推理通过（`/tmp/serve-0.24.0.log`）
-- triton 3.6.0（`/opt/triton`）：✅ 启动 + 推理通过（`/tmp/serve-0.24.0-triton.log`）
-- 安装：`pip install vllm==0.24.0+flagos` 单步（`/tmp/pip-vllm024.log`，
-  `Using cached vllm-0.24.0%2Bflagos-cp312-cp312-linux_x86_64.whl (7.8 MB)`）
+- flagtree 3.6.0（`/opt/flagtree`，默认）：✅ 启动 + 推理通过
+- triton 3.6.0（`/opt/triton`）：✅ 启动 + 推理通过
+- 安装：`pip install vllm==0.24.0+flagos` 单步（`Using cached
+  vllm-0.24.0%2Bflagos-cp312-cp312-linux_x86_64.whl (7.8 MB)`，无新下载）
 
 **CUDA 13.3（torch 2.11.0+cu130，python 3.12）**
 
-- flagtree 3.6.0：✅ 启动 + 推理通过（`/tmp/serve-flagtree-133.log`）
-- triton 3.6.0：✅ 启动 + 推理通过（`/tmp/serve-triton-133.log`）
-- 安装：插件 `--no-build-isolation`（`/tmp/pip-plugin.log`）+ vllm 单步
-  （`/tmp/pip-vllm133.log`）
+- flagtree 3.6.0：✅ 启动 + 推理通过
+- triton 3.6.0：✅ 启动 + 推理通过
+- 安装：插件 `--no-build-isolation` + vllm 单步
 
 两种编译器、两个 CUDA 版本的推理输出完全一致：
 `' Paris. The capital of Germany is Berlin. The capital of Italy is Rome.'`
@@ -399,7 +399,8 @@ curl -s localhost:8031/v1/completions -H 'Content-Type: application/json' \
   -d '{"model":"/models/Qwen3-4B","prompt":"The capital of France is","max_tokens":16,"temperature":0}'
 ```
 
-NVIDIA 插件安装（必须 `--no-build-isolation`，缺失工具链从厂商 PyPI 补齐）：
+NVIDIA 插件安装 —— 仅当前源安装路径需要（必须 `--no-build-isolation`，缺失工具链
+从厂商 PyPI 补齐）；插件以 wheel 形式发布后（§7 合并路线），此块整体省略：
 
 ```bash
 /flagos/bin/pip install --no-cache-dir wheel scikit-build-core==0.11 cmake \

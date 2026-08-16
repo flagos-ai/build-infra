@@ -25,7 +25,7 @@ Usage:
     python scripts/generate_matrix.py --runtime                # runtime: all
     python scripts/generate_matrix.py --runtime nvidia-cuda12.8  # runtime: subset
     python scripts/generate_matrix.py --app vllm nvidia-cuda12.8 # app: subset
-    python scripts/generate_matrix.py --app megatron           # app: all
+    python scripts/generate_matrix.py --app megatron           # app: all backends
 
 --runtime mode pre-computes all docker build args so self-hosted
 runners don't need Python/pyyaml installed.  --app mode is the

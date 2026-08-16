@@ -115,8 +115,9 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
         app:
           vllm:
-            # vLLM 0.24.0 无条件 import flashinfer（采样器开关默认 True）。
-            # Runtime 不装 flashinfer —— 在 app 层关掉采样器。
+            # vLLM 0.24.0 unconditionally imports flashinfer (sampler switch
+            # defaults to True). The runtime does not ship flashinfer — turn
+            # the sampler off at the app layer.
             VLLM_USE_FLASHINFER_SAMPLER: "0"
       deps:
         - torch==2.10.0+cu128
@@ -140,8 +141,9 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
         app:
           vllm:
-            # vLLM 0.24.0 无条件 import flashinfer（采样器开关默认 True）。
-            # Runtime 不装 flashinfer —— 在 app 层关掉采样器。
+            # vLLM 0.24.0 unconditionally imports flashinfer (sampler switch
+            # defaults to True). The runtime does not ship flashinfer — turn
+            # the sampler off at the app layer.
             VLLM_USE_FLASHINFER_SAMPLER: "0"
       deps:
         - torch==2.11.0+cu130

@@ -88,9 +88,9 @@
 **0.24.0（截至 2026-08-16）**
 
 - **nvidia-cuda12.8** ✅（2026-08-16，空模式双编译器）：flagtree 3.6.0 ✅、
-  triton 3.6.0 ✅（`/opt/triton`），均 Qwen3-4B E2E，指纹 `vllm-0.24.0-423da8ca`。
+  triton 3.6.0 ✅（`/opt/triton`），均通过 Qwen3-4B E2E 验证，指纹 `vllm-0.24.0-423da8ca`。
 - **nvidia-cuda13.3** ✅（2026-08-16，空模式双编译器）：flagtree 3.6.0 ✅、
-  triton 3.6.0 ✅，均 Qwen3-4B E2E，指纹 `vllm-0.24.0-423da8ca`。
+  triton 3.6.0 ✅，均通过 Qwen3-4B E2E 验证，指纹 `vllm-0.24.0-423da8ca`。
   同时验证了 **cp312 empty wheel 跨 CUDA 复用**：12.8（torch 2.10.0+cu128）构建的
   同一 Wheel 直接在 13.3（torch 2.11.0+cu130）上安装运行。
 - **NVIDIA 路径统一要点**（详见 `report-vllm-0.24.0.md` §6）：
