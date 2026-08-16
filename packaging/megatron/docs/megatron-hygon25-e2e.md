@@ -92,6 +92,14 @@
 - 因此 "repo checkout + 已安装 wheel" 的验证形态（完整训练服务）需先把 wheel 内的 `.so` 植入源码树。
 - 对 app 镜像**无影响**（wheel 自带 `.so`，单步安装即完整）；此缺口只影响仓库与 wheel 混用的验证/开发路径。
 
+### 2.4 venv 缺 `python3-config`（2026-08-16 实测）
+
+**发现（运行 #2，06:04:18 rc=1）：** venv `/flagos/bin` **缺 `python3-config` 符号链接**。`compile_helpers()`（`megatron/core/datasets/utils.py`，带 FlagScale 来源标注的 fork 补丁）执行 `subprocess.check_output(["python3-config", "--extension-suffix"])` 抛 `FileNotFoundError: 'python3-config'`，`pretrain_gpt.py` 在数据集构建 import 期即挂。该函数只在 wheel 已带预构建 `helpers_cpp{ext_suffix}.so` 时提前 return 跳过 make——但仍需 python3-config 算后缀。uv 托管的 Python 在 `/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/bin/` 下自带该二进制。修复（仅诊断用软链，非交付方案）：`ln -sf .../python3-config /flagos/bin/python3-config`，`--extension-suffix` 实测输出 `.cpython-310-x86_64-linux-gnu.so`。
+
+**对交付的启示（已落地，2026-08-16）：** 修复方向 = `compile_helpers()` 改用 `sysconfig.get_config_var("EXT_SUFFIX")`（标准库，任何 Python 环境都有），替代 `subprocess.check_output(["python3-config", ...])`。
+- **准备一（PR 已提交）：** flagos-ai/Megatron-LM-FL PR [#112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)（与 psutil PR #106 / tensorboard 同类的上游修复）。
+- **准备二（build-infra 兜底，已落地）：** wheel 是 build-infra 自产（`packaging/megatron/builder/Containerfile`），沿用现有 on-the-fly patch + grep gate 模式（同文件 requires-python 补丁）新增 `packaging/megatron/builder/patch-compile-helpers-sysconfig.py`，在 wheel 构建时对 checkout 打同样的 sysconfig 补丁。脚本幂等且自 gate：已是 sysconfig 形式 → no-op（PR #112 合并后自动跳过）；仍是 python3-config 形式 → 就地替换；源码演进（两种形式都找不到）→ exit 1 硬失败，补丁不可能静默失效。三状态逻辑已本地验证（对 origin/main 的 utils.py 实测 patch / no-op / 演进三例全过）。两路最终都落成同一段代码形态，不依赖 MLF merge 节奏。诊断软链（`/flagos/bin/python3-config` → uv python）仅容器现场用，非交付方案。
+
 ### 2.3 DTK 环境注入：镜像已内置
 
 - 运行时镜像已内置 DTK 环境：经 bash 运行的命令（含非交互）可直接 `import torch`，无需手动 `source /opt/dtk-26.04/env.sh`（实测：容器内非登录 `bash -c '/flagos/bin/python -c "import torch"'` 直接成功，torch 2.9.0）。
