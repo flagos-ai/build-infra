@@ -70,6 +70,7 @@ ARG HTTPS_PROXY=
 ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
 
 COPY stamp_version.py /usr/local/bin/stamp_version.py
+COPY patch-compile-helpers-sysconfig.py /usr/local/bin/patch-compile-helpers-sysconfig.py
 
 # ── Build deps for megatron.core.datasets.helpers_cpp ─────────────────
 # Installed into the runtime venv (/flagos/bin/python is on PATH via ENV).
@@ -119,6 +120,19 @@ RUN cd /opt/megatron-lm-fl \
     && sed -i 's/^requires-python = ">=3\.12"$/requires-python = ">=3.10"/' pyproject.toml \
     && grep -n 'requires-python' pyproject.toml \
     && grep -q 'requires-python = ">=3.10"' pyproject.toml
+
+# compile_helpers() (megatron/core/datasets/utils.py, a FlagOS fork addition)
+# shells out to `python3-config --extension-suffix`, which uv-created venvs
+# don't carry (python3-config is a CPython build artifact, not a pip package)
+# — the dataset import path then dies with FileNotFoundError on the runtime
+# venv. Patch the checkout to derive the extension suffix from stdlib
+# sysconfig instead: the same one-line change as Megatron-LM-FL PR #112,
+# applied on the fly while that PR is unmerged. The patch is idempotent and
+# self-gating — no-op when the sysconfig form is already present, exit 1 if
+# the source moved on — so a silently-skipped patch can never ship a wheel
+# that still needs python3-config.
+RUN cd /opt/megatron-lm-fl \
+    && python /usr/local/bin/patch-compile-helpers-sysconfig.py megatron/core/datasets/utils.py
 
 # Optional wheel-version stamp (blank MLF_VERSION = auto-derive provenance).
 RUN MLF_VERSION="${MLF_VERSION}" python /usr/local/bin/stamp_version.py
