@@ -28,6 +28,12 @@
 #                path — the wheel keeps torch>=2.6.0 and the runtime's
 #                vendor torch satisfies it). Plain wheel from the
 #                vendor PyPI, still single-step no--no-deps.
+#   2026-08-17   APP_DEPS build arg: vendor-conditional packages from
+#                configs.yaml deps_app.{app} (e.g. hygon's TE for the
+#                rl app), installed before the wheel from the vendor
+#                PyPI — index isolation so a vendor package can't be
+#                re-resolved from the mirror. Workflow now parameterizes
+#                the app name (megatron-training | megatron-rl).
 # TODO
 #   - Publish-time verification (torch version, megatron.core import).
 # ============================================================
@@ -44,6 +50,22 @@ ARG FLAGOS_PYPI=""
 
 # Fallback for all other dependencies.
 ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+
+# Vendor-conditional packages for this app (configs.yaml deps_app.{app}),
+# space-separated. Installed before the wheel from the vendor PyPI — index
+# isolation so a vendor package (e.g. hygon's transformer_engine for the rl
+# app) can't be re-resolved from the mirror. Empty for apps with no vendor
+# packages on this backend.
+ARG APP_DEPS=""
+
+# --- Install vendor-conditional deps ---------------------------
+
+RUN if [ -n "${APP_DEPS}" ]; then \
+      pip install \
+        --index-url "${FLAGOS_PYPI}" \
+        --extra-index-url "${EXTRA_PYPI}" \
+        ${APP_DEPS}; \
+    fi
 
 # --- Install megatron-core ------------------------------------
 
