@@ -332,6 +332,7 @@ vendors:
       triton: triton==3.5.1+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.6.1+hcu3.6
       deps:
+        - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
         - torch==2.9.0+das.opt1.dtk2604
         # torch built against the numpy 1.x C ABI
