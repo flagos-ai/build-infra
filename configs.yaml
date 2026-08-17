@@ -458,7 +458,9 @@ vendors:
       python: "3.10"
       cmake_backend: MUSA
       triton: triton==3.6.0+git89458660
-      flagtree: flagtree==0.6.0+mthreads3.6
+      # 0.6.0→0.6.1: 0.6.0 对 flag_gems pow 内核发出 vendor llc 不可选择的
+      # v2f32 = fexp2（F 路径 SIGABRT）；0.6.1 已验证修复（vllm 0.24.0 §9.3）。
+      flagtree: flagtree==0.6.1+mthreads3.6
       env:
         base:
           MUSA_HOME: /usr/local/musa
