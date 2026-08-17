@@ -36,7 +36,7 @@
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ✅ | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ⬜ | ⬜ |
-| 摩尔线程 | MUSA 5.2.0 | — | ✅ | ⬜ | ⬜ |
+| 摩尔线程 | MUSA 5.2.0 | — | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ⬜ | ⬜ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
@@ -105,8 +105,21 @@
 - **triton 3.0.0 需 4 个 monkey-patch**（`vllm024_compat.py`，老 SDK 特有）：
   `_load_ptr` constexpr 解包、`_penalties_kernel` 链式布尔加括号、
   `get_top_k_top_p` 与 `pool` 的 UVA CPU 索引 + 移回设备；新 SDK（triton 3.6.0）无需。
-- **0.24.0 其余后端待验证**：mthreads, hygon, iluvatar, enflame, sunrise,
+- **0.24.0 其余后端待验证**：hygon, iluvatar, enflame, sunrise,
   cambricon, ascend, kunlunxin 等。
+- **mthreads-musa5.2.0** ✅✅（2026-08-16~17，v0.3.0-dev 零补丁）：
+  F 路径 ✅（2026-08-16，默认 flagtree 3.6.0）+ T 路径 ✅（2026-08-17，
+  `compiler triton` → vendor triton 3.6.0，musa backend）。两条路径均
+  OpManager 10 ops/14 impls、attention fallback `vendor.musa`、serve 到
+  `Application startup complete`、推理连贯。
+  **注意：验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS**（mthreads 节点无
+  Qwen3-4B），矩阵"Qwen3-4B"约定在此单元格不适用，详见
+  `report-vllm-0.24.0.md` §8。
+  **早期 "T 路径不可用" 注记作废**：`No module named 'triton.backends.mthreads'`
+  是裸 `compiler`（status）探测的 bug —— `_compiler_import_triton` prepend
+  不清除已在 PYTHONPATH 的另一个 side dir，导致 entry-point 混叠
+  （flagtree 声明 `mthreads` backend、/opt/triton 声明 `musa`），
+  切换路径本身干净。已修 `runtime/zz-compiler.sh`（PR #411）。
 
 **跨版本事实**
 
@@ -131,7 +144,7 @@
 1. **0.24.0 nvidia-cuda12.8 先行**（参考实现）：确认 0.24.0 在 flagtree 下的基线行为。
 2. **3.10 / 3.11 后端先补构建**：0.24.0 empty wheel 与 CPython 绑定，
    验证前需按后端 Python 版本构建对应 wheel。
-3. **双编译器后端逐一对两编译器验证**：metax 已全通；mthreads、hygon、enflame、
-   sunrise 等按风险排序推进。
+3. **双编译器后端逐一对两编译器验证**：metax 已全通；mthreads 已全通
+   （F/T 双路径），hygon、enflame、sunrise 等按风险排序推进。
 4. **单编译器后端**（cambricon、spacemit、thead）：只需验证可用的一列。
 5. **kunlunxin / iluvatar**：等待上游修复后再列入验证队列。
