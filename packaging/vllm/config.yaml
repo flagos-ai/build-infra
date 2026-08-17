@@ -90,3 +90,17 @@ strip_from_indirect:
 strip_extra_from_indirect:
   opencv-python-headless:
     - numpy
+
+# ── Per-package indirect version pins ──────────────────────────────────
+# Force a specific version for a retained indirect dep, overriding what
+# pip would resolve (applied in resolve_dep_versions, only to deps that
+# survived resolution — never re-introduces a stripped package).
+#
+# xgrammar: vllm 0.24.0 requires transformers>=5.5.3, but xgrammar
+# 0.2.4/0.2.5 declare `transformers<5,>=4.38.0` — an empty version window.
+# Upstream pip backtracks to 0.2.3 (no upper bound, still inside vllm's
+# `xgrammar>=0.2.1,<1.0.0`); the repacker's per-dep resolution picks 0.2.5
+# and would freeze the conflict into the vllm wheel.  Pin restores the
+# upstream choice for every backend.  See report-vllm-0.24.0.md §8.
+pin_indirect:
+  xgrammar: "0.2.3"
