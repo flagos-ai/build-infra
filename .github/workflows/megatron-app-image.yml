@@ -14,22 +14,24 @@
 
 name: Megatron app image
 
-# Builds flagos-app/megatron-{vendor}-{backend}:{version} from the runtime
-# image by installing the megatron-core wheel single-step (no --no-deps), then
+# Builds flagos-app/{app}-{vendor}-{backend}:{version} ({app} = megatron-training
+# | megatron-rl) from the runtime image by installing the megatron-core wheel
+# single-step (no --no-deps), then
 # verifies the built image on the node: the torch/triton/flag_gems/numpy
 # matrix must be identical to the runtime's, and megatron.core must import
 # with helpers_cpp bound (see packaging/megatron/verify/verify-megatron-backend.sh).
 #
 # Facility 2 (app-image automation): installs the megatron-core wheel into a
 # flagos-runtime-{vendor}-{backend} image and produces the app image
-# flagos-app/megatron-{vendor}-{backend}:{version}. The Containerfile installs
+# flagos-app/{app}-{vendor}-{backend}:{version}. The Containerfile installs
 # with a single-step `pip install` (no --no-deps) — the wheel keeps its
 # torch>=2.6.0 Requires-Dist and the runtime's vendor torch satisfies it, so the
 # runtime's torch/triton/flag_gems matrix cannot be disturbed (the repack
 # facility was removed 2026-08-14).
 #
-# Backend matrix comes from scripts/generate_matrix.py --app megatron (same
-# runtime fields as runtime-image.yaml plus the per-backend app env vars).
+# Backend matrix comes from scripts/generate_matrix.py --app {app} (same
+# runtime fields as runtime-image.yaml plus the per-backend app env vars and
+# vendor-conditional deps from configs.yaml deps_app.{app}).
 # Per-vendor PyPI (flagos_pypi) is searched first; aliyun is the fallback.
 
 on:
@@ -39,6 +41,13 @@ on:
         description: 'Backend to build (e.g. hygon-dtk26.04), or "all"'
         type: string
         default: all
+      app:
+        description: 'App to build: megatron-training (training + post_training) or megatron-rl (RL loop)'
+        type: choice
+        options:
+          - megatron-training
+          - megatron-rl
+        default: megatron-training
       megatron_version:
         description: 'megatron-core version to install (e.g. 0.17.1)'
         type: string
@@ -84,9 +93,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 scripts/generate_matrix.py --app megatron > matrix.json
+            python3 scripts/generate_matrix.py --app "${{ inputs.app }}" > matrix.json
           else
-            python3 scripts/generate_matrix.py --app megatron ${{ inputs.backend }} > matrix.json
+            python3 scripts/generate_matrix.py --app "${{ inputs.app }}" ${{ inputs.backend }} > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
@@ -105,8 +114,6 @@ jobs:
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
     name: app-${{ matrix.name }}
     runs-on: ${{ fromJSON(matrix.runson) }}
-    env:
-      IMAGE: megatron-app-${{ matrix.name }}:${{ github.run_id }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@v7
@@ -140,13 +147,14 @@ jobs:
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/megatron-${{ matrix.name }}:${{ matrix.version }}"
+          app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
           docker build \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
+            --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
             -t "${app_tag}" \
             -f app/megatron/Containerfile .
           echo "Built: ${app_tag}"
@@ -164,7 +172,7 @@ jobs:
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/megatron-${{ matrix.name }}:${{ matrix.version }}"
+          app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
           bash packaging/megatron/verify/verify-megatron-backend.sh \
             "${{ matrix.name }}" \
             --megatron-version "${{ inputs.megatron_version }}" \
@@ -175,5 +183,5 @@ jobs:
         run: |
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/megatron-${{ matrix.name }}:${{ matrix.version }}"
+          app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
           docker push "${app_tag}"
