@@ -57,6 +57,15 @@
 #                        base/runtime/app must mirror EXACTLY what the image sets —
 #                        the source of truth for per-image env documentation.
 #   "deps:"            — Python dependencies (torch stack, etc.).
+#   "deps_app:"        — per-app vendor-conditional Python packages, keyed by
+#                        app name (vllm / megatron-training / megatron-rl).
+#                        Every backend lists every app; [] means "app exists
+#                        here, needs verification, but has no vendor package" —
+#                        NOT "don't build". Public packages never appear here
+#                        (they ride the wheel's extras, see packaging/megatron).
+#                        The app's own wheel is NOT a deps_app entry — it is
+#                        the app's identity and is carried by the Containerfile
+#                        (e.g. MEGATRON_VERSION), not per-backend conditionality.
 #   "hardware:"        — chip models the image targets (rendered as a prerequisite).
 #   "driver:"          — host driver version installed on the node — a prerequisite,
 #                        distinct from the in-container SDK. Probed from the vendor's
@@ -124,6 +133,10 @@ vendors:
         - torchaudio==2.10.0+cu128
         - torchvision==0.25.0+cu128
         - numpy==2.3.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - CUDA 12.8 (x86_64)
 
@@ -150,6 +163,10 @@ vendors:
         - torchaudio==2.11.0+cu130
         - torchvision==0.26.0+cu130
         - numpy==2.3.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - CUDA 13.3 (x86_64)
 
@@ -166,6 +183,10 @@ vendors:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
         - numpy==2.3.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - CANN Toolkit 8.5.0 (aarch64)     # Ascend-cann-toolkit_8.5.0_linux-aarch64.run
         - CANN 910B Ops 8.5.0 (aarch64)    # Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
@@ -185,6 +206,10 @@ vendors:
         - torch==2.10.0+cpu
         - torch-npu==2.10.0
         - numpy==2.3.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910B Ops 9.0.0 (aarch64) # Ascend-cann-910b-ops_9.0.0_linux-aarch64.run
@@ -208,6 +233,10 @@ vendors:
         - torch-mlu==1.29.2+torch2.7.1
         - torch-mlu-ops==1.8.0+torch2.7.1
         - numpy==2.2.6
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - cnmon 6.2.15         # cnmon-6.2.15-x86_64.zip
         - cntoolkit 4.4.3      # cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb
@@ -234,6 +263,10 @@ vendors:
         - torch-mlu-ops==1.12.1+torch2.11.0
         - numpy==2.2.6
         - pandas==3.0.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - cnmon 6.5.48           # cnmon-6.5.48-x86_64.zip
         - cntoolkit 4.7.2        # cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
@@ -266,6 +299,10 @@ vendors:
         - torchvision==0.25.0+cpu
         - torch-gcu==2.10.0+3.7.20260408
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
         - TOPS Runtime 1.9.10     # topsruntime_1.9.10-1_amd64.deb
@@ -306,6 +343,10 @@ vendors:
         - topstx==1.10.6
         - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==2.3.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
         - TOPS Runtime 1.10.6     # topsruntime_1.10.6-1_amd64.deb
@@ -339,6 +380,12 @@ vendors:
         # opencv-python-headless declares numpy>=2, but that is a pkg declaration only.
         # Its wheel is runtime backward-compatible with numpy>=1.19
         - numpy==1.26.4
+      deps_app:
+        vllm: []
+        megatron-training: []
+        # RL 训练 forward 强制 TE（hygon25 E2E §5.4）；vendor 条件包。
+        megatron-rl:
+          - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
@@ -362,6 +409,10 @@ vendors:
         - torchaudio==2.7.1+corex.4.4.0
         - torchvision==0.22.1+corex.4.4.0
         - numpy==1.26.4
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
@@ -396,6 +447,10 @@ vendors:
         - xformers==0.0.29+1e7a8ec.d20260114
         - xmlir==1.0.0.1
         - numpy==2.2.6
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.37.1.0       # xre-Linux-x86_64-cuda12-5.37.1.0.run
@@ -420,6 +475,10 @@ vendors:
         - torchvision==0.15.1+metax3.7.2.0
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
         - numpy==2.3.5
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - MetaX Driver 3.7.2.30   # metax-driver-3.7.2.30-deb-x86_64.run
         - MACA SDK 3.7.2.0        # maca-sdk-3.7.2.0-deb-x86_64.tar.xz
@@ -447,6 +506,10 @@ vendors:
         - flash_linear_attention==0.5.0+metax3.8.1.0torch2.10
         - flash_mla==1.0.1+metax3.8.1.0torch2.10
         - numpy==2.3.5  # TODO: Confirm this
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - MetaX Driver 3.8.1.6   # metax-driver-3.8.1.6-deb-x86_64.run
         - MACA SDK 3.8.1.3       # maca-sdk-3.8.1.3-deb-x86_64.tar.xz
@@ -474,6 +537,10 @@ vendors:
         - torch_musa==2.9.0
         - mkl==2024.0.0
         - numpy==1.26.4
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
         - MCCL RC2.1.6              # mccl_rc2.1.6.PH1.tar.gz
@@ -500,6 +567,10 @@ vendors:
         - mkl==2024.0.0
         - numpy==1.26.4
 
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - MUSA Toolkits 5.2.0     # musa_toolkits_5.2.0.tar.gz
         - MCCL 2.4.0              # mccl.2.4.0.PH1.tar.gz
@@ -515,6 +586,10 @@ vendors:
         - torch==2.8.0+spacemit.0
         - numpy==2.3.5
 
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
   sunrise:
     tangrt1.2.0:
       extras: sunrise
@@ -534,6 +609,10 @@ vendors:
         - torchvision==0.26.0+cpu
         - torch-ptpu==0.2.3+torch2.11
         - numpy==2.2.6
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - Tang Toolkit 1.2.0   # tangtk-v1.2.0-linux-x86_64.run
         - PCCL 1.2.0           # pccl-v1.2.0-linux_x86_64.run
@@ -551,6 +630,10 @@ vendors:
         - torch==2.9.0+ppu2.0.0.oe
         - numpy==2.3.5
 
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
   tsingmicro:
     tsm260610:
       extras: tsingmicro
@@ -585,6 +668,10 @@ vendors:
         - torch_txda==0.1.0+20260728.f6fbdb71
         - txops==0.1.0+20260716.e94d9509
         - numpy==2.2.6
+      deps_app:
+        vllm: []
+        megatron-training: []
+        megatron-rl: []
       sdk:
         - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
         - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run

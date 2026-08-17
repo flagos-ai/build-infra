@@ -454,18 +454,25 @@ tensorboard 一个，而是一组，偏离方式分三种：
 **待反馈至本 fork:**
 - §1.4 jit_fuser import 期绑定时序、fused kernel 默认开启的平台假设——
   **jit_fuser 项已有 flagtree 四场景实证支撑（2026-08-17，§1.4）**
-- §5.1 RL 依赖 extra 声明偏差（tensorboard/wandb/httpx/tqdm/openai/uvicorn/
-  fastapi/datasets/transformers/pyzmq/msgpack/quart/hypercorn 实际使用与
-  `rl` extra 不符）
+- §5.1 RL 依赖 extra 声明偏差——**已升格为阶段二 C 前置阻塞项**（2026-08-17
+  定）：MLF pyproject 修 `[training]`+`[rl]` extras 一条 PR 一起提，公共包
+  全回 extras 带版本 pin，pyarrow 版本对进 datasets 声明；build-infra
+  `deps_app` 只背 vendor 条件包
 - §5.4 local impl 不支持 THD 打包序列训练 forward（RL 训练 forward 被迫依赖
   TE）；无 vendor TE 平台的适配路径
+- §5.5 flash_attn dynamic 引擎硬依赖 ≥2.7.3——建议软化（megatron.py:87 可配置
+  fallback）；workaround 栈已定：vendor 包 → MLF 内置 → 复用 flag_gems
+  varlen paged（fork vllm-plugin-FL `AttentionFLBackend` 生产模板）
 
-**待决策:**
-- §1.3.3 modelopt 纳入镜像与否
-- §5.2 (datasets, pyarrow) 实测版本对固化到 CI
-- ~~§1.4 flagtree 下是否仍需 `--disable-jit-fuser`~~ **已实证关闭
-  （2026-08-17）**：flagtree 四场景复验完成（F 列全 ✅），`--disable-jit-fuser`
-  不足、需 jit_fuser noop 的结论与修复方向见 §1.4。
+**已决策（2026-08-17，阶段二）：**
+- §1.3.3 modelopt 纳入镜像——**进 `[training]` extra**（公共 PyPI 包）；
+  enflame vendor 变体"见到了就装，可要可不要，不担心"
+- §5.2 (datasets, pyarrow) 实测版本对——**固化进 MLF pyproject datasets
+  声明**（C 前置 PR 内），不进 configs.yaml
+- 交付形态——两应用镜像 `megatron-training-{vendor}-{backend}` /
+  `megatron-rl-{vendor}-{backend}`（详见阶段二状态记录）
+- apex 纳入 hygon runtime——**已落地**（build-infra PR #422 merged，wheel
+  已传 flagos-pypi-hygon）
 
 **相关文档:** `packaging/megatron/builder/report-megatron-0.17.1.md`（构建与依赖面；
 依赖处理并入其 §1/§3）。
