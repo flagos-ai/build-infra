@@ -114,8 +114,6 @@ jobs:
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
     name: app-${{ matrix.name }}
     runs-on: ${{ fromJSON(matrix.runson) }}
-    env:
-      IMAGE: ${{ inputs.app }}-app-${{ matrix.name }}:${{ github.run_id }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@v7
