@@ -479,11 +479,78 @@ MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend 
 
 ---
 
-## 9. 遗留事项
+## 9. mthreads（MUSA 4.3.6）详细记录
+
+- 节点：`mthreads`（JumpServer → 10.121.38.24），用户 `secure`
+- 容器：`vllm-verify-mthreads-musa4.3.6`，MUSA SDK 4.3.6（torch 2.9.0+musa.4.3.6）
+- venv：`/flagos`（cpython-3.10 —— 与 5.2.0 同为 cp310 wheel）
+- 插件：v0.3.0-dev head（零补丁），editable install 于 `/opt/vllm-plugin-FL`
+- 模型：`/data/DeepSeek-R1-0528-Qwen3-8B-FlagOS`
+- 端口：8031
+
+### 9.1 构建 + 安装
+
+同 §8.1 —— 单步安装 `vllm==0.24.0+flagos`（cp310 wheel，命中 `+flagos`
+wheel，无 torch 侧漏）；`pin_indirect: {xgrammar: "0.2.3"}` 同。
+
+### 9.2 插件基线：v0.3.0-dev 零补丁
+
+同 §8.2 —— v0.3.0-dev head（fbc115d），零补丁。serve 启动链与 5.2.0 一致：
+OpManager **10 ops / 14 implementations** → attention_backend fallback
+`default.flagos` → `vendor.musa` → 权重加载 → `Application startup complete`。
+非致命遥测 fork 报错（`Cannot re-initialize MUSA in forked subprocess`）与
+§8.2 相同，不影响服务。
+
+### 9.3 编译器路径判定
+
+**T 路径 ✅**（vendor triton 3.6.0+git89458660）：
+
+- 触发算子：YaRN rotary-embedding `_compute_inv_freq` 中的
+  `base ** pos_freqs`（base=1000000.0，1024 元素 MUSA float 张量）→
+  flag_gems `pow_scalar` → `pow_func_scalar_tensor_kernel_rank_1_bptr_t1024`。
+  该内核在 **vendor triton 下编译通过**（op 级 repro 输出
+  `OK [1.0, 1.01358..., 1.02735...]`）。
+- serve E2E ✅：`Application startup complete`；completions greedy 与
+  chat CoT 均连贯；指纹 `vllm-0.24.0-5936039f`（5.2.0 为
+  `vllm-0.24.0-423da8ca`）。
+- 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（mthreads 节点无 Qwen3-4B），
+  矩阵"Qwen3-4B"约定在此单元格不适用；原始 completions 直给 R1 模型 +
+  temperature 0.6 的整段重复回声是模型行为伪影（同 §8.2）。
+
+**F 路径 ❌（双层根因，无应用层修复）**：
+
+1. **flag_gems 拦截 pow → flagtree codegen 失败**：`base ** pos_freqs` →
+   `__rpow__` → flag_gems `pow_scalar` → `pow_func_scalar_tensor_kernel_rank_1_bptr_t1024`
+   （pow.py:61:34，`tl.exp2`）→ flagtree 0.6.0+mthreads3.6 发出向量化
+   `LLVM ERROR: Cannot select: v2f32 = fexp2` → vendor llc
+   （`/usr/local/musa/bin/llc -march=mtgpu -mcpu=mp_31`）无法选择 → SIGABRT。
+   报错前一行是 `llc` failed with error code -6。
+2. **黑名单排除 pow 后落入损坏的原生 torch 路径**：
+   `VLLM_FL_FLAGOS_BLACKLIST=pow_scalar`（**正确排除名** —— flag_gems
+   `config_filter` 按 Python 函数 `__name__` 匹配，不是 aten schema 名
+   `pow.Scalar`；`enable(unused=["pow"])` 不生效）→ pow 不再被 flag_gems
+   拦截（崩溃位置从 flag_gems pow.py 变为 `torch/_tensor.py:1113` 的
+   `__rpow__`）→ 原生 `torch.pow(other, self)` →
+   `RuntimeError: tensor.device().is_cpu() INTERNAL ASSERT FAILED at
+   pybind_utils.cpp:590` —— torch 2.9.0+musa.4.3.6 无法处理 Python float
+   底数 ** MUSA 张量指数。
+
+结论：`self.base ** pos_freqs` 在 4.3.6 上**没有任何编译器路径可用** →
+F = ❌（kunlunxin/sunrise 风格交编译器团队），交付固定 `compiler triton`。
+对比 5.2.0：flagtree **0.6.1**+mthreads3.6 F 路径 ✅（2026-08-16，§8），
+版本差异（0.6.0 vs 0.6.1）是疑似根因 —— 具体是 codegen 变化还是
+vendor 匹配修复待编译器团队确认。
+
+---
+
+## 10. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、sunrise、cambricon、
-      ascend、kunlunxin 等）的验证 —— mthreads ✅（§8）；nvidia ✅（§6）
+      ascend、kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
+      T ✅ / F ❌）；nvidia ✅（§6）
+- [ ] mthreads-musa4.3.6 F 路径：确认 flagtree 0.6.0→0.6.1 差异是否修复
+      `v2f32 = fexp2` codegen，供编译器团队跟进
 
 ---
 

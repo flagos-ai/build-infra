@@ -35,7 +35,7 @@
 | 昆仑芯 | XRE 5.37.1 | ⛔ | ⛔ | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ✅ | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ⬜ | ⬜ |
+| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ❌ |
 | 摩尔线程 | MUSA 5.2.0 | — | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ⬜ | ⬜ |
@@ -120,6 +120,23 @@
   不清除已在 PYTHONPATH 的另一个 side dir，导致 entry-point 混叠
   （flagtree 声明 `mthreads` backend、/opt/triton 声明 `musa`），
   切换路径本身干净。已修 `runtime/zz-compiler.sh`（PR #411）。
+- **mthreads-musa4.3.6**（2026-08-17，v0.3.0-dev 零补丁，python 3.10）：
+  **T 路径 ✅** —— `compiler triton` → vendor triton 3.6.0+git89458660，
+  同一 pow 内核编译通过，serve 到 `Application startup complete`、推理连贯，
+  指纹 `vllm-0.24.0-5936039f`（5.2.0 为 `vllm-0.24.0-423da8ca`）。
+  验证模型同为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（矩阵"Qwen3-4B"约定
+  在此单元格不适用，同 §8）。
+  **F 路径 ❌（无应用层绕行，交编译器团队）**：双层根因 ——
+  (a) flag_gems 拦截 `pow.Scalar` 后，flagtree 0.6.0+mthreads3.6 对
+  `pow_func_scalar_tensor_kernel_rank_1_bptr_t1024`（`tl.exp2`）发出向量化
+  `v2f32 = fexp2`，vendor llc（`-march=mtgpu -mcpu=mp_31`）`Cannot select`
+  → SIGABRT；(b) 黑名单排除 pow（`VLLM_FL_FLAGOS_BLACKLIST=pow_scalar`，
+  已验证生效）后落入原生 torch `__rpow__`/`torch.pow` ——
+  torch 2.9.0+musa.4.3.6 对 Python float 底数 ** MUSA 张量指数
+  `INTERNAL ASSERT device().is_cpu()` 崩溃。YaRN rotary `base ** pos_freqs`
+  在 4.3.6 上无任何编译器路径可用；交付固定 `compiler triton`。
+  对比：5.2.0 的 flagtree 0.6.1+mthreads3.6 通过 F 验证，版本差异
+  （0.6.0 vs 0.6.1）是疑似根因，详见 `report-vllm-0.24.0.md` §9。
 
 **跨版本事实**
 
@@ -136,6 +153,10 @@
   （TritonSDNN pass 链 / XTDK 后端断言），应用层无法绕过。
 - **sunrise**：flagtree flash-attn decode 挂死，已交 FlagTree 团队；
   交付固定走官方 Triton。
+- **mthreads-musa4.3.6 F 路径**：flagtree 0.6.0+mthreads3.6 对 pow 内核
+  发出 vendor llc 不可选择的 `v2f32 = fexp2`；黑名单排除后原生 torch pow
+  （torch 2.9.0+musa.4.3.6）亦损坏。已交编译器团队，交付固定走
+  `compiler triton`（T 路径已验证 ✅）。
 - **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
 - **enflame**：策略性不用 flagtree（不信任），走 vendor triton + native FLASH_ATTN。
 
@@ -144,7 +165,8 @@
 1. **0.24.0 nvidia-cuda12.8 先行**（参考实现）：确认 0.24.0 在 flagtree 下的基线行为。
 2. **3.10 / 3.11 后端先补构建**：0.24.0 empty wheel 与 CPython 绑定，
    验证前需按后端 Python 版本构建对应 wheel。
-3. **双编译器后端逐一对两编译器验证**：metax 已全通；mthreads 已全通
-   （F/T 双路径），hygon、enflame、sunrise 等按风险排序推进。
+3. **双编译器后端逐一对两编译器验证**：metax 已全通；mthreads 5.2.0 已全通
+   （F/T 双路径）、4.3.6 T 路径 ✅ / F 路径 ❌（见上）；hygon、enflame、
+   sunrise 等按风险排序推进。
 4. **单编译器后端**（cambricon、spacemit、thead）：只需验证可用的一列。
 5. **kunlunxin / iluvatar**：等待上游修复后再列入验证队列。
