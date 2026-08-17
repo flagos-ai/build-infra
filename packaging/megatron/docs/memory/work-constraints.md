@@ -25,6 +25,7 @@ metadata:
 
 ## PR 规范（提交到 flagos-ai/Megatron-LM-FL）
 
+- **PR body 用英文**（用户 2026-08-17 确认；#415 中文 body 是未计较的例外）。
 - PR body 结尾："This PR was written in part with the assistance of generative AI."
 - **不写** Co-Authored-By、无其他 trailer、不提工具名。
 

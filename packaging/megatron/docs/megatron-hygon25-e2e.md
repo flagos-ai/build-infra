@@ -38,7 +38,8 @@ wheel 单步安装直跑，均 exit 0；rl 场景耗时最长——未声明依�
 3. **vendor 包不可信，问题分四类**——元数据、包间版本失配、平台覆盖、源码杂质；逐包 repack 修正并记录（§1.3）。
 4. **平台移植性默认值**——fused kernel 默认开启、jit_fuser import 期绑定，
    非 CUDA 平台需显式关闭（§1.4）。待反馈。
-5. **工具链按平台验证**——flagtree 无法编译 HCU kernel，默认编译器是错误默认（§1.5）。已屏蔽，默认改 vendor triton。
+5. **工具链按平台验证**——flagtree 曾误判"无法编译 HCU kernel"（旧容器缺
+   DTK LLVM 包）；编译器结论不跨版本/平台移植，每后端 × 每编译器实测（§1.5）。
 6. **venv 缺 python3-config** 使数据集构建 import 期挂（§2.1）。已落地
    sysconfig 兜底 + PR #112。
 7. **datasets/pyarrow 版本对不兼容**——5.0.1 写、≤25 读崩（§5.2）。已规避；
@@ -139,6 +140,21 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
 - **处置:** `--no-deps` ad-hoc 装入 runtime venv，**未入镜像**——与其余场景的"单步安装 wheel 即可用"不同，违反交付目标。
 - **现在状态:** 纳入镜像与否待镜像层决策。
 
+#### 1.3.4 triton 3.5.1+das.opt1.dtk2604.torch290（torch 依赖剥除）
+
+- **现象:** 默认 `compiler flagtree` 环境抛 `No module named 'torch'`。
+- **原因（torch 落位 bug）:** 3.5.1 原 wheel 声明 torch 依赖，
+  `pip install --target /opt/triton` 把 torch 捎进 /opt/triton；随后 DEPS 装
+  torch（带 `PYTHONPATH=/opt/triton`），pip 判定 torch 已满足 → site-packages
+  无 torch → 默认 flagtree 环境 import 失败。
+- **修改归纳（repack 1 项）:** 去掉 wheel 的 torch 依赖（torch 由此真正进
+  site-packages，两编译器环境皆可用）。flash_attn 同款剥除 pytest 依赖
+  （§1.3.1）。
+- **注意事项:** 属"包间版本失配"类（§1.3 四类）；其余 vendor 平台 triton
+  wheel 若声明 torch 依赖，同装法会踩同型坑——新平台先查 dist-info METADATA
+  依赖列表。
+- **现在状态:** 已修复（torch 落位 bug 关闭）。
+
 ### 1.4 平台移植性默认值（fused kernel / jit_fuser）
 
 - **fused kernel 默认开启且依赖 CUDA-only 扩展:** `masked_softmax_fusion`
@@ -150,31 +166,41 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
 - **jit_fuser 在模块 import 期绑定 `torch.compile`:** `enable_jit_fuser()`
   在**模块 import 时即执行**（`megatron/core/jit.py:16-33`），把全局
   `jit_fuser` 绑定为 `torch.compile`；`--disable-jit-fuser` 在 args 解析之后才翻转全局，**晚于装饰器生效点**，无法阻止训练 warmup 期的
-  `torch.compile`。DCU 上 warmup 期触发 triton HCU 编译（配合 §1.5 flagtree
-  不可用）→ HSACOError。修复方向：`jit_fuser` 改为惰性装饰（或
+  `torch.compile`。旧镜像（无 DTK LLVM 包，§1.5）warmup 期 flagtree 编译失败
+  → HSACOError；DTK LLVM 包后两编译器皆可编译，flagtree 下是否仍需
+  `--disable-jit-fuser` 待复测（RL 复测被 tensorboard 阻塞，未到达 warmup，
+  §5.1）。修复方向：`jit_fuser` 改为惰性装饰（或
   `enable_jit_fuser` 默认 no-op，由训练入口显式开启）。
 - **现在状态:** 待反馈本 fork。
 
-### 1.5 工具链：flagtree 无法编译 HCU kernel，vendor triton 可用
+### 1.5 工具链：编译器可用性与 DTK LLVM 前置（flagtree"屏蔽"已修正）
 
-- **结论:** 运行时镜像默认的 flagtree 编译器在 hygon（DTK 26.04）上
-  **不可用**；vendor triton（`compiler triton` 切换至 `/opt/triton`）
-  **可用**。
-
-| 编译器 | 版本 | HCU kernel 编译 | 结论 |
-|---|---|---|---|
-| flagtree | 3.6.0 | ✗ `-mllvm` flags 被拒 → clang 无产物 → 误导性 `HSACOError` | **屏蔽** |
-| vendor triton | 3.5.1 | ✓ `make_amdgcn()` 用 `llvm.translate_to_asm()` 直接出码，无 clang 子进程 → 正常产出 `.amdgcn` | **交付** |
-
-- **性质:** flagtree 特有缺陷（`_get_clang_args()` 空字符串 clang-arg + 镜像
-  clang 不接受 `-mllvm` flags），非平台通用问题；vendor triton 路径不经过
-  clang。
-- **影响:** flagtree 作为 hygon runtime 镜像的默认编译器属**错误默认**，需在
-  runtime 镜像层修正（默认改为 vendor triton 或移除 flagtree）。
-- **验证面:** 每个后端 × 两个编译器都要验证；不能用的编译器在交付镜像中屏蔽（不设为默认/不装）。镜像内置 `compiler` 函数（来自 BASH_ENV）切换：
-  `compiler triton`；无该函数时手动剔除 `PYTHONPATH` 中的 `/opt/flagtree`
-  并把 `/opt/triton` 置前。
-- **现在状态:** 已记录，镜像层待修正。
+- **现象（早期结论，已修正）:** flagtree 3.6.0 曾判"无法编译 HCU kernel"——
+  `make_amdgcn()` 调 clang 子进程，HCU 的 `-mllvm` flags 被拒 → clang
+  静默退出、无产物 → 误导性 `HSACOError("File operation failed: ...")`。
+- **原因（误判根因）:** 失败来自**旧容器**——base 镜像未装 DTK LLVM 包。
+  PR #403 在 hygon base 镜像加入 DTK LLVM（`dtk_llvm.run`，`base/hygon-dtk26.04`
+  内 `bash /llvm.run --dtk_dir /opt/dtk-26.04`），提供 clang-18 于
+  `/opt/dtk-26.04/aillvm/bin/clang-18`——这是两编译器自动可用的前置。
+- **机制:** flagtree 3.6.0（`triton/backends/hcu/compiler_hcu.py`）与 vendor
+  triton 3.5.1（`triton/backends/amd/compiler_hcu.py`）有**同一段 dtk 特判**：
+  `llvm_subdir = "aillvm" if rocm_path.name == "dtk" else "llvm"`。`/opt/dtk`
+  是符号链接（→ /opt/dtk-26.04），`Path.name` 恰为 "dtk" → 走 aillvm 分支 →
+  自动找到 clang-18，无需 env / export。**同源同机制。**
+- **当前状态（2026-08-16 实测修正）:** 两编译器均可编译 HCU kernel。flagtree
+  下 flag_gems.mm / addmm / mm-bf16 全过（max_abs_diff=0.0）；早前手写 kernel
+  的 52.96 差异是 kernel 自身 bug，非编译器问题。
+- **注意事项:**
+  - vendor triton 3.3.0 → 3.5.1（PR #404 升级）；"`llvm.translate_to_asm()`
+    直出码、无 clang 子进程"是 3.3.0 的机制，3.5.1 调**外部 clang 子进程**——
+    编译器机制结论不跨版本移植。
+  - flagtree 唯一曾真实阻塞 = torch 落位 bug（§1.3.4）：triton 3.5.1 wheel
+    声明 torch 依赖，捎带致 site-packages 无 torch → 默认 `compiler flagtree`
+    下 `No module named 'torch'`。已由 repack 去掉 torch 依赖修复。
+  - 验证面规则：每个后端 × 每个编译器都要验证；编译器结论不跨平台移植。
+    镜像内置 `compiler` 函数（来自 BASH_ENV）切换编译器。
+- **现在状态:** 两编译器皆可用（DTK LLVM 包 + triton repack 后）；"默认改
+  vendor triton / 移除 flagtree"不再需要。
 
 ### 1.6 环境：DTK 已内置，无需 source env.sh
 
@@ -193,7 +219,7 @@ checkout；`megatron.training` 已在 wheel 中，§1.1）。
 | 参数 / 配置 | 原因 |
 |---|---|
 | `--no-masked-softmax-fusion` | §1.4：fused 路径 import CUDA-only 扩展 |
-| `--disable-jit-fuser` | **仅 flagtree 编译器下需要**（§1.4 + §1.5）；vendor triton 下已不需要 |
+| `--disable-jit-fuser` | vendor triton 下不需要；flagtree 下旧结论（无法编译 HCU）已证伪，是否仍需待复测（§1.4 + §1.5） |
 | `--no-persist-layer-norm` / `--no-gradient-accumulation-fusion` | 相应 fused kernel 在 DCU 上不可用的显式关闭 |
 | `--attention-backend unfused` | 仅 local 训练线需要；RL（TE）线不传（§5.4） |
 | `--transformer-impl` | 训练用 `local`；RL 必须 `transformer_engine`（§5.4） |
@@ -394,7 +420,8 @@ tensorboard 一个，而是一组，偏离方式分三种：
 **待决策:**
 - §1.3.3 modelopt 纳入镜像与否
 - §5.2 (datasets, pyarrow) 实测版本对固化到 CI
-- §1.5 flagtree 在 hygon runtime 镜像中的默认位置（屏蔽/移除）
+- §1.4 flagtree 下是否仍需 `--disable-jit-fuser`（RL E2E 复测确认；复测被
+  §5.1 tensorboard 阻塞，未到达 warmup）
 
 **相关文档:** `packaging/megatron/builder/report-megatron-0.17.1.md`（构建与依赖面；
 依赖处理并入其 §1/§3）。
