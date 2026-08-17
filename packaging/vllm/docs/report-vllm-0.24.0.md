@@ -20,7 +20,8 @@
 
 ## 0. 结论摘要（TL;DR）
 
-结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过。
+结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过；
+Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）。
 
 - 构建 + 重新打包（wheel）：✅ 通过（2026-08-12）
 - MACA（3.7.2.1）× FlagTree：✅ 通过（2026-08-14）
@@ -31,6 +32,7 @@
 - CUDA 12.8 × Triton：✅ 通过（2026-08-16，空模式）
 - CUDA 13.3 × FlagTree：✅ 通过（2026-08-16，空模式）
 - CUDA 13.3 × Triton：✅ 通过（2026-08-16，空模式）
+- Ascend（CANN 9.0.0）× FlagTree：✅ 通过（2026-08-17，插件 PR #387，Qwen3-4B）
 
 "通过" 意味着：1） vLLM 服务可以正常启动；2）使用 Qwen3-4B 模型可以执行正常推理服务；
 
@@ -591,14 +593,86 @@ configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交�
 
 ---
 
-## 10. 遗留事项
+## 10. ascend（CANN 9.0.0）详细记录
+
+- 镜像：`flagos-runtime-ascend-cann9.0.0:2.1.2`（aarch64，CANN 9.0.0，
+  驱动 26.0.rc1，设备 Ascend910B4）
+- venv：`/flagos`（cpython-3.11 —— aarch64 走 cp311 empty wheel）
+- vllm：`0.24.0+flagos`（厂商索引单步安装，命中 `+flagos` wheel）
+- 插件：`feat/ascend-v024`（PR #387）editable install，
+  `vllm-plugin-fl==0.0.0+g09cd07358`（`--no-build-isolation`）
+- 编译器：flagtree 0.6.1+ascend3.5（默认）；侧装 `/opt/triton` =
+  triton 3.5.0 + triton_ascend 3.2.1（未单独 serve 验证）
+- torch 2.10.0+cpu / torch_npu 2.10.0 / flag_gems 5.3.4
+- 模型：`/data/models/Qwen/Qwen3-4B`；端口 8031
+
+### 10.1 移植内容（PR #387）
+
+0.24.0 升级（#274）从未触碰 ascend 目录：`get_name()` 仍返回
+`"ASCEND_FL"`，而 0.24.0 的 `AttentionBackendEnum` 无此成员（扩展只能走
+`CUSTOM` 槽位）→ 任何 ascend 启动都崩在
+`vllm/model_executor/layers/attention/attention.py:401`
+（`ValueError: Unknown attention backend: 'ASCEND_FL'`）。PR #387 恢复
+0.24.0 基线上的可用 ascend 后端，三块内容：
+
+1. **PR #307 移植**（`1326a33`，13 文件 +1786/−194）：CUSTOM 后端注册、
+   `get_supported_kernel_block_sizes → [128]`、`supports_update_block_table`、
+   NPU 平台配置、FLA/GDN ops、fused_moe kernels、MMEncoder attention。
+2. **PR #361 黑名单**（`baeafde`，ascend.yaml +9）：`lift_fresh` /
+   `lift_fresh_copy` / `_to_copy`（coreDim=0 标量张量初始化崩溃规避）。
+3. **0.24.0 特有 worker.py 修复**（`09cd073`）：0.24.0 把 profile 派生计算
+   （torch_peak_increase、kv-cache 预算、cudagraph 估计）移到 profiling
+   with 块外的函数级；cherry-pick 后 NPU 分支落入 profiling 块
+   （`NameError` + 覆盖 NPU kv-cache 预算）。修法：整块移回 `else`、
+   `cudagraph_memory_estimate = 0` 默认、NPU 分支跳过 profile_run。
+
+0.20.2 基线的全量测试结果（27B/35B-A3B TP2，文本/图像/并发 18 项全绿）
+与 0.24.0 定制详情见 PR #387 正文。
+
+### 10.2 serve + 推理（Qwen3-4B，TP1）
+
+serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）：
+
+```bash
+/flagos/bin/python -m vllm.entrypoints.openai.api_server \
+  --model /data/models/Qwen/Qwen3-4B --port 8031 \
+  --gpu-memory-utilization 0.6 --enforce-eager \
+  --trust-remote-code --max-model-len 2048 --dtype bfloat16
+```
+
+- 启动链：`Application startup complete` → 插件 OpManager 逐 op 解析：
+  `Op 'rms_norm' using 'vendor.ascend'`、`Op 'rotary_embedding' using
+  'vendor.ascend'`、`Op 'silu_and_mul' using 'default.flagos'` —— ascend
+  自有实现覆盖部分算子，其余回退默认实现（同 mthreads 模式）。
+- 推理：两条 completions 均连贯（指纹 `vllm-0.24.0-563743c8`）：
+  - knowledge：`The capital of France is` → " Paris. The capital of
+    Germany is Berlin. ..." ✅
+  - math：`What is 7 times 8? Answer:` → " 56. What is 7 times 9?
+    Answer: 63. ..." ✅
+- **性能注记**：NPU JIT 冷启动首 token 分钟级（首个请求约 7 分钟，其中
+  大部分是首个 kernel 的编译/加载）；稳态吞吐约 0.1-0.2 token/s。以功能
+  验证为目的，性能不做横向比较。
+- **非致命警告**：flag_gems `index_select.py:45` UserWarning（张量逻辑
+  `and`/`or`，弃用语义）—— 上游 flag_gems 5.3.4 问题，不影响正确性，
+  列入遗留（§11）。
+- **GDN/hybrid 模型（Qwen3-Next）0.24.0 暂不支持**：0.24.0 把
+  `mamba/gdn_linear_attn.py` 重构为 `mamba/gdn/` 包，patch.py 的 GDN
+  补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
+  （Qwen3、Qwen2、Llama…）不受影响；重构 GDN 补丁为后续工作。
+
+---
+
+## 11. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
-- [ ] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 0.24.0 其余
-      OOT 后端（cambricon、hygon、ascend）验证前必须先合（§9.4）。
+- [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
+      已合入（5b592be）；ascend 验证即基于该基线（§10）。
 - [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、sunrise、cambricon、
-      ascend、kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
-      T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）
+      kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
+      T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）；
+      ascend ✅（§10，CANN 9.0.0 flagtree 路径，cann8.5.0 待验证）
+- [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
+      （§10.2，非致命）—— 上游 flag_gems 侧修复后复验
 
 ---
 

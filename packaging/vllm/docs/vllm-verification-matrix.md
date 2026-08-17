@@ -85,7 +85,7 @@
   triton 3.0.0（XTDK LLVM19 空 SetVector 断言）。应用层无法绕过，已交编译器团队，
   详见 [kunlunxin-xpu-triton-attention-compiler-bug.md](kunlunxin-xpu-triton-attention-compiler-bug.md)。
 
-**0.24.0（截至 2026-08-16）**
+**0.24.0（截至 2026-08-17）**
 
 - **nvidia-cuda12.8** ✅（2026-08-16，空模式双编译器）：flagtree 3.6.0 ✅、
   triton 3.6.0 ✅（`/opt/triton`），均通过 Qwen3-4B E2E 验证，指纹 `vllm-0.24.0-423da8ca`。
@@ -106,7 +106,7 @@
   `_load_ptr` constexpr 解包、`_penalties_kernel` 链式布尔加括号、
   `get_top_k_top_p` 与 `pool` 的 UVA CPU 索引 + 移回设备；新 SDK（triton 3.6.0）无需。
 - **0.24.0 其余后端待验证**：hygon, iluvatar, enflame, sunrise,
-  cambricon, ascend, kunlunxin 等。
+  cambricon, kunlunxin 等。
 - **mthreads-musa5.2.0** ✅✅（2026-08-16~17，v0.3.0-dev 零插件补丁）：
   F 路径 ✅（2026-08-16，默认 flagtree 3.6.0）+ T 路径 ✅（2026-08-17，
   `compiler triton` → vendor triton 3.6.0，musa backend）。两条路径均
@@ -140,6 +140,13 @@
   minimax_m3_msa_warmup → torchvision（OOT runtime 不装）而崩；
   早期 4.3.6/5.2.0 serve 成功依赖节点侧就地 patch（不可复现）。修复落在
   插件调用侧，详见 §9.4 与跨版本事实。
+- **ascend-cann9.0.0** ✅（2026-08-17，v0.3.0-dev + 插件 PR #387 移植）：
+  flagtree 0.6.1+ascend3.5 路径 ✅ —— Qwen3-4B TP1 serve 到
+  `Application startup complete`、推理连贯（knowledge "Paris" / math
+  "56"），指纹 `vllm-0.24.0-563743c8`；`rms_norm`/`rotary_embedding`
+  走 `vendor.ascend`，`silu_and_mul` 回退 `default.flagos`。triton 侧
+  （`/opt/triton` = triton 3.5.0 + triton_ascend 3.2.1）未单独 serve。
+  移植内容与 0.24.0 定制见 `report-vllm-0.24.0.md` §10。
 
 **跨版本事实**
 
