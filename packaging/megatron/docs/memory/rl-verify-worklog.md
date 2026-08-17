@@ -175,6 +175,41 @@ metadata:
 
 **补充复核（flash-attn 断言实证通过）：** run 13 过后对 §5.1 的动态引擎 flash-attn 断言做容器内实测——`flash_attn.__version__` = `"2.8.3"`（`__init__.py` 首行），`get_fa_version()` = 2.8.3 ≥ 2.7.3 → `is_fa_min_version("2.7.3")` = True，`HAVE_FA3` = False（无 flash_attn_3/flashattn_hopper）但 or 分支满足。**§5.1 上文记的"__version__ 硬编码 2.6.1"来自更早容器/轮子状态，在当前已验证容器不成立（已实证 2.8.3）**。报告 §5.1/§5.6 已按此修正：动态引擎 flash-attn 断言不再是 RL 阻塞，阻塞链止于 TE 要求。
 
+## 2026-08-17 3.5.1 复验（用户批准计划：Triton 升级后 RL 之外场景全测）
+
+**training(T) 复验 ✅（run: pretrain35，vendor triton 3.5.1）：** `compiler triton` 下
+`python -m pretrain_gpt`（wheel 内 py-module，full-scope wheel 0.17.1+fl.20260814）mock
+data 5 iter 全跑完 exit 0。loss 1.084036E+01 → 1.083188E+01（5 iter，lr 1e-6 constant
+下降极小符合预期；3.3.0 时代 loss 9.1295→8.8622 因当时参数/初始化不同，不直接可比）。
+参数 = §2 DCU 基线（--no-masked-softmax-fusion --disable-jit-fuser
+--no-persist-layer-norm --no-gradient-accumulation-fusion --attention-backend unfused
+--transformer-impl local --bf16）+ --untie-embeddings-and-output-weights + seed 42。
+NCCL 正常拆解退出，0 Traceback。**3.5.1 下 training E2E 跑通。**
+
+**post_training(T) 复验 ✅（run: posttrain35，vendor triton 3.5.1）：** `compiler triton`
+下 `/tmp/posttrain35.py` driver（post_training surface 全 import + `simple_generate`）
+exit 0，输出 shape=(1, 8)——与 3.3.0 时代事实逐字一致。modelopt 依赖链走通：
+checkpointing.py:7 模块级 import modelopt.torch 由 ad-hoc 装入的 nvidia-modelopt
+0.45.0（aliyun，带依赖解析：PuLP/antlr4-python3-runtime-4.9.3/nvidia-ml-py/
+omegaconf/scipy；torch 2.9.0 落位未动）满足——**测试用途，未入镜像**（§1.3.3
+决策未变）。simple_generate 走 forward_backward_no_pipelining，DummyModel 需满足
+MegatronModule 最小接口（config/set_input_tensor/model_type）。MASTER_PORT=29502。
+
+**inference(T) 复验 ✅（run: infer35，vendor triton 3.5.1）：** `compiler triton` 下
+`/tmp/infer35.py` driver（legacy static 引擎）exit 0，3 请求 × 8 tokens，生成耗时
+4s（tqdm 3/3 [00:04, 1.49s/it]）——与 3.3.0 时代"generate 4.2s"吻合。**编译器无关
+路径成立**：StaticInferenceContext → is_static_batching() → attention.py static 分支
+apply_module(core_attention)（DotProductAttention/sdpa），不依赖 flash-attn、不编译
+triton kernel。两处 driver 内 bypass（测试用途）：prompt_tokens 直接注入
+InferenceRequest 绕过 NullTokenizer 无 tokenize()；NullTokenizer 补最小 detokenize
+（controller.detokenize 无条件 inspect.signature，text_generation_controller.py:209）。
+模型 = 与 training 同构 gpt_builder 随机初始化（无 ckpt），3 个 InferenceRequest
+request_id=0/1/2 + sampling_params(num_tokens_to_generate=8)。MASTER_PORT=29503。
+
+**3.5.1 复验总结：** 三场景（training/post_training/inference）在 vendor triton
+3.5.1 下全部 exit 0——升级后仅 RL 复验（run 13）的缺口已补全。T 列逐格回填 ✅
+（矩阵 2026-08-17）。
+
 ## 待办/开放问题
 
 - [ ] **阻塞 M 已解（2026-08-17，run 11 确认）**：数据层修复（tokenizer_config.json 声明 eos/bos/unk）+ 包装类拷贝回环（huggingface_tokenizer.py:208-209）→ eod=50256 正常。gpt2 系 tokenizer 配方要求写进报告；`eos_id` 无 None 兜底是 MLF minor 发现。**已关闭**
