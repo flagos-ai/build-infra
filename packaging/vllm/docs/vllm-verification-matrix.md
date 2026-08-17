@@ -17,7 +17,6 @@
 | — | 该后端无此编译器 |
 
 列名后缀：T = Triton 编译器，F = FlagTree 编译器。
-`*` = 单元格存在前置条件（flagtree 版本），见事实 bullet 与报告 §9。
 
 ## 矩阵
 
@@ -36,7 +35,7 @@
 | 昆仑芯 | XRE 5.37.1 | ⛔ | ⛔ | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ✅ | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅* |
+| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | — | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ⬜ | ⬜ |
@@ -108,7 +107,7 @@
   `get_top_k_top_p` 与 `pool` 的 UVA CPU 索引 + 移回设备；新 SDK（triton 3.6.0）无需。
 - **0.24.0 其余后端待验证**：hygon, iluvatar, enflame, sunrise,
   cambricon, ascend, kunlunxin 等。
-- **mthreads-musa5.2.0** ✅✅（2026-08-16~17，v0.3.0-dev 零补丁）：
+- **mthreads-musa5.2.0** ✅✅（2026-08-16~17，v0.3.0-dev 零插件补丁）：
   F 路径 ✅（2026-08-16，默认 flagtree 3.6.0）+ T 路径 ✅（2026-08-17，
   `compiler triton` → vendor triton 3.6.0，musa backend）。两条路径均
   OpManager 10 ops/14 impls、attention fallback `vendor.musa`、serve 到
@@ -116,27 +115,31 @@
   **注意：验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS**（mthreads 节点无
   Qwen3-4B），矩阵"Qwen3-4B"约定在此单元格不适用，详见
   `report-vllm-0.24.0.md` §8。
+  **serve 期的 torchvision 依赖经节点侧就地 patch 绕过（不可复现）**：
+  该次 `kernel_warmup` 崩溃被就地改写 `kernel_warmup.py` 绕过，非 wheel
+  内建能力；可复现修复 = 插件 guard（PR #386），见跨版本事实。
   **早期 "T 路径不可用" 注记作废**：`No module named 'triton.backends.mthreads'`
   是裸 `compiler`（status）探测的 bug —— `_compiler_import_triton` prepend
   不清除已在 PYTHONPATH 的另一个 side dir，导致 entry-point 混叠
   （flagtree 声明 `mthreads` backend、/opt/triton 声明 `musa`），
   切换路径本身干净。已修 `runtime/zz-compiler.sh`（PR #411）。
-- **mthreads-musa4.3.6**（2026-08-17，v0.3.0-dev 零补丁，python 3.10）：
+- **mthreads-musa4.3.6**（2026-08-17，v0.3.0-dev + 插件 torchvision guard，python 3.10）：
   **T 路径 ✅** —— `compiler triton` → vendor triton 3.6.0+git89458660，
   同一 pow 内核编译通过，serve 到 `Application startup complete`、推理连贯，
   指纹 `vllm-0.24.0-5936039f`（5.2.0 为 `vllm-0.24.0-423da8ca`）。
   验证模型同为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（矩阵"Qwen3-4B"约定
   在此单元格不适用，同 §8）。
-  **F 路径 ✅*（flagtree 0.6.1，2026-08-17 实验确认）**：同一容器手动替换
-  flagtree 0.6.0 → **0.6.1+mthreads3.6** 后，同一 pow 内核（flag_gems
-  `pow_scalar` → `pow_func_scalar_tensor_kernel_rank_1_bptr_t1024`，`tl.exp2`）
-  编译通过 —— 0.6.0 下报 `LLVM ERROR: Cannot select: v2f32 = fexp2`
-  （vendor llc `-march=mtgpu -mcpu=mp_31`）SIGABRT，0.6.1 下无此问题；
-  serve 到 `Application startup complete`、completions greedy + chat CoT 均
-  连贯（op 级 repro `OK [1.0, 1.01358..., 1.02735...]`）。
-  **`*` 前提：configs.yaml 4.3.6 现 pin flagtree==0.6.0**（F 路径坏），
-  需 bump 到 0.6.1 后重建镜像，单元格才对应交付物；0.6.0→0.6.1 差异即
-  根因（见 `report-vllm-0.24.0.md` §9）。
+  **F 路径 ✅（flagtree 0.6.1 烘焙镜像，重建后复验）**：configs bump
+  （PR #414）已合并、镜像已重建（0.6.1+mthreads3.6 烘焙于
+  `/opt/flagtree`）。重建镜像 F 路径（`compiler flagtree`）serve 到
+  `Application startup complete`、completions greedy + chat CoT 均连贯、
+  指纹 `vllm-0.24.0-5936039f`，同 T 路径。0.6.0→0.6.1 即 pow 内核修复
+  （`v2f32 = fexp2`，见 `report-vllm-0.24.0.md` §9.3）。
+  **torchvision guard（插件 PR #386）为本次 F 路径 serve 的前置**：重建镜像
+  新容器首次 serve 因 vllm 0.24.0 `kernel_warmup` 无条件 import
+  minimax_m3_msa_warmup → torchvision（OOT runtime 不装）而崩；
+  早期 4.3.6/5.2.0 serve 成功依赖节点侧就地 patch（不可复现）。修复落在
+  插件调用侧，详见 §9.4 与跨版本事实。
 
 **跨版本事实**
 
@@ -146,6 +149,12 @@
   wheel 在 cuda13.3（torch 2.11.0+cu130）上单步安装运行 ✅。
   是否可跨 OS/架构（如 aarch64）仍待验证。
 - 所有适配补丁收敛在 vllm-plugin-FL 插件侧，不修改官方 vLLM。
+- **torchvision 依赖（0.24.0 通用 OOT 缺口）**：`kernel_warmup()` 无条件
+  import minimax_m3_msa_warmup → torchvision。OOT runtime（cambricon×2、
+  hygon、ascend×2、mthreads×2）不装 torchvision（会覆盖厂商 torch 矩阵），
+  因此 vllm 0.24.0 在全部无 torchvision 后端首次 serve 都会在 EngineCore
+  init 崩溃。修复在插件调用侧（PR #386，`try/except ImportError` skip，
+  warmup 对 MiniMaxM3 以外的模型是 no-op）。详见 `report-vllm-0.24.0.md` §9.4。
 
 ## 已知问题 / 阻塞
 
@@ -153,10 +162,6 @@
   （TritonSDNN pass 链 / XTDK 后端断言），应用层无法绕过。
 - **sunrise**：flagtree flash-attn decode 挂死，已交 FlagTree 团队；
   交付固定走官方 Triton。
-- **mthreads-musa4.3.6**：flagtree **0.6.0** 对 pow 内核发出 vendor llc
-  不可选择的 `v2f32 = fexp2`；黑名单排除后原生 torch pow
-  （torch 2.9.0+musa.4.3.6）亦损坏。**0.6.1 已验证修复**（F 路径 ✅*）；
-  阻塞项转为 configs.yaml 4.3.6 flagtree 0.6.0→0.6.1 bump + 镜像重建。
 - **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
 - **enflame**：策略性不用 flagtree（不信任），走 vendor triton + native FLASH_ATTN。
 
