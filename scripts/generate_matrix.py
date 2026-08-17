@@ -92,7 +92,9 @@ def _runtime_matrix(
 
     When ``app`` is given, the matrix is the same superset plus the
     per-backend app env vars from configs.yaml env.app.{app}, serialized
-    as "KEY=value\\n..." (same format as runtime_env) under ``app_env``.
+    as "KEY=value\\n..." (same format as runtime_env) under ``app_env``,
+    and the per-backend app deps from configs.yaml deps_app.{app}
+    (space-separated) under ``app_deps``.
     """
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
     registry = build_config.get("registry") or {}
@@ -135,10 +137,16 @@ def _runtime_matrix(
 
         # Per-backend app env vars for one app — same serialization as runtime_env
         app_env_lines = ""
+        # Per-backend app deps for one app — vendor-conditional packages only
+        # (configs.yaml deps_app.{app}). Space-separated, same format as deps.
+        app_deps = ""
         if app is not None:
             app_env = ((backend_info.get("env") or {}).get("app") or {}).get(app, {})
             app_env_lines = "\n".join(
                 f"{k}={v}" for k, v in (app_env or {}).items()
+            )
+            app_deps = " ".join(
+                (backend_info.get("deps_app") or {}).get(app, [])
             )
 
         entry = {
@@ -161,10 +169,11 @@ def _runtime_matrix(
             ) if isinstance(backend_info.get("triton_post_install"), list) else "",
             "runtime_env": runtime_env_lines,
         }
-        # App build matrix = runtime fields + app env; --runtime keeps no
-        # app_env key so runtime-image.yml output is unchanged.
+        # App build matrix = runtime fields + app env + app deps; --runtime
+        # keeps no app_env/app_deps keys so runtime-image.yml output is unchanged.
         if app is not None:
             entry["app_env"] = app_env_lines
+            entry["app_deps"] = app_deps
         include.append(entry)
 
     return {"include": include}
