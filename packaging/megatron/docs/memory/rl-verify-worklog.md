@@ -210,6 +210,23 @@ request_id=0/1/2 + sampling_params(num_tokens_to_generate=8)。MASTER_PORT=29503
 3.5.1 下全部 exit 0——升级后仅 RL 复验（run 13）的缺口已补全。T 列逐格回填 ✅
 （矩阵 2026-08-17）。
 
+## 2026-08-17 第九轮：FlagTree 四场景复验（用户指令"hygon 上的 FlagTree 从头验一遍"）
+
+**范围：** `compiler flagtree`（3.6.0）下四场景全验——training / RL / post_training / inference（矩阵 F 列原为 ⬜）。
+
+**核心发现（§1.4 实证）：`--disable-jit-fuser` 不足。**
+- `enable_jit_fuser()` 在模块 import 期把 `jit_fuser` 绑定为 `torch.compile`（megatron/core/jit.py:16-33）；`--disable-jit-fuser` 在 args 解析后才翻转，**晚于装饰器生效点**。args dump 里 `--disable-jit-fuser` 已是 True，warmup（initialize.py:495 `_warmup_jit_function`）**仍执行 torch.compile** → torchinductor → flagtree 3.6.0 内核缺 `cluster_dims` 元数据 → `AttributeError: 'KernelMetadata' object has no attribute 'cluster_dims'`（torch 2.9.0 `triton_heuristics.py:1757 make_launcher`）。
+- **测试绕过（容器内，非仓库改动）：** site-packages `megatron/core/jit.py` 末行 `enable_jit_fuser()` → `disable_jit_fuser()`（备份 /tmp/jit.py.bak）。上游修复方向 = 惰性装饰（§1.4 已建议，待反馈本 fork，现有实证支撑）。
+- **影响面：** training 与 RL 均触发 warmup torch.compile；post_training/inference 的 driver 不走 warmup（编译器无关路径）——但 RL 场景若不用补丁，与 training 同样在 warmup 崩。
+
+**四场景结果（均 `compiler flagtree`，日志 /tmp/flagtree-*.log）：**
+- **training ✅**（flagtree-training2.log）：`pretrain_gpt.py` 5 iters，loss 1.0838E+01 → 1.0835E+01，EXIT=0。首次失败（training1）即 `cluster_dims` 崩溃，补丁后通过。
+- **RL ✅**（flagtree-rl.log）：同 run 13 参数（TE 线），全链 exit 0——rollout → logprob → 2 训练迭代 → "Inference Coordinator: shut down successfully"。TE triton kernel 在 flagtree 3.6.0 下编译正常。
+- **post_training ✅**（flagtree-posttrain3.log）：DummyModel + `simple_generate`（1,8），EXIT=0。编译器无关路径。前两次失败为 wrapper 缺 args（assert micro_batch_size）与 MASTER_ADDR——脚本问题，非场景问题。
+- **inference ✅**（flagtree-infer2.log）：`StaticInferenceEngine(legacy=True)` 3 请求 × 8 tokens，EXIT=0。编译器无关路径（不编译 triton kernel）。
+
+**文档产物：** 矩阵 hygon 行 F 列全 ✅ + 顶部注更新；报告 §0（flagtree 线小节）、§1.4（实证结论）、§2 基线表、§3/§4/§5（各场景 flagtree 复验注）、§6（待决策项关闭）。
+
 ## 待办/开放问题
 
 - [ ] **阻塞 M 已解（2026-08-17，run 11 确认）**：数据层修复（tokenizer_config.json 声明 eos/bos/unk）+ 包装类拷贝回环（huggingface_tokenizer.py:208-209）→ eod=50256 正常。gpt2 系 tokenizer 配方要求写进报告；`eos_id` 无 None 兜底是 MLF minor 发现。**已关闭**
@@ -224,3 +241,7 @@ request_id=0/1/2 + sampling_params(num_tokens_to_generate=8)。MASTER_PORT=29503
 - [ ] tensorboard 缺口固化到可重复流程（build-infra 侧声明，版本对齐 MLF pin 2.19.0？）
 - [ ] RL 完整接入 TE 实测（rl-v4 继续），逐段暴露并固化依赖缺口
 - [ ] MLF 侧 PR（feat/rl-optdeps-verify）保持开放，供 MLF 采纳
+- [ ] **jit_fuser 惰性装饰修复反馈 MLF（2026-08-17 flagtree 复验实证，§1.4）**：
+  `--disable-jit-fuser` 不足（import 期绑定早于 flag 翻转），flagtree 线 warmup
+  必崩 `cluster_dims`；容器 rl-v4 有测试用 jit.py 补丁（enable→disable），
+  上游惰性装饰修复合并后移除

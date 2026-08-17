@@ -32,6 +32,14 @@ wheel 单步安装直跑，均 exit 0，并已在 vendor triton 3.5.1（PR #404 
 | post_training | ✅ 通过 | driver 全 import + `simple_generate`，exit 0；前提 = ad-hoc 装 modelopt（§1.3.3） |
 | inference | ✅ 通过 | `StaticInferenceEngine(legacy=True)`，3 请求 × 8 tokens，exit 0 |
 
+**flagtree 线（2026-08-17 复验）：** 四场景在 `compiler flagtree`
+（3.6.0）下全验通过（F 列全 ✅，矩阵见
+[[megatron-verification-matrix.md]]）。跨场景前置 = jit_fuser noop
+（§1.4：`--disable-jit-fuser` 不足——import 期已绑定 torch.compile，
+warmup 触发 inductor→flagtree `cluster_dims` 崩溃；复验用容器侧
+jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/inference
+本身编译器无关路径。
+
 **教训清单**：
 
 1. **打包范围必须覆盖 entry point 与顶层脚本**——否则完整服务无法单步安装即用。已由全范围打包关闭（§1.1，PR #107）。
@@ -170,12 +178,17 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
 - **jit_fuser 在模块 import 期绑定 `torch.compile`:** `enable_jit_fuser()`
   在**模块 import 时即执行**（`megatron/core/jit.py:16-33`），把全局
   `jit_fuser` 绑定为 `torch.compile`；`--disable-jit-fuser` 在 args 解析之后才翻转全局，**晚于装饰器生效点**，无法阻止训练 warmup 期的
-  `torch.compile`。旧镜像（无 DTK LLVM 包，§1.5）warmup 期 flagtree 编译失败
-  → HSACOError；DTK LLVM 包后两编译器皆可编译，flagtree 下是否仍需
-  `--disable-jit-fuser` 待复测（RL 复测被 tensorboard 阻塞，未到达 warmup，
-  §5.1）。修复方向：`jit_fuser` 改为惰性装饰（或
-  `enable_jit_fuser` 默认 no-op，由训练入口显式开启）。
-- **现在状态:** 待反馈本 fork。
+  `torch.compile`。**flagtree 复验实证（2026-08-17）：** `--disable-jit-fuser`
+  **不足**——args 里已为 True，warmup 仍触发 torch.compile →
+  torchinductor → flagtree 3.6.0 内核缺 `cluster_dims` 元数据
+  （`KernelMetadata` AttributeError，torch 2.9.0
+  `triton_heuristics.py:1757 make_launcher`）→ 四场景若不经处理均在此崩。
+  复验用**容器侧 jit.py 补丁**（`enable_jit_fuser()` → `disable_jit_fuser()`，
+  仅测试用途，非仓库改动）绕过。修复方向不变：`jit_fuser` 改为惰性装饰
+  （或 `enable_jit_fuser` 默认 no-op，由训练入口显式开启）——落地后
+  `--disable-jit-fuser` 才真正生效，flagtree/triton 两线均不需要补丁。
+- **现在状态:** 待反馈本 fork（§1.4 jit_fuser 惰性装饰修复方向，现已有
+  flagtree 四场景实证支撑）。
 
 ### 1.5 工具链：编译器可用性与 DTK LLVM 前置（flagtree"屏蔽"已修正）
 
@@ -230,7 +243,7 @@ checkout；`megatron.training` 已在 wheel 中，§1.1）。**3.5.1 复验通�
 | 参数 / 配置 | 原因 |
 |---|---|
 | `--no-masked-softmax-fusion` | §1.4：fused 路径 import CUDA-only 扩展 |
-| `--disable-jit-fuser` | vendor triton 下不需要；flagtree 下旧结论（无法编译 HCU）已证伪，是否仍需待复测（§1.4 + §1.5） |
+| `--disable-jit-fuser` | **flagtree 下不足（2026-08-17 实证，§1.4）**：args 翻转晚于 import 期绑定，warmup 仍 torch.compile→inductor→flagtree `cluster_dims` 崩；flagtree 线需 jit_fuser noop（容器侧补丁 / 上游惰性装饰修复）；vendor triton 下不需要 |
 | `--no-persist-layer-norm` / `--no-gradient-accumulation-fusion` | 相应 fused kernel 在 DCU 上不可用的显式关闭 |
 | `--attention-backend unfused` | 仅 local 训练线需要；RL（TE）线不传（§5.4） |
 | `--transformer-impl` | 训练用 `local`；RL 必须 `transformer_engine`（§5.4） |
@@ -271,6 +284,9 @@ nvidia-modelopt 0.45.0 满足。
   scipy 随装，torch 2.9.0 落位未动），**未入镜像**——与其余场景的"单步安装
   wheel 即可用"不同，违反交付目标（§1.3.3）。
 - **注意:** modelopt 是唯一有 vendor 变体的 HARD 依赖；其余后端成功率不确定（§1.3.3）。
+- **flagtree 复验（2026-08-17）：** 同 driver 在 `compiler flagtree` 下直跑
+  exit 0（DummyModel + `simple_generate`，不编译 triton kernel
+  ——编译器无关路径）；F 列 ✅。
 
 ## 4. inference
 
@@ -287,6 +303,9 @@ NullTokenizer 无 detokenize，复验 driver 补最小实现（controller.detoke
   flash-attn、不编译 triton kernel**，对 hygon 属编译器无关路径。
 - **注意:** 非 legacy 路径内部构造 DynamicInferenceContext +
   DynamicInferenceEngine → 回到 §5.5 的 flash-attn 依赖。
+- **flagtree 复验（2026-08-17）：** 同 driver（3 请求 × 8 tokens，legacy
+  static）在 `compiler flagtree` 下直跑 exit 0——静态路径不编译 triton kernel，
+  编译器无关；F 列 ✅。
 
 ## 5. rl
 
@@ -297,6 +316,9 @@ Iteration 0..." → PAD/EOD 日志 → `compute_logprobs_batch` TE forward → 2
 Coordinator: shut down successfully"。rl 四步（rollout → logprob → 训练 →
 退出）首次在 hygon25 全通。
 **前提:** 补装 §5.1 未声明依赖（测试用途，aliyun）+ §5.4 vendor TE。
+**flagtree 复验（2026-08-17）：** `compiler flagtree` 下同参数全链直跑
+exit 0（rollout → logprob → 2 训练迭代 → 干净关闭；前提 jit_fuser noop，
+§1.4）。TE triton kernel 在 flagtree 3.6.0 下编译正常；F 列 ✅。
 **配方相应改动:** `--transformer-impl local → transformer_engine`、删
 `--attention-backend unfused`（local 时代 DCU 基线）。
 
@@ -430,7 +452,8 @@ tensorboard 一个，而是一组，偏离方式分三种：
   python3-config → sysconfig
 
 **待反馈至本 fork:**
-- §1.4 jit_fuser import 期绑定时序、fused kernel 默认开启的平台假设
+- §1.4 jit_fuser import 期绑定时序、fused kernel 默认开启的平台假设——
+  **jit_fuser 项已有 flagtree 四场景实证支撑（2026-08-17，§1.4）**
 - §5.1 RL 依赖 extra 声明偏差（tensorboard/wandb/httpx/tqdm/openai/uvicorn/
   fastapi/datasets/transformers/pyzmq/msgpack/quart/hypercorn 实际使用与
   `rl` extra 不符）
@@ -440,8 +463,9 @@ tensorboard 一个，而是一组，偏离方式分三种：
 **待决策:**
 - §1.3.3 modelopt 纳入镜像与否
 - §5.2 (datasets, pyarrow) 实测版本对固化到 CI
-- §1.4 flagtree 下是否仍需 `--disable-jit-fuser`（RL E2E 复测确认；复测被
-  §5.1 tensorboard 阻塞，未到达 warmup）
+- ~~§1.4 flagtree 下是否仍需 `--disable-jit-fuser`~~ **已实证关闭
+  （2026-08-17）**：flagtree 四场景复验完成（F 列全 ✅），`--disable-jit-fuser`
+  不足、需 jit_fuser noop 的结论与修复方向见 §1.4。
 
 **相关文档:** `packaging/megatron/builder/report-megatron-0.17.1.md`（构建与依赖面；
 依赖处理并入其 §1/§3）。
