@@ -22,7 +22,8 @@ attention。
 ## 0. Summary
 
 **结论：** 四个场景全部打通。training / post_training / inference 由全范围
-wheel 单步安装直跑，均 exit 0；rl 场景耗时最长——未声明依赖与厂商包问题逐一解决后，全链路首次跑通 exit 0。
+wheel 单步安装直跑，均 exit 0，并已在 vendor triton 3.5.1（PR #404 升级后）
+下全部复验通过（2026-08-17）；rl 场景耗时最长——未声明依赖与厂商包问题逐一解决后，全链路首次跑通 exit 0。
 
 | 场景 | 状态 | 一句话事实 |
 |---|---|---|
@@ -137,7 +138,10 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
 - **现象:** post_training 场景依赖 modelopt（HARD 依赖）。
 - **原因:** 仅 enflame 有 vendor 变体（`enflame-modelopt`）；NVIDIA 用
   NVIDIA modelopt 可用，其余后端成功率不确定。
-- **处置:** `--no-deps` ad-hoc 装入 runtime venv，**未入镜像**——与其余场景的"单步安装 wheel 即可用"不同，违反交付目标。
+- **处置:** 带依赖解析 ad-hoc 装入 runtime venv（aliyun 镜像；PuLP/
+  antlr4-python3-runtime-4.9.3/nvidia-ml-py/omegaconf/scipy 随装，torch
+  2.9.0 落位未动），**未入镜像**——与其余场景的"单步安装 wheel 即可用"
+  不同，违反交付目标。
 - **现在状态:** 纳入镜像与否待镜像层决策。
 
 #### 1.3.4 triton 3.5.1+das.opt1.dtk2604.torch290（torch 依赖剥除）
@@ -212,7 +216,14 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
 ## 2. training
 
 **结论:** 全范围 wheel 单步安装直跑 `pretrain_gpt.py`，exit 0（无需 repo
-checkout；`megatron.training` 已在 wheel 中，§1.1）。
+checkout；`megatron.training` 已在 wheel 中，§1.1）。**3.5.1 复验通过
+（2026-08-17）**：`compiler triton` 下 mock data 5 iter 全跑完 exit 0
+（loss 1.084036E+01 → 1.083188E+01，lr 1e-6 constant 下降极小符合预期；
+3.3.0 时代 loss 9.1295→8.8622 因当时参数/初始化不同不直接可比），参数 =
+本节省 DCU 基线（--no-masked-softmax-fusion --disable-jit-fuser
+--no-persist-layer-norm --no-gradient-accumulation-fusion
+--attention-backend unfused --transformer-impl local --bf16）+
+--untie-embeddings-and-output-weights + seed 42。
 
 **可复现运行参数基线**（DCU 上完整跑通 megatron 训练的最小 flags / 容器配置；rl 场景引用，并在 §5 中给出 RL 特有参数）：
 
@@ -250,16 +261,25 @@ checkout；`megatron.training` 已在 wheel 中，§1.1）。
 ## 3. post_training
 
 **结论:** driver 跑通（post_training surface 全 import + `simple_generate`，
-输出 shape=(1, 8)，exit 0）。
+输出 shape=(1, 8)，exit 0）。**3.5.1 复验通过（2026-08-17）**：`compiler
+triton` 下同一 driver exit 0，输出 shape=(1, 8)，与 3.3.0 时代事实一致；
+checkpointing.py:7 模块级 `import modelopt.torch` 由 ad-hoc 装入的
+nvidia-modelopt 0.45.0 满足。
 
-- **前提:** nvidia-modelopt 以 `--no-deps` ad-hoc 装入 runtime venv，**未入镜像**——与其余场景的"单步安装 wheel 即可用"不同，违反交付目标（§1.3.3）。
+- **前提:** nvidia-modelopt 0.45.0 带依赖解析 ad-hoc 装入 runtime venv
+  （aliyun 镜像：PuLP/antlr4-python3-runtime-4.9.3/nvidia-ml-py/omegaconf/
+  scipy 随装，torch 2.9.0 落位未动），**未入镜像**——与其余场景的"单步安装
+  wheel 即可用"不同，违反交付目标（§1.3.3）。
 - **注意:** modelopt 是唯一有 vendor 变体的 HARD 依赖；其余后端成功率不确定（§1.3.3）。
 
 ## 4. inference
 
 **结论:** `StaticInferenceEngine(controller, legacy=True)`，3 请求 × 8 tokens
 （`prompt_tokens` 直接注入 `InferenceRequest`，绕过 NullTokenizer 无
-`tokenize()` 的限制），generate 4.2s，exit 0。
+`tokenize()` 的限制），generate 4.2s，exit 0。**3.5.1 复验通过（2026-08-17）**：
+同构 driver 生成 4s（tqdm 3/3 [00:04, 1.49s/it]），与 3.3.0 时代 4.2s 吻合；
+NullTokenizer 无 detokenize，复验 driver 补最小实现（controller.detokenize
+无条件 `inspect.signature`，text_generation_controller.py:209）。
 
 - **正面经验:** legacy 静态引擎路径保留 `StaticInferenceContext` →
   `is_static_batching()=True` → attention.py static 分支

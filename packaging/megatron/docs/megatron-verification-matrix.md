@@ -19,6 +19,11 @@
 > 注：hygon 的 F 列为 ⬜ 而非 ❌——flagtree 编译级可用（DTK LLVM 包后，
 > 与 triton 3.5.1 同源 dtk 特判），但 megatron 场景级 E2E 均未在 flagtree 下
 > 验证，可能有问题，待按场景复测（§1.4 `--disable-jit-fuser` 是否仍需同测）。
+>
+> 注：hygon 的 T 列均按当前 triton **3.5.1** 计——四场景（training/RL/
+> post_training/inference）已全部在 3.5.1 下 E2E 复验通过（2026-08-17）。
+> 编译器机制跨版本不移植（3.3.0 直出码无 clang 子进程 → 3.5.1 调外部
+> clang），3.3.0 时代结论仅作参考。
 
 ## 矩阵
 
@@ -51,11 +56,18 @@
 
 ## 已验证/已知事实
 
-- **hygon training**：vendor triton 3.3.0 ✅（E2E exit 0，loss 9.1295→8.8622）。
-  flagtree 3.6.0 **编译级可用**（DTK LLVM 包 PR #403 后，与 triton 3.5.1 同源
-  dtk 特判 aillvm/clang-18；flag_gems mm/addmm/mm-bf16 全过 diff 0.0）但
-  **场景级 E2E 未在 flagtree 下验证**——训练(F)=⬜。详见
-  [[megatron-hygon25-e2e.md]] 与 [[memory/hygon-compiler-mask]]。
+- **hygon training**：vendor triton **3.5.1** ✅（2026-08-17 复验：mock data
+  5 iter E2E exit 0，loss 1.084036E+01 → 1.083188E+01；3.3.0 时代已验证，但
+  编译器机制跨版本不移植，仅作参考）。flagtree 3.6.0 **编译级可用**（DTK
+  LLVM 包 PR #403 后，与 triton 3.5.1 同源 dtk 特判 aillvm/clang-18；
+  flag_gems mm/addmm/mm-bf16 全过 diff 0.0）但 **场景级 E2E 未在 flagtree
+  下验证**——训练(F)=⬜。详见 [[megatron-hygon25-e2e.md]] 与
+  [[memory/hygon-compiler-mask]]。
+- **hygon 编译器版本 × 场景 映射（2026-08-17）**：四场景 E2E 全部在 triton
+  **3.5.1** 复验通过（RL：run 13；training/post_training/inference：
+  2026-08-17 复验，exit 0）——**编译器机制跨版本不移植**（3.3.0 直出码无
+  clang 子进程 → 3.5.1 调外部 clang），3.3.0 时代结论仅作参考。inference
+  走 legacy 静态路径，编译器无关（§4）；T 列已逐格回填 ✅。
 - **hygon flagtree 场景级状态（2026-08-17 更正）**：曾判"屏蔽"系旧容器缺
   DTK LLVM 包所致，已证伪；现四场景 F 列一律 ⬜——编译级可用，场景级未验证，
   "可能有问题，不确定"，待按场景复测（含 §1.4 `--disable-jit-fuser`）。
@@ -63,16 +75,22 @@
   - **归属**：上游 **core_v0.17.0** 自己的代码（fork #34 忠实同步），非 fork 偏离。上游修复时点：0.17.0/0.17.1 = 3 处裸 import；0.18.0/0.18.2 = 2 处；main = 0（全部收敛进 `megatron/training/models/`）。
   - **状态**：全范围 wheel 从打包侧关闭阻塞，其余后端推理列仍 ⛔ —— 需 PR #107 合入后按序验证。结构性问题（决策4 关联："顶层文件作入口"模式不支持 wheel 包发布）仍然成立，但不阻塞交付。
 - **hygon inference**：`StaticInferenceEngine(legacy=True)` 路径 E2E 跑通
-  （3 请求 × 8 tokens，exit 0）。legacy 静态批处理走 `apply_module(core_attention)`
-  （DotProductAttention/sdpa），**不依赖 flash-attn、不编译 triton kernel**——
-  对 hygon 属编译器无关路径；推理(F)=⬜ 仅因未在 flagtree 下实测
-  （编译器无关，预期可跑）。
+  （3 请求 × 8 tokens，exit 0）——**3.5.1 复验通过（2026-08-17，生成 4s，
+  与 3.3.0 时代 4.2s 吻合）**。legacy 静态批处理走
+  `apply_module(core_attention)`（DotProductAttention/sdpa），**不依赖
+  flash-attn、不编译 triton kernel**——对 hygon 属编译器无关路径；推理(F)=⬜
+  仅因未在 flagtree 下实测（编译器无关，预期可跑）。
 - **hygon RL**：全链路 exit 0（vendor triton 3.5.1 + TE 2.10.0 vendor 变体）——
   tokenizer → NCCL 初始化 → TE 模型构建 → dynamic 引擎（cuda graph）→
   text-gen server → 2 训练迭代 → 退出。此前阻塞项已全部关闭：flash_attn
   断言（repack 三处版本串一致 → 2.8.3 满足 ≥2.7.3）、torch 落位 bug
   （repack 剥 torch 依赖）。RL(F)=⬜ 待在 flagtree 下复测。
-- **hygon post_training**：driver 跑通（post_training surface 全 import + `simple_generate`，exit 0）。前提是 nvidia-modelopt 已 ad-hoc 装入 runtime venv（`--no-deps`，**未入镜像**——违反"单步安装即可用"目标，modelopt 纳入与否待镜像层决策）。
+- **hygon post_training**：driver 跑通（post_training surface 全 import +
+  `simple_generate`，输出 shape=(1, 8)，exit 0）——**3.5.1 复验通过
+  （2026-08-17）**。前提是 nvidia-modelopt 0.45.0 已 ad-hoc 装入 runtime
+  venv（aliyun 带依赖解析：PuLP/antlr4-python3-runtime-4.9.3/nvidia-ml-py/
+  omegaconf/scipy；torch 2.9.0 落位未动；**未入镜像**——违反"单步安装即可用"
+  目标，modelopt 纳入与否待镜像层决策）。
 - **post_training 依赖**：modelopt 是唯一有 vendor 变体的 HARD 依赖（configs.yaml 仅 enflame 有 `enflame-modelopt`）；tqdm 纯 PyPI。NVIDIA 用 NVIDIA modelopt 可用；其余后端成功率不确定。
 - **rl 依赖**：模块级仅 pydantic + typing_extensions（纯 PyPI）；全树 0 处 triton/torch.compile，复用 training/core 的编译器链。**注意**：rl 场景阻塞不在依赖面而在推理引擎——dynamic 引擎硬依赖 flash-attn（§5.5；hygon 已由 vendor flash_attn 2.8.3 满足），属场景级缺口，非依赖面缺口。
 
