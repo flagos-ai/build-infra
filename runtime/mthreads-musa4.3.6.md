@@ -18,7 +18,7 @@
 ### Major Python packages
 
 - `flag_gems==5.3.4`
-- `flagtree==0.6.0+mthreads3.6`
+- `flagtree==0.6.1+mthreads3.6`
 - `mkl==2024.0.0`
 - `numpy==1.26.4`
 - `torch==2.9.0+musa.4.3.6`
