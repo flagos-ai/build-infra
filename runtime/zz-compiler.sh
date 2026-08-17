@@ -60,9 +60,21 @@ _compiler_strip_side_dirs() {
 }
 
 _compiler_import_triton() {
-    # Import triton with the given dir first on PYTHONPATH.
-    PYTHONPATH="${1}${PYTHONPATH:+:}${PYTHONPATH:-}" python3 -c \
-        "import triton; print(triton.__version__)"
+    # Import triton with the given dir first on PYTHONPATH. Strip the other
+    # compiler side dir first — prepending over an active default leaves both
+    # dirs on PYTHONPATH, and entry-point discovery then imports every
+    # declared backend (e.g. mthreads from flagtree vs musa from triton)
+    # against whichever triton tree wins package resolution, which fails when
+    # that backend only exists in the other tree.
+    local cleaned
+    cleaned=$(_compiler_strip_side_dirs)
+    if [ -n "$cleaned" ]; then
+        PYTHONPATH="${1}:${cleaned}" python3 -c \
+            "import triton; print(triton.__version__)"
+    else
+        PYTHONPATH="${1}" python3 -c \
+            "import triton; print(triton.__version__)"
+    fi
 }
 
 compiler() {
