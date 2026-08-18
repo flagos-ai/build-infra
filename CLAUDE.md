@@ -12,7 +12,7 @@ It builds four layers for 13+ GPU/NPU vendors:
 | **Base images** | Vendor SDK + toolchain on Ubuntu 24.04 | `base/<vendor>-<backend>` Containerfiles |
 | **Runtime images** | Base + Python venv + FlagGems + compilers (FlagTree/Triton) | `runtime/Containerfile` (one for all) |
 | **Wheels** | FlagTree (C++ compiler) + FlagGems (pure Python) + Megatron-LM-FL (pybind11 ext) | `packaging/flagtree/`, `packaging/flaggems/`, `packaging/megatron/builder/` |
-| **App images** | Runtime + megatron-core installed single-step from the vendor PyPI wheel (no repack) | `app/megatron/Containerfile` (mirrors `packaging/vllm/` + `app/vllm/`) |
+| **App images** | Runtime + megatron-core installed single-step from the vendor PyPI wheel (no repack), one Containerfile per app | `app/megatron/Containerfile.megatron-training` / `app/megatron/Containerfile.rl` (mirrors `packaging/vllm/` + `app/vllm/`) |
 
 ## Key commands
 

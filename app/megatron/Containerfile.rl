@@ -13,29 +13,34 @@
 # limitations under the License.
 
 # ============================================================
-# FlagOS Megatron app image
+# FlagOS Megatron app image — megatron-rl
 #
-# Single Containerfile for all backends — build args drive the
-# per-vendor configuration.  See docs/ for the full guide.
+# One of two per-app Containerfiles in this directory (the other is
+# Containerfile.megatron-training). The directory is organized by
+# upstream project (Megatron-LM-FL); the file suffix is the app name,
+# NOT the image name. Images: flagos-app/megatron-training-{vendor}-{backend}
+# and flagos-app/megatron-rl-{vendor}-{backend}.
+#
+# megatron-rl = runtime + wheel, wheel install selecting the [rl]
+# extra (the full RL public group, declared in the MLF pyproject), +
+# vendor-conditional packages via APP_DEPS — e.g. hygon's
+# transformer_engine (configs.yaml deps_app.megatron-rl). Transformer
+# engine stays a deps_app entry, NOT an [rl] extra member: it is
+# vendor-conditional, and the extra only carries public packages.
+#
+# NOTE: the [rl] extra lands with the MLF pyproject PR (feat/
+# declare-runtime-extras). The megatron-rl image can be built only
+# from a wheel produced after that merges; the wheel uploaded before
+# it lacks the extra and pip fails with "extra 'rl' not found".
 #
 # Revision history:
-#   2026-08-13   Initial version. megatron-core from repacked wheel
-#                (vendor PyPI). NO --no-deps: the repacked wheel's
-#                METADATA no longer declares torch, so a single-step
-#                install cannot disturb the runtime's torch/triton/
-#                flag_gems matrix.
-#   2026-08-14   repack facility removed (megatron is a fork-source
-#                path — the wheel keeps torch>=2.6.0 and the runtime's
-#                vendor torch satisfies it). Plain wheel from the
-#                vendor PyPI, still single-step no--no-deps.
-#   2026-08-17   APP_DEPS build arg: vendor-conditional packages from
-#                configs.yaml deps_app.{app} (e.g. hygon's TE for the
-#                rl app), installed before the wheel from the vendor
-#                PyPI — index isolation so a vendor package can't be
-#                re-resolved from the mirror. Workflow now parameterizes
-#                the app name (megatron-training | megatron-rl).
+#   2026-08-18   Split from Containerfile (app decision D5): the RL
+#                app's own Containerfile, wheel install selecting the
+#                [rl] extra. APP_DEPS mechanism carried over for the
+#                vendor TE.
 # TODO
-#   - Publish-time verification (torch version, megatron.core import).
+#   - Publish-time verification (torch version, megatron.core import,
+#     [rl] group imports on the RL loop path).
 # ============================================================
 
 ARG RUNTIME_IMAGE
@@ -69,17 +74,19 @@ RUN if [ -n "${APP_DEPS}" ]; then \
 
 # --- Install megatron-core ------------------------------------
 
-# Single-step install, no --no-deps. The wheel keeps its torch>=2.6.0
-# Requires-Dist; the runtime's vendor torch satisfies it, so pip resolves
-# only the packages that are actually missing (numpy / packaging are
-# already pinned in the runtime image). The install is proven inert by the
-# build-time smoke test in packaging/megatron/builder/ (build env ==
-# delivery env) and verified on-node by
-# packaging/megatron/verify/verify-megatron-backend.sh.
+# Single-step install, no --no-deps. The [rl] extra adds the full RL
+# public group (pydantic / tensorboard / wandb / fastapi / uvicorn /
+# openai / datasets(+pyarrow) / ... — declared in the MLF pyproject).
+# The wheel keeps its torch>=2.6.0 Requires-Dist; the runtime's vendor
+# torch satisfies it, so pip resolves only the packages that are
+# actually missing (numpy / packaging are already pinned in the runtime
+# image). The install is proven inert by the build-time smoke test in
+# packaging/megatron/builder/ (build env == delivery env) and verified
+# on-node by packaging/megatron/verify/verify-megatron-backend.sh.
 RUN pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \
-  "megatron-core==${MEGATRON_VERSION}"
+  "megatron-core[rl]==${MEGATRON_VERSION}"
 
 # --- App env ---------------------------------------------------
 

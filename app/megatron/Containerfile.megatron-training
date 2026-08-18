@@ -1,0 +1,106 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# FlagOS Megatron app image — megatron-training
+#
+# One of two per-app Containerfiles in this directory (the other is
+# Containerfile.rl). The directory is organized by upstream project
+# (Megatron-LM-FL); the file suffix is the app name, NOT the image
+# name. Images: flagos-app/megatron-training-{vendor}-{backend} and
+# flagos-app/megatron-rl-{vendor}-{backend}.
+#
+# megatron-training = runtime + wheel, wheel install selecting the
+# [training] extra (modelopt / tqdm / datasets(+pyarrow) — declared
+# in the MLF pyproject, see the [training] extra there). No vendor-
+# conditional packages on any backend today (configs.yaml deps_app).
+#
+# Revision history:
+#   2026-08-13   Initial version (as Containerfile). megatron-core
+#                from repacked wheel (vendor PyPI). NO --no-deps:
+#                the repacked wheel's METADATA no longer declares
+#                torch, so a single-step install cannot disturb the
+#                runtime's torch/triton/flag_gems matrix.
+#   2026-08-14   repack facility removed (megatron is a fork-source
+#                path — the wheel keeps torch>=2.6.0 and the
+#                runtime's vendor torch satisfies it). Plain wheel
+#                from the vendor PyPI, still single-step no--no-deps.
+#   2026-08-17   APP_DEPS build arg: vendor-conditional packages from
+#                configs.yaml deps_app.{app}, installed before the
+#                wheel from the vendor PyPI — index isolation so a
+#                vendor package can't be re-resolved from the mirror.
+#   2026-08-18   Split from Containerfile (app decision D5): this is
+#                the training app; the wheel install selects the
+#                [training] extra. Containerfile.rl is the other half.
+# TODO
+#   - Publish-time verification (torch version, megatron.core import).
+# ============================================================
+
+ARG RUNTIME_IMAGE
+FROM ${RUNTIME_IMAGE}
+
+# --- Build arguments ------------------------------------------
+
+ARG MEGATRON_VERSION=0.17.1
+
+# Vendor PyPI (flagos-pypi-{vendor}) holding the megatron-core wheel — searched first.
+ARG FLAGOS_PYPI=""
+
+# Fallback for all other dependencies.
+ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+
+# Vendor-conditional packages for this app (configs.yaml deps_app.{app}),
+# space-separated. Installed before the wheel from the vendor PyPI — index
+# isolation so a vendor package (e.g. hygon's transformer_engine for the rl
+# app) can't be re-resolved from the mirror. Empty for apps with no vendor
+# packages on this backend.
+ARG APP_DEPS=""
+
+# --- Install vendor-conditional deps ---------------------------
+
+RUN if [ -n "${APP_DEPS}" ]; then \
+      pip install \
+        --index-url "${FLAGOS_PYPI}" \
+        --extra-index-url "${EXTRA_PYPI}" \
+        ${APP_DEPS}; \
+    fi
+
+# --- Install megatron-core ------------------------------------
+
+# Single-step install, no --no-deps. The [training] extra adds the
+# modelopt / tqdm / datasets(+pyarrow) pins declared in the MLF pyproject.
+# The wheel keeps its torch>=2.6.0 Requires-Dist; the runtime's vendor
+# torch satisfies it, so pip resolves only the packages that are actually
+# missing (numpy / packaging are already pinned in the runtime image).
+# The install is proven inert by the build-time smoke test in
+# packaging/megatron/builder/ (build env == delivery env) and verified
+# on-node by packaging/megatron/verify/verify-megatron-backend.sh.
+RUN pip install \
+  --index-url "${FLAGOS_PYPI}" \
+  --extra-index-url "${EXTRA_PYPI}" \
+  "megatron-core[training]==${MEGATRON_VERSION}"
+
+# --- App env ---------------------------------------------------
+
+# Per-backend app env vars (configs.yaml env.app.{app}): baked into
+# /etc/profile.d/app_env.sh — sourced by the runtime's bash plumbing
+# (BASH_ENV=/etc/bash_env.sh sources /etc/profile.d/*.sh).
+ARG APP_ENV=""
+RUN if [ -n "${APP_ENV}" ]; then \
+      printf '%s\n' "${APP_ENV}" > /etc/profile.d/app_env.sh; \
+    fi
+
+# --- Runtime --------------------------------------------------
+
+WORKDIR /workspace

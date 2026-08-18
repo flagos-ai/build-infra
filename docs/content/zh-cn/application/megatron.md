@@ -59,6 +59,7 @@ wheel 由 `packaging/megatron/builder/` 从 Megatron-LM-FL fork 构建——**�
 docker build \
   --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2 \
   --build-arg FLAGOS_PYPI=https://resource.flagos.net/repository/flagos-pypi-hygon/simple \
-  -t harbor.baai.ac.cn/flagos-app/megatron-hygon-dtk26.04:2.1.2 \
-  -f app/megatron/Containerfile .
+  -t harbor.baai.ac.cn/flagos-app/megatron-training-hygon-dtk26.04:2.1.2 \
+  -f app/megatron/Containerfile.megatron-training .
+# RL app: -f app/megatron/Containerfile.rl, tag megatron-rl-{vendor}-{backend}
 ```
