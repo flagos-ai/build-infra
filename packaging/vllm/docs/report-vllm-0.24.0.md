@@ -600,11 +600,9 @@ configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交�
 - venv：`/flagos`（cpython-3.11 —— aarch64 走 cp311 empty wheel）
 - vllm：`0.24.0+flagos`（厂商索引单步安装，命中 `+flagos` wheel）
 - 插件：`feat/ascend-v024`（PR #387）editable install，
-  `vllm-plugin-fl==0.0.0+gdd5b76e`（`--no-build-isolation`；函数名版
-  pow 黑名单 2026-08-18 合入，见 §10.3）
-- 编译器：flagtree 0.6.1+ascend3.5（默认，§10.2 验证）；侧装
-  `/opt/triton` = triton_ascend 3.2.1（覆盖 triton 为 3.2.0 fork，
-  §10.3 `compiler triton` 路径验证）
+  `vllm-plugin-fl==0.0.0+g09cd07358`（`--no-build-isolation`）
+- 编译器：flagtree 0.6.1+ascend3.5（默认）；侧装 `/opt/triton` =
+  triton 3.5.0 + triton_ascend 3.2.1（triton 路径 E2E 见 §10.4）
 - torch 2.10.0+cpu / torch_npu 2.10.0 / flag_gems 5.3.4
 - 模型：`/data/models/Qwen/Qwen3-4B`；端口 8031
 
@@ -627,17 +625,11 @@ configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交�
    with 块外的函数级；cherry-pick 后 NPU 分支落入 profiling 块
    （`NameError` + 覆盖 NPU kv-cache 预算）。修法：整块移回 `else`、
    `cudagraph_memory_estimate = 0` 默认、NPU 分支跳过 profile_run。
-4. **函数名版 pow 黑名单**（`dd5b76e`，ascend.yaml +15）：Triton 路径
-   RoPE `_compute_inv_freq` 的 `pow.Scalar` 落到 flag_gems `pow_scalar`
-   后，triton_ascend 3.2.0 fork 拒绝 chained `or` 编译崩溃 —— `- pow`
-   因按函数名匹配而无效，改列 wrapper 名
-   （`pow_tensor_tensor(_)` / `pow_tensor_scalar(_)` / `pow_scalar`），
-   路由到 torch_npu（精确等价），详见 §10.3。
 
 0.20.2 基线的全量测试结果（27B/35B-A3B TP2，文本/图像/并发 18 项全绿）
 与 0.24.0 定制详情见 PR #387 正文。
 
-### 10.2 serve + 推理（Qwen3-4B，TP1，flagtree 路径）
+### 10.2 serve + 推理（Qwen3-4B，TP1）
 
 serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）：
 
@@ -668,42 +660,105 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
   （Qwen3、Qwen2、Llama…）不受影响；重构 GDN 补丁为后续工作。
 
-### 10.3 Triton 路径 serve + 推理（Qwen3-4B，TP1，2026-08-18）
+### 10.3 cann8.5.0（hw26）双编译器验证
 
-同一移植分支（`dd5b76e`，含函数名版 pow 黑名单），仅切编译器：
-`compiler triton`（PYTHONPATH=/opt/triton → triton 3.2.0 fork）。serve
-参数同 §10.2，端口 8034，加 `VLLM_USE_FLASHINFER_SAMPLER=0`。
+- 镜像：`flagos-runtime-ascend-cann8.5.0:2.1.2`（aarch64，CANN 8.5.0，
+  Ascend910B4，节点 hw26）
+- 版本：flagtree 0.6.0+ascend3.2（默认）；`compiler triton` →
+  `/opt/triton` = triton 3.2.0 + triton_ascend 3.2.0；torch 2.9.0+cpu /
+  torch_npu 2.9.0 / flag_gems 5.3.4；vllm `0.24.0+flagos`（cp311
+  aarch64 empty wheel）
+- 插件：`feat/ascend-v024`（PR #387 分支）editable install，源码 commit
+  `cf8998c`（容器内 git-less 副本，`vllm-plugin-fl==0.0.0` 无 commit 后缀）
+- 模型：`/data/models/Qwen/Qwen3-4B`；serve 参数同 §10.2，端口
+  8032（triton）/ 8031（flagtree）
 
-- 启动链：`Application startup complete`（00:50）；OpManager 逐 op
-  解析与 flagtree 路径一致（`rms_norm`/`rotary_embedding` →
-  `vendor.ascend`，`silu_and_mul` → `default.flagos`）。
-- 推理：两条 completions 均连贯，指纹 `vllm-0.24.0-563743c8`：
+**双编译器 E2E 全绿**（2026-08-18，commit `cf8998c` 配置，两请求均
+HTTP 200、输出与 CANN 9.0.0 §10.2 一致）：
+
+| 编译器 | knowledge | math | 崩溃标记 |
+|---|---|---|---|
+| triton_ascend 3.2.0 | 7.75s 连贯 | 3.90s 连贯 | 0 |
+| flagtree 0.6.0+ascend3.2 | 10.57s 连贯 | 5.54s 连贯 | 0 |
+
+算子路由同 §10.2：`attention_backend`/`rms_norm`/`rotary_embedding` →
+`vendor.ascend`，`silu_and_mul` → `default.flagos`。
+
+**关键修复：`linear` 黑名单（`cf8998c`）—— triton 路径 decode 挂死**
+
+- 现象：flagtree 路径正常；`compiler triton` 后 decode 循环挂死，
+  EngineCore 停在 `get_current_stream`，AICore 钉在 ~111%。
+- 根因：flag_gems `linear`（aten::linear，`flag_gems/ops/linear.py`）在
+  triton_ascend 3.2.0 下对 decode（M=1）形状死转。SIGUSR1 栈转储定位：
+  main 线程 → `linear` → triton runner（`libentry.py` run）→
+  `driver.py:219 get_current_stream` → `_npu_getCurrentRawStream`。
+  flagtree 0.6.0+ascend3.2 编译同一 kernel 正常 → 编译器侧差异。
+- 修法：`ascend.yaml` `flagos_blacklist` 增加 `linear`（mm/addmm 已
+  在列表），回退 `torch_npu.linear`（数值等价）。加后 triton 路径两次
+  E2E 全绿；容器 yaml 与仓库 `cf8998c` 逐字节一致（YAML_IDENTICAL）。
+- 其余 cann8.5.0 triton 黑名单（wrapper 函数名，非 op 名）：`pow`
+  （`dd5b76e`）、`cumsum`（`679085e`，get_num_sms None）、
+  `repeat_interleave`（`36ec4e4`，MLIR stride 崩溃）。
+
+**被证伪的尝试：silu_and_mul 重排**
+
+一度怀疑挂死与 `silu_and_mul` 路由顺序相关，容器 yaml 临时改
+`[vendor, flagos, reference]` 验证；还原提交态 `[flagos, vendor,
+reference]` 后再跑仍全绿 → 重排非必要，仓库未改（容器最终与仓库一致）。
+
+**良性警告**（Qwen3-4B 无 GDN 层，不影响正确性）
+
+- GDN patch 静默 no-op（`No module named
+  vllm.model_executor.layers.mamba.gdn_linear_attn`，0.24.0 重构为
+  `mamba/gdn/` 包所致，同 §10.2）；
+- torchvision 回退（PR #386 guard 按设计工作）；
+- `TritonToStructured: Pointer analysis is not supported`（triton 侧）；
+- shutdown 期 `resource_tracker` 泄漏 semaphore 提示（UserWarning）；
+- empty wheel `Failed to import from vllm._C`（预期）。
+
+**指纹**：`vllm==0.24.0+flagos` + 插件 commit `cf8998c`。注：banner 仅
+`version 0.24.0`（无 hex 后缀），日志无可提取的 `vllm-0.24.0-<hash>` 串；
+§10.2 的 `vllm-0.24.0-563743c8` 为当时会话 run 标识，本小节以 wheel
+版本 + 插件 commit 为准。
+
+### 10.4 cann9.0.0 triton 路径 E2E（hw25，2026-08-18）
+
+补上 §10.2 缺失的 triton 侧验证（cann9.0.0 此前未单独 serve triton
+路径；cann8.5.0 的 triton 侧见 §10.3）：
+
+- 镜像/容器：`flagos-runtime-ascend-cann9.0.0:2.1.2` 重建（PR #428
+  triton overlay unzip 修复后），容器 `vllm-triton-cann9`，节点 hw25
+- 版本指纹：vllm `0.24.0+flagos`（cp311 aarch64 empty wheel）；
+  torch 2.10.0+cpu / torch_npu 2.10.0 / flag_gems 5.3.4；
+  `compiler triton` → `/opt/triton` = triton 3.5.0（dist 名）+
+  triton_ascend 3.2.1 overlay（`triton.__version__` = 3.2.0，
+  backends `['ascend']`）—— 与 cann8.5.0 的 3.2.0 树为同源 overlay
+- 插件：PR #387 分支 `cf8998c`（容器内 git-less 副本，
+  `vllm-plugin-fl==0.0.0`），`--no-build-isolation` editable install
+- serve：参数同 §10.2，端口 8033，`compiler triton` +
+  `VLLM_FL_DISPATCH_DEBUG=1`
+- 启动：`Application startup complete`；算子路由同 §10.2：
+  `attention_backend`/`rms_norm`/`rotary_embedding` →
+  `vendor.ascend`，`silu_and_mul` → `default.flagos`
+- 推理：两条 completions 均连贯（指纹 `vllm-0.24.0-0535d777`）：
   - knowledge：`The capital of France is` → " Paris. The capital of
     Germany is Berlin. ..." ✅
-  - math：`What is 7 times 8? Answer:` → " 56. What is 7 times 9?
-    Answer: 6..." ✅
-- **性能注记**：比 flagtree 路径更慢 —— 首请求约 10 分钟（含逐 kernel
-  JIT 冷启动），稳态 0.1 token/s。以功能验证为目的，性能不做横向比较。
-- **指纹探测注记**：smoke 的独立 `python -c` 指纹探测未切编译器，打印的
-  `triton 3.5.1` 是 venv 默认解析结果，**不代表 serve 实际使用的编译器**；
-  本段 serve 的编译器为 `/opt/triton` 的 triton 3.2.0 fork（triton_ascend
-  3.2.1）。
-- **pow chained-or 编译崩溃 → 函数名版黑名单解决**：模型加载期 RoPE
-  `_compute_inv_freq`（`base ** (2.0/dim)`）路由到 flag_gems `pow_scalar`
-  → triton 3.2.0 fork 前端拒绝完整 3 连 chained boolean
-  `if (A or B or C)`（`UnsupportedLanguageConstruct`）。**先前的容器内
-  patch（chained-or → `(A or B) or C`）不可复现**；`- pow` 黑名单也无效
-  （config_filter 按函数名匹配，见下）。最终修法 = **ascend.yaml 黑名单
-  改列 wrapper 函数名**（`dd5b76e`，PR #387 item 4）：
-  `pow_tensor_tensor(_)` / `pow_tensor_scalar(_)` / `pow_scalar` 全部
-  exclude → 这些 op 落到 torch_npu（精确等价，非降级）。**在 pristine
-  pow.py（3 处 3 连 chained-or 原形，未 patch）下全链路复验通过**
-  （本段 serve 即此形态），无需容器 patch。
-- **函数名 vs op name 匹配（vllm_fl 侧机制）**：ascend.yaml
-  `flagos_blacklist` 传入 `enable(unused=)` 后，config_filter 按**函数名**
-  （`item[1].__name__`）过滤 —— 与 op name（`"pow"`）不匹配 → 旧 `- pow`
-  条目无效。这同时意味着黑名单只对"有 wrapper 函数"的 op 可精确生效；
-  机制本身是否改为 op-name 匹配列入 §11。
+  - math：`What is 7 times 8? Answer:` → " 56. What is 7 times 9? ..." ✅
+- 崩溃标记：0（无 Traceback / CUDA error / segfault；serve 进程存活）
+- **FlagGems 精度测试（triton 路径附加证明，2026-08-18）**：停 serve 后在同一
+  容器内跑 v5.3.4 测试树（与 wheel 精确匹配，pytest 9.0.3），
+  `compiler triton` + `--quick --record json`，9 个代表性 stable 算子
+  （`add`/`mul`/`abs`/`sum`/`amax`/`softmax`/`add_rms_norm`/`mm`/`bmm`，
+  覆盖 pointwise / reduce / softmax / norm / GEMM kernel 类别）：
+  **66 passed / 9 skipped / 0 failed**（188s）。skipped 均在预期内
+  （8 个 complex dtype 变体——OOT runtime 无 complex 支持；1 个 mm TMA
+  compile-error 负向测试）。另有 2 个 collection errors 与本次无关：
+  `test_cholesky_solve.py` import 不存在的 backend 模块、
+  `test_multinomial.py` 缺 scipy（OOT runtime 不装）。
+- **结论**：cann9.0.0 双编译器路径全绿，与 cann8.5.0（§10.3）一致；
+  cann8.5.0 的 `linear`/`pow`/`cumsum`/`repeat_interleave` 黑名单
+  （`cf8998c`）在 triton_ascend 3.2.1 下同样成立（E2E 未触发挂死）；
+  triton 编译器在 kernel 层亦验证可用（FlagGems 精度 66/66）。
 
 ---
 
@@ -715,18 +770,7 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
 - [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、sunrise、cambricon、
       kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
       T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）；
-      ascend ✅（§10，CANN 9.0.0 flagtree + triton 双路径，
-      cann8.5.0 待验证）
-- [ ] ascend Triton 路径的 pow chained-or 修复**落镜像/上游**：已用
-      函数名版黑名单（§10.3，`dd5b76e`）在应用层精确规避（pristine
-      pow.py 全链路 ✅）；上游修复 = flag_gems pow.py（及
-      cummax/cummin/cumsum 等）改为 fork 兼容形态后合入 —— 落上游后
-      可移除黑名单条目
-- [x] **vllm_fl ascend.yaml pow 黑名单失效（函数名 vs op name 匹配，
-      §10.3）** —— 2026-08-18 以函数名版黑名单解决（`dd5b76e`，
-      PR #387 item 4）：`pow_tensor_tensor(_)` / `pow_tensor_scalar(_)`
-      / `pow_scalar` 全 exclude，pristine pow.py 下 Triton 路径复验 ✅。
-      机制是否改为 op-name 匹配（对无 wrapper 的 op 也生效）留待上游
+      ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （§10.2，非致命）—— 上游 flag_gems 侧修复后复验
 

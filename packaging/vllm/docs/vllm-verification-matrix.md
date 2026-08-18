@@ -24,7 +24,7 @@
 |---|---|---|---|---|---|
 | 英伟达 | CUDA 12.8 | ⬜ | ✅ | ✅ | ✅ |
 | 英伟达 | CUDA 13.3 | ⬜ | ⬜ | ✅ | ✅ |
-| 昇腾 | CANN 8.5.0 | ⬜ | ⬜ | ⬜ | ⬜ |
+| 昇腾 | CANN 8.5.0 | ⬜ | ⬜ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ⬜ | ✅ | ✅ | ✅ |
 | 寒武纪 | NEUWARE 4.4.3 | ⬜ | — | ⬜ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⬜ | — |
@@ -140,19 +140,22 @@
   minimax_m3_msa_warmup → torchvision（OOT runtime 不装）而崩；
   早期 4.3.6/5.2.0 serve 成功依赖节点侧就地 patch（不可复现）。修复落在
   插件调用侧，详见 §9.4 与跨版本事实。
-- **ascend-cann9.0.0** ✅（2026-08-18，v0.3.0-dev + 插件 PR #387 移植）：
-  双编译器路径均过 Qwen3-4B TP1 E2E（serve 到 `Application startup
-  complete`、推理连贯 knowledge "Paris" / math "56"，指纹
-  `vllm-0.24.0-563743c8`）：
-  - **flagtree** 0.6.1+ascend3.5 ✅（2026-08-17）；
-  - **triton**（`compiler triton` → triton 3.2.0 fork，triton_ascend
-    3.2.1）✅（2026-08-18）—— **函数名版 pow 黑名单已合入 PR #387**
-    （`pow_tensor_tensor(_)` / `pow_tensor_scalar(_)` / `pow_scalar`，
-    替代无效的 `- pow`）；**pristine pow.py（3 连 chained-or 原形，
-    未 patch）全链路复验通过**，无需容器 patch。
-  `rms_norm`/`rotary_embedding` 走 `vendor.ascend`，`silu_and_mul`
-  回退 `default.flagos`。移植内容与 0.24.0 定制见
-  `report-vllm-0.24.0.md` §10。
+- **ascend-cann9.0.0** ✅✅（2026-08-17~18，v0.3.0-dev + 插件 PR #387
+  移植）：flagtree 0.6.1+ascend3.5 路径 ✅（2026-08-17）—— Qwen3-4B
+  TP1 serve 到 `Application startup complete`、推理连贯（knowledge
+  "Paris" / math "56"），指纹 `vllm-0.24.0-563743c8`；triton 路径 ✅
+  （2026-08-18，hw25，`/opt/triton` = triton 3.5.0 + triton_ascend
+  3.2.1 overlay，`triton.__version__` = 3.2.0）—— 同参数 serve 到
+  `Application startup complete`、推理连贯、崩溃标记 0，指纹
+  `vllm-0.24.0-0535d777`。两路径 `rms_norm`/`rotary_embedding` 均走
+  `vendor.ascend`，`silu_and_mul` 回退 `default.flagos`。移植内容与
+  0.24.0 定制见 `report-vllm-0.24.0.md` §10。
+- **ascend-cann8.5.0** ✅（2026-08-18，hw26）：flagtree 0.6.0+ascend3.2
+  与 triton_ascend 3.2.0 双编译器路径全绿 —— Qwen3-4B TP1 serve 到
+  `Application startup complete`、推理连贯（knowledge "Paris" / math
+  "56"），崩溃标记 0。triton 路径需 `linear`/`pow`/`cumsum`/
+  `repeat_interleave` 黑名单（插件 commit `cf8998c`；triton_ascend
+  3.2.0 decode GEMM 死转，详见 `report-vllm-0.24.0.md` §10.3）。
 
 **跨版本事实**
 
