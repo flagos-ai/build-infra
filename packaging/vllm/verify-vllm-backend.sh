@@ -36,6 +36,12 @@
 #   4. Verify torch version not overwritten
 #   5. Install vllm-plugin-FL
 #   6. Test vllm serve and inference
+#
+# --app-image <image>: instead of steps 3-6, verify a prebuilt
+#   flagos-dev/vllm-{vendor}-{backend}:{version} image (built by the
+#   vllm-app-image workflow): the critical-package matrix
+#   (torch/torch_npu/triton/flag_gems/numpy) must be identical to the runtime
+#   image's, and vllm + vllm_fl must import. No installs run; serve is skipped.
 
 set -euo pipefail
 
@@ -44,16 +50,20 @@ set -euo pipefail
 VENDOR_BACKEND="${1:-}"
 MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-4B}"
 VLLM_VERSION="${VLLM_VERSION:-0.20.2}"
+PLUGIN_FL_VERSION="${PLUGIN_FL_VERSION:-}"
 SKIP_SERVE=false
 VLLM_VENDOR="cuda"
+APP_IMAGE=""
 
 shift || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --model) MODEL_PATH="$2"; shift 2 ;;
         --vllm-version) VLLM_VERSION="$2"; shift 2 ;;
+        --plugin-fl-version) PLUGIN_FL_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
         --vllm-vendor) VLLM_VENDOR="$2"; shift 2 ;;
+        --app-image) APP_IMAGE="$2"; shift 2 ;;
         --help)
             echo "Usage: $0 <vendor-backend> [options]"
             echo ""
@@ -63,8 +73,10 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --model <path>       Path to model for serve test"
             echo "  --vllm-version <ver> vLLM version to install (default: 0.20.2)"
+            echo "  --plugin-fl-version <ver> vllm-plugin-FL wheel version (default: skip plugin)"
             echo "  --vllm-vendor <vendor> VLLM_VENDOR for plugin build (default: cuda)"
             echo "  --skip-serve          Skip serve test, only install and verify imports"
+            echo "  --app-image <image>   Verify a prebuilt vllm app image (matrix + import)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -167,15 +179,83 @@ raw = vendor_config.get('raw', '')
 print(toolkit if toolkit else raw)
 ")
 
+# The model mount is only needed for the serve test — skip it in --app-image
+# mode (no installs, no serve; the path may not even exist on the node).
+MODEL_MOUNT=""
+[[ -z "${APP_IMAGE}" ]] && MODEL_MOUNT="-v ${MODEL_PATH}:${MODEL_PATH}:ro"
+
 docker run -d --name "${CONTAINER}" \
     ${RUN_FLAGS} \
     -v "${WORK_DIR}:${WORK_DIR}" \
-    -v "${MODEL_PATH}:${MODEL_PATH}:ro" \
+    ${MODEL_MOUNT} \
     --network host \
     "${RUNTIME_IMAGE}" \
     sleep infinity
 
 log_info "Container started: ${CONTAINER}"
+
+# ── App-image mode: verify a prebuilt vllm app image ─────────────────────
+#
+# Facility 2 (vllm-app-image.yml) verifies the built
+# flagos-dev/vllm-{vendor}-{backend}:{version} image instead of installing
+# from scratch: BEFORE snapshot from the runtime image, AFTER from the app
+# image — the critical-package matrix (torch / torch_npu / triton /
+# flag_gems / numpy) must match item by item, proving the single-step wheel
+# installs baked into the image were inert. Then import vllm + vllm_fl on
+# the app container. No install steps run; the serve test is skipped.
+if [[ -n "${APP_IMAGE}" ]]; then
+    log_step "App-image mode: verifying ${APP_IMAGE}"
+
+    APP_CONTAINER="vllm-app-verify-${VENDOR}-${BACKEND}"
+    docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+
+    WATCH_PKGS="torch torch_npu triton flag_gems numpy"
+    snapshot() {
+        local cid="$1" pkg ver
+        for pkg in ${WATCH_PKGS}; do
+            ver=$(docker exec "${cid}" python3 -c \
+                "import importlib.metadata as m; print(m.version('${pkg}'))" \
+                2>/dev/null || echo "NOT_INSTALLED")
+            echo "${pkg}=${ver}"
+        done
+    }
+
+    log_step "BEFORE snapshot (runtime image)"
+    snapshot "${CONTAINER}" | tee "${WORK_DIR}/before.txt"
+
+    docker run -d --name "${APP_CONTAINER}" \
+        ${RUN_FLAGS} \
+        --network host \
+        "${APP_IMAGE}" \
+        sleep infinity
+    log_info "App container started: ${APP_CONTAINER}"
+
+    log_step "AFTER snapshot (app image)"
+    snapshot "${APP_CONTAINER}" | tee "${WORK_DIR}/after.txt"
+
+    log_step "Comparing critical-package matrix"
+    if diff -u "${WORK_DIR}/before.txt" "${WORK_DIR}/after.txt"; then
+        log_info "✅ Matrix unchanged: the app image did not overwrite runtime packages"
+    else
+        log_error "❌ Matrix changed: the app image overwrote a runtime package"
+        docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+        exit 1
+    fi
+
+    log_step "Import check (vllm + vllm_fl)"
+    if docker exec "${APP_CONTAINER}" bash -c \
+        'python3 -c "import vllm, vllm_fl; print(\"vllm\", vllm.__version__, \"| plugin ok\")"'; then
+        log_info "✅ vllm + vllm_fl import OK"
+    else
+        log_error "❌ import failed"
+        docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+        exit 1
+    fi
+
+    docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+    log_info "App-image verification PASSED"
+    exit 0
+fi
 
 # ── Step 2: Verify runtime environment ──────────────────────────────────
 
@@ -282,23 +362,29 @@ docker exec "${CONTAINER}" bash -c "
     esac
 "
 
-# ── Step 5: Install vllm-plugin-FL ──────────────────────────────────────
+# ── Step 5: Install vllm-plugin-FL (wheel) ──────────────────────────────
 
 log_step "Step 5: Installing vllm-plugin-FL"
 
-docker exec "${CONTAINER}" bash -c "
-    cd /workspace
-    if [ ! -d vllm-plugin-FL ]; then
-        git clone --depth 1 https://github.com/flagos-ai/vllm-plugin-FL.git
-    fi
-    cd vllm-plugin-FL
+if [[ -z "${PLUGIN_FL_VERSION}" ]]; then
+    log_warn "No --plugin-fl-version given; skipping plugin install"
+    log_warn "Pass --plugin-fl-version <version> to install the audited plugin wheel"
+else
+    # Clean single-step install from the vendor PyPI, same index pair as
+    # vllm. The wheel's Requires-Dist is audited to be empty of the runtime's
+    # critical packages (packaging/vllm/audit-deps.py), so pip has no reason
+    # to touch the baked torch/triton/flag_gems matrix.
+    docker exec "${CONTAINER}" bash -c "
+        pip install \
+            --index-url '${VENDOR_PYPI}' \
+            --extra-index-url '${ALIYUN_PYPI}' \
+            'vllm-plugin-fl==${PLUGIN_FL_VERSION}'
 
-    VLLM_VENDOR=${VLLM_VENDOR} pip install --no-build-isolation -e .
-
-    echo ''
-    echo 'Plugin installed:'
-    pip list | grep -i vllm
-"
+        echo ''
+        echo 'Plugin installed:'
+        pip show vllm-plugin-fl | grep -E '^(Name|Version|Location)'
+    "
+fi
 
 # ── Step 6: Test vllm serve ─────────────────────────────────────────────
 

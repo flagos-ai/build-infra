@@ -129,6 +129,12 @@ def _runtime_matrix(
         cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
         cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
 
+        # vllm-plugin-FL build vendor: cuda-ABI backends (cmake_backend cuda)
+        # compile the vllm_fl._C extension (VLLM_VENDOR=cuda); PrivateUse1
+        # backends (NPU, no cuda in cmake_backend) build the pure-python
+        # package with VLLM_VENDOR unset.
+        vllm_vendor = "cuda" if "cuda" in cpp_backend else ""
+
         # Per-backend runtime env vars — serialized as "KEY=value\nKEY2=value2"
         runtime_env = (backend_info.get("env") or {}).get("runtime", {})
         runtime_env_lines = "\n".join(
@@ -168,6 +174,7 @@ def _runtime_matrix(
                 backend_info.get("triton_post_install", [])
             ) if isinstance(backend_info.get("triton_post_install"), list) else "",
             "runtime_env": runtime_env_lines,
+            "vllm_vendor": vllm_vendor,
         }
         # App build matrix = runtime fields + app env + app deps; --runtime
         # keeps no app_env/app_deps keys so runtime-image.yml output is unchanged.

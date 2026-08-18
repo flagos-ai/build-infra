@@ -21,9 +21,11 @@
 # Revision history:
 #   2026-07-28   Initial version. vllm from repacked wheel (vendor
 #                PyPI), vllm-plugin-FL from source.
+#   2026-08-18   vllm-plugin-FL installed from the vendor PyPI as a prebuilt
+#                wheel (vllm-plugin-fl==<version>) built + dependency-audited
+#                by the vllm-plugin-wheel workflow — no git clone, no source
+#                build inside the app image.
 # TODO
-#   - vllm-plugin-FL: build+release as wheel, then `pip install`
-#     instead of source-building.
 #   - Publish-time verification (torch version, vllm import).
 # ============================================================
 
@@ -40,13 +42,16 @@ ARG FLAGOS_PYPI=""
 # Fallback for all other dependencies.
 ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
 
-# vllm-plugin-FL git ref.
-ARG PLUGIN_FL_REF=""
+# vllm-plugin-FL wheel version (e.g. "0.2.0+gcf8998c.d20260815") — the
+# setuptools-scm tag+commit encoding, so wheel == exact plugin commit. Built
+# by the vllm-plugin-wheel workflow in the same runtime image and published
+# to the vendor PyPI; nothing is built from source here.
+ARG PLUGIN_FL_VERSION=""
 
-# "cuda" for CUDA-ABI backends (nvidia, metax, hygon, iluvatar,
-#   mthreads, kunlunxin, cambricon).
-# "ascend" / "gcu" for PrivateUse1.
-ARG VLLM_VENDOR=cuda
+# Vendor-conditional app-level deps (configs.yaml deps_app.vllm), installed
+# after the plugin. Some backends need a package in the app layer that is not
+# in the runtime matrix.
+ARG APP_DEPS=""
 
 # --- Install vllm (repacked wheel) ----------------------------
 
@@ -61,18 +66,17 @@ RUN pip install \
   --extra-index-url "${EXTRA_PYPI}" \
   "vllm==${VLLM_VERSION}+flagos"
 
-# --- Install vllm-plugin-FL (source) --------------------------
+# --- Install vllm-plugin-FL (wheel) --------------------------
 
-ARG PLUGIN_FL_REF
-RUN if [ -n "${PLUGIN_FL_REF}" ]; then \
-    git clone \
-      --branch "${PLUGIN_FL_REF}" \
-      --depth 1 \
-      https://github.com/flagos-ai/vllm-plugin-FL.git \
-      /workspace/vllm-plugin-FL \
-    && cd /workspace/vllm-plugin-FL \
-    && VLLM_VENDOR=${VLLM_VENDOR} pip install --no-build-isolation . \
-    && rm -rf /workspace/vllm-plugin-FL ; \
+# Clean single-step install of the audited plugin wheel — same index pair as
+# vllm. The wheel's Requires-Dist is audited to be empty of the runtime's
+# critical packages (audit-deps.py), so pip has no reason to touch the baked
+# matrix.
+RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
+    pip install \
+      --index-url "${FLAGOS_PYPI}" \
+      --extra-index-url "${EXTRA_PYPI}" \
+      "vllm-plugin-fl==${PLUGIN_FL_VERSION}" ; \
   fi
 
 # --- App env ---------------------------------------------------
@@ -84,6 +88,15 @@ ARG APP_ENV=""
 RUN if [ -n "${APP_ENV}" ]; then \
       printf '%s\n' "${APP_ENV}" > /etc/profile.d/app_env.sh; \
     fi
+
+# --- Vendor-conditional app deps -----------------------------
+
+RUN if [ -n "${APP_DEPS}" ]; then \
+    pip install \
+      --index-url "${FLAGOS_PYPI}" \
+      --extra-index-url "${EXTRA_PYPI}" \
+      ${APP_DEPS} ; \
+  fi
 
 # --- Runtime --------------------------------------------------
 
