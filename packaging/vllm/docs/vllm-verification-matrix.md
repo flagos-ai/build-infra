@@ -150,6 +150,11 @@
   `vllm-0.24.0-0535d777`。两路径 `rms_norm`/`rotary_embedding` 均走
   `vendor.ascend`，`silu_and_mul` 回退 `default.flagos`。移植内容与
   0.24.0 定制见 `report-vllm-0.24.0.md` §10。
+  **app 镜像路径 ✅**（2026-08-18，hw25）：`vllm-ascend-cann9.0.0:2.1.2`
+  （wheel 单步安装：vllm `0.24.0+flagos` + vllm-plugin-fl
+  `0.2.0+gcf8998c.d20260818`，`vllm-serve` launcher）serve 到
+  `Application startup complete`、推理连贯、崩溃标记 0，指纹
+  `vllm-0.24.0-0535d777`（同一 wheel）。详见 report §10.5。
 - **ascend-cann8.5.0** ✅（2026-08-18，hw26）：flagtree 0.6.0+ascend3.2
   与 triton_ascend 3.2.0 双编译器路径全绿 —— Qwen3-4B TP1 serve 到
   `Application startup complete`、推理连贯（knowledge "Paris" / math
