@@ -228,13 +228,13 @@ jobs:
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          # Same proxy bypass as the build step: no baked NO_PROXY in the
+          # runtime image, so aliyun (twine/pkginfo install) and
+          # resource.flagos.net (upload) must bypass the tunnel.
           docker run --rm \
             -e NEXUS_TOKEN \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
-            # Same proxy bypass as the build step: no baked NO_PROXY in the
-            # runtime image, so aliyun (twine/pkginfo install) and
-            # resource.flagos.net (upload) must bypass the tunnel.
             -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -v "${WORK}/out:/wheels" \
