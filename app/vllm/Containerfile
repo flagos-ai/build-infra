@@ -111,7 +111,7 @@ RUN if [ -n "${APP_DEPS}" ]; then \
 # it (idempotent) then execs vllm's API server, passing user args verbatim.
 # Default CMD = the reference serve (Qwen3-4B, port 8031); users override
 # with e.g. `docker run <image> vllm-serve --model <path> --port 9000`.
-COPY vllm-serve /usr/local/bin/vllm-serve
+COPY app/vllm/vllm-serve /usr/local/bin/vllm-serve
 RUN chmod +x /usr/local/bin/vllm-serve
 
 ENV VLLM_PLUGINS=fl
