@@ -149,6 +149,14 @@ RUN if [ -n "${FLAGTREE_PKG}" ]; then \
 # The compiler() shell function toggles by prepending /opt/triton to
 # PYTHONPATH. Always create /opt/triton so the runtime COPY doesn't fail
 # on missing source.
+#
+# TRITON_EXTRA_PKGS (configs.yaml triton_post_install:) are overlay packages
+# that ship a full triton tree — they replace triton/__init__.py, compiler/
+# and _C/*.so, and add their backend subtree (triton/backends/ascend/ for
+# triton_ascend). `pip install --target` cannot extend the existing
+# top-level triton/ dir, so the overlay is lost and the backend is missing
+# at runtime. Download the wheel and unzip -o over /opt/triton instead
+# (unzip keeps the wheel's executable bits; python -m zipfile does not).
 RUN mkdir -p /opt/triton
 RUN if [ -n "${TRITON_PKG}" ]; then \
       _installed=1; \
@@ -165,13 +173,17 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
       if [ -n "${TRITON_EXTRA_PKGS}" ]; then \
         _installed=1; \
         for i in 1 2 3; do \
-          if PIP_INDEX_URL="${FLAGOS_PYPI}" \
-             PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
-             pip install --no-cache-dir --target /opt/triton \
-            ${TRITON_EXTRA_PKGS}; then \
+          if mkdir -p /tmp/triton-overlay \
+             && PIP_INDEX_URL="${FLAGOS_PYPI}" \
+                PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+                pip download --no-deps --no-cache-dir \
+                -d /tmp/triton-overlay ${TRITON_EXTRA_PKGS} \
+             && (cd /opt/triton && unzip -qo /tmp/triton-overlay/*.whl) \
+             && rm -rf /tmp/triton-overlay; then \
             _installed=0; break; \
           fi; \
           echo "Triton extra install attempt $i failed, retrying..."; \
+          rm -rf /tmp/triton-overlay; \
         done; \
         [ "$_installed" -eq 0 ] || { echo "ERROR: Triton extra install failed after 3 attempts"; exit 1; }; \
       fi; \
