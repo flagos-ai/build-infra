@@ -224,7 +224,13 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
             exit 1
           fi
-          vendor="${matrix.name%%-*}"
+          # `${{ matrix.name }}` cannot be substituted inside a bash
+          # parameter-expansion expression — ${matrix.name%%-*} reaches bash
+          # unexpanded and dies with "bad substitution". Expand into a local
+          # var first (2026-08-18, run 32138523697: build+audit passed, upload
+          # died on this line).
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${pypi_repo}"
@@ -254,4 +260,12 @@ jobs:
 
       - name: Clean up the work dir
         if: ${{ always() }}
-        run: rm -rf "${WORK}"
+        run: |
+          # The container (root) writes git-clone and wheel-build files into
+          # the host bind mounts; under /tmp's sticky bit the runner user
+          # cannot delete them, so a plain `rm -rf` fails on every run that
+          # reaches file creation. Delete from inside the same runtime image
+          # (root) first, then remove the empty host dir. `|| true` keeps a
+          # failed cleanup from failing the job — the work is already done.
+          docker run --rm -v "${WORK}:/work" "${BASE_IMAGE}" rm -rf /work 2>/dev/null || true
+          rm -rf "${WORK}" 2>/dev/null || true
