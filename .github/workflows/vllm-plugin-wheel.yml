@@ -1,0 +1,217 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: vllm-plugin wheel
+
+# Build vllm-plugin-FL wheels in the backend's runtime image, and
+# (optionally) upload them to the per-vendor PyPI.
+#
+# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
+# flagos-runtime-{vendor}-{backend}:{version} (from generate_matrix --runtime),
+# exactly the megatron-wheel.yml model. Build env == delivery env: the wheel
+# is built against the same python/torch/triton/flag_gems the app image will
+# run, so it can be installed single-step without pulling in (or upgrading)
+# any runtime package.
+#
+# Dependency audit gate: after the wheel is built, packaging/vllm/audit-deps.py
+# reads the wheel's METADATA Requires-Dist and fails the build if it declares
+# any critical package (torch / torch_npu / torchvision / torchaudio / triton /
+# flag_gems / numpy / vllm). The plugin must not ship dependencies that could
+# overwrite the runtime matrix — the image provides them.
+#
+# Wheel flavor per backend: vllm_vendor comes from the build matrix
+# (generate_matrix.py, derived from cmake_backend). cuda-ABI backends compile
+# vllm_fl._C with VLLM_VENDOR=cuda; PrivateUse1 backends (ascend, gcu) build
+# the pure-python wheel with VLLM_VENDOR unset. The version (setuptools-scm
+# 0.2.0+g<sha>.d<date>, or the explicit plugin_version input) encodes the
+# exact plugin commit, so the app Containerfile's
+# `pip install vllm-plugin-fl==<version>` is a commit-precise pin.
+#
+# Upload target defaults to flagos-pypi-<vendor> so the wheel lands next to
+# that backend's vllm+flagos / torch / flag_gems. There is no schedule:
+# uploads are manual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend whose runtime image builds the wheel (e.g. ascend-cann9.0.0, or "all")'
+        type: string
+        default: ascend-cann9.0.0
+      plugin_ref:
+        description: 'vllm-plugin-FL git ref to build (SHA pinning preferred; a branch name works but moves)'
+        type: string
+        default: main
+      plugin_version:
+        description: 'Wheel version override (e.g. 0.2.0+gcf8998c.d20260815); blank = setuptools-scm derivation'
+        type: string
+        default: ''
+      upload:
+        description: 'upload the wheel to the vendor PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
+        type: string
+        default: ''
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: set-matrix
+        run: |
+          if [[ "${{ inputs.backend }}" == "all" ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      WORK: /tmp/vllm-plugin-${{ matrix.name }}-${{ github.run_id }}
+      BASE_IMAGE: ${{ matrix.image_tag }}
+      PLUGIN_REF: ${{ inputs.plugin_ref }}
+      PLUGIN_VERSION: ${{ inputs.plugin_version }}
+      VLLM_VENDOR: ${{ matrix.vllm_vendor }}
+      EXTRA_PYPI: ${{ matrix.extra_pypi }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      # Build the wheel inside the runtime image: same python/ABI as delivery.
+      # The git clone goes through HTTPS_PROXY (the secret) — github.com is
+      # not on the runtime image's baked NO_PROXY.
+      - name: Build the wheel in the runtime image
+        run: |
+          set -euo pipefail
+          docker pull "${BASE_IMAGE}"
+          mkdir -p "${WORK}/src" "${WORK}/out"
+          docker run --rm \
+            -e VLLM_VENDOR \
+            -e PLUGIN_VERSION \
+            -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
+            -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
+            -v "${WORK}/src:/work/src" \
+            -v "${WORK}/out:/work/out" \
+            "${BASE_IMAGE}" \
+            bash -euo pipefail -c '
+              git clone --depth 1 \
+                https://github.com/flagos-ai/vllm-plugin-FL.git /work/src
+              cd /work/src
+              git fetch --depth 1 origin "${PLUGIN_REF}"
+              git checkout FETCH_HEAD
+              git rev-parse HEAD > /work/out/commit.txt
+              # --no-build-isolation: build against the runtime venv (same
+              # python/ABI as delivery). An explicit PLUGIN_VERSION forces the
+              # setuptools-scm version deterministically.
+              if [ -n "${PLUGIN_VERSION}" ]; then
+                export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
+              fi
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
+                "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
+              /flagos/bin/pip wheel --no-build-isolation --no-deps \
+                -w /work/out .
+              ls -la /work/out/
+            '
+          echo ">>> plugin commit: $(cat "${WORK}/out/commit.txt")"
+          wheel=$(ls "${WORK}"/out/*.whl | head -n1)
+          if [ -z "${PLUGIN_VERSION}" ] && \
+             [[ "$(basename "${wheel}")" == vllm_plugin_fl-0.0.0* ]]; then
+            echo "ERROR: derived version is 0.0.0 — the plugin repo tag is " \
+                 "unreachable on this runner (cached mirror). Pass " \
+                 "plugin_version to pin the version explicitly." >&2
+            exit 1
+          fi
+          echo ">>> built: $(basename "${wheel}")"
+
+      # Host-side audit (stdlib only): fail the build if the wheel declares a
+      # critical package — it would drift the runtime matrix on a single-step
+      # app-image install.
+      - name: Audit the wheel dependencies
+        run: |
+          set -euo pipefail
+          python3 packaging/vllm/audit-deps.py "${WORK}"/out/*.whl
+
+      # Upload only when explicitly requested (default false so a manual build
+      # from a branch is safe). Upload runs from inside the runtime image —
+      # no host python needed (the node runner's /usr/bin/python3 may lack
+      # pip). The secret travels via `-e NEXUS_TOKEN` so it never appears in
+      # a process list or image layer.
+      - name: Upload to vendor PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          vendor="${matrix.name%%-*}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -v "${WORK}/out:/wheels" \
+            "${BASE_IMAGE}" \
+            bash -euo pipefail -c '
+              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
+              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
+              # parse -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              /flagos/bin/twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
+
+      - name: Clean up the work dir
+        if: ${{ always() }}
+        run: rm -rf "${WORK}"
