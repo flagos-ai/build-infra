@@ -43,7 +43,7 @@
 | 天数智芯 | COREX 4.4.0   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 昆仑芯   | XRE 5.37.1    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 沐曦     | MACA 3.7.2.1  | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 沐曦     | MACA 3.8.1.3  | ⬜      | ✅      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
+| 沐曦     | MACA 3.8.1.3  | ✅      | ✅      | ⛔          | ⛔          | ✅        | ✅        | ✅      | ✅      |
 | 摩尔线程 | MUSA 4.3.6    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 摩尔线程 | MUSA 5.2.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 进迭时空 | SPACEMIT      | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
@@ -59,12 +59,23 @@
 ## 已验证/已知事实
 
 - **metax training（2026-08-18）**：merged wheel
-  `0.17.1+fl.20260818.g48b97a13f1bb`（合并 #105/#106/#107/#114），flagtree
-  0.6.1，**5 iter E2E exit 0**（loss 1.084350E+01 → 1.084006E+01，lr 1e-6
-  constant，与 hygon 量级吻合）。环境要点：huggingface.co 不通 → NullTokenizer
-  离线路径；GPU 0 被占用 → `CUDA_VISIBLE_DEVICES=1`。启动命令参数集与 hygon
+  `0.17.1+fl.20260818.g48b97a13f1bb`（合并 #105/#106/#107/#114），**双编译器
+  均 5 iter E2E exit 0**——flagtree 0.6.1（loss 1.084350E+01 → 1.084006E+01）
+  与 vendor triton 3.6.0+metax3.8.1.0（loss 1.084290E+01，12:58 run，量级与
+  flagtree 线吻合）。环境要点：huggingface.co 不通 → NullTokenizer 离线路径；
+  GPU 0 被占用 → `CUDA_VISIBLE_DEVICES=1`。启动命令参数集与 hygon
   相同，**无 jit_fuser noop 补丁前置**（metax flagtree 0.6.1 实测 `--disable-jit-fuser`
   直接够用；hygon 3.6.0 需容器侧 jit.py 补丁，§1.4——编译器机制跨版本不移植）。
+- **metax post_training × inference（2026-08-18，双编译器全 ✅）**：两场景均
+  编译器无关路径，triton/flagtree 各跑一遍全 exit 0——post_training = DummyModel
+  + `simple_generate`（output shape (1,8)，modelopt 0.45.0 ad-hoc 装入，未入
+  镜像，同 hygon §1.3.3）；inference = legacy `StaticInferenceEngine` 3 请求 ×
+  8 tokens。inference driver 无需外部词表（注入 prompt_tokens + 重写
+  detokenize，NullTokenizer 配方自洽），metax 容器无 gpt2 夹具也不阻塞。
+- **metax RL（双编译器均 ⛔，阻塞项确认）**：前置 = **MLF local-THD 修复
+  （rl_utils.py:666 无条件 thd → 条件构造）** + 无 vendor TE（官网
+  maca-transformerengine-3.7.1.0 与 3.8.1.3 形态不匹配，用户定不装，见状态
+  #6）——均非 build-infra 可解，待上游/MLF。
 - **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：hygon 验证用
   的全范围 wheel 无此问题，merged wheel 引入 config dataclass +
   `ArgumentGroupFactory` 自动生成参数，`--lr`（`SchedulerConfig`）与
