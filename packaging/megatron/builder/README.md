@@ -129,14 +129,16 @@ follow-up, once this end-to-end path is verified.
 
 ## Install into a runtime image
 
-The megatron app image (`app/megatron/Containerfile`) installs the wheel with a
-**single-step `pip install` — no `--no-deps`**:
+The megatron app images (`app/megatron/Containerfile.megatron-training` and
+`app/megatron/Containerfile.rl`) install the wheel with a **single-step
+`pip install` — no `--no-deps`**, selecting the app's extra
+(`[training]` for the training app, `[rl]` for the RL app):
 
 ```dockerfile
 RUN pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \
-  "megatron-core==${MEGATRON_VERSION}"
+  "megatron-core[training]==${MEGATRON_VERSION}"
 ```
 
 - The wheel keeps its `torch>=2.6.0` Requires-Dist — no repack, no METADATA

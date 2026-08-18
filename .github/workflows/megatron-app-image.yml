@@ -23,11 +23,14 @@ name: Megatron app image
 #
 # Facility 2 (app-image automation): installs the megatron-core wheel into a
 # flagos-runtime-{vendor}-{backend} image and produces the app image
-# flagos-app/{app}-{vendor}-{backend}:{version}. The Containerfile installs
-# with a single-step `pip install` (no --no-deps) — the wheel keeps its
-# torch>=2.6.0 Requires-Dist and the runtime's vendor torch satisfies it, so the
-# runtime's torch/triton/flag_gems matrix cannot be disturbed (the repack
-# facility was removed 2026-08-14).
+# flagos-app/{app}-{vendor}-{backend}:{version}. Each app has its own
+# Containerfile (app/megatron/Containerfile.megatron-training for the training
+# app, app/megatron/Containerfile.rl for the RL app) that installs the wheel
+# with a single-step `pip install` (no --no-deps) selecting the app's extra
+# ([training] / [rl]) — the wheel keeps its torch>=2.6.0 Requires-Dist and the
+# runtime's vendor torch satisfies it, so the runtime's
+# torch/triton/flag_gems matrix cannot be disturbed (the repack facility was
+# removed 2026-08-14).
 #
 # Backend matrix comes from scripts/generate_matrix.py --app {app} (same
 # runtime fields as runtime-image.yaml plus the per-backend app env vars and
@@ -148,6 +151,12 @@ jobs:
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
           app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
+          # Per-app Containerfile (app decision D5): the suffix is the app
+          # name, not the image name. megatron-training / megatron-rl.
+          containerfile="app/megatron/Containerfile.megatron-training"
+          if [[ "${{ inputs.app }}" == "megatron-rl" ]]; then
+            containerfile="app/megatron/Containerfile.rl"
+          fi
           docker build \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
@@ -156,7 +165,7 @@ jobs:
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
             --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
             -t "${app_tag}" \
-            -f app/megatron/Containerfile .
+            -f "${containerfile}" .
           echo "Built: ${app_tag}"
 
       # On-node verify of the built artifact. Reuses verify-megatron-backend.sh
