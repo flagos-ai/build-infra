@@ -149,6 +149,12 @@ jobs:
           fi
           docker pull "${BASE_IMAGE}"
           mkdir -p "${WORK}/src" "${WORK}/out"
+          # The runtime image bakes no NO_PROXY, so without it every pip
+          # request (aliyun/flagos) tunnels through the proxy and dies with
+          # "Tunnel connection failed: 500". Mirror the megatron builder's
+          # baked NO_PROXY (packaging/megatron/builder/Containerfile):
+          # vendor-adjacent traffic bypasses the tunnel, github.com (not on
+          # the list) keeps using the proxy for the clone.
           docker run --rm \
             -e VLLM_VENDOR \
             -e PLUGIN_VERSION \
@@ -157,12 +163,6 @@ jobs:
             -e EXTRA_PYPI \
             -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
             -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
-            # The runtime image bakes no NO_PROXY, so without it every pip
-            # request (aliyun/flagos) tunnels through the proxy and dies with
-            # "Tunnel connection failed: 500". Mirror the megatron builder's
-            # baked NO_PROXY (packaging/megatron/builder/Containerfile):
-            # vendor-adjacent traffic bypasses the tunnel, github.com (not on
-            # the list) keeps using the proxy for the clone.
             -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -v "${WORK}/src:/work/src" \
@@ -232,6 +232,11 @@ jobs:
             -e NEXUS_TOKEN \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            # Same proxy bypass as the build step: no baked NO_PROXY in the
+            # runtime image, so aliyun (twine/pkginfo install) and
+            # resource.flagos.net (upload) must bypass the tunnel.
+            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -v "${WORK}/out:/wheels" \
             "${BASE_IMAGE}" \
             bash -euo pipefail -c '
