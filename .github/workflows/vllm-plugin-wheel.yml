@@ -142,6 +142,9 @@ jobs:
           docker run --rm \
             -e VLLM_VENDOR \
             -e PLUGIN_VERSION \
+            -e PLUGIN_REPO \
+            -e PLUGIN_REF \
+            -e EXTRA_PYPI \
             -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
             -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
             -v "${WORK}/src:/work/src" \
