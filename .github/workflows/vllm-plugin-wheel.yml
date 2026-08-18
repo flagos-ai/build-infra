@@ -157,6 +157,14 @@ jobs:
             -e EXTRA_PYPI \
             -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
             -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
+            # The runtime image bakes no NO_PROXY, so without it every pip
+            # request (aliyun/flagos) tunnels through the proxy and dies with
+            # "Tunnel connection failed: 500". Mirror the megatron builder's
+            # baked NO_PROXY (packaging/megatron/builder/Containerfile):
+            # vendor-adjacent traffic bypasses the tunnel, github.com (not on
+            # the list) keeps using the proxy for the clone.
+            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -v "${WORK}/src:/work/src" \
             -v "${WORK}/out:/work/out" \
             "${BASE_IMAGE}" \
