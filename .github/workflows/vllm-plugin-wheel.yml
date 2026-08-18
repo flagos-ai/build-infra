@@ -56,7 +56,7 @@ on:
         type: string
         default: ascend-cann9.0.0
       plugin_ref:
-        description: 'vllm-plugin-FL git ref to build (SHA pinning preferred; a branch name works but moves)'
+        description: 'vllm-plugin-FL git ref to build (full 40-hex SHA pinning preferred — abbreviated SHAs are not fetchable by git; a branch name works but moves)'
         type: string
         default: main
       plugin_repo:
@@ -137,6 +137,16 @@ jobs:
       - name: Build the wheel in the runtime image
         run: |
           set -euo pipefail
+          # GitHub serves unadvertised SHAs only in full 40-hex form; a bare
+          # abbreviated SHA (e.g. cf8998c) cannot be fetched by git. Fail with
+          # the resolution command instead of an opaque "couldn't find remote
+          # ref" error from inside the container.
+          if [[ "${PLUGIN_REF}" =~ ^[0-9a-fA-F]{7,39}$ ]]; then
+            echo "ERROR: abbreviated SHA '${PLUGIN_REF}' is not fetchable." \
+                 "Pass the full 40-hex SHA (get it from the commit page, or" \
+                 " \`gh api repos/<owner>/<repo>/commits/${PLUGIN_REF} --jq .sha\`)." >&2
+            exit 1
+          fi
           docker pull "${BASE_IMAGE}"
           mkdir -p "${WORK}/src" "${WORK}/out"
           docker run --rm \
@@ -147,6 +157,14 @@ jobs:
             -e EXTRA_PYPI \
             -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
             -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
+            # The runtime image bakes no NO_PROXY, so without it every pip
+            # request (aliyun/flagos) tunnels through the proxy and dies with
+            # "Tunnel connection failed: 500". Mirror the megatron builder's
+            # baked NO_PROXY (packaging/megatron/builder/Containerfile):
+            # vendor-adjacent traffic bypasses the tunnel, github.com (not on
+            # the list) keeps using the proxy for the clone.
+            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
             -v "${WORK}/src:/work/src" \
             -v "${WORK}/out:/work/out" \
             "${BASE_IMAGE}" \
