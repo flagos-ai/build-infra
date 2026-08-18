@@ -760,6 +760,51 @@ reference]` 后再跑仍全绿 → 重排非必要，仓库未改（容器最终
   （`cf8998c`）在 triton_ascend 3.2.1 下同样成立（E2E 未触发挂死）；
   triton 编译器在 kernel 层亦验证可用（FlagGems 精度 66/66）。
 
+### 10.5 app 镜像 serve E2E（hw25，2026-08-18）
+
+§10.1–10.4 均为 runtime 镜像 + editable 插件；本节验证**交付形态**：
+app 镜像（wheel 单步安装线 + `vllm-serve` launcher）在 NPU 上的
+serve + 推理，即 `app/vllm/` 全流程的端到端证明。
+
+- 镜像：`harbor.baai.ac.cn/flagos-dev/vllm-ascend-cann9.0.0:2.1.2`
+  （构建 run 32146899749，已 push）
+- 版本指纹：vllm `0.24.0+flagos`（cp311 aarch64 empty wheel，
+  单步安装）；vllm-plugin-fl `0.2.0+gcf8998c.d20260818`（vendor PyPI
+  wheel，非 editable —— setuptools-scm 编码同 §10.4 的 `cf8998c`
+  commit，同一 PR #387 代码）；torch 2.10.0+cpu / torch_npu 2.10.0 /
+  flag_gems 5.3.4；torchvision/torchaudio 未安装（OOT 矩阵保持）；
+  编译器 = 默认 flagtree 0.6.1+ascend3.5（`VLLM_PLUGINS=fl` 烘焙）
+- 启动：`vllm-serve`（`/etc/bash_env.sh` 源入 vendor env →
+  `exec api_server`），`docker run` 裸 `--device` flags，容器
+  `vllm-app-smoke`，端口 8031：
+  `--model /models/Qwen3-4B --gpu-memory-utilization 0.6
+  --enforce-eager --trust-remote-code --max-model-len 2048
+  --dtype bfloat16`（默认 CMD 以 `/data/models/Qwen/Qwen3-4B` 为参考，
+  本次挂载路径不同故覆盖）
+- 启动：`Application startup complete`；`Block size is set to 128`
+  （prefix cache / chunked prefill 补丁生效）、
+  `HybridAttentionMambaModelConfig` 补丁生效、`Custom fusions:
+  norm_quant, act_quant`；算子路由同 §10.2/10.4
+- 推理：两条 completions 均连贯（指纹 `vllm-0.24.0-0535d777`，与
+  §10.4 同一 wheel）：
+  - knowledge：`The capital of France is` → " Paris. The capital of
+    Germany is Berlin. ..." ✅
+  - math：`What is 7 times 8? Answer:` → " 56. What is 7 times 9? ..." ✅
+- 崩溃标记：0（无 Traceback / 无挂死；容器存活，端口 8031 监听）
+- **排障记录（device_count=0 根因）**：本镜像首次 serve 崩在
+  `init_device` 的 `AssertionError: DP adjusted local rank 0 is out of
+  bounds. Device count: 0`。逐层排查：新鲜 app 容器与新鲜 runtime 容器
+  均 `torch_npu.npu.device_count()=0`，而宿主 `npu-smi` 显示 8 卡全
+  OK → 排除 app 镜像回归，锁定节点侧。根因 = **§10.4 遗留容器
+  `vllm-triton-cann9` 持有 `/dev/davinci0`**（其 python 进程已
+  defunct，但 NPU 句柄未释放，容器外 open 报 `EBUSY`；容器内
+  torch_npu 探测到 0 设备）。`docker rm -f` 该遗留容器后，同一 launch
+  立即 `device_count=1`，serve 全绿。教训：ascend 节点上
+  "容器已 Exited/僵尸但设备仍被占用" 会让后续容器静默看到 0 设备 ——
+  serve 前先 `npu-smi info -t proc-mem` 确认设备空闲（本次宿主侧
+  proc-mem 显示 "No process in device" 与真实占用不一致，须以
+  `docker ps -a` + 设备 open 实测为准）。
+
 ---
 
 ## 11. 遗留事项
