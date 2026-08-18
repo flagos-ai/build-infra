@@ -600,9 +600,11 @@ configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交�
 - venv：`/flagos`（cpython-3.11 —— aarch64 走 cp311 empty wheel）
 - vllm：`0.24.0+flagos`（厂商索引单步安装，命中 `+flagos` wheel）
 - 插件：`feat/ascend-v024`（PR #387）editable install，
-  `vllm-plugin-fl==0.0.0+g09cd07358`（`--no-build-isolation`）
-- 编译器：flagtree 0.6.1+ascend3.5（默认）；侧装 `/opt/triton` =
-  triton 3.5.0 + triton_ascend 3.2.1（未单独 serve 验证）
+  `vllm-plugin-fl==0.0.0+gdd5b76e`（`--no-build-isolation`；函数名版
+  pow 黑名单 2026-08-18 合入，见 §10.3）
+- 编译器：flagtree 0.6.1+ascend3.5（默认，§10.2 验证）；侧装
+  `/opt/triton` = triton_ascend 3.2.1（覆盖 triton 为 3.2.0 fork，
+  §10.3 `compiler triton` 路径验证）
 - torch 2.10.0+cpu / torch_npu 2.10.0 / flag_gems 5.3.4
 - 模型：`/data/models/Qwen/Qwen3-4B`；端口 8031
 
@@ -625,11 +627,17 @@ configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交�
    with 块外的函数级；cherry-pick 后 NPU 分支落入 profiling 块
    （`NameError` + 覆盖 NPU kv-cache 预算）。修法：整块移回 `else`、
    `cudagraph_memory_estimate = 0` 默认、NPU 分支跳过 profile_run。
+4. **函数名版 pow 黑名单**（`dd5b76e`，ascend.yaml +15）：Triton 路径
+   RoPE `_compute_inv_freq` 的 `pow.Scalar` 落到 flag_gems `pow_scalar`
+   后，triton_ascend 3.2.0 fork 拒绝 chained `or` 编译崩溃 —— `- pow`
+   因按函数名匹配而无效，改列 wrapper 名
+   （`pow_tensor_tensor(_)` / `pow_tensor_scalar(_)` / `pow_scalar`），
+   路由到 torch_npu（精确等价），详见 §10.3。
 
 0.20.2 基线的全量测试结果（27B/35B-A3B TP2，文本/图像/并发 18 项全绿）
 与 0.24.0 定制详情见 PR #387 正文。
 
-### 10.2 serve + 推理（Qwen3-4B，TP1）
+### 10.2 serve + 推理（Qwen3-4B，TP1，flagtree 路径）
 
 serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）：
 
@@ -660,6 +668,43 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
   （Qwen3、Qwen2、Llama…）不受影响；重构 GDN 补丁为后续工作。
 
+### 10.3 Triton 路径 serve + 推理（Qwen3-4B，TP1，2026-08-18）
+
+同一移植分支（`dd5b76e`，含函数名版 pow 黑名单），仅切编译器：
+`compiler triton`（PYTHONPATH=/opt/triton → triton 3.2.0 fork）。serve
+参数同 §10.2，端口 8034，加 `VLLM_USE_FLASHINFER_SAMPLER=0`。
+
+- 启动链：`Application startup complete`（00:50）；OpManager 逐 op
+  解析与 flagtree 路径一致（`rms_norm`/`rotary_embedding` →
+  `vendor.ascend`，`silu_and_mul` → `default.flagos`）。
+- 推理：两条 completions 均连贯，指纹 `vllm-0.24.0-563743c8`：
+  - knowledge：`The capital of France is` → " Paris. The capital of
+    Germany is Berlin. ..." ✅
+  - math：`What is 7 times 8? Answer:` → " 56. What is 7 times 9?
+    Answer: 6..." ✅
+- **性能注记**：比 flagtree 路径更慢 —— 首请求约 10 分钟（含逐 kernel
+  JIT 冷启动），稳态 0.1 token/s。以功能验证为目的，性能不做横向比较。
+- **指纹探测注记**：smoke 的独立 `python -c` 指纹探测未切编译器，打印的
+  `triton 3.5.1` 是 venv 默认解析结果，**不代表 serve 实际使用的编译器**；
+  本段 serve 的编译器为 `/opt/triton` 的 triton 3.2.0 fork（triton_ascend
+  3.2.1）。
+- **pow chained-or 编译崩溃 → 函数名版黑名单解决**：模型加载期 RoPE
+  `_compute_inv_freq`（`base ** (2.0/dim)`）路由到 flag_gems `pow_scalar`
+  → triton 3.2.0 fork 前端拒绝完整 3 连 chained boolean
+  `if (A or B or C)`（`UnsupportedLanguageConstruct`）。**先前的容器内
+  patch（chained-or → `(A or B) or C`）不可复现**；`- pow` 黑名单也无效
+  （config_filter 按函数名匹配，见下）。最终修法 = **ascend.yaml 黑名单
+  改列 wrapper 函数名**（`dd5b76e`，PR #387 item 4）：
+  `pow_tensor_tensor(_)` / `pow_tensor_scalar(_)` / `pow_scalar` 全部
+  exclude → 这些 op 落到 torch_npu（精确等价，非降级）。**在 pristine
+  pow.py（3 处 3 连 chained-or 原形，未 patch）下全链路复验通过**
+  （本段 serve 即此形态），无需容器 patch。
+- **函数名 vs op name 匹配（vllm_fl 侧机制）**：ascend.yaml
+  `flagos_blacklist` 传入 `enable(unused=)` 后，config_filter 按**函数名**
+  （`item[1].__name__`）过滤 —— 与 op name（`"pow"`）不匹配 → 旧 `- pow`
+  条目无效。这同时意味着黑名单只对"有 wrapper 函数"的 op 可精确生效；
+  机制本身是否改为 op-name 匹配列入 §11。
+
 ---
 
 ## 11. 遗留事项
@@ -670,7 +715,18 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
 - [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、sunrise、cambricon、
       kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
       T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）；
-      ascend ✅（§10，CANN 9.0.0 flagtree 路径，cann8.5.0 待验证）
+      ascend ✅（§10，CANN 9.0.0 flagtree + triton 双路径，
+      cann8.5.0 待验证）
+- [ ] ascend Triton 路径的 pow chained-or 修复**落镜像/上游**：已用
+      函数名版黑名单（§10.3，`dd5b76e`）在应用层精确规避（pristine
+      pow.py 全链路 ✅）；上游修复 = flag_gems pow.py（及
+      cummax/cummin/cumsum 等）改为 fork 兼容形态后合入 —— 落上游后
+      可移除黑名单条目
+- [x] **vllm_fl ascend.yaml pow 黑名单失效（函数名 vs op name 匹配，
+      §10.3）** —— 2026-08-18 以函数名版黑名单解决（`dd5b76e`，
+      PR #387 item 4）：`pow_tensor_tensor(_)` / `pow_tensor_scalar(_)`
+      / `pow_scalar` 全 exclude，pristine pow.py 下 Triton 路径复验 ✅。
+      机制是否改为 op-name 匹配（对无 wrapper 的 op 也生效）留待上游
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （§10.2，非致命）—— 上游 flag_gems 侧修复后复验
 
