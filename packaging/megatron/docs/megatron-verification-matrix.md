@@ -43,7 +43,7 @@
 | 天数智芯 | COREX 4.4.0   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 昆仑芯   | XRE 5.37.1    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 沐曦     | MACA 3.7.2.1  | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 沐曦     | MACA 3.8.1.3  | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
+| 沐曦     | MACA 3.8.1.3  | ⬜      | ✅      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 摩尔线程 | MUSA 4.3.6    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 摩尔线程 | MUSA 5.2.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 进迭时空 | SPACEMIT      | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
@@ -57,6 +57,26 @@
 - **仅 triton**（4 backend）：cambricon×2, spacemit, thead
 
 ## 已验证/已知事实
+
+- **metax training（2026-08-18）**：merged wheel
+  `0.17.1+fl.20260818.g48b97a13f1bb`（合并 #105/#106/#107/#114），flagtree
+  0.6.1，**5 iter E2E exit 0**（loss 1.084350E+01 → 1.084006E+01，lr 1e-6
+  constant，与 hygon 量级吻合）。环境要点：huggingface.co 不通 → NullTokenizer
+  离线路径；GPU 0 被占用 → `CUDA_VISIBLE_DEVICES=1`。启动命令参数集与 hygon
+  相同，**无 jit_fuser noop 补丁前置**（metax flagtree 0.6.1 实测 `--disable-jit-fuser`
+  直接够用；hygon 3.6.0 需容器侧 jit.py 补丁，§1.4——编译器机制跨版本不移植）。
+- **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：hygon 验证用
+  的全范围 wheel 无此问题，merged wheel 引入 config dataclass +
+  `ArgumentGroupFactory` 自动生成参数，`--lr`（`SchedulerConfig`）与
+  `--eval-interval`（`TrainingConfig`）默认 `None`——不传即崩：`--lr` → 
+  `optimizer_param_scheduler.py:148` `float(None)` TypeError；`--eval-interval`
+  → `training.py:3672` `train_iters // None` TypeError。**非功能变更，是使用
+  方法变更**：训练功能仍在，但喂参接口重构。影响所有用 merged wheel 的后端，
+  **hygon 留下的 E2E 参数基线需逐参数重核**（可能有更多参数同样 None 默认）。
+  处置（2026-08-18 定，用法侧规避，不回馈上游）：两参数均随 sync #34
+  来自上游 Core 0.17.0（非 fork 偏离，上游 0.17.0 分支已过时，提修复意义
+  不大）；`--eval-interval` 默认 None + 无条件除法 = 上游已知缺口，
+  `--lr` 属训练必传参数——两者均由复现基线强制传参规避。
 
 - **hygon training**：vendor triton **3.5.1** ✅（2026-08-17 复验：mock data
   5 iter E2E exit 0，loss 1.084036E+01 → 1.083188E+01；3.3.0 时代已验证，但
