@@ -25,6 +25,10 @@
 #                wheel (vllm-plugin-fl==<version>) built + dependency-audited
 #                by the vllm-plugin-wheel workflow — no git clone, no source
 #                build inside the app image.
+#   2026-08-18   vllm-serve launcher (COPY + CMD default): sources the baked
+#                vendor env before exec'ing vllm's API server, so a plain
+#                `docker run <image>` works — non-bash starts miss the
+#                profile.d-only LD_LIBRARY_PATH (libascend_hal.so).
 # TODO
 #   - Publish-time verification (torch version, vllm import).
 # ============================================================
@@ -98,7 +102,20 @@ RUN if [ -n "${APP_DEPS}" ]; then \
       ${APP_DEPS} ; \
   fi
 
-# --- Runtime --------------------------------------------------
+# --- Serve launcher -------------------------------------------
+
+# vllm-serve: the single serve command for this image. The full vendor env
+# (CANN / NNAL-ATB LD_LIBRARY_PATH) lives in /etc/profile.d, not in the image
+# ENV — a plain `docker run <image> /flagos/bin/python ...` bypasses bash and
+# misses it (torch_npu fails: libascend_hal.so not found). vllm-serve sources
+# it (idempotent) then execs vllm's API server, passing user args verbatim.
+# Default CMD = the reference serve (Qwen3-4B, port 8031); users override
+# with e.g. `docker run <image> vllm-serve --model <path> --port 9000`.
+COPY vllm-serve /usr/local/bin/vllm-serve
+RUN chmod +x /usr/local/bin/vllm-serve
 
 ENV VLLM_PLUGINS=fl
 WORKDIR /workspace
+CMD ["vllm-serve", "--model", "/data/models/Qwen/Qwen3-4B", "--port", "8031", \
+  "--gpu-memory-utilization", "0.6", "--enforce-eager", "--trust-remote-code", \
+  "--max-model-len", "2048", "--dtype", "bfloat16"]
