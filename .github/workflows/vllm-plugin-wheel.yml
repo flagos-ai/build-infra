@@ -151,6 +151,10 @@ jobs:
             -v "${WORK}/out:/work/out" \
             "${BASE_IMAGE}" \
             bash -euo pipefail -c '
+              # /work/src is a bind mount owned by the runner user (secure),
+              # not the container root — git would refuse it as dubious
+              # ownership on the first fetch.
+              git config --global --add safe.directory "*"
               git clone --depth 1 "${PLUGIN_REPO}" /work/src
               cd /work/src
               git fetch --depth 1 origin "${PLUGIN_REF}"
