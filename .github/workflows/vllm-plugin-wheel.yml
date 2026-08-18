@@ -38,6 +38,12 @@ name: vllm-plugin wheel
 # exact plugin commit, so the app Containerfile's
 # `pip install vllm-plugin-fl==<version>` is a commit-precise pin.
 #
+# Clone source: plugin_repo defaults to the flagos-ai upstream, so the default
+# path builds released/merged code. Pre-merge port branches (e.g. the ascend
+# 0.24.0 port, which the plugin team merges only after seeing E2E results) live
+# on a fork — dispatch with plugin_repo=<fork URL> + plugin_ref=<branch|SHA> to
+# build them, and gate the upload with audit-deps.py as usual.
+#
 # Upload target defaults to flagos-pypi-<vendor> so the wheel lands next to
 # that backend's vllm+flagos / torch / flag_gems. There is no schedule:
 # uploads are manual.
@@ -53,6 +59,10 @@ on:
         description: 'vllm-plugin-FL git ref to build (SHA pinning preferred; a branch name works but moves)'
         type: string
         default: main
+      plugin_repo:
+        description: 'vllm-plugin-FL git clone URL (default: flagos-ai upstream; point at a fork for pre-merge port branches)'
+        type: string
+        default: 'https://github.com/flagos-ai/vllm-plugin-FL.git'
       plugin_version:
         description: 'Wheel version override (e.g. 0.2.0+gcf8998c.d20260815); blank = setuptools-scm derivation'
         type: string
@@ -113,6 +123,7 @@ jobs:
       WORK: /tmp/vllm-plugin-${{ matrix.name }}-${{ github.run_id }}
       BASE_IMAGE: ${{ matrix.image_tag }}
       PLUGIN_REF: ${{ inputs.plugin_ref }}
+      PLUGIN_REPO: ${{ inputs.plugin_repo }}
       PLUGIN_VERSION: ${{ inputs.plugin_version }}
       VLLM_VENDOR: ${{ matrix.vllm_vendor }}
       EXTRA_PYPI: ${{ matrix.extra_pypi }}
@@ -137,8 +148,7 @@ jobs:
             -v "${WORK}/out:/work/out" \
             "${BASE_IMAGE}" \
             bash -euo pipefail -c '
-              git clone --depth 1 \
-                https://github.com/flagos-ai/vllm-plugin-FL.git /work/src
+              git clone --depth 1 "${PLUGIN_REPO}" /work/src
               cd /work/src
               git fetch --depth 1 origin "${PLUGIN_REF}"
               git checkout FETCH_HEAD
