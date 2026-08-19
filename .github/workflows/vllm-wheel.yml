@@ -123,8 +123,15 @@ jobs:
       - name: Audit the wheel dependencies
         run: |
           set -euo pipefail
+          # `${{ matrix.name }}` cannot be substituted inside a bash
+          # parameter-expansion expression — ${matrix.name%%-*} reaches bash
+          # unexpanded and dies with "bad substitution". Expand into a local
+          # var first (same fix as vllm-plugin-wheel.yml, run 32138523697).
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
           python3 packaging/vllm/audit-deps.py \
-            /tmp/vllm-repack-${{ matrix.name%%-* }}-${{ matrix.name#*- }}/output/*.whl
+            "/tmp/vllm-repack-${vendor}-${backend}/output/"*.whl
 
       # Upload only when explicitly requested. Runs from inside the -build
       # image (no host python needed); the secret travels via `-e
@@ -140,8 +147,11 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
             exit 1
           fi
-          vendor="${{ matrix.name%%-* }}"
-          backend="${{ matrix.name#*- }}"
+          # `${{ matrix.name }}` cannot be substituted inside a bash
+          # parameter-expansion expression — expand into a local var first.
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}-build"
@@ -168,5 +178,8 @@ jobs:
       - name: Clean up the build container and work dir
         if: ${{ always() }}
         run: |
-          docker rm -f vllm-build-${{ matrix.name%%-* }}-${{ matrix.name#*- }} 2>/dev/null || true
-          rm -rf /tmp/vllm-repack-${{ matrix.name%%-* }}-${{ matrix.name#*- }}
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
+          docker rm -f vllm-build-${vendor}-${backend} 2>/dev/null || true
+          rm -rf "/tmp/vllm-repack-${vendor}-${backend}"
