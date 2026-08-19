@@ -116,7 +116,13 @@ CONTAINER="vllm-build-${VENDOR}-${BACKEND}"
 # ── Clean up previous run ───────────────────────────────────────────────
 
 docker rm -f "$CONTAINER" 2>/dev/null || true
-rm -rf "$WORK_DIR"
+# The build container writes as root into the bind mount; under /tmp's
+# sticky bit a non-root runner cannot rm those files, so a stale work dir
+# poisons the next run. Delete from inside the image (root) when it is
+# available, then tolerate a leftover (the container may not be pullable
+# on a first run). Same pattern as vllm-plugin-wheel.yml's cleanup step.
+docker run --rm -v "${WORK_DIR}:/work" "$BUILD_IMAGE" rm -rf /work 2>/dev/null || true
+rm -rf "$WORK_DIR" 2>/dev/null || true
 mkdir -p "$WORK_DIR/output" "$WORK_DIR/cache"
 
 # ── Copy repack files into work dir ─────────────────────────────────────

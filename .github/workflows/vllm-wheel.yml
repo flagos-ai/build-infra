@@ -178,8 +178,17 @@ jobs:
       - name: Clean up the build container and work dir
         if: ${{ always() }}
         run: |
+          # The container (root) writes build files into the host bind mount;
+          # under /tmp's sticky bit the runner user cannot delete them, so a
+          # plain `rm -rf` fails on every run that reaches file creation.
+          # Delete from inside the -build image (root) first, then remove the
+          # empty host dir. `|| true` keeps a failed cleanup from failing the
+          # job — the work is already done (same pattern as
+          # vllm-plugin-wheel.yml).
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
-          docker rm -f vllm-build-${vendor}-${backend} 2>/dev/null || true
-          rm -rf "/tmp/vllm-repack-${vendor}-${backend}"
+          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${vendor}-${backend}:${STACK_VERSION}-build"
+          docker rm -f "vllm-build-${vendor}-${backend}" 2>/dev/null || true
+          docker run --rm -v "/tmp/vllm-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
+          rm -rf "/tmp/vllm-repack-${vendor}-${backend}" 2>/dev/null || true
