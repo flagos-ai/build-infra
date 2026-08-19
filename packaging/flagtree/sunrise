@@ -130,12 +130,16 @@ RUN mkdir -p /root/.flagtree/sunrise /root/.triton \
 # Build the FlagTree sunrise wheel from source on this 22.04 toolchain.
 # FLAGTREE_BACKEND=sunrise selects the backend. Proxy (if any) is applied to every
 # RUN but not persisted. Force HTTP/1.1 for git and retry the flaky network steps.
+# FLAGTREE_VERSION may be a branch, tag, or commit sha (--branch clone can't take
+# a sha, so fetch + checkout FETCH_HEAD handles all three).
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
-         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
-           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
-         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
-         rm -rf /opt/flagtree; sleep 5; \
+         rm -rf /opt/flagtree && git init -q /opt/flagtree \
+           && git -C /opt/flagtree remote add origin https://github.com/flagos-ai/flagtree \
+           && git -C /opt/flagtree fetch --depth 1 origin "${FLAGTREE_VERSION}" \
+           && git -C /opt/flagtree checkout -q FETCH_HEAD && break; \
+         echo ">>> flagtree fetch attempt $i failed, retrying in 5s..."; \
+         sleep 5; \
        done \
     && test -d /opt/flagtree/.git \
     && cd /opt/flagtree \
