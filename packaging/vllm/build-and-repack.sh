@@ -91,10 +91,10 @@ WORK_DIR="/tmp/vllm-repack-${VENDOR}-${BACKEND}"
 # Try to read version from configs.yaml relative to the script, then from env.
 if [[ -n "${STACK_VERSION:-}" ]]; then
     true  # already set via env
-elif [[ -f "${SCRIPT_DIR}/../configs.yaml" ]]; then
+elif [[ -f "${SCRIPT_DIR}/../../configs.yaml" ]]; then
     STACK_VERSION=$(python3 -c "
 import yaml
-with open('${SCRIPT_DIR}/../configs.yaml') as f:
+with open('${SCRIPT_DIR}/../../configs.yaml') as f:
     print(yaml.safe_load(f)['version'])
 ")
 else
@@ -122,7 +122,7 @@ UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
 if [[ -z "${DOCKER_RUN_FLAGS:-}" ]]; then
     DOCKER_RUN_FLAGS=$(python3 -c "
 import yaml
-with open('${SCRIPT_DIR}/../.github/build-config.yml') as f:
+with open('${SCRIPT_DIR}/../../.github/build-config.yml') as f:
     config = yaml.safe_load(f)
 vendor = '${VENDOR}'
 vendor_config = config.get('run', {}).get('vendors', {}).get(vendor, {})
