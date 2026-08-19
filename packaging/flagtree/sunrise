@@ -103,7 +103,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
         libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
-        python3.10 python3.10-dev python3.10-venv \
+        python3.10 python3.10-dev python3.10-venv python3-pip \
     && ln -sf /usr/bin/clang-14 /usr/bin/clang \
     && ln -sf /usr/bin/clang++-14 /usr/bin/clang++ \
     && ln -sf /usr/bin/lld-14 /usr/bin/lld \
@@ -111,9 +111,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && clang++ --version && ld.lld --version \
     && rm -rf /var/lib/apt/lists/*
 
-# pip for python3.10.
-RUN python3.10 -m ensurepip --upgrade \
-    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools
+# pip for python3.10 (ensurepip is disabled for Ubuntu system python).
+RUN python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools
 
 # Pre-stage the prebuilt sunrise deps into FlagTree's offline cache dirs so the
 # build wires them itself: LLVM -> sunrise_llvm22_dev_release (post_hook),
