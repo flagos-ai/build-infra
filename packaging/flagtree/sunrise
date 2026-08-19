@@ -88,6 +88,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
 # Sunrise builds with clang/lld (not gcc) -- see the build-RUN comment below.
+# Symlinks expose the unversioned names setup.py and clang's -fuse-ld=lld expect:
+# clang/clang++ for CMAKE_C/CXX_COMPILER, lld for CMAKE_LINKER, ld.lld for the
+# -fuse-ld=lld linker lookup. The bare `lld` driver only prints a usage message
+# and exits 1 on --version (multi-flavor dispatch by argv[0]); ld.lld is the ELF
+# flavor and is the one that actually links, so the version check uses it.
 # gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common ca-certificates gnupg dirmngr \
@@ -104,7 +109,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -sf /usr/bin/clang-14 /usr/bin/clang \
     && ln -sf /usr/bin/clang++-14 /usr/bin/clang++ \
     && ln -sf /usr/bin/lld-14 /usr/bin/lld \
-    && clang++ --version && lld --version \
+    && ln -sf /usr/bin/ld.lld-14 /usr/bin/ld.lld \
+    && clang++ --version && ld.lld --version \
     && rm -rf /var/lib/apt/lists/*
 
 # pip for python3.12 (deadsnakes ships ensurepip via the python3.12-venv package).
