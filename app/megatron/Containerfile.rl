@@ -83,7 +83,12 @@ RUN if [ -n "${APP_DEPS}" ]; then \
 # image). The install is proven inert by the build-time smoke test in
 # packaging/megatron/builder/ (build env == delivery env) and verified
 # on-node by packaging/megatron/verify/verify-megatron-backend.sh.
-RUN pip install \
+# PYTHONPATH=/opt/triton mirrors the runtime Containerfile DEPS install:
+# build RUN steps run under dash (no BASH_ENV, so no compiler on
+# PYTHONPATH), and pip must see the side-dir triton dist-info or torch's
+# triton==N dep (declared in the vendor torch METADATA) pulls a fresh
+# triton into site-packages, bypassing the repacked vendor triton.
+RUN PYTHONPATH="/opt/triton" pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \
   "megatron-core[rl]==${MEGATRON_VERSION}"
