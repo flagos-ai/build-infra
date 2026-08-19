@@ -176,6 +176,8 @@ RUN git config --global http.version HTTP/1.1 \
     && export TRITON_BUILD_WITH_CLANG_LLD=1 \
     && export TRITON_OFFLINE_BUILD=1 \
     && export TRITON_BUILD_PROTON=OFF \
+    && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_INSTALL_RPATH=$ORIGIN -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON' \
+    && ln -sfn ptpu third_party/sunrise/language/tang \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
          python3.10 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
@@ -227,6 +229,25 @@ if internals != [b"12"]:
           "sunrise plugin v0.6.0.4 needs v12 -- adjust PYBIND11_SPEC)")
     sys.exit(1)
 print("OK: libtriton.so pybind11 internals v12 (matches sunriseTritonPlugin_v0.6.0.4)")
+# extra-alias gate: flag_gems <=5.3.4 imports triton.language.extra.tang; upstream
+# main renamed it to ptpu, so the build symlinks ptpu -> tang. Assert both shipped.
+extra_dir = os.path.join(d, "triton", "language", "extra")
+missing = [name for name in ("ptpu", "tang") if not os.path.isdir(os.path.join(extra_dir, name))]
+if missing:
+    print(f"FAIL: wheel missing triton.language.extra.{missing} (tang symlink not picked up)")
+    sys.exit(1)
+print("OK: wheel ships triton.language.extra ptpu + tang")
+# RUNPATH gate: upstream main dropped INSTALL_RPATH, so the default is an absolute
+# /usr/local/... path that breaks when the wheel installs to /opt/flagtree.
+# TRITON_APPEND_CMAKE_ARGS injects -DCMAKE_INSTALL_RPATH=$ORIGIN plus
+# -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON (the wheel ships the build-tree .so, so
+# INSTALL_RPATH alone never applies); assert the token landed.
+rp = subprocess.check_output(["readelf", "-d", so], text=True)
+m = re.search(r"Library runpath: \[([^\]]*)\]", rp)
+if not m or "$ORIGIN" not in m.group(1) or "/usr/local" in m.group(1):
+    print(f"FAIL: libtriton.so RUNPATH '{m.group(1) if m else '<none>'}' (expected $ORIGIN)")
+    sys.exit(1)
+print("OK: libtriton.so RUNPATH contains $ORIGIN")
 PY
 
 # Smoke test: install the freshly built wheel and import it (fails the build
