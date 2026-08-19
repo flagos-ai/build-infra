@@ -72,12 +72,12 @@
   镜像，同 hygon §1.3.3）；inference = legacy `StaticInferenceEngine` 3 请求 ×
   8 tokens。inference driver 无需外部词表（注入 prompt_tokens + 重写
   detokenize，NullTokenizer 配方自洽），metax 容器无 gpt2 夹具也不阻塞。
-- **metax RL（双编译器全 ✅；实证链终止 2026-08-19）**：F 列 = run #17 走默认编译器
+- **metax RL（双编译器全 ✅；实证链终止 2026-08-19）**：F 列 = 默认编译器
   flagtree 线（/flagos env，`triton 3.6.0` 即 flagtree 0.6.1+metax3.6 的模块版本）；
-  **T 列 = run #18 走 vendor triton 线（`compiler triton` → `triton 3.6.0`
+  **T 列 = vendor triton 线（`compiler triton` → `triton 3.6.0`
   /opt/triton/triton/__init__.py），07:10:11 → 07:11:37 UTC exit 0**，同配方全链
   通过（rollout 8 组，GRPO 迭代 1/20，elapsed 30727 ms，0 错误）。真实障碍链
-  （17 个，runs #3–#17，全 E2E 实证）全为本地代码/参数/harness 缺陷——
+  （17 个，全 E2E 实证）全为本地代码/参数/harness 缺陷——
   NullTokenizer pad/bos/eos 缺口、`--return-log-probs` 未注册、dynamic 批参协调
   （`max_tokens<max_requests` 断言）、`[rl]` extra 运行时依赖缺失
   （pyzmq/msgpack/quart/hypercorn/datasets）、flash_attn 2.6.3 的
