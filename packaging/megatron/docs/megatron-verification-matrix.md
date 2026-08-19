@@ -31,8 +31,8 @@
 
 | 厂商     | 后端          | 训练(T) | 训练(F) | 强化学习(T) | 强化学习(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) |
 | -------- | ------------- | ------- | ------- | ----------- | ----------- | --------- | --------- | ------- | ------- |
-| 英伟达   | CUDA 12.8     | ⬜      | ⬜      | ⬜          | ⬜          | ⬜        | ⬜        | ⛔      | ⛔      |
-| 英伟达   | CUDA 13.3     | ⬜      | ⬜      | ⬜          | ⬜          | ⬜        | ⬜        | ⛔      | ⛔      |
+| 英伟达   | CUDA 12.8     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
+| 英伟达   | CUDA 13.3     | ✅      | ✅      | ⬜          | ⬜          | ✅        | ✅        | ✅      | ✅      |
 | 昇腾     | CANN 8.5.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 昇腾     | CANN 9.0.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 寒武纪   | NEUWARE 4.4.3 | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
@@ -58,6 +58,77 @@
 
 ## 已验证/已知事实
 
+- **nvidia training（2026-08-19，cuda12.8 双编译器全 ✅）**：h20 runner +
+  `megatron-nv128` 容器（flagos-runtime-nvidia-cuda12.8:2.1.2，merged wheel
+  `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装）。mock data 5 iter E2E
+  **双编译器均 exit 0**——flagtree 3.6.0（默认 /opt/flagtree，iter1 loss
+  8.371983E+00）与 vendor triton 3.6.0（`compiler triton` →
+  /opt/triton，逐 iter 8.371983/8.363531/8.348538/8.366852/8.357372）；
+  **validation loss 两线一致 8.360331E+00**（同 seed 42，mock 数据确定性
+  复现）。环境：torch 2.10.0+cu128、flag_gems 5.3.4、numpy 2.3.5。
+  **新缺陷：flagtree 线 inductor fork 崩溃**——MLF hyper_connection 硬编码
+  `@torch.compile`（9 处）× torch 2.10 inductor 子进程池（默认
+  worker_start_method="subprocess"）× flagtree hint_manager 在 fork 出的
+  worker 里调 `torch.cuda.current_device()` → "Cannot re-initialize CUDA in
+  forked subprocess"（iter 1 backward 崩）。**处置（用法侧规避，不回馈上游）**：
+  `TORCHINDUCTOR_COMPILE_THREADS=1` 强制内联编译（submit()/use_process_pool()
+  对 compile_threads<=1 短路），无 fork；triton 线该 env 惰性无害。与 hygon
+  flagtree 3.6.0 的 cluster_dims 崩溃（§1.4）不同——nvidia 线无 jit 补丁前置，
+  `--disable-jit-fuser` 直接够用。启动直跑 pretrain_gpt.py（无 torchrun），
+  env:// rendezvous 需显式 MASTER_ADDR/MASTER_PORT/RANK/WORLD_SIZE。
+- **nvidia training（2026-08-20，cuda13.3 双编译器全 ✅）**：h20 +
+  `megatron-nv133` 容器（flagos-runtime-nvidia-cuda13.3:2.1.2，merged wheel
+  `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装）。mock data 5 iter E2E
+  **双编译器均 exit 0**——flagtree 3.6.0（默认 /opt/flagtree，iter1 loss
+  8.371983E+00）与 vendor triton 3.6.0（`compiler triton` → /opt/triton）；
+  **validation loss 两线一致 8.360331E+00**（同 seed 42，与 cuda12.8 完全
+  一致——mock 数据确定性复现，跨后端成立）。环境：torch 2.11.0+cu130。
+  与 cuda12.8 相同的两个用法侧规避：`TORCHINDUCTOR_COMPILE_THREADS=1`
+  （flagtree inductor fork 崩溃，§nvidia training 12.8）+ `--disable-jit-fuser`。
+  **新发现的环境缺口：cuda13.3 runtime 缺 psutil**（nv128 有 7.2.2）——
+  megatron-core Requires-Dist psutil → 单步 vendor 安装失败
+  （"Could not find a version that satisfies the requirement psutil"）；
+  处置：aliyun 预装 psutil 后再 vendor 单步安装成功。**应入 nvidia
+  deps_app（psutil）**，随 flash-attn wheel 一并落库。
+- **nvidia post_training × inference（2026-08-20，cuda13.3 双编译器全 ✅）**：
+  两场景均编译器无关路径，同 cuda12.8 配方——post_training = DummyModel +
+  `simple_generate`（output shape (1,8)，modelopt 0.45.0 ad-hoc 装入，未入
+  镜像，同 hygon §1.3.3 modelopt 决策未决）；inference = legacy
+  `StaticInferenceEngine` 3 请求 × 8 tokens（merged wheel 含顶层入口文件
+  gpt_builders/model_provider，裸 import 阻塞关闭——cuda13.3 验证同 wheel）。
+  F 列 17:31:27 / 17:31:59 UTC exit 0，T 列 17:31:41 / 17:32:17 UTC exit 0。
+  环境：torch 2.11.0+cu130。inference 需 `--no-persist-layer-norm`
+  （同 cuda12.8 教训：merged wheel 参数默认 persist=True）。
+- **nvidia RL（2026-08-19，cuda12.8 双编译器全 ✅）**：h20 + `megatron-nv128`
+  容器，merged wheel `0.17.1+fl.20260818.g48b97a13f1bb`，前置 = MLF PR #116
+  5 补丁（RL local-impl，容器 site-packages 直打）+ 自建 flash-attn wheel
+  `2.8.3.post1+fl.cu128.torch210`（§5.5 动态引擎硬依赖）。同 metax 配方
+  （`--transformer-impl local` 无 vendor TE、`--rl-partial-rollouts`、
+  `--return-log-probs`、`--skip-train --no-load-optim`、dynamic 批参数、
+  `TORCHINDUCTOR_COMPILE_THREADS=1` + `--disable-jit-fuser`）——
+  **F 列（flagtree 3.6.0 默认线）17:05:09 → 17:05:40 UTC exit 0，T 列
+  （vendor triton 3.6.0，`compiler triton`）17:11:21 → 17:11:52 UTC exit 0**。
+  两线均 GRPO 迭代 1/20、rollout 8 组、3 次 rollout collection
+  （Iteration 0/8/16），triton 线 elapsed 15551.9 ms + Inference
+  Coordinator shut down successfully。**真实障碍链（3 个，全 harness 本地）**：
+  dummy_agent `isinstance` 缺类参数、TokenRollout `env_id=None`→`""`、
+  eod 重复追加（`Only one eod per trajectory` 断言，条件追加 + 掩码按终长）。
+  harness 自研不入固化；**固化配方（PR #116 补丁 + 参数集 + flash-attn
+  自建 wheel）已由 metax + nvidia 双实证**。运行事实同 metax：每次 relaunch
+  前 kill -9 遗留 pretrain 进程；watcher 只信 log "python exit=" 信号。
+  对比 hygon：nvidia 线无 jit 补丁前置，`--disable-jit-fuser` 直接够用。
+- **nvidia post_training × inference（2026-08-19，cuda12.8 双编译器全 ✅）**：
+  两场景均编译器无关路径，同 metax 配方——post_training = DummyModel +
+  `simple_generate`（output shape (1,8)，nvidia-modelopt 0.45.0 ad-hoc 装入
+  runtime venv，aliyun 带依赖解析 PuLP/antlr4-python3-runtime/nvidia-ml-py/
+  omegaconf/scipy，torch 2.10.0+cu128 未动，未入镜像——同 hygon §1.3.3
+  modelopt 决策未决）；inference = legacy `StaticInferenceEngine` 3 请求 ×
+  8 tokens（merged wheel 含顶层入口文件 gpt_builders/model_provider，
+  裸 import 阻塞关闭）。F 列 17:15:20 / 17:16:29 UTC exit 0，T 列 17:15:38 /
+  17:16:51 UTC exit 0。**唯一障碍：inference 首跑漏传
+  `--no-persist-layer-norm`** → `torch_norm.py:48` 断言（torch LayerNorm 不支持
+  persist_layer_norm）——合并 wheel 参数默认 persist=True，训练配方参数集需
+  逐参数随行（同 §1.6 merged wheel 参数接口重构的教训）。
 - **metax training（2026-08-18）**：merged wheel
   `0.17.1+fl.20260818.g48b97a13f1bb`（合并 #105/#106/#107/#114），**双编译器
   均 5 iter E2E exit 0**——flagtree 0.6.1（loss 1.084350E+01 → 1.084006E+01）
@@ -121,7 +192,10 @@
   post_training/inference 本身编译器无关（DummyModel / legacy static 路径）。
 - **inference 裸 import 阻塞（已由全范围 wheel 关闭）**：`megatron/inference/utils.py` 依赖的 `gpt_builders`/`mamba_builders`/`model_provider` 是 **repo 根顶层入口文件**（不在 `megatron/` 包内）——core-only wheel（0.17.1+flagos）打包时被忽略，安装后 `import megatron.inference.utils` 即 ImportError。MLF PR #107（feat/wheel-full-scope）把顶层入口文件一并打包，hygon 已用该 wheel 验证推理场景跑通（见下）。
   - **归属**：上游 **core_v0.17.0** 自己的代码（fork #34 忠实同步），非 fork 偏离。上游修复时点：0.17.0/0.17.1 = 3 处裸 import；0.18.0/0.18.2 = 2 处；main = 0（全部收敛进 `megatron/training/models/`）。
-  - **状态**：全范围 wheel 从打包侧关闭阻塞，其余后端推理列仍 ⛔ —— 需 PR #107 合入后按序验证。结构性问题（决策4 关联："顶层文件作入口"模式不支持 wheel 包发布）仍然成立，但不阻塞交付。
+  - **状态**：全范围 wheel 从打包侧关闭阻塞，nvidia cuda12.8（2026-08-19）
+    与 metax 已验证 ✅，其余后端推理列仍 ⛔ —— 待按序验证。结构性问题
+    （决策4 关联："顶层文件作入口"模式不支持 wheel 包发布）仍然成立，
+    但不阻塞交付。
 - **hygon inference**：`StaticInferenceEngine(legacy=True)` 路径 E2E 跑通
   （3 请求 × 8 tokens，exit 0）。legacy 静态批处理走 `apply_module(core_attention)`
   （DotProductAttention/sdpa），**不依赖 flash-attn、不编译 triton kernel**——
