@@ -32,6 +32,7 @@ on:
         options:
           - metax
           - nvidia-cuda
+          - sunrise
         default: metax
       flagtree_version:
         description: 'FlagTree tag/ref to build (blank = Containerfile default)'
