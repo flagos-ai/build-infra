@@ -38,7 +38,8 @@
 #   6. Test vllm serve and inference
 #
 # --app-image <image>: instead of steps 3-6, verify a prebuilt
-#   flagos-dev/vllm-{vendor}-{backend}:{version} image (built by the
+#   flagos-app/vllm{vllm_version}-{vendor}-{backend}:{version}[-{plugin}] image
+#   (built by the
 #   vllm-app-image workflow): the critical-package matrix
 #   (torch/torch_npu/triton/flag_gems/numpy) must be identical to the runtime
 #   image's, and vllm + vllm_fl must import. No installs run; serve is skipped.
@@ -197,7 +198,8 @@ log_info "Container started: ${CONTAINER}"
 # ── App-image mode: verify a prebuilt vllm app image ─────────────────────
 #
 # Facility 2 (vllm-app-image.yml) verifies the built
-# flagos-dev/vllm-{vendor}-{backend}:{version} image instead of installing
+# flagos-app/vllm{vllm_version}-{vendor}-{backend}:{version}[-{plugin}] image
+# instead of installing
 # from scratch: BEFORE snapshot from the runtime image, AFTER from the app
 # image — the critical-package matrix (torch / torch_npu / triton /
 # flag_gems / numpy) must match item by item, proving the single-step wheel

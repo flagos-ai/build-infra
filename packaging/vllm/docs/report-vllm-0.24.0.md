@@ -769,8 +769,9 @@ reference]` 后再跑仍全绿 → 重排非必要，仓库未改（容器最终
 app 镜像（wheel 单步安装线 + `vllm-serve` launcher）在 NPU 上的
 serve + 推理，即 `app/vllm/` 全流程的端到端证明。
 
-- 镜像：`harbor.baai.ac.cn/flagos-dev/vllm-ascend-cann9.0.0:2.1.2`
-  （构建 run 32146899749，已 push）
+- 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818`
+  （构建 run 32146899749；2026-08-19 按新命名 re-tag 至 flagos-app，
+  flagos-dev 下旧 `vllm-ascend-cann9.0.0:2.1.2` tag 保留）
 - 版本指纹：vllm `0.24.0+flagos`（cp311 aarch64 empty wheel，
   单步安装）；vllm-plugin-fl `0.2.0+gcf8998c.d20260818`（vendor PyPI
   wheel，非 editable —— setuptools-scm 编码同 §10.4 的 `cf8998c`
