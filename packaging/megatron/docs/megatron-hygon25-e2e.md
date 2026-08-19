@@ -247,6 +247,8 @@ checkout；`megatron.training` 已在 wheel 中，§1.1）。**3.5.1 复验通�
 | `--no-persist-layer-norm` / `--no-gradient-accumulation-fusion` | 相应 fused kernel 在 DCU 上不可用的显式关闭 |
 | `--attention-backend unfused` | 仅 local 训练线需要；RL（TE）线不传（§5.4） |
 | `--transformer-impl` | 训练用 `local`；RL 必须 `transformer_engine`（§5.4） |
+| `--lr 1e-6` | 训练必传：merged wheel（config dataclass 重构）默认 `None`，不传即 `float(None)` 崩（§2.1 之外的上游使用方式变更，2026-08-18 定） |
+| `--eval-interval 1000` | 必传：merged wheel 默认 `None` + training.py 无条件 `train_iters // eval_interval` 崩（上游已知缺口，用法侧规避，2026-08-18 定） |
 | `--shm-size=8g`（docker run） | torch multiprocessing 需大于容器默认 64MB 共享内存 |
 
 ### 2.1 venv 缺 python3-config（2026-08-16 实测）
