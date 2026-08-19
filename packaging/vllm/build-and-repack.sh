@@ -34,6 +34,15 @@
 #                          matched vllm+deps set on one index avoids split-index
 #                          fragility on a vllm version bump.
 #
+# Env:
+#   STACK_VERSION        Override the stack version read from configs.yaml
+#                        (used for the build image tag).
+#   DOCKER_RUN_FLAGS     Extra `docker run` flags for the build container.
+#                        ptpu vendors (e.g. sunrise) abort in torch at import
+#                        when no device is visible (tangGetDeviceCount failed),
+#                        so the build container must see /dev:
+#                        DOCKER_RUN_FLAGS="--privileged -v /dev:/dev"
+#
 # Prerequisites:
 #   - Docker with harbor.baai.ac.cn access
 #   - python3 + pyyaml on the host (for reading configs.yaml)
@@ -125,6 +134,7 @@ docker pull "$BUILD_IMAGE" > /dev/null 2>&1 || true
 
 docker run -d --name "$CONTAINER" --network host \
     -v "${WORK_DIR}:${WORK_DIR}" \
+    ${DOCKER_RUN_FLAGS:-} \
     "$BUILD_IMAGE" sleep infinity
 
 # ── Build + repack ──────────────────────────────────────────────────────
