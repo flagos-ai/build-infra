@@ -33,9 +33,7 @@ registry:
     # App images live under flagos-app (e.g. flagos-app/megatron-nvidia-cuda12.8,
     # flagos-app/vllm-nvidia-cuda12.8). Consumed by the app-image workflows
     # (megatron-app-image.yml, vllm-app-image.yml) to compose the image tag.
-    # TEMPORARY: the flagos-app Harbor project does not exist yet — images land
-    # in flagos-dev until it is created (flip back to flagos-app then).
-    app: flagos-dev
+    app: flagos-app
 
 # Which runner builds each image (base containerfile name -> runs-on).
 # Backends not listed under `overrides` use `default`.
