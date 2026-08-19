@@ -38,7 +38,7 @@
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | — | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
-| 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ⬜ | ⬜ |
+| 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ✅ | ❌ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
 | 清微智能 | TSM 260610 | ⬜ | ⬜ | ⬜ | ⬜ |
 
@@ -161,6 +161,19 @@
   "56"），崩溃标记 0。triton 路径需 `linear`/`pow`/`cumsum`/
   `repeat_interleave` 黑名单（插件 commit `cf8998c`；triton_ascend
   3.2.0 decode GEMM 死转，详见 `report-vllm-0.24.0.md` §10.3）。
+- **sunrise-tangrt1.2.0** ✅（2026-08-19，cp310 wheel + 插件 CUSTOM
+  移植）：**T 路径 ✅** —— `compiler triton` → vendor triton
+  3.6.0.1+git0a5cfb35，Qwen3-8B TP1 serve 到 `Application startup
+  complete`、推理连贯，指纹 `vllm-0.24.0-6c831be5`。前置 = cp310
+  empty wheel（sunrise 是 python 3.10，0.24.0 wheel 绑定 CPython 小
+  版本）+ 插件两条改动：attention backend 改 **CUSTOM 注册**
+  （ascend PR #387 同款模式）+ `patch_accelerator_memory_stats()`
+  （合成 `torch.ptpu.memory_stats()` 供 FL worker KV-cache 定容，
+  首次 serve 曾崩 `AttributeError: no attribute 'memory_stats'`）。
+  详见 `report-vllm-0.24.0.md` §11。
+  **F 路径 ❌** —— 沿用 0.20.2 §2.9 结论（FlagTree flash-attn
+  **decode 挂死**，编译器缺陷，未在 0.24.0 复测以免挂卡）；
+  交付路径固定 `compiler triton`。
 
 **跨版本事实**
 

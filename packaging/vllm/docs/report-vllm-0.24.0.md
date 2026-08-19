@@ -21,7 +21,8 @@
 ## 0. 结论摘要（TL;DR）
 
 结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过；
-Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）。
+Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sunrise（TANGRT 1.2.0）
+验证通过（cp310 wheel + 插件 CUSTOM 移植 + triton 路径，2026-08-19）。
 
 - 构建 + 重新打包（wheel）：✅ 通过（2026-08-12）
 - MACA（3.7.2.1）× FlagTree：✅ 通过（2026-08-14）
@@ -33,6 +34,8 @@ Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）。
 - CUDA 13.3 × FlagTree：✅ 通过（2026-08-16，空模式）
 - CUDA 13.3 × Triton：✅ 通过（2026-08-16，空模式）
 - Ascend（CANN 9.0.0）× FlagTree：✅ 通过（2026-08-17，插件 PR #387，Qwen3-4B）
+- Sunrise（TANGRT 1.2.0）× Triton：✅ 通过（2026-08-19，cp310 wheel +
+  CUSTOM 移植，Qwen3-8B）
 
 "通过" 意味着：1） vLLM 服务可以正常启动；2）使用 Qwen3-4B 模型可以执行正常推理服务；
 
@@ -654,7 +657,7 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   验证为目的，性能不做横向比较。
 - **非致命警告**：flag_gems `index_select.py:45` UserWarning（张量逻辑
   `and`/`or`，弃用语义）—— 上游 flag_gems 5.3.4 问题，不影响正确性，
-  列入遗留（§11）。
+  列入遗留（§12）。
 - **GDN/hybrid 模型（Qwen3-Next）0.24.0 暂不支持**：0.24.0 把
   `mamba/gdn_linear_attn.py` 重构为 `mamba/gdn/` 包，patch.py 的 GDN
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
@@ -807,15 +810,102 @@ serve + 推理，即 `app/vllm/` 全流程的端到端证明。
 
 ---
 
-## 11. 遗留事项
+## 11. sunrise（TANGRT 1.2.0）详细记录（2026-08-19）
+
+sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
+（`cp310-cp310`），因此本后端验证前置 = **构建 cp310 empty wheel**（§11.1）。
+插件侧移植比 ascend（§10）小得多：sunrise 的 `attention.py` 已是 0.24.0
+接口形态，改 CUSTOM 注册即可；`patch.py` 5 个 patch 目标全部存在于
+0.24.0，另补一个 `memory_stats` 合成（§11.2）。E2E 走 0.20.2 §2.9 结论的
+**交付路径 = `compiler triton`**（FlagTree flash-attn decode 挂死，见
+`report-vllm-0.20.2.md` §2.9）。
+
+### 11.1 构建：cp310 empty wheel（Phase A）
+
+- 命令：`./build-and-repack.sh sunrise-tangrt1.2.0 --vllm-version 0.24.0`
+  （build 容器需要 `DOCKER_RUN_FLAGS="--privileged -v /dev:/dev"`，
+  ptpu 平台在 torch import 时无设备会 abort）
+- 产出：`vllm-0.24.0+flagos`（cp310-cp310，empty 构建 + repack 单步
+  安装），连带 `compressed-tensors 0.17.0+flagos`、
+  `opencv-python-headless 5.0.0.93+flagos`、`xgrammar 0.2.3+flagos`
+  一套（ABI 绑定本 vendor 镜像的 python/arch，保持单 index 完整）。
+- 上传：未 `--upload`（用户持有 twine 凭据），节点侧从本地
+  `/opt/wheels` 安装验证。
+
+### 11.2 插件移植（Phase B，分支 feat/sunrise-v024）
+
+基线 v0.3.0-dev（5b592be，含 torchvision guard PR #386），2 个文件改动：
+
+1. **`impl/attention.py` 改 CUSTOM 注册**（ascend PR #387 同款模式）：
+   `get_name()` 返回 `"CUSTOM"` + 模块级
+   `register_backend(AttentionBackendEnum.CUSTOM,
+   "vllm_fl.dispatch.backends.vendor.sunrise.impl.attention.
+   AttentionFLBackend")`。sunrise 原 `get_name()` 返回 `"TRITON_ATTN"`，
+   恰好是 0.24.0 合法成员，但为语义干净 + 与 ascend 模式统一，采用
+   CUSTOM 显式占位成员（registry 注释"must be registered before use"）。
+2. **`patch.py` 新增 `patch_accelerator_memory_stats()`**：合成
+   `torch.ptpu.memory_stats()`，供 FL worker KV-cache 定容读取
+   `"allocated_bytes.all.peak"`。torch.ptpu 只有
+   `max_memory_allocated`/`memory_reserved`，无 torch.cuda 风格
+   memory_stats 字典；新函数从 peak API 合成 FL worker 用到的两个 key，
+   guard 永不覆盖真实实现。
+
+### 11.3 serve + 推理（Phase C，Qwen3-8B，TP1）
+
+- 节点：`sunrise`（bastion 2224），容器 `vllm-sunrise-024`
+  （`--privileged -v /dev:/dev`），`pt_smi` 确认设备。
+- 安装：`vllm==0.24.0+flagos`（cp310 wheel）+ vllm-plugin-fl editable
+  （`/opt/vllm-plugin-FL`，`--no-build-isolation`）。
+- 编译器：`compiler triton`（vendor triton 3.6.0.1+git0a5cfb35）。
+- **模型为 `/models/Qwen3-8B`**（sunrise 节点无 Qwen3-4B，矩阵
+  "Qwen3-4B"约定在此单元格不适用，同 mthreads §8 先例）。
+- serve：`--port 8031 --gpu-memory-utilization 0.6 --enforce-eager
+  --trust-remote-code --max-model-len 2048 --dtype bfloat16` →
+  `Application startup complete`。算子路由：`attention_backend`
+  `default.flagos`（TritonAttentionBackend）因需 CUDA 失败 →
+  **fallback `vendor.sunrise`**（CUSTOM 注册生效）；`rms_norm`/
+  `rotary_embedding`/`silu_and_mul` 走 `default.flagos`。5 个 sunrise
+  patch 全部生效（含新 memory_stats）；KV cache 31,232 tokens；
+  init engine 19.43s。
+- 推理：knowledge 连贯 ✅ —— `The capital of France is` → " Paris.
+  The capital of Italy is Rome. The capital of Spain is Madrid. ..."
+- 指纹：system_fingerprint `vllm-0.24.0-6c831be5`；torch
+  2.11.0+cpu / torch_ptpu 0.2.3+torch2.11 / flag_gems 5.3.4 /
+  triton 3.6.0.1+git0a5cfb35。
+- **非致命警告**：FlagCX stream adapter patch 报
+  `No module named 'plugin'`（FLAGCX_PATH 未设）—— TP1 无影响，
+  TP>1 需设置 FLAGCX_PATH 后复验。
+
+### 11.4 排障记录：`memory_stats` AttributeError
+
+首次 serve 崩 `RuntimeError: Engine core initialization failed`，
+根因 = FL worker `determine_available_memory` 调
+`torch_device_fn.memory_stats().get("allocated_bytes.all.peak", 0)`，
+而 `torch.ptpu` 无 `memory_stats`（节点 probe 确认：
+`AttributeError: module 'torch_ptpu.ptpu' has no attribute
+'memory_stats'`；torch.ptpu 的 memory API 只有
+`max_memory_allocated`/`memory_reserved`/`memory_allocated`/
+`reset_peak_memory_stats`/`mem_get_info`/`empty_cache`）。
+
+修复落在插件 patch.py（§11.2 第 2 条），节点侧先 probe 验证
+（`has memory_stats after: True`，`memory_stats() =
+{'allocated_bytes.all.peak': 0, 'reserved_bytes.all.peak': 0}`
+分配前），再重挂 serve → 全绿。该 shim 与 metax
+`accelerator_compat.py` 的 torch.accelerator 补丁同一模式，只改
+插件、不改官方 vLLM。
+
+---
+
+## 12. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
       已合入（5b592be）；ascend 验证即基于该基线（§10）。
-- [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、sunrise、cambricon、
+- [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、cambricon、
       kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
       T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）；
-      ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）
+      ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）；sunrise ✅
+      （§11，T 路径 triton；F 路径沿用 0.20.2 §2.9 decode 挂死结论）
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （§10.2，非致命）—— 上游 flag_gems 侧修复后复验
 
