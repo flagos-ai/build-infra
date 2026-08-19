@@ -43,7 +43,7 @@
 | 天数智芯 | COREX 4.4.0   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 昆仑芯   | XRE 5.37.1    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 沐曦     | MACA 3.7.2.1  | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 沐曦     | MACA 3.8.1.3  | ✅      | ✅      | ⬜          | ✅          | ✅        | ✅        | ✅      | ✅      |
+| 沐曦     | MACA 3.8.1.3  | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
 | 摩尔线程 | MUSA 4.3.6    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 摩尔线程 | MUSA 5.2.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 进迭时空 | SPACEMIT      | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
@@ -72,21 +72,24 @@
   镜像，同 hygon §1.3.3）；inference = legacy `StaticInferenceEngine` 3 请求 ×
   8 tokens。inference driver 无需外部词表（注入 prompt_tokens + 重写
   detokenize，NullTokenizer 配方自洽），metax 容器无 gpt2 夹具也不阻塞。
-- **metax RL（F 列 ✅，T 列待验；实证链终止 2026-08-19）**：run #17 走默认编译器
-  flagtree 线（/flagos env，`triton 3.6.0` 即 flagtree 0.6.1+metax3.6 的模块版本）。
-  真实障碍链（17 个，runs #3–#17，全 E2E 实证）全为本地代码/参数/harness 缺陷——
+- **metax RL（双编译器全 ✅；实证链终止 2026-08-19）**：F 列 = run #17 走默认编译器
+  flagtree 线（/flagos env，`triton 3.6.0` 即 flagtree 0.6.1+metax3.6 的模块版本）；
+  **T 列 = run #18 走 vendor triton 线（`compiler triton` → `triton 3.6.0`
+  /opt/triton/triton/__init__.py），07:10:11 → 07:11:37 UTC exit 0**，同配方全链
+  通过（rollout 8 组，GRPO 迭代 1/20，elapsed 30727 ms，0 错误）。真实障碍链
+  （17 个，runs #3–#17，全 E2E 实证）全为本地代码/参数/harness 缺陷——
   NullTokenizer pad/bos/eos 缺口、`--return-log-probs` 未注册、dynamic 批参协调
   （`max_tokens<max_requests` 断言）、`[rl]` extra 运行时依赖缺失
   （pyzmq/msgpack/quart/hypercorn/datasets）、flash_attn 2.6.3 的
   `flash_decode_and_prefill` 仅 fp16/bf16（`--bf16` 规避）、torch inductor
-  异步编译 × flagtree metax driver `current_device()` fork 崩溃
+  异步编译 × metax driver `current_device()` fork 崩溃
   （`TORCHINDUCTOR_COMPILE_THREADS=1`）、非 streaming drain 断言
-  （`--rl-partial-rollouts`）、harness eod 去重。**无 vendor TE 非阻塞项**——
-  驱动论点（"RL 双问题不应是阻塞项"）经 17 障碍全落地 + run #17 exit 0 坐实。
-  完整 GRPO 迭代 1/20 执行（consumed 8 samples，dynamic 引擎 8 组）。**T 列待验**
-  = `FLAGTREE_VERSION=none`（或 `compiler triton`）走 vendor triton 3.6.0+metax3.8.1.0
-  线重跑（运行事实：GPU 0 忙 → `CUDA_VISIBLE_DEVICES=1`；每次 relaunch 前 kill -9
-  遗留 pretrain 进程；watcher 只信 log "python exit=" 信号 + 25min 停滞双条件）。
+  （`--rl-partial-rollouts`）、harness eod 去重。**两处环境不合规均实证非阻塞**：
+  无 vendor TE（`--transformer-impl local` 全程无 TE）+ flash_attn 2.6.3 版本断言
+  不达标但功能支持 block_table 路径（断言是版本号检查非功能检查，对 vendor 变体
+  不适用）。**固化清单见状态文档 #6（5 补丁 + 4 配方参数）**。运行事实：GPU 0 忙
+  → `CUDA_VISIBLE_DEVICES=1`；每次 relaunch 前 kill -9 遗留 pretrain 进程；
+  watcher 只信 log "python exit=" 信号 + 25min 停滞双条件。
 - **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：hygon 验证用
   的全范围 wheel 无此问题，merged wheel 引入 config dataclass +
   `ArgumentGroupFactory` 自动生成参数，`--lr`（`SchedulerConfig`）与
