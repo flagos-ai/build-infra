@@ -894,6 +894,52 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
 `accelerator_compat.py` 的 torch.accelerator 补丁同一模式，只改
 插件、不改官方 vLLM。
 
+### 11.5 补充：FlagTree（sunrise）wheel 重建 —— 解码挂死已修复（2026-08-19）
+
+0.20.2 §2.9 定位的 FlagTree flash-attn 解码 kernel 挂死，根因锁定在
+**上游 FlagTree 旧 vendor 标签 0.6.0+sunrise3.6（PR 978 之前）的 sunrise
+后端代码生成缺陷**；PR 978 重写了 sunrise backend pass pipeline 并删掉
+`add_split_dot`（疑似修复点）。本次将 sunrise wheel 构建固化到
+`packaging/flagtree/sunrise`（PR #447→#450 链，2026-08-19 合入 main），
+**从 FlagTree main（含 PR 978）重建 wheel**，并做了 A/B 实证：
+
+| 项目 | 旧 vendor 标签（pre-978） | 重建 wheel（post-978） |
+|------|--------------------------|------------------------|
+| 解码 tok/s（warm，Qwen3-8B） | 0.4（非终止） | **2.4~2.5（终止）** |
+| decode 挂死 | 是（120s HTTP 超时） | 否 |
+| 输出连贯 | 无 | ✅ knowledge 连贯 |
+
+A/B 结论：**重建 wheel 修复了解码挂死**；F 路径（`compiler flagtree`）
+从"沿用 §2.9 挂死结论"升级为 ✅（§12 已同步）。
+
+**构建 gate（全部通过，CI 内置）**：干净版本号（无 `.git<sha>` 后缀）、
+cp310 标签、22.04 可加载（无 GLIBC_2.38/GLIBCXX_3.4.31+ 符号）、
+pybind11 internals **v12**（与 sunriseTritonPlugin_v0.6.0.4 ABI 匹配；
+metax 插件是 v11，两者相反）、`triton.language.extra` 同时带
+`ptpu`+`tang` 别名（flag_gems ≤5.3.4 引用 tang）、RUNPATH 含 `$ORIGIN`。
+
+**RUNPATH 修复（PR #450）**：`CMAKE_INSTALL_RPATH` 只作用于 install 期，
+而 wheel 直接打包 build-tree 的 `libtriton.so`（无 `cmake --install`），
+必须补 `-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON` 才会把 `$ORIGIN` 写到
+build-tree .so 上；否则安装到 `/opt/flagtree` 后 loader 找不到同目录的
+`sunriseTritonPlugin.so`（旧 RUNPATH 是绝对路径
+`/usr/local/lib/python3.10/dist-packages/triton/_C`）。
+
+**节点复验（无 workaround）**：`rm -rf /opt/flagtree/triton ...` 后干净重装
+新 wheel，安装后 libtriton.so md5 `924b1c0d`（= wheel 内 md5），
+`readelf -d` RUNPATH `[$ORIGIN]`；**不带** `LD_LIBRARY_PATH=/opt/flagtree/
+triton/_C:...`、**不做**手动 tang 软链，`import triton`（3.6.0）+
+`triton.language.extra.tang/ptpu` + `flag_gems`（5.3.4）全部 OK；
+serve + 推理 E2E 通过（`Application startup complete`，knowledge
+连贯，64 tokens 26.7s = 2.39 tok/s）。wheel 已上传 `flagos-pypi-sunrise`
+（`upload=true`，沿用原版标签 0.6.0+sunrise3.6，drop-in 替换）。
+
+**构建约束（固化在 Containerfile）**：Ubuntu 22.04（glibc 2.35）+
+clang-14/lld-14（sunrise 后端 flags 是 clang-only
+`-Werror -Wno-covered-switch-default`，gcc 会 -Werror=attributes 挂掉）；
+系统 python3.10（apt）+ pip 走 aliyun 镜像（runner 到 pypi.org 不通）；
+sunrise deps（LLVM/plugin/triton toolkits）从预置 URL 下载并 md5 门禁。
+
 ---
 
 ## 12. 遗留事项
@@ -905,7 +951,8 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
       kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
       T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）；
       ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）；sunrise ✅
-      （§11，T 路径 triton；F 路径沿用 0.20.2 §2.9 decode 挂死结论）
+      （§11，T 路径 triton；F 路径 rebuilt flagtree ✅ §11.5 —— 旧
+      §2.9 解码挂死已由 PR 978 修复）
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （§10.2，非致命）—— 上游 flag_gems 侧修复后复验
 
