@@ -126,7 +126,7 @@ jobs:
           wait_for build-rpm.yml optional 5400
 
       - name: Download deb build artifacts
-        uses: dawidd6/action-download-artifact@v21
+        uses: dawidd6/action-download-artifact@v23
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build-deb.yml
@@ -138,7 +138,7 @@ jobs:
           path: packages/
 
       - name: Download rpm build artifacts
-        uses: dawidd6/action-download-artifact@v21
+        uses: dawidd6/action-download-artifact@v23
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build-rpm.yml
