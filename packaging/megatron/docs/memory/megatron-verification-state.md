@@ -48,9 +48,21 @@ runtime
 3. **CI 支撑（已落地，两 PR）**：generate_matrix 支持 app 级 deps + `--app {app}` 输出 `app_env`/`app_deps` 随 **PR #424 OPEN**；megatron-app-image.yml 参数化 app 名（`megatron-training`|`megatron-rl` input → 镜像 tag / matrix / APP_DEPS build-arg，Containerfile 前置 vendor RUN）随 **PR #425 OPEN**
 4. **apex 纳入 hygon runtime**（A1，2026-08-17 确认，**已落地：PR #422 merged + wheel 已传 flagos-pypi-hygon**）：上传 `apex==1.7.0+das.opt1.dtk2604.torch290` + configs.yaml hygon deps 加 `apex==1.7.0+das.opt1.dtk2604.torch290`。**定性：apex 是 vendor 可选加速包（熔断可选，MLF 里 4 处使用全 try/except fallback——multi_tensor_applier / FusedLayerNorm / FusedAdam），非 RL 硬依赖**；kunlunxin/metax 已有先例（apex==0.1 / apex==0.1+metax3.8.1.0）
 5. **TE 每后端条件性登记（已落地，随 #424）**：hygon `megatron-rl` deps_app 登记 `transformer_engine==2.10.0+das.opt1.dtk2604.torch290`；其余后端 `[]`（无 vendor TE，构建时无 vendor 包，RL 纯公共场景假设待第二后端实证）
-6. **metax 无 vendor TE（2026-08-18 用户定）**：官网仅有 `maca-transformerengine-3.7.1.0` 包（TE 2.13.0 + flash_fusion + grouped_gemm 三件套，wheel 只带 torch2.6/2.8，`.layerspec/` conda 形态，install.sh 按 torch X.Y glob 匹配）——SDK/torch/环境形态三样均不匹配 metax 3.8.1.3（torch 2.10.0），**官网无 3.8.1.3 版本**。该 3.7.1.0 包或可用于另一后端（maca3.7.2.1 线 torch2.8），但非关键包，**用户定：不装**。metax `deps_app.megatron-rl` 保持 `[]`；metax RL 前置 = **MLF local-THD 修复（rl_utils.py:666 无条件 thd → 条件构造）**——从此前"建议项"升格为 metax RL 阻塞项
+6. **metax 无 vendor TE（2026-08-18 用户定，2026-08-19 实证坐实非阻塞）**：官网仅有
+   `maca-transformerengine-3.7.1.0` 包（TE 2.13.0 + flash_fusion + grouped_gemm
+   三件套，wheel 只带 torch2.6/2.8，`.layerspec/` conda 形态，install.sh 按 torch
+   X.Y glob 匹配）——SDK/torch/环境形态三样均不匹配 metax 3.8.1.3（torch 2.10.0），
+   **官网无 3.8.1.3 版本**。该 3.7.1.0 包或可用于另一后端（maca3.7.2.1 线
+   torch2.8），但非关键包，**用户定：不装**。metax `deps_app.megatron-rl` 保持 `[]`。
+   **实证（2026-08-19 终止）**：run #17（flagtree 线）完整 GRPO E2E exit 0——
+   `--transformer-impl local` 全程无 TE 跑通，**无 vendor TE 确证非阻塞项**。
+   **local-THD（rl_utils.py:666 无条件 thd）**：实证链以容器侧条件化补丁
+   （transformer_impl=="local" 时 thd=None）落地、非阻塞；归类为 MLF 反馈项
+   （见待反馈项），**不再是 metax RL 阻塞项**。真实障碍链 17 个（runs #3–#17）
+   全为本地代码/参数/harness 缺陷，详见
+   `megatron-verification-matrix.md` metax RL 条目。
 
-**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、local-THD（rl_utils.py:666 无条件 thd → 条件构造）、eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
+**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、local-THD（rl_utils.py:666 无条件 thd → 条件构造；**2026-08-19 实证：容器侧条件化补丁即通，非阻塞，但 metax RL 走 local impl 必需**）、eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
 
 ## 既有定案（早前，仍有效）
 
