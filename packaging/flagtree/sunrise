@@ -176,7 +176,7 @@ RUN git config --global http.version HTTP/1.1 \
     && export TRITON_BUILD_WITH_CLANG_LLD=1 \
     && export TRITON_OFFLINE_BUILD=1 \
     && export TRITON_BUILD_PROTON=OFF \
-    && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_INSTALL_RPATH=\$ORIGIN" \
+    && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_INSTALL_RPATH=$ORIGIN' \
     && ln -sfn ptpu third_party/sunrise/language/tang \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
