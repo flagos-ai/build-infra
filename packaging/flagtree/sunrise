@@ -112,7 +112,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # pip for python3.10 (ensurepip is disabled for Ubuntu system python).
-RUN python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools
+# Index = aliyun mirror: pypi.org is unreachable from the build runners.
+RUN printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
+    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools
 
 # Pre-stage the prebuilt sunrise deps into FlagTree's offline cache dirs so the
 # build wires them itself: LLVM -> sunrise_llvm22_dev_release (post_hook),
