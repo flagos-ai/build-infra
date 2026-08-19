@@ -1,0 +1,235 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# Flash-Attention wheel builder (nvidia backends only)
+#
+# Builds a source-compiled flash_attn wheel ABI-locked to the
+# target runtime's torch. GitHub prebuilt wheels are ABI-locked
+# to torch 2.8 (newest cu12 = 2.8.3.post1+cu12torch2.8) and die
+# on import against torch 2.10/2.11:
+#   undefined symbol: c10_cuda_check_implementation
+# Megatron's RL dynamic-batching engine hard-depends on
+# flash-attn >= 2.7.3 (attention.py:943 gate) and FA3/FA4 have
+# no usable wheels — so nvidia needs a self-built wheel. This is
+# the ONLY self-built nvidia deps_app package (TE is skipped:
+# `--transformer-impl local` needs no TE, metax precedent).
+#
+# Build environment = nvcr devel image (nvcc + cuDNN present).
+# The build machine needs no GPU — this is pure compilation; the
+# resulting .so's runtime ABI is bound to the BUILD-TIME torch,
+# so the torch pip-installed here MUST equal the runtime image's
+# torch version. Two nvidia backends -> two wheels:
+#
+#   nvidia-cuda12.8   torch 2.10.0+cu128  WHEEL_TAG=fl.cu128.torch210
+#   nvidia-cuda13.3   torch 2.11.0+cu130  WHEEL_TAG=fl.cu130.torch211
+#
+# WHEEL_TAG becomes the PEP 440 local segment (upstream's
+# FLASH_ATTN_LOCAL_VERSION) so both wheels coexist on the vendor
+# PyPI without clobbering each other.
+#
+# Upstream build-system facts (verified against v2.8.3.post1
+# setup.py; these make the recipe non-obvious):
+#   - FLASH_ATTENTION_FORCE_BUILD=TRUE is REQUIRED. The custom
+#     bdist_wheel (CachedWheelsCommand) otherwise urlretrieves a
+#     prebuilt wheel from GitHub releases — the wrong-ABI
+#     cu12torch2.8 artifact on a firewalled network (hang, or a
+#     wheel that crashes on import). FORCE_BUILD bypasses to the
+#     real source build.
+#   - Arch control is FLASH_ATTN_CUDA_ARCHS (default "80;90;100;120"),
+#     NOT TORCH_CUDA_ARCH_LIST — the latter is ignored. H20 = sm_90.
+#   - Version injection is the FLASH_ATTN_LOCAL_VERSION env, read
+#     by get_package_version() -> "{public}+{local}". No sed needed.
+#   - Source = aliyun sdist (pip download --no-binary :all:), NOT a
+#     git clone: the clone path runs `git submodule update --init`
+#     for csrc/cutlass AND csrc/composable_kernel against GitHub
+#     (firewalled), while the sdist carries both vendored.
+#     Metadata prep runs setup.py, which imports torch — so the
+#     sdist download RUN must come AFTER torch is installed.
+#   - The CUDA build produces ONE extension module:
+#     flash_attn_2_cuda (imported at runtime as flash_attn_gpu).
+#     The second ext_modules.append in setup.py is the ROCm
+#     branch (IS_ROCM only) and never fires on CUDA.
+#
+# Typical invocation (upload side: .github/workflows/flash-attn-wheel.yml):
+#   docker build -t flash-attn-wheel:build \
+#     --build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:12.8.0-devel-ubuntu24.04 \
+#     --build-arg TORCH_VERSION=2.10.0+cu128 \
+#     --build-arg WHEEL_TAG=fl.cu128.torch210 \
+#     packaging/flash-attn/
+# TORCH_INDEX defaults to the vendor PyPI (flagos-pypi-nvidia) — the
+# same index the runtime image installs torch from — so it is not
+# passed here. Both nvidia backends share it; only BASE_IMAGE /
+# TORCH_VERSION / WHEEL_TAG differ.
+#   cid=$(docker create flash-attn-wheel:build)
+#   docker cp "$cid:/wheels/." /tmp/fa-wheels/ && docker rm "$cid"
+#
+# Revision history:
+#   2026-08-19   Initial: source-build engineering for nvidia
+#                deps_app.megatron-rl (flash-attn >= 2.7.3 gate).
+# ============================================================
+
+# Build environment: nvcr CUDA devel image (nvcc + cuDNN baked in).
+# One base image per nvidia backend; the only ARGs that differ are
+# BASE_IMAGE / TORCH_VERSION / TORCH_INDEX / WHEEL_TAG.
+ARG BASE_IMAGE=nvcr.io/nvidia/cuda:12.8.0-devel-ubuntu24.04
+FROM ${BASE_IMAGE}
+
+# --- Build arguments ------------------------------------------
+
+# Upstream flash-attn version to compile (must be >= 2.7.3 for the
+# megatron dynamic-batching gate). 2.8.3.post1 is the newest sdist
+# on the mirror; downgrade ladder if a compile fails:
+# 2.8.3.post1 -> 2.8.3 -> 2.8.2 -> 2.7.4.post1.
+ARG FLASH_ATTN_VERSION=2.8.3.post1
+
+# Runtime torch version this wheel must ABI-match. Building against
+# the wrong torch produces a wheel that dies on import with
+# `undefined symbol` (the exact defect this image exists to fix).
+ARG TORCH_VERSION=2.10.0+cu128
+
+# Torch comes from the SAME vendor PyPI the runtime image installs
+# from (configs.yaml deps -> PIP_INDEX_URL=${FLAGOS_PYPI}), so the
+# build-time torch is byte-identical to the runtime torch — the
+# strongest possible ABI lock. Public non-CUDA deps (sympy, filelock,
+# ...) resolve from the aliyun extra-index, exactly like the runtime.
+ARG TORCH_INDEX=https://resource.flagos.net/repository/flagos-pypi-nvidia/simple
+
+# PEP 440 local version segment, e.g. fl.cu128.torch210. Carries
+# (cuda, torch) ABI identity so the vendor PyPI can host one wheel
+# per nvidia backend without clobbering.
+ARG WHEEL_TAG=fl.cu128.torch210
+
+# Target GPU architecture: H20 = sm_90. Explicitly pinned so a
+# build on other hardware does not silently pick the default
+# "80;90;100;120" (huge build + wrong wheel for the target node).
+ARG FLASH_ATTN_CUDA_ARCHS=90
+
+# Public packages come from the aliyun mirror (never pypi.org).
+ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+
+ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
+
+# --- System deps -----------------------------------------------
+
+# The nvcr devel image is minimal: no pip, no host compiler.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      --no-install-recommends \
+      python3-pip \
+      python3-dev \
+      ninja-build \
+      build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Build-time torch (ABI-critical) ---------------------------
+
+# Must be the EXACT runtime torch version. The cu128/cu130 wheels
+# bundle their CUDA libs; torch and its nvidia-* companions install
+# from the vendor PyPI (flagos-pypi-nvidia), their non-CUDA deps
+# (sympy, filelock, ...) from the aliyun extra-index — the same
+# index pair the runtime image's torch install uses.
+# --break-system-packages: the nvcr ubuntu24.04 devel image's python3
+# is PEP 668 externally-managed; this is a throwaway build container,
+# so the override is safe and standard.
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      --index-url "${TORCH_INDEX}" \
+      --extra-index-url "${EXTRA_PYPI}" \
+      "torch==${TORCH_VERSION}"
+
+# --- flash-attn build deps -------------------------------------
+
+# setup.py's NinjaBuildExtension imports psutil at class-definition
+# time; setup_requires lists packaging/psutil/ninja. einops is the
+# runtime install_requires (needed by the smoke import below).
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      --index-url "${EXTRA_PYPI}" \
+      "setuptools" "wheel" "ninja" "packaging" "psutil" "einops"
+
+# --- Source: aliyun sdist --------------------------------------
+
+# pip download resolves the mirror's per-version hash path for us
+# (no hardcoded URL) and verifies sha256. Metadata prep runs
+# setup.py -> imports torch -> must come after the torch RUN.
+# --no-build-isolation is required: with isolation pip would run
+# setup.py egg_info in a fresh env lacking torch (flash-attn has no
+# pyproject.toml, so isolation installs only setuptools+wheel).
+# The sdist carries vendored cutlass (asserted below) so no GitHub
+# submodule fetch happens — this is what makes the build work on a
+# firewalled runner.
+RUN mkdir -p /src /wheels \
+    && cd /src \
+    && python3 -m pip download --no-deps --no-binary :all: \
+         --no-build-isolation \
+         --index-url "${EXTRA_PYPI}" -d /src \
+         "flash_attn==${FLASH_ATTN_VERSION}" \
+    && tar xzf "flash_attn-${FLASH_ATTN_VERSION}.tar.gz" \
+    && test -f "flash_attn-${FLASH_ATTN_VERSION}/csrc/cutlass/include/cutlass/cutlass.h" \
+    && test -f "flash_attn-${FLASH_ATTN_VERSION}/flash_attn/__init__.py"
+
+# --- Compile ---------------------------------------------------
+
+# FLASH_ATTENTION_FORCE_BUILD=TRUE: bypass CachedWheelsCommand's
+# GitHub-release wheel download (wrong-ABI artifact / hang on
+# firewalled network) and go straight to the source build.
+# FLASH_ATTN_CUDA_ARCHS=90: sm_90 only (H20).
+# FLASH_ATTN_LOCAL_VERSION: PEP 440 local segment (wheel filename
+# becomes flash_attn-{public}+{WHEEL_TAG}-cp312-cp312-linux_x86_64.whl).
+# MAX_JOBS is left to setup.py's own logic (cpu/2, ram/9).
+RUN cd "/src/flash_attn-${FLASH_ATTN_VERSION}" \
+    && FLASH_ATTENTION_FORCE_BUILD=TRUE \
+       FLASH_ATTN_CUDA_ARCHS="${FLASH_ATTN_CUDA_ARCHS}" \
+       FLASH_ATTN_LOCAL_VERSION="${WHEEL_TAG}" \
+       python3 setup.py bdist_wheel -d /wheels
+
+# --- Gate: wheel shape + version + .so -------------------------
+
+# ARG values are not container env vars — pass them through the
+# RUN shell so the heredoc's os.environ can read them.
+RUN FLASH_ATTN_VERSION="${FLASH_ATTN_VERSION}" \
+    WHEEL_TAG="${WHEEL_TAG}" python3 - <<'PY'
+import glob, os, zipfile
+
+wheels = sorted(glob.glob("/wheels/flash_attn-*.whl"))
+assert wheels, "no wheel produced in /wheels"
+wheel = wheels[-1]
+print("wheel:", os.path.basename(wheel))
+
+z = zipfile.ZipFile(wheel)
+names = z.namelist()
+
+so = [n for n in names if n.endswith(".so")]
+assert any("flash_attn_2_cuda" in n for n in so), \
+    "flash_attn_2_cuda .so missing from wheel: %s" % [n for n in so]
+print("extensions:", [n.rsplit("/", 1)[-1] for n in so])
+
+md_name = [n for n in names if n.endswith("dist-info/METADATA")][0]
+meta = z.read(md_name).decode()
+expected = "Version: %s+%s" % (os.environ["FLASH_ATTN_VERSION"],
+                               os.environ["WHEEL_TAG"])
+assert expected in meta, "version mismatch: want %r, got %r" % (
+    expected, [l for l in meta.splitlines() if l.startswith("Version:")])
+print("METADATA:", expected, "OK")
+PY
+
+# --- Smoke: install + ABI load ---------------------------------
+
+# Installs the wheel into the build image's python and loads the
+# compiled extension — proves the .so links against the pip'd torch
+# (the failure mode the prebuilt wheels hit). Kernel execution is
+# verified later on-node (megatron RL E2E). Index pinned to aliyun
+# so dependency resolution never falls through to pypi.org; the
+# install itself is no-op for already-satisfied torch/einops.
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      --index-url "${EXTRA_PYPI}" /wheels/flash_attn-*.whl \
+    && python3 -c "import flash_attn, flash_attn.flash_attn_interface; print('flash_attn', flash_attn.__version__, 'import OK')"

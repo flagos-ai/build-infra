@@ -1,0 +1,187 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: flash-attn wheel
+
+# Build source-compiled flash_attn wheels (nvidia backends only) and
+# (optionally) upload them to the internal PyPI.
+#
+# GitHub prebuilt wheels are ABI-locked to torch 2.8 (newest cu12 =
+# 2.8.3.post1+cu12torch2.8) and die on import against torch 2.10/2.11
+# (`undefined symbol: c10_cuda_check_implementation`), and FA3/FA4 have
+# no usable wheels — so the nvidia megatron-rl app images need a
+# self-built wheel (packaging/flash-attn/Containerfile).
+#
+# The wheel's runtime ABI is bound to the BUILD-TIME torch, so the
+# backend map below must match configs.yaml's torch for that backend:
+#
+#   nvidia-cuda12.8  BASE_IMAGE=cuda:12.8.0-devel  torch 2.10.0+cu128  fl.cu128.torch210
+#   nvidia-cuda13.3  BASE_IMAGE=cuda:13.3.0-devel  torch 2.11.0+cu130  fl.cu130.torch211
+#
+# WHEEL_TAG becomes the PEP 440 local segment (FLASH_ATTN_LOCAL_VERSION),
+# so both wheels coexist on flagos-pypi-nvidia without clobbering.
+# TORCH_INDEX defaults inside the Containerfile to the vendor PyPI
+# (flagos-pypi-nvidia) — the same index the runtime installs torch from.
+#
+# Build machine = the h20 runner (devel images cached on node); no GPU
+# needed — pure compilation. The Containerfile's own gates (wheel shape,
+# METADATA version, ABI-load smoke) fail `docker build` on a broken
+# wheel, so a bad wheel never reaches the extract/upload steps. Uploads
+# are manual, no schedule.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend to build for: nvidia-cuda12.8 / nvidia-cuda13.3'
+        type: string
+        default: nvidia-cuda12.8
+      flash_attn_version:
+        description: 'flash-attn version to compile (megatron gate requires >= 2.7.3)'
+        type: string
+        default: 2.8.3.post1
+      upload:
+        description: 'upload the wheel to the internal PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (default flagos-pypi-nvidia)'
+        type: string
+        default: flagos-pypi-nvidia
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    # h20 hosts both nvcr devel images; the build needs nvcc + cuDNN only.
+    runs-on: [self-hosted, h20]
+    env:
+      IMAGE: flash-attn-wheel:${{ github.run_id }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      - name: Resolve backend build args
+        id: args
+        run: |
+          set -euo pipefail
+          case "${{ inputs.backend }}" in
+            nvidia-cuda12.8)
+              echo "base_image=nvcr.io/nvidia/cuda:12.8.0-devel-ubuntu24.04" >> "$GITHUB_OUTPUT"
+              echo "torch_version=2.10.0+cu128" >> "$GITHUB_OUTPUT"
+              echo "wheel_tag=fl.cu128.torch210" >> "$GITHUB_OUTPUT"
+              ;;
+            nvidia-cuda13.3)
+              echo "base_image=nvcr.io/nvidia/cuda:13.3.0-devel-ubuntu24.04" >> "$GITHUB_OUTPUT"
+              echo "torch_version=2.11.0+cu130" >> "$GITHUB_OUTPUT"
+              echo "wheel_tag=fl.cu130.torch211" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "ERROR: unknown backend '${{ inputs.backend }}'" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Build the wheel image
+        working-directory: packaging/flash-attn
+        env:
+          BASE_IMAGE: ${{ steps.args.outputs.base_image }}
+          TORCH_VERSION: ${{ steps.args.outputs.torch_version }}
+          WHEEL_TAG: ${{ steps.args.outputs.wheel_tag }}
+          FLASH_ATTN_VERSION: ${{ inputs.flash_attn_version }}
+        run: |
+          set -euo pipefail
+          # Wheel-shape gate, METADATA version gate and ABI-load smoke run
+          # inside this build; a failure here means the wheel is broken and
+          # must not be published. TORCH_INDEX is not passed — the
+          # Containerfile defaults it to the vendor PyPI (flagos-pypi-nvidia).
+          docker build \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+            --build-arg TORCH_VERSION="${TORCH_VERSION}" \
+            --build-arg WHEEL_TAG="${WHEEL_TAG}" \
+            --build-arg FLASH_ATTN_VERSION="${FLASH_ATTN_VERSION}" \
+            -t "$IMAGE" \
+            -f Containerfile .
+
+      # Host-side copy for inspection/debugging; the upload step reads
+      # /wheels from the image directly and does not use this directory.
+      - name: Extract the wheel
+        working-directory: packaging/flash-attn
+        run: |
+          set -euo pipefail
+          rm -rf wheels && mkdir -p wheels
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/wheels/." wheels/
+          docker rm "$cid" >/dev/null
+          ls -la wheels/*.whl
+
+      # Upload only when explicitly requested (default false so a manual build
+      # from a branch is safe). The wheel is published as-is — the build gates
+      # already vetted it.
+      - name: Upload to internal PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-nvidia}"
+          # Upload FROM INSIDE the build image: the wheel and the
+          # python3/pip/twine toolchain both live in $IMAGE, so no host python
+          # is needed. The secret travels via `-e NEXUS_TOKEN` (inherits the
+          # step env) so it never appears in a process list or image layer.
+          # resource.flagos.net is inside the Containerfile's baked NO_PROXY.
+          # --break-system-packages: the nvcr devel image's python3 is PEP 668
+          # externally-managed (the Containerfile already overrides it).
+          echo ">>> uploading $(docker run --rm "$IMAGE" sh -c 'ls /wheels/*.whl' | tr '\n' ' ') to ${pypi_repo}"
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            "$IMAGE" \
+            bash -euo pipefail -c '
+              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
+              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
+              # parse ("Metadata is missing required fields: Name, Version") ->
+              # twine aborts before upload. pkginfo >=1.11 reads 2.4.
+              python3 -m pip install --quiet --break-system-packages \
+                --index-url "https://mirrors.aliyun.com/pypi/simple" \
+                --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              python3 -m twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
+
+      - name: Clean up the build image
+        if: ${{ always() }}
+        run: docker rmi "$IMAGE" 2>/dev/null || true

@@ -136,7 +136,13 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
+        # flash-attn is a hard dependency of the RL dynamic engine
+        # (attention.py flash_attn_with_kvcache assertion, ≥2.7.3 gate). The
+        # wheel is source-built (packaging/flash-attn/Containerfile) with the
+        # ABI locked to this backend's torch: build-time torch must equal the
+        # runtime torch, hence the per-backend +fl.cu128.torch210 tag.
+        megatron-rl:
+          - flash_attn==2.8.3.post1+fl.cu128.torch210
       sdk:
         - CUDA 12.8 (x86_64)
 
@@ -166,7 +172,10 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
+        # flash-attn wheel source-built with ABI locked to torch 2.11.0+cu130
+        # (build-time torch == runtime torch; see cuda12.8 comment).
+        megatron-rl:
+          - flash_attn==2.8.3.post1+fl.cu130.torch211
       sdk:
         - CUDA 13.3 (x86_64)
 
