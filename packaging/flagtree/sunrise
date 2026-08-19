@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build a FlagTree sunrise (PTPU) wheel on Ubuntu 22.04 (glibc 2.35 / gcc 11.4)
+# Build a FlagTree sunrise (PTPU) wheel on Ubuntu 22.04 (glibc 2.35 / clang 14)
 # so the resulting libtriton.so links against an older glibc and loads on the
 # standard client bases. Sunrise runtime wheels are built on Ubuntu 24.04 and
 # drag in GLIBC_2.38 + GLIBCXX_3.4.32 (same defect class as the metax wheel).
@@ -87,6 +87,7 @@ ARG PYBIND11_SPEC=>=3.1,<3.2
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
+# Sunrise builds with clang/lld (not gcc) -- see the build-RUN comment below.
 # gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common ca-certificates gnupg dirmngr \
@@ -94,11 +95,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && add-apt-repository -y ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build \
+        clang-14 lld-14 \
         zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
         libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
         libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
         python3.12 python3.12-venv python3.12-dev \
+    && ln -sf /usr/bin/clang-14 /usr/bin/clang \
+    && ln -sf /usr/bin/clang++-14 /usr/bin/clang++ \
+    && ln -sf /usr/bin/lld-14 /usr/bin/lld \
+    && clang++ --version && lld --version \
     && rm -rf /var/lib/apt/lists/*
 
 # pip for python3.12 (deadsnakes ships ensurepip via the python3.12-venv package).
@@ -132,6 +138,21 @@ RUN mkdir -p /root/.flagtree/sunrise /root/.triton \
 # RUN but not persisted. Force HTTP/1.1 for git and retry the flaky network steps.
 # FLAGTREE_VERSION may be a branch, tag, or commit sha (--branch clone can't take
 # a sha, so fetch + checkout FETCH_HEAD handles all three).
+# Sunrise builds with clang/lld (not gcc), mirroring upstream's sunrise delivery
+# workflow (.github/workflows/sunrise3.4-delivery.yml: TRITON_BUILD_WITH_CLANG_LLD=1
+# TRITON_OFFLINE_BUILD=1 TRITON_BUILD_PROTON=OFF). clang is required, not cosmetic:
+# cmake/FlagTreeOptions.cmake's flagtree_configure_backend_cxx_flags() lists the
+# gluon-compiling backends (enflame|hcu|rpu|thrive|metax|xpu|tileir|ppu|spacemit) for
+# "-Werror -Wno-attributes -Wno-comment -Wno-error=odr" but omits sunrise, which lands
+# in the else-branch "-Werror -Wno-covered-switch-default" -- a clang-only option. Under
+# gcc-11 (22.04) that option is unrecognized and suppresses nothing, so -Werror is fully
+# armed and gluon_ir.cc's GluonLayouts (py::handle fields of hidden visibility) fails
+# with -Werror=attributes. Upstream never sees this because their sunrise delivery
+# always builds with clang. TRITON_BUILD_WITH_CLANG_LLD makes setup.py pass
+# -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_LINKER=lld -fuse-ld=lld
+# (setup.py:533-541), so the else-branch flags are understood, the visibility diagnostic
+# never fires, and no -Wno-* injection is needed. The metax builder keeps gcc (older
+# triton without gluon_ir.cc, and its backend flags are gcc-compatible).
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          rm -rf /opt/flagtree && git init -q /opt/flagtree \
@@ -147,7 +168,9 @@ RUN git config --global http.version HTTP/1.1 \
     && python3.12 -m pip install --no-cache-dir "pybind11${PYBIND11_SPEC}" \
     && export FLAGTREE_BACKEND=sunrise \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
-    && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
+    && export TRITON_BUILD_WITH_CLANG_LLD=1 \
+    && export TRITON_OFFLINE_BUILD=1 \
+    && export TRITON_BUILD_PROTON=OFF \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
          python3.12 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
