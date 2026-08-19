@@ -238,8 +238,12 @@ if [[ -n "${APP_IMAGE}" ]]; then
 else
     log_step "Step 3: Installing megatron-core==${MEGATRON_VERSION}"
 
+    # PYTHONPATH=/opt/triton mirrors the runtime Containerfile DEPS install:
+    # pip must see the side-dir triton dist-info, or torch's triton==N dep
+    # (declared in the vendor torch METADATA) pulls a fresh triton into
+    # site-packages, bypassing the repacked vendor triton (188 MB).
     docker exec "${CONTAINER}" bash -c "
-        pip install \
+        PYTHONPATH=/opt/triton pip install \
             --index-url '${VENDOR_PYPI}' \
             --extra-index-url '${ALIYUN_PYPI}' \
             'megatron-core==${MEGATRON_VERSION}'
