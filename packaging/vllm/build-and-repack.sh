@@ -121,7 +121,14 @@ docker rm -f "$CONTAINER" 2>/dev/null || true
 # poisons the next run. Delete from inside the image (root) when it is
 # available, then tolerate a leftover (the container may not be pullable
 # on a first run). Same pattern as vllm-plugin-wheel.yml's cleanup step.
-docker run --rm -v "${WORK_DIR}:/work" "$BUILD_IMAGE" rm -rf /work 2>/dev/null || true
+# Create the dir FIRST as the runner: docker auto-creates a missing
+# bind-mount source as root, and a root-owned dir under /tmp's sticky bit
+# is then neither rm-able nor mkdir-able by the runner (run 32265302280).
+# The docker cleanup also chowns the (emptied) dir back to the runner so a
+# stale root-owned dir from a crashed manual build self-heals.
+mkdir -p "$WORK_DIR" 2>/dev/null || true
+docker run --rm -v "${WORK_DIR}:/work" "$BUILD_IMAGE" \
+    bash -c "rm -rf /work; chown -R $(id -u):$(id -g) /work" 2>/dev/null || true
 rm -rf "$WORK_DIR" 2>/dev/null || true
 mkdir -p "$WORK_DIR/output" "$WORK_DIR/cache"
 
