@@ -62,18 +62,20 @@ runtime
    （见待反馈项），**不再是 metax RL 阻塞项**。真实障碍链 17 个（runs #3–#17）
    全为本地代码/参数/harness 缺陷，详见 `megatron-verification-matrix.md` metax RL 条目。
 
-   **metax RL 固化清单（2026-08-19 两编译器并齐后，阶段二输入）**：容器内 5 补丁
-   + 4 配方参数（对应真实障碍，全实证）。归属：MLF 反馈项 = null_tokenizer
+   **metax RL 固化清单（2026-08-19 两编译器并齐后，阶段二输入；2026-08-19 落地）**：
+   容器内 5 补丁（6 hunk，全 5 文件已提 **MLF PR #116 OPEN**，与实证容器补丁逐字节
+   一致）+ 4 配方参数（对应真实障碍，全实证）。归属：MLF 反馈项 = null_tokenizer
    pad/bos/eos 属性组、inference/utils.py getattr 回退、rl_utils.py thd 条件化
-   （local 时 None，双线必需）、arguments.py 注册 `--return-log-probs`、flash_attn
-   断言门控（attention.py:943 按 DotProductAttention 跳过，版本号检查对 vendor
-   变体不适用）；镜像 ENV 候选 = `TORCHINDUCTOR_COMPILE_THREADS=1`（进程内编译避
-   fork×driver current_device 崩溃）；配方参数 = `--transformer-impl local`、
-   `--bf16`（flash_decode_and_prefill 仅 fp16/bf16）、`--rl-partial-rollouts`
-   （streaming 跳 drain 断言）。harness 自研（dummy_agent isinstance/env_id/eod
-   去重）不入固化。
+   （local 时 None，双线必需）、**rl_utils.py unwrap_model 替换 `.module.module`
+   链（inference 模式取 lang_module，清单初版遗漏的第二 hunk，随 #116 一并入**）、
+   arguments.py 注册 `--return-log-probs`、flash_attn 断言门控（attention.py:943
+   按 DotProductAttention 跳过，版本号检查对 vendor 变体不适用）；镜像 ENV 候选 =
+   `TORCHINDUCTOR_COMPILE_THREADS=1`（进程内编译避 fork×driver current_device
+   崩溃）；配方参数 = `--transformer-impl local`、`--bf16`（flash_decode_and_prefill
+   仅 fp16/bf16）、`--rl-partial-rollouts`（streaming 跳 drain 断言）。harness
+   自研（dummy_agent isinstance/env_id/eod 去重）不入固化。
 
-**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、local-THD（rl_utils.py:666 无条件 thd → 条件构造；**2026-08-19 实证：容器侧条件化补丁即通，非阻塞，但 metax RL 走 local impl 必需**）、eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
+**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
 
 ## 既有定案（早前，仍有效）
 
