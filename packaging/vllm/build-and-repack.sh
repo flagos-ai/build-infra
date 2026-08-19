@@ -38,10 +38,12 @@
 #   STACK_VERSION        Override the stack version read from configs.yaml
 #                        (used for the build image tag).
 #   DOCKER_RUN_FLAGS     Extra `docker run` flags for the build container.
-#                        ptpu vendors (e.g. sunrise) abort in torch at import
-#                        when no device is visible (tangGetDeviceCount failed),
-#                        so the build container must see /dev:
-#                        DOCKER_RUN_FLAGS="--privileged -v /dev:/dev"
+#                        Defaults to the vendor's run flags from
+#                        .github/build-config.yml (toolkit ?: raw) — ptpu
+#                        vendors (e.g. sunrise) abort in torch at import when
+#                        no device is visible (tangGetDeviceCount failed), so
+#                        their build container must see /dev. An explicit env
+#                        still overrides the default.
 #
 # Prerequisites:
 #   - Docker with harbor.baai.ac.cn access
@@ -89,10 +91,10 @@ WORK_DIR="/tmp/vllm-repack-${VENDOR}-${BACKEND}"
 # Try to read version from configs.yaml relative to the script, then from env.
 if [[ -n "${STACK_VERSION:-}" ]]; then
     true  # already set via env
-elif [[ -f "${SCRIPT_DIR}/../configs.yaml" ]]; then
+elif [[ -f "${SCRIPT_DIR}/../../configs.yaml" ]]; then
     STACK_VERSION=$(python3 -c "
 import yaml
-with open('${SCRIPT_DIR}/../configs.yaml') as f:
+with open('${SCRIPT_DIR}/../../configs.yaml') as f:
     print(yaml.safe_load(f)['version'])
 ")
 else
@@ -111,12 +113,44 @@ FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 # triton leak).
 UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
 
+# ptpu vendors (e.g. sunrise) abort in torch at import when no device is
+# visible (tangGetDeviceCount failed), so the build container must see /dev.
+# Default DOCKER_RUN_FLAGS from build-config.yml run.vendors.<vendor> — the
+# same single source verify-vllm-backend.sh reads — so CI and manual runs get
+# the right flags without hardcoding them here. An explicit DOCKER_RUN_FLAGS
+# env still wins. (pyyaml is required on the host anyway for configs.yaml.)
+if [[ -z "${DOCKER_RUN_FLAGS:-}" ]]; then
+    DOCKER_RUN_FLAGS=$(python3 -c "
+import yaml
+with open('${SCRIPT_DIR}/../../.github/build-config.yml') as f:
+    config = yaml.safe_load(f)
+vendor = '${VENDOR}'
+vendor_config = config.get('run', {}).get('vendors', {}).get(vendor, {})
+toolkit = vendor_config.get('toolkit', '')
+raw = vendor_config.get('raw', '')
+print(toolkit if toolkit else raw)
+")
+fi
+
 CONTAINER="vllm-build-${VENDOR}-${BACKEND}"
 
 # ── Clean up previous run ───────────────────────────────────────────────
 
 docker rm -f "$CONTAINER" 2>/dev/null || true
-rm -rf "$WORK_DIR"
+# The build container writes as root into the bind mount; under /tmp's
+# sticky bit a non-root runner cannot rm those files, so a stale work dir
+# poisons the next run. Delete from inside the image (root) when it is
+# available, then tolerate a leftover (the container may not be pullable
+# on a first run). Same pattern as vllm-plugin-wheel.yml's cleanup step.
+# Create the dir FIRST as the runner: docker auto-creates a missing
+# bind-mount source as root, and a root-owned dir under /tmp's sticky bit
+# is then neither rm-able nor mkdir-able by the runner (run 32265302280).
+# The docker cleanup also chowns the (emptied) dir back to the runner so a
+# stale root-owned dir from a crashed manual build self-heals.
+mkdir -p "$WORK_DIR" 2>/dev/null || true
+docker run --rm -v "${WORK_DIR}:/work" "$BUILD_IMAGE" \
+    bash -c "rm -rf /work; chown -R $(id -u):$(id -g) /work" 2>/dev/null || true
+rm -rf "$WORK_DIR" 2>/dev/null || true
 mkdir -p "$WORK_DIR/output" "$WORK_DIR/cache"
 
 # ── Copy repack files into work dir ─────────────────────────────────────
