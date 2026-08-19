@@ -176,7 +176,7 @@ RUN git config --global http.version HTTP/1.1 \
     && export TRITON_BUILD_WITH_CLANG_LLD=1 \
     && export TRITON_OFFLINE_BUILD=1 \
     && export TRITON_BUILD_PROTON=OFF \
-    && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_INSTALL_RPATH=$ORIGIN' \
+    && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_INSTALL_RPATH=$ORIGIN -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON' \
     && ln -sfn ptpu third_party/sunrise/language/tang \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
@@ -239,7 +239,9 @@ if missing:
 print("OK: wheel ships triton.language.extra ptpu + tang")
 # RUNPATH gate: upstream main dropped INSTALL_RPATH, so the default is an absolute
 # /usr/local/... path that breaks when the wheel installs to /opt/flagtree.
-# TRITON_APPEND_CMAKE_ARGS injects -DCMAKE_INSTALL_RPATH=$ORIGIN; assert it landed.
+# TRITON_APPEND_CMAKE_ARGS injects -DCMAKE_INSTALL_RPATH=$ORIGIN plus
+# -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON (the wheel ships the build-tree .so, so
+# INSTALL_RPATH alone never applies); assert the token landed.
 rp = subprocess.check_output(["readelf", "-d", so], text=True)
 m = re.search(r"Library runpath: \[([^\]]*)\]", rp)
 if not m or "$ORIGIN" not in m.group(1) or "/usr/local" in m.group(1):
