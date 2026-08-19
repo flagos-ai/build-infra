@@ -53,7 +53,7 @@
 #                          runtime:     vars baked into flagos-runtime-{vendor}-{backend}
 #                          app:         per-app vars baked into
 #                                       flagos-app/{app}-{vendor}-{backend}, keyed by
-#                                       app name (vllm / megatron)
+#                                       app name (vllm / megatron-training / megatron-rl)
 #                        base/runtime/app must mirror EXACTLY what the image sets —
 #                        the source of truth for per-image env documentation.
 #   "deps:"            — Python dependencies (torch stack, etc.).
@@ -495,6 +495,15 @@ vendors:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
           MACA_PATH: /opt/maca
           LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
+        app:
+          megatron-rl:
+            # RL's first rollout forward triggers self_attn_bda torch.compile;
+            # inductor's default subproc pool forks compile workers and flagtree's
+            # torch.cuda.current_device() call crashes in the forked child
+            # ("Cannot re-initialize CUDA in forked subprocess").
+            # TORCHINDUCTOR_COMPILE_THREADS=1 compiles in-process instead.
+            # This is specific to metax → app layer, not runtime.
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
       deps:
         - apex==0.1+metax3.8.1.0
         - torch==2.10.0+metax3.8.1.0
