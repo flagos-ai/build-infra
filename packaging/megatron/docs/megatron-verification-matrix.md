@@ -32,7 +32,7 @@
 | 厂商     | 后端          | 训练(T) | 训练(F) | 强化学习(T) | 强化学习(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) |
 | -------- | ------------- | ------- | ------- | ----------- | ----------- | --------- | --------- | ------- | ------- |
 | 英伟达   | CUDA 12.8     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
-| 英伟达   | CUDA 13.3     | ✅      | ✅      | ⬜          | ⬜          | ✅        | ✅        | ✅      | ✅      |
+| 英伟达   | CUDA 13.3     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
 | 昇腾     | CANN 8.5.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 昇腾     | CANN 9.0.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 寒武纪   | NEUWARE 4.4.3 | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
@@ -117,6 +117,24 @@
   自建 wheel）已由 metax + nvidia 双实证**。运行事实同 metax：每次 relaunch
   前 kill -9 遗留 pretrain 进程；watcher 只信 log "python exit=" 信号。
   对比 hygon：nvidia 线无 jit 补丁前置，`--disable-jit-fuser` 直接够用。
+- **nvidia RL（2026-08-20，cuda13.3 双编译器全 ✅）**：h20 + `megatron-nv133`
+  容器，merged wheel `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装 + PR #116
+  5 补丁（同 nv128 基线，容器 site-packages 直打）+ 自建 flash-attn wheel
+  `2.8.3.post1+fl.cu130.torch211`（torch 2.11.0+cu130 ABI，§5.5 动态引擎
+  硬依赖）。同 nv128 配方（`--transformer-impl local` 无 vendor TE、
+  `--rl-partial-rollouts`、`--return-log-probs`、dynamic 批参数、
+  `TORCHINDUCTOR_COMPILE_THREADS=1` + `--disable-jit-fuser`）——
+  **F 列（flagtree 3.6.0 默认线）23:21:41 → 23:22:16 UTC exit 0，T 列
+  （vendor triton 3.6.0，`compiler triton`）23:23:00 → 23:23:36 UTC exit 0**，
+  两线均 GRPO 迭代 1/20、rollout 8 组、3 次 rollout collection（Iteration
+  0/8/16），elapsed 17161.8 / 17033.1 ms。**唯一障碍 = nv133 容器缺 rl-extra
+  运行时依赖**（相对 nv128 成功基线）：`has_rl_utils` guard 失败——`megatron.rl.rl_utils`
+  import 崩于 rl_utils.py:92 `from wandb import wandb_run`
+  （ModuleNotFoundError: wandb）；补装 wandb 后仍缺 fastapi/uvicorn/openai/
+  tensorboard/transformers（训练链所需），aliyun 全量补装后
+  `RL-UTILS-IMPORT-OK` + 全链 exit 0。**该 6 包缺口属容器装配路径问题**
+  （直装 wheel 不带 [rl] extra）；app-image 单步 `megatron-core[rl]==…`
+  安装无此问题，不入 deps_app。
 - **nvidia post_training × inference（2026-08-19，cuda12.8 双编译器全 ✅）**：
   两场景均编译器无关路径，同 metax 配方——post_training = DummyModel +
   `simple_generate`（output shape (1,8)，nvidia-modelopt 0.45.0 ad-hoc 装入
