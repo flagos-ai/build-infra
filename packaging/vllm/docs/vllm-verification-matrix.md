@@ -30,7 +30,7 @@
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⬜ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ❌ | ⬜ | ⬜ |
 | 燧原 | TOPS 1.10.6 | ✅ | ❌ | ⬜ | ⬜ |
-| 海光 | DTK 26.04 | — | ✅ | ⬜ | ⬜ |
+| 海光 | DTK 26.04 | — | ✅ | ✅ | ✅ |
 | 天数智芯 | COREX 4.4.0 | ⬜ | ❌ | ⬜ | ⬜ |
 | 昆仑芯 | XRE 5.37.1 | ⛔ | ⛔ | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ✅ | ✅ | ✅ |
@@ -89,7 +89,7 @@
   triton 3.0.0（XTDK LLVM19 空 SetVector 断言）。应用层无法绕过，已交编译器团队，
   详见 [kunlunxin-xpu-triton-attention-compiler-bug.md](kunlunxin-xpu-triton-attention-compiler-bug.md)。
 
-**0.24.0（截至 2026-08-18）**
+**0.24.0（截至 2026-08-20）**
 
 - **nvidia-cuda12.8** ✅（2026-08-16，空模式双编译器）：flagtree 3.6.0 ✅、
   triton 3.6.0 ✅（`/opt/triton`），均通过 Qwen3-4B E2E 验证，指纹 `vllm-0.24.0-423da8ca`。
@@ -109,7 +109,7 @@
 - **triton 3.0.0 需 4 个 monkey-patch**（`vllm024_compat.py`，老 SDK 特有）：
   `_load_ptr` constexpr 解包、`_penalties_kernel` 链式布尔加括号、
   `get_top_k_top_p` 与 `pool` 的 UVA CPU 索引 + 移回设备；新 SDK（triton 3.6.0）无需。
-- **0.24.0 其余后端待验证**：hygon, iluvatar, enflame, sunrise,
+- **0.24.0 其余后端待验证**：iluvatar, enflame,
   cambricon, kunlunxin 等。
 - **mthreads-musa5.2.0** ✅✅（2026-08-16~17，v0.3.0-dev 零插件补丁）：
   F 路径 ✅（2026-08-16，默认 flagtree 3.6.0）+ T 路径 ✅（2026-08-17，
@@ -183,6 +183,29 @@
   tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819`（wheel 单步安装 + plugin
   wheel）serve 到 `Application startup complete`、推理连贯、崩溃标记
   0，指纹 `vllm-0.24.0-6c831be5`（同一 wheel）。
+- **hygon-dtk26.04** ✅✅（2026-08-20，cp310 wheel）：**T 路径 ✅** ——
+  `compiler triton` → vendor triton 3.5.1，**F 路径 ✅** —— flagtree
+  0.6.1+hcu3.6（临时就地补 `cluster_dims` 默认值，FlagTree PR #1020
+  上游修复，见下）。模型 `/data/Sky-T1-32B-Preview-FlagOS`（Sky-T1
+  32B，Qwen2 架构；矩阵"Qwen3-4B"约定在此单元格不适用，同 §8/§11.3
+  先例）。两路径均 TP2 serve 到 `Application startup complete`、推理
+  连贯（knowledge "Paris" / math "42"）、崩溃标记 0、指纹
+  `vllm-0.24.0-tp2-5c23ce1f`（tp2 后缀 = tensor-parallel-size 2），
+  算子路由全 `default.flagos`。版本指纹：torch
+  2.9.0+das.opt1.dtk2604 / flag_gems 5.3.4 / vllm-plugin-fl
+  0.2.0+g754c8fe23。详见 `report-vllm-0.24.0.md` §12。
+  **`cluster_dims` 修复**：flagtree `CompiledKernel.__init__` 构造
+  `KernelMetadata` 时 hcu/mthreads 后端不产出 `cluster_dims` key，
+  torch 2.9.0 `make_launcher` 无条件读取 → 首次 serve KV-cache
+  warmup 崩 AttributeError。修复 = 一行 `setdefault("cluster_dims",
+  (1,1,1))`，FlagTree PR #1020；容器内临时 sed 解锁验证，可复现修复
+  = PR 合入后重建 flagtree hygon wheel（`packaging/flagtree/hygon`，
+  待建）。
+  **hygon app 镜像：暂不做（2026-08-20 决策，见 report §13）** ——
+  F 路径默认编译器被 PR #1020 合入 + flagtree hygon wheel 重建卡死
+  （无新 flagtree release 前 runtime 无法刷新）；T 路径（vendor
+  triton 3.5.1 已在 runtime）技术上可做，同轮交付意义不大，PR
+  合入后重估。
 
 **跨版本事实**
 
@@ -215,6 +238,6 @@
    验证前需按后端 Python 版本构建对应 wheel。
 3. **双编译器后端逐一对两编译器验证**：metax 已全通；mthreads 5.2.0 已全通
    （F/T 双路径）、4.3.6 T 路径 ✅ / F 路径 ✅*（flagtree 0.6.1，见上）；
-   hygon、enflame、sunrise 等按风险排序推进。
+   sunrise ✅（§11）、hygon ✅（§12，2026-08-20）；enflame 按风险排序推进。
 4. **单编译器后端**（cambricon、spacemit、thead）：只需验证可用的一列。
 5. **kunlunxin / iluvatar**：等待上游修复后再列入验证队列。
