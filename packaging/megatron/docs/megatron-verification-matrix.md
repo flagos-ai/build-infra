@@ -136,9 +136,11 @@
   （直装 wheel 不带 [rl] extra）；app-image 单步 `megatron-core[rl]==…`
   安装无此问题，不入 deps_app。
 - **nvidia megatron-rl app image 构建+验证+push（2026-08-20，双后端全 ✅）**：
-  `flagos-app/megatron-rl-nvidia-cuda12.8:2.1.2` 与
-  `flagos-app/megatron-rl-nvidia-cuda13.3:2.1.2` 已构建并推送（app 前缀
-  flagos-app 自 PR #457 起生效）。单步安装 `megatron-core[rl]==0.17.1`
+  `flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f` 与
+  `flagos-app/megatron_rl0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f`
+  已构建并推送（app 前缀 flagos-app 自 PR #457 起生效；tag 命名 = 应用版本
+  0.17.1 + fork 版本 0.2.1_9.g48b97a13f，见 megatron-app-image.yml 头部注释）。
+  单步安装 `megatron-core[rl]==0.17.1`
   （wheel `0.17.1+fl.20260818.g48b97a13f1bb`，[rl] extra 全量公共组随
   wheel 装入——RL cuda13.3 记录中的 6 包 ad-hoc 补装缺口在 app-image
   装配路径下不存在）+ APP_DEPS 自建 flash_attn wheel
