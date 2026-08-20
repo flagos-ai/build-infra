@@ -14,16 +14,26 @@
 
 name: Megatron app image
 
-# Builds flagos-app/{app}-{vendor}-{backend}:{version} ({app} = megatron-training
-# | megatron-rl) from the runtime image by installing the megatron-core wheel
-# single-step (no --no-deps), then
+# Builds flagos-app/{app}_{app_version}-{vendor}-{backend}:{stack_version}-{mlf_version}
+# ({app} = megatron-training | megatron-rl, app name with '-' -> '_') from the
+# runtime image by installing the megatron-core wheel single-step (no
+# --no-deps), then
 # verifies the built image on the node: the torch/triton/flag_gems/numpy
 # matrix must be identical to the runtime's, and megatron.core must import
 # with helpers_cpp bound (see packaging/megatron/verify/verify-megatron-backend.sh).
 #
+# Tag naming follows the app-image convention (same as vllm):
+#   <应用名称，-替换为_><应用版本>-<厂商>-<后端>:<堆栈版本>-<fork版本，-替换为下划线>
+# The app version is the megatron-core version being installed (0.17.x, the
+# wheel's megatron.core.__version__). The fork segment is the Megatron-LM-FL
+# fork's own version, generated from its latest release tag and the commit
+# distance to it (git describe): 0.2.1 on the tag, 0.2.1_9.g48b97a13f nine
+# commits past it — so the version maps to a commit in the fork repo
+# (input mlf_version, already in Docker-tag form). Example:
+#   flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f
+#
 # Facility 2 (app-image automation): installs the megatron-core wheel into a
-# flagos-runtime-{vendor}-{backend} image and produces the app image
-# flagos-app/{app}-{vendor}-{backend}:{version}. Each app has its own
+# flagos-runtime-{vendor}-{backend} image and produces the app image. Each app has its own
 # Containerfile (app/megatron/Containerfile.megatron-training for the training
 # app, app/megatron/Containerfile.rl for the RL app) that installs the wheel
 # with a single-step `pip install` (no --no-deps) selecting the app's extra
@@ -55,6 +65,10 @@ on:
         description: 'megatron-core version to install (e.g. 0.17.1)'
         type: string
         default: 0.17.1
+      mlf_version:
+        description: 'Megatron-LM-FL fork version (git describe from its release tag: 0.2.1, or 0.2.1_9.g48b97a13f)'
+        type: string
+        default: '0.2.1'
       push:
         description: 'Push image(s) to the registry'
         type: boolean
@@ -150,7 +164,16 @@ jobs:
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
+          # Tag naming (same as the images already in flagos-app, cf. vllm):
+          #   {app with '-' -> '_'}{megatron-core version}-{vendor}-{backend}:
+          #     {stack_version}-{mlf_version}
+          # The mlf_version (git describe of the MLF fork, e.g. 0.2.1 or
+          # 0.2.1-9-g48b97a13f) may carry '+'/'-', which are not allowed in an
+          # image tag — use '_'.
+          app_name=$(printf '%s' '${{ inputs.app }}' | tr '-' '_')
+          fork_ver=$(printf '%s' '${{ inputs.mlf_version }}' | tr '+' '_' | tr '-' '_')
+          app_tag="${host}/${app_prefix}/${app_name}${{ inputs.megatron_version }}-${{ matrix.name }}:${{ matrix.version }}-${fork_ver}"
+          echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
           # Per-app Containerfile (app decision D5): the suffix is the app
           # name, not the image name. megatron-training / megatron-rl.
           containerfile="app/megatron/Containerfile.megatron-training"
@@ -179,18 +202,12 @@ jobs:
         if: ${{ inputs.verify }}
         run: |
           set -euo pipefail
-          host="${{ needs.set-matrix.outputs.harbor_host }}"
-          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
           bash packaging/megatron/verify/verify-megatron-backend.sh \
             "${{ matrix.name }}" \
             --megatron-version "${{ inputs.megatron_version }}" \
-            --app-image "${app_tag}"
+            --app-image "${APP_TAG}"
 
       - name: Push megatron app image
         if: ${{ inputs.push }}
         run: |
-          host="${{ needs.set-matrix.outputs.harbor_host }}"
-          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/${{ inputs.app }}-${{ matrix.name }}:${{ matrix.version }}"
-          docker push "${app_tag}"
+          docker push "${APP_TAG}"
