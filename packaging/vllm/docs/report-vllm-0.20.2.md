@@ -1323,6 +1323,14 @@ PR 978 重写 sunrise backend pass pipeline 并删除 `add_split_dot`（疑似
 `report-vllm-0.24.0.md` §11.5）。wheel 沿用原版标签上传
 `flagos-pypi-sunrise`，可 drop-in 替换；本单元格 F 路径由"挂死"升级为 ✅。
 
+**复测（2026-08-20）：0.20.2(F) 路径在 rebuilt wheel 下全绿。** 直接在
+0.20.2 环境复测 FlagTree 路径（`compiler flagtree`，runtime 2.1.2 已烘焙
+rebuilt wheel，`/opt/flagtree/triton/_C/libtriton.so` md5 924b1c0d 匹配
+§11.5 门禁值），serve `/data/nmodels/Qwen3-8B` 达 `Application startup
+complete`；推理连贯（knowledge "Paris..." / math "56"）、decode 正常终止
+（2 请求均 `finish_reason=length`，无挂死）、崩溃标记 0。A/B 结论在
+0.20.2 自身版本下成立，矩阵 `0.20.2(F)` 格 ❌→✅。
+
 ### 环境
 
 | 组件 | 版本 |

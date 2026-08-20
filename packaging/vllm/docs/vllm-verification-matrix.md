@@ -38,7 +38,7 @@
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | — | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
-| 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ✅ | ✅ |
+| 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | ✅ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
 | 清微智能 | TSM 260610 | ⬜ | ⬜ | ⬜ | ⬜ |
 
@@ -81,7 +81,9 @@
 - **sunrise-tangrt1.2.0**：官方 Triton ✅；flagtree flash-attn **decode 挂死** ❌，
   交付路径固定 `compiler triton`。（该缺陷 2026-08-19 起已由 rebuilt
   flagtree wheel 修复 —— 0.24.0 中 F 路径 ✅，见下方 0.24.0 格与
-  `report-vllm-0.24.0.md` §11.5；0.20.2 未复测，本格维持当时结论。）
+  `report-vllm-0.24.0.md` §11.5；**2026-08-20 在 rebuilt wheel 下复测
+  0.20.2(F) 路径 ✅**——serve 达 `Application startup complete`、推理连贯
+  （knowledge "Paris" / math "56"）、decode 正常终止，本格翻 ✅。）
 - **kunlunxin-xre5.37.1**（P800 XPU）：⛔ 三处 attention 内核编译失败——
   flagtree 0.6.1+xpu3.6（`TritonSDNNLegalize` / `TritonSDNNCombineBefore`）、
   triton 3.0.0（XTDK LLVM19 空 SetVector 断言）。应用层无法绕过，已交编译器团队，
