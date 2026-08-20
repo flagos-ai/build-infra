@@ -657,7 +657,7 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   验证为目的，性能不做横向比较。
 - **非致命警告**：flag_gems `index_select.py:45` UserWarning（张量逻辑
   `and`/`or`，弃用语义）—— 上游 flag_gems 5.3.4 问题，不影响正确性，
-  列入遗留（§12）。
+  列入遗留（§13）。
 - **GDN/hybrid 模型（Qwen3-Next）0.24.0 暂不支持**：0.24.0 把
   `mamba/gdn_linear_attn.py` 重构为 `mamba/gdn/` 包，patch.py 的 GDN
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
@@ -911,7 +911,7 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
 | 输出连贯 | 无 | ✅ knowledge 连贯 |
 
 A/B 结论：**重建 wheel 修复了解码挂死**；F 路径（`compiler flagtree`）
-从"沿用 §2.9 挂死结论"升级为 ✅（§12 已同步）。
+从"沿用 §2.9 挂死结论"升级为 ✅（§13 已同步）。
 
 **构建 gate（全部通过，CI 内置）**：干净版本号（无 `.git<sha>` 后缀）、
 cp310 标签、22.04 可加载（无 GLIBC_2.38/GLIBCXX_3.4.31+ 符号）、
@@ -970,17 +970,83 @@ sunrise deps（LLVM/plugin/triton toolkits）从预置 URL 下载并 md5 门禁�
 
 ---
 
-## 12. 遗留事项
+## 12. hygon（DTK 26.04）详细记录（2026-08-20）
+
+hygon 是 python 3.10（cp310 empty wheel，同 sunrise §11.1 的构建前置），
+device_type 仍为 `"cuda"`（DCU 以 CUDA 形态暴露）。E2E 于 2026-08-20
+在 hygon25 节点完成，**双编译器路径全 ✅**：
+
+- 容器 `vllm-verify-hygon`，镜像
+  `flagos-runtime-hygon-dtk26.04:2.1.2`
+- 模型 `/data/Sky-T1-32B-Preview-FlagOS`（Sky-T1 32B，Qwen2 架构；矩阵
+  "Qwen3-4B"约定在此单元格不适用，同 mthreads §8 / sunrise §11.3 先例）
+- serve：`--enforce-eager --trust-remote-code --max-model-len 2048
+  --dtype float16 --gpu-memory-utilization 0.6 --tensor-parallel-size 2
+  --port 8031`；env `VLLM_PLUGINS=fl VLLM_FL_DISPATCH_DEBUG=1`
+- 版本指纹：vllm `0.24.0+flagos`（cp310 empty wheel，单步安装）；
+  vllm-plugin-fl `0.2.0+g754c8fe23`；torch 2.9.0+das.opt1.dtk2604 /
+  flag_gems 5.3.4 / numpy 1.26.4 / python 3.10
+- 编译器：flagtree 0.6.1+hcu3.6（`triton.__version__` = 3.6.0，默认
+  `/opt/flagtree`）+ vendor triton 3.5.1（`/opt/triton`），`compiler`
+  函数切换
+- 指纹：system_fingerprint `vllm-0.24.0-tp2-5c23ce1f`（tp2 后缀 =
+  tensor-parallel-size 2；两条编译器路径同一 wheel/plugin，指纹一致）
+
+### 12.1 F 路径（flagtree 0.6.1+hcu3.6）
+
+serve 到 `Application startup complete`（09:27:04），推理连贯：
+knowledge `The capital of France is` → " Paris. ..." ✅、math
+`What is 6 times 7?` → " 42. ..." ✅。算子路由：`attention_backend`/
+`rms_norm`/`rotary_embedding`/`silu_and_mul` 全部 `default.flagos`
+（kind=flagos，vendor=None）；OpManager 10 ops/20 implementations；
+GPU KV cache 50,720 tokens；崩溃标记 0。
+
+**前置排障：`cluster_dims` AttributeError（FlagTree 根因）**—— 首次
+serve 在 KV-cache profiling warmup 阶段崩 `AttributeError`（torch
+2.9.0 `make_launcher` 无条件读 `kernel.metadata.cluster_dims`），根因
+= flagtree `CompiledKernel.__init__` 从 metadata JSON 构造
+`KernelMetadata` namedtuple 时，hcu/mthreads 后端（无 cluster-launch
+支持）不产出 `cluster_dims` key，而 vendor triton 3.5.1 与 flagtree
+iluvatar overlay 都用 `(1,1,1)` 兜底。修复 = 一行
+`metadata.setdefault("cluster_dims", (1, 1, 1))`：
+
+- 上游：FlagTree PR #1020（`fix(compiler): default cluster_dims=(1,1,1)
+  for backends that omit it`，分支 fix/cluster-dims-default，
+  2026-08-20 提交）
+- 节点：临时就地 sed 到 `/opt/flagtree/triton/compiler/compiler.py`
+  （437 行 `setdefault`）解锁验证 —— 显式临时、不可复现；可复现修复
+  = PR 合入后重建 flagtree hygon wheel（`packaging/flagtree/hygon`，
+  待建，同 sunrise §11.5 模式）
+
+### 12.2 T 路径（vendor triton 3.5.1）
+
+`compiler triton` → vendor triton 3.5.1（`/opt/triton`）。serve 到
+`Application startup complete`（09:47:40），推理连贯：knowledge
+"Paris" ✅、math "42" ✅。算子路由与 F 路径一致（全 `default.flagos`）；
+OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
+崩溃标记 0。指纹同 F 路径 `vllm-0.24.0-tp2-5c23ce1f`。
+
+---
+
+## 13. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
       已合入（5b592be）；ascend 验证即基于该基线（§10）。
-- [ ] 0.24.0 其余后端（hygon、iluvatar、enflame、cambricon、
-      kunlunxin 等）的验证 —— mthreads（§8 5.2.0 全通；§9 4.3.6
-      T ✅ / F ✅，烘焙镜像双路径复验 2026-08-17）；nvidia ✅（§6）；
-      ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）；sunrise ✅
-      （§11，T 路径 triton；F 路径 rebuilt flagtree ✅ §11.5 —— 旧
-      §2.9 解码挂死已由 PR 978 修复）
+- [ ] 0.24.0 其余后端（iluvatar、enflame、cambricon、kunlunxin 等）
+      的验证 —— nvidia ✅（§6）；metax ✅（§4/§5）；mthreads ✅
+      （§8/§9）；ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）；
+      sunrise ✅（§11，T 路径 triton；F 路径 rebuilt flagtree ✅
+      §11.5 —— 旧 §2.9 解码挂死已由 PR 978 修复）；**hygon ✅
+      （§12，F/T 双编译器，2026-08-20）**
+- [ ] hygon flagtree hygon wheel 重建（PR #1020 合入后固化到
+      `packaging/flagtree/hygon`，替换容器内临时 sed）
+- [ ] hygon app 镜像 —— **暂不做**（2026-08-20 决策）：F 路径默认
+      编译器被 PR #1020 合入 + `packaging/flagtree/hygon` wheel 重建
+      发布卡死（无新 flagtree release 前 runtime 镜像无法刷新）；T
+      路径（vendor triton 3.5.1 已在 runtime，同 sunrise §11.6 烘焙
+      `compiler triton` 先例）技术上今天可做，但同轮交付意义不大。
+      PR #1020 合入、wheel 重建后可重估。
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （§10.2，非致命）—— 上游 flag_gems 侧修复后复验
 
