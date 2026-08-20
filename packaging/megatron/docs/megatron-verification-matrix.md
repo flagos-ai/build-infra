@@ -135,6 +135,23 @@
   `RL-UTILS-IMPORT-OK` + 全链 exit 0。**该 6 包缺口属容器装配路径问题**
   （直装 wheel 不带 [rl] extra）；app-image 单步 `megatron-core[rl]==…`
   安装无此问题，不入 deps_app。
+- **nvidia megatron-rl app image 构建+验证+push（2026-08-20，双后端全 ✅）**：
+  `flagos-app/megatron-rl-nvidia-cuda12.8:2.1.2` 与
+  `flagos-app/megatron-rl-nvidia-cuda13.3:2.1.2` 已构建并推送（app 前缀
+  flagos-app 自 PR #457 起生效）。单步安装 `megatron-core[rl]==0.17.1`
+  （wheel `0.17.1+fl.20260818.g48b97a13f1bb`，[rl] extra 全量公共组随
+  wheel 装入——RL cuda13.3 记录中的 6 包 ad-hoc 补装缺口在 app-image
+  装配路径下不存在）+ APP_DEPS 自建 flash_attn wheel
+  （`2.8.3.post1+fl.cu128.torch210` / `+fl.cu130.torch211`，源码构建配方见
+  packaging/flash-attn/）。verify 走 --app-image 模式：BEFORE(runtime)
+  vs AFTER(app) 矩阵逐包 unchanged——torch 2.10.0+cu128 / 2.11.0+cu130、
+  triton MISSING（side-dir /opt/triton 不在 site-packages，与 BEFORE 一致 =
+  #458 修复生效判定点）、flag_gems 5.3.4、numpy 2.3.5；`megatron.core`
+  import + helpers_cpp bindings OK。**前置缺陷（已修，PR #458）**：
+  APP_DEPS 步（flash_attn 安装）缺 `PYTHONPATH="/opt/triton"` guard，
+  pip 解析 torch 的 triton==N Requires-Dist 拉新 triton 3.6.0 进
+  site-packages，verify 判矩阵变化 abort；与 #456 的 megatron-core 步同款修复，
+  dry-run 实证仅装 einops + flash_attn。
 - **nvidia post_training × inference（2026-08-19，cuda12.8 双编译器全 ✅）**：
   两场景均编译器无关路径，同 metax 配方——post_training = DummyModel +
   `simple_generate`（output shape (1,8)，nvidia-modelopt 0.45.0 ad-hoc 装入
