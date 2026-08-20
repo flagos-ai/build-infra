@@ -65,8 +65,13 @@ ARG APP_DEPS=""
 
 # --- Install vendor-conditional deps ---------------------------
 
+# PYTHONPATH=/opt/triton for the same reason as the megatron-core step
+# below: pip resolving any of APP_DEPS that pulls torch (e.g. flash_attn)
+# re-reads the installed torch's METADATA triton==N Requires-Dist. Without
+# the side-dir triton dist-info visible, pip installs a fresh triton into
+# site-packages, bypassing the repacked vendor triton (188 MB).
 RUN if [ -n "${APP_DEPS}" ]; then \
-      pip install \
+      PYTHONPATH="/opt/triton" pip install \
         --index-url "${FLAGOS_PYPI}" \
         --extra-index-url "${EXTRA_PYPI}" \
         ${APP_DEPS}; \
