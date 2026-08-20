@@ -941,6 +941,33 @@ clang-14/lld-14（sunrise 后端 flags 是 clang-only
 系统 python3.10（apt）+ pip 走 aliyun 镜像（runner 到 pypi.org 不通）；
 sunrise deps（LLVM/plugin/triton toolkits）从预置 URL 下载并 md5 门禁。
 
+### 11.6 app 镜像 serve E2E（2026-08-19~20）
+
+- 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819`
+  （2026-08-19 push 至 flagos-app，与原
+  `flagos-dev/vllm-sunrise-tangrt1.2.0:2.1.2` tag 同一镜像，docker image
+  id `sha256:22a8f7f1...`，与节点本地镜像逐字节一致）
+- 版本指纹：vllm `0.24.0+flagos`（cp310 empty wheel，单步安装）；
+  vllm-plugin-fl `0.2.0+g687217a.d20260819`（vendor PyPI wheel，非
+  editable —— 同一 PR #391 代码，同 §11.2/11.3）；torch 2.11.0+cpu /
+  torch_ptpu 0.2.3+torch2.11 / flag_gems 5.3.4 / xgrammar 0.2.3+flagos /
+  compressed-tensors 0.17.0+flagos；编译器 = vendor triton
+  3.6.0.1+git0a5cfb35（`compiler triton`，`VLLM_PLUGINS=fl` 烘焙）
+- 启动：`/flagos/bin/vllm serve`（`compiler triton` 烘焙，`--privileged
+  -v /dev:/dev`）：`--model /models/Qwen3-8B --gpu-memory-utilization 0.6
+  --enforce-eager --trust-remote-code --max-model-len 2048 --dtype bfloat16`
+- 启动：`Application startup complete`；算子路由同 §11.3 ——
+  `attention_backend` `default.flagos` 因 CUDA unavailable 失败 →
+  **fallback `vendor.sunrise`**（CUSTOM 注册生效）；容器稳定运行 9h+，
+  期间 0 崩溃标记
+- 推理（2026-08-20 00:21 复测，system_fingerprint `vllm-0.24.0-6c831be5`，
+  与 §11.3 同一 wheel/plugin）：
+  - knowledge：`The capital of France is` → " Paris. The capital of
+    Italy is Rome. The capital of Spain is Madrid. ..." ✅
+  - math：`What is 7 times 8? Answer:` → " 56. What is 9 times 6? ..." ✅
+- 崩溃标记：0（serve 日志无 Traceback / ERROR / EngineDeadError；容器
+  存活；Avg generation throughput 6.4 tok/s）
+
 ---
 
 ## 12. 遗留事项

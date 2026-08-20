@@ -38,7 +38,7 @@
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | — | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
-| 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ✅ | ❌ |
+| 曦望 | TANGRT 1.2.0 | ✅ | ❌ | ✅ | ✅ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
 | 清微智能 | TSM 260610 | ⬜ | ⬜ | ⬜ | ⬜ |
 
@@ -79,7 +79,9 @@
 - **ascend-cann9.0.0**（910B4，aarch64 cp311）：flagtree 路径 ✅
   （修复 flag_gems 5.3.4 `j0`/`log2` 后全链路跑通）；triton 路径未单独验证。
 - **sunrise-tangrt1.2.0**：官方 Triton ✅；flagtree flash-attn **decode 挂死** ❌，
-  交付路径固定 `compiler triton`。
+  交付路径固定 `compiler triton`。（该缺陷 2026-08-19 起已由 rebuilt
+  flagtree wheel 修复 —— 0.24.0 中 F 路径 ✅，见下方 0.24.0 格与
+  `report-vllm-0.24.0.md` §11.5；0.20.2 未复测，本格维持当时结论。）
 - **kunlunxin-xre5.37.1**（P800 XPU）：⛔ 三处 attention 内核编译失败——
   flagtree 0.6.1+xpu3.6（`TritonSDNNLegalize` / `TritonSDNNCombineBefore`）、
   triton 3.0.0（XTDK LLVM19 空 SetVector 断言）。应用层无法绕过，已交编译器团队，
@@ -171,9 +173,14 @@
   （合成 `torch.ptpu.memory_stats()` 供 FL worker KV-cache 定容，
   首次 serve 曾崩 `AttributeError: no attribute 'memory_stats'`）。
   详见 `report-vllm-0.24.0.md` §11。
-  **F 路径 ❌** —— 沿用 0.20.2 §2.9 结论（FlagTree flash-attn
-  **decode 挂死**，编译器缺陷，未在 0.24.0 复测以免挂卡）；
-  交付路径固定 `compiler triton`。
+  **F 路径 ✅（2026-08-19，rebuilt flagtree wheel）** —— 旧 §2.9
+  decode 挂死由 FlagTree PR 978 修复（`packaging/flagtree/sunrise`
+  从 main 重建 wheel，A/B 0.4 → 2.4 tok/s 终止），`compiler flagtree`
+  serve + 推理 E2E 通过（§11.5）。
+  **app 镜像路径 ✅（§11.6）**：`flagos-app/vllm0.24.0-sunrise-
+  tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819`（wheel 单步安装 + plugin
+  wheel）serve 到 `Application startup complete`、推理连贯、崩溃标记
+  0，指纹 `vllm-0.24.0-6c831be5`（同一 wheel）。
 
 **跨版本事实**
 
