@@ -154,6 +154,20 @@
   pip 解析 torch 的 triton==N Requires-Dist 拉新 triton 3.6.0 进
   site-packages，verify 判矩阵变化 abort；与 #456 的 megatron-core 步同款修复，
   dry-run 实证仅装 einops + flash_attn。
+- **nvidia megatron-training app image 构建+push（2026-08-20，双后端 ✅）+ h20 E2E
+  双编译器复验（cuda12.8）**：`flagos-app/megatron_training0.17.1-nvidia-cuda12.8:
+  2.1.2-0.2.1_9.g48b97a13f` 与 `-cuda13.3` 同款 tag 已构建并推送（tag 命名与 RL
+  一致：应用版本 0.17.1 + fork 版本 0.2.1_9.g48b97a13f）。app=megatron-training、
+  megatron_version=0.17.1、mlf_version=0.2.1_9.g48b97a13f，workflow 内 verify
+  （--app-image 模式：BEFORE(runtime) vs AFTER(app) 矩阵逐包 unchanged +
+  megatron.core import）双后端均过。training 无 vendor 条件包（configs.yaml
+  deps_app.megatron-training = `[]`，仅 RL 有 flash_attn）——镜像 = runtime +
+  wheel `[training]` extra 单步安装。**h20 E2E 复验（cuda12.8，`megatron-train-app`
+  容器）**：mock data 5 iter 直跑 pretrain_gpt.py，双编译器全 exit 0——flagtree
+  3.6.0 默认线与 vendor triton 3.6.0（`compiler triton`）逐 iter loss 完全一致：
+  8.371983/8.363531/8.348538/8.366852/8.357372，validation loss test set 两线均
+  8.360331E+00（validation set 8.359479E+00）——与矩阵 nvidia training 基线逐位
+  一致，app-image 装配路径相对 runtime+wheel 无行为回归（mock 数据确定性）。
 - **nvidia post_training × inference（2026-08-19，cuda12.8 双编译器全 ✅）**：
   两场景均编译器无关路径，同 metax 配方——post_training = DummyModel +
   `simple_generate`（output shape (1,8)，nvidia-modelopt 0.45.0 ad-hoc 装入
