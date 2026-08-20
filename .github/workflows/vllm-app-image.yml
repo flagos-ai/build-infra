@@ -14,8 +14,9 @@
 
 name: vllm app image
 
-# Builds flagos-app/vllm-{vendor}-{backend}:{version} from the runtime image
-# by installing the repacked vllm wheel (+flagos) and the vllm-plugin-FL wheel
+# Builds flagos-app/vllm{vllm_version}-{vendor}-{backend}:{version}[-{plugin}]
+# from the runtime image by installing the repacked vllm wheel (+flagos) and
+# the vllm-plugin-FL wheel
 # single-step — two clean pip installs, no source builds (the plugin wheel is
 # built and audited by the vllm-plugin-wheel workflow; the vllm wheel by the
 # vllm-wheel workflow). The +flagos pin and the plugin's audited-empty
@@ -144,7 +145,17 @@ jobs:
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/vllm-${{ matrix.name }}:${{ matrix.version }}"
+          # Tag naming (same as the images already in flagos-app):
+          #   vllm{vllm_version}-{backend}:{stack_version}[-{plugin_fl_version}]
+          # The plugin wheel's PEP 440 local version (0.2.0+g687217a.d20260819)
+          # carries a '+', which is not allowed in an image tag — use '_'.
+          plugin="${{ inputs.plugin_fl_version }}"
+          if [[ -n "${plugin}" ]]; then
+              app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
+          else
+              app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.name }}:${{ matrix.version }}"
+          fi
+          echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
           docker build \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
@@ -168,18 +179,12 @@ jobs:
         if: ${{ inputs.verify }}
         run: |
           set -euo pipefail
-          host="${{ needs.set-matrix.outputs.harbor_host }}"
-          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/vllm-${{ matrix.name }}:${{ matrix.version }}"
           bash packaging/vllm/verify-vllm-backend.sh \
             "${{ matrix.name }}" \
             --vllm-version "${{ inputs.vllm_version }}" \
-            --app-image "${app_tag}"
+            --app-image "${APP_TAG}"
 
       - name: Push vllm app image
         if: ${{ inputs.push }}
         run: |
-          host="${{ needs.set-matrix.outputs.harbor_host }}"
-          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          app_tag="${host}/${app_prefix}/vllm-${{ matrix.name }}:${{ matrix.version }}"
-          docker push "${app_tag}"
+          docker push "${APP_TAG}"
