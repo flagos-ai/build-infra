@@ -1,11 +1,11 @@
 ---
 name: megatron-verification-state
-description: megatron 应用镜像验证阶段的状态：已定决策、待决事项、文件状态、任务状态（2026-08-20 结束点）
+description: megatron 应用镜像验证阶段的状态：已定决策、待决事项、文件状态、任务状态（2026-08-21 结束点）
 metadata: 
   node_type: memory
   type: project
   originSessionId: d7f830af-2108-4f39-aba9-825e3ddd911e
-  modified: 2026-08-20T00:00:00.000Z
+  modified: 2026-08-21T00:00:00.000Z
 ---
 
 # Megatron 应用镜像验证阶段 — 状态快照（2026-08-17 结构决策收口）
@@ -37,13 +37,13 @@ runtime
 
 ## 阶段二固化待办（2026-08-17 结构决策后刷新）
 
-**B 已定稿（2026-08-17）：两镜像依赖定案。** `megatron-training` = wheel + modelopt + tqdm + datasets(+pyarrow)（post_training 双引用，扫描实证）+ apex(hygon, runtime 继承)；不含 wandb/web 栈/TE（post_training 零引用）。`megatron-rl` = wheel + TE(vendor 条件) + 13 公共包全组 + flash_attn(runtime 继承) + apex(runtime 继承)。**安装两条 RUN**（vendor 装 TE → aliyun 装公共组，index 隔离便于检测）。**flash_attn 结论（2026-08-17 定）**：有则最好、无则有 workaround（MLF 内置一份 / 复用 flag_gems varlen paged——fork vllm-plugin-FL `AttentionFLBackend` 生产模板，vllm_fl/dispatch/backends/flaggems/impl/attention.py:589）。**TE 定性修正**：障碍是代码强制 thd（rl_utils.py:666-682 无条件构造 packed，含 sequence_packing=False 单序列）非 vendor 门；local-THD 修掉后 TE 降为可选加速包。**MLF 两缺口修掉后 RL = 纯公共依赖场景**（假设，待第二后端实证）。**enflame modelopt 例外不担心**（用户：见到了就装，可要可不要）。**verify 定性（用户 2026-08-17）**：断言是测试阶段手段（pip check / torch 落位 / §3 driver / TE+FA 版本断言 / run 13 同款 RL driver），**最终镜像锁定版本后行为即确定**——断言不进最终镜像，锁版才是交付契约。**Containerfile 拆分（#4）已落地：PR #427 MERGED（2026-08-18T07:31Z）**；点 2 lock 版本清单已随 #114 落地（`[rl]` extra 15 包全 pin，含 pyarrow 版本对，§5.2）。
+**B 已定稿（2026-08-17）：两镜像依赖定案。** `megatron-training` = wheel + modelopt + tqdm + datasets(+pyarrow)（post_training 双引用，扫描实证）+ apex(hygon, runtime 继承)；不含 wandb/web 栈/TE（post_training 零引用）。`megatron-rl` = wheel + TE(vendor 条件) + 13 公共包全组 + flash_attn(runtime 继承) + apex(runtime 继承)。**安装两条 RUN**（vendor 装 TE → aliyun 装公共组，index 隔离便于检测）。**flash_attn 结论（2026-08-17 定）**：有则最好、无则有 workaround（MLF 内置一份 / 复用 flag_gems varlen paged——fork vllm-plugin-FL `AttentionFLBackend` 生产模板，vllm_fl/dispatch/backends/flaggems/impl/attention.py:589）。**TE 定性修正**：障碍是代码强制 thd（rl_utils.py:666-682 无条件构造 packed，含 sequence_packing=False 单序列）非 vendor 门；local-THD 修掉后 TE 降为可选加速包。**MLF 两缺口修掉后 RL = 纯公共依赖场景**（假设，待第二后端实证）。**enflame modelopt 例外不担心**（用户：见到了就装，可要可不要）。**verify 定性（用户 2026-08-17）**：断言是测试阶段手段（pip check / torch 落位 / §3 driver / TE+FA 版本断言 / RL driver），**最终镜像锁定版本后行为即确定**——断言不进最终镜像，锁版才是交付契约。**Containerfile 拆分（#4）已落地：PR #427 MERGED（2026-08-18T07:31Z）**；点 2 lock 版本清单已随 #114 落地（`[rl]` extra 15 包全 pin，含 pyarrow 版本对，§5.2）。
 
 **C 定稿（2026-08-17）："让 wheel 自己说话"。** 公共包依赖真相全部回 MLF extras（`[training]` + `[rl]` 一起提，各带版本 pin，pyarrow 版本对进 datasets 声明）；build-infra 只握顶层 wheel 名 + extra 选择器；configs.yaml `deps_app` 只背 vendor 条件包（TE），**不重复 13 包清单**；两条 RUN（vendor / mirror）保留。**边界规则**：extra 只许公共包；vendor 条件包（TE）不许进 extra，留 deps_app；flash_attn 是 runtime 层继承、不属 app 声明。**MLF pyproject 修 extra 的 PR 升格为 C 前置阻塞项**。C 机制"结构定了、等 MLF PR + hygon RL 验证后落地"。**#1 已提（2026-08-17）：PR #114**（feat/declare-runtime-extras，`[training]` +4 包 pin、新 `[rl]` extra 15 包全 pin）——待合并；C 机制落地解锁条件 = #114 合并。
 
 **C/D 形状（2026-08-17 定稿）：deps_app 每后端显式列全 app（vllm/megatron-training/megatron-rl 一键），vendor 包按需填——`[]` 表示"该 app 在此后端存在、需验证、但无 vendor 包"，不是不建。两职责解耦：app 存在性 = 键本身（验证矩阵全展开依据，期望状态）；vendor 包 = 列表内容（构建时实际装什么）。hygon megatron-rl 有 TE，其余后端全空。交付矩阵（现实状态）是验证结论的产物，不在 configs 硬编码。app 级平级（vllm/training/rl），"rl 是否可建"是每后端待验证项（默认可建）——未来纯公共 RL 后所有后端 rl 皆 `[]` 而恒建。**
 
-1. **`app/megatron/Containerfile` 拆分**（**已落地：PR #427 MERGED，2026-08-18**）：`Containerfile.megatron-training`（wheel + modelopt + tqdm + datasets）/ `Containerfile.rl`（wheel + TE 条件 + 13 包全组）；原 `Containerfile` 改名并留注释说明目录名≠镜像名的对应。**megatron-rl 可建性门槛 = MLF PR #114 合并 + 新 wheel（带 `[rl]` extra）；megatron-training 现 wheel 即可建（`[training]` 已存在）**。**门槛已过（2026-08-20 端到端实证）：nvidia 两后端 megatron-rl app image 构建+验证+push 全 ✅（`flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f` / `-cuda13.3:2.1.2-0.2.1_9.g48b97a13f`，wheel `0.17.1+fl.20260818.g48b97a13f1bb` 带 `[rl]` extra），详见 megatron-verification-matrix.md 对应条目**。**megatron-training app image 同款落地（2026-08-20）：双后端构建+push 全 ✅（`flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f` / `-cuda13.3` 同款 tag），training 无 vendor 条件包（deps_app.megatron-training = `[]`，仅 RL 有 flash_attn），镜像 = runtime + wheel `[training]` extra 单步安装；workflow 内 verify（--app-image 模式）双后端均过。h20 E2E 复验（cuda12.8）双编译器全 exit 0：flagtree 3.6.0 与 vendor triton 3.6.0 逐 iter loss 逐位一致（8.371983/8.363531/8.348538/8.366852/8.357372），validation loss test set 两线均 8.360331E+00 —— 与矩阵 nvidia training 基线逐位一致，app-image 装配路径无行为回归**
+1. **`app/megatron/Containerfile` 拆分**（**已落地：PR #427 MERGED，2026-08-18**）：`Containerfile.megatron-training`（wheel + modelopt + tqdm + datasets）/ `Containerfile.rl`（wheel + TE 条件 + 13 包全组）；原 `Containerfile` 改名并留注释说明目录名≠镜像名的对应。**megatron-rl 可建性门槛 = MLF PR #114 合并 + 新 wheel（带 `[rl]` extra）；megatron-training 现 wheel 即可建（`[training]` 已存在）**。**门槛已过（2026-08-20 端到端实证）：nvidia 两后端 megatron-rl app image 构建+验证+push 全 ✅（`flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f` / `-cuda13.3:2.1.2-0.2.1_9.g48b97a13f`，wheel `0.17.1+fl.20260818.g48b97a13f1bb` 带 `[rl]` extra），详见 megatron-verification-matrix.md 对应条目**。**megatron-training app image 同款落地（2026-08-20）：双后端构建+push 全 ✅（`flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f` / `-cuda13.3` 同款 tag），training 无 vendor 条件包（deps_app.megatron-training = `[]`，仅 RL 有 flash_attn），镜像 = runtime + wheel `[training]` extra 单步安装；workflow 内 verify（--app-image 模式）双后端均过。E2E 复验（cuda12.8）双编译器全 exit 0：flagtree 3.6.0 与 vendor triton 3.6.0 逐 iter loss 逐位一致（8.371983/8.363531/8.348538/8.366852/8.357372），validation loss test set 两线均 8.360331E+00 —— 与矩阵 nvidia training 基线逐位一致，app-image 装配路径无行为回归**
 2. **configs.yaml `deps_app` 机制**（新建，对称 `env.app`，**已落地：PR #424 MERGED，2026-08-17**）：19 后端全展开 `deps_app: {vllm, megatron-training, megatron-rl}`，`[]` = app 存在待验证无 vendor 包（非"不建"）；仅 hygon `megatron-rl` 有 `transformer_engine==2.10.0+das.opt1.dtk2604.torch290`。**wheel 边界（用户 2026-08-17 定案）：wheel 不是 deps_app 条目——是 app 身份，走 Containerfile `MEGATRON_VERSION` arg，判定准则 = 每后端条件性而非装自哪个 index**，已写进 configs.yaml header 注释。公共包（modelopt/tqdm/datasets/13 组）**不在此处**——走 wheel extras（C 定稿，等 #114）
 3. **CI 支撑（已落地，两 PR）**：generate_matrix 支持 app 级 deps + `--app {app}` 输出 `app_env`/`app_deps` 随 **PR #424 MERGED，2026-08-17**；megatron-app-image.yml 参数化 app 名（`megatron-training`|`megatron-rl` input → 镜像 tag / matrix / APP_DEPS build-arg，Containerfile 前置 vendor RUN）随 **PR #425 MERGED，2026-08-17**
 4. **apex 纳入 hygon runtime**（A1，2026-08-17 确认，**已落地：PR #422 merged + wheel 已传 flagos-pypi-hygon**）：上传 `apex==1.7.0+das.opt1.dtk2604.torch290` + configs.yaml hygon deps 加 `apex==1.7.0+das.opt1.dtk2604.torch290`。**定性：apex 是 vendor 可选加速包（熔断可选，MLF 里 4 处使用全 try/except fallback——multi_tensor_applier / FusedLayerNorm / FusedAdam），非 RL 硬依赖**；kunlunxin/metax 已有先例（apex==0.1 / apex==0.1+metax3.8.1.0）
@@ -60,7 +60,7 @@ runtime
    **local-THD（rl_utils.py:666 无条件 thd）**：实证链以容器侧条件化补丁
    （transformer_impl=="local" 时 thd=None）落地、非阻塞；归类为 MLF 反馈项
    （见待反馈项），**不再是 metax RL 阻塞项**。真实障碍链 17 个（全 E2E 实证）
-   全为本地代码/参数/harness 缺陷，详见 `megatron-verification-matrix.md` metax RL 条目。
+   全为本地代码/参数/harness 缺陷，详见 `megatron-metax-e2e.md` RL。
 
    **metax RL 固化清单（2026-08-19 两编译器并齐后，阶段二输入；2026-08-19 落地）**：
    容器内 5 补丁（6 hunk，全 5 文件已提 **MLF PR #116 OPEN**，与实证容器补丁逐字节
@@ -75,8 +75,36 @@ runtime
    `--transformer-impl local`、`--bf16`（flash_decode_and_prefill
    仅 fp16/bf16）、`--rl-partial-rollouts`（streaming 跳 drain 断言）。harness
    自研（dummy_agent isinstance/env_id/eod 去重）不入固化。
+7. **ascend CANN 9.0.0 验证（2026-08-20，三场景双编译器全 ✅，RL 暂停）**：
+   910B4（aarch64）上，merged wheel
+   `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装。training/post_training/inference
+   三场景 × F/T 双编译器全部 E2E exit 0（loss 逐位一致、validation test set
+   两线均 1.084173E+01）。**T 列模块版本 3.2.0**（vendor triton 3.5.0 +
+   triton_ascend 3.2.1），**F 列模块版本 3.5.1**（flagtree 0.6.1+ascend3.5）。
+   用法侧要求：torch-first 导入顺序（ascend 特有——已上提 FlagTree
+   **#1024→#1025**，根因 = `testing.py:27` 顶层 import torch/torch_npu 在
+   triton backend discovery 时触发 torch_npu autoload 失败，已惰性化，
+   合并后去用法前提）+ `--no-persist-layer-norm`
+   （merged wheel 参数默认 persist=True，post_training 首跑漏传撞
+   `torch_norm.py:48` 断言）+ bash -c 进容器。modelopt 0.45.0 ad-hoc 装入
+   （aliyun，含 requests/huggingface_hub 传递依赖），未入镜像（同 hygon
+   modelopt 决策未决）。**RL 场景暂停**：动态引擎硬依赖 flash_attn——**用户
+   已查证（2026-08-20）：Ascend 950 之前的型号（含 910B4）不支持
+   flash_attn，vendor 包路线关闭**；候选替代 = torch_npu
+   `npu_fusion_attention`（TND varlen，actual_seq_qlen/actual_seq_kvlen 传
+   累计和），需容器侧补丁把 `flash_decode_and_prefill`（attention.py:773）
+   的 prefill 分支（L824 `flash_attn_varlen_func`）与 decode 分支（L903
+   `flash_attn_with_kvcache`）映射到 npu 原生算子，paged kv（block_table）
+   需先还原为连续 TND 布局——**方案待用户权衡**。RL 路径三处代码级障碍已
+   在 910B 实证并上提（packed_seq gate：MLF #119 / NVIDIA #6709；KV-append
+   设备断言：MLF #120 / NVIDIA #6730；flagtree driver is_active：FlagTree
+   #1023，均 OPEN）。详见 `megatron-ascend-e2e.md`。
 
-**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
+**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 #116 DotProductAttention 跳过，L677 待软化）。
+
+> 全量待合并/待落地修复跟踪（含 NVIDIA/FlagTree 上游、待提项、决策未决项）
+> 见 `megatron-verification-matrix.md`「待合并/待落地修复跟踪」表，状态变更
+> 以该表为准。
 
 ## 既有定案（早前，仍有效）
 
@@ -113,5 +141,4 @@ runtime
 ## 相关
 
 - 上游 PR：#105（§1.1 megatron.training import 修复）、#106（§1.2 psutil 声明）。
-- E2E 脚本：`/tmp/hygon25-megatron-e2e.sh`（flagtree 基线）、`/tmp/hygon25-megatron-e2e-triton.sh`（vendor triton 变体）。
 - 持续约束见 [[work-constraints]]。

@@ -34,7 +34,9 @@ metadata:
 
 **版本策略（用户 2026-08-16 定）：** 先装最新版本并锁定（pin 死），出问题再说。MLF 已 pin 的（pydantic==2.12.5 / tensorboard==2.19.0）对齐；fastapi 满足 `~=0.50` 取最新 0.x；其余无约束包（tqdm/httpx/uvicorn/datasets/openai[aiohttp]/wandb）装 aliyun 最新稳定版并锁定。将来固化构建流程时以这些锁定版本为准。
 
-**apex（2026-08-16 用户定）：** hygon vendor apex wheel `apex-1.7.0+das.opt1.dtk2604.torch290-cp310-cp310-manylinux_2_28_x86_64.whl`（DTK 26.04 + torch 2.9.0 对齐，与 TE/torch vendor 变体同系）。**要纳入 runtime 镜像**（hygon 构建流程依赖，走 vendor PyPI `flagos-pypi-hygon`，不直接在容器内装——不可重复）。configs.yaml 里 hygon 段当前无 apex 声明（kunlunxin/metax 有）→ 待办：把 apex 加进 hygon runtime deps 并上传 index。
+**apex（2026-08-16 用户定）：** hygon vendor apex wheel `apex-1.7.0+das.opt1.dtk2604.torch290-cp310-cp310-manylinux_2_28_x86_64.whl`（DTK 26.04 + torch 2.9.0 对齐，与 TE/torch vendor 变体同系）。**要纳入 runtime 镜像**（hygon 构建流程依赖，走 vendor PyPI `flagos-pypi-hygon`，不直接在容器内装——不可重复）。configs.yaml 里 hygon 段当前无 apex 声明（kunlunxin/metax 有）→ 已落地：configs.yaml
+hygon deps 加 `apex==1.7.0+das.opt1.dtk2604.torch290` + wheel 上传 `flagos-pypi-hygon`
+（build-infra PR #422 MERGED）。
 
 **wheel 自含性（2026-08-17 确认）：** MLF pyproject 的 `py-modules` 把仓库根顶层入口文件打进 wheel：`gpt_builders / mamba_builders / model_provider / pretrain_gpt / pretrain_bert / pretrain_mamba / pretrain_t5 / pretrain_vlm / train_rl`（pyproject.toml:15-25）。wheel 安装后 `python -m pretrain_gpt` / `from gpt_builders import gpt_builder` / `train_rl.py` 直接落在 site-packages（`/flagos/lib/python3.10/site-packages/train_rl.py` 实测在），无需 repo checkout。**但 `examples/` 目录不打进 wheel**——`examples/rl/environments/countdown/`（countdown_agent.py / countdown.py）是仓库测试环境文件，不在 site-packages。跑 countdown agent 需单独拷这两个文件（已拷到容器 /tmp/rl4-countdown/）。
 
@@ -70,9 +72,9 @@ metadata:
 
 ## 2026-08-17 第三轮启动：两个新阻塞 + 跑到 NCCL init
 
-**阻塞 D（transformers，真实缺口）：** `HuggingFaceTokenizer` 路径 `AutoTokenizer.from_pretrained` 抛 NameError（`AutoTokenizer` 未定义）→ 容器无 transformers。pyproject 里 transformers 只在 **training extra**（pyproject.toml:91），`rl` extra 没带 → 真实缺口。另有代码缺陷：`huggingface_tokenizer.py` 模块级 `HAVE_TRANSFORMERS` 标志算了但从未使用 → 报错是 NameError 而非干净的提示。容器内 aliyun 补装 transformers 5.15.0 + tokenizers 0.22.2（仅测试用途）。报告 §5.5 依赖表 + 待办需补。
+**阻塞 D（transformers，真实缺口）：** `HuggingFaceTokenizer` 路径 `AutoTokenizer.from_pretrained` 抛 NameError（`AutoTokenizer` 未定义）→ 容器无 transformers。pyproject 里 transformers 只在 **training extra**（pyproject.toml:91），`rl` extra 没带 → 真实缺口。另有代码缺陷：`huggingface_tokenizer.py` 模块级 `HAVE_TRANSFORMERS` 标志算了但从未使用 → 报错是 NameError 而非干净的提示。容器内 aliyun 补装 transformers 5.15.0 + tokenizers 0.22.2（仅测试用途）。依赖已收进 `[rl]` extra（MLF PR #114，OPEN）。
 
-**阻塞 E（python3-config，已知问题 §2.4 在 rl-v4 复现）：** `megatron/training/initialize.py:191 _compile_dependencies → core/datasets/utils.py:30 compile_helpers()` `subprocess.check_output(["python3-config","--extension-suffix"])` → FileNotFoundError。venv `/flagos/bin` 缺 python3-config。**关键确认：wheel 内 `helpers_cpp.cpython-310-x86_64-linux-gnu.so` 已存在**（编译扩展自带），所以补上 python3-config 后 compile_helpers 会提前 return 跳过 make——symlink 即完全解锁。诊断软链（仅测试用途）：`ln -sf /root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/bin/python3-config /flagos/bin/python3-config`，`--extension-suffix` 实测输出与 wheel 内 .so 同名。**固化路径已存在但未生效：** build-infra builder 的 `patch-compile-helpers-sysconfig.py`（sysconfig 替代 python3-config，PR #112 同款）在下一次 wheel 重建时自动打上；rl-v4 当前 wheel（20260814 构建）早于该补丁 → 换新 wheel 后此阻塞自动消失。
+**阻塞 E（python3-config，已知问题 §2.4 在 rl-v4 复现）：** `megatron/training/initialize.py:191 _compile_dependencies → core/datasets/utils.py:30 compile_helpers()` `subprocess.check_output(["python3-config","--extension-suffix"])` → FileNotFoundError。venv `/flagos/bin` 缺 python3-config。**关键确认：wheel 内 `helpers_cpp.cpython-310-x86_64-linux-gnu.so` 已存在**（编译扩展自带），所以补上 python3-config 后 compile_helpers 会提前 return 跳过 make——symlink 即完全解锁。诊断软链（仅测试用途）：`ln -sf /root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/bin/python3-config /flagos/bin/python3-config`，`--extension-suffix` 实测输出与 wheel 内 .so 同名。**固化路径已生效：** build-infra builder 的 `patch-compile-helpers-sysconfig.py`（sysconfig 替代 python3-config，PR #112 同款）已随 merged wheel（0.17.1+fl.20260818）重建打上，此阻塞消失。
 
 **第三轮启动（含 MASTER_ADDR 四 env + python3-config symlink）进度：** tokenizer 初始化通过（padded vocab 50257→50304）→ RerunStateMachine → TP=1/PP=1 initialized → NCCL ProcessGroup init（W0816 Guessing device ID...）。下一步看：模型构建 → env agent 装载 → §5.1 flash-attn 断言。
 
@@ -96,7 +98,7 @@ metadata:
 - 同函数 481 行紧接着 `assert HAVE_MSGPACK`（messagepack）——**msgpack 也是同一路径的硬依赖**，装完 pyzmq 必踩。
 - **pyproject 声明检查：pyzmq、msgpack 均无**（本地仓库 pyproject.toml grep 0 命中）→ 真实缺口，与 tensorboard/httpx/wandb 同类。
 - 容器内 aliyun 补装（仅测试用途）：pyzmq 27.1.0、msgpack 1.2.1。版本未 pin——将来固化到构建流程时以 aliyun 最新稳定版为准（或 MLF rl extra 声明）。
-- **待办**：报告 §5.5 依赖表补 pyzmq/msgpack 两行 + build-infra configs.yaml deps 声明（与其余 RL 公共包一起）。
+- **固化**：报告 §5.5 依赖表已补 pyzmq/msgpack 两行；依赖已收进 `[rl]` extra（MLF PR #114，OPEN）。
 
 ## 2026-08-17 收尾：阻塞 H（arrow 往返）与 I（quart）双破
 
@@ -112,7 +114,7 @@ metadata:
 
 - pyproject 声明检查：quart（pyproject.toml:132）、hypercorn（:130）均在 **dev extra**，`rl` extra 没带 → 与 transformers（training extra）同类，"声明错位"变体（声明了但挂在别的 extra）。
 - 容器内 aliyun 补装（仅测试用途）：quart + hypercorn，`from quart import Quart` OK。
-- **待办**：报告 §5.5 依赖表补 quart/hypercorn 两行 + build-infra configs.yaml deps 声明（与其余 RL 公共包一起）。
+- **固化**：报告 §5.5 依赖表已补 quart/hypercorn 两行；依赖已收进 `[rl]` extra（MLF PR #114，OPEN）。
 
 ## 2026-08-17 第六轮：阻塞 K（rollout 长度断言，参数组合问题）
 
@@ -216,7 +218,7 @@ request_id=0/1/2 + sampling_params(num_tokens_to_generate=8)。MASTER_PORT=29503
 
 **核心发现（§1.4 实证）：`--disable-jit-fuser` 不足。**
 - `enable_jit_fuser()` 在模块 import 期把 `jit_fuser` 绑定为 `torch.compile`（megatron/core/jit.py:16-33）；`--disable-jit-fuser` 在 args 解析后才翻转，**晚于装饰器生效点**。args dump 里 `--disable-jit-fuser` 已是 True，warmup（initialize.py:495 `_warmup_jit_function`）**仍执行 torch.compile** → torchinductor → flagtree 3.6.0 内核缺 `cluster_dims` 元数据 → `AttributeError: 'KernelMetadata' object has no attribute 'cluster_dims'`（torch 2.9.0 `triton_heuristics.py:1757 make_launcher`）。
-- **测试绕过（容器内，非仓库改动）：** site-packages `megatron/core/jit.py` 末行 `enable_jit_fuser()` → `disable_jit_fuser()`（备份 /tmp/jit.py.bak）。上游修复方向 = 惰性装饰（§1.4 已建议，待反馈本 fork，现有实证支撑）。
+- **测试绕过（容器内，非仓库改动）：** site-packages `megatron/core/jit.py` 末行 `enable_jit_fuser()` → `disable_jit_fuser()`（备份 /tmp/jit.py.bak）。上游修复方向 = 惰性装饰（§1.4 已建议，已上提：MLF #121 issue → PR #122，OPEN）。
 - **影响面：** training 与 RL 均触发 warmup torch.compile；post_training/inference 的 driver 不走 warmup（编译器无关路径）——但 RL 场景若不用补丁，与 training 同样在 warmup 崩。
 
 **四场景结果（均 `compiler flagtree`，日志 /tmp/flagtree-*.log）：**
@@ -229,19 +231,19 @@ request_id=0/1/2 + sampling_params(num_tokens_to_generate=8)。MASTER_PORT=29503
 
 ## 待办/开放问题
 
-- [ ] **阻塞 M 已解（2026-08-17，run 11 确认）**：数据层修复（tokenizer_config.json 声明 eos/bos/unk）+ 包装类拷贝回环（huggingface_tokenizer.py:208-209）→ eod=50256 正常。gpt2 系 tokenizer 配方要求写进报告；`eos_id` 无 None 兜底是 MLF minor 发现。**已关闭**
-- [ ] **阻塞 N 已解（2026-08-17，run 13 确认）**：RL 训练 forward 强制 thd packed → **必须 `--transformer-impl transformer_engine`**，local 走不通；`--attention-backend unfused` 移除。**平台依赖警示（用户定）：不是所有后端都有厂商 TE** —— 无 vendor TE 平台需 MLF 支持 local 的 thd packed 或平台自建 TE，写入报告。**已关闭**
-- [ ] **阻塞 L 已解记录**：`--tokenizer-special-tokens '<|finetune_right_pad_id|>'`（必加引号）是 gpt2 无 pad 场景的 CLI 解法；prepare_trajectories 无 pad 兜底是 MLF 代码发现（rl_utils.py:1055-1071）
-- [ ] **quart + hypercorn 缺口固化**（2026-08-17 实测，阻塞 I）：text_generation_server.py:58 硬依赖 quart，pyproject 声明在 dev extra（pyproject.toml:132/130），`rl` extra 没带 → build-infra 侧 configs.yaml deps 声明（含进 RL 公共包组）
-- [ ] **datasets/pyarrow 组合验证**（2026-08-17 实测，阻塞 H）：datasets 5.0.1 save_to_disk → load_dataset("arrow") 往返在 pyarrow ≤25 下损坏（零长终止符误读）；容器内已用 pa.ipc.new_stream 手工重写绕过。MLF CI 的 artifact 生成须验证 (datasets, pyarrow) 组合；若 MLF 侧 pin datasets 需连带测 pyarrow
-- [ ] **transformers 缺口固化**（2026-08-17 实测）：HuggingFaceTokenizer 需要 transformers，pyproject 仅 training extra 有，`rl` extra 没带（pyproject.toml:91）→ build-infra 侧 configs.yaml deps 或 MLF rl extra 声明；另有代码缺陷 HAVE_TRANSFORMERS 未使用（huggingface_tokenizer.py）
-- [ ] **pyzmq + msgpack 缺口固化**（2026-08-17 实测，阻塞 G）：InferenceCoordinator 路径硬依赖（dynamic_engine.py:477/481），pyproject 均未声明 → build-infra 侧 configs.yaml deps 声明（含进 RL 公共包组）
-- [ ] **python3-config 已固化，等 wheel 重建生效**：builder 的 patch-compile-helpers-sysconfig.py 已就位（PR #112 同款），rl-v4 的 20260814 wheel 早于补丁；下次 wheel 重建后此阻塞自动消失（重装新 wheel 验证）
-- [ ] **apex 纳入 hygon runtime 镜像**（用户定）：上传 wheel 到 `flagos-pypi-hygon` + configs.yaml hygon deps 加 `apex==1.7.0+das.opt1.dtk2604.torch290` → 构建流程可重复安装
-- [ ] tensorboard 缺口固化到可重复流程（build-infra 侧声明，版本对齐 MLF pin 2.19.0？）
-- [ ] RL 完整接入 TE 实测（rl-v4 继续），逐段暴露并固化依赖缺口
-- [ ] MLF 侧 PR（feat/rl-optdeps-verify）保持开放，供 MLF 采纳
-- [ ] **jit_fuser 惰性装饰修复反馈 MLF（2026-08-17 flagtree 复验实证，§1.4）**：
+- [x] **阻塞 M 已解（2026-08-17，run 11 确认）**：数据层修复（tokenizer_config.json 声明 eos/bos/unk）+ 包装类拷贝回环（huggingface_tokenizer.py:208-209）→ eod=50256 正常。gpt2 系 tokenizer 配方要求写进报告；`eos_id` 无 None 兜底是 MLF minor 发现。**已关闭**
+- [x] **阻塞 N 已解（2026-08-17，run 13 确认）**：RL 训练 forward 强制 thd packed → **必须 `--transformer-impl transformer_engine`**，local 走不通；`--attention-backend unfused` 移除。**平台依赖警示（用户定）：不是所有后端都有厂商 TE** —— 无 vendor TE 平台需 MLF 支持 local 的 thd packed 或平台自建 TE，写入报告。**已关闭**。local-THD 条件化已上提（MLF PR #116，OPEN）；metax 无 vendor TE 双编译器实证非阻塞（2026-08-19）
+- [x] **阻塞 L 已解记录**：`--tokenizer-special-tokens '<|finetune_right_pad_id|>'`（必加引号）是 gpt2 无 pad 场景的 CLI 解法；prepare_trajectories 无 pad 兜底是 MLF 代码发现（rl_utils.py:1055-1071）
+- [x] **quart + hypercorn 缺口固化**（2026-08-17 实测，阻塞 I）：text_generation_server.py:58 硬依赖 quart，pyproject 声明在 dev extra（pyproject.toml:132/130），`rl` extra 没带 → **已收进 `[rl]` extra（MLF PR #114，OPEN）**
+- [x] **datasets/pyarrow 组合验证**（2026-08-17 实测，阻塞 H）：datasets 5.0.1 save_to_disk → load_dataset("arrow") 往返在 pyarrow ≤25 下损坏（零长终止符误读）；容器内已用 pa.ipc.new_stream 手工重写绕过。**实测版本对已固化进 MLF pyproject datasets 声明（#114 内）**
+- [x] **transformers 缺口固化**（2026-08-17 实测）：HuggingFaceTokenizer 需要 transformers，pyproject 仅 training extra 有，`rl` extra 没带（pyproject.toml:91）→ **已收进 `[rl]` extra（MLF PR #114，OPEN）**；另有代码缺陷 HAVE_TRANSFORMERS 未使用（huggingface_tokenizer.py）
+- [x] **pyzmq + msgpack 缺口固化**（2026-08-17 实测，阻塞 G）：InferenceCoordinator 路径硬依赖（dynamic_engine.py:477/481），pyproject 均未声明 → **已收进 `[rl]` extra（MLF PR #114，OPEN）**
+- [x] **python3-config 已固化**：builder 的 patch-compile-helpers-sysconfig.py 已就位（PR #112 同款）；merged wheel（0.17.1+fl.20260818）已带该补丁，单步安装后此阻塞消失
+- [x] **apex 纳入 hygon runtime 镜像**（用户定）：已落地——wheel 上传 `flagos-pypi-hygon` + configs.yaml hygon deps 加 `apex==1.7.0+das.opt1.dtk2604.torch290`（build-infra PR #422 MERGED）
+- [x] tensorboard 缺口固化：**已收进 `[rl]` extra（MLF PR #114，pin 2.19.0 对齐）**
+- [x] RL 完整接入 TE 实测：hygon TE 线全链 exit 0（run 13，2026-08-17）；metax 无 vendor TE 走 local（#116）+ 双编译器实证非阻塞（2026-08-19）；ascend RL 暂停（动态引擎 flash_attn 依赖，见矩阵）
+- [x] MLF 侧 PR：**#114 OPEN**（feat/rl-optdeps-verify 的 `[rl]` extra 全量 pin + datasets 版本对）
+- [x] **jit_fuser 惰性装饰修复反馈 MLF（2026-08-17 flagtree 复验实证，§1.4）**：
   `--disable-jit-fuser` 不足（import 期绑定早于 flag 翻转），flagtree 线 warmup
-  必崩 `cluster_dims`；容器 rl-v4 有测试用 jit.py 补丁（enable→disable），
-  上游惰性装饰修复合并后移除
+  必崩 `cluster_dims`；容器 rl-v4 有测试用 jit.py 补丁（enable→disable）。
+  **已上提：MLF #121 issue → PR #122（OPEN）**，合并后移除容器补丁
