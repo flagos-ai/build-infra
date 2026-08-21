@@ -36,6 +36,8 @@ weight: 20
 | `MEGATRON_VERSION` | `0.17.1` | 要安装的 megatron-core 版本。该版本的 wheel 必须已上传到 `FLAGOS_PYPI`。 |
 | `FLAGOS_PYPI` | `""` | 厂商 PyPI 索引 — 存放 megatron-core wheel，优先搜索。 |
 | `EXTRA_PYPI` | `https://mirrors.aliyun.com/pypi/simple` | 阿里云镜像 — 其他所有依赖的回退源。 |
+| `APP_DEPS` | `""` | 厂商条件包（configs.yaml `deps_app.{app}`），空格分隔。在 wheel 之前从厂商 PyPI 安装——index 隔离，防止厂商包被 mirror 重新解析。无厂商包的 app 为空。 |
+| `APP_ENV` | `""` | 每后端 app 环境变量（configs.yaml `env.app.{app}`），写入 `/etc/profile.d/app_env.sh`。 |
 
 ## megatron-core wheel
 

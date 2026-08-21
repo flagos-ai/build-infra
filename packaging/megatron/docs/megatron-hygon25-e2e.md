@@ -42,23 +42,30 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
 
 **教训清单**：
 
-1. **打包范围必须覆盖 entry point 与顶层脚本**——否则完整服务无法单步安装即用。已由全范围打包关闭（§1.1，PR #107）。
-2. **未声明运行时依赖是主要耗时项**——psutil / tensorboard / wandb 等被实际使用却未声明（§1.2、§5.1）。psutil 已补声明（PR #106）；RL 清单待反馈。
-3. **vendor 包不可信，问题分四类**——元数据、包间版本失配、平台覆盖、源码杂质；逐包 repack 修正并记录（§1.3）。
+1. **打包范围必须覆盖 entry point 与顶层脚本**——否则完整服务无法单步安装即用。
+   已由全范围打包关闭（§1.1，PR #107）。
+2. **未声明运行时依赖是主要耗时项**——psutil / tensorboard / wandb
+   等被实际使用却未声明（§1.2、§5.1）。psutil 已补声明（PR #106，OPEN）；
+   RL 依赖缺口清单已收进 `[rl]` extra 上提（MLF PR #114，OPEN）。
+3. **vendor 包不可信，问题分四类**——元数据、包间版本失配、平台覆盖、
+   源码杂质；逐包 repack 修正并记录（§1.3）。
 4. **平台移植性默认值**——fused kernel 默认开启、jit_fuser import 期绑定，
-   非 CUDA 平台需显式关闭（§1.4）。待反馈。
+   非 CUDA 平台需显式关闭（§1.4）。已上提惰性装饰（MLF #121 issue → PR #122，OPEN）。
 5. **工具链按平台验证**——flagtree 曾误判"无法编译 HCU kernel"（旧容器缺
    DTK LLVM 包）；编译器结论不跨版本/平台移植，每后端 × 每编译器实测（§1.5）。
 6. **venv 缺 python3-config** 使数据集构建 import 期挂（§2.1）。已落地
    sysconfig 兜底 + PR #112。
 7. **datasets/pyarrow 版本对不兼容**——5.0.1 写、≤25 读崩（§5.2）。已规避；
-   CI 需固定实测版本对。
+   版本对已固化进 MLF pyproject datasets 声明（#114 内）。
 8. **tokenizer 无 eos** 使轨迹准备 TypeError（§5.3）。数据层声明即解决。
 9. **RL 训练 forward 强制 TE**——local 不支持 THD 打包序列（§5.4）。hygon
-   已跑通；无 vendor TE 平台待反馈。
+   已跑通；local-THD 条件化已上提（MLF PR #116，OPEN），metax 无 vendor TE
+   双编译器实证非阻塞（2026-08-19）。
 10. **flash_attn 版本串三处不一致**致 dynamic 引擎断言失败（§5.5）。repack
     三处字符串一致即解决。
-11. **modelopt 未入镜像**，post_training 靠 ad-hoc 补装，违反交付目标（§1.3.3）。纳入镜像与否待决策。
+11. **modelopt 未入镜像**，post_training 靠 ad-hoc 补装，违反交付目标（§1.3.3）。
+    纳入镜像已决策：进 `[training]` extra（§6）；入镜像单步安装测试待随 app
+    镜像走（矩阵 C#11）。
 
 ## 1. 全局性问题
 
@@ -84,7 +91,8 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
   中查找——"repo checkout + 已安装 wheel"的混用形态需先把 `.so` 植入源码树，
   对 app 镜像无影响，单步安装即完整。
   打包范围的后续演进要检查入口文件是否仍随包。
-- **现在状态:** 已关闭（PR #107）。PR 合入前其余后端暂不能复用该 wheel 做按序验证。
+- **现在状态:** 已关闭——wheel 按 MLF feat/wheel-full-scope 分支构建，nvidia/metax/
+  ascend 均已复用；PR #107 合并流程待推进。
 
 ### 1.2 未声明运行时依赖（NVIDIA 上游代码缺口）
 
@@ -98,8 +106,8 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
   `RuntimeError("psutil is not installed, ...")`。
 - **解决方案:** 反馈本 fork 在 `pyproject.toml` 补声明（psutil → PR #106）；
   build-infra 侧在 runtime 依赖面兜底。
-- **现在状态:** psutil 已提交（PR #106）。RL 场景的依赖缺口清单见 §5.1
-  （tensorboard / wandb / httpx 等一组，待反馈）。
+- **现在状态:** psutil 已提交（PR #106，OPEN）。RL 场景的依赖缺口清单见 §5.1
+  （tensorboard / wandb / httpx 等一组，已收进 `[rl]` extra 上提，MLF PR #114）。
 
 ### 1.3 vendor 包问题（逐包归纳全部修改）
 
@@ -150,7 +158,7 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   antlr4-python3-runtime-4.9.3/nvidia-ml-py/omegaconf/scipy 随装，torch
   2.9.0 落位未动），**未入镜像**——与其余场景的"单步安装 wheel 即可用"
   不同，违反交付目标。
-- **现在状态:** 纳入镜像与否待镜像层决策。
+- **现在状态:** 已决策进 `[training]` extra（§6 已决策段）；入镜像单步安装测试随 app 镜像走。
 
 #### 1.3.4 triton 3.5.1+das.opt1.dtk2604.torch290（torch 依赖剥除）
 
@@ -187,8 +195,7 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   仅测试用途，非仓库改动）绕过。修复方向不变：`jit_fuser` 改为惰性装饰
   （或 `enable_jit_fuser` 默认 no-op，由训练入口显式开启）——落地后
   `--disable-jit-fuser` 才真正生效，flagtree/triton 两线均不需要补丁。
-- **现在状态:** 待反馈本 fork（§1.4 jit_fuser 惰性装饰修复方向，现已有
-  flagtree 四场景实证支撑）。
+- **现在状态:** 已上提本 fork（MLF #121 issue → PR #122，OPEN）。
 
 ### 1.5 工具链：编译器可用性与 DTK LLVM 前置（flagtree"屏蔽"已修正）
 
@@ -376,7 +383,7 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **版本基准（2026-08-16 定）:** 容器内手补包只允许测试用途；版本以 MLF pin
   为准（tensorboard 2.19.0 / pydantic 2.12.5），已把容器实测版（2.21.0 /
   2.13.4）降回。公共包安装一律走 aliyun 镜像（pypi.org 慢）。
-- **现在状态:** 待反馈本 fork（RL 依赖 extra 声明偏差）。
+- **现在状态:** 已上提本 fork（MLF PR #114，`[rl]` extra 15 包全 pin，OPEN）。
 
 ### 5.2 datasets / pyarrow 版本兼容缺陷（2026-08-17 实测）
 
@@ -394,7 +401,7 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **对 CI 的意义:** MLF grpo 测试的预生成 artifact 若用同一
   (datasets 5.0.1, pyarrow ≤25) 组合生成会踩同坑——CI 需固定经过实测的
   (datasets, pyarrow) 版本对。
-- **现在状态:** 已规避；CI 版本对待定。
+- **现在状态:** 已规避；版本对已固化进 MLF pyproject datasets 声明（#114 内）。
 
 ### 5.3 tokenizer 无 eos
 
@@ -425,7 +432,8 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **平台依赖警告:** 并不是所有后端都有厂商提供的 TE——无 vendor TE 的平台要么等 MLF 支持 local 的 THD 打包序列训练 forward，要么平台侧自行构建/
   适配 TE。
 - **现在状态:** hygon 已跑通（vendor TE repack 后单步安装即用，§1.3.2）；
-  无 vendor TE 平台待反馈。
+  local-THD 条件化已上提（MLF PR #116，OPEN）；metax 无 vendor TE
+  双编译器实证非阻塞（2026-08-19）。
 
 ### 5.5 flash_attn：RL dynamic 引擎硬依赖 ≥2.7.3
 
@@ -452,16 +460,16 @@ tensorboard 一个，而是一组，偏离方式分三种：
   全范围打包
 - PR [#112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)——§2.1
   python3-config → sysconfig
+- PR [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)——§5.1 RL
+  依赖 `[rl]` extra 15 包全 pin（含 datasets/pyarrow 版本对）
+- PR [#116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)——§5.4
+  local-THD 条件化 + metax RL 固化清单（null_tokenizer / unwrap_model /
+  `--return-log-probs` / flash_attn 断言门控）
+- issue [#121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) →
+  PR [#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)——§1.4
+  jit_fuser import 期惰性装饰（flagtree 四场景实证支撑，2026-08-17 §1.4）
 
-**待反馈至本 fork:**
-- §1.4 jit_fuser import 期绑定时序、fused kernel 默认开启的平台假设——
-  **jit_fuser 项已有 flagtree 四场景实证支撑（2026-08-17，§1.4）**
-- §5.1 RL 依赖 extra 声明偏差——**已升格为阶段二 C 前置阻塞项**（2026-08-17
-  定）：MLF pyproject 修 `[training]`+`[rl]` extras 一条 PR 一起提，公共包
-  全回 extras 带版本 pin，pyarrow 版本对进 datasets 声明；build-infra
-  `deps_app` 只背 vendor 条件包
-- §5.4 local impl 不支持 THD 打包序列训练 forward（RL 训练 forward 被迫依赖
-  TE）；无 vendor TE 平台的适配路径
+**待反馈至本 fork（未上提）:**
 - §5.5 flash_attn dynamic 引擎硬依赖 ≥2.7.3——建议软化（megatron.py:87 可配置
   fallback）；workaround 栈已定：vendor 包 → MLF 内置 → 复用 flag_gems
   varlen paged（fork vllm-plugin-FL `AttentionFLBackend` 生产模板）
@@ -469,8 +477,8 @@ tensorboard 一个，而是一组，偏离方式分三种：
 **已决策（2026-08-17，阶段二）：**
 - §1.3.3 modelopt 纳入镜像——**进 `[training]` extra**（公共 PyPI 包）；
   enflame vendor 变体"见到了就装，可要可不要，不担心"
-- §5.2 (datasets, pyarrow) 实测版本对——**固化进 MLF pyproject datasets
-  声明**（C 前置 PR 内），不进 configs.yaml
+- §5.2 (datasets, pyarrow) 实测版本对——已随 PR #114 固化进 MLF pyproject
+  datasets 声明，不进 configs.yaml
 - 交付形态——两应用镜像 `megatron-training-{vendor}-{backend}` /
   `megatron-rl-{vendor}-{backend}`（详见阶段二状态记录）
 - apex 纳入 hygon runtime——**已落地**（build-infra PR #422 merged，wheel

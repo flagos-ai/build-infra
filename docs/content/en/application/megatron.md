@@ -37,6 +37,8 @@ packages a usable megatron-core library for megatron-lm based training.
 | `MEGATRON_VERSION` | `0.17.1` | megatron-core version to install. A wheel of that version must exist on `FLAGOS_PYPI`. |
 | `FLAGOS_PYPI` | `""` | Vendor PyPI index — hosts the megatron-core wheel. Searched first. |
 | `EXTRA_PYPI` | `https://mirrors.aliyun.com/pypi/simple` | Aliyun mirror — fallback for all other dependencies. |
+| `APP_DEPS` | `""` | Vendor-conditional packages for this app (configs.yaml `deps_app.{app}`), space-separated. Installed before the wheel from the vendor PyPI — index isolation so a vendor package can't be re-resolved from the mirror. Empty for apps with no vendor packages on this backend. |
+| `APP_ENV` | `""` | Per-backend app env vars (configs.yaml `env.app.{app}`), baked into `/etc/profile.d/app_env.sh`. |
 
 ## megatron-core wheel
 
