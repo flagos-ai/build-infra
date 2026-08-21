@@ -58,6 +58,41 @@
 | 平头哥   | PPU 2.0.0     | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
 | 清微智能 | TSM 260610    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 
+## 待合并/待落地修复跟踪（2026-08-21 建）
+
+矩阵 ✅/⬜ 的前提条件拆为三类 pending：上游已提未合并、已实证待提上游
+（workaround 在容器侧/配方侧）、决策未决。**状态变更（合并/关闭/新提/定案）
+即更新本表对应行**，并联动相应矩阵格与 fact 条目——合并 → 去 workaround →
+复验 → 更新格。
+
+### A. 上游已提、未合并
+
+| # | 修复项 | 现状（前提/阻塞） | 上游 | 状态 | 合并后动作 |
+|---|---|---|---|---|---|
+| 1 | packed_seq 无条件构造 | `--transformer-impl local` 非 TE RL 训练断言炸；unfused 路径亦需此修 | MLF #119 / NVIDIA #6709（issue #118 / #6708） | OPEN | RL local 训练解锁 |
+| 2 | KV-append 内核设备断言 | 动态批推理首发 KV-append 断言炸（CUDA 白名单） | MLF #120 / NVIDIA #6730（issue #6729） | OPEN | NPU 动态批推理解锁 |
+| 3 | flagtree nvidia driver is_active | torch_npu shim 伪造 cuda.is_available → 双后端 is_active 全 True → driver 崩 | FlagTree #1023（issue #1022） | OPEN | ascend flagtree 直接可用 |
+| 4 | RL `[rl]` extra 声明 + pin | RL app 镜像不可建（C 机制前置） | MLF #114 | OPEN | RL app 镜像解锁 |
+| 5 | RL local-impl 5 文件补丁 | metax 容器侧 5 补丁（6 hunk） | MLF #116 | OPEN | 容器补丁取消、落地上游 |
+| 6 | wheel 全 scope | #15 任务前置 | MLF #107 | OPEN | #15 收尾 |
+
+### B. 已实证、待提上游（workaround 当前在容器侧/配方侧）
+
+| # | 修复项 | 现状（workaround） | 上游 | 状态 | 合并后动作 |
+|---|---|---|---|---|---|
+| 7 | jit_fuser 惰性装饰 | hygon flagtree 容器侧 jit.py noop 补丁（§1.4） | MLF #121→#122 | 已提 OPEN | 去容器补丁 |
+| 8 | persist_layer_norm 默认 persist=True | ascend post_training 配方需 `--no-persist-layer-norm` | MLF #123→#124 | 已提 OPEN | 去配方参数 |
+| 9 | torch-first 导入顺序 | ascend 特有用法前提（flagtree ascend backend discovery 嵌套 import torch，源头 testing.py:27 顶层 import torch/torch_npu，已惰性化） | FlagTree #1024→#1025 | 已提 OPEN | 去用法前提 |
+| 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 #116 DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
+
+### C. 决策未决 / 工程化中
+
+| # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
+|---|---|---|---|---|---|
+| 11 | modelopt 入镜像 | ad-hoc 装入、未入镜像（hygon/ascend/nvidia） | build-infra | 决策未决 | 落 configs/Containerfile |
+| 12 | ascend RL npu_fusion_attention 映射 | Ascend ≤950 无 flash_attn，RL 暂停根因 | 用户权衡 | 方案待定 | 定案后 ascend RL 路径 |
+| 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 工程化中 | deps_app.megatron-rl 落库（flash_attn + psutil） |
+
 ## 编译器覆盖现状（configs.yaml 2026-08-14）
 
 - **双编译器**（15 backend）：nvidia×2, ascend×2, enflame×2, hygon, iluvatar, kunlunxin, metax×2, mthreads×2, sunrise, tsingmicro

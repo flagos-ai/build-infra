@@ -81,7 +81,10 @@ runtime
    三场景 × F/T 双编译器全部 E2E exit 0（loss 逐位一致、validation test set
    两线均 1.084173E+01）。**T 列模块版本 3.2.0**（vendor triton 3.5.0 +
    triton_ascend 3.2.1），**F 列模块版本 3.5.1**（flagtree 0.6.1+ascend3.5）。
-   用法侧要求：torch-first 导入顺序（ascend 特有）+ `--no-persist-layer-norm`
+   用法侧要求：torch-first 导入顺序（ascend 特有——已上提 FlagTree
+   **#1024→#1025**，根因 = `testing.py:27` 顶层 import torch/torch_npu 在
+   triton backend discovery 时触发 torch_npu autoload 失败，已惰性化，
+   合并后去用法前提）+ `--no-persist-layer-norm`
    （merged wheel 参数默认 persist=True，post_training 首跑漏传撞
    `torch_norm.py:48` 断言）+ bash -c 进容器。modelopt 0.45.0 ad-hoc 装入
    （aliyun，含 requests/huggingface_hub 传递依赖），未入镜像（同 hygon
@@ -98,7 +101,11 @@ runtime
    #1023，均 OPEN）。详见
    `megatron-verification-matrix.md` ascend 条目。
 
-**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
+**待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 #116 DotProductAttention 跳过，L677 待软化）。
+
+> 全量待合并/待落地修复跟踪（含 NVIDIA/FlagTree 上游、待提项、决策未决项）
+> 见 `megatron-verification-matrix.md`「待合并/待落地修复跟踪」表，状态变更
+> 以该表为准。
 
 ## 既有定案（早前，仍有效）
 
