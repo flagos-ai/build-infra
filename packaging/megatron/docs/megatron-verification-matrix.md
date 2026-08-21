@@ -2,7 +2,7 @@
 
 > 规划工具，随验证推进更新。每单元格为对应后端 runtime 镜像 + 一步安装 wheel 后，对应场景入口跑通的验证。
 > wheel 打包范围：core+training+legacy+rl+post_training+inference（全范围
-> wheel，MLF PR #107 feat/wheel-full-scope）；hygon/nvidia/metax/ascend
+> wheel，[MLF PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) feat/wheel-full-scope）；hygon/nvidia/metax/ascend
 > 均已用该 wheel 验证（详见厂商文档）。
 
 ## 状态图例
@@ -58,28 +58,28 @@
 
 | # | 修复项 | 现状（前提/阻塞） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
-| 1 | packed_seq 无条件构造 | `--transformer-impl local` 非 TE RL 训练断言炸；unfused 路径亦需此修 | MLF #119 / NVIDIA #6709（issue #118 / #6708） | OPEN | RL local 训练解锁 |
-| 2 | KV-append 内核设备断言 | 动态批推理首发 KV-append 断言炸（CUDA 白名单） | MLF #120 / NVIDIA #6730（issue #6729） | OPEN | NPU 动态批推理解锁 |
-| 3 | flagtree nvidia driver is_active | torch_npu shim 伪造 cuda.is_available → 双后端 is_active 全 True → driver 崩 | FlagTree #1023（issue #1022） | OPEN | ascend flagtree 直接可用 |
-| 4 | RL `[rl]` extra 声明 + pin | RL app 镜像不可建（C 机制前置） | MLF #114 | OPEN | RL app 镜像解锁 |
-| 5 | RL local-impl 5 文件补丁 | metax 容器侧 5 补丁（6 hunk） | MLF #116 | OPEN | 容器补丁取消、落地上游 |
-| 6 | wheel 全 scope | #15 任务前置 | MLF #107 | OPEN | #15 收尾 |
-| 7 | jit_fuser 惰性装饰 | hygon flagtree 容器侧 jit.py noop 补丁（§1.4） | MLF #121→#122 | OPEN | 去容器补丁 |
-| 8 | persist_layer_norm 默认 persist=True | ascend post_training 配方需 `--no-persist-layer-norm` | MLF #123→#124 | OPEN | 去配方参数 |
-| 9 | torch-first 导入顺序 | ascend 特有用法前提（flagtree ascend backend discovery 嵌套 import torch，源头 testing.py:27 顶层 import，#1025 已惰性化） | FlagTree #1024→#1025 | OPEN | 去用法前提 |
+| 1 | packed_seq 无条件构造 | `--transformer-impl local` 非 TE RL 训练断言炸；unfused 路径亦需此修 | [MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119) / [NVIDIA #6709](https://github.com/NVIDIA/Megatron-LM/pull/6709)（[issue #118](https://github.com/flagos-ai/Megatron-LM-FL/issues/118) / [issue #6708](https://github.com/NVIDIA/Megatron-LM/issues/6708)） | OPEN | RL local 训练解锁 |
+| 2 | KV-append 内核设备断言 | 动态批推理首发 KV-append 断言炸（CUDA 白名单） | [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) / [NVIDIA #6730](https://github.com/NVIDIA/Megatron-LM/pull/6730)（[issue #6729](https://github.com/NVIDIA/Megatron-LM/issues/6729)） | OPEN | NPU 动态批推理解锁 |
+| 3 | flagtree nvidia driver is_active | torch_npu shim 伪造 cuda.is_available → 双后端 is_active 全 True → driver 崩 | [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)（[issue #1022](https://github.com/flagos-ai/FlagTree/issues/1022)） | OPEN | ascend flagtree 直接可用 |
+| 4 | RL `[rl]` extra 声明 + pin | RL app 镜像不可建（C 机制前置） | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | OPEN | RL app 镜像解锁 |
+| 5 | RL local-impl 5 文件补丁 | metax 容器侧 5 补丁（6 hunk） | [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) | OPEN | 容器补丁取消、落地上游 |
+| 6 | wheel 全 scope | #15 任务前置 | [MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) | OPEN | #15 收尾 |
+| 7 | jit_fuser 惰性装饰 | hygon flagtree 容器侧 jit.py noop 补丁（§1.4） | [MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121)→[#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122) | OPEN | 去容器补丁 |
+| 8 | persist_layer_norm 默认 persist=True | ascend post_training 配方需 `--no-persist-layer-norm` | [MLF #123](https://github.com/flagos-ai/Megatron-LM-FL/issues/123)→[#124](https://github.com/flagos-ai/Megatron-LM-FL/pull/124) | OPEN | 去配方参数 |
+| 9 | torch-first 导入顺序 | ascend 特有用法前提（flagtree ascend backend discovery 嵌套 import torch，源头 testing.py:27 顶层 import，[#1025](https://github.com/flagos-ai/FlagTree/pull/1025) 已惰性化） | [FlagTree #1024](https://github.com/flagos-ai/FlagTree/issues/1024)→[#1025](https://github.com/flagos-ai/FlagTree/pull/1025) | OPEN | 去用法前提 |
 
 ### B. 已实证、待提上游（workaround 当前在容器侧/配方侧）
 
 | # | 修复项 | 现状（workaround） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
-| 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 #116 DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
+| 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
 
 ### C. 决策未决 / 工程化
 
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
-| 11 | modelopt 入镜像 | ad-hoc 装入、未入镜像（hygon/ascend/nvidia） | build-infra | 决策未决 | 落 configs/Containerfile |
-| 12 | ascend RL npu_fusion_attention 映射 | Ascend ≤950 无 flash_attn，RL 暂停根因 | 用户权衡 | 方案待定 | 定案后 ascend RL 路径 |
+| 11 | modelopt 入镜像 | 随 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) `[training]` extra 声明（`nvidia-modelopt[torch]==0.45.0`），合入后随 extra 进镜像 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已定性，等 [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 合并 | 重建 wheel → 重跑受影响场景 → 更新矩阵 |
+| 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | Ascend ≤950 无 flash_attn，RL 暂停根因；团队倾向用 Verl 承载 ascend 强化学习服务，MLF 侧 RL 方案维持待定 | 用户权衡 | 方案待定 | 定案后更新矩阵 RL 列 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 
 ## 编译器覆盖现状（configs.yaml 2026-08-14）
@@ -105,8 +105,8 @@
   → `training.py:3672` `train_iters // None` TypeError。**非功能变更，
   是使用方法变更**：训练功能仍在，但喂参接口重构。影响所有用 merged wheel 的后端，
   **hygon 留下的 E2E 参数基线需逐参数重核**（可能有更多参数同样 None 默认）。
-  处置（2026-08-18 定，用法侧规避，不回馈上游）：两参数均随 sync #34
-  来自上游 Core 0.17.0（非 fork 偏离，上游 0.17.0 分支已过时，
+  处置（2026-08-18 定，用法侧规避，不回馈上游）：两参数均随 sync
+  [NVIDIA #34](https://github.com/NVIDIA/Megatron-LM/pull/34) 来自上游 Core 0.17.0（非 fork 偏离，上游 0.17.0 分支已过时，
   提修复意义不大）；`--eval-interval` 默认 None + 无条件除法 =
   上游已知缺口，`--lr` 属训练必传参数——两者均由复现基线强制传参规避。
 
@@ -117,10 +117,10 @@
   `megatron/inference/utils.py` 依赖的 `gpt_builders`/`mamba_builders`/
   `model_provider` 是 **repo 根顶层入口文件**（不在 `megatron/` 包内）——
   core-only wheel（0.17.1+flagos）打包时被忽略，安装后
-  `import megatron.inference.utils` 即 ImportError。MLF PR #107
+  `import megatron.inference.utils` 即 ImportError。[MLF PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
   （feat/wheel-full-scope）把顶层入口文件一并打包，hygon 已用该 wheel
   验证推理场景跑通（见下）。
-  - **归属**：上游 **core_v0.17.0** 自己的代码（fork #34 忠实同步），非
+  - **归属**：上游 **core_v0.17.0** 自己的代码（[fork #34](https://github.com/NVIDIA/Megatron-LM/pull/34) 忠实同步），非
     fork 偏离。上游修复时点：0.17.0/0.17.1 = 3 处裸 import；0.18.0/0.18.2
     = 2 处；main = 0（全部收敛进 `megatron/training/models/`）。
   - **状态**：全范围 wheel 从打包侧关闭阻塞（已验证后端见矩阵推理列），
@@ -147,4 +147,4 @@
    pretrain_gpt.py 小规模跑通。
 2. **rl 场景**：依赖面干净，验证成本与 training 相当；同镜像按用途补 pydantic/typing_extensions。
 3. **post_training 场景**：仅 NVIDIA 先行，其余后端等 modelopt 可用性结论。
-4. **inference 场景**：hygon 已用全范围 wheel（PR #107）验证 ✅（static legacy 路径）；其余后端待 PR 合入后按序验证。
+4. **inference 场景**：hygon 已用全范围 wheel（[PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)）验证 ✅（static legacy 路径）；其余后端待该 PR 合入后按序验证。
