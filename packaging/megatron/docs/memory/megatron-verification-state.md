@@ -75,6 +75,28 @@ runtime
    `--transformer-impl local`、`--bf16`（flash_decode_and_prefill
    仅 fp16/bf16）、`--rl-partial-rollouts`（streaming 跳 drain 断言）。harness
    自研（dummy_agent isinstance/env_id/eod 去重）不入固化。
+7. **ascend CANN 9.0.0 验证（2026-08-20，三场景双编译器全 ✅，RL 暂停）**：
+   hw25（910B4，aarch64）+ `megatron-ascend900` 容器，merged wheel
+   `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装。training/post_training/inference
+   三场景 × F/T 双编译器全部 E2E exit 0（loss 逐位一致、validation test set
+   两线均 1.084173E+01）。**T 列模块版本 3.2.0**（vendor triton 3.5.0 +
+   triton_ascend 3.2.1），**F 列模块版本 3.5.1**（flagtree 0.6.1+ascend3.5）。
+   用法侧要求：torch-first 导入顺序（ascend 特有）+ `--no-persist-layer-norm`
+   （merged wheel 参数默认 persist=True，post_training 首跑漏传撞
+   `torch_norm.py:48` 断言）+ bash -c 进容器。modelopt 0.45.0 ad-hoc 装入
+   （aliyun，含 requests/huggingface_hub 传递依赖），未入镜像（同 hygon
+   modelopt 决策未决）。**RL 场景暂停**：动态引擎硬依赖 flash_attn——**用户
+   已查证（2026-08-20）：Ascend 950 之前的型号（含 910B4 = hw25）不支持
+   flash_attn，vendor 包路线关闭**；候选替代 = torch_npu
+   `npu_fusion_attention`（TND varlen，actual_seq_qlen/actual_seq_kvlen 传
+   累计和），需容器侧补丁把 `flash_decode_and_prefill`（attention.py:773）
+   的 prefill 分支（L824 `flash_attn_varlen_func`）与 decode 分支（L903
+   `flash_attn_with_kvcache`）映射到 npu 原生算子，paged kv（block_table）
+   需先还原为连续 TND 布局——**方案待用户权衡**。RL 路径三处代码级障碍已
+   在 910B 实证并上提（packed_seq gate：MLF #119 / NVIDIA #6709；KV-append
+   设备断言：MLF #120 / NVIDIA #6730；flagtree driver is_active：FlagTree
+   #1023，均 OPEN）。详见
+   `megatron-verification-matrix.md` ascend 条目。
 
 **待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（megatron.py:87 可配置 fallback）。
 
