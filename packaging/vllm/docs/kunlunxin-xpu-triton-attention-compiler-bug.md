@@ -181,8 +181,19 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
 - **其余算子**：rms_norm / rotary_embedding / swiglu / MoE / FLA-GDN 均改用
   `xtorch_ops` 或插件内实现；配套 8 处 monkey patch（slot_mapping 改 numpy
   计算、替换 `_forward_core` 等）
-- **验证**：Qwen3.6-27B 与 Qwen3.6-35B-A3B，TP=4，block-size 128，
-  `USE_RESHAPE_AND_CACHE_FLASH=1`（与本任务要求一致）
+- **验证**（据厂商验证文档，日期 20260730；TP=4 说法有出入，以文档为准）：
+  Qwen3.6-27B / Qwen3.6-35B-A3B / Qwen3-8B 三个模型，TP=1，block-size 128，
+  均设 `USE_RESHAPE_AND_CACHE_FLASH=1`：
+  - Qwen3.6-27B：服务无法启动（卡启动初始化，>10h）
+  - Qwen3.6-35B-A3B：服务无法启动
+  - Qwen3-8B：服务可启动，但推理输出乱码（当时 flag 已设置）
+  - **厂商后续澄清**：`USE_RESHAPE_AND_CACHE_FLASH=1` 可解决
+    Qwen3-4B（本任务验证模型）的乱码问题——该结论晚于 7/30 文档，
+    文档本身仅记录三模型失败状态
+- **验证环境差异（厂商 vs 我们）**：厂商 = XTDK **llvm22** + driver
+  5.0.21.43 + FlagGems 5.0.0 + flagtree 0.6.1a1 + sdnn-objects
+  v0.3.6.2.0；我们 = **llvm19** + driver 5.37.1 + FlagGems 5.3.4。
+  sdnn-objects v0.3.6.2.0 与本任务 A1 重编回退版本一致
 - **依赖**：插件版本需含 #268；`xtorch_ops` 随 FlagCX 工具链提供，
   需 `FLAGCX_PATH` 指向其目录
 
@@ -191,9 +202,12 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
 - 三处 Triton attention 编译失败（问题 1/2/3）依然成立、复现方式不变；厂商方案
   是在应用层以新增 native backend 整体替换 attention 内核，前文"应用层无法绕过"
   仅指 vLLM 自带 backends。
-- 若 kunlunxin 目标是推理可用性，以 #268 为准（厂商立场：修补无问题）；若仍要
-  修复 Triton 编译本身（FlagTree SDNN pass 链与基础 lowering 对循环携带 PtrState
-  的支持），前文请求与复现要点不变。
+- 若 kunlunxin 目标是推理可用性，以 #268 为准（厂商立场：修补无问题），
+  Qwen3-4B 乱码按厂商说明设 `USE_RESHAPE_AND_CACHE_FLASH=1` 解决；若仍要
+  修复 Triton 编译本身（FlagTree SDNN pass 链与基础 lowering 对循环携带
+  PtrState 的支持），前文请求与复现要点不变。
+- **待办**：本任务尚未跑 #268 路径（缺含 #268 的插件、xtorch_ops、FlagCX），
+  乱码修复结论需在该路径上以 Qwen3-4B 复验。
 
 ---
 
