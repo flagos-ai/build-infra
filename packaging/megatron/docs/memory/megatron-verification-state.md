@@ -77,9 +77,10 @@ runtime
    自研（dummy_agent isinstance/env_id/eod 去重）不入固化。
 7. **ascend CANN 9.0.0 验证（2026-08-20，三场景双编译器全 ✅，RL 暂停）**：
    910B4（aarch64）上，merged wheel
-   `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装。training/post_training/inference
-   三场景 × F/T 双编译器全部 E2E exit 0（loss 逐位一致、validation test set
-   两线均 1.084173E+01）。**T 列模块版本 3.2.0**（vendor triton 3.5.0 +
+   `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装（[training] extra 随 wheel
+   装入；wheel 已上传 flagos-pypi-ascend，cp311 aarch64）。
+   training/post_training/inference 三场景 × F/T 双编译器全部 E2E exit 0
+   （loss 逐位一致、validation test set 两线均 1.084173E+01）。**T 列模块版本 3.2.0**（vendor triton 3.5.0 +
    triton_ascend 3.2.1），**F 列模块版本 3.5.1**（flagtree 0.6.1+ascend3.5）。
    用法侧要求：torch-first 导入顺序（ascend 特有——已上提 FlagTree
    **#1024→#1025**，根因 = `testing.py:27` 顶层 import torch/torch_npu 在

@@ -1,20 +1,17 @@
 # Megatron-LM-FL hygon25 E2E 验证报告
 
-**验证环境:** hygon25（Hygon BW1000 8× HCU，DTK 26.04），runtime 镜像
+验证在 hygon25（Hygon BW1000 8× HCU，DTK 26.04）上进行，runtime 镜像
 `flagos-runtime-hygon-dtk26.04:2.1.2`，Python 3.10.20，torch
-2.9.0+das.opt1.dtk2604。
-**安装形态:** Megatron 打包（`packaging/megatron/builder/`）产出的
-`megatron-core` wheel，`pip install`（无 `--no-deps`）。
-**验证周期:** 2026-08-12 ~ 2026-08-17。
+2.9.0+das.opt1.dtk2604。megatron-core 安装形态为
+`packaging/megatron/builder/` 打包产出的 wheel，`pip install` 单步安装
+（无 `--no-deps`）。验证周期为 2026-08-12 ~ 2026-08-17。
 
 **术语约定:** 本报告涉及两级仓库——代码来源的上游 = NVIDIA 的
 ADLR/Megatron-LM（megatron 代码的原始出处，fork 通过同步 PR 引入）；
 提交 PR / 反馈缺陷的目标 = 本 fork flagos-ai/Megatron-LM-FL。下文"上游"
 均按此区分：涉及代码继承时为 ADLR/Megatron-LM，涉及提交与反馈时为
-flagos-ai/Megatron-LM-FL。
-
-**缩写:** TE = TransformerEngine；THD = 打包序列（THD）格式；FA = flash
-attention。
+flagos-ai/Megatron-LM-FL。**缩写:** TE = TransformerEngine；THD = 打包
+序列（THD）格式；FA = flash attention。
 
 本报告只记录**可复现的技术发现与缺口**（代码级缺陷、未声明依赖、
 平台移植性、工具链限制），不含瞬时错误与一次性环境故障。
@@ -22,7 +19,7 @@ attention。
 ## 0. Summary
 
 **结论：** 四个场景全部打通。training / post_training / inference 由全范围
-wheel 单步安装直跑，均 exit 0，并已在 vendor triton 3.5.1（PR #404 升级后）
+wheel 单步安装直跑，均 exit 0，并已在 vendor triton 3.5.1（[build-infra PR #404](https://github.com/flagos-ai/build-infra/pull/404) 升级后）
 下全部复验通过（2026-08-17）；rl 场景耗时最长——未声明依赖与厂商包问题逐一解决后，全链路首次跑通 exit 0。
 
 | 场景 | 状态 | 一句话事实 |
@@ -33,7 +30,7 @@ wheel 单步安装直跑，均 exit 0，并已在 vendor triton 3.5.1（PR #404 
 | inference | ✅ 通过 | `StaticInferenceEngine(legacy=True)`，3 请求 × 8 tokens，exit 0 |
 
 **flagtree 线（2026-08-17 复验）：** 四场景在 `compiler flagtree`
-（3.6.0）下全验通过（F 列全 ✅，矩阵见
+（3.6.0）下全验通过（flagtree 编译器全 ✅，矩阵见
 [[megatron-verification-matrix.md]]）。跨场景前置 = jit_fuser noop
 （§1.4：`--disable-jit-fuser` 不足——import 期已绑定 torch.compile，
 warmup 触发 inductor→flagtree `cluster_dims` 崩溃；复验用容器侧
@@ -43,29 +40,30 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
 **教训清单**：
 
 1. **打包范围必须覆盖 entry point 与顶层脚本**——否则完整服务无法单步安装即用。
-   已由全范围打包关闭（§1.1，PR #107）。
+   已由全范围打包关闭（§1.1，[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)）。
 2. **未声明运行时依赖是主要耗时项**——psutil / tensorboard / wandb
-   等被实际使用却未声明（§1.2、§5.1）。psutil 已补声明（PR #106，OPEN）；
-   RL 依赖缺口清单已收进 `[rl]` extra 上提（MLF PR #114，OPEN）。
+   等被实际使用却未声明（§1.2、§5.1）。psutil 已补声明（[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)，OPEN）；
+   RL 依赖缺口清单已收进 `[rl]` extra 上提（[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，OPEN）。
 3. **vendor 包不可信，问题分四类**——元数据、包间版本失配、平台覆盖、
    源码杂质；逐包 repack 修正并记录（§1.3）。
 4. **平台移植性默认值**——fused kernel 默认开启、jit_fuser import 期绑定，
-   非 CUDA 平台需显式关闭（§1.4）。已上提惰性装饰（MLF #121 issue → PR #122，OPEN）。
-5. **工具链按平台验证**——flagtree 曾误判"无法编译 HCU kernel"（旧容器缺
-   DTK LLVM 包）；编译器结论不跨版本/平台移植，每后端 × 每编译器实测（§1.5）。
+   非 CUDA 平台需显式关闭（§1.4）。已上提惰性装饰（[MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) issue → [PR #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)，OPEN）。
+5. **工具链按平台验证**——flagtree 曾误判"无法编译 HCU kernel"：根因是旧
+   容器缺 DTK LLVM 包，[build-infra PR #403](https://github.com/flagos-ai/build-infra/pull/403)
+   在 hygon base 镜像补装 clang-18 后，两编译器均可编译 HCU kernel（§1.5）。
 6. **venv 缺 python3-config** 使数据集构建 import 期挂（§2.1）。已落地
-   sysconfig 兜底 + PR #112。
+   sysconfig 兜底 + [MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)。
 7. **datasets/pyarrow 版本对不兼容**——5.0.1 写、≤25 读崩（§5.2）。已规避；
-   版本对已固化进 MLF pyproject datasets 声明（#114 内）。
+   版本对已固化进 MLF pyproject datasets 声明（[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 内）。
 8. **tokenizer 无 eos** 使轨迹准备 TypeError（§5.3）。数据层声明即解决。
 9. **RL 训练 forward 强制 TE**——local 不支持 THD 打包序列（§5.4）。hygon
-   已跑通；local-THD 条件化已上提（MLF PR #116，OPEN），metax 无 vendor TE
-   双编译器实证非阻塞（2026-08-19）。
+   已跑通（vendor TE）；local-THD 条件化已上提
+   （[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)，OPEN）。
 10. **flash_attn 版本串三处不一致**致 dynamic 引擎断言失败（§5.5）。repack
     三处字符串一致即解决。
 11. **modelopt 未入镜像**，post_training 靠 ad-hoc 补装，违反交付目标（§1.3.3）。
-    纳入镜像已决策：进 `[training]` extra（§6）；入镜像单步安装测试待随 app
-    镜像走（矩阵 C#11）。
+    纳入镜像已决策：进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)
+    的 `[training]` extra（§6）；入镜像单步安装测试待随 app 镜像走（矩阵 C#11）。
 
 ## 1. 全局性问题
 
@@ -79,11 +77,11 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
   （`megatron/plugin/utils.py:30`，import 在 try/except 之外）时直接抛
   `ModuleNotFoundError`——wheel-only 的数据集构建必然触发。
 - **原因:** include 范围继承自 NVIDIA 上游 ADLR/Megatron-LM 的
-  `pyproject.toml`（同步 PR #34 引入 0.17.0 后未改动），fork 未检查入口是否随包。
+  `pyproject.toml`（同步 [NVIDIA #34](https://github.com/NVIDIA/Megatron-LM/pull/34) 引入 0.17.0 后未改动），fork 未检查入口是否随包。
 - **解决方案:** 全范围打包（core+training+legacy+rl+post_training+inference），
   顶层入口文件（`gpt_builders` / `mamba_builders` / `model_provider` /
   `pretrain_gpt` / `pretrain_bert` / `pretrain_mamba` / `pretrain_t5` /
-  `pretrain_vlm` / `train_rl`）一并纳入 wheel（MLF PR #107
+  `pretrain_vlm` / `train_rl`）一并纳入 wheel（[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
   feat/wheel-full-scope）。§2~§5 四场景验证均基于该 wheel。
 - **注意事项:** `examples/` 目录不打进 wheel（测试环境文件，如
   `examples/rl/environments/countdown/`，需单独拷贝）；wheel 自带编译扩展
@@ -92,7 +90,7 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
   对 app 镜像无影响，单步安装即完整。
   打包范围的后续演进要检查入口文件是否仍随包。
 - **现在状态:** 已关闭——wheel 按 MLF feat/wheel-full-scope 分支构建，nvidia/metax/
-  ascend 均已复用；PR #107 合并流程待推进。
+  ascend 均已复用；[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) 合并流程待推进。
 
 ### 1.2 未声明运行时依赖（NVIDIA 上游代码缺口）
 
@@ -104,10 +102,10 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
   METADATA 的 `Requires-Dist`（仅 `torch>=2.6.0` / `numpy` /
   `packaging>=24.2` + optional extras）也不在 runtime 镜像内；触发即抛
   `RuntimeError("psutil is not installed, ...")`。
-- **解决方案:** 反馈本 fork 在 `pyproject.toml` 补声明（psutil → PR #106）；
+- **解决方案:** 反馈本 fork 在 `pyproject.toml` 补声明（psutil → [MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)）；
   build-infra 侧在 runtime 依赖面兜底。
-- **现在状态:** psutil 已提交（PR #106，OPEN）。RL 场景的依赖缺口清单见 §5.1
-  （tensorboard / wandb / httpx 等一组，已收进 `[rl]` extra 上提，MLF PR #114）。
+- **现在状态:** psutil 已提交（[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)，OPEN）。RL 场景的依赖缺口清单见 §5.1
+  （tensorboard / wandb / httpx 等一组，已收进 `[rl]` extra 上提，[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)）。
 
 ### 1.3 vendor 包问题（逐包归纳全部修改）
 
@@ -158,7 +156,8 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   antlr4-python3-runtime-4.9.3/nvidia-ml-py/omegaconf/scipy 随装，torch
   2.9.0 落位未动），**未入镜像**——与其余场景的"单步安装 wheel 即可用"
   不同，违反交付目标。
-- **现在状态:** 已决策进 `[training]` extra（§6 已决策段）；入镜像单步安装测试随 app 镜像走。
+- **现在状态:** 已决策进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)
+  的 `[training]` extra（§6 已决策段）；入镜像单步安装测试随 app 镜像走。
 
 #### 1.3.4 triton 3.5.1+das.opt1.dtk2604.torch290（torch 依赖剥除）
 
@@ -195,7 +194,7 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   仅测试用途，非仓库改动）绕过。修复方向不变：`jit_fuser` 改为惰性装饰
   （或 `enable_jit_fuser` 默认 no-op，由训练入口显式开启）——落地后
   `--disable-jit-fuser` 才真正生效，flagtree/triton 两线均不需要补丁。
-- **现在状态:** 已上提本 fork（MLF #121 issue → PR #122，OPEN）。
+- **现在状态:** 已上提本 fork（[MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) issue → [PR #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)，OPEN）。
 
 ### 1.5 工具链：编译器可用性与 DTK LLVM 前置（flagtree"屏蔽"已修正）
 
@@ -203,7 +202,7 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   `make_amdgcn()` 调 clang 子进程，HCU 的 `-mllvm` flags 被拒 → clang
   静默退出、无产物 → 误导性 `HSACOError("File operation failed: ...")`。
 - **原因（误判根因）:** 失败来自**旧容器**——base 镜像未装 DTK LLVM 包。
-  PR #403 在 hygon base 镜像加入 DTK LLVM（`dtk_llvm.run`，`base/hygon-dtk26.04`
+  [build-infra PR #403](https://github.com/flagos-ai/build-infra/pull/403) 在 hygon base 镜像加入 DTK LLVM（`dtk_llvm.run`，`base/hygon-dtk26.04`
   内 `bash /llvm.run --dtk_dir /opt/dtk-26.04`），提供 clang-18 于
   `/opt/dtk-26.04/aillvm/bin/clang-18`——这是两编译器自动可用的前置。
 - **机制:** flagtree 3.6.0（`triton/backends/hcu/compiler_hcu.py`）与 vendor
@@ -215,16 +214,15 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   下 flag_gems.mm / addmm / mm-bf16 全过（max_abs_diff=0.0）；早前手写 kernel
   的 52.96 差异是 kernel 自身 bug，非编译器问题。
 - **注意事项:**
-  - vendor triton 3.3.0 → 3.5.1（PR #404 升级）；"`llvm.translate_to_asm()`
+  - vendor triton 3.3.0 → 3.5.1（[build-infra PR #404](https://github.com/flagos-ai/build-infra/pull/404) 升级）；"`llvm.translate_to_asm()`
     直出码、无 clang 子进程"是 3.3.0 的机制，3.5.1 调**外部 clang 子进程**——
     编译器机制结论不跨版本移植。
   - flagtree 唯一曾真实阻塞 = torch 落位 bug（§1.3.4）：triton 3.5.1 wheel
     声明 torch 依赖，捎带致 site-packages 无 torch → 默认 `compiler flagtree`
     下 `No module named 'torch'`。已由 repack 去掉 torch 依赖修复。
-  - 验证面规则：每个后端 × 每个编译器都要验证；编译器结论不跨平台移植。
-    镜像内置 `compiler` 函数（来自 BASH_ENV）切换编译器。
-- **现在状态:** 两编译器皆可用（DTK LLVM 包 + triton repack 后）；"默认改
-  vendor triton / 移除 flagtree"不再需要。
+  - 验证面规则：每个后端 × 每个编译器都要验证；镜像内置 `compiler` 函数
+    （来自 BASH_ENV）切换编译器。
+- **现在状态:** 两编译器皆可用（DTK LLVM 包 + triton repack 后）。
 
 ### 1.6 环境：DTK 已内置，无需 source env.sh
 
@@ -271,14 +269,14 @@ checkout；`megatron.training` 已在 wheel 中，§1.1）。**3.5.1 复验通�
 - **解决方案:** `compile_helpers()` 改用 `sysconfig.get_config_var("EXT_SUFFIX")`
   （标准库，任何 Python 环境都有），替代 `subprocess.check_output([...])`。
   两路落地、最终落成同一段代码形态，不依赖 MLF merge 节奏：
-  - **MLF 侧（PR 已提交）:** PR #112（与 psutil PR #106 同类的上游修复）。
+  - **MLF 侧（PR 已提交）:** [MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)（与 psutil [MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) 同类的上游修复）。
   - **build-infra 侧（已落地）:** wheel 是 build-infra 自产，沿用现有
     on-the-fly patch + grep gate 模式新增
     `packaging/megatron/builder/patch-compile-helpers-sysconfig.py`，在 wheel
     构建时对 checkout 打同样的 sysconfig 补丁。脚本幂等且自 gate：已是
-    sysconfig 形式 → no-op（PR #112 合并后自动跳过）；仍是 python3-config
+    sysconfig 形式 → no-op（[MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112) 合并后自动跳过）；仍是 python3-config
     形式 → 就地替换；源码演进（两种形式都找不到）→ exit 1 硬失败，补丁不可能静默失效。
-- **现在状态:** 已落地（build-infra 兜底）；PR #112 待合并。
+- **现在状态:** 已落地（build-infra 兜底）；[MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112) 待合并。
 
 ## 3. post_training
 
@@ -295,7 +293,7 @@ nvidia-modelopt 0.45.0 满足。
 - **注意:** modelopt 是唯一有 vendor 变体的 HARD 依赖；其余后端成功率不确定（§1.3.3）。
 - **flagtree 复验（2026-08-17）：** 同 driver 在 `compiler flagtree` 下直跑
   exit 0（DummyModel + `simple_generate`，不编译 triton kernel
-  ——编译器无关路径）；F 列 ✅。
+  ——编译器无关路径）。
 
 ## 4. inference
 
@@ -314,7 +312,7 @@ NullTokenizer 无 detokenize，复验 driver 补最小实现（controller.detoke
   DynamicInferenceEngine → 回到 §5.5 的 flash-attn 依赖。
 - **flagtree 复验（2026-08-17）：** 同 driver（3 请求 × 8 tokens，legacy
   static）在 `compiler flagtree` 下直跑 exit 0——静态路径不编译 triton kernel，
-  编译器无关；F 列 ✅。
+  编译器无关。
 
 ## 5. rl
 
@@ -327,7 +325,7 @@ Coordinator: shut down successfully"。rl 四步（rollout → logprob → 训�
 **前提:** 补装 §5.1 未声明依赖（测试用途，aliyun）+ §5.4 vendor TE。
 **flagtree 复验（2026-08-17）：** `compiler flagtree` 下同参数全链直跑
 exit 0（rollout → logprob → 2 训练迭代 → 干净关闭；前提 jit_fuser noop，
-§1.4）。TE triton kernel 在 flagtree 3.6.0 下编译正常；F 列 ✅。
+§1.4）。TE triton kernel 在 flagtree 3.6.0 下编译正常。
 **配方相应改动:** `--transformer-impl local → transformer_engine`、删
 `--attention-backend unfused`（local 时代 DCU 基线）。
 
@@ -383,7 +381,7 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **版本基准（2026-08-16 定）:** 容器内手补包只允许测试用途；版本以 MLF pin
   为准（tensorboard 2.19.0 / pydantic 2.12.5），已把容器实测版（2.21.0 /
   2.13.4）降回。公共包安装一律走 aliyun 镜像（pypi.org 慢）。
-- **现在状态:** 已上提本 fork（MLF PR #114，`[rl]` extra 15 包全 pin，OPEN）。
+- **现在状态:** 已上提本 fork（[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，`[rl]` extra 15 包全 pin，OPEN）。
 
 ### 5.2 datasets / pyarrow 版本兼容缺陷（2026-08-17 实测）
 
@@ -401,7 +399,7 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **对 CI 的意义:** MLF grpo 测试的预生成 artifact 若用同一
   (datasets 5.0.1, pyarrow ≤25) 组合生成会踩同坑——CI 需固定经过实测的
   (datasets, pyarrow) 版本对。
-- **现在状态:** 已规避；版本对已固化进 MLF pyproject datasets 声明（#114 内）。
+- **现在状态:** 已规避；版本对已固化进 MLF pyproject datasets 声明（[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 内）。
 
 ### 5.3 tokenizer 无 eos
 
@@ -432,8 +430,7 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **平台依赖警告:** 并不是所有后端都有厂商提供的 TE——无 vendor TE 的平台要么等 MLF 支持 local 的 THD 打包序列训练 forward，要么平台侧自行构建/
   适配 TE。
 - **现在状态:** hygon 已跑通（vendor TE repack 后单步安装即用，§1.3.2）；
-  local-THD 条件化已上提（MLF PR #116，OPEN）；metax 无 vendor TE
-  双编译器实证非阻塞（2026-08-19）。
+  local-THD 条件化已上提（[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)，OPEN）。
 
 ### 5.5 flash_attn：RL dynamic 引擎硬依赖 ≥2.7.3
 
@@ -468,21 +465,6 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - issue [#121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) →
   PR [#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)——§1.4
   jit_fuser import 期惰性装饰（flagtree 四场景实证支撑，2026-08-17 §1.4）
-
-**待反馈至本 fork（未上提）:**
-- §5.5 flash_attn dynamic 引擎硬依赖 ≥2.7.3——建议软化（megatron.py:87 可配置
-  fallback）；workaround 栈已定：vendor 包 → MLF 内置 → 复用 flag_gems
-  varlen paged（fork vllm-plugin-FL `AttentionFLBackend` 生产模板）
-
-**已决策（2026-08-17，阶段二）：**
-- §1.3.3 modelopt 纳入镜像——**进 `[training]` extra**（公共 PyPI 包）；
-  enflame vendor 变体"见到了就装，可要可不要，不担心"
-- §5.2 (datasets, pyarrow) 实测版本对——已随 PR #114 固化进 MLF pyproject
-  datasets 声明，不进 configs.yaml
-- 交付形态——两应用镜像 `megatron-training-{vendor}-{backend}` /
-  `megatron-rl-{vendor}-{backend}`（详见阶段二状态记录）
-- apex 纳入 hygon runtime——**已落地**（build-infra PR #422 merged，wheel
-  已传 flagos-pypi-hygon）
 
 **相关文档:** `packaging/megatron/builder/report-megatron-0.17.1.md`（构建与依赖面；
 依赖处理并入其 §1/§3）。
