@@ -116,6 +116,48 @@ flash-attn，vendor 包路线关闭。
 映射 `flash_decode_and_prefill` 的 prefill/decode 分支
 （paged kv 需先还原为连续 TND 布局），方案待定。
 
+## CANN 8.5.0（hw26，2026-08-21）
+
+验证在 910B4-1（aarch64，CANN 8.5.0，driver 25.5.0）上进行，单卡
+（ASCEND_VISIBLE_DEVICES=0），runtime 镜像
+`flagos-runtime-ascend-cann8.5.0:2.1.2`，Python 3.11，torch 2.9.0+cpu
++ torch-npu 2.9.0。验证周期为 2026-08-21。编译器为 flagtree
+0.6.0+ascend3.2（模块版本 triton 3.2.0）与 vendor triton 3.2.0 +
+triton_ascend 3.2.0（模块版本 3.2.0）。两编译器切换使用 runtime
+镜像内置的 `compiler` 命令，下文不重复。
+
+**wheel:** 同 CANN 9.0.0 段（`0.17.1+fl.20260818.g48b97a13f1bb`，
+cp311 aarch64，`flagos-pypi-ascend`），装入 `[training]` extra。
+modelopt 0.45.0 随 extra 装入（实测确认），post_training 无需
+CANN 9.0.0 的临时补装。
+
+**用法前提：torch-first 导入顺序** 同 CANN 9.0.0（见上节）。
+
+### training（双编译器 ✅）
+
+mock data 5 iter，入口 `python -m pretrain_gpt`。两线均 exit 0，
+loss 逐 iter 两线逐位一致，validation test set 均 1.084173E+01——
+与 CANN 9.0.0 验证逐位一致（mock 数据确定性复现，跨 CANN 版本成立）。
+参数集同 CANN 9.0.0。
+
+### post_training（双编译器 ✅）
+
+DummyModel + `simple_generate`，输出 shape=(1, 8)，两线均 exit 0。
+必带 `--no-persist-layer-norm`（同 CANN 9.0.0）。
+
+### inference（双编译器 ✅）
+
+legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。动态引擎
+路径依赖 flash-attn，本平台不可用（见 RL 节）。
+
+### RL（全链 E2E 暂停）
+
+同 CANN 9.0.0：910B4 无 flash-attn，三处代码级障碍
+（[MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119) /
+[#120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) /
+[FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)）
+未合并，路径未验证，细节见 CANN 9.0.0 段 RL 节。
+
 ## 后续追踪
 
 **待合并（等上游 merge）:**
