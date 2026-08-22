@@ -1,0 +1,53 @@
+#!/bin/bash
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# megatron-train — the single training command for the megatron-training app
+# image. Sources the baked vendor env (the full CANN / DTK / NEUWARE
+# LD_LIBRARY_PATH lives in /etc/profile.d, NOT in the image ENV — a plain
+# `docker run <image> python pretrain_gpt.py ...` bypasses bash and misses
+# it), then execs the training entry (pretrain_gpt.py) with the caller's
+# arguments passed through verbatim.
+#
+#   docker run <image>                        -> training argument list (--help)
+#   docker run <image> megatron-train <args>  -> training run
+#   docker run <image> bash                   -> normal shell (CMD, not
+#                                                ENTRYPOINT, like vllm)
+set -euo pipefail
+
+[ -r /etc/bash_env.sh ] && . /etc/bash_env.sh
+
+# The full-scope wheel installs the top-level entry scripts (pretrain_gpt.py,
+# ...) in site-packages as siblings of megatron/. Resolve that
+# dir from the installed package so the launcher is Python-version agnostic
+# (runtimes span 3.10 / 3.11 / 3.12).
+SP_DIR="$(
+  /flagos/bin/python -c \
+    'import megatron, os; print(os.path.dirname(os.path.dirname(megatron.__file__)))'
+)"
+ENTRY="${SP_DIR}/pretrain_gpt.py"
+
+if [ ! -f "${ENTRY}" ]; then
+  echo "megatron-train: ${ENTRY} not found" >&2
+  echo "the installed megatron-core wheel must ship the top-level entry" >&2
+  echo "scripts (full-scope packaging, MLF PR #107)" >&2
+  exit 1
+fi
+
+# No args -> argparse prints the training argument list and exits 0.
+if [ "$#" -eq 0 ]; then
+  exec /flagos/bin/python "${ENTRY}" --help
+fi
+
+exec /flagos/bin/python "${ENTRY}" "$@"

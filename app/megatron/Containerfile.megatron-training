@@ -43,6 +43,10 @@
 #   2026-08-18   Split from Containerfile (app decision D5): this is
 #                the training app; the wheel install selects the
 #                [training] extra. Containerfile.rl is the other half.
+#   2026-08-22   megatron-train launcher (COPY + CMD default): sources the
+#                baked vendor env before exec'ing the training entry, so a
+#                plain `docker run <image>` shows the training arguments
+#                instead of silently losing the vendor env.
 # TODO
 #   - Publish-time verification (torch version, megatron.core import).
 # ============================================================
@@ -111,6 +115,22 @@ RUN if [ -n "${APP_ENV}" ]; then \
       printf '%s\n' "${APP_ENV}" > /etc/profile.d/app_env.sh; \
     fi
 
+# --- Training launcher ------------------------------------------
+
+# megatron-train: the single training command for this image. Sources the
+# baked vendor env (/etc/bash_env.sh) then execs the training entry
+# (pretrain_gpt.py) with user args verbatim — a non-bash start (docker run
+# overrides CMD, not ENTRYPOINT) would otherwise miss the profile.d-only
+# LD_LIBRARY_PATH. CMD, not ENTRYPOINT, so `docker run <image> bash` enters
+# a normal shell (same constraint as the vllm app image).
+COPY app/megatron/megatron-train /usr/local/bin/megatron-train
+RUN chmod +x /usr/local/bin/megatron-train
+
 # --- Runtime --------------------------------------------------
 
 WORKDIR /workspace
+
+# Default CMD: no args -> the launcher prints the training argument list
+# (--help, exit 0). Override with e.g.
+# `docker run <image> megatron-train --model-type GPT <...>`.
+CMD ["megatron-train"]
