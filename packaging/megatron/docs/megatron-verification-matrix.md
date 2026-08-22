@@ -73,7 +73,7 @@
 | # | 修复项 | 现状（workaround） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
 | 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
-| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration shim 选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError | MLF | 已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（2026-08-22，mlu 平台原生注册，CUDA 前置选中）；已并入集成分支 ci/merge-105-106-107-114 并重建 wheel，容器侧 shim 已去，training/post_training/inference 双后端无 shim 重验全 ✅ | 待 #125 合入 MLF main（合入后仅文档收尾） |
+| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration 桥接选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError | MLF | 已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（2026-08-22，mlu 平台原生注册，CUDA 前置选中）；已并入集成分支 ci/merge-105-106-107-114 并重建 wheel，无需容器侧补丁，training/post_training/inference 双后端复验全 ✅ | 待 #125 合入 MLF main（合入后仅文档收尾） |
 
 ### C. 决策未决 / 工程化
 
@@ -101,7 +101,7 @@
 - **cambricon**（training / post_training×inference，NEUWARE 4.4.3+4.7.2
   双后端，triton-only；RL 两端暂缓；首例平台抽象缺口——megatron platform
   registry 无 mlu 平台，已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-  并入集成分支 wheel 关闭，容器侧 shim 已去，见跟踪表 B#11）：
+  并入集成分支 wheel 关闭，无需容器侧补丁，见跟踪表 B#11）：
   [[megatron-cambricon-e2e.md]]
 - **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：
   hygon 验证用的全范围 wheel 无此问题，merged wheel 引入 config dataclass +
