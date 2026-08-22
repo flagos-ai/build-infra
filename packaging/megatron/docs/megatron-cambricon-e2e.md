@@ -109,4 +109,4 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 - modelopt `[torch]` 关键包升级 hazard（#11 现状）随 [MLF #114]
   (https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 合并进入 app
   image 构建面：cambricon（torch 2.7.1）需按 torch 版本分派或加保护
-- 两个验证容器仍在节点上（占 NEUWARE 4.4.3/4.7.2 后端），清理前需用户确认
+- 两个验证容器已清理（2026-08-22，占 NEUWARE 4.4.3/4.7.2 后端）
