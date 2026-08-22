@@ -55,7 +55,12 @@ cpu/cuda/musa/txda/npu/enflame/kunlunxin）→ cuda 平台经 gpu_migration shim
 容器侧 `cambricon_shim.py`（2066 字节）+ `.pth`（`import cambricon_shim`）三桥承载。
 **2066 字节 shim 原样移植 4.4.3→4.7.2，torch 2.7.1 与 2.11.0
 语义全等**（两者均无 `mlu.default_generator` attr，三桥验证一致）。
-上游候选反馈项（MLF，待提，见矩阵跟踪表 #11）。
+上游修复已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+（2026-08-22）：PlatformMLU 原生注册，继承 PlatformCUDA（gpu_migration
+桥接），`is_available()` 强制设备初始化，MLU 注册/选中均在 CUDA 之前；
+含 4 个单测。容器内已用源码树 shadow 验证无 shim 下 post_training
+smoke EXIT=0（`mlu Selected`）。shim 在 #125 merge + 重建 wheel 前
+继续承载。
 
 其余配方参数缺口（merged wheel config dataclass，与 metax/hygon 同源）：
 `--max-position-embeddings`（arguments.py:1131 默认 None 断言）、
@@ -73,13 +78,15 @@ METADATA 核心依赖 `torch>=2.8`——**0.45.0 根本没有 `[torch]` extra**
 （`Provides-Extra` = onnx/hf/puzzletron/dev-*；`nvidia-modelopt[torch]==0.45.0`
 pip 仅警告 "does not provide the extra" 后按同解析继续）。
 
-- **4.4.3（torch 2.7.1+cpu < 2.8）**：全依赖解析升级 torch→2.13.0 + 完整
-  CUDA toolkit + triton 3.7.1，会替换 vendor torch、破坏 torch-mlu 1.29.2
-  （PEP 440 local version：`2.7.1+cpu` 不满足 `>=2.8`）。处置：`--no-deps`
-  纯 wheel + 手动补齐纯 Python 依赖（ninja nvidia-ml-py packaging setuptools
-  tqdm PyYAML omegaconf pulp pydantic regex rich safetensors scipy requests
-  huggingface_hub），torch 未动。`import modelopt.torch` OK（仅
-  DeprecationWarning "will drop torch<2.9 support in a future release"）。
+- **4.4.3（torch 2.7.1+cpu < 2.8）**：先实测全依赖装
+  `nvidia-modelopt[torch]==0.45.0`——pip 按同解析继续，解析出 torch→2.13.0 +
+  完整 CUDA toolkit 13.0.3 + triton 3.7.1（PEP 440 local version：`2.7.1+cpu`
+  不满足 `>=2.8`），下载 CUDA wheel 时 OOM 被杀（exit 137，未替换任何关键
+  包）——hazard 为实证非推断。处置：`--no-deps` 纯 wheel + 手动补齐纯 Python
+  依赖（ninja nvidia-ml-py packaging setuptools tqdm PyYAML omegaconf pulp
+  pydantic regex rich safetensors scipy requests huggingface_hub），torch
+  未动。`import modelopt.torch` OK（仅 DeprecationWarning "will drop torch<2.9
+  support in a future release"）。
 - **4.7.2（torch 2.11.0+cpu ≥ 2.8）**：全依赖安装安全，torch/torch-mlu/
   flag_gems 装后复核未变；requests + huggingface_hub 为 modelopt.torch
   plugins import 所需但未在声明依赖中，手动补装。
@@ -104,11 +111,17 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 
 ## 后续追踪
 
-- 平台抽象缺口（#11）已实证待提上游：提 MLF 后容器侧 shim 可取消，重跑
+- 平台抽象缺口（#11）已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+  （2026-08-22）：merge 后去容器侧 shim、重建 cambricon wheel
+  （megatron-wheel.yml cp310/cp312 ×2 → flagos-pypi-cambricon）、重跑
   training/post_training/inference 更新矩阵
 - modelopt `[torch]` 关键包升级 hazard 已随本次 wheel 进入 app image 构建面：
   本次 wheel 由集成分支 ci/merge-105-106-107-114 构建（含 [MLF #114]
   (https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 的 `[training]` extra）。
-  实测未走 `megatron_core[training]` 安装路径（按不升级关键包约束规避），hazard
-  由 modelopt 0.45.0 元数据解析推断；app image 构建需按 torch 版本分派或加保护
+  **hazard 实证（非仅元数据推断）**：4.4.3 上实测全依赖装
+  `nvidia-modelopt[torch]==0.45.0`（即 `[training]` extra 声明的同一依赖）——
+  pip 解析出 torch 2.13.0 + CUDA toolkit 13.0.3 + triton 3.7.1 并开始下载，
+  OOM 被杀（exit 137）未完成替换，随后退回 `--no-deps` + 手动补依赖装好。
+  `megatron_core[training]` 路径本身未装；app image 构建需按 torch 版本分派
+  或加保护
 - 两个验证容器已清理（2026-08-22，占 NEUWARE 4.4.3/4.7.2 后端）
