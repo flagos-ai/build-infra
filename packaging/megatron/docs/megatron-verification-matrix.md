@@ -31,8 +31,8 @@
 | 英伟达   | CUDA 13.3     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
 | 昇腾     | CANN 8.5.0    | ✅      | ✅      | ⬜          | ⬜          | ✅        | ✅        | ✅      | ✅      |
 | 昇腾     | CANN 9.0.0    | ✅      | ✅      | ⬜          | ⬜          | ✅        | ✅        | ✅      | ✅      |
-| 寒武纪   | NEUWARE 4.4.3 | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
-| 寒武纪   | NEUWARE 4.7.2 | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
+| 寒武纪   | NEUWARE 4.4.3 | ✅      | —       | ⬜          | —           | ✅        | —         | ✅      | —       |
+| 寒武纪   | NEUWARE 4.7.2 | ✅      | —       | ⬜          | —           | ✅        | —         | ✅      | —       |
 | 燧原     | TOPS 1.9.10   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 燧原     | TOPS 1.10.6   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
 | 海光     | DTK 26.04     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
@@ -73,12 +73,13 @@
 | # | 修复项 | 现状（workaround） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
 | 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
+| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration shim 选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError。容器侧三桥 shim（gpu_migration + RNG 设备初始化 + device_name→mlu）承载 | MLF | 待提 | 去 shim、平台原生注册 |
 
 ### C. 决策未决 / 工程化
 
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
-| 11 | modelopt 入镜像 | 随 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) `[training]` extra 声明（`nvidia-modelopt[torch]==0.45.0`），合入后随 extra 进镜像 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已定性，等 [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 合并 | 重建 wheel → 重跑受影响场景 → 更新矩阵 |
+| 11 | modelopt 入镜像 | 随 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) `[training]` extra 声明（`nvidia-modelopt[torch]==0.45.0`），合入后随 extra 进镜像。**⚠ 关键包升级 hazard（cambricon 实证）**：0.45.0 无 `[torch]` extra（pip 仅警告后继续），核心约束 `torch>=2.8` 在 torch 2.7.1（NEUWARE 4.4.3）下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 会替换 vendor torch 破坏 torch-mlu 1.29.2；app image 构建在 cambricon 需按 torch 版本分派或声明 `<2.8` 前置 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已定性，等 [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 合并 | 重建 wheel → 重跑受影响场景 → 更新矩阵；app-image 侧补 cambricon torch 保护 |
 | 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | Ascend ≤950 无 flash_attn，RL 暂停根因；团队倾向用 Verl 承载 ascend 强化学习服务，MLF 侧 RL 方案维持待定 | 用户权衡 | 方案待定 | 定案后更新矩阵 RL 列 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 
@@ -97,6 +98,10 @@
   上提 + 全链 E2E 暂停）：[[megatron-ascend-e2e.md]]
 - **metax**（training / post_training×inference / RL，实证链终止 2026-08-19，
   17 障碍全为本地代码/参数/harness 缺陷）：[[megatron-metax-e2e.md]]
+- **cambricon**（training / post_training×inference，NEUWARE 4.4.3+4.7.2
+  双后端，triton-only；RL 两端暂缓；首例平台抽象缺口——megatron platform
+  registry 无 mlu 平台，容器侧 shim 三桥承载，见跟踪表 #11）：
+  [[megatron-cambricon-e2e.md]]
 - **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：
   hygon 验证用的全范围 wheel 无此问题，merged wheel 引入 config dataclass +
   `ArgumentGroupFactory` 自动生成参数，`--lr`（`SchedulerConfig`）与
