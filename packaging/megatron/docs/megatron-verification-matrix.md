@@ -79,7 +79,7 @@
 
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
-| 11 | modelopt 入镜像 | 随 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) `[training]` extra 声明（`nvidia-modelopt[torch]==0.45.0`），合入后随 extra 进镜像。**⚠ 关键包升级 hazard（cambricon 实证）**：0.45.0 无 `[torch]` extra（pip 仅警告后继续），核心约束 `torch>=2.8` 在 torch 2.7.1（NEUWARE 4.4.3）下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 会替换 vendor torch 破坏 torch-mlu 1.29.2；app image 构建在 cambricon 需按 torch 版本分派或声明 `<2.8` 前置 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已定性，等 [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 合并 | 重建 wheel → 重跑受影响场景 → 更新矩阵；app-image 侧补 cambricon torch 保护 |
+| 11 | modelopt 入镜像 | `[training]` extra 声明（`nvidia-modelopt[torch]==0.45.0`）已随本次 wheel（集成分支 ci/merge-105-106-107-114 构建，含 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)）进 metadata，app image 构建面已是实况。**⚠ 关键包升级 hazard（cambricon 实证）**：0.45.0 无 `[torch]` extra（pip 仅警告后继续），核心约束 `torch>=2.8` 在 torch 2.7.1（NEUWARE 4.4.3）下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 会替换 vendor torch 破坏 torch-mlu 1.29.2；`megatron_core[training]` 安装路径未实测（按不升级约束规避），app image 构建需按 torch 版本分派或声明 `<2.8` 前置 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已定性（extra 已在 wheel） | app-image 实建 cambricon 前补 torch 保护；#114 合 main 仅影响未来重建 wheel |
 | 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | Ascend ≤950 无 flash_attn，RL 暂停根因；团队倾向用 Verl 承载 ascend 强化学习服务，MLF 侧 RL 方案维持待定 | 用户权衡 | 方案待定 | 定案后更新矩阵 RL 列 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 

@@ -106,7 +106,9 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 
 - 平台抽象缺口（#11）已实证待提上游：提 MLF 后容器侧 shim 可取消，重跑
   training/post_training/inference 更新矩阵
-- modelopt `[torch]` 关键包升级 hazard（#11 现状）随 [MLF #114]
-  (https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 合并进入 app
-  image 构建面：cambricon（torch 2.7.1）需按 torch 版本分派或加保护
+- modelopt `[torch]` 关键包升级 hazard 已随本次 wheel 进入 app image 构建面：
+  本次 wheel 由集成分支 ci/merge-105-106-107-114 构建（含 [MLF #114]
+  (https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 的 `[training]` extra）。
+  实测未走 `megatron_core[training]` 安装路径（按不升级关键包约束规避），hazard
+  由 modelopt 0.45.0 元数据解析推断；app image 构建需按 torch 版本分派或加保护
 - 两个验证容器已清理（2026-08-22，占 NEUWARE 4.4.3/4.7.2 后端）
