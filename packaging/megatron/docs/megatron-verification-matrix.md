@@ -73,13 +73,13 @@
 | # | 修复项 | 现状（workaround） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
 | 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
-| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration shim 选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError。容器侧三桥 shim（gpu_migration + RNG 设备初始化 + device_name→mlu）承载 | MLF | 已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（2026-08-22，mlu 平台原生注册，CUDA 前置选中） | 待 merge；merge 后去 shim、重建 cambricon wheel 重验 |
+| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration shim 选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError | MLF | 已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（2026-08-22，mlu 平台原生注册，CUDA 前置选中）；已并入集成分支 ci/merge-105-106-107-114 并重建 wheel，容器侧 shim 已去，training/post_training/inference 双后端无 shim 重验全 ✅ | 待 #125 合入 MLF main（合入后仅文档收尾） |
 
 ### C. 决策未决 / 工程化
 
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
-| 11 | modelopt 入镜像 | `[training]` extra 声明（`nvidia-modelopt[torch]==0.45.0`）已随本次 wheel（集成分支 ci/merge-105-106-107-114 构建，含 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)）进 metadata，app image 构建面已是实况。**⚠ 关键包升级 hazard（cambricon 实证，非仅推断）**：0.45.0 无 `[torch]` extra（pip 仅警告后继续），核心约束 `torch>=2.8` 在 torch 2.7.1（NEUWARE 4.4.3）下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 会替换 vendor torch 破坏 torch-mlu 1.29.2；4.4.3 实测全依赖装 `nvidia-modelopt[torch]==0.45.0` 时 OOM 被杀（exit 137，未完成替换），后以 `--no-deps`+手动补依赖装好；`megatron_core[training]` 路径本身未装，app image 构建需按 torch 版本分派或声明 `<2.8` 前置 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已定性（extra 已在 wheel） | app-image 实建 cambricon 前补 torch 保护；#114 合 main 仅影响未来重建 wheel |
+| 11 | modelopt 入镜像 | 当前 wheel `[training]` extra 声明 `nvidia-modelopt[torch]==0.43.0`（无 `[torch]` extra，pip 仅警告后继续；核心约束 `torch>=2.6`），cambricon 双后端（torch 2.7.1/2.11.0）单步 `megatron-core[training]` 安装实测安全：modelopt 0.43.0 + 完整闭包就位，关键包（torch/torch-mlu/triton/flag_gems）复核未变 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已实证（0.43.0 安全） | app-image 实建 cambricon 可单步装；**历史 hazard（0.45.0 时代，不再适用）**：旧 extra 曾声明 0.45.0（约束 `torch>=2.8`），4.4.3 下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 替换 vendor torch，实测下载阶段 OOM（exit 137）；未来抬 modelopt 版本先核 torch 约束与 `[torch]` extra |
 | 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | Ascend ≤950 无 flash_attn，RL 暂停根因；团队倾向用 Verl 承载 ascend 强化学习服务，MLF 侧 RL 方案维持待定 | 用户权衡 | 方案待定 | 定案后更新矩阵 RL 列 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 
@@ -100,7 +100,8 @@
   17 障碍全为本地代码/参数/harness 缺陷）：[[megatron-metax-e2e.md]]
 - **cambricon**（training / post_training×inference，NEUWARE 4.4.3+4.7.2
   双后端，triton-only；RL 两端暂缓；首例平台抽象缺口——megatron platform
-  registry 无 mlu 平台，容器侧 shim 三桥承载，见跟踪表 #11）：
+  registry 无 mlu 平台，已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+  并入集成分支 wheel 关闭，容器侧 shim 已去，见跟踪表 B#11）：
   [[megatron-cambricon-e2e.md]]
 - **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：
   hygon 验证用的全范围 wheel 无此问题，merged wheel 引入 config dataclass +

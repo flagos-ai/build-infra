@@ -8,23 +8,26 @@
 | NEUWARE 4.7.2 | `flagos-runtime-cambricon-neuware4.7.2:2.1.2` | 3.12 | 2.11.0+cpu | 1.33.1+torch2.11.0 | 3.4.0+mlu2.1.1 | 5.3.4 |
 
 megatron-core 安装形态为 merged wheel
-`0.17.1+fl.20260818.g48b97a13f1bb` 单步安装——该 wheel 来自 MLF 集成分支
-ci/merge-105-106-107-114（合入四个 PR）：
+`0.17.1+fl.20260822.g56acf36bacd1` 单步安装——该 wheel 来自 MLF 集成分支
+ci/merge-105-106-107-114（合入五个 PR）：
 [#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
 [#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
 [#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)。wheel 经
-megatron-wheel.yml 为两后端各构建一次（cp310/cp312），上传至
-flagos-pypi-cambricon。验证周期 2026-08-22，节点为 MLU590-M9DE（8 卡）。
+[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) /
+[#125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（分支头
+`56acf36ba` = merge origin/pr-125）。wheel 经 megatron-wheel.yml 为两后端
+各构建一次（cp310/cp312），上传至 flagos-pypi-cambricon。验证周期
+2026-08-22（含 #125 并入后的无 shim 重验），节点为 MLU590-M9DE（8 卡）。
 
 ## training（2026-08-22，双后端全 ✅）
 
 5-iter pretrain_gpt E2E exit 0（4.4.3 MASTER_PORT=29500 / 4.7.2 29501）。
+无 shim 重验（aggregate wheel）loss 与 shim 时代逐字节一致。
 
-- 4.4.3：iteration 1/5 lm loss **5.989294E+00**（11984.9 ms，首 iter Triton
+- 4.4.3：iteration 1/5 lm loss **5.989294E+00**（9697.1 ms，首 iter Triton
   compile），grad norm 2.730；validation-set 5.972318E+00 | PPL 3.924143E+02；
   test-set 5.973097E+00 | PPL 3.927200E+02
-- 4.7.2：iteration 1/5 lm loss **5.989294E+00**（14371.8 ms），grad norm 2.730；
+- 4.7.2：iteration 1/5 lm loss **5.989294E+00**（14698.9 ms），grad norm 2.730；
   validation-set 5.972326E+00 | PPL 3.924175E+02；test-set 5.973097E+00 |
   PPL 3.927200E+02
 
@@ -33,7 +36,7 @@ flagos-pypi-cambricon。验证周期 2026-08-22，节点为 MLU590-M9DE（8 卡�
 observed 非错误。loss 量级 ~5.97 与 metax 基线 ~1.08E+01 不同——不同
 torch/平台，同样记录为 observed。
 
-## 平台抽象缺口（cambricon 首例，跟踪表 #11）
+## 平台抽象缺口（cambricon 首例，跟踪表 B#11）
 
 **megatron platform registry（platform_register.py）无 mlu 平台**（仅
 cpu/cuda/musa/txda/npu/enflame/kunlunxin）→ cuda 平台经 gpu_migration shim
@@ -58,9 +61,10 @@ cpu/cuda/musa/txda/npu/enflame/kunlunxin）→ cuda 平台经 gpu_migration shim
 上游修复已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
 （2026-08-22）：PlatformMLU 原生注册，继承 PlatformCUDA（gpu_migration
 桥接），`is_available()` 强制设备初始化，MLU 注册/选中均在 CUDA 之前；
-含 4 个单测。容器内已用源码树 shadow 验证无 shim 下 post_training
-smoke EXIT=0（`mlu Selected`）。shim 在 #125 merge + 重建 wheel 前
-继续承载。
+含 4 个单测。**#125 已并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`），
+容器侧 shim + `.pth` 全部移除，三场景无 shim 重验全 ✅**（training /
+post_training / inference 均打印 `mlu Selected`，见下文各节）——shim 不再
+承载，待 #125 合入 MLF main 即完全落地。
 
 其余配方参数缺口（merged wheel config dataclass，与 metax/hygon 同源）：
 `--max-position-embeddings`（arguments.py:1131 默认 None 断言）、
@@ -73,24 +77,20 @@ megatron.post_training.*，checkpointing.py:7 模块级 `import modelopt.torch`�
 exit 0，`output shape = (1, 8)`，0 Traceback。编译器无关路径（sdpa，无
 triton kernel）。
 
-**modelopt 安装关键发现（跟踪表 #11 现状补充）**：`nvidia-modelopt==0.45.0`
-METADATA 核心依赖 `torch>=2.8`——**0.45.0 根本没有 `[torch]` extra**
-（`Provides-Extra` = onnx/hf/puzzletron/dev-*；`nvidia-modelopt[torch]==0.45.0`
-pip 仅警告 "does not provide the extra" 后按同解析继续）。
+**modelopt 依赖面（跟踪表 C#11 现状更新）**：当前 wheel 的 `[training]` extra
+声明 `nvidia-modelopt[torch]==0.43.0`——0.43.0 无 `[torch]` extra（pip 仅
+警告后继续），核心约束 `torch>=2.6`，双后端（torch 2.7.1+cpu / 2.11.0+cpu）
+均满足。单步 `pip install "megatron-core[training]==0.17.1+fl.20260822.g56acf36bacd1"`
+（vendor index 主、aliyun 备）即装齐 modelopt 0.43.0 + 完整闭包，关键包
+（torch/torch-mlu/triton/flag_gems）复核未变，`import modelopt.torch` OK。
 
-- **4.4.3（torch 2.7.1+cpu < 2.8）**：先实测全依赖装
-  `nvidia-modelopt[torch]==0.45.0`——pip 按同解析继续，解析出 torch→2.13.0 +
-  完整 CUDA toolkit 13.0.3 + triton 3.7.1（PEP 440 local version：`2.7.1+cpu`
-  不满足 `>=2.8`），下载 CUDA wheel 时 OOM 被杀（exit 137，未替换任何关键
-  包）——hazard 为实证非推断。处置：`--no-deps` 纯 wheel + 手动补齐纯 Python
-  依赖（ninja nvidia-ml-py packaging setuptools tqdm PyYAML omegaconf pulp
-  pydantic regex rich safetensors scipy requests huggingface_hub），torch
-  未动。`import modelopt.torch` OK（仅 DeprecationWarning "will drop torch<2.9
-  support in a future release"）。
-- **4.7.2（torch 2.11.0+cpu ≥ 2.8）**：全依赖安装安全，torch/torch-mlu/
-  flag_gems 装后复核未变；requests + huggingface_hub 为 modelopt.torch
-  plugins import 所需但未在声明依赖中，手动补装。
 - **规则（用户定）**：关键包（torch/torch-mlu/triton/flag_gems）一律不升级。
+- **历史 hazard（0.45.0 时代，当前 wheel 不再适用）**：旧 wheel 的
+  `[training]` extra 曾声明 `nvidia-modelopt[torch]==0.45.0`（约束
+  `torch>=2.8`），4.4.3（torch 2.7.1+cpu）下全依赖装会解析出 torch 2.13.0 +
+  CUDA toolkit 并替换 vendor torch——实测下载阶段 OOM 被杀（exit 137）。
+  0.43.0 pin 后该路径不存在；若未来 extra 再抬 modelopt 版本，先核其 torch
+  约束与 `[torch]` extra 有无。
 
 ## inference（2026-08-22，双后端全 ✅）
 
@@ -111,17 +111,12 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 
 ## 后续追踪
 
-- 平台抽象缺口（#11）已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-  （2026-08-22）：merge 后去容器侧 shim、重建 cambricon wheel
-  （megatron-wheel.yml cp310/cp312 ×2 → flagos-pypi-cambricon）、重跑
-  training/post_training/inference 更新矩阵
-- modelopt `[torch]` 关键包升级 hazard 已随本次 wheel 进入 app image 构建面：
-  本次 wheel 由集成分支 ci/merge-105-106-107-114 构建（含 [MLF #114]
-  (https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 的 `[training]` extra）。
-  **hazard 实证（非仅元数据推断）**：4.4.3 上实测全依赖装
-  `nvidia-modelopt[torch]==0.45.0`（即 `[training]` extra 声明的同一依赖）——
-  pip 解析出 torch 2.13.0 + CUDA toolkit 13.0.3 + triton 3.7.1 并开始下载，
-  OOM 被杀（exit 137）未完成替换，随后退回 `--no-deps` + 手动补依赖装好。
-  `megatron_core[training]` 路径本身未装；app image 构建需按 torch 版本分派
-  或加保护
-- 两个验证容器已清理（2026-08-22，占 NEUWARE 4.4.3/4.7.2 后端）
+- 平台抽象缺口（#11）已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+  并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`）：无 shim
+  重验 training / post_training / inference 双后端全 ✅（矩阵 B#11 已同步）。
+  #125 上游保持 OPEN，按决策不等待其 merge；合入 main 后仅剩文档表述收尾。
+- modelopt 已随当前 wheel 的 `[training]` extra（0.43.0）实测安全：单步安装、
+  关键包未动（详见上文 modelopt 依赖面）——0.45.0 时代 hazard 不再适用，
+  未来抬 modelopt 版本需先核 torch 约束。
+- 无 shim 重验容器 megatron-noshim-443 / megatron-noshim-472 待清理
+  （占 NEUWARE 4.4.3 / 4.7.2 后端）。
