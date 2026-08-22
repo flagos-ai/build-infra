@@ -132,7 +132,10 @@ jobs:
           # HTTPS_PROXY: route the github.com clone through the HTTP_PROXY
           # secret (never hardcoded). aliyun/flagos/baai are bypassed inside
           # the Containerfile's baked-in NO_PROXY.
+          # --no-cache: the clone layer caches by ref NAME, not content — a
+          # moved branch would otherwise rebuild from stale source.
           docker build \
+            --no-cache \
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg EXTRA_PYPI="${EXTRA_PYPI}" \
             --build-arg MLF_REF="${MLF_REF}" \
