@@ -47,6 +47,8 @@ body reads correctly in both.
 Usage:
   python docs/gen_descriptions.py                    # all langs + plain -> files
   python docs/gen_descriptions.py nvidia-cuda13.3    # one backend, all langs + plain -> stdout
+  python docs/gen_descriptions.py --app-only         # regenerate only the app-image pages (no VERSIONS_DIR)
+  python docs/gen_descriptions.py --app-only --check # compare, exit 1 on drift (hook / CI)
   VERSIONS_DIR=/path python docs/gen_descriptions.py # resolve versions from <dir>/<name>.tsv
 """
 
@@ -637,15 +639,70 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _parse_args(argv: list[str]) -> tuple[bool, bool, list[str]]:
+    """Split CLI flags from positional backend names.
+
+    ``--app-only`` regenerates only the app-image pages (no VERSIONS_DIR needed);
+    ``--check`` compares against existing files and exits 1 on drift (hook / CI).
+    """
+    app_only = check = False
+    names: list[str] = []
+    for a in argv:
+        if a == "--app-only":
+            app_only = True
+        elif a == "--check":
+            check = True
+        elif a.startswith("-"):
+            sys.exit(f"Error: unknown flag '{a}'")
+        else:
+            names.append(a)
+    return app_only, check, names
+
+
 def main():
     root = repo_root()
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
     backends = {b["name"]: b for b in images.get("backends", [])}
 
+    app_only, check, requested = _parse_args(sys.argv[1:])
+
+    if app_only:
+        # Regenerate only the app-image pages (docs/content/{en,zh-cn}/application/).
+        # render_app reads no version TSVs, so VERSIONS_DIR is not required. Run
+        # gen_data.py first so images.yaml reflects the current status matrix.
+        if check:
+            drift = []
+            for lang in LANGS:
+                out_dir = root / "docs" / "content" / lang / "application"
+                for name, entry in backends.items():
+                    for app in entry.get("app", {}).get("images", {}):
+                        path = out_dir / f"{app}-{name}.md"
+                        if not path.is_file() or path.read_text() != render_app(entry, app, lang, "web"):
+                            drift.append(str(path))
+            if drift:
+                print(f"App pages drift: {len(drift)} files differ or are missing:")
+                print("\n".join(f"  {p}" for p in drift))
+                sys.exit(1)
+            print("App pages up to date.")
+            return
+
+        total = 0
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "application"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            n = 0
+            for name, entry in backends.items():
+                for app in entry.get("app", {}).get("images", {}):
+                    (out_dir / f"{app}-{name}.md").write_text(render_app(entry, app, lang, "web"))
+                    n += 1
+                    total += 1
+            print(f"Wrote {n} {lang} app web pages to {out_dir}")
+        print(f"Total: {total} app descriptions")
+        return
+
     vdir = os.environ.get("VERSIONS_DIR")
     versions_dir = Path(vdir).resolve() if vdir else None
 
-    requested = sys.argv[1:]
     if requested:
         if not versions_dir:
             # Spot-check to stdout: every requested backend, every language, every
