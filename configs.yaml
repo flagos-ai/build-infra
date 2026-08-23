@@ -186,6 +186,7 @@ vendors:
         # (build-time torch == runtime torch; see cuda12.8 comment).
         megatron_rl:
           - flash_attn==2.8.3.post1+fl.cu130.torch211
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - CUDA 13.3 (x86_64)
