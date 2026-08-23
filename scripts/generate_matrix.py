@@ -24,13 +24,13 @@ Usage:
     python scripts/generate_matrix.py nvidia-cuda12.8             # base: subset
     python scripts/generate_matrix.py --runtime                    # runtime: all
     python scripts/generate_matrix.py --runtime nvidia-cuda12.8    # runtime: subset
-    python scripts/generate_matrix.py --app vllm-0.24.0 nvidia-cuda12.8  # app: subset
-    python scripts/generate_matrix.py --app megatron-rl            # app: keyed backends
+    python scripts/generate_matrix.py --app vllm0.24.0 nvidia-cuda12.8  # app: subset
+    python scripts/generate_matrix.py --app megatron_rl           # app: keyed backends
 
 --runtime mode pre-computes all docker build args so self-hosted
 runners don't need Python/pyyaml installed.  --app mode is the
 same superset plus the per-backend app-layer env vars
-(configs.yaml env.app.{app}, bare name for vllm-*) serialized as
+(configs.yaml env.app.{app}, bare name for vllm) serialized as
 "KEY=value\n...".  Only backends whose deps_app carries the app
 key are included (key presence = verified in the app's matrix).
 """
@@ -103,8 +103,8 @@ def _runtime_matrix(
     as "KEY=value\\n..." (same format as runtime_env) under ``app_env``,
     and the per-backend app deps from configs.yaml deps_app.{app}
     (space-separated) under ``app_deps``.  ``app`` is a deps_app key —
-    vllm keys are versioned (vllm-0.24.0); env.app keys stay bare
-    ('vllm'), so the env lookup drops a vllm- prefix.
+    vllm keys are versioned (vllm0.24.0); env.app keys stay bare
+    ('vllm'), so the env lookup drops a vllm prefix.
     """
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
     registry = build_config.get("registry") or {}
@@ -158,7 +158,7 @@ def _runtime_matrix(
         app_deps = ""
         if app is not None:
             # env.app keys stay bare app names ('vllm') while deps_app keys
-            # may be versioned ('vllm-0.24.0') — resolve to the bare name.
+            # may be versioned ('vllm0.24.0') — resolve to the bare name.
             env_key = "vllm" if app.startswith("vllm") else app
             app_env = ((backend_info.get("env") or {}).get("app") or {}).get(env_key, {})
             app_env_lines = "\n".join(
@@ -212,7 +212,7 @@ def main():
     parser.add_argument(
         "--app", metavar="APP",
         help="Generate app build matrix for the named app key "
-             "(vllm-0.24.0 / megatron-training / megatron-rl / vllm): "
+             "(vllm0.24.0 / megatron_training / megatron_rl / vllm): "
              "runtime matrix fields + per-backend env.app.{APP} as app_env",
     )
     parser.add_argument(

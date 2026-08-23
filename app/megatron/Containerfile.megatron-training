@@ -13,15 +13,15 @@
 # limitations under the License.
 
 # ============================================================
-# FlagOS Megatron app image — megatron-training
+# FlagOS Megatron app image — megatron_training
 #
 # One of two per-app Containerfiles in this directory (the other is
 # Containerfile.rl). The directory is organized by upstream project
 # (Megatron-LM-FL); the file suffix is the app name, NOT the image
-# name. Images: flagos-app/megatron-training-{vendor}-{backend} and
-# flagos-app/megatron-rl-{vendor}-{backend}.
+# name. Images: flagos-app/megatron_training-{vendor}-{backend} and
+# flagos-app/megatron_rl-{vendor}-{backend}.
 #
-# megatron-training = runtime + wheel, wheel install selecting the
+# megatron_training = runtime + wheel, wheel install selecting the
 # [training] extra (modelopt / tqdm / datasets(+pyarrow) — declared
 # in the MLF pyproject, see the [training] extra there). No vendor-
 # conditional packages on any backend today (configs.yaml deps_app).

@@ -210,36 +210,36 @@ def runtime_packages(spec: dict, flaggems_version: str = "") -> list:
 # embed the app version with no dash; the tag carries the stack version plus,
 # for megatron, the MLF fork version (mlf_version '+' -> '_').
 #
-# vllm is split per repacked version: deps_app keys are 'vllm-<version>'
+# vllm is split per repacked version: deps_app keys are 'vllm<version>'
 # (configs.yaml), and the version segment — not this default — drives the
 # repo name / tag / package string. The bare 'vllm' entry here only supplies
 # the workflow_dispatch default version and the shared launcher / CMD data.
 APP_IMAGE_DEFAULTS = {
-    "megatron-training": {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
-    "megatron-rl":        {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
-    "vllm":               {"app_version": "0.24.0", "fork_version": "", "package": "vllm"},
+    "megatron_training": {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
+    "megatron_rl":       {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
+    "vllm":              {"app_version": "0.24.0", "fork_version": "", "package": "vllm"},
 }
 
 # Launcher-with-args examples for the docs pages, verbatim from the app
 # Containerfile comments (megatron-train --model-type GPT; vllm-serve override
-# --model <path> --port 9000). megatron-rl has no launcher yet — empty list.
+# --model <path> --port 9000). megatron_rl has no launcher yet — empty list.
 APP_LAUNCH_EXAMPLES = {
-    "megatron-training": ["megatron-train", "--model-type", "GPT"],
-    "megatron-rl": [],
+    "megatron_training": ["megatron-train", "--model-type", "GPT"],
+    "megatron_rl": [],
     "vllm": ["vllm-serve", "--model", "<path>", "--port", "9000"],
 }
 
 # Per-app launcher + default CMD, verbatim from the app Containerfiles.
-# megatron-rl has no launcher yet (Containerfile.rl only sets WORKDIR) — the
+# megatron_rl has no launcher yet (Containerfile.rl only sets WORKDIR) — the
 # page renders a placeholder instead.
 APP_LAUNCHERS = {
-    "megatron-training": "megatron-train",
-    "megatron-rl": "",
+    "megatron_training": "megatron-train",
+    "megatron_rl": "",
     "vllm": "vllm-serve",
 }
 APP_CMD_DEFAULTS = {
-    "megatron-training": ["megatron-train"],
-    "megatron-rl": [],  # inherits the runtime image's CMD ["bash"]
+    "megatron_training": ["megatron-train"],
+    "megatron_rl": [],  # inherits the runtime image's CMD ["bash"]
     "vllm": [
         "vllm-serve", "--model", "/data/models/Qwen/Qwen3-4B", "--port", "8031",
         "--gpu-memory-utilization", "0.6", "--enforce-eager", "--trust-remote-code",
@@ -273,21 +273,21 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     carry the exact Harbor tag, the rest get the workflow-default derivation),
     the published status, and the launcher / default CMD for the docs page.
 
-    App keys are 'megatron-training' / 'megatron-rl' / 'vllm-<version>' — vllm
-    is split per repacked version (configs.yaml deps_app.vllm-<version>), and
+    App keys are 'megatron_training' / 'megatron_rl' / 'vllm<version>' — vllm
+    is split per repacked version (configs.yaml deps_app.vllm<version>), and
     the key's version segment drives the vllm repo name / tag / package string.
-    megatron repos are named {app}_{app_version}-{vendor}-{backend} (underscore
-    app name, version embedded) and tagged {stack}-{fork_version}; vllm repos
-    are named vllm{vllm_version}-{vendor}-{backend} and tagged {stack} (a
-    non-empty plugin_fl_version input would append -{fork} to the tag).
+    megatron repos are named {app}{app_version}-{vendor}-{backend} (app name +
+    version, no separator) and tagged {stack}-{fork_version}; vllm repos are
+    named vllm{vllm_version}-{vendor}-{backend} and tagged {stack} (a non-empty
+    plugin_fl_version input would append -{fork} to the tag).
     """
     base_app = "vllm" if app.startswith("vllm") else app
     d = APP_IMAGE_DEFAULTS[base_app]
-    # vllm versions come from the deps_app key (vllm-0.20.2 -> 0.20.2), not the
+    # vllm versions come from the deps_app key (vllm0.20.2 -> 0.20.2), not the
     # workflow default in APP_IMAGE_DEFAULTS.
-    app_version = app.split("-", 1)[1] if app.startswith("vllm") else d["app_version"]
+    app_version = app.removeprefix("vllm") if app.startswith("vllm") else d["app_version"]
     if app.startswith("megatron"):
-        repo = f"{app.replace('-', '_')}{app_version}-{name}"
+        repo = f"{app}{app_version}-{name}"
         tag = f"{stack_version}-{d['fork_version']}"
     else:
         repo = f"vllm{app_version}-{name}"
@@ -298,7 +298,7 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     # the [training]/[rl] extra of megatron-core; vllm pins the +flagos wheel
     # (a bare version would pull torch over the pinned vendor torch).
     if app.startswith("megatron"):
-        package = f"megatron-core[{app.split('-', 1)[1]}]=={app_version}"
+        package = f"megatron-core[{app.split('_', 1)[1]}]=={app_version}"
     else:
         package = f"vllm=={app_version}+flagos"
     # vllm-plugin-FL rides in the same image as vllm itself. Its version is the
@@ -436,7 +436,7 @@ def main():
                         "images": {
                             a: app_image_data(app_prefix, a, name, configs["version"])
                             for a in spec.get("deps_app") or {}
-                            if a in APP_IMAGE_DEFAULTS or a.startswith("vllm-")
+                            if a in APP_IMAGE_DEFAULTS or a.startswith("vllm")
                         },
                     },
                 }

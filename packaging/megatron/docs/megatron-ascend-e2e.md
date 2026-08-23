@@ -68,17 +68,17 @@ legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。
 该场景不编译 triton kernel。
 选 legacy 是因为动态引擎路径依赖 flash-attn，本平台不可用（见 RL 节）。
 
-## megatron-training app image（✅）
+## megatron_training app image（✅）
 
 镜像 tag:
 `flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f`。
 
-构建入口: `megatron-app-image.yml`（app=megatron-training，
+构建入口: `megatron-app-image.yml`（app=megatron_training，
 megatron_version=0.17.1，mlf_version=0.2.1_9.g48b97a13f）。
 workflow 内 verify（runtime → app 前后包矩阵 unchanged +
 megatron.core import + helpers_cpp bindings）通过后推送。
 
-training 无 vendor 条件包（deps_app.megatron-training = `[]`），
+training 无 vendor 条件包（deps_app.megatron_training = `[]`），
 镜像 = runtime + wheel `[training]` extra。
 
 ## RL（全链 E2E 暂停）
