@@ -152,6 +152,7 @@ vendors:
         # runtime torch, hence the per-backend +fl.cu128.torch210 tag.
         megatron_rl:
           - flash_attn==2.8.3.post1+fl.cu128.torch210
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - CUDA 12.8 (x86_64)
