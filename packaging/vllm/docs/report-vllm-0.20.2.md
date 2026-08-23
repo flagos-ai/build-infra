@@ -52,11 +52,11 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 
 | 模式 | 适用后端 | 说明 |
 |---|---|---|
-| **empty** | 除 NVIDIA 外的所有后端 | `VLLM_TARGET_DEVICE=empty` 从源码编译不含硬件 kernel 的 vllm；硬件算子由 vllm-plugin-FL + flag_gems 提供。产物为 `py3-none-any`，纯 Python。 |
-| **standard** | 仅 NVIDIA | `pip download` 官方预编译 wheel，含 vllm 自带 CUDA kernel（`_C`）。 |
+| **empty** | 所有后端（NVIDIA 于 2026-08-23 并入） | `VLLM_TARGET_DEVICE=empty` 从源码编译不含硬件 kernel 的 vllm；硬件算子由 vllm-plugin-FL + flag_gems 提供。产物为 `py3-none-any`，纯 Python。 |
+| ~~standard~~ | ~~仅 NVIDIA~~ | ~~`pip download` 官方预编译 wheel，含 vllm 自带 CUDA kernel（`_C`）。~~ **已退役（2026-08-23，见 §5.3）** |
 
-> NVIDIA 是否也统一到 `empty` 模式尚未决定，取决于性能基准测试结果，
-> 见 §5.3。在此之前 NVIDIA 维持 standard 构建。
+> 2026-08-23 起全线统一 empty 模式（"都走统一个模式"），standard 构建退役，
+> 决策记录见 §5.3。
 
 ## 1.3 Repack
 
@@ -245,14 +245,15 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
 验证 → 待办**。标准流程（§1）即从这些记录中提炼；记录里保留了个别后端走过
 的弯路，并标注哪些已被 §1 取代。
 
-## 2.1 NVIDIA cuda12.8（参考实现 / 唯一 standard 构建）
+## 2.1 NVIDIA cuda12.8（参考实现，2026-08-23 起 empty 模式）
 
 **日期:** 2026-07-27/28　**平台:** NVIDIA H20 (8×)
 **目标:** vllm 0.20.2 + vllm-plugin-FL，`flagos-runtime-nvidia-cuda12.8:2.1.1`
 
-NVIDIA 是首个跑通的后端，也是唯一使用 **standard 构建**（官方预编译 wheel，
-含 vllm 自带 CUDA kernel）的后端。它早于 `+flagos` / 单步安装的确立，下面
-记录中标注了已被 §1 取代的步骤。这些踩坑正是标准流程成型的由来（详见 §6）。
+NVIDIA 是首个跑通的后端，最初使用 **standard 构建**（官方预编译 wheel，含
+vllm 自带 CUDA kernel）。2026-08-23 起全线统一 empty 模式，standard 构建
+退役（见 §5.3）；本记录保留的历史差异均标注"已被 §1 取代"。这些踩坑正是
+标准流程成型的由来（详见 §6）。
 
 ### 环境 · numpy 版本冲突
 
@@ -1549,26 +1550,30 @@ pip 按平台选择或明确拒绝）。
 **参考：** FlagGems Python 包已采用此工作流。**前置：** 此模型对 NVIDIA
 成立与否取决于 §5.3。
 
-### 5.3 NVIDIA 是否统一 empty 模式（基准测试门控，未决）
+### 5.3 NVIDIA 统一 empty 模式（2026-08-23 决策，已定案）
 
-**现状：** NVIDIA 用 standard 构建（官方预编译 wheel，含 vllm 自带 CUDA
-kernel）；其余后端用 empty + plugin-FL/flag_gems 算子。
+**决策：** NVIDIA 并入 empty 模式，全线统一。standard 构建（官方预编译
+wheel）退役，`build-and-repack.sh` 移除 nvidia 分支，"都走统一个模式"。
 
-**未决问题：** 是否让 NVIDIA 也走 empty，从而全线统一、`+flagos` empty wheel
-真正"一份通用"（§5.2）。
+**背景：** NVIDIA 原本用 standard 构建（含 vllm 自带 CUDA kernel），其余
+后端用 empty + plugin-FL/flag_gems 算子。§5.2 的"一份通用 `+flagos` empty
+wheel"模型此前只覆盖非 NVIDIA 后端。
 
-**决策标准（基准测试门控）：**
-- 需要一次 NVIDIA 上 **standard vs empty** 的推理性能基准（吞吐 / 延迟）。
-- **若 empty 模式性能可接受** → 全线统一 empty（含 NVIDIA），§5.2 成为正式模型。
-- **若性能严重下降** → NVIDIA 保留 standard 构建，empty 仅用于非 NVIDIA 后端。
+**决策理由：**
+- **统一与可移植优先。** empty wheel 是 `py3-none-any`，纯 Python，一份
+  产物跨后端（含 CPython 版本，0.20.2）复用；standard wheel 与
+  ABI/平台绑定，无法进入统一管线。
+- **单步安装的前提是同一 wheel。** app 镜像单步安装 `vllm==X+flagos`，
+  若 NVIDIA 保留 standard，则同一 vllm 版本需维护两套 wheel，版本 bump
+  时校验面翻倍。
+- **性能基准不再是门控。** 0.24.0 已先行实证（2026-08-16）：nvidia 空模式
+  双编译器（flagtree 3.6.0 / triton 3.6.0）Qwen3-4B E2E 通过，见
+  `report-vllm-0.24.0.md`；empty 模式下硬件算子由 flag_gems（Triton）提供，
+  0.24.0 线上的 NVIDIA 性能结论为全线统一提供了同源证据。0.20.2 的
+  NVIDIA empty 验证接续进行（见 §2.1）。
 
-**权衡：** standard 用 vllm 调优过的 CUDA kernel（paged attention、fused MoE
-等），通常最快、与上游对齐；empty 放弃这些，改由 flag_gems（Triton）提供，
-换取全线统一与单一可移植 wheel。NVIDIA 是唯一不需要 empty 变通的后端，
-潜在性能损失最值得担心。
-
-**前置任务：** 见 §2.1 待办的 empty-mode 性能基准。**在基准数据出来前，
-本报告不对本问题下结论。**
+**权衡确认：** standard 用 vllm 调优过的 CUDA kernel，通常最快；empty 放弃
+这些，换取全线统一与单一可移植 wheel。基准门控撤销后，统一成为明确目标。
 
 ## 6. 演进与经验（弯路记录）
 

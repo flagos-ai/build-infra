@@ -49,7 +49,7 @@
 #   - Docker with harbor.baai.ac.cn access
 #   - python3 + pyyaml on the host (for reading configs.yaml)
 #   - build image flagos-runtime-<vendor>-<backend>:<version>-build
-#   - vllm source tarball at flagos-filestore (for empty-mode backends)
+#   - vllm source tarball at flagos-filestore (all backends build empty mode)
 #   - twine on the host (only when --upload is used)
 #
 # TODO:
@@ -182,44 +182,36 @@ docker exec "$CONTAINER" bash -c "
         > /dev/null 2>&1
 "
 
-if [[ "$VENDOR" = "nvidia" ]]; then
-    echo "==> Mode: standard (pip download)"
-    docker exec "$CONTAINER" bash -c "
-        set -e
-        cd ${WORK_DIR}
-        mkdir -p ${WORK_DIR}/empty
-        pip download --no-deps --dest ${WORK_DIR}/empty \
-            'vllm==${VLLM_VERSION}' \
-            -i https://mirrors.aliyun.com/pypi/simple/
-        echo '==> Repacking …'
-        python3 ${WORK_DIR}/repack.py ${WORK_DIR}/empty/vllm-*.whl
-    "
-else
-    echo "==> Mode: empty (build from source)"
-    SRC_TAR="vllm-${VLLM_VERSION}.tar.gz"
-    SRC_URL="${FILESTORE}/vllm/vllm-${VLLM_VERSION}.tar.gz"
-    docker exec "$CONTAINER" bash -c "
-        set -e
-        cd ${WORK_DIR}
-        mkdir -p ${WORK_DIR}/src ${WORK_DIR}/empty
+# Every backend — nvidia included — builds the same empty wheel
+# (VLLM_TARGET_DEVICE=empty) from the filestore source tarball. The former
+# nvidia-only "standard" mode (pip download of the official wheel) was retired
+# 2026-08-23 when nvidia unified onto the empty build ("都走统一个模式").
+# The app image installs the repacked +flagos wheel single-step, so the empty
+# wheel is what every backend's app-image verification uses.
+echo "==> Mode: empty (build from source)"
+SRC_TAR="vllm-${VLLM_VERSION}.tar.gz"
+SRC_URL="${FILESTORE}/vllm/vllm-${VLLM_VERSION}.tar.gz"
+docker exec "$CONTAINER" bash -c "
+    set -e
+    cd ${WORK_DIR}
+    mkdir -p ${WORK_DIR}/src ${WORK_DIR}/empty
 
-        # Pull source from filestore
-        echo 'Downloading ${SRC_URL} …'
-        curl -sL -o ${WORK_DIR}/${SRC_TAR} '${SRC_URL}'
-        tar xzf ${WORK_DIR}/${SRC_TAR} -C ${WORK_DIR}/src
-        mv ${WORK_DIR}/src/vllm-${VLLM_VERSION} ${WORK_DIR}/src/vllm
-        rm ${WORK_DIR}/${SRC_TAR}
+    # Pull source from filestore
+    echo 'Downloading ${SRC_URL} …'
+    curl -sL -o ${WORK_DIR}/${SRC_TAR} '${SRC_URL}'
+    tar xzf ${WORK_DIR}/${SRC_TAR} -C ${WORK_DIR}/src
+    mv ${WORK_DIR}/src/vllm-${VLLM_VERSION} ${WORK_DIR}/src/vllm
+    rm ${WORK_DIR}/${SRC_TAR}
 
-        # Build empty wheel
-        cd ${WORK_DIR}/src/vllm
-        VLLM_TARGET_DEVICE=empty MAX_JOBS=\$(nproc) \
-            pip wheel --no-build-isolation --no-deps -w ${WORK_DIR}/empty .
+    # Build empty wheel
+    cd ${WORK_DIR}/src/vllm
+    VLLM_TARGET_DEVICE=empty MAX_JOBS=\$(nproc) \
+        pip wheel --no-build-isolation --no-deps -w ${WORK_DIR}/empty .
 
-        echo '==> Repacking …'
-        cd ${WORK_DIR}
-        python3 ${WORK_DIR}/repack.py ${WORK_DIR}/empty/vllm-*.whl
-    "
-fi
+    echo '==> Repacking …'
+    cd ${WORK_DIR}
+    python3 ${WORK_DIR}/repack.py ${WORK_DIR}/empty/vllm-*.whl
+"
 
 # ── Report ──────────────────────────────────────────────────────────────
 
