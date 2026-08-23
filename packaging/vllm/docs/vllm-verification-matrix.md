@@ -24,7 +24,7 @@
 
 | 厂商 | 后端 | 0.20.2(T) | 0.20.2(F) | 0.24.0(T) | 0.24.0(F) |
 |---|---|---|---|---|---|
-| 英伟达 | CUDA 12.8 | ⬜ | ✅ | ✅ | ✅ |
+| 英伟达 | CUDA 12.8 | ✅ | ✅ | ✅ | ✅ |
 | 英伟达 | CUDA 13.3 | ⬜ | ⬜ | ✅ | ✅ |
 | 昇腾 | CANN 8.5.0 | ⬜ | ⬜ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ⬜ | ✅ | ✅ | ✅ |
@@ -88,7 +88,7 @@
 
 | 后端 | deps_app 落库 | 启动文档 | 镜像发布 |
 |---|---|---|---|
-| CUDA 12.8 | ⬜ | ⬜ | ⬜ |
+| CUDA 12.8 | ✅ | ✅ | ✅ |
 | CUDA 13.3 | ⬜ | ⬜ | ⬜ |
 | CANN 8.5.0 | ⬜ | ⬜ | ⬜ |
 | CANN 9.0.0 | ⬜ | ⬜ | ⬜ |
@@ -172,8 +172,12 @@
 
 **0.20.2（截至 2026-08-11）**
 
-- **nvidia-cuda12.8**（参考实现）：flagtree 0.6.0（当时默认）✅；
-  triton 3.6.0 并装于 `/opt/triton`，未单独验证。
+- **nvidia-cuda12.8**（参考实现）：✅（2026-08-23，empty 模式 app 镜像
+  `vllm0.20.2-nvidia-cuda12.8:2.1.2-0.2.1_g825c1cd`）F/T 双路径各跑一遍 E2E
+  —— F 路径（flagtree，默认 CMD）✅、T 路径（triton 3.6.0，`PYTHONPATH=/opt/triton`
+  显式切换）✅，同一 Qwen3-4B prompt 输出连贯、吞吐一致（3.2 tok/s）。
+  此前 2026-08-16 双编译器验证在 vendor（standard）vllm 镜像上完成，与 empty
+  产物非同镜像，不背书 empty 结果（详见 `report-vllm-0.20.2.md` §2.1）。
 - **metax-maca3.7.2.1**：flagtree **3.1.0+metax3.7.2.0**（厂商自带）✅，
   configs 现为 0.6.1+metax3.6；triton 3.0.0 未单独验证。
 - **mthreads-musa5.2.0**：flagtree 0.6.0+mthreads3.6 ✅；

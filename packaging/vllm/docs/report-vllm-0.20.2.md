@@ -173,11 +173,17 @@ pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" vllm==0.20.2+flago
 vllm-plugin-FL 定位为上游 vllm 的插件，目标是适配不同模型、不同后端；
 具体适配可能涉及算子层选择甚至针对后端的定制。
 
-- **empty 模式后端**：**纯 Python 安装，不设 `VLLM_VENDOR`**：
-  `pip install --no-build-isolation -e .`。硬件算子由 plugin 的 dispatch
-  机制路由到 flag_gems（Triton）。
-- **NVIDIA（standard）**：`VLLM_VENDOR=cuda pip install --no-build-isolation .`
-  编译 C 扩展。
+- **纯 Python 安装，不设 `VLLM_VENDOR`**（所有后端统一；NVIDIA standard
+  编译 C 扩展已退役，2026-08-23，见 §5.3）：`pip install --no-build-isolation .`。
+  硬件算子由 plugin 的 dispatch 机制路由到 flag_gems（Triton）。构建产物为
+  `py3-none-any` wheel，一份跨后端复用。
+- **分支拓扑：** `main` = 0.3.0-dev（vllm 0.24.0 开发线）；0.20.2 支持线在
+  **`release-0.2`** 分支，最新 tag **`v0.2.1`**（= commit `825c1cd`）。构建
+  0.20.2 线 plugin wheel 必须取 release-0.2（v0.2.1 tag 与该分支 head 同义，
+  取哪个都行）。
+- **wheel 版本格式：** `{tag}+g{sha}`（PEP 440 local version），如
+  `0.2.1+g825c1cd`。app 镜像 tag 中 `+` 转 `_`（workflow 内 `tr '+' '_'`），
+  如 `2.1.2-0.2.1_g825c1cd`。
 
 发现 plugin bug 时向其 GIT 仓库提 PR，**尽量不打破** plugin 现有的模型层 /
 算子层适配机制，以最小改动打通。
@@ -349,16 +355,74 @@ flag_gems:    5.3.2         ✅  (numpy relaxed)
 triton:       3.6.0         ✅  (side compiler at /opt/triton)
 numpy:        2.3.5         ✅  (was 1.26.4)
 vllm:         0.20.2        ✅  (repacked, from vendor PyPI)
-vllm_fl:      loaded        ✅  (source build, VLLM_VENDOR=cuda)
+vllm_fl:      loaded        ✅  (plugin wheel 0.2.1+g825c1cd, release-0.2;
+                                 旧 standard 期 source build VLLM_VENDOR=cuda 已退役 §5.3)
 CUDA:         True          ✅
 Inference:    Qwen3.6-35B-A3B ✅  (prompt=17 / completion=128 tokens)
 ```
 
+### 2026-08-23 复核（empty 模式 + app 镜像 E2E）
+
+§5.3 决策后 NVIDIA 并入 empty 模式。plugin wheel 改从 **release-0.2** 分支
+构建（v0.2.1 = `825c1cd`，见 §1.5）：产物
+`vllm_plugin_fl-0.2.1+g825c1cd-py3-none-any.whl`（sha256
+`783861f5…d673c`），随 app 镜像单步安装。
+
+**App 镜像构建 + 验证（✅，push 2026-08-23 10:57 UTC）：**
+
+- 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda12.8:2.1.2-0.2.1_g825c1cd`
+  （digest `bce4e3c7…`；tag 中 `0.2.1_g825c1cd` = plugin `0.2.1+g825c1cd`）
+- 底层 runtime：`flagos-runtime-nvidia-cuda12.8:2.1.2`（empty 模式单步安装
+  `vllm==0.20.2+flagos` + `vllm-plugin-fl==0.2.1+g825c1cd`）
+- 构建后验证全过：Matrix unchanged（torch/flagtree/flag_gems 未被覆盖）、
+  `vllm + vllm_fl import OK`、App-image verification PASSED。
+
+**h20 节点 E2E —— 双编译器路径各跑一遍（empty 模式，同一 app 镜像）：**
+
+> 空模式镜像与 2026-08-16 双编译器验证用的 vendor（standard）镜像不是同一
+> 镜像，旧记录不能背书 empty 产物。empty 模式下两条编译器路径分别实测：
+
+**F 路径（flagtree，默认编译器）—— ✅**
+
+```bash
+docker run -d --name vllm-app-e2e-nvidia --gpus all \
+  -v /data/tqm/models:/data/models:ro --network host \
+  harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda12.8:2.1.2-0.2.1_g825c1cd
+```
+
+- 默认 CMD（`vllm-serve` source `/etc/bash_env.sh` 后 exec，不切换编译器，
+  默认 flagtree active）即 F 路径；约 60 s 就绪（`Application startup
+  complete`）；日志确认 plugin fl 激活（Platform plugin fl is activated，
+  注册 DeepseekV4ForCausalLM / DeepSeekV4MTPModel override），
+  `VLLM_PLUGINS=fl` 已内置镜像 env。
+- `curl /v1/completions` 输出连贯：`The capital of France is Paris. The
+  capital of Germany is Berlin...`（prompt 5 / completion 32 token）。吞吐：
+  Avg prompt 0.5 tok/s，Avg generation 3.2 tok/s。
+
+**T 路径（triton 3.6.0 side compiler）—— ✅（2026-08-23 补验）**
+
+```bash
+docker run -d --name vllm-app-e2e-triton --gpus all \
+  -e PYTHONPATH=/opt/triton \
+  -v /data/tqm/models:/data/models:ro --network host \
+  harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda12.8:2.1.2-0.2.1_g825c1cd
+```
+
+- `-e PYTHONPATH=/opt/triton` 显式切到 triton（`docker exec … compiler` 确认
+  `active compiler: triton - 3.6.0`），其余参数同默认 CMD。
+- 约 35 s 就绪（`Application startup complete`）；同一 prompt 输出连贯：
+  `Paris. The capital of Germany is Berlin. The capital of Italy is Rome.`…
+  （prompt 5 / completion 32 token）。吞吐与 F 路径一致：Avg prompt 0.5
+  tok/s，Avg generation 3.2 tok/s。
+- 两容器验证后均已清理。启动文档已发布（launch_docs + harbor_repo，见
+  `status_matrix.vllm0.20.2.yaml`）。
+
 ### 待办
 
 1. 扩展到 nvidia-cuda13.3（相同模式，torch 2.11.0+cu130）。
-1. **empty-mode 性能基准**（§5.3 的决策前置）——对比 standard vs empty 的
-   NVIDIA 推理性能，决定是否全线统一 empty。
+1. ~~empty-mode 性能基准~~ —— §5.3 已定案全线统一 empty（2026-08-23），
+   基准不再门控；empty 下 NVIDIA 性能实证见 0.24.0 报告（Qwen3-4B E2E）。
+1. NVIDIA empty 模式 app 镜像 E2E —— ✅ 2026-08-23（见上文复核记录）。
 
 ## 2.2 MetaX maca3.7.2.1（首个 empty 后端）
 
