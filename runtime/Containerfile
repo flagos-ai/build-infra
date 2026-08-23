@@ -304,10 +304,12 @@ ENV VIRTUAL_ENV=/flagos \
 
 # ── Per-backend runtime env vars from configs.yaml env.runtime ──
 # Written to profile.d so they are sourced in every shell (login,
-# non-login interactive, and bash -c via BASH_ENV).
+# non-login interactive, and bash -c via BASH_ENV).  Lines are 'export'-
+# prefixed so they survive an exec — a bare KEY=value assignment dies
+# with the sourcing shell.
 ARG RUNTIME_ENV
 RUN if [ -n "${RUNTIME_ENV}" ]; then \
-      printf '%s\n' "${RUNTIME_ENV}" > /etc/profile.d/runtime_env.sh; \
+      printf '%s\n' "${RUNTIME_ENV}" | sed 's/^/export /' > /etc/profile.d/runtime_env.sh; \
     fi
 
 # C++ operator extensions are opt-in — set USE_C_EXTENSION=1 at runtime

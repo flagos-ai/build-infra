@@ -102,10 +102,11 @@ RUN PYTHONPATH="/opt/triton" pip install \
 
 # Per-backend app env vars (configs.yaml env.app.{app}): baked into
 # /etc/profile.d/app_env.sh — sourced by the runtime's bash plumbing
-# (BASH_ENV=/etc/bash_env.sh sources /etc/profile.d/*.sh).
+# (BASH_ENV=/etc/bash_env.sh sources /etc/profile.d/*.sh).  Each line is
+# 'export'-prefixed so it survives the launcher's exec.
 ARG APP_ENV=""
 RUN if [ -n "${APP_ENV}" ]; then \
-      printf '%s\n' "${APP_ENV}" > /etc/profile.d/app_env.sh; \
+      printf '%s\n' "${APP_ENV}" | sed 's/^/export /' > /etc/profile.d/app_env.sh; \
     fi
 
 # --- Runtime --------------------------------------------------
