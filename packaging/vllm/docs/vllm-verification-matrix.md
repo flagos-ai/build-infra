@@ -34,7 +34,7 @@
 | 燧原 | TOPS 1.10.6 | ✅ | ❌ | ⬜ | ⬜ |
 | 海光 | DTK 26.04 | — | ✅ | ✅ | ✅ |
 | 天数智芯 | COREX 4.4.0 | ⬜ | ❌ | ⬜ | ⬜ |
-| 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ⬜ | ⬜ |
+| 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ✅ | ✅ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ✅ | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅ |
@@ -55,6 +55,7 @@
 | 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 |
 | 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 |
 | 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 |
 | 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 |
@@ -137,7 +138,7 @@
 | TOPS 1.10.6 | ⬜ | ⬜ | ⬜ |
 | DTK 26.04 | ✅ | ✅ | ⬜ |
 | COREX 4.4.0 | ⬜ | ⬜ | ⬜ |
-| XRE 5.37.1 | ✅ | ✅ | ⬜ |
+| XRE 5.37.1 | ✅ | ✅ | ✅ |
 | MACA 3.7.2.1 | ✅ | ✅ | ⬜ |
 | MACA 3.8.1.3 | ✅ | ✅ | ⬜ |
 | MUSA 4.3.6 | ✅ | ✅ | ⬜ |
