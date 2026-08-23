@@ -20,13 +20,11 @@ weight: 20
  -->
 
 
-{{< alert context="danger" >}}
-🚧 **施工中。** Megatron 应用镜像仍在构建与验证阶段，**尚未发布**——下文内容记录的
-是进行中的工作，而非已发布的产品，请勿将其视为可用状态。
-{{< /alert >}}
-
 **Megatron 应用镜像**构建在 `flagos-runtime` 之上，打包可用的 megatron-core
 库，用于 megatron-lm 训练栈。
+
+已发布的镜像按后端拆分——镜像引用与启动方式见
+[应用镜像]({{< relref "/application" >}}) 目录或各个后端的独立页面。
 
 ## 构建参数
 
@@ -61,7 +59,7 @@ wheel 由 `packaging/megatron/builder/` 从 Megatron-LM-FL fork 构建——**�
 docker build \
   --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2 \
   --build-arg FLAGOS_PYPI=https://resource.flagos.net/repository/flagos-pypi-hygon/simple \
-  -t harbor.baai.ac.cn/flagos-app/megatron-training-hygon-dtk26.04:2.1.2 \
+  -t harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-hygon-dtk26.04:2.1.2-0.2.1 \
   -f app/megatron/Containerfile.megatron-training .
-# RL app: -f app/megatron/Containerfile.rl, tag megatron-rl-{vendor}-{backend}
+# RL app: -f app/megatron/Containerfile.rl, tag megatron_rl0.17.1-{vendor}-{backend}:2.1.2-0.2.1
 ```

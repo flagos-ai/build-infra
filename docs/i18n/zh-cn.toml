@@ -103,3 +103,12 @@ other = "可选"
 
 [toolkit_optional_tooltip]
 other = "仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装"
+
+[app_megatron_training]
+other = "Megatron 训练"
+
+[app_megatron_rl]
+other = "Megatron 强化学习"
+
+[app_vllm]
+other = "vLLM"

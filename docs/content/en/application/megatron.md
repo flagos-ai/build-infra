@@ -20,14 +20,12 @@ weight: 20
  -->
 
 
-{{< alert context="danger" >}}
-🚧 **Under construction.** The Megatron app image is still being built and
-validated. It is **not yet published** — the content below documents work in
-progress, not a released product. Do not treat it as usable.
-{{< /alert >}}
-
 The **Megatron app image** is built on top of a `flagos-runtime` image and
 packages a usable megatron-core library for megatron-lm based training.
+
+Ready-to-run images are published per backend — see the
+[Application images]({{< relref "/application" >}}) catalog or the individual
+per-backend pages for image references and launch commands.
 
 ## Build arguments
 
@@ -67,7 +65,7 @@ fly at build time). See `packaging/megatron/builder/README.md`.
 docker build \
   --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2 \
   --build-arg FLAGOS_PYPI=https://resource.flagos.net/repository/flagos-pypi-hygon/simple \
-  -t harbor.baai.ac.cn/flagos-app/megatron-training-hygon-dtk26.04:2.1.2 \
+  -t harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-hygon-dtk26.04:2.1.2-0.2.1 \
   -f app/megatron/Containerfile.megatron-training .
-# RL app: -f app/megatron/Containerfile.rl, tag megatron-rl-{vendor}-{backend}
+# RL app: -f app/megatron/Containerfile.rl, tag megatron_rl0.17.1-{vendor}-{backend}:2.1.2-0.2.1
 ```

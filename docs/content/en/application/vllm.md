@@ -20,25 +20,23 @@ weight: 10
  -->
 
 
-{{< alert context="danger" >}}
-🚧 **Under construction.** The vLLM app image is still being built and
-validated. It is **not yet published** — the content below documents work in
-progress, not a released product. Do not treat it as usable.
-{{< /alert >}}
-
 The **vLLM app image** is built on top of a `flagos-runtime` image and
 packages a ready-to-run vLLM server with vllm-plugin-FL.
+
+Ready-to-run images are published per backend — see the
+[Application images]({{< relref "/application" >}}) catalog or the individual
+per-backend pages for image references and launch commands.
 
 ## Build arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `RUNTIME_IMAGE` | _(required)_ | Runtime image ref, e.g. `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.1` |
-| `VLLM_VERSION` | `0.20.2` | vLLM version to install. A repacked wheel (see below) must exist on `FLAGOS_PYPI`. |
+| `RUNTIME_IMAGE` | _(required)_ | Runtime image ref, e.g. `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.2` |
+| `VLLM_VERSION` | `0.24.0` | vLLM version to install. A repacked `+flagos` wheel (see below) of that version must exist on `FLAGOS_PYPI`. |
 | `FLAGOS_PYPI` | `""` | Vendor PyPI index — hosts the **repacked** vllm wheel. Searched first. |
 | `EXTRA_PYPI` | `https://mirrors.aliyun.com/pypi/simple` | Aliyun mirror — fallback for all other dependencies. |
-| `PLUGIN_FL_REF` | `""` | vllm-plugin-FL git ref (tag, branch, or commit). |
-| `VLLM_VENDOR` | `cuda` | Vendor identifier for C++ extension compilation. `cuda` for CUDA-ABI backends; `ascend` / `gcu` for PrivateUse1. |
+| `PLUGIN_FL_VERSION` | `""` | vllm-plugin-FL wheel version (commit-precise), e.g. `0.2.0+gcf8998c.d20260815`. Installed from the vendor PyPI; empty = plugin not installed. A non-empty value appends `-{version}` (`+` → `_`) to the image tag. |
+| `APP_DEPS` | `""` | Vendor-conditional packages for this app (configs.yaml `deps_app.vllm`), space-separated, installed from the vendor PyPI. |
 
 ## Repacked vLLM wheel
 
@@ -46,33 +44,35 @@ The official vLLM wheel declares `Requires-Dist` on torch, triton, and
 CUDA-only packages that would overwrite the carefully curated stack in the
 runtime image. We run `packaging/vllm/repack.py` to surgically strip these
 entries from the wheel's METADATA, then upload the repacked wheel to the
-vendor's `FLAGOS_PYPI` at the same version.
+vendor's `FLAGOS_PYPI` as `vllm-{version}+flagos`.
 
 During `pip install`, the vendor PyPI is searched first — the repacked
 wheel is found and used. All remaining (safe) dependencies are resolved
 from `EXTRA_PYPI`. Torch and triton are already in the runtime venv and
-satisfy any transitive constraints, so pip skips them.
+satisfy any transitive constraints, so pip skips them. The `+flagos` marker
+is pinned explicitly in the build (`vllm==${VLLM_VERSION}+flagos`) — a bare
+`vllm=={version}` would resolve to the official wheel, whose torch
+Requires-Dist would overwrite the pinned vendor torch.
 
 See `packaging/vllm/repack.py` for the repacking tool and
 `packaging/vllm/config.yaml` for the classification rules.
 
 ## vllm-plugin-FL
 
-The plugin is currently installed from source (no release wheel yet).
-The `PLUGIN_FL_REF` build arg pins the exact git ref. The `VLLM_VENDOR`
-arg controls which C++ backend is compiled.
-
-> **TODO:** Build and publish `vllm-plugin-FL` wheels per vendor. Once
-> available, the Containerfile will switch to `pip install` from wheel
-> instead of source-building.
+The plugin is installed as a prebuilt wheel (`vllm-plugin-fl==<version>`)
+from the vendor PyPI — no source build inside the app image. The wheel is
+built and dependency-audited by the vllm-plugin-wheel workflow. The
+`PLUGIN_FL_VERSION` build arg pins the exact version; when it is non-empty,
+the published image tag gains a `-{version}` segment (`+` → `_`), e.g.
+`vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_gcf8998c.d20260815`.
 
 ## Build example
 
 ```bash
 docker build \
-  --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.1 \
+  --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.2 \
   --build-arg FLAGOS_PYPI=https://resource.flagos.net/repository/flagos-pypi-nvidia/simple \
-  --build-arg PLUGIN_FL_REF=main \
-  -t harbor.baai.ac.cn/flagos-app/vllm-nvidia-cuda12.8:2.1.1 \
+  --build-arg PLUGIN_FL_VERSION=0.2.0+gcf8998c.d20260815 \
+  -t harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_gcf8998c.d20260815 \
   -f app/vllm/Containerfile .
 ```

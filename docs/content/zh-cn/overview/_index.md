@@ -39,7 +39,7 @@ FlagOS 镜像是分层的。每一层都构建在下一层之上，各有其关�
 构建在基础镜像之上；加入 **Python 解释器**与**软件栈**（Torch、Triton、FlagTree、
 FlagGems）。由 `runtime/build.py` 构建，镜像 `flagos-runtime-<vendor>-<backend>`。
 
-## application（应用镜像，未来）
+## application（应用镜像）
 
 构建在运行时镜像之上；打包一个开箱即用的应用（vLLM、Megatron-LM、SGLang……）。
 

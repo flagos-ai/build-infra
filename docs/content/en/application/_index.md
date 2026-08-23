@@ -21,12 +21,10 @@ weight: 40
 
 
 **Application images** are built on top of [runtime images]({{< relref "/runtime" >}}) and
-package a ready-to-run AI application together with the FlagOS stack.
+package a ready-to-run AI application together with the FlagOS stack. Each
+application is published as a per-backend image, and every image has its own
+page with the image reference, prerequisites, and launch commands.
 
-> 🚧 **Roadmap.** Application images aren't published yet. Planned targets include:
->
-> - **vLLM**
-> - **Megatron-LM**
-> - **SGLang**
+Pick an application and a backend to see how to run it:
 
-This page will list per-application images (contents + run command) once they ship.
+{{< app-catalog >}}
