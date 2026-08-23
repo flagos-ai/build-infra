@@ -53,9 +53,10 @@ title: "kunlunxin-xre5.37.1"
 - `torch_xray==2.0.4`
 - `torchaudio==2.9.0+cu129`
 - `torchvision==0.24.0+cu129`
-- <span class="muted"><code class="plain">triton==3.0.0+a48aedef</code></span>
+- <span class="muted"><code class="plain">triton==3.6.0+gitcd2d6c1b</code></span>
 - `xformers==0.0.29+1e7a8ec.d20260114`
-- `xmlir==1.0.0.1`
+- `xmlir==1.0.0.1+20260605`
+- `xtorch_ops==0.1.2935+50a5d6a4`
 
 ### 切换编译器
 
