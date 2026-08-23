@@ -1380,12 +1380,12 @@ Inference:    ✅  "The capital of France is" → " Paris. The capital of German
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
-| `lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR | ✅ 已提 | **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（flagos-ai/vllm-plugin-FL，分支 `ascend-blacklist-lift-fresh`→`main`）：`dispatch/config/ascend.yaml`；coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护 |
+| `lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR | ✅ 已提 | **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（flagos-ai/vllm-plugin-FL，分支 `ascend-blacklist-lift-fresh`→`release-0.2`）：`dispatch/config/ascend.yaml`；coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护 |
 | ATB `set_env.sh` 烘焙进 base image env | ✅ 已提 | **[build-infra PR #353](https://github.com/flagos-ai/build-infra/pull/353)**：`base/ascend-cann9.0.0` 环境捕获块在 CANN 之后追加 source NNAL/ATB `set_env.sh`，`ATB_HOME_PATH` / ATB lib path 进 `vendor.sh`（9.0.0 专属，8.5.0 无 NNAL）。消除运行时手动 source；否则 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃 |
 | flag_gems 5.3.4 重推 v2 镜像刷新 | 🔄 进行中 | 现镜像烘焙旧 wheel，须强制重装才可用；全部 17 个 v2 runtime 镜像重建后消除（run 31365995958，用户驱动） |
 | ascend `+flagos` wheel 上架 | ✅ 已上传 | 4 个 wheel 已上架 `flagos-pypi-ascend`（用户上传） |
 
-**相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`main`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
+**相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`release-0.2`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
 
 ### 后续（2026-08-24）：ascend 双后端 0.20.2 全路径 F/T 双编译器 E2E 全 ✅
 
@@ -1403,7 +1403,7 @@ _to_copy）同落 `dispatch/config/ascend.yaml`（cann8.5.0 / cann9.0.0 共用�
 
 | # | 症状 | 根因 | 修复 |
 |---|---|---|---|
-| 4 | 推理崩溃 `pow_scalar` | flag_gems `runtime/backend/_ascend/ops/pow.py` 用链式布尔 `a < b < c` 做 tl.constexpr 分支，vendor triton 拒绝 | `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu） |
+| 4 | 推理崩溃 `pow_scalar` | flag_gems `runtime/backend/_ascend/ops/pow.py` 用链式布尔 `a < b < c` 做 tl.constexpr 分支，vendor triton 拒绝 | `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu），已提 **[PR #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402)**（`ascend-blacklist-pow-scalar`→`release-0.2`） |
 
 NPU 冷启动 JIT 极慢：hw25 T 路径首请求 872s（逐 shape 编译 triton/NPU 内核），稳态 0.1~0.2 tok/s，
 64 token decode 约 11~15 min。慢≠挂：以 `generation_tokens_total` 增量 + `num_requests_running` 归零
