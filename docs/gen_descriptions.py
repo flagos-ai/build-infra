@@ -95,6 +95,19 @@ STRINGS = {
         "launch_raw_both": "**Without a toolkit** — plain docker / podman:",
         "launch_raw_only": "Start an interactive shell (works with docker or podman):",
         "launch_generic": "Start an interactive shell in the container:",
+        "launch_toolkit_heading": "With the container toolkit",
+        "launch_raw_heading": "Without a toolkit — plain docker / podman",
+        "launch_generic_heading": "Plain docker / podman",
+        "launch_img_var": "The image name is long — assign it to a variable first:",
+        "launch_choose": "The two approaches below are alternatives — pick the one that matches how your host runs containers:",
+        "launch_shell": "Start an interactive shell:",
+        "app_image": "Application image",
+        "app_package": "Application package",
+        "published": "Published",
+        "not_published": "Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.",
+        "launch_default": "Start the app with its default settings:",
+        "launch_custom": "Pass arguments to the launcher:",
+        "launch_none": "**No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.",
         "verify": "Verify",
         "verify_note": "Inside the container, confirm the accelerator is visible:",
     },
@@ -125,6 +138,19 @@ STRINGS = {
         "launch_raw_both": "**无需工具包** —— 直接使用 docker / podman：",
         "launch_raw_only": "启动交互式 shell（docker 或 podman 均可）：",
         "launch_generic": "在容器中启动交互式 shell：",
+        "launch_toolkit_heading": "使用容器工具包",
+        "launch_raw_heading": "无需工具包——直接使用 docker / podman",
+        "launch_generic_heading": "直接使用 docker / podman",
+        "launch_img_var": "镜像名较长——先将其设为变量：",
+        "launch_choose": "以下两种方式任选其一：",
+        "launch_shell": "启动交互式 shell：",
+        "app_image": "应用镜像",
+        "app_package": "应用软件包",
+        "published": "已发布",
+        "not_published": "尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。",
+        "launch_default": "以默认设置启动应用：",
+        "launch_custom": "向启动器传参：",
+        "launch_none": "**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。",
         "verify": "验证",
         "verify_note": "在容器内，确认加速器可见：",
     },
@@ -217,10 +243,24 @@ def human_date(ts: str) -> str:
     return f"{m.group(1)} {m.group(2)}" if m else ts
 
 
-def wrap_cmd(cmd: str, width: int = 84) -> str:
+def _flag_pairs(toks: list[str]) -> list[str]:
+    """Group flag tokens into `-flag value` pairs (a value never starts with
+    `-`), one pair per continuation line. Shared by `wrap_cmd` (base/runtime
+    pages) and `_app_run` (app pages) so both wrap the same way."""
+    groups, i = [], 0
+    while i < len(toks):
+        if toks[i].startswith("-") and i + 1 < len(toks) and not toks[i + 1].startswith("-"):
+            groups.append(f"{toks[i]} {toks[i + 1]}"); i += 2
+        else:
+            groups.append(toks[i]); i += 1
+    return groups
+
+
+def wrap_cmd(cmd: str, width: int = 84, tail_n: int = 2) -> str:
     """Wrap a long `docker run …` / wrapper-launcher command onto multiple lines
     (one flag per continuation line) so the code block doesn't scroll sideways.
-    Short commands are left as-is."""
+    Short commands are left as-is. The last `tail_n` tokens stay together on the
+    final line — 2 for `<image> bash`, 1 for a bare `<image>`."""
     if len(cmd) <= width:
         return cmd
     head = "docker run --rm -it"
@@ -229,16 +269,42 @@ def wrap_cmd(cmd: str, width: int = 84) -> str:
     else:  # wrapper launcher, e.g. `metax-docker …`
         head, _, rest = cmd.partition(" ")
     toks = rest.split(" ")
-    tail = f"{toks[-2]} {toks[-1]}"  # "<image> bash"
-    toks = toks[:-2]
-    groups, i = [], 0
-    while i < len(toks):
-        if toks[i].startswith("-") and i + 1 < len(toks) and not toks[i + 1].startswith("-"):
-            groups.append(f"{toks[i]} {toks[i + 1]}"); i += 2
-        else:
-            groups.append(toks[i]); i += 1
+    tail = " ".join(toks[-tail_n:])
+    groups = _flag_pairs(toks[:-tail_n])
     out = [f"{head} \\"] + [f"  {g} \\" for g in groups] + [f"  {tail}"]
     return "\n".join(out)
+
+
+def _app_run(runner: str, flags: str, tail: str) -> str:
+    """A docker-run command with the image name as `$IMG` (app pages never put
+    the long image ref inline — it's the `IMG=` variable set at the top of the
+    Launch section).
+
+    Wrapping rule: no flags -> a single line; any flags -> one flag (pair) per
+    continuation line, then the final `$IMG …` line. Deterministic — the same
+    command always wraps the same way."""
+    if not flags:
+        return f"{runner} $IMG {tail}".rstrip()
+    out = [f"{runner} \\"]
+    out += [f"  {g} \\" for g in _flag_pairs(flags.split())]
+    out.append(f"  $IMG {tail}".rstrip())
+    return "\n".join(out)
+
+
+def _tier_parts(template: str) -> tuple[str, str, str]:
+    """Split a launch-tier template into (runner, device flags, tail).
+
+    Templates come from gen_data `launch_tiers()` and are either
+    `docker run --rm -it {flags}{image} bash` or a wrapper launcher such as
+    `metax-docker run --rm -it {image} bash` (no flags). The tail is whatever
+    follows the image — what a user appends after `$IMG`."""
+    head = "docker run --rm -it"
+    if template.startswith(head + " "):
+        rest = template[len(head) + 1:]
+        img_at = rest.index("{image}")
+        return head, rest[:img_at].strip(), rest[img_at + len("{image}"):].strip()
+    before, _, after = template.partition("{image}")
+    return before.rstrip(), "", after.strip()
 
 
 def _prerequisites(entry: dict, s: dict, web: bool) -> list[str]:
@@ -462,6 +528,115 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _app_launch(entry: dict, s: dict, data: dict, image: str) -> list[str]:
+    """App launch section: `IMG` variable + one `###` block per launch tier.
+
+    The image ref is long, so every command below uses `$IMG`, set once at the
+    top of the section. Tiers are the same source as the base/runtime pages
+    (build-config.yml run.vendors). A backend with both a toolkit and a plain
+    docker/podman path renders them as two clearly separated sections with a
+    "pick one" note — not six consecutive commands. Each section shows the
+    interactive-shell form plus the two service forms (default CMD / launcher
+    with explicit args). Service args always go through the launcher — never a
+    raw `bash -c "…"`. An image without a launcher (megatron-rl today) renders
+    only the shell form plus a placeholder note."""
+    tiers = entry.get("launch") or []
+    both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
+    launcher = data["launcher"]
+    example = data["example"] or []
+    lines = [f"## {s['launch']}", ""]
+    if data["published"]:
+        lines += [f"**{s['published']}:** `{image}`", ""]
+    else:
+        lines += [f"**{s['not_published']}**", "", f"`{image}`", ""]
+    lines += [s["launch_img_var"], "", "```bash", f"IMG={image}", "```", ""]
+    if both:
+        lines += [s["launch_choose"], ""]
+    for t in tiers:
+        if t["kind"] == "toolkit":
+            hdr = s["launch_toolkit_heading"]
+        elif t["kind"] == "raw":
+            hdr = s["launch_raw_heading"]
+        else:  # generic
+            hdr = s["launch_generic_heading"]
+        lines += [f"### {hdr}", ""]
+        runner, flags, tail = _tier_parts(t["template"])
+        lines += [s["launch_shell"], "", "```bash",
+                  _app_run(runner, flags, tail), "```", ""]
+        if launcher and example:
+            lines += [s["launch_default"], "", "```bash",
+                      _app_run(runner, flags, ""), "```", ""]
+            lines += [s["launch_custom"], "", "```bash",
+                      _app_run(runner, flags, " ".join(example)), "```", ""]
+        else:
+            lines += [s["launch_none"], "", ""]
+    return lines
+
+
+def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> str:
+    """Compose the app-image description markdown for one backend and one app.
+
+    An app image is the runtime image plus one app package installed on top, so
+    the page inherits the runtime prerequisites/contents and documents only the
+    app layer: the runtime image it is built on, the app package, the per-app
+    environment, and the launch commands (which differ from the runtime page —
+    the image carries a launcher and a default CMD).
+    """
+    s = STRINGS[lang]
+    web = flavor == "web"
+    name = entry["name"]
+    data = entry["app"]["images"][app]
+    lines: list[str] = []
+
+    # Hugo front matter — web flavor only.
+    if web:
+        lines += ["---", f'title: "{app}-{name}"', "---", ""]
+        # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
+        lines += COPYRIGHT
+        _ = lines.append("")
+
+    # ── Prerequisites (inherited from the runtime image) ──
+    lines += _prerequisites(entry, s, web)
+
+    # ── Image contents (runtime image ref + Python + the app package) ──
+    lines += [f"## {s['image_contents']}", ""]
+
+    if entry["runtime"].get("image"):
+        if web:
+            lines += [f"### {s['base_image_ref']}", "",
+                      f'<div class="ms-3"><code class="plain">{entry["runtime"]["image"]}</code> '
+                      f'<a href="../../runtime/{name}/" title="{s["base_image_link_title"]}" '
+                      f'aria-label="{s["base_image_link_title"]}">'
+                      f'<i class="material-icons align-middle size-20">open_in_new</i></a></div>', ""]
+        else:
+            lines += [f"### {s['base_image_ref']}", "", f"`{entry['runtime']['image']}`", ""]
+
+    python_ver = entry["runtime"].get("python", "")
+    if python_ver:
+        lines += [f"### {s['python_version']}", "", python_ver, ""]
+
+    lines += [f"### {s['app_package']}", "", f"`{data['package']}`", ""]
+    if data.get("plugin_package"):
+        # vllm ships its plugin in the same image as vllm itself — list it as a
+        # second application package when a published combo pins one.
+        lines += ["", f"`{data['plugin_package']}`", ""]
+
+    # ── Environment (per-app env vars) ──
+    # env.app keys stay bare app names ('vllm'), while app keys may be
+    # versioned ('vllm-0.24.0') — resolve to the bare name first.
+    env = (entry["app"].get("env") or {}).get("vllm" if app.startswith("vllm") else app) or {}
+    if env:
+        lines += [f"## {s['environment']}", ""]
+        for k, v in env.items():
+            lines.append(f"- `{k}={v}`")
+        lines.append("")
+
+    # ── Launch (per-tier: shell / default CMD / launcher args) ──
+    lines += _app_launch(entry, s, data, data["image"])
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def main():
     root = repo_root()
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
@@ -483,6 +658,9 @@ def main():
                     print(render(backends[name], versions, lang, "web"))
                 for lang in LANGS:
                     print(render_runtime(backends[name], lang, "web"))
+                for lang in LANGS:
+                    for app in backends[name].get("app", {}).get("images", {}):
+                        print(render_app(backends[name], app, lang, "web"))
             return
 
         # VERSIONS_DIR set: write only the requested backends to files.
@@ -528,6 +706,20 @@ def main():
             md = render_runtime(backends[name], "en", "plain")
             (rt_dir / f"{name}.md").write_text(md)
         print(f"Wrote {len(requested)} runtime plain readmes to {rt_dir}")
+
+        # App web flavor (Harbor plain deferred — PR 2).
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "application"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            n = 0
+            for name in requested:
+                if name not in backends:
+                    continue
+                for app in backends[name].get("app", {}).get("images", {}):
+                    md = render_app(backends[name], app, lang, "web")
+                    (out_dir / f"{app}-{name}.md").write_text(md)
+                    n += 1
+            print(f"Wrote {n} {lang} app web pages to {out_dir}")
         return
 
     # File output requires VERSIONS_DIR — without it, only package names
@@ -581,7 +773,23 @@ def main():
         md = render_runtime(entry, "en", "plain")
         (runtime_dir / f"{name}.md").write_text(md)
     print(f"Wrote {len(backends)} runtime plain readmes to {runtime_dir}")
-    print(f"Total: {total + len(backends)} descriptions")
+
+    # ── App images ──────────────────────────────────────────────
+    # App web flavor: docs/content/{en,zh-cn}/application/{app}-{name}.md.
+    # Harbor plain flavor deferred to PR 2 (upload_descriptions.py --layer app).
+    total_app = 0
+    for lang in LANGS:
+        out_dir = root / "docs" / "content" / lang / "application"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        n = 0
+        for name, entry in backends.items():
+            for app in entry.get("app", {}).get("images", {}):
+                md = render_app(entry, app, lang, "web")
+                (out_dir / f"{app}-{name}.md").write_text(md)
+                n += 1
+                total_app += 1
+        print(f"Wrote {n} {lang} app web pages to {out_dir}")
+    print(f"Total: {total + len(backends) + total_app} descriptions")
 
 
 if __name__ == "__main__":

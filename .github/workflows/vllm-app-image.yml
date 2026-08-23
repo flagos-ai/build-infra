@@ -28,9 +28,9 @@ name: vllm app image
 # from the app image), and vllm + vllm_fl must import (see
 # packaging/vllm/verify-vllm-backend.sh --app-image). Verify gates push.
 #
-# Backend matrix comes from scripts/generate_matrix.py --app vllm (same
-# runtime fields as runtime-image.yml plus the per-backend app env vars and
-# vendor-conditional deps from configs.yaml deps_app.vllm).
+# Backend matrix comes from scripts/generate_matrix.py --app vllm-{version}
+# (same runtime fields as runtime-image.yml plus the per-backend app env vars
+# and vendor-conditional deps from configs.yaml deps_app.vllm-{version}).
 # Per-vendor PyPI (flagos_pypi) is searched first; aliyun is the fallback.
 
 on:
@@ -91,9 +91,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 scripts/generate_matrix.py --app vllm > matrix.json
+            python3 scripts/generate_matrix.py --app "vllm-${{ inputs.vllm_version }}" > matrix.json
           else
-            python3 scripts/generate_matrix.py --app vllm ${{ inputs.backend }} > matrix.json
+            python3 scripts/generate_matrix.py --app "vllm-${{ inputs.vllm_version }}" ${{ inputs.backend }} > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"

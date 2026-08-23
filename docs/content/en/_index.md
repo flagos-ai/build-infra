@@ -23,7 +23,7 @@ cascade:
 
 
 FlagOS container image build infrastructure. FlagOS ships images in layers — a
-vendor **base** image, a **runtime** image on top of it, and (soon) a series of
+vendor **base** image, a **runtime** image on top of it, and a series of
 **application** images.
 
 - **[Overview]({{< relref "overview" >}})** — how the image layers relate and are named.

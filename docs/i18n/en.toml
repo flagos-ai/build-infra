@@ -104,3 +104,15 @@ other = "optional"
 
 [toolkit_optional_tooltip]
 other = "only for the toolkit launch below; the plain docker/podman command needs none"
+
+[app_megatron_training]
+other = "Megatron training"
+
+[app_megatron_rl]
+other = "Megatron RL"
+
+[app_vllm]
+other = "vLLM"
+
+[app_version]
+other = "Version"

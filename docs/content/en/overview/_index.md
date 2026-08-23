@@ -41,7 +41,7 @@ Built on a base image; adds the **Python interpreter** and the **software stack*
 (Torch, Triton, FlagTree, FlagGems). Built by `runtime/build.py`, image
 `flagos-runtime-<vendor>-<backend>`.
 
-## application (future)
+## application
 
 Built on a runtime image; packages a ready-to-run application (vLLM, Megatron-LM,
 SGLang, …).

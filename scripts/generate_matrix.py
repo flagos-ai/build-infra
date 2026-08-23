@@ -20,17 +20,19 @@ Reads configs.yaml and the runner mapping in .github/build-config.yml,
 then emits a matrix of buildable backends.
 
 Usage:
-    python scripts/generate_matrix.py                         # base: all backends
-    python scripts/generate_matrix.py nvidia-cuda12.8         # base: subset
-    python scripts/generate_matrix.py --runtime                # runtime: all
-    python scripts/generate_matrix.py --runtime nvidia-cuda12.8  # runtime: subset
-    python scripts/generate_matrix.py --app vllm nvidia-cuda12.8 # app: subset
-    python scripts/generate_matrix.py --app megatron           # app: all backends
+    python scripts/generate_matrix.py                             # base: all backends
+    python scripts/generate_matrix.py nvidia-cuda12.8             # base: subset
+    python scripts/generate_matrix.py --runtime                    # runtime: all
+    python scripts/generate_matrix.py --runtime nvidia-cuda12.8    # runtime: subset
+    python scripts/generate_matrix.py --app vllm-0.24.0 nvidia-cuda12.8  # app: subset
+    python scripts/generate_matrix.py --app megatron-rl            # app: keyed backends
 
 --runtime mode pre-computes all docker build args so self-hosted
 runners don't need Python/pyyaml installed.  --app mode is the
 same superset plus the per-backend app-layer env vars
-(configs.yaml env.app.{app}) serialized as "KEY=value\n...".
+(configs.yaml env.app.{app}, bare name for vllm-*) serialized as
+"KEY=value\n...".  Only backends whose deps_app carries the app
+key are included (key presence = verified in the app's matrix).
 """
 
 import argparse
@@ -73,6 +75,12 @@ def runson_for(name: str, runners: dict) -> str:
     return json.dumps(val)
 
 
+def deps_app_keys_for(configs: dict, name: str) -> dict:
+    """Return the backend's deps_app dict (app key -> vendor packages)."""
+    vendor, backend = name.split("-", 1)
+    return (configs["vendors"][vendor][backend].get("deps_app") or {})
+
+
 def _base_matrix(runners: dict, selected: list[str]) -> dict:
     """Original matrix: {name, runson} only."""
     return {"include": [{"name": n, "runson": runson_for(n, runners)} for n in selected]}
@@ -94,7 +102,9 @@ def _runtime_matrix(
     per-backend app env vars from configs.yaml env.app.{app}, serialized
     as "KEY=value\\n..." (same format as runtime_env) under ``app_env``,
     and the per-backend app deps from configs.yaml deps_app.{app}
-    (space-separated) under ``app_deps``.
+    (space-separated) under ``app_deps``.  ``app`` is a deps_app key —
+    vllm keys are versioned (vllm-0.24.0); env.app keys stay bare
+    ('vllm'), so the env lookup drops a vllm- prefix.
     """
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
     registry = build_config.get("registry") or {}
@@ -147,7 +157,10 @@ def _runtime_matrix(
         # (configs.yaml deps_app.{app}). Space-separated, same format as deps.
         app_deps = ""
         if app is not None:
-            app_env = ((backend_info.get("env") or {}).get("app") or {}).get(app, {})
+            # env.app keys stay bare app names ('vllm') while deps_app keys
+            # may be versioned ('vllm-0.24.0') — resolve to the bare name.
+            env_key = "vllm" if app.startswith("vllm") else app
+            app_env = ((backend_info.get("env") or {}).get("app") or {}).get(env_key, {})
             app_env_lines = "\n".join(
                 f"{k}={v}" for k, v in (app_env or {}).items()
             )
@@ -198,7 +211,8 @@ def main():
     )
     parser.add_argument(
         "--app", metavar="APP",
-        help="Generate app build matrix for the named app (vllm / megatron): "
+        help="Generate app build matrix for the named app key "
+             "(vllm-0.24.0 / megatron-training / megatron-rl / vllm): "
              "runtime matrix fields + per-backend env.app.{APP} as app_env",
     )
     parser.add_argument(
@@ -234,7 +248,19 @@ def main():
         selected = [name for name, has_file in all_backends if has_file]
 
     if args.app:
-        matrix = _runtime_matrix(configs, runners, repo_root, selected, app=args.app)
+        # App builds are gated by deps_app key presence (key presence = the
+        # app was verified on that backend, so it builds/publishes; the value
+        # may be [] — verified with no vendor-conditional package — hence
+        # membership, not truthiness).
+        app_key = args.app
+        selected = [
+            n for n in selected
+            if app_key in deps_app_keys_for(configs, n)
+        ]
+        if not selected:
+            print(f"warning: no backend in deps_app carries app key '{app_key}', "
+                  f"matrix is empty", file=sys.stderr)
+        matrix = _runtime_matrix(configs, runners, repo_root, selected, app=app_key)
     elif args.runtime:
         matrix = _runtime_matrix(configs, runners, repo_root, selected)
     else:
