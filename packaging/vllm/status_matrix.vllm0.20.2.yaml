@@ -24,7 +24,7 @@ scenarios:
   inference:
     label: "0.20.2"
     verification:
-      nvidia-cuda12.8:       {T: "⬜", F: "✅"}
+      nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "⬜", F: "⬜"}
       ascend-cann8.5.0:      {T: "⬜", F: "⬜"}
       ascend-cann9.0.0:      {T: "⬜", F: "✅"}
@@ -49,9 +49,9 @@ scenarios:
 # across scenarios). deps_app key presence (configs.yaml) = buildable.
 backends:
   nvidia-cuda12.8:
-    deps_app: false
-    launch_docs: false
-    harbor_repo: false
+    deps_app: true
+    launch_docs: true
+    harbor_repo: true
   nvidia-cuda13.3:
     deps_app: false
     launch_docs: false

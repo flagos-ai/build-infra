@@ -265,6 +265,7 @@ PUBLISHED_APP_REPOS = {
     "vllm0.24.0-ascend-cann9.0.0": "2.1.2-0.2.0_gcf8998c.d20260818",
     "vllm0.24.0-sunrise-tangrt1.2.0": "2.1.2-0.2.0_g687217a.d20260819",
     "vllm0.20.2-sunrise-tangrt1.2.0": "2.1.2-0.2.0_g687217a.d20260819",
+    "vllm0.20.2-nvidia-cuda12.8": "2.1.2-0.2.1_g825c1cd",
 }
 
 
