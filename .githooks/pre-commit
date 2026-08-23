@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Keep the verification matrices in sync with their status_matrix YAMLs.
+# Runs only when staged changes touch a status_matrix YAML or a rendered
+# verification-matrix markdown; drift fails the commit with a re-render hint.
+# The markdown tables are generated output — fix drift by running
+# `python3 scripts/render_status_matrix.py` and staging the result, not by
+# hand-editing the tables. CI backstop: .github/workflows/status-matrix-
+# consistency.yml.
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+staged="$(git diff --cached --name-only)"
+if ! printf '%s\n' "$staged" |
+    grep -Eq '^packaging/.*/status_matrix\.[^/]+\.yaml$|^packaging/.*/verification-matrix\.md$'; then
+    exit 0
+fi
+
+python3 -c "import yaml" 2>/dev/null || python3 -m pip install --user --break-system-packages pyyaml
+
+if ! python3 scripts/render_status_matrix.py --check; then
+    echo
+    echo "verification matrices out of sync with their status_matrix YAMLs."
+    echo "Run 'python3 scripts/render_status_matrix.py' and stage the rendered"
+    echo "markdown, or adjust the YAML if the drift is intentional."
+    exit 1
+fi
