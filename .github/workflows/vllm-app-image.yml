@@ -63,6 +63,10 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   authorize:
     # Only accounts listed in .github/builders.txt may trigger this workflow
@@ -188,3 +192,19 @@ jobs:
         if: ${{ inputs.push }}
         run: |
           docker push "${APP_TAG}"
+
+      # image_tag in the status matrix is the single source of truth for
+      # "this backend is published" (docs/status-matrix.md). Only the
+      # workflow knows the exact tag at push time, so it records it itself
+      # right after the push — this regenerates the verification matrix and
+      # app launch pages and opens a review-gated PR (scripts/
+      # record_app_image_tag.py). Idempotent: same tag → no-op.
+      - name: Record app image tag
+        if: ${{ success() && inputs.push }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/record_app_image_tag.py \
+            --matrix "packaging/vllm/status_matrix.vllm${{ inputs.vllm_version }}.yaml" \
+            --backend "${{ matrix.name }}" \
+            --tag "${APP_TAG}"
