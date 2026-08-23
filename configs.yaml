@@ -63,11 +63,17 @@
 #                        here, needs verification, but has no vendor package" —
 #                        NOT "don't build". Public packages never appear here
 #                        (they ride the wheel's extras, see packaging/megatron).
+#                        Exception: megatron-rl keys are restricted to backends
+#                        whose RL scenario is verified in the megatron
+#                        verification matrix (packaging/megatron/docs/
+#                        megatron-verification-matrix.md), so the launch pages
+#                        track what was actually tested.
 #                        The app's own wheel is NOT a deps_app entry — it is
 #                        the app's identity and is carried by the Containerfile
 #                        (e.g. MEGATRON_VERSION), not per-backend conditionality.
 #                        Key presence also gates which app launch pages are
-#                        generated (docs/gen_data.py) and the app build matrix
+#                        generated (docs/gen_data.py) and feeds the per-backend
+#                        app deps in the app build matrix
 #                        (scripts/generate_matrix.py --app).
 #   "hardware:"        — chip models the image targets (rendered as a prerequisite).
 #   "driver:"          — host driver version installed on the node — a prerequisite,
@@ -198,7 +204,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - CANN Toolkit 8.5.0 (aarch64)     # Ascend-cann-toolkit_8.5.0_linux-aarch64.run
         - CANN 910B Ops 8.5.0 (aarch64)    # Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
@@ -221,7 +226,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910B Ops 9.0.0 (aarch64) # Ascend-cann-910b-ops_9.0.0_linux-aarch64.run
@@ -248,7 +252,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - cnmon 6.2.15         # cnmon-6.2.15-x86_64.zip
         - cntoolkit 4.4.3      # cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb
@@ -278,7 +281,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - cnmon 6.5.48           # cnmon-6.5.48-x86_64.zip
         - cntoolkit 4.7.2        # cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
@@ -314,7 +316,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
         - TOPS Runtime 1.9.10     # topsruntime_1.9.10-1_amd64.deb
@@ -358,7 +359,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
         - TOPS Runtime 1.10.6     # topsruntime_1.10.6-1_amd64.deb
@@ -424,7 +424,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
@@ -474,7 +473,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.37.1.0       # xre-Linux-x86_64-cuda12-5.37.1.0.run
@@ -502,7 +500,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - MetaX Driver 3.7.2.30   # metax-driver-3.7.2.30-deb-x86_64.run
         - MACA SDK 3.7.2.0        # maca-sdk-3.7.2.0-deb-x86_64.tar.xz
@@ -542,7 +539,7 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
+        megatron-rl: []  # RL verified per megatron-verification-matrix.md; no vendor extra
       sdk:
         - MetaX Driver 3.8.1.6   # metax-driver-3.8.1.6-deb-x86_64.run
         - MACA SDK 3.8.1.3       # maca-sdk-3.8.1.3-deb-x86_64.tar.xz
@@ -573,7 +570,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
         - MCCL RC2.1.6              # mccl_rc2.1.6.PH1.tar.gz
@@ -603,7 +599,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - MUSA Toolkits 5.2.0     # musa_toolkits_5.2.0.tar.gz
         - MCCL 2.4.0              # mccl.2.4.0.PH1.tar.gz
@@ -622,7 +617,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
   sunrise:
     tangrt1.2.0:
       extras: sunrise
@@ -645,7 +639,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - Tang Toolkit 1.2.0   # tangtk-v1.2.0-linux-x86_64.run
         - PCCL 1.2.0           # pccl-v1.2.0-linux_x86_64.run
@@ -666,7 +659,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
   tsingmicro:
     tsm260610:
       extras: tsingmicro
@@ -704,7 +696,6 @@ vendors:
       deps_app:
         vllm: []
         megatron-training: []
-        megatron-rl: []
       sdk:
         - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
         - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run
