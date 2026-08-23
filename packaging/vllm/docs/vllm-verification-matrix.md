@@ -32,7 +32,7 @@
 | 燧原 | TOPS 1.10.6 | ✅ | ❌ | ⬜ | ⬜ |
 | 海光 | DTK 26.04 | — | ✅ | ✅ | ✅ |
 | 天数智芯 | COREX 4.4.0 | ⬜ | ❌ | ⬜ | ⬜ |
-| 昆仑芯 | XRE 5.37.1 | ⛔ | ⛔ | ⬜ | ⬜ |
+| 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ✅ | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ | ✅ | ✅ |
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ✅ | ✅ |
@@ -84,10 +84,16 @@
   `report-vllm-0.24.0.md` §11.5；**2026-08-20 在 rebuilt wheel 下复测
   0.20.2(F) 路径 ✅**——serve 达 `Application startup complete`、推理连贯
   （knowledge "Paris" / math "56"）、decode 正常终止，本格翻 ✅。）
-- **kunlunxin-xre5.37.1**（P800 XPU）：⛔ 三处 attention 内核编译失败——
-  flagtree 0.6.1+xpu3.6（`TritonSDNNLegalize` / `TritonSDNNCombineBefore`）、
-  triton 3.0.0（XTDK LLVM19 空 SetVector 断言）。应用层无法绕过，已交编译器团队，
+- **kunlunxin-xre5.37.1**（P800 XPU）：✅（2026-08-22~23）0.20.2 双编译器 E2E
+  通过 —— flagtree 0.6.1+xpu3.6 **7/7**（7.3~9.8 tok/s）、triton 3.6.0 **3/3**
+  （5.7~7.3 tok/s），serve + 推理连贯。此前三处 attention 内核编译失败
+  （flagtree `TritonSDNNLegalize` / `TritonSDNNCombineBefore`、triton 3.0.0
+  XTDK LLVM19 空 SetVector 断言）由厂商插件层 **PR #268**（xtorch_ops 原生
+  attention backend，不碰 Triton 编译）+ triton 3.6.0 升级（#469）绕开，
   详见 [kunlunxin-xpu-triton-attention-compiler-bug.md](kunlunxin-xpu-triton-attention-compiler-bug.md)。
+  验证中另两个问题（解码乱码 = 插件 patch scale 传错，修复已上提 PR #400；
+  假死 = `XPU_EVENT_KL3_ENABLE=1` 触发，配方去掉该行）均已闭环，详见
+  [kunlunxin-decode-repetition-scale-bug.md](kunlunxin-decode-repetition-scale-bug.md)。
 
 **0.24.0（截至 2026-08-20）**
 
@@ -224,8 +230,8 @@
 
 ## 已知问题 / 阻塞
 
-- **kunlunxin**：attention 内核编译失败需编译器侧修复
-  （TritonSDNN pass 链 / XTDK 后端断言），应用层无法绕过。
+- **kunlunxin**：0.20.2 线已闭环（2026-08-22~23，见上）；0.24.0 线 upstream main
+  已删除 vendor/kunlunxin 目录，插件无挂点，待插件侧规划。
 - **sunrise**：flagtree flash-attn decode 挂死，已交 FlagTree 团队；
   交付固定走官方 Triton。
 - **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
@@ -240,4 +246,4 @@
    （F/T 双路径）、4.3.6 T 路径 ✅ / F 路径 ✅*（flagtree 0.6.1，见上）；
    sunrise ✅（§11）、hygon ✅（§12，2026-08-20）；enflame 按风险排序推进。
 4. **单编译器后端**（cambricon、spacemit、thead）：只需验证可用的一列。
-5. **kunlunxin / iluvatar**：等待上游修复后再列入验证队列。
+5. **iluvatar**：等待上游修复后再列入验证队列（kunlunxin 0.20.2 已 ✅，见上）。

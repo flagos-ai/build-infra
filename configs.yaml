@@ -440,6 +440,16 @@ vendors:
         base:
           PATH: /usr/local/xpu/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/xpu/lib:/usr/local/xcudart/lib
+        app:
+          vllm:
+            # Kunlunxin P800 dispatch recipe, verified on both compiler
+            # paths (FlagTree 7/7 + Triton 3/3, vLLM 0.20.2). XPU_EVENT_KL3_ENABLE
+            # deliberately NOT set: it is the P1 fake-hang trigger (device
+            # timeout) on this XRE stack — default env is clean, keep it so.
+            VLLM_FL_PLATFORM: kunlunxin
+            VLLM_FL_PREFER: flagos
+            USE_FLAGGEMS: "1"
+            VLLM_FL_FLAGOS_WHITELIST: silu_and_mul,rms_norm,rotary_embedding
       deps:
         - apex==0.1
         - benchflow==1.0.0

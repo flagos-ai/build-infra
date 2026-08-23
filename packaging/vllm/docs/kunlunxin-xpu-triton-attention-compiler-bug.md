@@ -151,3 +151,20 @@ builtin.module(
 - 触发问题 1：`VLLM_FL_USE_FLAGGEMS_ATTN=1` + FlagTree（profile 期即崩）
 - 触发问题 2：不设 `VLLM_FL_USE_FLAGGEMS_ATTN` + FlagTree（回落 vLLM 自带 triton attn，首个请求崩）
 - 触发问题 3：`VLLM_FL_USE_FLAGGEMS_ATTN=1` + `compiler triton`（启动成功，首个请求崩）
+
+---
+
+## 更新（2026-08-23）：0.20.2 已被插件层修复绕开，双编译器 E2E 通过
+
+上述三处编译失败在 **vLLM 0.20.2 线已不构成阻塞**，0.20.2 双编译器路径均 E2E
+通过（FlagTree 7/7、triton 3.6.0 3/3，serve + 推理连贯，详见
+`report-vllm-0.20.2.md` §2.10）。两条绕过路径：
+
+1. **厂商插件层 PR #268**（vllm-plugin-FL）：新增 xtorch_ops 原生 attention
+   backend，attention 不再走 Triton 编译，三处失败一并绕开。
+2. **triton 3.6.0 升级（#469）**：`/opt/triton` 由 3.0.0 升到 3.6.0
+   （vendor wheel 3.6.0+gitcd2d6c1b），问题 3 的 XTDK LLVM19 空 SetVector
+   断言在升级后不再出现（3.0.0 另缺 libz3.so.4 的问题也随之解除）。
+
+本文所述编译器侧修复请求仍可作为长期建议保留（FlagTree SDNN pass 链对循环内
+指针状态的支持、XTDK 后端空 SetVector 断言防护），但对 0.20.2 交付已非阻塞。
