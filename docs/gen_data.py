@@ -249,10 +249,10 @@ APP_CMD_DEFAULTS = {
 
 # App image repos already published to Harbor are tracked by the status
 # matrix: `packaging/{megatron|vllm}/status_matrix.{app}.yaml` carries an
-# `image_tag` on each `harbor_repo: true` backend block. The verifier who
-# pushes the image records the tag in the same edit that declares the repo
-# published — no separate registry to drift. Combos without a tag are not
-# published yet and render as placeholders.
+# `image_tag` on the published backend block — the verifier who pushes the
+# image records the tag, and a backend with a tag is published (single source,
+# no separate boolean to drift). Combos without a tag are not published yet
+# and render as placeholders.
 def app_published_tag(app: str, name: str) -> str:
     """Exact Harbor tag of a published app image combo, from the status
     matrix's `image_tag` field; "" if unpublished or not recorded.

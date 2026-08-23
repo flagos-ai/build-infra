@@ -122,11 +122,12 @@ FACILITY_APP_ITEMS = (
 )
 
 # Per-backend facility items, the checklist the user asked for: whether the
-# app is buildable/verified/published on this backend.
+# app is buildable/verified on this backend. 镜像发布 is a derived column, not
+# a stored boolean — a backend is published iff it carries an `image_tag`
+# (single source of truth, no separate field to drift).
 FACILITY_BACKEND_ITEMS = (
     ("deps_app", "deps_app 落库"),
     ("launch_docs", "启动文档"),
-    ("harbor_repo", "镜像发布"),
 )
 
 # Facility boolean → matrix symbol, for the facility checklist's 状态 column.
@@ -241,6 +242,9 @@ def validate_app(data: dict, path: Path, comp_md: Path) -> None:
         for item in FACILITY_BACKEND_ITEMS:
             if item[0] not in binfo:
                 bad(f"backends.{bkey}: missing facility item {item[0]!r}")
+        tag = binfo.get("image_tag")
+        if tag is not None and (not isinstance(tag, str) or not tag):
+            bad(f"backends.{bkey}.image_tag: expected a non-empty string")
         prs = binfo.get("prs")
         if prs is not None and not isinstance(prs, list):
             bad(f"backends.{bkey}.prs: expected a list")
@@ -338,15 +342,17 @@ def render_facility(app: dict, apps: list[dict]) -> str:
     lines.append("")
     lines.append("**后端级设施**")
     lines.append("")
-    headers = ["后端", "deps_app 落库", "启动文档", "镜像发布"]
+    headers = ["后端"] + [label for _, label in FACILITY_BACKEND_ITEMS] + ["镜像发布"]
     rows = []
     for bkey in BACKENDS:
         if bkey not in app["backends"]:
             continue
         binfo = app["backends"][bkey] or {}
-        rows.append([backend_display(bkey)]
-                    + [BOOL_SYMBOL[bool(binfo.get(item))]
-                       for item, _ in FACILITY_BACKEND_ITEMS])
+        row = [backend_display(bkey)]
+        row += [BOOL_SYMBOL[bool(binfo.get(item))]
+                for item, _ in FACILITY_BACKEND_ITEMS]
+        row.append(BOOL_SYMBOL[bool(binfo.get("image_tag"))])
+        rows.append(row)
     lines.append(render_table(headers, rows))
     lines.append("")
     return "\n".join(lines)
