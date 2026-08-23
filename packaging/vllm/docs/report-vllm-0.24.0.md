@@ -657,7 +657,7 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   验证为目的，性能不做横向比较。
 - **非致命警告**：flag_gems `index_select.py:45` UserWarning（张量逻辑
   `and`/`or`，弃用语义）—— 上游 flag_gems 5.3.4 问题，不影响正确性，
-  列入遗留（§13）。
+  列入遗留（§14）。
 - **GDN/hybrid 模型（Qwen3-Next）0.24.0 暂不支持**：0.24.0 把
   `mamba/gdn_linear_attn.py` 重构为 `mamba/gdn/` 包，patch.py 的 GDN
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
@@ -911,7 +911,7 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
 | 输出连贯 | 无 | ✅ knowledge 连贯 |
 
 A/B 结论：**重建 wheel 修复了解码挂死**；F 路径（`compiler flagtree`）
-从"沿用 §2.9 挂死结论"升级为 ✅（§13 已同步）。
+从"沿用 §2.9 挂死结论"升级为 ✅（§14 已同步）。
 
 **构建 gate（全部通过，CI 内置）**：干净版本号（无 `.git<sha>` 后缀）、
 cp310 标签、22.04 可加载（无 GLIBC_2.38/GLIBCXX_3.4.31+ 符号）、
@@ -1028,7 +1028,76 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 
 ---
 
-## 13. 遗留事项
+## 13. kunlunxin（XRE 5.37.1）：0.24.0 规划（2026-08-23）
+
+> 状态：**源码级可行性审计完成，未验证**。验证后按后端惯例在本节补记录。
+
+### 13.1 结论摘要
+
+0.24.0 on kunlunxin **可行**：构建侧（cp310 empty wheel）与插件侧（release-0.2
+→ main 移植）两条路径均已枚举完整，无硬阻塞。两处 0.24.0 结构性 API 变化
+（GDN 模块重构、fla.ops 平铺化）需在 patch.py 移植时适配；attention 后端类
+接口经逐项比对基本兼容。
+
+### 13.2 构建侧：cp310 empty wheel
+
+- pyproject 钉 `torch == 2.11.0`，但 `[tool.uv] no-build-isolation-package =
+  ["torch"]` → 实际用 runtime 自带 torch（0.24.0 其余后端同法已验证）。
+- kunlunxin 是 **python 3.10** → 需 **cp310 empty wheel**（0.24.0 wheel 绑定
+  CPython 小版本，不能复用 cp312 产物，同 §11.1 sunrise 先例）。
+- 单步安装维持 `--no-deps` → vendor torch 2.9.0+cu129 不被替换。
+
+### 13.3 插件移植范围（main 目前零 kunlunxin 引用，全部从 release-0.2 @8236c0a 带回）
+
+| 文件 | 内容 |
+|---|---|
+| `vllm_fl/dispatch/backends/vendor/kunlunxin/`（整目录） | kunlunxin.py + patch.py + register_ops.py + impl/* + patches/*（直接拷） |
+| `vllm_fl/dispatch/config/kunlunxin.yaml` | main 缺此文件（按 platform 名自动加载） |
+| `vllm_fl/utils.py` | VENDOR_DEVICE_MAP + supported_device 加 kunlunxin（device_type=cuda） |
+| `vllm_fl/platform.py` | block_size=128 分支 |
+| `vllm_fl/__init__.py` | `_patch_xpu_get_device` hook |
+| `vllm_fl/ops/custom_ops.py` | `apply_kunlunxin_patches()` 调用 |
+| `vllm_fl/ops/fused_moe/fused_moe_utils.py` | 3 处：TritonExpertsFL 恒用 + TRITON 回退 + patched fused_experts_impl |
+
+### 13.4 0.24.0 API 适配点（已逐一验证）
+
+| 变化 | 结论 |
+|---|---|
+| `mamba/gdn_linear_attn.py` 模块 → `mamba/gdn/` 包 | 三个 patch fn 需重指目标（名单见下） |
+| fla.ops：chunk/fused_recurrent 子包 → 平铺模块 | 兼容；双层 patch（`_fla_ops_lib` + `_fla_chunk_lib`）原样可落 |
+| `from vllm.distributed import get_tp_group` | ✅ 可解析（parallel_state 无 `__all__`，`import *` 带出 def@1349） |
+| attention.py 类接口 | 兼容（细节见下） |
+| `CommonAttentionMetadata` | ✅ backends/utils.py:37 再导出，无需改 import |
+| `patch_attention_backend_registry`（CUSTOM 注册） | 死代码（dispatch 不经 enum）但 try/except 包裹，保留无害 |
+| cudagraph | 0.24.0 有 `AttentionCGSupport`（backend.py:548）→ 可恢复（release-0.2 注释称 0.20.2 没有） |
+
+适配细节：
+- GDN：三个 patch fn（patch_fla_ops / patch_fused_gdn_gating / patch_ssm_cache_update）需重指目标；
+  Qwen3 运行时指 `qwen_gdn_linear_attn.py`。
+- fla.ops：⚠️ 0.24.0 模型新增 import `fused_recurrent_gated_delta_rule_packed_decode`，
+  现 patch 未覆盖 decode 路径，移植时需确认 vendor kernel 是否走此名。
+- attention.py：`get_required_kv_cache_layout` 基类默认 None（backend.py:378）→ 0.24.0
+  selector 无条件调用，兼容；`get_supported_head_size`（单数 static）需改名
+  `get_supported_head_sizes`（复数 classmethod）对齐基类；`get_name()` 返回 "CUSTOM"
+  合法无害。
+
+### 13.5 验证风险清单（移植后的 on-node 必测项）
+
+1. **torch 2.9.0+cu129 vs 0.24.0**（钉 2.11）—— 单步安装首测即验；
+   先例（hygon 2.9.0+das、mthreads、ascend）均 vendor torch 跑 0.24.0，先验概率高。
+2. **cp310 empty wheel 首建** —— 首个非 cp312 的 0.24.0 wheel。
+3. **flag_gems flagos 路径** —— op_backends 映射沿用 release-0.2（flagos 优先；
+   GDN/conv 系列 vendor 优先；flagos_blacklist 兜底），需对 0.24.0 op 名复验。
+4. **PR #400 alpha 修复**（patch.py:401）已在 release-0.2 wheel 里，移植时保留。
+
+### 13.6 下一步（待确认后派发）
+
+1. 派发 cp310 empty wheel 构建（vllm-0.24.0+flagos, python 3.10）—— 不涉及插件改动。
+2. 插件移植（本节 §13.3/§13.4）→ vllm-plugin-FL main 分支 PR → 插件 wheel → 验证。
+
+---
+
+## 14. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17

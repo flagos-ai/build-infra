@@ -207,7 +207,7 @@
   (1,1,1))`，FlagTree PR #1020；容器内临时 sed 解锁验证，可复现修复
   = PR 合入后重建 flagtree hygon wheel（`packaging/flagtree/hygon`，
   待建）。
-  **hygon app 镜像：暂不做（2026-08-20 决策，见 report §13）** ——
+  **hygon app 镜像：暂不做（2026-08-20 决策，见 report §14）** ——
   F 路径默认编译器被 PR #1020 合入 + flagtree hygon wheel 重建卡死
   （无新 flagtree release 前 runtime 无法刷新）；T 路径（vendor
   triton 3.5.1 已在 runtime）技术上可做，同轮交付意义不大，PR
@@ -231,7 +231,9 @@
 ## 已知问题 / 阻塞
 
 - **kunlunxin**：0.20.2 线已闭环（2026-08-22~23，见上）；0.24.0 线 upstream main
-  已删除 vendor/kunlunxin 目录，插件无挂点，待插件侧规划。
+  已删除 vendor/kunlunxin 目录，插件无挂点。**0.24.0 可行性审计完成（2026-08-23，
+  cp310 empty wheel + 插件移植范围已枚举，见 `report-vllm-0.24.0.md` §13），
+  验证未开始。**
 - **sunrise**：flagtree flash-attn decode 挂死，已交 FlagTree 团队；
   交付固定走官方 Triton。
 - **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
