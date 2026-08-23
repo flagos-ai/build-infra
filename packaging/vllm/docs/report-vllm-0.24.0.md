@@ -22,7 +22,9 @@
 
 结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过；
 Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sunrise（TANGRT 1.2.0）
-验证通过（cp310 wheel + 插件 CUSTOM 移植 + triton 路径，2026-08-19）。
+验证通过（cp310 wheel + 插件 CUSTOM 移植 + triton 路径，2026-08-19）；Kunlunxin
+（XRE 5.37.1）验证通过（cp310 empty wheel + 插件 PR #401 移植 + app 镜像 serve，
+2026-08-23，§13）。
 
 - 构建 + 重新打包（wheel）：✅ 通过（2026-08-12）
 - MACA（3.7.2.1）× FlagTree：✅ 通过（2026-08-14）
@@ -36,6 +38,8 @@ Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sun
 - Ascend（CANN 9.0.0）× FlagTree：✅ 通过（2026-08-17，插件 PR #387，Qwen3-4B）
 - Sunrise（TANGRT 1.2.0）× Triton：✅ 通过（2026-08-19，cp310 wheel +
   CUSTOM 移植，Qwen3-8B）
+- Kunlunxin（XRE 5.37.1）× FlagTree：✅ 通过（2026-08-23，cp310 empty
+  wheel + 插件 PR #401 + app 镜像 serve E2E，Qwen3-4B）
 
 "通过" 意味着：1） vLLM 服务可以正常启动；2）使用 Qwen3-4B 模型可以执行正常推理服务；
 
@@ -1028,16 +1032,18 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 
 ---
 
-## 13. kunlunxin（XRE 5.37.1）：0.24.0 规划（2026-08-23）
+## 13. kunlunxin（XRE 5.37.1）详细记录（2026-08-23）
 
-> 状态：**源码级可行性审计完成，未验证**。验证后按后端惯例在本节补记录。
+> 状态：**验证完成（2026-08-23）**。构建（cp310 empty wheel）、插件移植
+> （PR #401 → 插件 wheel）、app 镜像 serve E2E 三线全通过（§13.6）。
 
 ### 13.1 结论摘要
 
-0.24.0 on kunlunxin **可行**：构建侧（cp310 empty wheel）与插件侧（release-0.2
-→ main 移植）两条路径均已枚举完整，无硬阻塞。两处 0.24.0 结构性 API 变化
-（GDN 模块重构、fla.ops 平铺化）需在 patch.py 移植时适配；attention 后端类
-接口经逐项比对基本兼容。
+0.24.0 on kunlunxin **可行且已验证**：构建侧（cp310 empty wheel）与插件侧
+（release-0.2 → main 移植）两条路径均已跑通，serve + 推理 E2E 通过（§13.6）。
+两处 0.24.0 结构性 API 变化（GDN 模块重构、fla.ops 平铺化）中，GDN 目标路径
+已实测确认；attention 后端类接口经逐项比对基本兼容。遗留 FLA patch 目标路径
+待重指（Qwen3-Next/GDN 前置，见 §13.4 与 §14）。
 
 ### 13.2 构建侧：cp310 empty wheel
 
@@ -1046,6 +1052,8 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 - kunlunxin 是 **python 3.10** → 需 **cp310 empty wheel**（0.24.0 wheel 绑定
   CPython 小版本，不能复用 cp312 产物，同 §11.1 sunrise 先例）。
 - 单步安装维持 `--no-deps` → vendor torch 2.9.0+cu129 不被替换。
+- ✅ cp310 empty wheel（vllm-0.24.0+flagos）已构建并上传（2026-08-23，
+  vllm-wheel 工作流）；app 镜像单步安装线（§13.6）实测通过。
 
 ### 13.3 插件移植范围（main 目前零 kunlunxin 引用，全部从 release-0.2 @8236c0a 带回）
 
@@ -1070,30 +1078,63 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 | `CommonAttentionMetadata` | ✅ backends/utils.py:37 再导出，无需改 import |
 | `patch_attention_backend_registry`（CUSTOM 注册） | 死代码（dispatch 不经 enum）但 try/except 包裹，保留无害 |
 | cudagraph | 0.24.0 有 `AttentionCGSupport`（backend.py:548）→ 可恢复（release-0.2 注释称 0.20.2 没有） |
+| `patch_sampler_rng` 签名 | 0.24.0 以三位置参调用 `random_sample(probs, generators, use_fp64_gumbel)` → wrapper 需带 `use_fp64_gumbel=False`（f780db1，旧双参签名会 TypeError） |
+| FLA 路径（实测） | `vllm/third_party/flash_linear_attention` 已不存在（仅剩 flashmla）；实为 `vllm/model_executor/layers/fla/ops` 平铺包（chunk.py / fused_recurrent.py） |
 
 适配细节：
 - GDN：三个 patch fn（patch_fla_ops / patch_fused_gdn_gating / patch_ssm_cache_update）需重指目标；
-  Qwen3 运行时指 `qwen_gdn_linear_attn.py`。
-- fla.ops：⚠️ 0.24.0 模型新增 import `fused_recurrent_gated_delta_rule_packed_decode`，
-  现 patch 未覆盖 decode 路径，移植时需确认 vendor kernel 是否走此名。
+  0.24.0 引用方为 `mamba/gdn/qwen_gdn_linear_attn.py`（实测存在，`fla_chunk_gated_delta_rule`
+  alias + `fused_recurrent_gated_delta_rule_packed_decode`）。
+- fla.ops：0.24.0 模型新增 import `fused_recurrent_gated_delta_rule_packed_decode`。
+  **实测缺陷**：patch.py 三个 FLA 目标仍指旧路径 `vllm.third_party.
+  flash_linear_attention` → 0.24.0 上报 `Failed to patch FLA ops` /
+  `Failed to patch _forward_core` 告警；Qwen3-4B（非 GDN）不受影响，但
+  Qwen3-Next/GDN 的 chunk/fused_recurrent 替换会失效 → 验证前置修复
+  （§14 待办）。
 - attention.py：`get_required_kv_cache_layout` 基类默认 None（backend.py:378）→ 0.24.0
   selector 无条件调用，兼容；`get_supported_head_size`（单数 static）需改名
   `get_supported_head_sizes`（复数 classmethod）对齐基类；`get_name()` 返回 "CUSTOM"
   合法无害。
 
-### 13.5 验证风险清单（移植后的 on-node 必测项）
+### 13.5 验证风险清单（实测结果）
 
-1. **torch 2.9.0+cu129 vs 0.24.0**（钉 2.11）—— 单步安装首测即验；
-   先例（hygon 2.9.0+das、mthreads、ascend）均 vendor torch 跑 0.24.0，先验概率高。
-2. **cp310 empty wheel 首建** —— 首个非 cp312 的 0.24.0 wheel。
-3. **flag_gems flagos 路径** —— op_backends 映射沿用 release-0.2（flagos 优先；
-   GDN/conv 系列 vendor 优先；flagos_blacklist 兜底），需对 0.24.0 op 名复验。
-4. **PR #400 alpha 修复**（patch.py:401）已在 release-0.2 wheel 里，移植时保留。
+1. **torch 2.9.0+cu129 vs 0.24.0**（钉 2.11）—— ✅ 单步安装后 serve 启动、
+   推理正常，同先例（hygon 2.9.0+das、mthreads、ascend）。
+2. **cp310 empty wheel 首建** —— ✅ 构建通过并上传（首个非 cp312 的 0.24.0 wheel）。
+3. **flag_gems flagos 路径** —— ✅ whitelist 生效（silu_and_mul / rms_norm /
+   rotary_embedding）；op_backends 沿用 release-0.2 无需改。
+4. **PR #400 alpha 修复**（patch.py:401）—— ✅ 0.24.0 路径生效（patched
+   forward_decode 应用 + 推理无 NaN/乱码，§13.6）。
 
-### 13.6 下一步（待确认后派发）
+### 13.6 验证记录（app 镜像 serve E2E，2026-08-23）
 
-1. 派发 cp310 empty wheel 构建（vllm-0.24.0+flagos, python 3.10）—— 不涉及插件改动。
-2. 插件移植（本节 §13.3/§13.4）→ vllm-plugin-FL main 分支 PR → 插件 wheel → 验证。
+app 镜像（vllm empty wheel + 插件 wheel 单步安装线 + `vllm-serve` launcher）
+在 kunlunxin P800 上的 serve + 推理端到端验证：
+
+- 镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-kunlunxin-xre5.37.1:
+  2.1.2-0.2.0_gf780db1.d20260823`（镜像 tag 中插件版本 `+`→`_`）
+- 模型 `/data/models/Qwen3-4B`；serve：`vllm-serve --model
+  /data/models/Qwen3-4B --port 8031 --served-model-name qwen3
+  --reasoning-parser qwen3 --block-size 128 --gpu-memory-utilization 0.8
+  --enforce-eager --trust-remote-code --max-model-len 2048 --dtype bfloat16`
+- env（app 镜像 env.app.vllm 四变量，run 需显式 `-e`）：`VLLM_FL_PLATFORM=
+  kunlunxin VLLM_FL_PREFER=flagos USE_FLAGGEMS=1 VLLM_FL_FLAGOS_WHITELIST=
+  silu_and_mul,rms_norm,rotary_embedding`
+- 版本指纹：vllm `0.24.0+flagos`（cp310 empty wheel）；vllm-plugin-fl
+  `0.2.0+gf780db1.d20260823`；torch 2.9.0+cu129 / xtorch_ops
+  0.1.2935+50a5d6a4 / flag_gems 5.3.4 / numpy 2.2.6 / python 3.10；
+  fingerprint `vllm-0.24.0-92673996`
+- 补丁全量应用（slot_mapping / attention registry / topk_topp / fused_moe /
+  causal_conv1d / fused_gdn_gating / sampler RNG / decode attention），无
+  patch_sampler_rng TypeError（f780db1 三参数签名生效）
+- 推理：英文流畅；中文任务型 prompt（12/30/40/100 token）全流畅、无 NaN
+  乱码、崩溃标记 0（100-token 长生成内容连贯，仅末尾小模型常规重复）
+- ⚠️ FLA 补丁告警（非致命，Qwen3-4B 不受影响）：patch 目标仍指旧路径
+  `vllm.third_party.flash_linear_attention`（0.24.0 已不存在），实为
+  `vllm/model_executor/layers/fla/ops` → 待重指（§13.4 + §14）
+- ⚠️ 否定指令型 prompt（"不要用英文，不要用代码"）30-token 出"，，，"标点
+  循环 —— 已证与 alpha 无关（同镜像同参数换任务型 prompt 即流畅，
+  prompt 内容特性），记 §14 观察项
 
 ---
 
@@ -1102,12 +1143,18 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
       已合入（5b592be）；ascend 验证即基于该基线（§10）。
-- [ ] 0.24.0 其余后端（iluvatar、enflame、cambricon、kunlunxin 等）
+- [ ] 0.24.0 其余后端（iluvatar、enflame、cambricon 等）
       的验证 —— nvidia ✅（§6）；metax ✅（§4/§5）；mthreads ✅
       （§8/§9）；ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）；
       sunrise ✅（§11，T 路径 triton；F 路径 rebuilt flagtree ✅
-      §11.5 —— 旧 §2.9 解码挂死已由 PR 978 修复）；**hygon ✅
-      （§12，F/T 双编译器，2026-08-20）**
+      §11.5 —— 旧 §2.9 解码挂死已由 PR 978 修复）；hygon ✅
+      （§12，F/T 双编译器，2026-08-20）；**kunlunxin ✅（§13，
+      2026-08-23）**
+- [ ] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
+      flash_linear_attention` → `vllm.model_executor.layers.fla.ops`）——
+      Qwen3-Next/GDN 模型验证前置（§13.4）
+- [ ] kunlunxin 否定指令型 prompt 标点循环 —— 已证与 alpha 无关（prompt
+      内容特性，§13.6），留待 Qwen3-Next 验证时观察
 - [ ] hygon flagtree hygon wheel 重建（PR #1020 合入后固化到
       `packaging/flagtree/hygon`，替换容器内临时 sed）
 - [ ] hygon app 镜像 —— **暂不做**（2026-08-20 决策）：F 路径默认
