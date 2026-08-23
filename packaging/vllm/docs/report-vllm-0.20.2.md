@@ -1387,6 +1387,28 @@ Inference:    ✅  "The capital of France is" → " Paris. The capital of German
 
 **相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`main`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
 
+### 后续（2026-08-24）：ascend 双后端 0.20.2 全路径 F/T 双编译器 E2E 全 ✅
+
+两个 ascend 后端（cann9.0.0 @ hw25、cann8.5.0 @ hw26）**release-0.2 实测**（不预置黑名单、
+不回移植 0.24.0 线）：serve + 推理（Qwen3-4B）F（flagtree）与 T（triton）双路径均 E2E 通过，
+64 token 贪婪解码连贯。矩阵 0.20.2(T)/0.20.2(F) 两列由 ⬜ 翻 ✅。
+
+| 后端 | 节点 | F（flagtree） | T（triton） |
+|---|---|---|---|
+| cann9.0.0 | hw25 | ✅ | ✅ |
+| cann8.5.0 | hw26 | ✅ | ✅ |
+
+相比 §2.8（2026-08-10 仅 F 路径）实测新增一处黑名单，与前 3 处（lift_fresh / lift_fresh_copy /
+_to_copy）同落 `dispatch/config/ascend.yaml`（cann8.5.0 / cann9.0.0 共用）：
+
+| # | 症状 | 根因 | 修复 |
+|---|---|---|---|
+| 4 | 推理崩溃 `pow_scalar` | flag_gems `runtime/backend/_ascend/ops/pow.py` 用链式布尔 `a < b < c` 做 tl.constexpr 分支，vendor triton 拒绝 | `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu） |
+
+NPU 冷启动 JIT 极慢：hw25 T 路径首请求 872s（逐 shape 编译 triton/NPU 内核），稳态 0.1~0.2 tok/s，
+64 token decode 约 11~15 min。慢≠挂：以 `generation_tokens_total` 增量 + `num_requests_running` 归零
+判断完成，勿以客户端 curl 超时误判卡死。
+
 
 ---
 
