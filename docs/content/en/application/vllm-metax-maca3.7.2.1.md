@@ -45,44 +45,44 @@ title: "vllm-metax-maca3.7.2.1"
 
 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2`
 
-**With the container toolkit** *(optional)*:
+The image name is long — assign it to a variable first:
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2 bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
+
+```bash
+metax-docker run --rm -it $IMG bash
 ```
 
 Start the app with its default settings:
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2
+metax-docker run --rm -it $IMG
 ```
 
 Pass arguments to the launcher:
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2 vllm-serve --model <path> --port 9000
+metax-docker run --rm -it $IMG vllm-serve --model <path> --port 9000
 ```
 
-**Without a toolkit** — plain docker / podman:
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -92,7 +92,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -102,13 +102,5 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.7.2.1:2.1.2 vllm-serve --model <path> --port 9000
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-mx-smi
+  $IMG vllm-serve --model <path> --port 9000
 ```

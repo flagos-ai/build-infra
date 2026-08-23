@@ -43,12 +43,22 @@ title: "megatron-training-ascend-cann9.0.0"
 
 **已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f`
 
-**使用容器工具包** *(可选)*：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -56,7 +66,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f
+  $IMG
 ```
 
 向启动器传参：
@@ -64,10 +74,12 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f megatron-train --model-type GPT
+  $IMG megatron-train --model-type GPT
 ```
 
-**无需工具包** —— 直接使用 docker / podman：
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
@@ -78,7 +90,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -92,7 +104,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f
+  $IMG
 ```
 
 向启动器传参：
@@ -106,13 +118,5 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann9.0.0:2.1.2-0.2.1_9.g48b97a13f megatron-train --model-type GPT
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-npu-smi info
+  $IMG megatron-train --model-type GPT
 ```

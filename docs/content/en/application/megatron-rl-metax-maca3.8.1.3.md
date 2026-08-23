@@ -49,36 +49,35 @@ title: "megatron-rl-metax-maca3.8.1.3"
 
 `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.1.2-0.2.1`
 
-**With the container toolkit** *(optional)*:
+The image name is long — assign it to a variable first:
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.1.2-0.2.1 bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.1.2-0.2.1
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
+
+```bash
+metax-docker run --rm -it $IMG bash
 ```
 
 **No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
 
 
-**Without a toolkit** — plain docker / podman:
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 **No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
-
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-mx-smi
-```

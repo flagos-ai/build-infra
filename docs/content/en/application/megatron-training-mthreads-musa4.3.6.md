@@ -45,13 +45,23 @@ title: "megatron-training-mthreads-musa4.3.6"
 
 `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1`
 
-**With the container toolkit** *(optional)*:
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -60,7 +70,7 @@ Start the app with its default settings:
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -69,17 +79,19 @@ Pass arguments to the launcher:
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1 megatron-train --model-type GPT
+  $IMG megatron-train --model-type GPT
 ```
 
-**Without a toolkit** — plain docker / podman:
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -89,7 +101,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -99,13 +111,5 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1 megatron-train --model-type GPT
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-mthreads-gmi
+  $IMG megatron-train --model-type GPT
 ```

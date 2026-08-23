@@ -45,13 +45,23 @@ title: "vllm-mthreads-musa5.2.0"
 
 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2`
 
-**使用容器工具包** *(可选)*：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -60,7 +70,7 @@ docker run --rm -it \
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2
+  $IMG
 ```
 
 向启动器传参：
@@ -69,17 +79,19 @@ docker run --rm -it \
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2 vllm-serve --model <path> --port 9000
+  $IMG vllm-serve --model <path> --port 9000
 ```
 
-**无需工具包** —— 直接使用 docker / podman：
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -89,7 +101,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2
+  $IMG
 ```
 
 向启动器传参：
@@ -99,13 +111,5 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2 vllm-serve --model <path> --port 9000
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-mthreads-gmi
+  $IMG vllm-serve --model <path> --port 9000
 ```

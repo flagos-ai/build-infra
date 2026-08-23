@@ -45,35 +45,38 @@ title: "megatron-rl-mthreads-musa4.3.6"
 
 `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1`
 
-**使用容器工具包** *(可选)*：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 **暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
 
 
-**无需工具包** —— 直接使用 docker / podman：
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 **暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
-
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-mthreads-gmi
-```

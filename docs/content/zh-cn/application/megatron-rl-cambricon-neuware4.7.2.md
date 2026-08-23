@@ -44,22 +44,21 @@ title: "megatron-rl-cambricon-neuware4.7.2"
 
 `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-cambricon-neuware4.7.2:2.1.2-0.2.1`
 
-启动交互式 shell（docker 或 podman 均可）：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-cambricon-neuware4.7.2:2.1.2-0.2.1
+```
+
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-cambricon-neuware4.7.2:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 **暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
-
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-cnmon
-```

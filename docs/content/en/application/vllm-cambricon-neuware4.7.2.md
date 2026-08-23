@@ -44,13 +44,21 @@ title: "vllm-cambricon-neuware4.7.2"
 
 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2`
 
-Start an interactive shell (works with docker or podman):
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2
+```
+
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -59,7 +67,7 @@ Start the app with its default settings:
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -68,13 +76,5 @@ Pass arguments to the launcher:
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2 vllm-serve --model <path> --port 9000
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-cnmon
+  $IMG vllm-serve --model <path> --port 9000
 ```

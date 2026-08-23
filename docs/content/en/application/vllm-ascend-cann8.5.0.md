@@ -45,12 +45,22 @@ title: "vllm-ascend-cann8.5.0"
 
 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2`
 
-**With the container toolkit** *(optional)*:
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -58,7 +68,7 @@ Start the app with its default settings:
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -66,10 +76,12 @@ Pass arguments to the launcher:
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2 vllm-serve --model <path> --port 9000
+  $IMG vllm-serve --model <path> --port 9000
 ```
 
-**Without a toolkit** — plain docker / podman:
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
@@ -80,7 +92,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -94,7 +106,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -108,13 +120,5 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2 vllm-serve --model <path> --port 9000
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-npu-smi info
+  $IMG vllm-serve --model <path> --port 9000
 ```

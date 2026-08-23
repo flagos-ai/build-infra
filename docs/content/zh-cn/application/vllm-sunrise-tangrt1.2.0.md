@@ -38,17 +38,28 @@ title: "vllm-sunrise-tangrt1.2.0"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.0+g687217a.d20260819`
+
 ## 启动
 
 **已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819`
 
-启动交互式 shell（docker 或 podman 均可）：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819
+```
+
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -57,7 +68,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819
+  $IMG
 ```
 
 向启动器传参：
@@ -66,13 +77,5 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819 vllm-serve --model <path> --port 9000
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-pt_smi
+  $IMG vllm-serve --model <path> --port 9000
 ```

@@ -245,6 +245,12 @@ APP_CMD_DEFAULTS = {
 # App image repos already published to Harbor (created 2026-08-19/20), mapped
 # to the exact tag each was pushed with. Combos not listed here are not
 # published yet and render as placeholders.
+#
+# The megatron fork segments and the vllm plugin segments below record the
+# workflow inputs actually used (mlf_version / plugin_fl_version). Those are
+# upstream branch heads that a build cannot discover inside the container, so
+# this table is the only record of what went into each pushed tag. Keep it in
+# sync whenever a new combo is pushed.
 PUBLISHED_APP_REPOS = {
     "megatron_training0.17.1-nvidia-cuda12.8": "2.1.2-0.2.1_9.g48b97a13f",
     "megatron_training0.17.1-nvidia-cuda13.3": "2.1.2-0.2.1_9.g48b97a13f",
@@ -283,11 +289,22 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
         package = f"megatron-core[{app.split('-', 1)[1]}]=={d['app_version']}"
     else:
         package = f"vllm=={d['app_version']}+flagos"
+    # vllm-plugin-FL rides in the same image as vllm itself. Its version is the
+    # tag's plugin segment (the workflow input plugin_fl_version, '+' -> '_'),
+    # and is not discoverable inside the container at build time — so published
+    # combos carry it here, back-derived from the exact Harbor tag. Unpublished
+    # combos get an empty spec and the page shows only the vllm wheel.
+    plugin_package = (
+        f"vllm-plugin-fl=={published_tag.split('-', 1)[1].replace('_', '+')}"
+        if app == "vllm" and published_tag and "-" in published_tag
+        else ""
+    )
     return {
         "image": f"{base}:{published_tag or tag}",
         "published": bool(published_tag),
         "app_version": f"{d['package']} {d['app_version']}",
         "package": package,
+        "plugin_package": plugin_package,
         "launcher": APP_LAUNCHERS[app],
         "cmd": APP_CMD_DEFAULTS[app],
         "example": APP_LAUNCH_EXAMPLES[app],
@@ -399,10 +416,15 @@ def main():
                         # by generate_matrix.py --app for app image builds.
                         "env": env.get("app") or {},
                         # Per-app launch data for the docs site: image ref,
-                        # published status, launcher and default CMD.
+                        # published status, launcher and default CMD. Which apps
+                        # a backend builds/verifies/publishes is decided by
+                        # configs.yaml deps_app.{app} — key presence means the app
+                        # is buildable here, so the launch pages follow deps_app,
+                        # not a hardcoded app list.
                         "images": {
                             a: app_image_data(app_prefix, a, name, configs["version"])
-                            for a in APP_IMAGE_DEFAULTS
+                            for a in spec.get("deps_app") or {}
+                            if a in APP_IMAGE_DEFAULTS
                         },
                     },
                 }

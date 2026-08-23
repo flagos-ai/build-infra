@@ -66,6 +66,9 @@
 #                        The app's own wheel is NOT a deps_app entry — it is
 #                        the app's identity and is carried by the Containerfile
 #                        (e.g. MEGATRON_VERSION), not per-backend conditionality.
+#                        Key presence also gates which app launch pages are
+#                        generated (docs/gen_data.py) and the app build matrix
+#                        (scripts/generate_matrix.py --app).
 #   "hardware:"        — chip models the image targets (rendered as a prerequisite).
 #   "driver:"          — host driver version installed on the node — a prerequisite,
 #                        distinct from the in-container SDK. Probed from the vendor's

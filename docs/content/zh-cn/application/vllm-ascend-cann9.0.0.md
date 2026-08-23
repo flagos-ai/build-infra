@@ -39,16 +39,29 @@ title: "vllm-ascend-cann9.0.0"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.0+gcf8998c.d20260818`
+
 ## 启动
 
 **已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818`
 
-**使用容器工具包** *(可选)*：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -56,7 +69,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818
+  $IMG
 ```
 
 向启动器传参：
@@ -64,10 +77,12 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818 vllm-serve --model <path> --port 9000
+  $IMG vllm-serve --model <path> --port 9000
 ```
 
-**无需工具包** —— 直接使用 docker / podman：
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
@@ -78,7 +93,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -92,7 +107,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818
+  $IMG
 ```
 
 向启动器传参：
@@ -106,13 +121,5 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.1.2-0.2.0_gcf8998c.d20260818 vllm-serve --model <path> --port 9000
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-npu-smi info
+  $IMG vllm-serve --model <path> --port 9000
 ```

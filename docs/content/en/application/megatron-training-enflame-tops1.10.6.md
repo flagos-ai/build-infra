@@ -45,14 +45,24 @@ title: "megatron-training-enflame-tops1.10.6"
 
 `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1`
 
-**With the container toolkit** *(optional)*:
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -62,7 +72,7 @@ docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -72,16 +82,18 @@ docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1 megatron-train --model-type GPT
+  $IMG megatron-train --model-type GPT
 ```
 
-**Without a toolkit** — plain docker / podman:
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -90,7 +102,7 @@ Start the app with its default settings:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -99,13 +111,5 @@ Pass arguments to the launcher:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1 megatron-train --model-type GPT
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-efsmi
+  $IMG megatron-train --model-type GPT
 ```

@@ -44,22 +44,21 @@ title: "megatron-rl-sunrise-tangrt1.2.0"
 
 `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1`
 
-Start an interactive shell (works with docker or podman):
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1
+```
+
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 **No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
-
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-pt_smi
-```

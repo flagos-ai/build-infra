@@ -43,12 +43,22 @@ title: "megatron-training-nvidia-cuda12.8"
 
 **Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f`
 
-**With the container toolkit** *(optional)*:
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -56,7 +66,7 @@ Start the app with its default settings:
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -64,10 +74,12 @@ Pass arguments to the launcher:
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f megatron-train --model-type GPT
+  $IMG megatron-train --model-type GPT
 ```
 
-**Without a toolkit** — plain docker / podman:
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
@@ -77,7 +89,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -90,7 +102,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -103,13 +115,5 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f megatron-train --model-type GPT
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-nvidia-smi
+  $IMG megatron-train --model-type GPT
 ```

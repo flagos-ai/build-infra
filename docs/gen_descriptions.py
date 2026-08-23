@@ -95,6 +95,12 @@ STRINGS = {
         "launch_raw_both": "**Without a toolkit** — plain docker / podman:",
         "launch_raw_only": "Start an interactive shell (works with docker or podman):",
         "launch_generic": "Start an interactive shell in the container:",
+        "launch_toolkit_heading": "With the container toolkit",
+        "launch_raw_heading": "Without a toolkit — plain docker / podman",
+        "launch_generic_heading": "Plain docker / podman",
+        "launch_img_var": "The image name is long — assign it to a variable first:",
+        "launch_choose": "The two approaches below are alternatives — pick the one that matches how your host runs containers:",
+        "launch_shell": "Start an interactive shell:",
         "app_image": "Application image",
         "app_package": "Application package",
         "published": "Published",
@@ -132,6 +138,12 @@ STRINGS = {
         "launch_raw_both": "**无需工具包** —— 直接使用 docker / podman：",
         "launch_raw_only": "启动交互式 shell（docker 或 podman 均可）：",
         "launch_generic": "在容器中启动交互式 shell：",
+        "launch_toolkit_heading": "使用容器工具包",
+        "launch_raw_heading": "无需工具包——直接使用 docker / podman",
+        "launch_generic_heading": "直接使用 docker / podman",
+        "launch_img_var": "镜像名较长——先将其设为变量：",
+        "launch_choose": "以下两种方式任选其一：",
+        "launch_shell": "启动交互式 shell：",
         "app_image": "应用镜像",
         "app_package": "应用软件包",
         "published": "已发布",
@@ -231,6 +243,19 @@ def human_date(ts: str) -> str:
     return f"{m.group(1)} {m.group(2)}" if m else ts
 
 
+def _flag_pairs(toks: list[str]) -> list[str]:
+    """Group flag tokens into `-flag value` pairs (a value never starts with
+    `-`), one pair per continuation line. Shared by `wrap_cmd` (base/runtime
+    pages) and `_app_run` (app pages) so both wrap the same way."""
+    groups, i = [], 0
+    while i < len(toks):
+        if toks[i].startswith("-") and i + 1 < len(toks) and not toks[i + 1].startswith("-"):
+            groups.append(f"{toks[i]} {toks[i + 1]}"); i += 2
+        else:
+            groups.append(toks[i]); i += 1
+    return groups
+
+
 def wrap_cmd(cmd: str, width: int = 84, tail_n: int = 2) -> str:
     """Wrap a long `docker run …` / wrapper-launcher command onto multiple lines
     (one flag per continuation line) so the code block doesn't scroll sideways.
@@ -245,15 +270,41 @@ def wrap_cmd(cmd: str, width: int = 84, tail_n: int = 2) -> str:
         head, _, rest = cmd.partition(" ")
     toks = rest.split(" ")
     tail = " ".join(toks[-tail_n:])
-    toks = toks[:-tail_n]
-    groups, i = [], 0
-    while i < len(toks):
-        if toks[i].startswith("-") and i + 1 < len(toks) and not toks[i + 1].startswith("-"):
-            groups.append(f"{toks[i]} {toks[i + 1]}"); i += 2
-        else:
-            groups.append(toks[i]); i += 1
+    groups = _flag_pairs(toks[:-tail_n])
     out = [f"{head} \\"] + [f"  {g} \\" for g in groups] + [f"  {tail}"]
     return "\n".join(out)
+
+
+def _app_run(runner: str, flags: str, tail: str) -> str:
+    """A docker-run command with the image name as `$IMG` (app pages never put
+    the long image ref inline — it's the `IMG=` variable set at the top of the
+    Launch section).
+
+    Wrapping rule: no flags -> a single line; any flags -> one flag (pair) per
+    continuation line, then the final `$IMG …` line. Deterministic — the same
+    command always wraps the same way."""
+    if not flags:
+        return f"{runner} $IMG {tail}".rstrip()
+    out = [f"{runner} \\"]
+    out += [f"  {g} \\" for g in _flag_pairs(flags.split())]
+    out.append(f"  $IMG {tail}".rstrip())
+    return "\n".join(out)
+
+
+def _tier_parts(template: str) -> tuple[str, str, str]:
+    """Split a launch-tier template into (runner, device flags, tail).
+
+    Templates come from gen_data `launch_tiers()` and are either
+    `docker run --rm -it {flags}{image} bash` or a wrapper launcher such as
+    `metax-docker run --rm -it {image} bash` (no flags). The tail is whatever
+    follows the image — what a user appends after `$IMG`."""
+    head = "docker run --rm -it"
+    if template.startswith(head + " "):
+        rest = template[len(head) + 1:]
+        img_at = rest.index("{image}")
+        return head, rest[:img_at].strip(), rest[img_at + len("{image}"):].strip()
+    before, _, after = template.partition("{image}")
+    return before.rstrip(), "", after.strip()
 
 
 def _prerequisites(entry: dict, s: dict, web: bool) -> list[str]:
@@ -478,13 +529,17 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
 
 
 def _app_launch(entry: dict, s: dict, data: dict, image: str) -> list[str]:
-    """App launch section: per launch tier, the interactive-shell form plus the
-    two service forms (default CMD / launcher with explicit args). Service args
-    always go through the launcher — never a raw `bash -c "…"`. Tiers and device
-    flags come from the same source as the base/runtime pages (build-config.yml
-    run.vendors), so the three forms differ from the tier template only by what
-    follows the image. An image without a launcher (megatron-rl today) renders
-    the shell form plus a placeholder note instead of the service forms."""
+    """App launch section: `IMG` variable + one `###` block per launch tier.
+
+    The image ref is long, so every command below uses `$IMG`, set once at the
+    top of the section. Tiers are the same source as the base/runtime pages
+    (build-config.yml run.vendors). A backend with both a toolkit and a plain
+    docker/podman path renders them as two clearly separated sections with a
+    "pick one" note — not six consecutive commands. Each section shows the
+    interactive-shell form plus the two service forms (default CMD / launcher
+    with explicit args). Service args always go through the launcher — never a
+    raw `bash -c "…"`. An image without a launcher (megatron-rl today) renders
+    only the shell form plus a placeholder note."""
     tiers = entry.get("launch") or []
     both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
     launcher = data["launcher"]
@@ -494,24 +549,25 @@ def _app_launch(entry: dict, s: dict, data: dict, image: str) -> list[str]:
         lines += [f"**{s['published']}:** `{image}`", ""]
     else:
         lines += [f"**{s['not_published']}**", "", f"`{image}`", ""]
+    lines += [s["launch_img_var"], "", "```bash", f"IMG={image}", "```", ""]
+    if both:
+        lines += [s["launch_choose"], ""]
     for t in tiers:
-        tmpl = t["template"].replace("{image}", image)
         if t["kind"] == "toolkit":
-            hdr = s["launch_toolkit_optional"] if both else s["launch_toolkit"]
+            hdr = s["launch_toolkit_heading"]
         elif t["kind"] == "raw":
-            hdr = s["launch_raw_both"] if both else s["launch_raw_only"]
+            hdr = s["launch_raw_heading"]
         else:  # generic
-            hdr = s["launch_generic"]
-        lines += [hdr, "", "```bash", wrap_cmd(tmpl, tail_n=2), "```", ""]
+            hdr = s["launch_generic_heading"]
+        lines += [f"### {hdr}", ""]
+        runner, flags, tail = _tier_parts(t["template"])
+        lines += [s["launch_shell"], "", "```bash",
+                  _app_run(runner, flags, tail), "```", ""]
         if launcher and example:
-            default = tmpl.rstrip()
-            if default.endswith(" bash"):
-                default = default[: -len(" bash")]
-                lines += [s["launch_default"], "", "```bash",
-                          wrap_cmd(default, tail_n=1), "```", ""]
-                custom = f"{default} {' '.join(example)}"
-                lines += [s["launch_custom"], "", "```bash",
-                          wrap_cmd(custom, tail_n=1 + len(example)), "```", ""]
+            lines += [s["launch_default"], "", "```bash",
+                      _app_run(runner, flags, ""), "```", ""]
+            lines += [s["launch_custom"], "", "```bash",
+                      _app_run(runner, flags, " ".join(example)), "```", ""]
         else:
             lines += [s["launch_none"], "", ""]
     return lines
@@ -560,6 +616,10 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
         lines += [f"### {s['python_version']}", "", python_ver, ""]
 
     lines += [f"### {s['app_package']}", "", f"`{data['package']}`", ""]
+    if data.get("plugin_package"):
+        # vllm ships its plugin in the same image as vllm itself — list it as a
+        # second application package when a published combo pins one.
+        lines += ["", f"`{data['plugin_package']}`", ""]
 
     # ── Environment (per-app env vars) ──
     env = (entry["app"].get("env") or {}).get(app) or {}
@@ -569,11 +629,8 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
             lines.append(f"- `{k}={v}`")
         lines.append("")
 
-    # ── Launch (three forms per tier: shell / default CMD / launcher args) ──
+    # ── Launch (per-tier: shell / default CMD / launcher args) ──
     lines += _app_launch(entry, s, data, data["image"])
-
-    # ── Verify (inherited from the runtime image) ──
-    lines += _verify(entry, s)
 
     return "\n".join(lines).rstrip() + "\n"
 

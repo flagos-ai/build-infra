@@ -44,13 +44,21 @@ title: "vllm-cambricon-neuware4.7.2"
 
 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2`
 
-启动交互式 shell（docker 或 podman 均可）：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2
+```
+
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -59,7 +67,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2
+  $IMG
 ```
 
 向启动器传参：
@@ -68,13 +76,5 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2 vllm-serve --model <path> --port 9000
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-cnmon
+  $IMG vllm-serve --model <path> --port 9000
 ```

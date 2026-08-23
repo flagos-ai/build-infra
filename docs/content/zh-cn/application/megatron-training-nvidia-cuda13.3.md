@@ -43,12 +43,22 @@ title: "megatron-training-nvidia-cuda13.3"
 
 **已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f`
 
-**使用容器工具包** *(可选)*：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -56,7 +66,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f
+  $IMG
 ```
 
 向启动器传参：
@@ -64,10 +74,12 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f megatron-train --model-type GPT
+  $IMG megatron-train --model-type GPT
 ```
 
-**无需工具包** —— 直接使用 docker / podman：
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
@@ -77,7 +89,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -90,7 +102,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f
+  $IMG
 ```
 
 向启动器传参：
@@ -103,13 +115,5 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f megatron-train --model-type GPT
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-nvidia-smi
+  $IMG megatron-train --model-type GPT
 ```

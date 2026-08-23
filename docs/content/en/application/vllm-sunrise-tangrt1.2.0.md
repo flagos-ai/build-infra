@@ -38,17 +38,28 @@ title: "vllm-sunrise-tangrt1.2.0"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.0+g687217a.d20260819`
+
 ## Launch
 
 **Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819`
 
-Start an interactive shell (works with docker or podman):
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819
+```
+
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819 bash
+  $IMG bash
 ```
 
 Start the app with its default settings:
@@ -57,7 +68,7 @@ Start the app with its default settings:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819
+  $IMG
 ```
 
 Pass arguments to the launcher:
@@ -66,13 +77,5 @@ Pass arguments to the launcher:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687217a.d20260819 vllm-serve --model <path> --port 9000
-```
-
-## Verify
-
-Inside the container, confirm the accelerator is visible:
-
-```bash
-pt_smi
+  $IMG vllm-serve --model <path> --port 9000
 ```

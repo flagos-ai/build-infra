@@ -44,13 +44,21 @@ title: "megatron-training-sunrise-tangrt1.2.0"
 
 `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1`
 
-启动交互式 shell（docker 或 podman 均可）：
+镜像名较长——先将其设为变量：
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1
+```
+
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -59,7 +67,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1
+  $IMG
 ```
 
 向启动器传参：
@@ -68,13 +76,5 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-sunrise-tangrt1.2.0:2.1.2-0.2.1 megatron-train --model-type GPT
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-pt_smi
+  $IMG megatron-train --model-type GPT
 ```

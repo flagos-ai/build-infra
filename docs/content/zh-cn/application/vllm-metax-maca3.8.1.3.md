@@ -45,44 +45,44 @@ title: "vllm-metax-maca3.8.1.3"
 
 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2`
 
-**使用容器工具包** *(可选)*：
+镜像名较长——先将其设为变量：
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2 bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
+
+```bash
+metax-docker run --rm -it $IMG bash
 ```
 
 以默认设置启动应用：
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2
+metax-docker run --rm -it $IMG
 ```
 
 向启动器传参：
 
 ```bash
-metax-docker \
-  run \
-  --rm \
-  -it \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2 vllm-serve --model <path> --port 9000
+metax-docker run --rm -it $IMG vllm-serve --model <path> --port 9000
 ```
 
-**无需工具包** —— 直接使用 docker / podman：
+### 无需工具包——直接使用 docker / podman
+
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2 bash
+  $IMG bash
 ```
 
 以默认设置启动应用：
@@ -92,7 +92,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2
+  $IMG
 ```
 
 向启动器传参：
@@ -102,13 +102,5 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2 vllm-serve --model <path> --port 9000
-```
-
-## 验证
-
-在容器内，确认加速器可见：
-
-```bash
-mx-smi
+  $IMG vllm-serve --model <path> --port 9000
 ```
