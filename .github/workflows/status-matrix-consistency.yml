@@ -1,0 +1,85 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# CI backstop for the status-matrix refresh mechanism: when a push changes a
+# status_matrix.*.yaml, re-render the verification-matrix markdown and open a
+# review-gated fix PR (flagos-ci identity, auto/status-matrix-fix branch) if
+# the committed markdown drifted. Local guard: .githooks/pre-commit.
+
+name: Status Matrix Consistency
+
+on:
+  push:
+    paths:
+      - 'packaging/**/status_matrix.*.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null || \
+            python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Render verification matrix from YAML
+        run: python3 scripts/render_status_matrix.py
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if ! git diff --quiet -- 'packaging/*/docs/*-verification-matrix.md'; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open fix PR when markdown drifted
+        if: steps.drift.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GIT_AUTHOR_NAME: flagos-ci
+          GIT_AUTHOR_EMAIL: noreply@flagos.net
+          GIT_COMMITTER_NAME: flagos-ci
+          GIT_COMMITTER_EMAIL: noreply@flagos.net
+        run: |
+          git add -u -- 'packaging/*/docs/*-verification-matrix.md'
+          git commit -m "chore(status-matrix): refresh verification matrix from YAML"
+          branch="auto/status-matrix-fix"
+          git branch -f "$branch" HEAD
+          git push --force origin "$branch"
+          if gh pr list --head "$branch" --json number -q '.[0].number' | grep -q .; then
+            echo "PR already open for $branch; force-pushed updated content"
+          else
+            body="Refresh the verification-matrix markdown rendered from status_matrix.*.yaml.
+
+            The YAML changed on this branch but the committed markdown was stale. This PR
+            brings the rendered tables back in sync. No functional changes. Schema and
+            refresh mechanism: docs/status-matrix.md."
+            gh pr create --base "$GITHUB_REF_NAME" --head "$branch" \
+              --title "chore(status-matrix): refresh verification matrix from YAML" \
+              --body "$body"
+          fi

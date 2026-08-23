@@ -20,6 +20,8 @@
 
 ## 矩阵
 
+<!-- status-matrix:verification -->
+
 | 厂商 | 后端 | 0.20.2(T) | 0.20.2(F) | 0.24.0(T) | 0.24.0(F) |
 |---|---|---|---|---|---|
 | 英伟达 | CUDA 12.8 | ⬜ | ✅ | ✅ | ✅ |
@@ -41,6 +43,112 @@
 | 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | ✅ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
 | 清微智能 | TSM 260610 | ⬜ | ⬜ | ⬜ | ⬜ |
+
+**后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
+
+| 厂商 | 后端 | App | PR |
+|---|---|---|---|
+| 昇腾 | CANN 8.5.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 |
+| 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 |
+| 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
+| 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
+| 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 |
+| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 |
+| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 |
+| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 |
+| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 |
+| 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 |
+| 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 |
+
+<!-- /status-matrix:verification -->
+
+## 设施落地
+
+> 数据驱动自 `packaging/vllm/status_matrix.*.yaml`（schema 与刷新机制见
+> docs/status-matrix.md）。deps_app 落库 = configs.yaml 的 deps_app key 存在
+> （该 backend 可构建此 app）；镜像发布 = 该 app 镜像已推送 Harbor。
+
+<!-- status-matrix:facility:vllm0.20.2 -->
+
+### vllm0.20.2
+
+> 数据截止：2026-08-23
+
+**App 级设施（全后端共享）**
+
+| 事项 | 状态 |
+|---|---|
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
+
+**后端级设施**
+
+| 后端 | deps_app 落库 | 启动文档 | 镜像发布 |
+|---|---|---|---|
+| CUDA 12.8 | ⬜ | ⬜ | ⬜ |
+| CUDA 13.3 | ⬜ | ⬜ | ⬜ |
+| CANN 8.5.0 | ⬜ | ⬜ | ⬜ |
+| CANN 9.0.0 | ⬜ | ⬜ | ⬜ |
+| NEUWARE 4.4.3 | ⬜ | ⬜ | ⬜ |
+| NEUWARE 4.7.2 | ✅ | ✅ | ⬜ |
+| TOPS 1.9.10 | ✅ | ✅ | ⬜ |
+| TOPS 1.10.6 | ✅ | ✅ | ⬜ |
+| DTK 26.04 | ⬜ | ⬜ | ⬜ |
+| COREX 4.4.0 | ⬜ | ⬜ | ⬜ |
+| XRE 5.37.1 | ✅ | ✅ | ⬜ |
+| MACA 3.7.2.1 | ⬜ | ⬜ | ⬜ |
+| MACA 3.8.1.3 | ⬜ | ⬜ | ⬜ |
+| MUSA 4.3.6 | ⬜ | ⬜ | ⬜ |
+| MUSA 5.2.0 | ⬜ | ⬜ | ⬜ |
+| SPACEMIT | ⬜ | ⬜ | ⬜ |
+| TANGRT 1.2.0 | ✅ | ✅ | ✅ |
+| PPU 2.0.0 | ⬜ | ⬜ | ⬜ |
+| TSM 260610 | ⬜ | ⬜ | ⬜ |
+
+
+<!-- /status-matrix:facility:vllm0.20.2 -->
+
+<!-- status-matrix:facility:vllm0.24.0 -->
+
+### vllm0.24.0
+
+> 数据截止：2026-08-23
+
+**App 级设施（全后端共享）**
+
+| 事项 | 状态 |
+|---|---|
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
+
+**后端级设施**
+
+| 后端 | deps_app 落库 | 启动文档 | 镜像发布 |
+|---|---|---|---|
+| CUDA 12.8 | ✅ | ✅ | ⬜ |
+| CUDA 13.3 | ✅ | ✅ | ⬜ |
+| CANN 8.5.0 | ✅ | ✅ | ⬜ |
+| CANN 9.0.0 | ✅ | ✅ | ✅ |
+| NEUWARE 4.4.3 | ⬜ | ⬜ | ⬜ |
+| NEUWARE 4.7.2 | ⬜ | ⬜ | ⬜ |
+| TOPS 1.9.10 | ⬜ | ⬜ | ⬜ |
+| TOPS 1.10.6 | ⬜ | ⬜ | ⬜ |
+| DTK 26.04 | ✅ | ✅ | ⬜ |
+| COREX 4.4.0 | ⬜ | ⬜ | ⬜ |
+| XRE 5.37.1 | ✅ | ✅ | ⬜ |
+| MACA 3.7.2.1 | ✅ | ✅ | ⬜ |
+| MACA 3.8.1.3 | ✅ | ✅ | ⬜ |
+| MUSA 4.3.6 | ✅ | ✅ | ⬜ |
+| MUSA 5.2.0 | ✅ | ✅ | ⬜ |
+| SPACEMIT | ⬜ | ⬜ | ⬜ |
+| TANGRT 1.2.0 | ✅ | ✅ | ✅ |
+| PPU 2.0.0 | ⬜ | ⬜ | ⬜ |
+| TSM 260610 | ⬜ | ⬜ | ⬜ |
+
+
+<!-- /status-matrix:facility:vllm0.24.0 -->
 
 ## 编译器覆盖现状（configs.yaml 2026-08-15）
 

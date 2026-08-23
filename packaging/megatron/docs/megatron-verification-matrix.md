@@ -25,27 +25,150 @@
 
 ## 矩阵
 
-| 厂商     | 后端          | 训练(T) | 训练(F) | 强化学习(T) | 强化学习(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) |
-| -------- | ------------- | ------- | ------- | ----------- | ----------- | --------- | --------- | ------- | ------- |
-| 英伟达   | CUDA 12.8     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
-| 英伟达   | CUDA 13.3     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
-| 昇腾     | CANN 8.5.0    | ✅      | ✅      | ⬜          | ⬜          | ✅        | ✅        | ✅      | ✅      |
-| 昇腾     | CANN 9.0.0    | ✅      | ✅      | ⬜          | ⬜          | ✅        | ✅        | ✅      | ✅      |
-| 寒武纪   | NEUWARE 4.4.3 | ✅      | —       | ⬜          | —           | ✅        | —         | ✅      | —       |
-| 寒武纪   | NEUWARE 4.7.2 | ✅      | —       | ⬜          | —           | ✅        | —         | ✅      | —       |
-| 燧原     | TOPS 1.9.10   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 燧原     | TOPS 1.10.6   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 海光     | DTK 26.04     | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
-| 天数智芯 | COREX 4.4.0   | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 昆仑芯   | XRE 5.37.1    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 沐曦     | MACA 3.7.2.1  | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 沐曦     | MACA 3.8.1.3  | ✅      | ✅      | ✅          | ✅          | ✅        | ✅        | ✅      | ✅      |
-| 摩尔线程 | MUSA 4.3.6    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 摩尔线程 | MUSA 5.2.0    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 进迭时空 | SPACEMIT      | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
-| 曦望     | TANGRT 1.2.0  | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
-| 平头哥   | PPU 2.0.0     | ⬜      | —       | ⬜          | —           | ？        | —         | ⛔      | —       |
-| 清微智能 | TSM 260610    | ⬜      | ⬜      | ⬜          | ⬜          | ？        | ？        | ⛔      | ⛔      |
+<!-- status-matrix:verification -->
+
+| 厂商 | 后端 | 训练(T) | 训练(F) | 强化学习(T) | 强化学习(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) |
+|---|---|---|---|---|---|---|---|---|---|
+| 英伟达 | CUDA 12.8 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 英伟达 | CUDA 13.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 8.5.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 9.0.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
+| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⬜ | — | ✅ | — | ✅ | — |
+| 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⬜ | — | ✅ | — | ✅ | — |
+| 燧原 | TOPS 1.9.10 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 燧原 | TOPS 1.10.6 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 海光 | DTK 26.04 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 天数智芯 | COREX 4.4.0 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 沐曦 | MACA 3.7.2.1 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 摩尔线程 | MUSA 5.2.0 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — | ？ | — | ⛔ | — |
+| 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — | ？ | — | ⛔ | — |
+| 清微智能 | TSM 260610 | ⬜ | ⬜ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+
+**后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
+
+| 厂商 | 后端 | App | PR |
+|---|---|---|---|
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/34 |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/34 |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 |
+| 寒武纪 | NEUWARE 4.4.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
+| 寒武纪 | NEUWARE 4.7.2 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
+| 海光 | DTK 26.04 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 |
+| 海光 | DTK 26.04 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
+| 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
+| 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/116 |
+
+<!-- /status-matrix:verification -->
+
+## 设施落地
+
+> 数据驱动自 `packaging/megatron/status_matrix.*.yaml`（schema 与刷新机制见
+> docs/status-matrix.md）。deps_app 落库 = configs.yaml 的 deps_app key 存在
+> （该 backend 可构建此 app）；镜像发布 = 该 app 镜像已推送 Harbor。
+
+<!-- status-matrix:facility:megatron_training -->
+
+### megatron_training
+
+> 数据截止：2026-08-23
+
+**App 级设施（全后端共享）**
+
+| 事项 | 状态 |
+|---|---|
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
+
+**后端级设施**
+
+| 后端 | deps_app 落库 | 启动文档 | 镜像发布 |
+|---|---|---|---|
+| CUDA 12.8 | ✅ | ✅ | ✅ |
+| CUDA 13.3 | ✅ | ✅ | ✅ |
+| CANN 8.5.0 | ✅ | ✅ | ⬜ |
+| CANN 9.0.0 | ✅ | ✅ | ✅ |
+| NEUWARE 4.4.3 | ✅ | ✅ | ⬜ |
+| NEUWARE 4.7.2 | ✅ | ✅ | ⬜ |
+| TOPS 1.9.10 | ⬜ | ⬜ | ⬜ |
+| TOPS 1.10.6 | ⬜ | ⬜ | ⬜ |
+| DTK 26.04 | ✅ | ✅ | ⬜ |
+| COREX 4.4.0 | ⬜ | ⬜ | ⬜ |
+| XRE 5.37.1 | ⬜ | ⬜ | ⬜ |
+| MACA 3.7.2.1 | ⬜ | ⬜ | ⬜ |
+| MACA 3.8.1.3 | ✅ | ✅ | ⬜ |
+| MUSA 4.3.6 | ⬜ | ⬜ | ⬜ |
+| MUSA 5.2.0 | ⬜ | ⬜ | ⬜ |
+| SPACEMIT | ⬜ | ⬜ | ⬜ |
+| TANGRT 1.2.0 | ⬜ | ⬜ | ⬜ |
+| PPU 2.0.0 | ⬜ | ⬜ | ⬜ |
+| TSM 260610 | ⬜ | ⬜ | ⬜ |
+
+
+<!-- /status-matrix:facility:megatron_training -->
+
+<!-- status-matrix:facility:megatron_rl -->
+
+### megatron_rl
+
+> 数据截止：2026-08-23
+
+**App 级设施（全后端共享）**
+
+| 事项 | 状态 |
+|---|---|
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
+
+**后端级设施**
+
+| 后端 | deps_app 落库 | 启动文档 | 镜像发布 |
+|---|---|---|---|
+| CUDA 12.8 | ✅ | ✅ | ✅ |
+| CUDA 13.3 | ✅ | ✅ | ✅ |
+| CANN 8.5.0 | ⬜ | ⬜ | ⬜ |
+| CANN 9.0.0 | ⬜ | ⬜ | ⬜ |
+| NEUWARE 4.4.3 | ⬜ | ⬜ | ⬜ |
+| NEUWARE 4.7.2 | ⬜ | ⬜ | ⬜ |
+| TOPS 1.9.10 | ⬜ | ⬜ | ⬜ |
+| TOPS 1.10.6 | ⬜ | ⬜ | ⬜ |
+| DTK 26.04 | ✅ | ✅ | ⬜ |
+| COREX 4.4.0 | ⬜ | ⬜ | ⬜ |
+| XRE 5.37.1 | ⬜ | ⬜ | ⬜ |
+| MACA 3.7.2.1 | ⬜ | ⬜ | ⬜ |
+| MACA 3.8.1.3 | ✅ | ✅ | ⬜ |
+| MUSA 4.3.6 | ⬜ | ⬜ | ⬜ |
+| MUSA 5.2.0 | ⬜ | ⬜ | ⬜ |
+| SPACEMIT | ⬜ | ⬜ | ⬜ |
+| TANGRT 1.2.0 | ⬜ | ⬜ | ⬜ |
+| PPU 2.0.0 | ⬜ | ⬜ | ⬜ |
+| TSM 260610 | ⬜ | ⬜ | ⬜ |
+
+
+<!-- /status-matrix:facility:megatron_rl -->
 
 ## 待合并/待落地修复跟踪（2026-08-21 建）
 
