@@ -25,7 +25,7 @@ scenarios:
     label: "0.20.2"
     verification:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
-      nvidia-cuda13.3:       {T: "⬜", F: "⬜"}
+      nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "⬜", F: "⬜"}
       ascend-cann9.0.0:      {T: "⬜", F: "✅"}
       cambricon-neuware4.4.3: {T: "⬜", F: "—"}
@@ -53,9 +53,9 @@ backends:
     launch_docs: true
     harbor_repo: true
   nvidia-cuda13.3:
-    deps_app: false
+    deps_app: true
     launch_docs: false
-    harbor_repo: false
+    harbor_repo: true
   ascend-cann8.5.0:
     deps_app: false
     launch_docs: false

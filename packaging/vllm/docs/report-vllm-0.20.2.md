@@ -417,9 +417,44 @@ docker run -d --name vllm-app-e2e-triton --gpus all \
 - 两容器验证后均已清理。启动文档已发布（launch_docs + harbor_repo，见
   `status_matrix.vllm0.20.2.yaml`）。
 
+**nvidia-cuda13.3（2026-08-23 补验，待办 #1 闭环）**
+
+- App 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.1.2-0.2.1_g825c1cd`
+  （digest `6f65605893aa…`；tag `0.2.1_g825c1cd` = plugin `0.2.1+g825c1cd`）
+- 底层 runtime：`flagos-runtime-nvidia-cuda13.3:2.1.2`（cuda13.3 栈：Python 3.12、
+  torch 2.11.0+cu130、triton 3.6.0、flagtree 0.6.1、flaggems 5.3.4）
+- 构建后验证全过：Matrix unchanged（torch/flagtree/flag_gems 未被覆盖）+
+  `vllm + vllm_fl import OK`。镜像已 push。
+- 双编译器路径各跑一遍（empty 模式，同一 app 镜像），F/T 均 ✅：
+
+**F 路径（flagtree 默认）—— ✅**
+
+```bash
+docker run -d --name vllm-app-e2e-nv133-f --gpus all \
+  -v /data/tqm/models:/data/models:ro --network host \
+  harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.1.2-0.2.1_g825c1cd
+```
+
+- 默认 CMD 即 F 路径（flagtree 默认 active）；约 30 s 就绪；plugin fl 激活。
+- `curl /v1/completions` 输出连贯：`Paris. The capital of Paris is...? ...`
+  （prompt 5 / completion 32 token）。
+
+**T 路径（triton 3.6.0 side compiler）—— ✅**
+
+```bash
+docker run -d --name vllm-app-e2e-nv133-t --gpus all \
+  -e PYTHONPATH=/opt/triton \
+  -v /data/tqm/models:/data/models:ro --network host \
+  harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.1.2-0.2.1_g825c1cd
+```
+
+- `-e PYTHONPATH=/opt/triton` 显式切到 triton（`compiler` 确认 active =
+  triton 3.6.0）；约 30 s 就绪；同一 prompt 输出连贯。两容器验证后均已清理。
+
 ### 待办
 
-1. 扩展到 nvidia-cuda13.3（相同模式，torch 2.11.0+cu130）。
+1. ~~扩展到 nvidia-cuda13.3（相同模式，torch 2.11.0+cu130）~~ —— ✅ 2026-08-23
+   （见上文 cuda13.3 复核记录）。
 1. ~~empty-mode 性能基准~~ —— §5.3 已定案全线统一 empty（2026-08-23），
    基准不再门控；empty 下 NVIDIA 性能实证见 0.24.0 报告（Qwen3-4B E2E）。
 1. NVIDIA empty 模式 app 镜像 E2E —— ✅ 2026-08-23（见上文复核记录）。
