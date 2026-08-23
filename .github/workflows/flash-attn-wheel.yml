@@ -20,7 +20,7 @@ name: flash-attn wheel
 # GitHub prebuilt wheels are ABI-locked to torch 2.8 (newest cu12 =
 # 2.8.3.post1+cu12torch2.8) and die on import against torch 2.10/2.11
 # (`undefined symbol: c10_cuda_check_implementation`), and FA3/FA4 have
-# no usable wheels — so the nvidia megatron-rl app images need a
+# no usable wheels — so the nvidia megatron_rl app images need a
 # self-built wheel (packaging/flash-attn/Containerfile).
 #
 # The wheel's runtime ABI is bound to the BUILD-TIME torch, so the

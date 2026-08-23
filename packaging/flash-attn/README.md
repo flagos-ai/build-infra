@@ -84,7 +84,7 @@ v2.8.3.post1 setup.py)
 
 ## Consumption chain (already wired — no code changes)
 
-`configs.yaml deps_app.megatron-rl` → `scripts/generate_matrix.py`
+`configs.yaml deps_app.megatron_rl` → `scripts/generate_matrix.py`
 (`matrix.app_deps`) → `megatron-app-image.yml` `--build-arg
 APP_DEPS` → `app/megatron/Containerfile.rl` vendor-PyPI install.
 

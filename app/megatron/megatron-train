@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# megatron-train — the single training command for the megatron-training app
+# megatron-train — the single training command for the megatron_training app
 # image. Sources the baked vendor env (the full CANN / DTK / NEUWARE
 # LD_LIBRARY_PATH lives in /etc/profile.d, NOT in the image ENV — a plain
 # `docker run <image> python pretrain_gpt.py ...` bypasses bash and misses

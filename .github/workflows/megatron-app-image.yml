@@ -14,8 +14,8 @@
 
 name: Megatron app image
 
-# Builds flagos-app/{app}_{app_version}-{vendor}-{backend}:{stack_version}-{mlf_version}
-# ({app} = megatron-training | megatron-rl, app name with '-' -> '_') from the
+# Builds flagos-app/{app}{app_version}-{vendor}-{backend}:{stack_version}-{mlf_version}
+# ({app} = megatron_training | megatron_rl, app name + version, no separator) from the
 # runtime image by installing the megatron-core wheel single-step (no
 # --no-deps), then
 # verifies the built image on the node: the torch/triton/flag_gems/numpy
@@ -23,7 +23,7 @@ name: Megatron app image
 # with helpers_cpp bound (see packaging/megatron/verify/verify-megatron-backend.sh).
 #
 # Tag naming follows the app-image convention (same as vllm):
-#   <应用名称，-替换为_><应用版本>-<厂商>-<后端>:<堆栈版本>-<fork版本，-替换为下划线>
+#   <应用名称><应用版本>-<厂商>-<后端>:<堆栈版本>-<fork版本，-替换为下划线>
 # The app version is the megatron-core version being installed (0.17.x, the
 # wheel's megatron.core.__version__). The fork segment is the Megatron-LM-FL
 # fork's own version, generated from its latest release tag and the commit
@@ -55,12 +55,12 @@ on:
         type: string
         default: all
       app:
-        description: 'App to build: megatron-training (training + post_training) or megatron-rl (RL loop)'
+        description: 'App to build: megatron_training (training + post_training) or megatron_rl (RL loop)'
         type: choice
         options:
-          - megatron-training
-          - megatron-rl
-        default: megatron-training
+          - megatron_training
+          - megatron_rl
+        default: megatron_training
       megatron_version:
         description: 'megatron-core version to install (e.g. 0.17.1)'
         type: string
@@ -165,19 +165,19 @@ jobs:
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
           # Tag naming (same as the images already in flagos-app, cf. vllm):
-          #   {app with '-' -> '_'}{megatron-core version}-{vendor}-{backend}:
+          #   {app}{megatron-core version}-{vendor}-{backend}:
           #     {stack_version}-{mlf_version}
           # The mlf_version (git describe of the MLF fork, e.g. 0.2.1 or
           # 0.2.1-9-g48b97a13f) may carry '+'/'-', which are not allowed in an
           # image tag — use '_'.
-          app_name=$(printf '%s' '${{ inputs.app }}' | tr '-' '_')
+          app_name='${{ inputs.app }}'
           fork_ver=$(printf '%s' '${{ inputs.mlf_version }}' | tr '+' '_' | tr '-' '_')
           app_tag="${host}/${app_prefix}/${app_name}${{ inputs.megatron_version }}-${{ matrix.name }}:${{ matrix.version }}-${fork_ver}"
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
           # Per-app Containerfile (app decision D5): the suffix is the app
-          # name, not the image name. megatron-training / megatron-rl.
+          # name, not the image name. megatron_training / megatron_rl.
           containerfile="app/megatron/Containerfile.megatron-training"
-          if [[ "${{ inputs.app }}" == "megatron-rl" ]]; then
+          if [[ "${{ inputs.app }}" == "megatron_rl" ]]; then
             containerfile="app/megatron/Containerfile.rl"
           fi
           docker build \
