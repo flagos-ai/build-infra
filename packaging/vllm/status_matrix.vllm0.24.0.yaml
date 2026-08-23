@@ -66,6 +66,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.0_gcf8998c.d20260818"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/387
   cambricon-neuware4.4.3:
@@ -98,6 +99,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.0_gf780db1.d20260823"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/401
   metax-maca3.7.2.1:
@@ -130,6 +132,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.0_g687217a.d20260819"
     prs:
       - https://github.com/flagos-ai/FlagTree/pull/978
   thead-ppu2.0.0:

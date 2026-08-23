@@ -96,6 +96,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
       - https://github.com/NVIDIA/Megatron-LM/pull/34
@@ -105,6 +106,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
       - https://github.com/NVIDIA/Megatron-LM/pull/34
@@ -123,6 +125,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
       - https://github.com/flagos-ai/FlagTree/pull/1023

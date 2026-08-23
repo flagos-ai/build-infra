@@ -52,10 +52,12 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_g825c1cd"
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: false
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_g825c1cd"
   ascend-cann8.5.0:
     deps_app: false
     launch_docs: false
@@ -123,6 +125,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.0_g687217a.d20260819"
     prs:
       - https://github.com/flagos-ai/FlagTree/pull/978
   thead-ppu2.0.0:

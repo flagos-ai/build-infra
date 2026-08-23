@@ -52,6 +52,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/119
@@ -60,6 +61,7 @@ backends:
     deps_app: true
     launch_docs: true
     harbor_repo: true
+    image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/119
