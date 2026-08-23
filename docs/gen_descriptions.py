@@ -538,7 +538,7 @@ def _app_launch(entry: dict, s: dict, data: dict, image: str) -> list[str]:
     "pick one" note — not six consecutive commands. Each section shows the
     interactive-shell form plus the two service forms (default CMD / launcher
     with explicit args). Service args always go through the launcher — never a
-    raw `bash -c "…"`. An image without a launcher (megatron-rl today) renders
+    raw `bash -c "…"`. An image without a launcher (megatron_rl today) renders
     only the shell form plus a placeholder note."""
     tiers = entry.get("launch") or []
     both = any(t["kind"] == "toolkit" for t in tiers) and any(t["kind"] == "raw" for t in tiers)
@@ -623,7 +623,7 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
 
     # ── Environment (per-app env vars) ──
     # env.app keys stay bare app names ('vllm'), while app keys may be
-    # versioned ('vllm-0.24.0') — resolve to the bare name first.
+    # versioned ('vllm0.24.0') — resolve to the bare name first.
     env = (entry["app"].get("env") or {}).get("vllm" if app.startswith("vllm") else app) or {}
     if env:
         lines += [f"## {s['environment']}", ""]

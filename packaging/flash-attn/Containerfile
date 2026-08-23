@@ -77,7 +77,7 @@
 #
 # Revision history:
 #   2026-08-19   Initial: source-build engineering for nvidia
-#                deps_app.megatron-rl (flash-attn >= 2.7.3 gate).
+#                deps_app.megatron_rl (flash-attn >= 2.7.3 gate).
 # ============================================================
 
 # Build environment: nvcr CUDA devel image (nvcc + cuDNN baked in).

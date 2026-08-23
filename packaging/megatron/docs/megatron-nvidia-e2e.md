@@ -133,7 +133,7 @@ fastapi/uvicorn/openai/tensorboard/transformers（训练链所需），aliyun
 
 ## app image（2026-08-20，双后端全 ✅）
 
-### megatron-rl
+### megatron_rl
 
 镜像 tag：`flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f`
 与 `flagos-app/megatron_rl0.17.1-nvidia-cuda13.3:2.1.2-0.2.1_9.g48b97a13f`（app 前缀 flagos-app 自 [build-infra PR #457](https://github.com/flagos-ai/build-infra/pull/457) 起生效；tag 命名 = 应用版本
@@ -153,15 +153,15 @@ pip 解析 torch 的 triton==N Requires-Dist 拉新 triton 3.6.0 进
 site-packages，verify 判矩阵变化 abort；与 [build-infra PR #456](https://github.com/flagos-ai/build-infra/pull/456) 的 megatron-core 步同款修复，
 dry-run 实证仅装 einops + flash_attn。
 
-### megatron-training（构建+push）+ E2E 双编译器复验（cuda12.8）
+### megatron_training（构建+push）+ E2E 双编译器复验（cuda12.8）
 
 镜像 tag：`flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f`
 与 `-cuda13.3` 同款 tag（tag 命名与 RL
-一致：应用版本 0.17.1 + fork 版本 0.2.1_9.g48b97a13f）。app=megatron-training、
+一致：应用版本 0.17.1 + fork 版本 0.2.1_9.g48b97a13f）。app=megatron_training、
 megatron_version=0.17.1、mlf_version=0.2.1_9.g48b97a13f，workflow 内 verify
 （--app-image 模式：BEFORE(runtime) vs AFTER(app) 矩阵逐包 unchanged +
 megatron.core import）双后端均过。training 无 vendor 条件包（configs.yaml
-deps_app.megatron-training = `[]`，仅 RL 有 flash_attn）——镜像 = runtime +
+deps_app.megatron_training = `[]`，仅 RL 有 flash_attn）——镜像 = runtime +
 wheel `[training]` extra 单步安装。**E2E 复验（cuda12.8）**：mock data
 5 iter 直跑 pretrain_gpt.py，
 双编译器全 exit 0——flagtree 3.6.0 默认线与 vendor triton 3.6.0
