@@ -16,25 +16,38 @@
 
 {{- /* App-image catalog, grouped by app: one table per application with
        vendor name + slug (code) + per-backend page link. Rows link the
-       generated {app}-{vendor}-{backend} launch pages. */ -}}
+       generated {app}-{vendor}-{backend} launch pages.
+
+       vllm app keys are versioned (configs.yaml deps_app.vllm-<version>):
+       when a table mixes versions a Version column is added so a backend
+       published under both versions (e.g. sunrise) shows distinct rows. */ -}}
 {{- $zh := eq site.Language.Lang "zh-cn" -}}
 {{- $apps := slice "megatron-training" "megatron-rl" "vllm" -}}
 {{- range $apps }}
 {{- $appKey := . }}
 <h2 id="{{ $appKey }}">{{ T (printf "app_%s" (replace $appKey "-" "_")) }}</h2>
-<table>
-<thead><tr><th>{{ T "vendor" }}</th><th>{{ T "code" }}</th><th>{{ T "backend" }}</th></tr></thead>
-<tbody>
+{{- $rows := slice }}
 {{- range site.Data.images.backends }}
-{{- $b := . }}
-{{- $v := index site.Data.vendors.vendors .vendor }}
-{{- with index .app.images $appKey }}
-  <tr>
-    <td>{{ if $zh }}{{ $v.zh }}{{ else }}{{ $v.en }}{{ end }}</td>
-    <td><code class="plain">{{ $b.vendor }}</code></td>
-    <td><a href="{{ $.Page.RelPermalink }}{{ $appKey }}-{{ $b.name }}/"><code class="plain">{{ $b.backend }}</code></a></td>
-  </tr>
+  {{- $b := . }}
+  {{- $v := index site.Data.vendors.vendors .vendor }}
+  {{- range $k, $img := .app.images }}
+    {{- if or (eq $k $appKey) (and (eq $appKey "vllm") (hasPrefix $k "vllm-")) }}
+      {{- $rows = $rows | append (dict "k" $k "name" $b.name "vendor" $b.vendor "vname" $v "backend" $b.backend) }}
+    {{- end }}
+  {{- end }}
 {{- end }}
+{{- $versioned := false }}
+{{- range $rows }}{{ if ne .k $appKey }}{{ $versioned = true }}{{ end }}{{ end }}
+<table>
+<thead><tr><th>{{ T "vendor" }}</th><th>{{ T "code" }}</th><th>{{ T "backend" }}</th>{{ if $versioned }}<th>{{ T "app_version" }}</th>{{ end }}</tr></thead>
+<tbody>
+{{- range $rows }}
+  <tr>
+    <td>{{ if $zh }}{{ .vname.zh }}{{ else }}{{ .vname.en }}{{ end }}</td>
+    <td><code class="plain">{{ .vendor }}</code></td>
+    <td><a href="{{ $.Page.RelPermalink }}{{ .k }}-{{ .name }}/"><code class="plain">{{ .backend }}</code></a></td>
+    {{- if $versioned }}<td>{{ if ne .k $appKey }}{{ strings.TrimPrefix "vllm-" .k }}{{ else }}—{{ end }}</td>{{ end }}
+  </tr>
 {{- end }}
 </tbody>
 </table>

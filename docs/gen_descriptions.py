@@ -622,7 +622,9 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
         lines += ["", f"`{data['plugin_package']}`", ""]
 
     # ── Environment (per-app env vars) ──
-    env = (entry["app"].get("env") or {}).get(app) or {}
+    # env.app keys stay bare app names ('vllm'), while app keys may be
+    # versioned ('vllm-0.24.0') — resolve to the bare name first.
+    env = (entry["app"].get("env") or {}).get("vllm" if app.startswith("vllm") else app) or {}
     if env:
         lines += [f"## {s['environment']}", ""]
         for k, v in env.items():

@@ -113,3 +113,6 @@ other = "Megatron RL"
 
 [app_vllm]
 other = "vLLM"
+
+[app_version]
+other = "Version"

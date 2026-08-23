@@ -112,3 +112,6 @@ other = "Megatron 强化学习"
 
 [app_vllm]
 other = "vLLM"
+
+[app_version]
+other = "版本"

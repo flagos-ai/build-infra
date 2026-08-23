@@ -209,6 +209,11 @@ def runtime_packages(spec: dict, flaggems_version: str = "") -> list:
 # .github/workflows/megatron-app-image.yml / vllm-app-image.yml. Repo names
 # embed the app version with no dash; the tag carries the stack version plus,
 # for megatron, the MLF fork version (mlf_version '+' -> '_').
+#
+# vllm is split per repacked version: deps_app keys are 'vllm-<version>'
+# (configs.yaml), and the version segment — not this default — drives the
+# repo name / tag / package string. The bare 'vllm' entry here only supplies
+# the workflow_dispatch default version and the shared launcher / CMD data.
 APP_IMAGE_DEFAULTS = {
     "megatron-training": {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
     "megatron-rl":        {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
@@ -268,17 +273,24 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     carry the exact Harbor tag, the rest get the workflow-default derivation),
     the published status, and the launcher / default CMD for the docs page.
 
+    App keys are 'megatron-training' / 'megatron-rl' / 'vllm-<version>' — vllm
+    is split per repacked version (configs.yaml deps_app.vllm-<version>), and
+    the key's version segment drives the vllm repo name / tag / package string.
     megatron repos are named {app}_{app_version}-{vendor}-{backend} (underscore
     app name, version embedded) and tagged {stack}-{fork_version}; vllm repos
     are named vllm{vllm_version}-{vendor}-{backend} and tagged {stack} (a
     non-empty plugin_fl_version input would append -{fork} to the tag).
     """
-    d = APP_IMAGE_DEFAULTS[app]
+    base_app = "vllm" if app.startswith("vllm") else app
+    d = APP_IMAGE_DEFAULTS[base_app]
+    # vllm versions come from the deps_app key (vllm-0.20.2 -> 0.20.2), not the
+    # workflow default in APP_IMAGE_DEFAULTS.
+    app_version = app.split("-", 1)[1] if app.startswith("vllm") else d["app_version"]
     if app.startswith("megatron"):
-        repo = f"{app.replace('-', '_')}{d['app_version']}-{name}"
+        repo = f"{app.replace('-', '_')}{app_version}-{name}"
         tag = f"{stack_version}-{d['fork_version']}"
     else:
-        repo = f"vllm{d['app_version']}-{name}"
+        repo = f"vllm{app_version}-{name}"
         tag = stack_version
     published_tag = PUBLISHED_APP_REPOS.get(repo, "")
     base = f"{app_prefix}/{repo}" if app_prefix else repo
@@ -286,9 +298,9 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     # the [training]/[rl] extra of megatron-core; vllm pins the +flagos wheel
     # (a bare version would pull torch over the pinned vendor torch).
     if app.startswith("megatron"):
-        package = f"megatron-core[{app.split('-', 1)[1]}]=={d['app_version']}"
+        package = f"megatron-core[{app.split('-', 1)[1]}]=={app_version}"
     else:
-        package = f"vllm=={d['app_version']}+flagos"
+        package = f"vllm=={app_version}+flagos"
     # vllm-plugin-FL rides in the same image as vllm itself. Its version is the
     # tag's plugin segment (the workflow input plugin_fl_version, '+' -> '_'),
     # and is not discoverable inside the container at build time — so published
@@ -296,18 +308,18 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     # combos get an empty spec and the page shows only the vllm wheel.
     plugin_package = (
         f"vllm-plugin-fl=={published_tag.split('-', 1)[1].replace('_', '+')}"
-        if app == "vllm" and published_tag and "-" in published_tag
+        if app.startswith("vllm") and published_tag and "-" in published_tag
         else ""
     )
     return {
         "image": f"{base}:{published_tag or tag}",
         "published": bool(published_tag),
-        "app_version": f"{d['package']} {d['app_version']}",
+        "app_version": f"{d['package']} {app_version}",
         "package": package,
         "plugin_package": plugin_package,
-        "launcher": APP_LAUNCHERS[app],
-        "cmd": APP_CMD_DEFAULTS[app],
-        "example": APP_LAUNCH_EXAMPLES[app],
+        "launcher": APP_LAUNCHERS[base_app],
+        "cmd": APP_CMD_DEFAULTS[base_app],
+        "example": APP_LAUNCH_EXAMPLES[base_app],
     }
 
 
@@ -424,7 +436,7 @@ def main():
                         "images": {
                             a: app_image_data(app_prefix, a, name, configs["version"])
                             for a in spec.get("deps_app") or {}
-                            if a in APP_IMAGE_DEFAULTS
+                            if a in APP_IMAGE_DEFAULTS or a.startswith("vllm-")
                         },
                     },
                 }
