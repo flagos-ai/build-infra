@@ -83,13 +83,17 @@ marker 块缺失时渲染器报错退出（防止手删块后静默丢失）。
 
 ### backends
 
-每 backend 必须含三个设施布尔（渲染为"设施落地"清单）：
+每 backend 必须含两个设施布尔（渲染为"设施落地"清单）。镜像发布是派生列，不
+单独存储 —— 一个后端已发布 ⟺ 该后端带 `image_tag`（单一事实源，无第二个布
+尔可漂移）：
 
 | key | 渲染列 | 语义 |
 |---|---|---|
 | `deps_app` | deps_app 落库 | configs.yaml `deps_app` 该 app key 存在（key 存在 = 已验证，app 在该后端可构建） |
 | `launch_docs` | 启动文档 | 启动文档是否落地 |
-| `harbor_repo` | 镜像发布 | 该 app 镜像是否已推送 Harbor |
+| `image_tag` | 镜像发布 | **已发布 ⟺ 存在**：已推送的 Harbor 标签（如 `2.1.2-0.2.1_g825c1cd`）。谁声明镜像已发布，谁负责记录 tag —— 写入 tag 即声明发布，二者是一次编辑里的一体事实。`docs/gen_data.py` 从这里的 `image_tag` 读已发布标签生成 app 镜像文档（不再维护独立登记表）；`vllm` app 的 `plugin_package` 也由此反推（tag 的 `-` 后段 `+`→`_`）。 |
+
+未推送 Harbor 的后端**不要**写 `image_tag`（本地验证构建不等于已推送 Harbor）。
 
 `prs`（可选，string 列表）：**上游** PR 跟踪项 —— 验证/镜像基于 PR 分支 Head
 完成的那些 PR（如 vllm-plugin-FL / FlagTree / FlagGems 的 PR），合并后需联动

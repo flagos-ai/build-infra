@@ -51,92 +51,76 @@ backends:
   nvidia-cuda12.8:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
   ascend-cann8.5.0:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/387
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
-    harbor_repo: true
+    image_tag: "2.1.2-0.2.0_gcf8998c.d20260818"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/387
   cambricon-neuware4.4.3:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   cambricon-neuware4.7.2:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   enflame-tops1.9.10:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   enflame-tops1.10.6:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
     prs:
       - https://github.com/flagos-ai/FlagTree/pull/1020
   iluvatar-corex4.4.0:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: true
-    harbor_repo: true
+    image_tag: "2.1.2-0.2.0_gf780db1.d20260823"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/401
   metax-maca3.7.2.1:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
   metax-maca3.8.1.3:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
   mthreads-musa4.3.6:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/386
       - https://github.com/flagos-ai/FlagGems/pull/5130
   mthreads-musa5.2.0:
     deps_app: true
     launch_docs: true
-    harbor_repo: false
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/386
       - https://github.com/flagos-ai/FlagGems/pull/5130
   spacemit-spacemit:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   sunrise-tangrt1.2.0:
     deps_app: true
     launch_docs: true
-    harbor_repo: true
+    image_tag: "2.1.2-0.2.0_g687217a.d20260819"
     prs:
       - https://github.com/flagos-ai/FlagTree/pull/978
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
-    harbor_repo: false
   tsingmicro-tsm260610:
     deps_app: false
     launch_docs: false
-    harbor_repo: false

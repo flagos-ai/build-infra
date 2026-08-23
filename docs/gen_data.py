@@ -247,32 +247,36 @@ APP_CMD_DEFAULTS = {
     ],
 }
 
-# App image repos already published to Harbor (created 2026-08-19/20), mapped
-# to the exact tag each was pushed with. Combos not listed here are not
-# published yet and render as placeholders.
-#
-# The megatron fork segments and the vllm plugin segments below record the
-# workflow inputs actually used (mlf_version / plugin_fl_version). Those are
-# upstream branch heads that a build cannot discover inside the container, so
-# this table is the only record of what went into each pushed tag. Keep it in
-# sync whenever a new combo is pushed.
-PUBLISHED_APP_REPOS = {
-    "megatron_training0.17.1-nvidia-cuda12.8": "2.1.2-0.2.1_9.g48b97a13f",
-    "megatron_training0.17.1-nvidia-cuda13.3": "2.1.2-0.2.1_9.g48b97a13f",
-    "megatron_training0.17.1-ascend-cann9.0.0": "2.1.2-0.2.1_9.g48b97a13f",
-    "megatron_rl0.17.1-nvidia-cuda12.8": "2.1.2-0.2.1_9.g48b97a13f",
-    "megatron_rl0.17.1-nvidia-cuda13.3": "2.1.2-0.2.1_9.g48b97a13f",
-    "vllm0.24.0-ascend-cann9.0.0": "2.1.2-0.2.0_gcf8998c.d20260818",
-    "vllm0.24.0-sunrise-tangrt1.2.0": "2.1.2-0.2.0_g687217a.d20260819",
-    "vllm0.20.2-sunrise-tangrt1.2.0": "2.1.2-0.2.0_g687217a.d20260819",
-    "vllm0.20.2-nvidia-cuda12.8": "2.1.2-0.2.1_g825c1cd",
-}
+# App image repos already published to Harbor are tracked by the status
+# matrix: `packaging/{megatron|vllm}/status_matrix.{app}.yaml` carries an
+# `image_tag` on the published backend block — the verifier who pushes the
+# image records the tag, and a backend with a tag is published (single source,
+# no separate boolean to drift). Combos without a tag are not published yet
+# and render as placeholders.
+def app_published_tag(app: str, name: str) -> str:
+    """Exact Harbor tag of a published app image combo, from the status
+    matrix's `image_tag` field; "" if unpublished or not recorded.
+
+    The megatron fork segments and the vllm plugin segments in those tags are
+    the workflow inputs actually used (mlf_version / plugin_fl_version) —
+    upstream branch heads that a build cannot discover inside the container,
+    so the matrix is the only record of what went into each pushed tag.
+    """
+    component = "megatron" if app.startswith("megatron") else "vllm"
+    path = (
+        find_repo_root() / "packaging" / component / f"status_matrix.{app}.yaml"
+    )
+    if not path.is_file():
+        return ""
+    matrix = load_yaml(path)
+    return ((matrix.get("backends") or {}).get(name) or {}).get("image_tag") or ""
 
 
 def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> dict:
     """Per-app launch data for one backend: the image ref (published combos
-    carry the exact Harbor tag, the rest get the workflow-default derivation),
-    the published status, and the launcher / default CMD for the docs page.
+    carry the exact Harbor tag from the status matrix's `image_tag`, the rest
+    get the workflow-default derivation), the published status, and the
+    launcher / default CMD for the docs page.
 
     App keys are 'megatron_training' / 'megatron_rl' / 'vllm<version>' — vllm
     is split per repacked version (configs.yaml deps_app.vllm<version>), and
@@ -293,7 +297,7 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     else:
         repo = f"vllm{app_version}-{name}"
         tag = stack_version
-    published_tag = PUBLISHED_APP_REPOS.get(repo, "")
+    published_tag = app_published_tag(app, name)
     base = f"{app_prefix}/{repo}" if app_prefix else repo
     # Install spec, verbatim from the app Containerfiles: megatron apps select
     # the [training]/[rl] extra of megatron-core; vllm pins the +flagos wheel

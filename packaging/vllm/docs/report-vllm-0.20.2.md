@@ -414,7 +414,7 @@ docker run -d --name vllm-app-e2e-triton --gpus all \
   `Paris. The capital of Germany is Berlin. The capital of Italy is Rome.`…
   （prompt 5 / completion 32 token）。吞吐与 F 路径一致：Avg prompt 0.5
   tok/s，Avg generation 3.2 tok/s。
-- 两容器验证后均已清理。启动文档已发布（launch_docs + harbor_repo，见
+- 两容器验证后均已清理。启动文档已发布（launch_docs + image_tag，见
   `status_matrix.vllm0.20.2.yaml`）。
 
 **nvidia-cuda13.3（2026-08-23 补验，待办 #1 闭环）**
