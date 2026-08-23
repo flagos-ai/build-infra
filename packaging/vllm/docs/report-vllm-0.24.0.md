@@ -1035,12 +1035,15 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 ## 13. kunlunxin（XRE 5.37.1）详细记录（2026-08-23）
 
 > 状态：**验证完成（2026-08-23）**。构建（cp310 empty wheel）、插件移植
-> （PR #401 → 插件 wheel）、app 镜像 serve E2E 三线全通过（§13.6）。
+> （PR #401 → 插件 wheel）、app 镜像 serve E2E 三线全通过；serve E2E 覆盖
+> flagtree 默认 + triton 侧装双编译器（§13.6/§13.7）。
 
 ### 13.1 结论摘要
 
 0.24.0 on kunlunxin **可行且已验证**：构建侧（cp310 empty wheel）与插件侧
-（release-0.2 → main 移植）两条路径均已跑通，serve + 推理 E2E 通过（§13.6）。
+（release-0.2 → main 移植）两条路径均已跑通，serve + 推理 E2E 通过——且与
+0.20.2 线一致，flagtree 默认 + triton 侧装双编译器均可正常 serve 推理
+（§13.6/§13.7）。
 两处 0.24.0 结构性 API 变化（GDN 模块重构、fla.ops 平铺化）中，GDN 目标路径
 已实测确认；attention 后端类接口经逐项比对基本兼容。遗留 FLA patch 目标路径
 待重指（Qwen3-Next/GDN 前置，见 §13.4 与 §14）。
@@ -1105,11 +1108,15 @@ OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
    rotary_embedding）；op_backends 沿用 release-0.2 无需改。
 4. **PR #400 alpha 修复**（patch.py:401）—— ✅ 0.24.0 路径生效（patched
    forward_decode 应用 + 推理无 NaN/乱码，§13.6）。
+5. **triton 侧装编译器路径** —— ✅ 同一 app 镜像 `compiler triton`
+   （/opt/triton，vendor triton 3.6.0+gitcd2d6c1b）serve E2E 通过，
+   8 patches 全量应用、推理流畅，与 flagtree 路径输出可比（§13.7）。
 
-### 13.6 验证记录（app 镜像 serve E2E，2026-08-23）
+### 13.6 验证记录（app 镜像 serve E2E，flagtree 路径，2026-08-23）
 
 app 镜像（vllm empty wheel + 插件 wheel 单步安装线 + `vllm-serve` launcher）
-在 kunlunxin P800 上的 serve + 推理端到端验证：
+在 kunlunxin P800 上的 serve + 推理端到端验证（默认编译器 flagtree 路径；
+triton 路径见 §13.7）：
 
 - 镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-kunlunxin-xre5.37.1:
   2.1.2-0.2.0_gf780db1.d20260823`（镜像 tag 中插件版本 `+`→`_`）
@@ -1136,6 +1143,25 @@ app 镜像（vllm empty wheel + 插件 wheel 单步安装线 + `vllm-serve` laun
   循环 —— 已证与 alpha 无关（同镜像同参数换任务型 prompt 即流畅，
   prompt 内容特性），记 §14 观察项
 
+### 13.7 验证记录（triton 路径 serve E2E，2026-08-23）
+
+同一 app 镜像（§13.6），仅把编译器切换为侧装 triton 后重跑 serve + 推理，
+确认双编译器在 0.24.0 上都可正常推理（与 0.20.2 线先例一致）：
+
+- 容器 `compiler triton` 启动（默认 flagtree 换 triton）：PYTHONPATH 指向
+  /opt/triton，`import triton` → **3.6.0**（vendor triton 3.6.0+gitcd2d6c1b，
+  与 configs.yaml `triton:` 一致）
+- serve 命令同 §13.6，仅 `--port 8032`（flagtree 线 8031），/dev/xpu3 +
+  /dev/xpuctrl，env 四变量同
+- 启动日志确认 8 个 plugin patches 全量应用，无 sampler RNG TypeError
+  （f780db1 三参签名）
+- 推理：同三个 completion prompt（1+1= / capital of France / 9.11 vs 9.9）
+  输出流畅、无 NaN 乱码，与 flagtree 路径输出质量可比；chat 任务型 prompt
+  （长生成）内容连贯
+- ⚠️ FLA 补丁两告警同 §13.6（`vllm.third_party.flash_linear_attention`
+  旧路径，0.24.0 已不存在）—— 非致命，Qwen3-4B 不受影响，待 §14 重指
+- 结论：flagtree（默认）与 triton（侧装）双编译器 serve E2E 均通过
+
 ---
 
 ## 14. 遗留事项
@@ -1148,8 +1174,8 @@ app 镜像（vllm empty wheel + 插件 wheel 单步安装线 + `vllm-serve` laun
       （§8/§9）；ascend ✅（§10，CANN 9.0.0 + cann8.5.0 双编译器）；
       sunrise ✅（§11，T 路径 triton；F 路径 rebuilt flagtree ✅
       §11.5 —— 旧 §2.9 解码挂死已由 PR 978 修复）；hygon ✅
-      （§12，F/T 双编译器，2026-08-20）；**kunlunxin ✅（§13，
-      2026-08-23）**
+      （§12，F/T 双编译器，2026-08-20）；**kunlunxin ✅（§13，flagtree +
+      triton 双编译器，2026-08-23）**
 - [ ] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
       flash_linear_attention` → `vllm.model_executor.layers.fla.ops`）——
       Qwen3-Next/GDN 模型验证前置（§13.4）
