@@ -30,12 +30,13 @@ name: vllm-plugin wheel
 # flag_gems / numpy / vllm). The plugin must not ship dependencies that could
 # overwrite the runtime matrix — the image provides them.
 #
-# Wheel flavor per backend: vllm_vendor comes from the build matrix
-# (generate_matrix.py, derived from cmake_backend). cuda-ABI backends compile
-# vllm_fl._C with VLLM_VENDOR=cuda; PrivateUse1 backends (ascend, gcu) build
-# the pure-python wheel with VLLM_VENDOR unset. The version (setuptools-scm
-# 0.2.0+g<sha>.d<date>, or the explicit plugin_version input) encodes the
-# exact plugin commit, so the app Containerfile's
+# Wheel flavor: every backend builds the pure-python wheel (VLLM_VENDOR
+# unset). The former vllm_fl._C native build (VLLM_VENDOR=cuda, nvidia only)
+# required a CUDA toolchain in the runtime image that it does not ship, and
+# the plugin's runtime fallbacks cover the empty-mode paths — retired
+# 2026-08-23 ("都走统一个模式"). vllm_vendor stays in the matrix (always "")
+# for the workflow env. The version (setuptools-scm 0.2.0+g<sha>.d<date>, or
+# the explicit plugin_version input) encodes the exact plugin commit, so the app Containerfile's
 # `pip install vllm-plugin-fl==<version>` is a commit-precise pin.
 #
 # Clone source: plugin_repo defaults to the flagos-ai upstream, so the default

@@ -53,7 +53,6 @@ MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-4B}"
 VLLM_VERSION="${VLLM_VERSION:-0.20.2}"
 PLUGIN_FL_VERSION="${PLUGIN_FL_VERSION:-}"
 SKIP_SERVE=false
-VLLM_VENDOR="cuda"
 APP_IMAGE=""
 
 shift || true
@@ -63,7 +62,6 @@ while [[ $# -gt 0 ]]; do
         --vllm-version) VLLM_VERSION="$2"; shift 2 ;;
         --plugin-fl-version) PLUGIN_FL_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
-        --vllm-vendor) VLLM_VENDOR="$2"; shift 2 ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
         --help)
             echo "Usage: $0 <vendor-backend> [options]"
@@ -75,7 +73,6 @@ while [[ $# -gt 0 ]]; do
             echo "  --model <path>       Path to model for serve test"
             echo "  --vllm-version <ver> vLLM version to install (default: 0.20.2)"
             echo "  --plugin-fl-version <ver> vllm-plugin-FL wheel version (default: skip plugin)"
-            echo "  --vllm-vendor <vendor> VLLM_VENDOR for plugin build (default: cuda)"
             echo "  --skip-serve          Skip serve test, only install and verify imports"
             echo "  --app-image <image>   Verify a prebuilt vllm app image (matrix + import)"
             exit 0
@@ -145,7 +142,6 @@ echo "Vendor-Backend:   ${VENDOR_BACKEND}"
 echo "Runtime Image:    ${RUNTIME_IMAGE}"
 echo "vLLM Version:     ${VLLM_VERSION}+flagos"
 echo "Model Path:       ${MODEL_PATH}"
-echo "VLLM_VENDOR:      ${VLLM_VENDOR}"
 echo ""
 
 # ── Cleanup function ────────────────────────────────────────────────────
