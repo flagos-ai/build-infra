@@ -29,6 +29,10 @@
 #                vendor env before exec'ing vllm's API server, so a plain
 #                `docker run <image>` works — non-bash starts miss the
 #                profile.d-only LD_LIBRARY_PATH (libascend_hal.so).
+#   2026-08-23   profile.d app_env.sh lines are 'export'-prefixed (a bare
+#                KEY=value never reaches the exec'd server — kunlunxin decode
+#                dropped to ~0.1 tok/s without the VLLM_FL_* vars); default CMD
+#                model path corrected to /data/models/Qwen3-4B.
 # TODO
 #   - Publish-time verification (torch version, vllm import).
 # ============================================================
@@ -87,10 +91,14 @@ RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
 
 # Per-backend app env vars (configs.yaml env.app.{app}): baked into
 # /etc/profile.d/app_env.sh — sourced by the runtime's bash plumbing
-# (BASH_ENV=/etc/bash_env.sh sources /etc/profile.d/*.sh).
+# (BASH_ENV=/etc/bash_env.sh sources /etc/profile.d/*.sh).  Each line is
+# prefixed with 'export ' so the vars survive the launcher's exec — a bare
+# KEY=value assignment dies with the sourcing shell and never reaches the
+# exec'd server (kunlunxin serve without the VLLM_FL_* vars decodes at
+# ~0.1 tok/s; with them, ~6+ tok/s).
 ARG APP_ENV=""
 RUN if [ -n "${APP_ENV}" ]; then \
-      printf '%s\n' "${APP_ENV}" > /etc/profile.d/app_env.sh; \
+      printf '%s\n' "${APP_ENV}" | sed 's/^/export /' > /etc/profile.d/app_env.sh; \
     fi
 
 # --- Vendor-conditional app deps -----------------------------
@@ -116,6 +124,6 @@ RUN chmod +x /usr/local/bin/vllm-serve
 
 ENV VLLM_PLUGINS=fl
 WORKDIR /workspace
-CMD ["vllm-serve", "--model", "/data/models/Qwen/Qwen3-4B", "--port", "8031", \
+CMD ["vllm-serve", "--model", "/data/models/Qwen3-4B", "--port", "8031", \
   "--gpu-memory-utilization", "0.6", "--enforce-eager", "--trust-remote-code", \
   "--max-model-len", "2048", "--dtype", "bfloat16"]
