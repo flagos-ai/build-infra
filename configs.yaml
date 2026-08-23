@@ -467,6 +467,10 @@ vendors:
         - numpy==2.2.6
       deps_app:
         vllm-0.20.2: []
+        # vllm 0.24.0 app image: no extra deps — the runtime matrix already
+        # carries torch/xtorch_ops/triton/flag_gems, and the plugin wheel's
+        # Requires-Dist is audit-gated empty.
+        vllm-0.24.0: []
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.37.1.0       # xre-Linux-x86_64-cuda12-5.37.1.0.run
