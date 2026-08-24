@@ -121,15 +121,26 @@ def main() -> None:
     _git("checkout", "-B", BRANCH, check=False)
     _git("commit", "-m", commit_msg)
 
-    _git("fetch", "origin", BRANCH, check=False)
-    if _git("rev-parse", "--verify", f"origin/{BRANCH}", check=False).returncode == 0:
-        if _git("rebase", f"origin/{BRANCH}", check=False).returncode != 0:
-            _git("rebase", "--abort", check=False)
-            sys.exit(
-                f"Error: {BRANCH} moved concurrently and cannot be rebased — "
-                f"re-run the driver to record this round"
-            )
-    _git("push", "--force", "origin", BRANCH)
+    # Rebase our commit onto the remote tip and force-push. The record job is
+    # serialized by a workflow concurrency guard, but the branch can still move
+    # from a manual push or a duplicate cell — retry a few times so a transient
+    # move doesn't drop this round's results instead of hard-exiting.
+    for attempt in range(5):
+        _git("fetch", "origin", BRANCH, check=False)
+        if _git("rev-parse", "--verify", f"origin/{BRANCH}", check=False).returncode == 0:
+            if _git("rebase", f"origin/{BRANCH}", check=False).returncode != 0:
+                _git("rebase", "--abort", check=False)
+                continue  # remote tip moved under us — re-fetch and retry
+        try:
+            _git("push", "--force", "origin", BRANCH)
+            break
+        except subprocess.CalledProcessError:
+            continue  # transient push failure — retry
+    else:
+        sys.exit(
+            f"Error: could not push {BRANCH} after 5 attempts — the branch kept "
+            f"moving concurrently; re-run the driver to record this round"
+        )
 
     base = os.environ.get("GITHUB_REF_NAME", "main")
     repo = os.environ.get("GITHUB_REPOSITORY")
@@ -145,6 +156,8 @@ def main() -> None:
         "The verify driver applied this round's cell results to the status matrices and "
         "appended any failed cells to the debug queue. This PR brings the matrices, the "
         "verification matrices, and the queue back in sync — no functional changes. "
+        "Opened as a draft: the cells' exit codes do not yet guarantee a clean end-to-end "
+        "install, so confirm each ✅ before marking ready for review. "
         "Driver + queue schema: docs/verify-orchestrator.md."
     )
     _gh_api("POST", f"/repos/{repo}/pulls", {
@@ -152,6 +165,7 @@ def main() -> None:
         "head": BRANCH,
         "base": base,
         "body": body,
+        "draft": True,
     })
 
 
