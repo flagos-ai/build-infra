@@ -20,9 +20,9 @@ name: verify-driver
 # docs/verify-orchestrator.md §4.1.
 #
 # Each cell is verified at its app's *primary* scenario (inference for vllm,
-# training for megatron_training) on the *default* compiler column only (F if the
-# backend has FlagTree, else T) — the verify scripts have no --compiler flag, so
-# they exercise the runtime's default path. A cell earns ✅ only by its verify
+# training for megatron_training) on every pending compiler column (F and T) —
+# the driver passes --compiler flagtree|triton so each installed compiler path
+# is exercised explicitly. A cell earns ✅ only by its verify
 # script running the workload end-to-end and exiting 0 (vllm: serve returns a
 # real completion; megatron_training: mock-data pretrain_gpt 5-iter exit 0) —
 # "install is inert + import succeeds" is NOT enough. megatron_rl cells are
@@ -101,6 +101,7 @@ jobs:
           CELL_APP: ${{ matrix.app }}
           CELL_BACKEND: ${{ matrix.backend }}
           CELL_COMPILER: ${{ matrix.compiler }}
+          CELL_COMPILER_PATH: ${{ matrix.compiler_path }}
           CELL_SCENARIO: ${{ matrix.scenario }}
           CELL_IMAGE: ${{ matrix.image }}
           CELL_SCRIPT: ${{ matrix.verify_script }}
@@ -109,7 +110,7 @@ jobs:
         run: |
           set +e
           mkdir -p /tmp/verify-result
-          bash "$CELL_SCRIPT" "$CELL_BACKEND" $CELL_ARGS > /tmp/verify.log 2>&1
+          bash "$CELL_SCRIPT" "$CELL_BACKEND" $CELL_ARGS --compiler "$CELL_COMPILER_PATH" > /tmp/verify.log 2>&1
           rc=$?
           RESULT="/tmp/verify-result/result-$CELL_APP-$CELL_BACKEND-$CELL_COMPILER.json"
           python3 - "$rc" "$RESULT" <<'PY'

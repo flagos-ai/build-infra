@@ -88,10 +88,17 @@ def main() -> None:
         sys.exit("Error: GITHUB_REPOSITORY not set — cannot dispatch")
 
     dispatched = 0
+    seen: set[tuple[str, str]] = set()
     for f in sorted(glob.glob(str(Path(args.results_dir) / "result-*.json"))):
         r = json.loads(open(f).read())
         if r.get("status") != "passed":
             continue
+        # A backend whose F and T cells both pass dispatches only once — the
+        # app image is compiler-agnostic, one build covers both columns.
+        key = (r["app"], r["backend"])
+        if key in seen:
+            continue
+        seen.add(key)
         workflow, extra = APP_WORKFLOW[r["app"]]
         dispatch(repo, workflow, r["backend"], extra)
         dispatched += 1

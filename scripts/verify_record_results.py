@@ -43,7 +43,7 @@ from pathlib import Path
 
 import yaml
 
-from verify_collect_cells import APP_VERIFY, MATRICES, PENDING, _default_compiler
+from verify_collect_cells import APP_VERIFY, MATRICES, PENDING, _pending_compilers
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 QUEUE_PATH = REPO_ROOT / ".github" / "verify-queue.yaml"
@@ -108,17 +108,15 @@ def upsert_queue(cards: list[dict]) -> None:
 
 
 def remaining_pending() -> int:
-    """Count default-compiler cells still ⬜ across all app matrices (for the
-    terminate job). Mirrors collect(): only the default compiler column (F if
-    present else T) counts — the other column stays ⬜ until the scripts grow
-    --compiler, so it must not keep the driver running."""
+    """Count compiler cells still ⬜ across all app matrices (for the
+    terminate job). Mirrors collect(): every pending F and T column counts, so
+    the driver keeps re-triggering until both compiler paths resolve."""
     n = 0
     for app, rel in MATRICES.items():
         matrix = yaml.safe_load((REPO_ROOT / rel).read_text()) or {}
         verification = matrix.get("scenarios", {}).get(APP_VERIFY[app]["scenario"], {}).get("verification", {})
         for syms in verification.values():
-            if _default_compiler(syms) is not None:
-                n += 1
+            n += len(_pending_compilers(syms))
     return n
 
 

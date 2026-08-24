@@ -17,8 +17,8 @@
 """Collect pending (⬜) verification cells from the app status matrices.
 
 The verify driver's plan job reads the status matrix YAMLs, collects every ⬜
-(待验证) cell, and emits a matrix JSON of {app, backend, compiler, image,
-verify_script, verify_args} — one entry per (app, backend, compiler path).
+(待验证) cell, and emits a matrix JSON of {app, backend, compiler, compiler_path,
+image, verify_script, verify_args} — one entry per (app, backend, compiler) cell.
 A cell is collected at the app's *primary* scenario: the layer its verify
 script actually exercises end-to-end (install + import + workload — serve for
 vllm, mock-data pretrain for megatron_training) — inference for vllm,
@@ -28,15 +28,15 @@ is marked ⛔ and skipped as a terminal symbol. The deeper megatron columns
 (post_training / inference) are human/worker conclusions, not script-driven
 verifications, so they are never turned into cells.
 
-Only the *default* compiler column becomes a cell — FlagTree (F) when the
-backend has it, else Triton (T). The verify scripts have no --compiler flag,
-so they exercise the runtime's default compiler; filling the other column with
-that same result would be a false record. The non-default column stays ⬜ and
-is a human/worker conclusion (like the deeper megatron columns) until the
-scripts grow --compiler (docs/verify-orchestrator.md §4.1).
+Every pending (⬜) compiler column becomes a cell — FlagTree (F) and Triton
+(T) are each collected when their symbol is ⬜, in F then T order. The driver
+passes each cell's compiler to the verify script as ``--compiler
+flagtree|triton`` (both verify scripts already take that flag), so each
+installed compiler path is exercised explicitly rather than the runtime
+default.
 
 Terminal symbols (✅/❌/⛔/？) and "—" (compiler absent on the backend) are
-skipped; only a ⬜ default column becomes a cell. See docs/verify-orchestrator.md.
+skipped; only ⬜ columns become cells. See docs/verify-orchestrator.md.
 
 Usage:
     python scripts/verify_collect_cells.py                       # all 4 apps
@@ -57,9 +57,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # app -> verify script + the scenario column that script verifies.
 # verify_args carries the extra flags the script needs beyond the positional
-# backend. The compiler (T/F) is passed by the driver once the verify scripts
-# grow a --compiler flag (docs/verify-orchestrator.md §4.1); until then both
-# paths run the script's default compiler and the F/T symbols collapse.
+# backend; the driver appends ``--compiler flagtree|triton`` per cell so each
+# installed compiler path is exercised explicitly (F -> flagtree, T -> triton).
 APP_VERIFY = {
     "vllm0.20.2": {
         "script": "packaging/vllm/verify-vllm-backend.sh",
@@ -91,7 +90,9 @@ MATRICES = {
 }
 
 PENDING = "⬜"
-ABSENT = "—"
+
+# matrix column (F/T) -> --compiler value the verify scripts accept.
+COMPILER_FLAG = {"F": "flagtree", "T": "triton"}
 
 
 def stack_version() -> str:
@@ -115,14 +116,12 @@ def runson_for(backend: str) -> str:
     return json.dumps(val)
 
 
-def _default_compiler(syms: dict) -> str | None:
-    """The default-compiler column a ⬜ cell is collected for: F if present
-    (FlagTree is the runtime default), else T. A ⬜ cell is collected only for
-    that default column — a resolved default is skipped, and a ⬜ non-default
-    column is left for the human/worker (the scripts have no --compiler flag,
-    so they always exercise the default path)."""
-    default = "F" if syms.get("F") not in (None, ABSENT) else "T"
-    return default if syms.get(default) == PENDING else None
+def _pending_compilers(syms: dict) -> list[str]:
+    """Compiler columns still ⬜ for a backend, in F then T order. A column is
+    collected only when its symbol is ⬜; "—" (compiler absent on the backend)
+    and terminal symbols (✅/❌/⛔/？) are skipped. Both F and T are collected so
+    the driver exercises each installed compiler path explicitly."""
+    return [c for c in ("F", "T") if syms.get(c) == PENDING]
 
 
 def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:
@@ -134,13 +133,13 @@ def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:
     for backend, syms in verification.items():
         if backends is not None and backend not in backends:
             continue
-        compiler = _default_compiler(syms)
-        if compiler is not None:
+        for compiler in _pending_compilers(syms):
             cells.append({
                 "app": app,
                 "backend": backend,
                 "vendor": backend.split("-", 1)[0],
                 "compiler": compiler,
+                "compiler_path": COMPILER_FLAG[compiler],
                 "scenario": scenario,
                 "image": runtime_image(backend, version),
                 "verify_script": meta["script"],
