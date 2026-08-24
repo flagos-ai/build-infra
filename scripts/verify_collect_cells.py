@@ -63,7 +63,15 @@ APP_VERIFY = {
     "vllm0.20.2": {
         "script": "packaging/vllm/verify-vllm-backend.sh",
         "scenario": "inference",
-        "verify_args": "--vllm-version 0.20.2",
+        # vllm-plugin-fl is required for the serve test (Step 6): without it,
+        # `export VLLM_PLUGINS=fl` loads no platform plugin and vllm raises
+        # "Failed to infer device type". The 0.20.2 line ships one audited
+        # plugin wheel per vendor index, all at the same version
+        # 0.2.1+g825c1cd (release-0.2 branch, tag v0.2.1). The app image
+        # bakes this exact version (status matrix image_tag suffix
+        # `0.2.1_g825c1cd`, `+`→`_`), so the full-install path must pin the
+        # same wheel to reach an identical serve environment.
+        "verify_args": "--vllm-version 0.20.2 --plugin-fl-version 0.2.1+g825c1cd",
     },
     "vllm0.24.0": {
         "script": "packaging/vllm/verify-vllm-backend.sh",
