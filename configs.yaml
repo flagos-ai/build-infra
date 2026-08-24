@@ -500,6 +500,7 @@ vendors:
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
         - numpy==2.3.5
       deps_app:
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - MetaX Driver 3.7.2.30   # metax-driver-3.7.2.30-deb-x86_64.run
@@ -540,6 +541,7 @@ vendors:
       deps_app:
         megatron_training: []
         megatron_rl: []  # RL verified per megatron-verification-matrix.md; no vendor extra
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - MetaX Driver 3.8.1.6   # metax-driver-3.8.1.6-deb-x86_64.run
