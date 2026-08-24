@@ -569,6 +569,7 @@ vendors:
         - mkl==2024.0.0
         - numpy==1.26.4
       deps_app:
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
@@ -597,6 +598,7 @@ vendors:
         - numpy==1.26.4
 
       deps_app:
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - MUSA Toolkits 5.2.0     # musa_toolkits_5.2.0.tar.gz
