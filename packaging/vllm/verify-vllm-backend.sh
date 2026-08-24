@@ -54,6 +54,7 @@ VLLM_VERSION="${VLLM_VERSION:-0.20.2}"
 PLUGIN_FL_VERSION="${PLUGIN_FL_VERSION:-}"
 SKIP_SERVE=false
 APP_IMAGE=""
+COMPILER=""
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -63,6 +64,7 @@ while [[ $# -gt 0 ]]; do
         --plugin-fl-version) PLUGIN_FL_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
+        --compiler) COMPILER="$2"; shift 2 ;;
         --help)
             echo "Usage: $0 <vendor-backend> [options]"
             echo ""
@@ -75,6 +77,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --plugin-fl-version <ver> vllm-plugin-FL wheel version (default: skip plugin)"
             echo "  --skip-serve          Skip serve test, only install and verify imports"
             echo "  --app-image <image>   Verify a prebuilt vllm app image (matrix + import)"
+            echo "  --compiler <c>        Compiler path to verify: flagtree | triton (default: runtime default)"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -89,6 +92,11 @@ fi
 # Parse vendor and backend
 VENDOR="${VENDOR_BACKEND%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
+
+if [[ -n "$COMPILER" && "$COMPILER" != "flagtree" && "$COMPILER" != "triton" ]]; then
+    echo "Error: --compiler must be 'flagtree' or 'triton' (got '$COMPILER')" >&2
+    exit 1
+fi
 
 # ── Configuration ───────────────────────────────────────────────────────
 
@@ -133,6 +141,14 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
+# --compiler <flagtree|triton>: switch the in-container compiler for the runtime
+# steps (env check + serve). The runtime's `compiler` bash function is sourced in
+# every shell (BASH_ENV → /etc/profile.d/zz-compiler.sh); `compiler <name>` exports
+# PYTHONPATH to the selected side dir and fails (rc 1) if that compiler is absent.
+# Empty = leave the runtime's default compiler active.
+COMPILER_GUARD=""
+[[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} || exit 1"
+
 # ── Print header ────────────────────────────────────────────────────────
 
 echo "========================================"
@@ -141,6 +157,7 @@ echo "========================================"
 echo "Vendor-Backend:   ${VENDOR_BACKEND}"
 echo "Runtime Image:    ${RUNTIME_IMAGE}"
 echo "vLLM Version:     ${VLLM_VERSION}+flagos"
+echo "Compiler:         ${COMPILER:-<runtime default>}"
 echo "Model Path:       ${MODEL_PATH}"
 echo ""
 
@@ -260,6 +277,7 @@ fi
 log_step "Step 2: Verifying runtime environment"
 
 docker exec "${CONTAINER}" bash -c "
+    ${COMPILER_GUARD}
     echo '--- Python ---'
     python3 --version
 
@@ -399,6 +417,7 @@ else
         log_info "Starting vllm serve (this may take several minutes)..."
 
         docker exec "${CONTAINER}" bash -c "
+            ${COMPILER_GUARD}
             export VLLM_PLUGINS=fl
             export VLLM_FL_DISPATCH_DEBUG=1
 
