@@ -333,7 +333,7 @@ docker exec "${CONTAINER}" bash -c "
     pip install \
         --index-url '${VENDOR_PYPI}' \
         --extra-index-url '${ALIYUN_PYPI}' \
-        'vllm==${VLLM_VERSION}'
+        'vllm==${VLLM_VERSION}+flagos'
 "
 
 log_info "vllm installed:"
