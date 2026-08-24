@@ -153,7 +153,9 @@ jobs:
           print(f"verify {result['app']} {result['backend']} {result['compiler']} -> {status} (rc={rc})")
           PY
           exit "$rc"
-        continue-on-error: true
+        # A non-zero rc must fail the job so the cell's failure is visible. The result
+        # JSON (status=passed|failed) is still uploaded below (if: always()) and
+        # consumed by record/build.
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
