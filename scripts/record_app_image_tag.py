@@ -23,10 +23,10 @@ truth for "this backend is published" (see docs/status-matrix.md), so the
 workflow writes it there itself instead of leaving it to a human verifier.
 
 What the script does, in order:
-  1. Update ``image_tag`` and set ``launch_docs: true`` for the backend in the
-     status matrix YAML (surgical line edit — the matrix files carry a human
-     header comment that a YAML round-trip would drop). Idempotent: both facts
-     already recorded → no-op, exit 0.
+  1. Update ``image_tag`` and set ``launch_docs: true`` + ``deps_app: true``
+     for the backend in the status matrix YAML (surgical line edit — the matrix
+     files carry a human header comment that a YAML round-trip would drop).
+     Idempotent: all three facts already recorded → no-op, exit 0.
   2. Regenerate the pipeline so the docs stay consistent with the matrix:
      ``gen_data.py`` → ``render_status_matrix.py`` → ``gen_descriptions.py
      --app-only`` (app pages read no version TSVs, so no VERSIONS_DIR).
@@ -37,9 +37,11 @@ What the script does, in order:
      (``GITHUB_TOKEN``), not the ``gh`` CLI — the step runs on self-hosted
      hardware runners that do not carry gh.
 
-``launch_docs`` is set alongside ``image_tag`` because step 2 regenerates the
-app launch pages — a pushed backend's launch docs exist by construction, so a
-human-tracking boolean here only drifts from reality.
+``launch_docs`` and ``deps_app`` are set alongside ``image_tag`` because step 2
+regenerates the app launch pages — a pushed backend's launch docs exist by
+construction, and a pushed backend is buildable by construction (the workflow
+only builds a backend whose ``deps_app`` key exists in configs.yaml), so
+human-tracking booleans here only drift from reality.
 
 Usage:
     python scripts/record_app_image_tag.py \\
@@ -185,6 +187,18 @@ def update_launch_docs(matrix_path: Path, backend: str) -> bool:
     return _set_facility_field(matrix_path, backend, "launch_docs", "true")
 
 
+def update_deps_app(matrix_path: Path, backend: str) -> bool:
+    """Set deps_app: true for the backend; return True if the file changed.
+
+    A pushed backend is buildable by construction — the app-image workflow only
+    builds a backend whose ``deps_app`` key exists in configs.yaml (key presence
+    gates the build). Recording the push therefore proves the key exists, so set
+    the matrix boolean alongside image_tag instead of leaving it to drift as a
+    human-tracking flag.
+    """
+    return _set_facility_field(matrix_path, backend, "deps_app", "true")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matrix", required=True, help="status matrix YAML path, relative to repo root")
@@ -198,15 +212,17 @@ def main() -> None:
         sys.exit(f"Error: matrix file not found: {matrix_rel}")
     tag = args.tag.rsplit(":", 1)[-1]
 
-    # Idempotency: both facts already recorded → nothing to do.
+    # Idempotency: all three facts already recorded → nothing to do.
     backend_cfg = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(args.backend, {})
-    if backend_cfg.get("image_tag", "") == tag and backend_cfg.get("launch_docs", False):
-        print(f"{args.backend} already records image_tag {tag} + launch_docs — nothing to do.")
+    if (backend_cfg.get("image_tag", "") == tag and backend_cfg.get("launch_docs", False)
+            and backend_cfg.get("deps_app", False)):
+        print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
         return
-    print(f"Recording image_tag {tag} + launch_docs for {args.backend} in {matrix_rel}")
+    print(f"Recording image_tag {tag} + launch_docs + deps_app for {args.backend} in {matrix_rel}")
 
     changed = update_image_tag(matrix_path, args.backend, tag)
     changed = update_launch_docs(matrix_path, args.backend) or changed
+    changed = update_deps_app(matrix_path, args.backend) or changed
     if not changed:
         return
 
