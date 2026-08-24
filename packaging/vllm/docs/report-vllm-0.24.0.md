@@ -813,6 +813,65 @@ serve + 推理，即 `app/vllm/` 全流程的端到端证明。
   proc-mem 显示 "No process in device" 与真实占用不一致，须以
   `docker ps -a` + 设备 open 实测为准）。
 
+### 10.6 app 镜像 serve E2E（hw26 cann8.5.0，2026-08-24）
+
+cann8.5.0（hw26）的 app 镜像交付形态验证（§10.3 为 runtime 镜像 +
+editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
+`app/vllm/` 全流程端到端证明）。
+
+- 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2-0.2.0_gcf8998c.d20260818`
+- 版本指纹：vllm `0.24.0+flagos`（cp311 aarch64 empty wheel 单步安装）；
+  vllm-plugin-fl `0.2.0+gcf8998c.d20260818`（vendor PyPI wheel，非
+  editable）；torch 2.9.0+cpu / torch_npu 2.9.0 / flag_gems 5.3.4；
+  编译器 = flagtree 0.6.0+ascend3.2（默认，`VLLM_PLUGINS=fl` 烘焙）+
+  triton 3.2.0（triton_ascend 3.2.0），`compiler` 函数切换。注：与
+  cann9.0.0 app 镜像（§10.5）的 flagtree 0.6.1+ascend3.5 不同。
+- 启动：`vllm-serve`（`/etc/bash_env.sh` 源入 vendor env → `exec
+  api_server`），`docker run` 裸 `--device` flags，端口 8031（F，
+  davinci0，默认 flagtree）/ 8032（T，davinci1，`compiler triton`）：
+  `--model /models/Qwen3-4B --gpu-memory-utilization 0.6
+  --enforce-eager --trust-remote-code --max-model-len 2048
+  --dtype bfloat16`（默认 CMD 以 `/data/models/Qwen/Qwen3-4B` 为参考，
+  本次挂载 `/models/Qwen3-4B`，须显式覆盖 `--model`，否则
+  `Repo id must be in the form ...` 直接退出）
+- 启动：`Application startup complete`；`Block size is set to 128`、
+  `Custom fusions: norm_quant, act_quant`；算子路由同 §10.3：
+  `attention_backend`/`rms_norm`/`rotary_embedding` → `vendor.ascend`，
+  `silu_and_mul` → `default.flagos`，`linear_backend='auto'`。指纹
+  `vllm-0.24.0-0568564d`（两路径一致；§10.5 hw25 为
+  `vllm-0.24.0-0535d777`，插件 wheel 版本串相同、指纹 hash 不同）
+
+**双路径结果：F（flagtree）/ T（triton）均连贯 ✅**
+
+| 编译器 | knowledge | math | 崩溃标记 |
+|---|---|---|---|
+| triton 3.2.0 | 连贯 ✅ | 连贯 ✅ | 0 |
+| flagtree 0.6.0+ascend3.2 | 连贯 ✅ | 连贯 ✅ | 0 |
+
+- T 路径：knowledge `The capital of France is` → " Paris. The capital
+  of Germany is Berlin. ..."；math `What is 7 times 8? Answer:` →
+  " 56. What is 7 times 9? Answer: 63. ..."。
+- F 路径：冷启动（`Application startup complete` 后立即）连续 10 发、
+  预热后连续 12 发，knowledge/math 均连贯，共 22/22 无乱码。
+
+**F 路径瞬态乱码（未复现，记观察）**
+
+- 现象：首轮验证会话中，F 路径曾连续 4 次产出降质输出 —— knowledge 3
+  次纯 `!` 重复（`max_tokens=32` → 32 个 `!`、`max_tokens=16` → 16 个
+  `!`，temperature=0），math 1 次半连贯但错（"7 times 8 is 5!"）。单
+  token 重复填充至 max_tokens 长度，是 decode 循环产出单一重复 token
+  的数值/分发退化，非 JSON 解析伪影。
+- 复测：同一镜像冷启动重测（本节）22/22 连贯，乱码未复现 → 判定为
+  间歇性（非确定性）flagtree 0.6.0+ascend3.2 decode 异常，暂未定位。
+- 疑点：启动日志 `flag_gems libentry` 警告 "active Triton backend
+  does not provide a replay benchmarker; falling back to event timing"
+  —— flagtree 的 replay benchmarker 回退到 event timing，可能在特定
+  状态下选到次优/错误 kernel config，或与首轮会话的设备状态相关。
+- **处置**：cann8.5.0 交付路径 = 默认 flagtree（T 路径 triton 3.2.0
+  已同步验证为绿，作为 fallback）。F 路径乱码列为 watch 项，若再现
+  需切 `compiler triton` 并定位 flagtree 0.6.0+ascend3.2 的
+  benchmarker/数值问题。
+
 ---
 
 ## 11. sunrise（TANGRT 1.2.0）详细记录（2026-08-19）
