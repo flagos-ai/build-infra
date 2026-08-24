@@ -1417,6 +1417,28 @@ NPU 冷启动 JIT 极慢：hw25 T 路径首请求 872s（逐 shape 编译 triton
 64 token decode 约 11~15 min。慢≠挂：以 `generation_tokens_total` 增量 + `num_requests_running` 归零
 判断完成，勿以客户端 curl 超时误判卡死。
 
+**构建源与上游 PR 追踪（fork 分支 provenance）：** #361 与 #402 是**两个独立分支**，各自只含一半
+黑名单（#361 = lift_fresh 系 3 条、#402 = pow_scalar 1 条），0.20.2 ascend 两后端需**四条全齐**。
+上游 merge 由 plugin 团队掌控、无法控制，故 wheel 从 fork 上的合成分支构建（`vllm-plugin-wheel.yml`
+`plugin_repo` 指 fork、`plugin_ref` 指合成分支 SHA），与其它后端从 fork 打 pre-merge wheel 同一流程。
+
+| 合成分支 commit（构建源） | 上游原始 commit | 上游 PR |
+|---|---|---|
+| `00cc275` lift_fresh 系 | `baeafde` | [vllm-plugin-FL#361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361) |
+| `05f246b` pow_scalar | `13a91ef` | [vllm-plugin-FL#402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) |
+| `2b6b635` pow_scalar 注释修正 | `e084195` | [vllm-plugin-FL#402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) |
+
+合成分支 = `tengqm/vllm-plugin-FL:ascend-blacklist-release-0.2` @ `2b6b635cd93c5578ba945cf935f7c7f7e1d5d882`
+（基于 `release-0.2` @ `825c1cd` cherry-pick 三笔，内容与上游逐字节一致，SHA 因 cherry-pick 重写
+committer/date/parent 而不同）。wheel 版本串 `0.2.0+g2b6b635.d20260824` 把构建 SHA 烙进元数据，app 镜像
+安装 pin 带进 image_tag，status_matrix 记 image_tag → 版本串 → 上游 PR，追踪链闭合。**#361/#402 merge 进
+上游 release-0.2 后，用上游新 HEAD 重打 wheel（内容逐字节相同，仅版本串 SHA 换上游值），届时删除本表。**
+
+**PR 追踪约定（6 个 app × 17 后端 × F/T 双路径，PR 数量会很多）：** 持久源 = status_matrix 的
+`backends.<name>.prs:` 字段（结构化，已被 enflame/kunlunxin/sunrise 使用，记录「该后端 image 依赖的
+上游 PR URL」），merge 后仍保留；临时源 = 本表这类 fork-SHA → PR 映射，仅在 PR 未 merge 期间存在、
+merge + 重建后即删。**每后端跑通时：上游 PR 进 `prs:`（永久）、fork 合成分支映射进 report「后续」（临时）。**
+
 
 ---
 
