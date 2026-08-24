@@ -331,6 +331,24 @@ tar.gz 解包到 `/app/vllm-plugin-FL`；与 main 分支的差异与合并路线
 "相同 cp 版本的 Wheel 是否可跨 CUDA 使用"：**12.8 构建的 wheel 直接在 13.3
 （cu130）上单步安装并运行通过**。是否可跨 OS/架构（如 aarch64）仍待验证。
 
+### 6.4 App 镜像 serve 验证（2026-08-24，wheel 单步安装）
+
+§6.2 的空模式验证在 dev 基线上完成（源安装 v0.3.0-dev 插件）。现 v0.3.0-dev 分支已删，
+改从 **main 分支取快照**（HEAD `a9435a3`，2026-08-21，即 tag v0.3.0-rc0）构建插件 wheel
+`vllm_plugin_fl-0.2.0+ga9435a3.d20260821`，经 `vllm-app-image.yml` 构建 app 镜像
+`flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_ga9435a3.d20260821`（wheel 单步安装
+vllm `0.24.0+flagos` + 插件 wheel）并 push Harbor（记录 PR #504）。
+
+对已 push 镜像实测 serve（`--enforce-eager --dtype bfloat16 --max-model-len 2048`，
+端口 8031）：
+- F 路径（默认 flagtree）：✅ `Application startup complete` + 推理连贯
+- T 路径（`compiler triton`）：✅ 同上
+- 输出 `' Paris. The capital of Germany is Berlin. The capital of Italy is Rome.'`，
+  模型指纹 `vllm-0.24.0-60a3ac76`（不同于空模式 `423da8ca` —— 本格为 main 快照 wheel）。
+
+注：app 镜像 CMD 默认 `--model /data/models/Qwen3-4B`，h20 上该路径不存在，
+serve 实测用 `--model /data/tqm/models/Qwen3-4B` 覆盖。
+
 ---
 
 ## 7. 版本推进协作问题
