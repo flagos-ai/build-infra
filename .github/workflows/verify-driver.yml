@@ -160,6 +160,14 @@ jobs:
     needs: [plan, verify]
     if: ${{ always() && needs.plan.outputs.has_cells == 'true' }}
     runs-on: ubuntu-latest
+    # Serialize record jobs: concurrent verify-driver runs (cancel-in-progress:
+    # false) would otherwise both rebase onto origin/auto/verify-results and
+    # force-push, and the loser clobbers the winner's cell results. Queueing the
+    # second record until the first finishes keeps the branch accumulation
+    # correct without breaking the terminate self-trigger loop.
+    concurrency:
+      group: verify-driver-record
+      cancel-in-progress: false
     outputs:
       remaining: ${{ steps.summarize.outputs.remaining }}
       progress: ${{ steps.summarize.outputs.progress }}

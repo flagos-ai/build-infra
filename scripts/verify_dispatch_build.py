@@ -65,7 +65,10 @@ def _gh_api(method: str, path: str, body: dict | None = None) -> dict:
     if data is not None:
         req.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
+        raw = resp.read()
+        # Dispatch endpoints answer 204 No Content (empty body); json.loads on
+        # b"" raises, so treat an empty body as an empty object instead.
+        return json.loads(raw) if raw else {}
 
 
 def dispatch(repo: str, workflow: str, backend: str, inputs: dict) -> None:
