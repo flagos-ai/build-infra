@@ -23,7 +23,7 @@ the per-cell symbols, appended failed cells to the debug queue, and written
   1. Re-render the changed matrices' verification md
      (``render_status_matrix.py --component``).
   2. Commit the matrix + queue + rendered md as ``flagos-ci`` on branch
-     ``auto/verify-results``, rebase onto the remote tip, force-push.
+     ``auto/verify-results`` (a fresh snapshot of latest main), force-push.
   3. Open (or update) a review-gated PR via the REST API — the same dup-PR +
      force-push pattern as record_app_image_tag.py.
 
@@ -118,19 +118,19 @@ def main() -> None:
         os.environ.setdefault(k, v)
     _git("config", "user.name", "flagos-ci", check=False)
     _git("config", "user.email", "noreply@flagos.net", check=False)
-    _git("checkout", "-B", BRANCH, check=False)
+    # Rebuild the results branch as a fresh snapshot of latest main + this
+    # round's delta, then force-push. Rebasing onto the previous branch tip was
+    # the bug: it replayed every new main commit (e.g. a rules change flipping
+    # ⬜ cells to ⛔) on top of the branch's stale, unmerged record commits and
+    # conflicted deterministically — the retry loop could never succeed. A
+    # snapshot branch carries only this round's delta, so it never conflicts
+    # with main's history. The record job is serialized by the
+    # verify-driver-record concurrency group, so concurrent rounds don't clobber
+    # each other's force-push.
+    _git("fetch", "origin", "main", check=False)
+    _git("checkout", "-B", BRANCH, "origin/main")
     _git("commit", "-m", commit_msg)
-
-    # Rebase our commit onto the remote tip and force-push. The record job is
-    # serialized by a workflow concurrency guard, but the branch can still move
-    # from a manual push or a duplicate cell — retry a few times so a transient
-    # move doesn't drop this round's results instead of hard-exiting.
     for attempt in range(5):
-        _git("fetch", "origin", BRANCH, check=False)
-        if _git("rev-parse", "--verify", f"origin/{BRANCH}", check=False).returncode == 0:
-            if _git("rebase", f"origin/{BRANCH}", check=False).returncode != 0:
-                _git("rebase", "--abort", check=False)
-                continue  # remote tip moved under us — re-fetch and retry
         try:
             _git("push", "--force", "origin", BRANCH)
             break
@@ -138,8 +138,8 @@ def main() -> None:
             continue  # transient push failure — retry
     else:
         sys.exit(
-            f"Error: could not push {BRANCH} after 5 attempts — the branch kept "
-            f"moving concurrently; re-run the driver to record this round"
+            f"Error: could not push {BRANCH} after 5 attempts; re-run the driver "
+            f"to record this round"
         )
 
     base = os.environ.get("GITHUB_REF_NAME", "main")
