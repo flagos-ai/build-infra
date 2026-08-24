@@ -68,14 +68,17 @@ set -euo pipefail
 
 MEGATRON_VERSION="${MEGATRON_VERSION:-0.17.1}"
 APP_IMAGE="${APP_IMAGE:-}"
+COMPILER=""
 
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --megatron-version) MEGATRON_VERSION="$2"; shift 2 ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
+        --compiler) COMPILER="$2"; shift 2 ;;
         --help)
-            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>]"
+            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>] [--compiler <c>]"
+            echo "  --compiler <c>   Compiler path to verify: flagtree | triton (default: runtime default)"
             exit 0
             ;;
         # Not an option: positional. Collect (don't break) so options may
@@ -91,6 +94,11 @@ if [[ -z "$VENDOR_BACKEND" ]]; then
 fi
 VENDOR="${VENDOR_BACKEND%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
+
+if [[ -n "$COMPILER" && "$COMPILER" != "flagtree" && "$COMPILER" != "triton" ]]; then
+    echo "Error: --compiler must be 'flagtree' or 'triton' (got '$COMPILER')" >&2
+    exit 1
+fi
 
 # ── Configuration ───────────────────────────────────────────────────────
 
@@ -140,6 +148,14 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
+# --compiler <flagtree|triton>: switch the in-container compiler for the runtime
+# steps (snapshot + import check). The runtime's `compiler` bash function is
+# sourced in every shell (BASH_ENV → /etc/profile.d/zz-compiler.sh); `compiler
+# <name>` exports PYTHONPATH to the selected side dir and fails (rc 1) if that
+# compiler is absent. Empty = leave the runtime's default compiler active.
+COMPILER_GUARD=""
+[[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} || exit 1"
+
 # ── Print header ────────────────────────────────────────────────────────
 
 echo "========================================"
@@ -152,6 +168,7 @@ if [[ -n "${APP_IMAGE}" ]]; then
     echo "Mode:              app-image (install baked at image build time)"
 fi
 echo "Megatron Version:  ${MEGATRON_VERSION}"
+echo "Compiler:          ${COMPILER:-<runtime default>}"
 echo ""
 
 # ── Cleanup function ────────────────────────────────────────────────────
@@ -209,6 +226,7 @@ fi
 snapshot() {
     local container="${1:-${CONTAINER}}"
     docker exec "${container}" bash -c '
+        '"${COMPILER_GUARD}"'
         for pkg in '"${WATCH_PKGS}"'; do
             # No f-string with embedded backslash: runtime pythons are 3.10/3.11,
             # where that is a SyntaxError (PEP 701 only in 3.12+).
@@ -291,6 +309,7 @@ log_info "Dependency matrix intact: torch / triton / flag_gems / numpy unchanged
 log_step "Step 5: Import check (megatron.core + helpers_cpp)"
 
 docker exec "${AFTER_CONTAINER}" bash -c '
+    '"${COMPILER_GUARD}"'
     python3 - <<'"'"'PY'"'"'
 import importlib.metadata
 import megatron.core
