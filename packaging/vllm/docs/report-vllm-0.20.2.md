@@ -1380,12 +1380,42 @@ Inference:    ✅  "The capital of France is" → " Paris. The capital of German
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
-| `lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR | ✅ 已提 | **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（flagos-ai/vllm-plugin-FL，分支 `ascend-blacklist-lift-fresh`→`main`）：`dispatch/config/ascend.yaml`；coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护 |
-| ATB `set_env.sh` 烘焙进 base image env | ✅ 已提 | **[build-infra PR #353](https://github.com/flagos-ai/build-infra/pull/353)**：`base/ascend-cann9.0.0` 环境捕获块在 CANN 之后追加 source NNAL/ATB `set_env.sh`，`ATB_HOME_PATH` / ATB lib path 进 `vendor.sh`（9.0.0 专属，8.5.0 无 NNAL）。消除运行时手动 source；否则 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃 |
+| `lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR | ✅ 已提 | **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（flagos-ai/vllm-plugin-FL，分支 `ascend-blacklist-lift-fresh`→`release-0.2`）：`dispatch/config/ascend.yaml`；coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护 |
+| ATB `set_env.sh` 烘焙进 base image env | ✅ 已提 | **两后端分属不同 PR**：cann9.0.0 = **[PR #353](https://github.com/flagos-ai/build-infra/pull/353)**（`base/ascend-cann9.0.0` 在 CANN 之后 source NNAL/ATB `set_env.sh`）；cann8.5.0 = **[PR #354](https://github.com/flagos-ai/build-infra/pull/354)**（补 NNAL）+ **[PR #355](https://github.com/flagos-ai/build-infra/pull/355)**（捕获 NNAL/ATB env 进 `vendor.sh`）。`ATB_HOME_PATH` / ATB lib path 进 `vendor.sh`，消除运行时手动 source；否则 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃 |
 | flag_gems 5.3.4 重推 v2 镜像刷新 | 🔄 进行中 | 现镜像烘焙旧 wheel，须强制重装才可用；全部 17 个 v2 runtime 镜像重建后消除（run 31365995958，用户驱动） |
 | ascend `+flagos` wheel 上架 | ✅ 已上传 | 4 个 wheel 已上架 `flagos-pypi-ascend`（用户上传） |
 
-**相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`main`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
+**相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`release-0.2`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
+
+### 后续（2026-08-24）：ascend 双后端 0.20.2 全路径 F/T 双编译器 E2E 全 ✅
+
+两个 ascend 后端（cann9.0.0 @ hw25、cann8.5.0 @ hw26）**release-0.2 实测**（不预置黑名单、
+不回移植 0.24.0 线）：serve + 推理（Qwen3-4B）F（flagtree）与 T（triton）双路径均 E2E 通过，
+64 token 贪婪解码连贯。矩阵 0.20.2(T)/0.20.2(F) 两列由 ⬜ 翻 ✅。
+
+| 后端 | 节点 | F（flagtree） | T（triton） |
+|---|---|---|---|
+| cann9.0.0 | hw25 | ✅ | ✅ |
+| cann8.5.0 | hw26 | ✅ | ✅ |
+
+相比 §2.8（2026-08-10 仅 F 路径）实测新增一处黑名单，与前 3 处（lift_fresh / lift_fresh_copy /
+_to_copy）同落 `dispatch/config/ascend.yaml`（cann8.5.0 / cann9.0.0 共用）：
+
+| # | 症状 | 根因 | 修复 |
+|---|---|---|---|
+| 4 | 推理崩溃 `pow_scalar` | flag_gems `_ascend/ops/pow.py` 用三个 `tl.constexpr()` **OR 条件**做分支守卫（非 `a < b < c`）。**两后端根因不同**：cann8.5.0（flagtree 0.6.0+ascend3.2）F/T 双路径均拒绝；cann9.0.0（flagtree 0.6.1+ascend3.5）仅 vendor triton 拒绝，F 路径已修 | `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu 无损；8.5.0 遮 F+T、9.0.0 仅需遮 T），已提 **[PR #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402)**（`ascend-blacklist-pow-scalar`→`release-0.2`） |
+
+**两后端修补差异（`dispatch/config/ascend.yaml` 共用，但根因/作用域不同）：** pow_scalar 黑名单是
+**共享条目**，但两后端触发的路径不同——差异源于 **flagtree 版本**：cann8.5.0 用 flagtree
+0.6.0+ascend3.2，其仍拒绝 pow.py 的 `tl.constexpr()` OR 条件（F 路径也崩，故黑名单遮 F+T）；
+cann9.0.0 用 flagtree 0.6.1+ascend3.5，已修此缺陷（F 路径通过，仅 vendor triton 仍拒绝，黑名单
+只需遮 T）。反向的差异是 §2.8 修复 #1 的 j0/log2：那是 flagtree 0.6.1（cann9.0.0）libdevice 缺口，
+cann8.5.0 的 flagtree 0.6.0 libdevice 无此问题，故 8.5.0 无需重装 5.3.4（实测其 j0 缺失但 import
+不崩）。即：**8.5.0 多修 pow_scalar 的 F 路径、少修 j0/log2；9.0.0 反之。**
+
+NPU 冷启动 JIT 极慢：hw25 T 路径首请求 872s（逐 shape 编译 triton/NPU 内核），稳态 0.1~0.2 tok/s，
+64 token decode 约 11~15 min。慢≠挂：以 `generation_tokens_total` 增量 + `num_requests_running` 归零
+判断完成，勿以客户端 curl 超时误判卡死。
 
 
 ---
