@@ -59,24 +59,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # verify_args carries the extra flags the script needs beyond the positional
 # backend; the driver appends ``--compiler flagtree|triton`` per cell so each
 # installed compiler path is exercised explicitly (F -> flagtree, T -> triton).
+# derive_plugin additionally appends ``--plugin-fl-version <v>`` derived from the
+# backend's published image_tag (see plugin_fl_version below).
 APP_VERIFY = {
     "vllm0.20.2": {
         "script": "packaging/vllm/verify-vllm-backend.sh",
         "scenario": "inference",
-        # vllm-plugin-fl is required for the serve test (Step 6): without it,
-        # `export VLLM_PLUGINS=fl` loads no platform plugin and vllm raises
-        # "Failed to infer device type". The 0.20.2 line ships one audited
-        # plugin wheel per vendor index, all at the same version
-        # 0.2.1+g825c1cd (release-0.2 branch, tag v0.2.1). The app image
-        # bakes this exact version (status matrix image_tag suffix
-        # `0.2.1_g825c1cd`, `+`→`_`), so the full-install path must pin the
-        # same wheel to reach an identical serve environment.
-        "verify_args": "--vllm-version 0.20.2 --plugin-fl-version 0.2.1+g825c1cd",
+        "verify_args": "--vllm-version 0.20.2",
+        # derive_plugin: the serve test (Step 6) needs vllm-plugin-fl — without
+        # it `export VLLM_PLUGINS=fl` loads no platform plugin and vllm raises
+        # "Failed to infer device type". The plugin wheel version is per-backend
+        # and encoded in the status matrix image_tag suffix, so the driver
+        # derives it (plugin_fl_version) instead of hardcoding.
+        "derive_plugin": True,
     },
     "vllm0.24.0": {
         "script": "packaging/vllm/verify-vllm-backend.sh",
         "scenario": "inference",
         "verify_args": "--vllm-version 0.24.0",
+        "derive_plugin": True,
     },
     "megatron_training": {
         "script": "packaging/megatron/verify/verify-megatron-backend.sh",
@@ -132,6 +133,30 @@ def _pending_compilers(syms: dict) -> list[str]:
     return [c for c in ("F", "T") if syms.get(c) == PENDING]
 
 
+def plugin_fl_version(matrix: dict, backend: str) -> str | None:
+    """Recover the vllm-plugin-fl wheel version to pin for a backend, from its
+    published image_tag.
+
+    The app-image tag is ``{stack_version}-{plugin_version}`` with ``+``→``_``
+    (vllm-app-image.yml runs ``tr '+' '_'`` on the plugin version), so the
+    plugin version is the tag's suffix with ``_``→``+``. The status matrix
+    ``image_tag`` is the single source of truth for "this backend is published"
+    (record_app_image_tag.py writes it on push), and the full-install verify
+    path must pin the same wheel the app image baked to reach an identical
+    serve environment.
+
+    Returns None when the backend has no ``image_tag`` (nothing published, so
+    no plugin wheel exists to install) or the tag carries no plugin suffix —
+    the driver then omits ``--plugin-fl-version`` and the cell fails at
+    install/serve, which is the correct "not verifiable yet" signal for an
+    unpublished backend.
+    """
+    tag = ((matrix.get("backends") or {}).get(backend) or {}).get("image_tag")
+    if not tag or "-" not in tag:
+        return None
+    return tag.split("-", 1)[1].replace("_", "+")
+
+
 def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:
     matrix = yaml.safe_load((REPO_ROOT / MATRICES[app]).read_text()) or {}
     meta = APP_VERIFY[app]
@@ -142,6 +167,11 @@ def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:
         if backends is not None and backend not in backends:
             continue
         for compiler in _pending_compilers(syms):
+            verify_args = meta["verify_args"]
+            if meta.get("derive_plugin"):
+                plugin = plugin_fl_version(matrix, backend)
+                if plugin is not None:
+                    verify_args = f"{verify_args} --plugin-fl-version {plugin}"
             cells.append({
                 "app": app,
                 "backend": backend,
@@ -151,7 +181,7 @@ def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:
                 "scenario": scenario,
                 "image": runtime_image(backend, version),
                 "verify_script": meta["script"],
-                "verify_args": meta["verify_args"],
+                "verify_args": verify_args,
                 "runson": runson_for(backend),
             })
     return cells
