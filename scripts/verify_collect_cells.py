@@ -20,10 +20,13 @@ The verify driver's plan job reads the status matrix YAMLs, collects every ⬜
 (待验证) cell, and emits a matrix JSON of {app, backend, compiler, image,
 verify_script, verify_args} — one entry per (app, backend, compiler path).
 A cell is collected at the app's *primary* scenario: the layer its verify
-script actually exercises (install + import [+ serve]) — inference for vllm,
-training for megatron_training, rl for megatron_rl. The deeper megatron
-columns (post_training / inference) are human/worker conclusions, not
-script-driven verifications, so they are never turned into cells.
+script actually exercises end-to-end (install + import + workload — serve for
+vllm, mock-data pretrain for megatron_training) — inference for vllm,
+training for megatron_training. megatron_rl is *never* collected: its rl
+scenario is upstream-blocked (MLF #116 + flash-attn wheel), so every rl cell
+is marked ⛔ and skipped as a terminal symbol. The deeper megatron columns
+(post_training / inference) are human/worker conclusions, not script-driven
+verifications, so they are never turned into cells.
 
 Only the *default* compiler column becomes a cell — FlagTree (F) when the
 backend has it, else Triton (T). The verify scripts have no --compiler flag,
@@ -71,12 +74,12 @@ APP_VERIFY = {
     "megatron_training": {
         "script": "packaging/megatron/verify/verify-megatron-backend.sh",
         "scenario": "training",
-        "verify_args": "",
+        "verify_args": "--scenario training",
     },
     "megatron_rl": {
         "script": "packaging/megatron/verify/verify-megatron-backend.sh",
         "scenario": "rl",
-        "verify_args": "",
+        "verify_args": "--scenario rl",
     },
 }
 

@@ -20,9 +20,14 @@ name: verify-driver
 # docs/verify-orchestrator.md §4.1.
 #
 # Each cell is verified at its app's *primary* scenario (inference for vllm,
-# training for megatron_training, rl for megatron_rl) on the *default* compiler
-# column only (F if the backend has FlagTree, else T) — the verify scripts have
-# no --compiler flag, so they exercise the runtime's default path.
+# training for megatron_training) on the *default* compiler column only (F if the
+# backend has FlagTree, else T) — the verify scripts have no --compiler flag, so
+# they exercise the runtime's default path. A cell earns ✅ only by its verify
+# script running the workload end-to-end and exiting 0 (vllm: serve returns a
+# real completion; megatron_training: mock-data pretrain_gpt 5-iter exit 0) —
+# "install is inert + import succeeds" is NOT enough. megatron_rl cells are
+# marked ⛔ (upstream-blocked: MLF #116 + flash-attn wheel), so the collector
+# emits none of them.
 #
 # Self-triggers via workflow_dispatch only; the terminate job re-dispatches the
 # same scope while pending cells remain and the round made progress.

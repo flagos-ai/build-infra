@@ -37,12 +37,14 @@
 #   5. Install vllm-plugin-FL
 #   6. Test vllm serve and inference
 #
-# --app-image <image>: instead of steps 3-6, verify a prebuilt
+# --app-image <image>: instead of steps 3-5, verify a prebuilt
 #   flagos-app/vllm{vllm_version}-{vendor}-{backend}:{version}[-{plugin}] image
 #   (built by the
 #   vllm-app-image workflow): the critical-package matrix
 #   (torch/torch_npu/triton/flag_gems/numpy) must be identical to the runtime
-#   image's, and vllm + vllm_fl must import. No installs run; serve is skipped.
+#   image's, and vllm + vllm_fl must import. No installs run; the serve test
+#   (Step 6) still runs against the app image — a cell only earns ✅ by
+#   returning a real completion.
 
 set -euo pipefail
 
@@ -127,6 +129,11 @@ RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR_BACKEND}
 VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple"
 ALIYUN_PYPI="https://mirrors.aliyun.com/pypi/simple"
 CONTAINER="vllm-verify-${VENDOR}-${BACKEND}"
+APP_CONTAINER="vllm-app-verify-${VENDOR}-${BACKEND}"
+# Which container the serve test (Step 6) runs against: the app image container
+# in --app-image mode, the installed runtime container otherwise.
+SERVE_CONTAINER="${CONTAINER}"
+[[ -n "${APP_IMAGE}" ]] && SERVE_CONTAINER="${APP_CONTAINER}"
 WORK_DIR="/tmp/vllm-verify-${VENDOR}-${BACKEND}-$$"
 
 # Colors
@@ -165,8 +172,9 @@ echo ""
 
 cleanup() {
     echo ""
-    log_info "Cleaning up container..."
+    log_info "Cleaning up containers..."
     docker rm -f "${CONTAINER}" 2>/dev/null || true
+    docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -193,10 +201,11 @@ raw = vendor_config.get('raw', '')
 print(toolkit if toolkit else raw)
 ")
 
-# The model mount is only needed for the serve test — skip it in --app-image
-# mode (no installs, no serve; the path may not even exist on the node).
+# The model mount is only needed for the serve test. Mount it read-only when
+# the node has the model dir; the serve test (Step 6) exits 1 when it is absent
+# rather than silently skipping.
 MODEL_MOUNT=""
-[[ -z "${APP_IMAGE}" ]] && MODEL_MOUNT="-v ${MODEL_PATH}:${MODEL_PATH}:ro"
+[[ -d "${MODEL_PATH}" ]] && MODEL_MOUNT="-v ${MODEL_PATH}:${MODEL_PATH}:ro"
 
 docker run -d --name "${CONTAINER}" \
     ${RUN_FLAGS} \
@@ -217,11 +226,11 @@ log_info "Container started: ${CONTAINER}"
 # image — the critical-package matrix (torch / torch_npu / triton /
 # flag_gems / numpy) must match item by item, proving the single-step wheel
 # installs baked into the image were inert. Then import vllm + vllm_fl on
-# the app container. No install steps run; the serve test is skipped.
+# the app container. No install steps run; the serve test still runs against
+# the app container.
 if [[ -n "${APP_IMAGE}" ]]; then
     log_step "App-image mode: verifying ${APP_IMAGE}"
 
-    APP_CONTAINER="vllm-app-verify-${VENDOR}-${BACKEND}"
     docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
 
     WATCH_PKGS="torch torch_npu triton flag_gems numpy"
@@ -240,6 +249,7 @@ if [[ -n "${APP_IMAGE}" ]]; then
 
     docker run -d --name "${APP_CONTAINER}" \
         ${RUN_FLAGS} \
+        ${MODEL_MOUNT} \
         --network host \
         "${APP_IMAGE}" \
         sleep infinity
@@ -267,9 +277,7 @@ if [[ -n "${APP_IMAGE}" ]]; then
         exit 1
     fi
 
-    docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
-    log_info "App-image verification PASSED"
-    exit 0
+    log_info "App-image import check PASSED — proceeding to serve test (Step 6)"
 fi
 
 # ── Step 2: Verify runtime environment ──────────────────────────────────
@@ -402,58 +410,67 @@ else
     "
 fi
 
-# ── Step 6: Test vllm serve ─────────────────────────────────────────────
+# ── Step 6: Test vllm serve (real completion required) ───────────────────
 
 if [[ "$SKIP_SERVE" == true ]]; then
-    log_info "Step 6: Skipping serve test (--skip-serve)"
+    log_info "Step 6: Skipping serve test (--skip-serve — manual debugging only)"
 else
-    log_step "Step 6: Testing vllm serve"
+    log_step "Step 6: Testing vllm serve (real completion required)"
 
     if [[ ! -d "$MODEL_PATH" ]]; then
-        log_warn "Model not found at: $MODEL_PATH"
-        log_info "Set MODEL_PATH environment variable to test inference"
-        log_info "Skipping serve test"
-    else
-        log_info "Starting vllm serve (this may take several minutes)..."
-
-        docker exec "${CONTAINER}" bash -c "
-            ${COMPILER_GUARD}
-            export VLLM_PLUGINS=fl
-            export VLLM_FL_DISPATCH_DEBUG=1
-
-            python3 -c 'import vllm; print(\"✅ vllm imported successfully\")'
-
-            echo ''
-            echo 'Starting serve...'
-            vllm serve '${MODEL_PATH}' \
-                --port 8031 \
-                --gpu-memory-utilization 0.6 \
-                --enforce-eager \
-                --trust-remote-code \
-                --max-model-len 2048 \
-                2>&1 &
-
-            SERVE_PID=\$!
-            echo 'Waiting for serve to start (60s)...'
-            sleep 60
-
-            echo ''
-            echo 'Sending test request...'
-            RESPONSE=\$(curl -s http://127.0.0.1:8031/v1/completions \
-                -H 'Content-Type: application/json' \
-                -d '{\"model\":\"'\${MODEL_PATH}'\",\"prompt\":\"The capital of France is\",\"max_tokens\":16,\"temperature\":0}' 2>/dev/null)
-
-            if echo \"\${RESPONSE}\" | grep -q 'Paris\|capital\|France'; then
-                echo '✅ Inference test passed'
-                echo \"Response: \${RESPONSE}\"
-            else
-                echo '❌ Inference test failed'
-                echo \"Response: \${RESPONSE}\"
-            fi
-
-            kill \${SERVE_PID} 2>/dev/null || true
-        "
+        log_error "Model not found at: $MODEL_PATH"
+        log_error "A serve test needs a real model — refusing to skip. Set MODEL_PATH"
+        log_error "(or pass --skip-serve for manual debugging only)."
+        exit 1
     fi
+
+    log_info "Starting vllm serve on ${SERVE_CONTAINER} (this may take several minutes)..."
+
+    docker exec "${SERVE_CONTAINER}" bash -c "
+        ${COMPILER_GUARD}
+        export VLLM_PLUGINS=fl
+        export VLLM_FL_DISPATCH_DEBUG=1
+
+        echo ''
+        echo 'Starting serve...'
+        vllm serve '${MODEL_PATH}' \
+            --port 8031 \
+            --gpu-memory-utilization 0.6 \
+            --enforce-eager \
+            --trust-remote-code \
+            --max-model-len 2048 \
+            2>&1 &
+
+        SERVE_PID=\$!
+        echo 'Waiting for serve to start (60s)...'
+        sleep 60
+
+        echo ''
+        echo 'Sending test request...'
+        python3 - <<'PY'
+import json, urllib.request, sys
+req = urllib.request.Request(
+    'http://127.0.0.1:8031/v1/completions',
+    data=json.dumps({'prompt': 'The capital of France is', 'max_tokens': 16, 'temperature': 0}).encode(),
+    headers={'Content-Type': 'application/json'},
+)
+try:
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        status, body = resp.status, json.loads(resp.read())
+except Exception as e:
+    print('request failed:', e)
+    sys.exit(1)
+text = (body.get('choices') or [{}])[0].get('text') or ''
+if status != 200 or not text:
+    print('no completion: status=%s body=%r' % (status, body))
+    sys.exit(1)
+print('completion returned (status=%s): %r' % (status, text))
+PY
+
+        rc=\$?
+        kill \${SERVE_PID} 2>/dev/null || true
+        exit \$rc
+    "
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────

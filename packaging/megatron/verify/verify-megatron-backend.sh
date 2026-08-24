@@ -18,11 +18,12 @@
 # ============================================================
 #
 # Install the megatron-core wheel into a `flagos-runtime-{vendor}-{backend}`
-# container and prove the install is inert — i.e. the carefully crafted
-# torch/triton/flag_gems/numpy matrix is unchanged after the single-step
-# install, and megatron.core actually loads. The wheel keeps its
-# `torch>=2.6.0` Requires-Dist; the runtime's vendor torch satisfies it, so
-# pip downloads and overwrites nothing.
+# container and prove the image actually serves training end-to-end: the
+# carefully crafted torch/triton/flag_gems/numpy matrix is unchanged after the
+# single-step install, megatron.core actually loads, and a mock-data
+# pretrain_gpt run (5 iters) exits 0. The wheel keeps its `torch>=2.6.0`
+# Requires-Dist; the runtime's vendor torch satisfies it, so pip downloads and
+# overwrites nothing.
 #
 # Two modes:
 #   default:       install the wheel into a fresh runtime container, then
@@ -36,7 +37,7 @@
 #                  No pip install (it already happened at image build time).
 #
 # Usage:
-#   ./verify-megatron-backend.sh <vendor-backend> [--megatron-version <ver>] [--app-image <tag>]
+#   ./verify-megatron-backend.sh <vendor-backend> [--megatron-version <ver>] [--app-image <tag>] [--scenario <training|rl>]
 #
 # Examples:
 #   ./verify-megatron-backend.sh hygon-dtk26.04
@@ -61,6 +62,10 @@
 #      item by item, or the install corrupted the matrix (fail)
 #   5. Import check: import megatron.core and confirm helpers_cpp is bound
 #      (the vendor env comes from the image itself via BASH_ENV → profile.d)
+#   6. E2E training (--scenario training, the default): mock-data pretrain_gpt,
+#      5 iters, must exit 0 — proves the image actually serves training.
+#      --scenario rl is refused (upstream-blocked: MLF #116 + flash-attn); such
+#      cells are marked ⛔ in the status matrix and never collected.
 
 set -euo pipefail
 
@@ -69,6 +74,7 @@ set -euo pipefail
 MEGATRON_VERSION="${MEGATRON_VERSION:-0.17.1}"
 APP_IMAGE="${APP_IMAGE:-}"
 COMPILER=""
+SCENARIO=""
 
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -76,9 +82,11 @@ while [[ $# -gt 0 ]]; do
         --megatron-version) MEGATRON_VERSION="$2"; shift 2 ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
         --compiler) COMPILER="$2"; shift 2 ;;
+        --scenario) SCENARIO="$2"; shift 2 ;;
         --help)
-            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>] [--compiler <c>]"
+            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>] [--compiler <c>] [--scenario <training|rl>]"
             echo "  --compiler <c>   Compiler path to verify: flagtree | triton (default: runtime default)"
+            echo "  --scenario <s>   training (run mock-data pretrain_gpt, the default) | rl (refused — upstream-blocked)"
             exit 0
             ;;
         # Not an option: positional. Collect (don't break) so options may
@@ -97,6 +105,20 @@ BACKEND="${VENDOR_BACKEND#*-}"
 
 if [[ -n "$COMPILER" && "$COMPILER" != "flagtree" && "$COMPILER" != "triton" ]]; then
     echo "Error: --compiler must be 'flagtree' or 'triton' (got '$COMPILER')" >&2
+    exit 1
+fi
+
+# --scenario defaults to training (the script's primary layer — a cell only
+# earns ✅ by running the workload). rl is refused: the GRPO recipe is
+# upstream-blocked (MLF #116 + a self-built flash-attn wheel), so rl cells are
+# marked ⛔ in the status matrix and never collected by the driver.
+SCENARIO="${SCENARIO:-training}"
+if [[ "$SCENARIO" != "training" && "$SCENARIO" != "rl" ]]; then
+    echo "Error: --scenario must be 'training' or 'rl' (got '$SCENARIO')" >&2
+    exit 1
+fi
+if [[ "$SCENARIO" == "rl" ]]; then
+    echo "Error: RL E2E is not automated — upstream-blocked (MLF #116 + flash-attn wheel). Mark this cell ⛔ instead." >&2
     exit 1
 fi
 
@@ -156,6 +178,26 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 COMPILER_GUARD=""
 [[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} || exit 1"
 
+# Per-backend E2E overrides. The training recipe is canonical across backends
+# (mock-data pretrain_gpt, 5 iters, seed 42 — proven byte-identical validation
+# loss 8.360331E+00 in packaging/megatron/docs/megatron-*-e2e.md), but a few
+# backends need local adjustments. Append a branch as each backend earns a
+# manual ✅. MASTER_PORT avoids a port collision with a concurrent cell on the
+# same node; PSUTIL_PREINSTALL fixes a runtime package gap before the
+# single-step install (nvidia-cuda13.3 runtime ships no psutil, and
+# megatron-core Requires-Dist it).
+MASTER_PORT="${MASTER_PORT:-29500}"
+PSUTIL_PREINSTALL=""
+case "${VENDOR_BACKEND}" in
+    cambricon-neuware4.4.3) MASTER_PORT=29500 ;;
+    cambricon-neuware4.7.2) MASTER_PORT=29501 ;;
+    nvidia-cuda13.3) PSUTIL_PREINSTALL="pip install --index-url '${ALIYUN_PYPI}' psutil" ;;
+esac
+# NOTE (hygon flagtree): --disable-jit-fuser is INSUFFICIENT there — the jit
+# fuser binds torch.compile at import time, before args flip. A container-side
+# noop patch (or the upstream lazy-decorator fix) is required before a hygon
+# flagtree cell can pass; see megatron-hygon25-e2e.md §1.4. Not scripted here.
+
 # ── Print header ────────────────────────────────────────────────────────
 
 echo "========================================"
@@ -168,6 +210,7 @@ if [[ -n "${APP_IMAGE}" ]]; then
     echo "Mode:              app-image (install baked at image build time)"
 fi
 echo "Megatron Version:  ${MEGATRON_VERSION}"
+echo "Scenario:          ${SCENARIO}"
 echo "Compiler:          ${COMPILER:-<runtime default>}"
 echo ""
 
@@ -202,6 +245,7 @@ print(vendor_config.get('toolkit', '') or vendor_config.get('raw', ''))
 
 docker run -d --name "${CONTAINER}" \
     ${RUN_FLAGS} \
+    --shm-size=8g \
     --network host \
     "${RUNTIME_IMAGE}" \
     sleep infinity
@@ -211,6 +255,7 @@ log_info "Container started: ${CONTAINER} (${RUNTIME_IMAGE})"
 if [[ -n "${APP_IMAGE}" ]]; then
     docker run -d --name "${APP_CONTAINER}" \
         ${RUN_FLAGS} \
+        --shm-size=8g \
         --network host \
         "${APP_IMAGE}" \
         sleep infinity
@@ -255,6 +300,14 @@ if [[ -n "${APP_IMAGE}" ]]; then
     log_step "Step 3: Skipping pip install (app-image mode — megatron-core was installed at image build time)"
 else
     log_step "Step 3: Installing megatron-core==${MEGATRON_VERSION}"
+
+    # Per-backend gap fix: nvidia-cuda13.3 runtime ships no psutil, and
+    # megatron-core Requires-Dist it — preinstall from aliyun (public PyPI)
+    # before the vendor single-step install resolves it (megatron-nvidia-e2e.md).
+    if [[ -n "${PSUTIL_PREINSTALL}" ]]; then
+        log_info "Preinstalling psutil (${VENDOR_BACKEND} runtime gap)"
+        docker exec "${CONTAINER}" bash -c "${PSUTIL_PREINSTALL}"
+    fi
 
     # PYTHONPATH=/opt/triton mirrors the runtime Containerfile DEPS install:
     # pip must see the side-dir triton dist-info, or torch's triton==N dep
@@ -327,6 +380,33 @@ assert callable(helpers_cpp.build_exhaustive_blending_indices)
 print("helpers_cpp bindings OK")
 PY
 '
+
+# ── Step 6: E2E training (mock-data pretrain_gpt, 5 iters) ──────────────
+
+log_step "Step 6: E2E training (mock-data pretrain_gpt, 5 iters)"
+
+# Canonical recipe (megatron-*-e2e.md §2 baseline, proven byte-identical
+# validation loss 8.360331E+00 across backends, seed 42). `python -m
+# pretrain_gpt` is the full-scope wheel's top-level entry (no torchrun);
+# env:// rendezvous needs explicit MASTER_ADDR/MASTER_PORT/RANK/WORLD_SIZE.
+# TORCHINDUCTOR_COMPILE_THREADS=1 forces inline compile (no fork) — the
+# flagtree inductor fork-crash workaround; inert for triton. exit 0 required:
+# any crash → script exits non-zero → cell ❌ + debug queue (record path).
+docker exec "${AFTER_CONTAINER}" bash -c '
+    '"${COMPILER_GUARD}"'
+    cd /tmp
+    MASTER_ADDR=127.0.0.1 \
+    MASTER_PORT='"${MASTER_PORT}"' \
+    RANK=0 \
+    WORLD_SIZE=1 \
+    TORCHINDUCTOR_COMPILE_THREADS=1 \
+        python3 -m pretrain_gpt \
+            --mock-data --train-iters 5 --lr 1e-6 --eval-interval 1000 --seed 42 \
+            --transformer-impl local --attention-backend unfused --bf16 \
+            --no-masked-softmax-fusion --disable-jit-fuser --no-persist-layer-norm \
+            --no-gradient-accumulation-fusion --untie-embeddings-and-output-weights
+'
+log_info "✅ pretrain_gpt 5-iter E2E exit 0 (scenario=${SCENARIO}, backend=${VENDOR_BACKEND})"
 
 # ── Summary ─────────────────────────────────────────────────────────────
 
