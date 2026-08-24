@@ -153,7 +153,11 @@ jobs:
           print(f"verify {result['app']} {result['backend']} {result['compiler']} -> {status} (rc={rc})")
           PY
           exit "$rc"
-        continue-on-error: true
+        # No continue-on-error: a non-zero rc must fail the job so the cell's
+        # failure is visible in the run UI (verify failed = red job). The result
+        # JSON (status=passed|failed) is still uploaded below (if: always()) and
+        # consumed by record/build, which run regardless via their if: always().
+        # fail-fast: false already lets the matrix keep going past a failed job.
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
