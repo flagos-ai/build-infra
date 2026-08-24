@@ -5,3 +5,5 @@ __pycache__/
 .github/workflows/.runtime.yml.swp
 versions/
 versions-remote/
+scripts/verify-nodes.local.yaml
+.github/verify-remaining.json
