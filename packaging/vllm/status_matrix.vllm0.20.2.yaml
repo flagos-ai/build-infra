@@ -62,6 +62,7 @@ backends:
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
+    image_tag: "2.1.2-0.2.0_g2b6b635.d20260824"
   cambricon-neuware4.4.3:
     deps_app: false
     launch_docs: false
