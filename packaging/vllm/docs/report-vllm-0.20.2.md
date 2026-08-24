@@ -755,6 +755,68 @@ Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 t
 **相关提交：** `main` 478de6b（repack）、PR #280（递归 `+flagos` pin）；
 FlagGems [#5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
 
+### app image 验证 —— 双后端 F/T 全通（2026-08-24）
+
+这是 vllm 0.20.2 在 mthreads 上的最终交付形态——不再是本节早前的手工容器
+安装，而是两个后端各自构建并 push 的 app image（`vllm==0.20.2+flagos` 单步
+装入 + `vllm-plugin-fl` wheel + `vllm-serve` launcher），stack 2.1.2：
+
+| 后端 | app image tag | 硬件 |
+|------|------|------|
+| mthreads-musa4.3.6 | `vllm0.20.2-mthreads-musa4.3.6:2.1.2-0.2.1` | MTT S5000 |
+| mthreads-musa5.2.0 | `vllm0.20.2-mthreads-musa5.2.0:2.1.2-0.2.1` | MTT S5000 |
+
+F（FlagTree）/ T（Triton）双路径均 E2E 通过（Qwen3-4B，`--enforce-eager
+--max-model-len 2048`），四格全 ✅。
+
+关键包版本：
+
+| 包 | musa4.3.6 | musa5.2.0 |
+|------|------|------|
+| torch | 2.9.0+musa.4.3.6 | 2.9.1+musa5.2.0 |
+| torch_musa | 2.9.0 | 2.9.1 |
+| triton | 3.6.0+git89458660 | 3.6.0 |
+| flagtree | 0.6.1+mthreads3.6 | 0.6.1+mthreads3.6 |
+| flag_gems | 5.3.4 | 5.3.4 |
+| numpy | 1.26.4 | 1.26.4 |
+| vllm | 0.20.2+flagos | 0.20.2+flagos |
+| vllm-plugin-fl | 0.2.1 | 0.2.1 |
+
+三处与前文记录不同：
+
+1. **triton 并非不存在。** 早前 Stack 验证写 `triton: (absent)`，那是
+   runtime 2.1.1 的旧状态。2.1.2 起 triton 3.6.0 作为 side install 落在
+   `/opt/triton`，不在默认 `PYTHONPATH`（默认是 flagtree）；`compiler
+   triton` 切换后即可 import + serve。`importlib.metadata` 只见当前激活
+   编译器——app-image 快照比对里 triton 报 `NOT_INSTALLED` 即此故，非缺失。
+2. **模型路径。** 节点实际模型在 `/datapool/models/Qwen3-4B`
+   （`/data/models` 为空）。
+3. **必须带 `--runtime mthreads`。** 不带则 `import vllm_fl` 报
+   `0 active drivers`（无设备访问）。
+
+serve 配方（每路径一个端口，先 `compiler <c>` 切编译器）：
+
+```bash
+docker run -d --name vllm-verify-musa520 \
+  --runtime mthreads --env MTHREADS_VISIBLE_DEVICES=2 \
+  --network host -v /datapool/models:/datapool/models \
+  harbor.baai.ac.cn/flagos-app/vllm0.20.2-mthreads-musa5.2.0:2.1.2-0.2.1 \
+  sleep infinity
+docker exec vllm-verify-musa520 bash -lc "
+  compiler triton
+  export VLLM_PLUGINS=fl VLLM_FL_DISPATCH_DEBUG=1
+  vllm serve /datapool/models/Qwen3-4B --port 8034 --enforce-eager \
+    --max-model-len 2048 --gpu-memory-utilization 0.6 --trust-remote-code &
+"
+```
+
+四条 serve 的 completion 一致输出 "Paris. The capital of Germany is
+Berlin..."，health endpoint 均 200。
+
+**mul 门控（#5130）已在镜像内。** flag_gems 5.3.4 自带
+[#5130](https://github.com/flagos-ai/FlagGems/pull/5130) 修复，无需再手工
+打 patch——早前本节的临时补丁到此收敛为制品。
+
 ## 2.4 hygon-dtk26.04（跨后端通用性验证）
 
 **日期:** 2026-08-02　**平台:** Hygon BW1000 (8× HCU)
