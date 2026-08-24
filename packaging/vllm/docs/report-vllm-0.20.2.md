@@ -1403,7 +1403,15 @@ _to_copy）同落 `dispatch/config/ascend.yaml`（cann8.5.0 / cann9.0.0 共用�
 
 | # | 症状 | 根因 | 修复 |
 |---|---|---|---|
-| 4 | 推理崩溃 `pow_scalar` | flag_gems `runtime/backend/_ascend/ops/pow.py` 用链式布尔 `a < b < c` 做 tl.constexpr 分支，vendor triton 拒绝 | `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu），已提 **[PR #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402)**（`ascend-blacklist-pow-scalar`→`release-0.2`） |
+| 4 | 推理崩溃 `pow_scalar` | flag_gems `_ascend/ops/pow.py` 用三个 `tl.constexpr()` **OR 条件**做分支守卫（非 `a < b < c`）。**两后端根因不同**：cann8.5.0（flagtree 0.6.0+ascend3.2）F/T 双路径均拒绝；cann9.0.0（flagtree 0.6.1+ascend3.5）仅 vendor triton 拒绝，F 路径已修 | `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu 无损；8.5.0 遮 F+T、9.0.0 仅需遮 T），已提 **[PR #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402)**（`ascend-blacklist-pow-scalar`→`release-0.2`） |
+
+**两后端修补差异（`dispatch/config/ascend.yaml` 共用，但根因/作用域不同）：** pow_scalar 黑名单是
+**共享条目**，但两后端触发的路径不同——差异源于 **flagtree 版本**：cann8.5.0 用 flagtree
+0.6.0+ascend3.2，其仍拒绝 pow.py 的 `tl.constexpr()` OR 条件（F 路径也崩，故黑名单遮 F+T）；
+cann9.0.0 用 flagtree 0.6.1+ascend3.5，已修此缺陷（F 路径通过，仅 vendor triton 仍拒绝，黑名单
+只需遮 T）。反向的差异是 §2.8 修复 #1 的 j0/log2：那是 flagtree 0.6.1（cann9.0.0）libdevice 缺口，
+cann8.5.0 的 flagtree 0.6.0 libdevice 无此问题，故 8.5.0 无需重装 5.3.4（实测其 j0 缺失但 import
+不崩）。即：**8.5.0 多修 pow_scalar 的 F 路径、少修 j0/log2；9.0.0 反之。**
 
 NPU 冷启动 JIT 极慢：hw25 T 路径首请求 872s（逐 shape 编译 triton/NPU 内核），稳态 0.1~0.2 tok/s，
 64 token decode 约 11~15 min。慢≠挂：以 `generation_tokens_total` 增量 + `num_requests_running` 归零
