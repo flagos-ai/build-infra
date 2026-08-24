@@ -1,0 +1,452 @@
+#!/usr/bin/env python3
+
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Local Claude debug-loop for the verify orchestrator (one tick, idempotent).
+
+The verify-driver record job appends failed cells to .github/verify-queue.yaml;
+this loop — resident on the local Mac via launchd, NOT on any runner — consumes
+that queue, forks a `claude -p` worker per cell (claude lives only here), and
+writes the worker's terminal verdict back to the status matrix (symbol + prs:).
+See docs/verify-orchestrator.md §4.2 / §5.
+
+Each run is ONE short tick and never blocks: it dispatches queued cells in the
+background (a detached watcher writes a `.done` sentinel when the worker exits),
+polls the sentinel of running/pending cells, applies any terminal results, and
+exits. launchd re-invokes it on a StartInterval; the queue file is the state
+carried across ticks, so the loop is crash-safe and resumable.
+
+Write-back is LOCAL by default (edit matrix + queue in the worktree, print what
+would be committed). Pass --push to commit + force-push the debug branch and
+open the review-gated PR (same pattern as verify_open_pr.py).
+
+Usage:
+    scripts/verify-debug-loop                 # one tick, local-only write-back
+    scripts/verify-debug-loop --push          # ...then open/update the PR
+    scripts/verify-debug-loop --max-workers 1 # cap concurrent workers
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import yaml
+
+from verify_record_results import set_symbol
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+QUEUE_PATH = REPO_ROOT / ".github" / "verify-queue.yaml"
+NODES_LOCAL = REPO_ROOT / "scripts" / "verify-nodes.local.yaml"
+NODES_EXAMPLE = REPO_ROOT / "scripts" / "verify-nodes.example.yaml"
+WORK_DIR = Path("/tmp/verify-debug-loop")
+
+# Worker hard limits (design §5.4): one cell per worker, do-then-die.
+MAX_TURNS = 40
+WORKER_DEADLINE_MIN = 60  # a queued worker that hasn't returned in this long is stalled
+ALLOWED_TOOLS = "Bash Read Edit Write Grep Glob WebFetch"
+
+# launchd plist for this loop (place in ~/Library/LaunchAgents/):
+#   <key>StartInterval</key><integer>300</integer>  # 5 min tick
+
+DEFAULT_NODES = {
+    "nvidia-cuda12.8": "h20",
+    "nvidia-cuda13.3": "h20",
+    "metax-maca3.7.2.1": "metax123",
+    "metax-maca3.8.1.3": "metax124",
+    "ascend-cann8.5.0": "hw25",
+    "ascend-cann9.0.0": "hw26",
+    "cambricon-neuware4.4.3": "cambricon",
+    "cambricon-neuware4.7.2": "cambricon",
+    "enflame-tops1.9.10": "enflame",
+    "enflame-tops1.10.6": "enflame",
+    "hygon-dtk26.04": "hygon25",
+    "iluvatar-corex4.4.0": "ix15",
+    "kunlunxin-xre5.37.1": "kunlunxin",
+    "mthreads-musa4.3.6": "mthreads",
+    "mthreads-musa5.2.0": "mthreads",
+    "sunrise-tangrt1.2.0": "sunrise",
+    "tsingmicro-tsm260610": "tsm",
+    "thead-ppu2.0.0": "thead",
+}
+
+GIT_IDENTITY = {
+    "GIT_AUTHOR_NAME": "flagos-ci",
+    "GIT_AUTHOR_EMAIL": "noreply@flagos.net",
+    "GIT_COMMITTER_NAME": "flagos-ci",
+    "GIT_COMMITTER_EMAIL": "noreply@flagos.net",
+}
+BRANCH = "auto/verify-debug"
+
+# Canned PR-rules fragment injected into every worker card (rules 9/0/20/22).
+PR_RULES = """PR 规则（开 PR 前逐条核对）：
+- body + commit message 全英文
+- 无 Co-Authored-By / 无 🤖 / 无工具名 trailer
+- PR body 底部唯一一行 disclosure："This PR was written in part with the assistance of generative AI."
+- 先 git fetch 确认 origin/main 最新再开分支；分支独立于任何既有 PR
+- 只开 draft PR + request review，绝不 merge（plugin repo 合并权限在团队）
+- 绝不回显 secret；代理配置不写进任何可监听位置"""
+
+
+def load_queue() -> list[dict]:
+    if not QUEUE_PATH.is_file():
+        return []
+    data = yaml.safe_load(QUEUE_PATH.read_text()) or []
+    return data if isinstance(data, list) else []
+
+
+def save_queue(cards: list[dict]) -> None:
+    QUEUE_PATH.write_text(yaml.safe_dump(cards, allow_unicode=True, sort_keys=False))
+
+
+def load_nodes() -> dict[str, str]:
+    """backend -> ssh alias; local file overrides the committed example."""
+    src = NODES_LOCAL if NODES_LOCAL.is_file() else NODES_EXAMPLE
+    if not src.is_file():
+        return dict(DEFAULT_NODES)
+    data = yaml.safe_load(src.read_text()) or {}
+    nodes = {k: v for k, v in data.items() if isinstance(v, str)}
+    return {**DEFAULT_NODES, **nodes}
+
+
+def cell_slug(card: dict) -> str:
+    return f"{card['app']}-{card['backend']}-{card['compiler']}".replace("/", "_")
+
+
+def worker_prompt(card: dict, resume: str | None) -> str:
+    """The task card handed to the worker (design §5.1)."""
+    lines = [
+        "你是 FlagOS 验证编排器的调试 worker。任务：定位并处置一个 verify 失败的 cell。",
+        "只做这一件事，做完即止。",
+        "",
+        "## 任务卡",
+        yaml.safe_dump({k: card[k] for k in
+                        ("app", "backend", "compiler", "scenario", "image",
+                         "verify_script", "verify_args", "failure")
+                        if k in card},
+                       allow_unicode=True, sort_keys=False).rstrip(),
+        "",
+        "## 处置流程（按序）",
+        "1. 用 ssh 别名连到节点复现（规则 22：ssh 后 su - 到非 root 用户，如 secure/tengqm；",
+        "   docker exec 进容器）。绝不 cat 完整日志——只 grep 定位 + head/tail 看前后 20 行。",
+        "2. 分类：",
+        "   - fixed-local：本仓库可修（configs.yaml / Containerfile / verify 脚本）→ 独立分支开 draft PR",
+        "   - upstream-bug：上游 plugin / FlagTree / FlagGems / vllm 本体 bug → 按 PR 规则在该 repo 开 draft PR，返回链接",
+        "   - no-conclusion：无法定论 → symbol=❌ + note，不重试",
+        "3. 若需跑慢动作（serve 测试 / docker build / gh workflow run）：后台起 + 写完成哨兵（trap EXIT",
+        "   把退出码写到节点绝对路径），返回 pending + poll（host + 绝对 sentinel 路径 + deadline 分钟），",
+        "   由 loop 下一 tick 查。绝不在 worker 本地（macOS）监听节点 /tmp。",
+        "",
+        PR_RULES,
+        "",
+        "## 输出格式（唯一、严格）",
+        "最终回答只输出一个 JSON 对象，无任何其他文字。终态：",
+        '{"verdict": "fixed-local|upstream-bug|no-conclusion", "root_cause": "<一行>",',
+        ' "symbol": "✅|❌|⛔|？", "note": "<一行>", "pr": "<url 或 null>"}',
+        "或异步（动作还没跑完，登记 pending + poll）：",
+        '{"pending": "<动作描述>", "poll": {"host": "<ssh 别名>", "sentinel": "<节点绝对路径>", "deadline_min": <int>}}',
+        "",
+        "回合结束约定：必以终态符号或 pending+poll 结束，禁止以「等待中」结束。",
+    ]
+    if resume:
+        lines.insert(0, f"[续上一轮：--resume {resume}，不要重发历史，只做增量]")
+    return "\n".join(lines)
+
+
+def dispatch_worker(card: dict, resume: str | None) -> dict:
+    """Spawn a `claude -p` worker in a detached session; a watcher writes `.done`."""
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    slug = cell_slug(card)
+    out_json = WORK_DIR / f"{slug}.json"
+    err_log = WORK_DIR / f"{slug}.err"
+    done = WORK_DIR / f"{slug}.done"
+    for p in (out_json, err_log, done):
+        p.unlink(missing_ok=True)
+
+    argv = ["claude", "-p", worker_prompt(card, resume),
+            "--output-format", "json",
+            "--max-turns", str(MAX_TURNS),
+            "--allowedTools", ALLOWED_TOOLS]
+    if resume:
+        argv += ["--resume", resume]
+
+    proc = subprocess.Popen(
+        argv,
+        stdout=open(out_json, "w"), stderr=open(err_log, "w"),
+        start_new_session=True, cwd=REPO_ROOT)
+    subprocess.Popen(
+        ["sh", "-c", f'while kill -0 {proc.pid} 2>/dev/null; do sleep 2; done; echo done > "{done}"'],
+        start_new_session=True)
+
+    return {
+        "state": "running",
+        "pid": proc.pid,
+        "out": str(out_json),
+        "err": str(err_log),
+        "done": str(done),
+        "resume": resume,
+        "started_at": int(time.time()),
+    }
+
+
+def read_worker_result(run: dict) -> dict | None:
+    """Parse the worker's JSON stdout into the structured result; None if not done."""
+    if not Path(run["done"]).is_file():
+        return None
+    try:
+        raw = json.loads(Path(run["out"]).read_text())
+        text = raw.get("result", "")
+        parsed = json.loads(text) if isinstance(text, str) else text
+        parsed["session_id"] = raw.get("session_id")
+        return parsed
+    except (json.JSONDecodeError, OSError):
+        return {"verdict": "no-conclusion", "root_cause": "worker output unparsable",
+                "symbol": "❌", "note": "worker crashed or emitted non-JSON", "pr": None}
+
+
+def poll_pending(card: dict) -> str | None:
+    """Check a pending cell's sentinel on the target host; return its content or None.
+
+    Poll runs ON the host named in the poll spec (ssh alias) — never locally —
+    so monitoring location is locked to the action's location (design §5.5.2).
+    """
+    poll = card.get("poll") or {}
+    host, sentinel = poll.get("host"), poll.get("sentinel")
+    if not host or not sentinel:
+        return None
+    r = subprocess.run(
+        ["ssh", host, f'test -f "{sentinel}" && cat "{sentinel}" || true'],
+        capture_output=True, text=True, timeout=30)
+    out = r.stdout.strip()
+    return out if out else None
+
+
+def append_prs(matrix_path: Path, backend: str, pr_urls: list[str]) -> bool:
+    """Append PR URLs to the ``backends.<backend>.prs:`` list; return changed.
+
+    The facility block holds ``  {backend}:`` at 2-space indent with an optional
+    ``    prs:`` list (6-space ``- url`` items). A backend may have no prs list
+    yet, in which case one is inserted right after the backend key line. The
+    existing-items scan is bounded to this backend's own block, never the whole
+    ``backends:`` section.
+    """
+    lines = matrix_path.read_text().splitlines()
+    in_backends = False
+    for i, ln in enumerate(lines):
+        if ln == "backends:":
+            in_backends = True
+            continue
+        if in_backends:
+            stripped = ln.lstrip(" ")
+            indent = len(ln) - len(stripped)
+            if indent == 0 and stripped:  # a new top-level key — past backends
+                break
+            if indent == 2 and stripped == f"{backend}:":
+                # bound this backend's block (next 2-space key or top-level key)
+                block_end = len(lines)
+                prs_i = None
+                for j in range(i + 1, len(lines)):
+                    s = lines[j].lstrip(" ")
+                    ind = len(lines[j]) - len(s)
+                    if ind <= 2 and s:
+                        block_end = j
+                        break
+                    if ind == 4 and s.startswith("prs:"):
+                        prs_i = j
+                if prs_i is not None:
+                    existing: list[str] = []
+                    for k in range(prs_i + 1, block_end):
+                        s = lines[k].lstrip(" ")
+                        ind = len(lines[k]) - len(s)
+                        if ind == 6 and s.startswith("- "):
+                            existing.append(s[2:].strip())
+                        elif ind <= 4 and s:
+                            break
+                    to_add = [u for u in pr_urls if u not in existing]
+                    if not to_add:
+                        return False
+                    insert_at = prs_i + 1 + len(existing)
+                    for u in to_add:
+                        lines.insert(insert_at, f"      - {u}")
+                        insert_at += 1
+                    matrix_path.write_text("\n".join(lines) + "\n")
+                    return True
+                # no prs list yet — insert right after the backend key line
+                lines.insert(i + 1, "    prs:")
+                insert_at = i + 2
+                for u in pr_urls:
+                    lines.insert(insert_at, f"      - {u}")
+                    insert_at += 1
+                matrix_path.write_text("\n".join(lines) + "\n")
+                return True
+    return False
+
+
+def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(["git"] + list(args), check=check, capture_output=True,
+                          text=True, cwd=REPO_ROOT)
+
+
+def apply_result(card: dict, result: dict, matrices: dict) -> str:
+    """Write the terminal symbol (+ prs:) back to the matrix; return the matrix rel."""
+    rel = matrices[card["app"]]
+    path = REPO_ROOT / rel
+    symbol = result.get("symbol", "❌")
+    if set_symbol(path, card.get("scenario", "inference"),
+                  card["backend"], card["compiler"], symbol):
+        pass  # symbol flipped from ⬜
+    pr = result.get("pr")
+    if pr:
+        append_prs(path, card["backend"], [pr])
+    return rel
+
+
+def push_branch(changed: list[str]) -> None:
+    """Commit matrix + queue, force-push auto/verify-debug, open/update the PR."""
+    for rel in changed:
+        _git("add", rel, check=False)
+    _git("add", ".github/verify-queue.yaml", check=False)
+    if _git("diff", "--cached", "--quiet", check=False).returncode == 0:
+        print("debug-loop: no staged changes — nothing to push.")
+        return
+    n = len(changed)
+    for k, v in GIT_IDENTITY.items():
+        os.environ.setdefault(k, v)
+    _git("config", "user.name", "flagos-ci", check=False)
+    _git("config", "user.email", "noreply@flagos.net", check=False)
+    _git("checkout", "-B", BRANCH, check=False)
+    _git("commit", "-m", f"chore(verify): debug-loop resolve {n} cell(s)")
+    _git("push", "--force", "origin", BRANCH)
+    print(f"debug-loop: pushed {BRANCH} (PR open/update handled by verify_open_pr.py pattern)")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--max-workers", type=int, default=2)
+    parser.add_argument("--push", action="store_true",
+                        help="commit + force-push the debug branch after write-back")
+    args = parser.parse_args()
+
+    _git("fetch", "origin", "main", check=False)
+    cards = load_queue()
+    if not cards:
+        print("debug-loop: queue empty — nothing to do.")
+        return
+
+    from verify_collect_cells import MATRICES  # reuse the app -> matrix mapping
+
+    nodes = load_nodes()
+    running = 0
+    resolved: list[str] = []  # matrix rels changed this tick
+    kept: list[dict] = []
+
+    for card in cards:
+        slug = cell_slug(card)
+        state = card.get("state", "queued")
+
+        if state == "running":
+            run = card["_run"]
+            result = read_worker_result(run)
+            if result is not None:
+                if "poll" in result:  # worker handed off to an async action on the node
+                    poll = result["poll"]
+                    card["state"] = "pending"
+                    card["poll"] = poll
+                    card["pending"] = result.get("pending")
+                    card["session_id"] = result.get("session_id")  # resume context
+                    if poll.get("deadline_min"):
+                        card["deadline"] = int(time.time()) + int(poll["deadline_min"]) * 60
+                    card["last_progress"] = int(time.time())
+                    kept.append(card)
+                    print(f"  {slug}: pending — {result.get('pending')}")
+                else:
+                    rel = apply_result(card, result, MATRICES)
+                    resolved.append(rel)
+                    print(f"  {slug}: {result.get('symbol')} {result.get('verdict')} — {result.get('note')}")
+            elif int(time.time()) - run["started_at"] > WORKER_DEADLINE_MIN * 60:
+                os.kill(run["pid"], 9)
+                card["state"] = "queued"  # stall: requeue once, next tick re-dispatches
+                card.pop("_run", None)
+                card["stalled"] = card.get("stalled", 0) + 1
+                print(f"  {slug}: stalled (deadline) — requeued")
+                kept.append(card)
+            else:
+                running += 1
+                kept.append(card)
+
+        elif state == "pending":
+            sentinel = poll_pending(card)
+            if sentinel is not None:
+                # async action finished; hand back to a worker to interpret the terminal state
+                card["state"] = "queued"
+                card.pop("poll", None)
+                card["resume_context"] = {"sentinel": sentinel, "pending": card.pop("pending", None)}
+                card["last_progress"] = int(time.time())
+                print(f"  {slug}: async done (sentinel={sentinel!r}) — requeue for interpretation")
+                kept.append(card)
+            elif card.get("deadline", 0) and int(time.time()) > card["deadline"]:
+                card["state"] = "queued"
+                for k in ("poll", "deadline", "pending", "session_id"):
+                    card.pop(k, None)
+                card["stalled"] = card.get("stalled", 0) + 1
+                print(f"  {slug}: pending deadline exceeded — requeued")
+                kept.append(card)
+            else:
+                kept.append(card)
+
+        else:  # queued
+            if card.get("stalled", 0) >= 3:
+                print(f"  {slug}: stalled 3x — leaving in queue for manual review")
+                kept.append(card)
+                continue
+            host = nodes.get(card["backend"])
+            if host is None:
+                print(f"  {slug}: no ssh host for backend {card['backend']} — skipped")
+                kept.append(card)
+                continue
+            if running >= args.max_workers:
+                kept.append(card)
+                continue
+            resume = None
+            if card.get("resume_context"):
+                resume = card.get("session_id")  # resume the investigator's session
+                card.pop("session_id", None)
+                # note the sentinel outcome for the interpreter worker
+                card["failure"] = (card.get("failure") or {})
+                card["failure"]["async_result"] = card.pop("resume_context")
+            card["_run"] = dispatch_worker(card, resume)
+            card["state"] = "running"
+            card["last_progress"] = int(time.time())
+            running += 1
+            print(f"  {slug}: dispatched worker (pid={card['_run']['pid']})")
+            kept.append(card)
+
+    save_queue(kept)
+    print(f"debug-loop: {len(resolved)} resolved, {running} running, "
+          f"{len(kept) - running} queued/pending, {len(cards)} total")
+
+    if resolved and args.push:
+        push_branch(resolved)
+    elif resolved:
+        print("debug-loop: write-back is local-only; pass --push to open the PR.")
+
+
+if __name__ == "__main__":
+    main()

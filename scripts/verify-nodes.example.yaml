@@ -1,0 +1,28 @@
+# Backend -> local SSH alias map for the verify debug-loop.
+#
+# Copy to scripts/verify-nodes.local.yaml (git-ignored) and edit to match
+# your ~/.ssh/config aliases. The committed file is only a template; the loop
+# falls back to DEFAULT_NODES in verify-debug-loop when neither file exists,
+# and the local file overrides the example.
+#
+# All aliases hop through bastion.aiops.baai.ac.cn (Port 2224). Rule 22: after
+# ssh, `su -` to a non-root user (secure/tengqm) before acting on the node.
+
+nvidia-cuda12.8: h20
+nvidia-cuda13.3: h20
+metax-maca3.7.2.1: metax123
+metax-maca3.8.1.3: metax124
+ascend-cann8.5.0: hw25
+ascend-cann9.0.0: hw26
+cambricon-neuware4.4.3: cambricon
+cambricon-neuware4.7.2: cambricon
+enflame-tops1.9.10: enflame
+enflame-tops1.10.6: enflame
+hygon-dtk26.04: hygon25
+iluvatar-corex4.4.0: ix15
+kunlunxin-xre5.37.1: kunlunxin
+mthreads-musa4.3.6: mthreads
+mthreads-musa5.2.0: mthreads
+sunrise-tangrt1.2.0: sunrise
+tsingmicro-tsm260610: tsm
+thead-ppu2.0.0: thead
