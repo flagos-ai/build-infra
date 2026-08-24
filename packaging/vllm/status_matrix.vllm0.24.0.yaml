@@ -57,6 +57,7 @@ backends:
   ascend-cann8.5.0:
     deps_app: true
     launch_docs: true
+    image_tag: "2.1.2-0.2.0_gcf8998c.d20260818"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/387
   ascend-cann9.0.0:
