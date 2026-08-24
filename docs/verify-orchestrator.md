@@ -74,8 +74,13 @@ schema 约定见 `docs/status-matrix.md`。关键不变式：
 1. **plan**（ubuntu）：读 6 个矩阵 YAML，收集所有 ⬜ cell，产出
    `{app, backend, compiler(T/F), image, verify_script}` 的 matrix JSON。
 2. **verify**（self-hosted，matrix over pending cell，`fail-fast: false`）：
-   跑对应 app 的 verify 脚本，**完整 E2E 模式**（install + serve/import），
-   不是 `--app-image` 快照模式。失败时写失败摘要（§5.2），成功则标 ✅。
+   跑对应 app 的 verify 脚本，**完整 E2E 模式**——脚本真正跑起工作负载并要求
+   exit 0，✅ = 「工作负载跑通」，不是「install + import 通过」：vllm 是
+   `vllm serve` 返回真实 completion（HTTP 200 + 非空 `choices[0].text`），
+   megatron_training 是 mock-data `pretrain_gpt` 5-iter exit 0，二者均非
+   `--app-image` 快照模式。失败时写失败摘要（§5.2），成功则标 ✅。megatron_rl
+   暂不收集——GRPO 配方上游阻塞（MLF #116 + flash-attn wheel），rl cell 标 ⛔，
+   待上游落地后再翻回 ⬜。
 3. **queue**（ubuntu，needs verify）：对 verify ❌ 的 cell 生成任务卡 + 失败摘要
    （§5.1/§5.2），写入 `.github/verify-queue.yaml`（§4.2.1）。**不在此调
    claude**——claude 只在本机，调试由本地 debug-loop（§4.2）接手。
