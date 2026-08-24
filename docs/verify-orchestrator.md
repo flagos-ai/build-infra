@@ -71,10 +71,13 @@ schema 约定见 `docs/status-matrix.md`。关键不变式：
 
 单个编排 workflow，job 拆解：
 
-1. **plan**（ubuntu）：读 6 个矩阵 YAML，收集所有 ⬜ cell，产出
+1. **plan**（ubuntu）：读 6 个矩阵 YAML，收集所有 ⬜ cell——每个 ⬜ 的编译器列
+   （F 和 T 各自，`—` 或终态符号跳过）产出一个 cell，产出
    `{app, backend, compiler(T/F), image, verify_script}` 的 matrix JSON。
 2. **verify**（self-hosted，matrix over pending cell，`fail-fast: false`）：
-   跑对应 app 的 verify 脚本，**完整 E2E 模式**——脚本真正跑起工作负载并要求
+   跑对应 app 的 verify 脚本，driver 把 cell 的编译器以
+   `--compiler flagtree|triton` 传给脚本（F→flagtree、T→triton），**完整 E2E
+   模式**——脚本真正跑起工作负载并要求
    exit 0，✅ = 「工作负载跑通」，不是「install + import 通过」：vllm 是
    `vllm serve` 返回真实 completion（HTTP 200 + 非空 `choices[0].text`），
    megatron_training 是 mock-data `pretrain_gpt` 5-iter exit 0，二者均非
