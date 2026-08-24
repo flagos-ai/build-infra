@@ -23,9 +23,10 @@ truth for "this backend is published" (see docs/status-matrix.md), so the
 workflow writes it there itself instead of leaving it to a human verifier.
 
 What the script does, in order:
-  1. Update ``image_tag`` for the backend in the status matrix YAML (surgical
-     line edit — the matrix files carry a human header comment that a YAML
-     round-trip would drop). Idempotent: same tag → no-op, exit 0.
+  1. Update ``image_tag`` and set ``launch_docs: true`` for the backend in the
+     status matrix YAML (surgical line edit — the matrix files carry a human
+     header comment that a YAML round-trip would drop). Idempotent: both facts
+     already recorded → no-op, exit 0.
   2. Regenerate the pipeline so the docs stay consistent with the matrix:
      ``gen_data.py`` → ``render_status_matrix.py`` → ``gen_descriptions.py
      --app-only`` (app pages read no version TSVs, so no VERSIONS_DIR).
@@ -36,8 +37,9 @@ What the script does, in order:
      (``GITHUB_TOKEN``), not the ``gh`` CLI — the step runs on self-hosted
      hardware runners that do not carry gh.
 
-The script only adds/updates ``image_tag``; it never touches ``launch_docs``
-(that stays a human tracking boolean).
+``launch_docs`` is set alongside ``image_tag`` because step 2 regenerates the
+app launch pages — a pushed backend's launch docs exist by construction, so a
+human-tracking boolean here only drifts from reality.
 
 Usage:
     python scripts/record_app_image_tag.py \\
@@ -115,37 +117,43 @@ def component_of(matrix_rel: str) -> str:
     return m.group(1)
 
 
-def update_image_tag(matrix_path: Path, backend: str, tag: str) -> bool:
-    """Update image_tag for the backend; return True if the file changed.
+def _backend_bounds(lines: list[str], backend: str) -> tuple[int, int]:
+    """Return the (start, end) line indices of the backend's facility block.
 
-    Surgical line edit to preserve the header comment block. The matrix format
-    is stable: backend keys sit at 2-space indent, their facility fields
-    (deps_app / launch_docs / image_tag / prs) at 4-space, so a backend block
-    runs from its key line to the next 2-space key line (or the mapping end).
+    The matrix format is stable: backend keys sit at 2-space indent, their
+    facility fields (deps_app / launch_docs / image_tag / prs) at 4-space, so a
+    backend block runs from its key line to the next 2-space key line (or the
+    mapping end).
     """
-    lines = matrix_path.read_text().splitlines()
-
     start = None
     for i, ln in enumerate(lines):
         if re.match(rf"^  {re.escape(backend)}:$", ln):
             start = i
             break
     if start is None:
-        sys.exit(f"Error: backend '{backend}' not found in {matrix_path}")
-
-    # Block end = next 2-space key line (next backend) or column-0 line
-    # (end of the backends mapping). Never scans into the next backend's
-    # facility fields.
+        sys.exit(f"Error: backend '{backend}' not found")
     end = len(lines)
     for j in range(start + 1, len(lines)):
         if lines[j] and (not lines[j][0].isspace() or re.match(r"^  [^ ]", lines[j])):
             end = j
             break
+    return start, end
+
+
+def _set_facility_field(matrix_path: Path, backend: str, field: str, value: str) -> bool:
+    """Set a facility field for the backend; return True if the file changed.
+
+    Surgical line edit to preserve the header comment block. Existing field →
+    replace in place; absent field → insert after the last known facility field
+    (deps_app / launch_docs), before any prs list.
+    """
+    lines = matrix_path.read_text().splitlines()
+    start, end = _backend_bounds(lines, backend)
     block = lines[start + 1:end]
 
-    new_line = f'    image_tag: "{tag}"'
+    new_line = f"    {field}: {value}"
     for k, ln in enumerate(block):
-        if re.match(r"^    image_tag:\s*", ln):
+        if re.match(rf"^    {field}:\s*", ln):
             if ln == new_line:
                 return False
             lines[start + 1 + k] = new_line
@@ -161,6 +169,22 @@ def update_image_tag(matrix_path: Path, backend: str, tag: str) -> bool:
     return True
 
 
+def update_image_tag(matrix_path: Path, backend: str, tag: str) -> bool:
+    """Update image_tag for the backend; return True if the file changed."""
+    return _set_facility_field(matrix_path, backend, "image_tag", f'"{tag}"')
+
+
+def update_launch_docs(matrix_path: Path, backend: str) -> bool:
+    """Set launch_docs: true for the backend; return True if the file changed.
+
+    The record step regenerates the app launch pages right after recording the
+    push, so a published backend's launch docs exist by construction — set the
+    boolean alongside image_tag (one publication event, both facts) instead of
+    leaving it to drift as a human-tracking flag.
+    """
+    return _set_facility_field(matrix_path, backend, "launch_docs", "true")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matrix", required=True, help="status matrix YAML path, relative to repo root")
@@ -174,14 +198,16 @@ def main() -> None:
         sys.exit(f"Error: matrix file not found: {matrix_rel}")
     tag = args.tag.rsplit(":", 1)[-1]
 
-    # Idempotency: already recorded → nothing to do.
-    current = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(args.backend, {}).get("image_tag", "")
-    if current == tag:
-        print(f"image_tag for {args.backend} already {tag} — nothing to do.")
+    # Idempotency: both facts already recorded → nothing to do.
+    backend_cfg = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(args.backend, {})
+    if backend_cfg.get("image_tag", "") == tag and backend_cfg.get("launch_docs", False):
+        print(f"{args.backend} already records image_tag {tag} + launch_docs — nothing to do.")
         return
-    print(f"Recording image_tag {tag} for {args.backend} in {matrix_rel}")
+    print(f"Recording image_tag {tag} + launch_docs for {args.backend} in {matrix_rel}")
 
-    if not update_image_tag(matrix_path, args.backend, tag):
+    changed = update_image_tag(matrix_path, args.backend, tag)
+    changed = update_launch_docs(matrix_path, args.backend) or changed
+    if not changed:
         return
 
     comp = component_of(matrix_rel)
