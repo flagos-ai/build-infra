@@ -1381,7 +1381,7 @@ Inference:    ✅  "The capital of France is" → " Paris. The capital of German
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
 | `lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR | ✅ 已提 | **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（flagos-ai/vllm-plugin-FL，分支 `ascend-blacklist-lift-fresh`→`release-0.2`）：`dispatch/config/ascend.yaml`；coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护 |
-| ATB `set_env.sh` 烘焙进 base image env | ✅ 已提 | **[build-infra PR #353](https://github.com/flagos-ai/build-infra/pull/353)**：`base/ascend-cann9.0.0` 环境捕获块在 CANN 之后追加 source NNAL/ATB `set_env.sh`，`ATB_HOME_PATH` / ATB lib path 进 `vendor.sh`（9.0.0 专属，8.5.0 无 NNAL）。消除运行时手动 source；否则 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃 |
+| ATB `set_env.sh` 烘焙进 base image env | ✅ 已提 | **两后端分属不同 PR**：cann9.0.0 = **[PR #353](https://github.com/flagos-ai/build-infra/pull/353)**（`base/ascend-cann9.0.0` 在 CANN 之后 source NNAL/ATB `set_env.sh`）；cann8.5.0 = **[PR #354](https://github.com/flagos-ai/build-infra/pull/354)**（补 NNAL）+ **[PR #355](https://github.com/flagos-ai/build-infra/pull/355)**（捕获 NNAL/ATB env 进 `vendor.sh`）。`ATB_HOME_PATH` / ATB lib path 进 `vendor.sh`，消除运行时手动 source；否则 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃 |
 | flag_gems 5.3.4 重推 v2 镜像刷新 | 🔄 进行中 | 现镜像烘焙旧 wheel，须强制重装才可用；全部 17 个 v2 runtime 镜像重建后消除（run 31365995958，用户驱动） |
 | ascend `+flagos` wheel 上架 | ✅ 已上传 | 4 个 wheel 已上架 `flagos-pypi-ascend`（用户上传） |
 
