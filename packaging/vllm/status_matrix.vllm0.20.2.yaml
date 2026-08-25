@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.20.2
 description: vLLM 0.20.2 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-08-24"
+last_updated: "2026-08-25"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -76,6 +76,10 @@ backends:
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
+    image_tag: "2.1.2-0.2.1_g8d2bf5e.d20260825"
+    prs:
+      - https://github.com/flagos-ai/vllm-plugin-FL/pull/355
+      - https://github.com/flagos-ai/FlagGems/pull/5510
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
