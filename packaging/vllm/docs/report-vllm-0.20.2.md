@@ -1275,9 +1275,9 @@ mask lane。**根因：GCU300 triton_gcu 跨 tile 归约累加的 codegen 误编
 
 ---
 
-## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08；2026-08-15 复核）
+## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08；2026-08-15 / 2026-08-26 复核）
 
-**日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）
+**日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）；2026-08-26（复核，flag_gems 5.3.5 / PR #5745 mask-logic 修复）
 　**平台:** Cambricon MLU590　**节点:** `cambricon`
 **driver/neuware:** 4.7.2　**镜像:** `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（`1a2a53ebab3b`，全量升级包集）
 **容器:** `vllm-verify-camb472`　**Python:** 3.12.13　**torch/torch_mlu:** 2.11.0+cpu / torch_mlu 2.11.0
@@ -1377,6 +1377,31 @@ cambricon `index` op 在 **flagtune 自动调参 bench** 阶段崩溃，EngineCo
 - **遗留：** 原始 MLIR reproducer 已留存（容器 `/tmp/serve534_crash_index2.log`）。厂商
   hand-off 文档（flag_gems/MLU Triton AutoTileForTritonPass expand_shape bug）待整理。
 
+### 2026-08-26 复核（flag_gems 5.3.5 / PR #5745 mask-logic 修复）：✅ E2E 通过
+
+**背景：** FlagGems PR #5745（`fix/cambricon-tensor-mask-logical-ops`，commit 9737224bf）把
+cambricon/MLU 后端 23 个文件里对多元素 tensor mask 的 Python `and`/`or`/`not` 机械替换为
+元素级 `&`/`|`/`~`（`&` 优先级高于 `<` 处补括号），触发算子是 argmax。已合并并重打
+flag_gems **5.3.5** tag，cambricon runtime 镜像重打（flat tag `2.1.2`，
+sha256 `907c1c8285daabfdd6bbc136b34be686b99a1563d532b30f880819945a6548af`）。本次在
+MLU590 真机复核改后算子跑出**正确结果**（而非仅"不崩"）。
+
+**可复现配方（全部走已上架制品，无本地 build / 无手工 patch）：**
+
+- 镜像：`flagos-runtime-cambricon-neuware4.7.2:2.1.2`（sha256 `907c1c8285da…`，flag_gems 5.3.5）
+- vllm：`vllm==0.20.2+flagos` 单步 `pip install`（wheel 已上架 `flagos-pypi-cambricon`，单步零泄漏）
+- 插件：vllm-plugin-FL **PR #355 head `8d2bf5e`**（`cambricon.yaml` `flagos_blacklist: [index]`）
+- serve：Qwen3-8B TP=1 / max-len 4096 / mem-util 0.85，`Application startup complete`（编译 ~11 min）
+- 推理：2 次 chat completion 均 200、连贯。`"Reply with exactly the words: hello world"`
+  → 先 `<think>` 后输出 `hello world`，`finish_reason=stop`；另一问 `2+2` 思考推理正确。
+
+**结论：** flagos dispatch 活跃（`OpManager: 35 ops / 61 impls`，`attention_backend →
+default.flagos`），改后 mask-logic 算子（含 argmax——温度 0 贪婪采样走 argmax 路径）在 E2E
+中运行，输出无乱码、无数值错误 → **PR #5745 修复正确**。
+
+**黑名单现状：** flag_gems 5.3.5 **不含** PR #5510（`index` 根因修复，仍 OPEN——
+实测 5.3.5 的 `_cambricon/tune_configs.yaml` index 块仍含 `block_size1: [1024, 2048, 4096]`），
+故 `cambricon.yaml` 的 `flagos_blacklist: [index]` 保留（本次 PR #355 head 已正确携带）。
 
 
 ### Stack 验证（cambricon-neuware4.7.2，✅ E2E 通过 2026-08-08）
