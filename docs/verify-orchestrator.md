@@ -93,9 +93,10 @@ schema 约定见 `docs/status-matrix.md`。关键不变式：
 5. **record**（ubuntu，needs build + queue）：重渲矩阵、提交队列文件，把本轮可
    确定的符号 + `prs:` 变更开成 review-gated PR（复用 `record_app_image_tag.py`
    的 PR 机制与 `status-matrix-consistency.yml` 的 dup-PR 检查）。
-6. **terminate**（needs record）：无剩余 ⬜ → 结束；有剩余但本轮至少一个 cell
-   状态前进 → `gh workflow run verify-driver.yml` 重触发；有剩余且无进展 → 结束
-   并告警（防止死循环）。
+6. **terminate**（needs record）：汇报剩余 ⬜ 数并结束。**不自动重触发**——cell 的
+   符号只随「修复 PR merge 进 main」才真正前进；`record` 落的是
+   `auto/verify-results-*` 分支 + draft PR，从不改 main 的 ⬜，所以无改动就重
+   dispatch 是空转循环。下一轮由人工 dispatch，或 debug-loop 在修复落地后触发。
 
 driver 的边界：只开 draft / review-gated PR，不合并、不 push main、不 release、
 不决定上游合并时机。所有落库动作都走 PR，符合规则 6（>5 行 → PR）与规则 20
@@ -295,7 +296,7 @@ worker 回合结束约定：每条结果必以终态符号（✅/❌/⛔/？）�
 
 | 风险 | 处置 |
 |---|---|
-| 死循环 / 失控重触发 | terminate 严格判「无 ⬜ 或无进展」；无进展即停并告警；保留手动停开关 |
+| 死循环 / 失控重触发 | terminate 不自动重触发（无改动即停）；仅人工 dispatch 或 debug-loop 修复落地后触发；保留手动停开关 |
 | self-hosted runner 争用（规则 14） | 并发上限；短 job（record/plan）先于长 job（verify/build）；复用 build-config.yml 的 per-vendor runner pin |
 | worker 违规开 PR（规则 9） | canned PR 规则片段 + worker 内建开 PR 前检查单；只开 draft，人转正 |
 | worker 上下文膨胀 / compact | §5 worker contract |
