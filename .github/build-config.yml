@@ -18,29 +18,18 @@
 # Keep globally-shared build settings here instead of threading them through
 # workflow inputs.
 
-# Container registry — same server for every layer, differing only by the path
-# prefix on that server.
+# Container registry
 registry:
   host: harbor.baai.ac.cn
   prefixes:
     base: flagos-base
     runtime: flagos-runtime
-    # Builder toolchain images live in the shared flagos-dev project; the
-    # tool + python is the repository (currently unused — megatron builds
-    # inside the runtime image since 2026-08-14; reserved for future
-    # transformerengine-builder-*, verl-builder-*, ...).
+    # Builder toolchain images
     builder: flagos-dev
-    # App images live under flagos-app (e.g. flagos-app/megatron-nvidia-cuda12.8,
-    # flagos-app/vllm-nvidia-cuda12.8). Consumed by the app-image workflows
-    # (megatron-app-image.yml, vllm-app-image.yml) to compose the image tag.
+    # App images live under flagos-app
     app: flagos-app
 
-# Which runner builds each image (base containerfile name -> runs-on).
-# Backends not listed under `overrides` use `default`.
-#
-# Each vendor has a self-hosted runner with matching hardware so verify steps
-# can run on the actual accelerator. Arch splits (aarch64 vs x86_64) are
-# implicit in the runner's OS — no separate arch dimension needed.
+# Runner labels for backends
 runners:
   default: [self-hosted, h20]
   overrides:
@@ -48,7 +37,6 @@ runners:
     ascend-cann9.0.0: [self-hosted, cann9]
     cambricon-neuware4.4.3: [self-hosted, cambricon]
     cambricon-neuware4.7.2: [self-hosted, cambricon]
-    # Both enflame SDKs build on the same runner (shared label tops1106).
     enflame-tops1.9.10: [self-hosted, tops1106]
     enflame-tops1.10.6: [self-hosted, tops1106]
     hygon-dtk26.04: [self-hosted, hygon]
@@ -62,21 +50,16 @@ runners:
     tsingmicro-tsm260610: [self-hosted, tsingmicro]
 
 # `docker run` flags needed to expose each vendor's accelerator to a container.
-# Used by the docs to render a concrete run command per image. Vendors not
-# listed use `default` (a plain `docker run`).
 #
 # TODO: confirm the exact device flags for each vendor. Only nvidia is filled in;
 # the rest are placeholders — replace the TODO strings with the real flags.
-# How to launch each vendor's image, for the docs' per-image "Launch" section.
-# Each vendor may carry up to two launch styles; the docs render whichever exist,
-# toolkit first:
+# Each vendor may carry up to two launch styles, toolkit first:
 #   toolkit:     flags added to `docker run` when the vendor's container toolkit is
-#                installed on the host (--gpus all, --runtime X, -e X_VISIBLE_DEVICES).
+#                installed on the host.
 #   toolkit_cmd: a full wrapper command ({image} placeholder) for launchers that
 #                REPLACE `docker run` entirely (e.g. metax-docker).
 #   raw:         device-passthrough flags for plain docker/podman + the vendor driver,
 #                no toolkit. Empty raw ("") = generic `docker run <image>`, no flags.
-# The toolkit's host prerequisite is named under `prereq` below.
 run:
   default: ""
   vendors:
@@ -85,8 +68,7 @@ run:
       # raw needs the host driver: nvidia-smi + libnvidia-ml (for smi) + libcuda (CUDA).
       raw: "--device /dev/nvidia0 --device /dev/nvidiactl --device /dev/nvidia-uvm -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro"
     ascend:
-      # Note: explicit device indices only — ASCEND_VISIBLE_DEVICES=all fails on the
-      # 910 ("product type is not support"); =0 (or 0,1,...) works.
+      # Note: explicit device indices only — ASCEND_VISIBLE_DEVICES=all fails.
       toolkit: "-e ASCEND_VISIBLE_DEVICES=0"
       raw: "--device /dev/davinci0 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
     hygon:
@@ -100,17 +82,15 @@ run:
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
       toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
-      # raw mounts the host mthreads-gmi (not baked);
       raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
       toolkit: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
-      # raw mounts the host /usr/local/corex (carries ixsmi + its libixml.so).
       raw: "--device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro"
     cambricon:
-      # No container toolkit/runtime known; cnmon is baked in the image.
+      # No container toolkit/runtime known.
       raw: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl"
     kunlunxin:
-      # Note: env var is CXPU_VISIBLE_DEVICES (not XPU_), explicit index. Host setup:
+      # Note: env var is CXPU_VISIBLE_DEVICES (not XPU_), explicit index.
       toolkit: "--runtime xpu -e CXPU_VISIBLE_DEVICES=0"
       raw: "--device /dev/xpu0 --device /dev/xpuctrl"
     tsingmicro:
@@ -126,8 +106,7 @@ run:
     sunrise:
       raw: "--privileged -v /dev:/dev"
 
-  # Host prerequisite (container toolkit) for the toolkit tier, per vendor. Rendered
-  # only when the vendor has a toolkit/toolkit_cmd launch style.
+  # Host prerequisite (container toolkit) for the toolkit tier, per vendor.
   prereq:
     nvidia: "nvidia-container-toolkit"
     ascend: "Ascend-docker-runtime >= 6.0.RC3"
@@ -139,19 +118,14 @@ run:
     tsingmicro: "tx-container-toolkit >= 2.5.0"
     enflame: "tencent-container-toolkit >= 2.0.52"
 
-# Device-enumeration command per vendor: shown in the docs/description sample
-# launch line (`docker run <run-flags> <image> <verify>`) to confirm the
-# accelerator is visible, and the eventual base-image release-gate check.
-# Vendors not listed fall back to `bash` in the sample.
+# Device-enumeration command per vendor
 verify:
   vendors:
     nvidia: "nvidia-smi"
-    # Env now auto-loaded from /etc/profile.d/vendor.sh (captured at base image build).
     ascend: "npu-smi info"
     metax: "mx-smi"
     cambricon: "cnmon"
     iluvatar: "ixsmi"
-    # Env now auto-loaded from /etc/profile.d/vendor.sh.
     hygon: "hy-smi"
     kunlunxin: "xpu-smi"
     mthreads: "mthreads-gmi"
