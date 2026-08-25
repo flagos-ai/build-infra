@@ -188,15 +188,11 @@ COMPILER_GUARD=""
 # cambricon 5.973097E+00, ascend 1.084173E+01 in megatron-*-e2e.md), but a few
 # backends need local adjustments. Append a branch as each backend earns a
 # manual ✅. MASTER_PORT avoids a port collision with a concurrent cell on the
-# same node; PSUTIL_PREINSTALL fixes a runtime package gap before the
-# single-step install (nvidia-cuda13.3 runtime ships no psutil, and
-# megatron-core Requires-Dist it).
+# same node.
 MASTER_PORT="${MASTER_PORT:-29500}"
-PSUTIL_PREINSTALL=""
 case "${VENDOR_BACKEND}" in
     cambricon-neuware4.4.3) MASTER_PORT=29500 ;;
     cambricon-neuware4.7.2) MASTER_PORT=29501 ;;
-    nvidia-cuda13.3) PSUTIL_PREINSTALL="pip install --index-url '${ALIYUN_PYPI}' psutil" ;;
 esac
 # NOTE (hygon flagtree): --disable-jit-fuser is INSUFFICIENT there — the jit
 # fuser binds torch.compile at import time, before args flip. A container-side
@@ -303,14 +299,6 @@ if [[ -n "${APP_IMAGE}" ]]; then
     log_step "Step 3: Skipping pip install (app-image mode — megatron-core was installed at image build time)"
 else
     log_step "Step 3: Installing megatron-core==${MEGATRON_VERSION}"
-
-    # Per-backend gap fix: nvidia-cuda13.3 runtime ships no psutil, and
-    # megatron-core Requires-Dist it — preinstall from aliyun (public PyPI)
-    # before the vendor single-step install resolves it (megatron-nvidia-e2e.md).
-    if [[ -n "${PSUTIL_PREINSTALL}" ]]; then
-        log_info "Preinstalling psutil (${VENDOR_BACKEND} runtime gap)"
-        docker exec "${CONTAINER}" bash -c "${PSUTIL_PREINSTALL}"
-    fi
 
     # PYTHONPATH=/opt/triton mirrors the runtime Containerfile DEPS install:
     # pip must see the side-dir triton dist-info, or torch's triton==N dep
