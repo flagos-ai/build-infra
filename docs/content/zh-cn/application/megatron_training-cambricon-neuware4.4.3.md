@@ -40,14 +40,12 @@ title: "megatron_training-cambricon-neuware4.4.3"
 
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
-
-`harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1_15.g56acf36ba`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1_15.g56acf36ba
 ```
 
 ### 无需工具包——直接使用 docker / podman
