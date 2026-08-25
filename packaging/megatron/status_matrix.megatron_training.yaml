@@ -40,7 +40,7 @@ scenarios:
       mthreads-musa4.3.6:    {T: "⬜", F: "⬜"}
       mthreads-musa5.2.0:    {T: "⬜", F: "⬜"}
       spacemit-spacemit:     {T: "⬜", F: "—"}
-      sunrise-tangrt1.2.0:   {T: "⬜", F: "⬜"}
+      sunrise-tangrt1.2.0:   {T: "❌", F: "❌"}
       thead-ppu2.0.0:        {T: "⬜", F: "—"}
       tsingmicro-tsm260610:  {T: "⬜", F: "⬜"}
   post_training:
