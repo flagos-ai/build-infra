@@ -156,6 +156,13 @@ jobs:
           }
           open(out, "w").write(json.dumps(result, ensure_ascii=False))
           print(f"verify {result['app']} {result['backend']} {result['compiler']} -> {status} (rc={rc})")
+          # Echo the failure detail to the run log so a failed cell is readable
+          # in the Actions UI without downloading + unzipping the result artifact.
+          if failure:
+              print("---- error head ----")
+              print(failure["error_head"])
+              print("---- error tail ----")
+              print(failure["error_tail"])
           PY
           exit "$rc"
         # A non-zero rc must fail the job so the cell's failure is visible. The result
