@@ -13,6 +13,7 @@
 # limitations under the License.
 
 name: verify-driver
+run-name: verify-driver · ${{ inputs.apps || 'all-apps' }} · ${{ inputs.backends || 'all-backends' }}
 
 # Verify orchestrator driver. One trigger advances every pending (⬜) cell one
 # round: plan -> verify (matrix, parallel) -> build (passed) + record (PR) ->
@@ -50,7 +51,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: verify-driver-${{ inputs.apps }}
+  group: verify-driver-${{ inputs.apps }}-${{ inputs.backends }}
   cancel-in-progress: false
 
 jobs:
@@ -180,7 +181,7 @@ jobs:
     # push different branches (auto/verify-results-<component>) and run in
     # parallel.
     concurrency:
-      group: verify-driver-record-${{ inputs.apps }}
+      group: verify-driver-record-${{ inputs.apps }}-${{ inputs.backends }}
       cancel-in-progress: false
     outputs:
       remaining: ${{ steps.summarize.outputs.remaining }}
@@ -222,6 +223,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          VERIFY_BACKENDS: ${{ inputs.backends }}
         run: python3 scripts/verify_open_pr.py
 
   build:
