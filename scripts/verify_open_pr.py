@@ -22,8 +22,10 @@ the per-cell symbols, appended failed cells to the debug queue, and written
 
   1. Re-render the changed matrices' verification md
      (``render_status_matrix.py --component``).
-  2. Commit the matrix + queue + rendered md as ``flagos-ci`` on branch
-     ``auto/verify-results`` (a fresh snapshot of latest main), force-push.
+  2. Commit the matrix + queue + rendered md as ``flagos-ci`` on a per-component
+     branch ``auto/verify-results-<component>`` (a fresh snapshot of latest
+     main), force-push — one branch per app line (vllm/megatron) so two
+     concurrent driver runs don't clobber each other's results.
   3. Open (or update) a review-gated PR via the REST API — the same dup-PR +
      force-push pattern as record_app_image_tag.py.
 
@@ -52,7 +54,6 @@ GIT_IDENTITY = {
     "GIT_COMMITTER_EMAIL": "noreply@flagos.net",
 }
 
-BRANCH = "auto/verify-results"
 REMAINING_PATH = REPO_ROOT / ".github" / "verify-remaining.json"
 QUEUE_REL = ".github/verify-queue.yaml"
 
@@ -101,6 +102,7 @@ def main() -> None:
     changed = remaining.get("changed", [])
 
     comps = sorted({component_of(p) for p in changed})
+    branch = "auto/verify-results-" + "-".join(comps)
     for comp in comps:
         _run_py(REPO_ROOT / "scripts" / "render_status_matrix.py", "--component", comp)
 
@@ -124,21 +126,22 @@ def main() -> None:
     # ⬜ cells to ⛔) on top of the branch's stale, unmerged record commits and
     # conflicted deterministically — the retry loop could never succeed. A
     # snapshot branch carries only this round's delta, so it never conflicts
-    # with main's history. The record job is serialized by the
-    # verify-driver-record concurrency group, so concurrent rounds don't clobber
-    # each other's force-push.
+    # with main's history. The branch is per-component (one per app line), so
+    # concurrent vllm/megatron runs push different branches; within one app line
+    # the record job is serialized by the verify-driver-record-<apps> concurrency
+    # group, so consecutive rounds don't clobber each other's force-push.
     _git("fetch", "origin", "main", check=False)
-    _git("checkout", "-B", BRANCH, "origin/main")
+    _git("checkout", "-B", branch, "origin/main")
     _git("commit", "-m", commit_msg)
     for attempt in range(5):
         try:
-            _git("push", "--force", "origin", BRANCH)
+            _git("push", "--force", "origin", branch)
             break
         except subprocess.CalledProcessError:
             continue  # transient push failure — retry
     else:
         sys.exit(
-            f"Error: could not push {BRANCH} after 5 attempts; re-run the driver "
+            f"Error: could not push {branch} after 5 attempts; re-run the driver "
             f"to record this round"
         )
 
@@ -147,10 +150,10 @@ def main() -> None:
     if not repo:
         sys.exit("Error: GITHUB_REPOSITORY not set — cannot open a PR")
     existing = _gh_api(
-        "GET", f"/repos/{repo}/pulls?head={repo.split('/', 1)[0]}:{BRANCH}&state=open"
+        "GET", f"/repos/{repo}/pulls?head={repo.split('/', 1)[0]}:{branch}&state=open"
     )
     if existing:
-        print(f"PR already open for {BRANCH}; force-pushed updated content")
+        print(f"PR already open for {branch}; force-pushed updated content")
         return
     body = (
         "The verify driver applied this round's cell results to the status matrices and "
@@ -162,7 +165,7 @@ def main() -> None:
     )
     _gh_api("POST", f"/repos/{repo}/pulls", {
         "title": commit_msg,
-        "head": BRANCH,
+        "head": branch,
         "base": base,
         "body": body,
         "draft": True,
