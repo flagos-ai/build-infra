@@ -439,11 +439,30 @@ else
             --enforce-eager \
             --trust-remote-code \
             --max-model-len 2048 \
-            2>&1 &
+            > /tmp/vllm-serve.log 2>&1 &
 
         SERVE_PID=\$!
-        echo 'Waiting for serve to start (60s)...'
-        sleep 60
+        # Poll the log for readiness (up to 300s) — a fixed 60s sleep was too short.
+        echo 'Waiting for serve to become ready...'
+        ready=0
+        for i in \$(seq 1 60); do
+            if ! kill -0 \${SERVE_PID} 2>/dev/null; then
+                echo 'serve process exited during startup'
+                break
+            fi
+            if grep -qE 'Application startup complete|Uvicorn running' /tmp/vllm-serve.log 2>/dev/null; then
+                ready=1
+                echo \"serve ready after ~\$((i*5))s\"
+                break
+            fi
+            sleep 5
+        done
+        if [ \"\$ready\" != \"1\" ]; then
+            echo 'serve did not become ready in time; last 40 lines of log:'
+            tail -40 /tmp/vllm-serve.log 2>/dev/null || true
+            kill \${SERVE_PID} 2>/dev/null || true
+            exit 1
+        fi
 
         echo ''
         echo 'Sending test request...'
