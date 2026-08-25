@@ -226,6 +226,14 @@
   registry 无 mlu 平台，已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
   并入集成分支 wheel 关闭，无需容器侧补丁，见跟踪表 B#11）：
   [[megatron-cambricon-e2e.md]]
+- **full-scope wheel 重建（2026-08-22，verify-driver E2E 前置）**：
+  `0.17.1+fl.20260822.g56acf36bacd1`（MLF 集成分支
+  ci/merge-105-106-107-114 头 `56acf36bacd1`，较旧 4-PR wheel 多
+  [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)；PR 全表见
+  cambricon 文档）。已上传 flagos-pypi-hosted（cp310 x86_64 / cp311 aarch64 /
+  cp312 x86_64），确认含顶层入口 `pretrain_gpt.py` 与 `helpers_cpp` .so——
+  verify-driver Step 6（`python -m pretrain_gpt`）所需。cambricon 已用该
+  wheel 双后端验证 ✅；nvidia/ascend/metax 文档仍引用旧 wheel，待各自复验。
 - **merged wheel 参数接口重构 = 使用方法变更（2026-08-18 定）**：
   hygon 验证用的全范围 wheel 无此问题，merged wheel 引入 config dataclass +
   `ArgumentGroupFactory` 自动生成参数，`--lr`（`SchedulerConfig`）与
