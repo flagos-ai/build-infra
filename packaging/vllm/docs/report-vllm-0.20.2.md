@@ -519,7 +519,7 @@ torch，pip 不激活 extras，无需处理。
 pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" \
   torch==2.8.0+metax3.7.2.0 torchaudio==2.4.1+metax3.7.2.0 \
   torchvision==0.15.1+metax3.7.2.0 flash_attn==2.6.3+metax3.7.2.0torch2.8 \
-  flagtree==3.1.0+metax3.7.2.0 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.4 \
+  flagtree==3.1.0+metax3.7.2.0 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.5 \
   pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.3 numpy==2.3.5
 ```
 
@@ -595,7 +595,7 @@ torchvision:  0.15.1+metax3.7.2.0   ✅
 flash_attn:   2.6.3+metax3.7.2.0    ✅
 flagtree:     3.1.0+metax3.7.2.0    ✅  默认编译器
 triton:       3.0.0+metax3.7.2.0    ✅
-flag_gems:    5.3.4                 ✅
+flag_gems:    5.3.5                 ✅
 vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
 vllm_fl:      installed             ✅  纯 Python + #333
 MACA device:  ✅ 可见                mx-smi (C550 8×64GB)
@@ -632,6 +632,11 @@ maca3.7.2.1-T 在 `vllm serve` 阶段崩溃，报 `EngineCore` 初始化失败�
 `POST /v1/completions` 返回 `200 OK` —— T 路径 E2E 通过。**但这是补丁验证，
 runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 
+**补验（2026-08-25）：** flag_gems **5.3.5** clean wheel（含 `1537bde93a8e`
+归一化）发布后重建 `flagos-runtime-metax-maca3.7.2.1:2.1.2`，verify-driver
+`--compiler triton` E2E 通过（serve ready + `200 OK` 真实 completion），不再
+依赖本地补丁。F/T 双路径均 ✅，本 bug 固化完成。
+
 ### 待办
 
 | 事项 | 状态 | 备注 |
@@ -642,7 +647,7 @@ runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 | repack.py empty 支持 + 递归审计 | ✅ | PR #244 #247 |
 | 更大模型 / graph / TP>1 | ⬜ | 仅测过 Qwen3-4B + eager |
 | FlagGems pyproject build-system.requires 加 `wheel==0.45.0` | ⬜ | |
-| flag_gems scalar 返回 bug 固化 | ⬜ | 上游 `1537bde93a8e` 已修；运行时仍 pin 5.3.4，需决定 bump 到含修复构建 vs 容器补丁 |
+| flag_gems scalar 返回 bug 固化 | ✅ 已固化 | flag_gems 5.3.5 clean wheel（含 `1537bde93a8e`）已发布并重建 runtime 镜像，verify-driver F/T 双路径 E2E 通过 |
 
 ## 2.3 mthreads-musa5.2.0（标准流程范例）
 
