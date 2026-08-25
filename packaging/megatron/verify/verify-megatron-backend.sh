@@ -188,15 +188,21 @@ COMPILER_GUARD=""
 # cambricon 5.973097E+00, ascend 1.084173E+01 in megatron-*-e2e.md), but a few
 # backends need local adjustments. Append a branch as each backend earns a
 # manual ✅. MASTER_PORT avoids a port collision with a concurrent cell on the
-# same node; PSUTIL_PREINSTALL fixes a runtime package gap before the
-# single-step install (nvidia-cuda13.3 runtime ships no psutil, and
-# megatron-core Requires-Dist it).
+# same node; PREINSTALL fixes a runtime package gap before the single-step
+# install — the repacked vendor torch drops torch transitives that
+# megatron-core Requires-Dist (psutil) or imports (filelock).
 MASTER_PORT="${MASTER_PORT:-29500}"
-PSUTIL_PREINSTALL=""
+PREINSTALL=""
+PREINSTALL_NOTE=""
 case "${VENDOR_BACKEND}" in
     cambricon-neuware4.4.3) MASTER_PORT=29500 ;;
     cambricon-neuware4.7.2) MASTER_PORT=29501 ;;
-    nvidia-cuda13.3) PSUTIL_PREINSTALL="pip install --index-url '${ALIYUN_PYPI}' psutil" ;;
+    nvidia-cuda13.3)
+        PREINSTALL="pip install --index-url '${ALIYUN_PYPI}' psutil"
+        PREINSTALL_NOTE="psutil (nvidia-cuda13.3 runtime ships none)" ;;
+    metax-maca3.7.2.1)
+        PREINSTALL="pip install --index-url '${ALIYUN_PYPI}' filelock"
+        PREINSTALL_NOTE="filelock (torch transitive stripped from metax repack)" ;;
 esac
 # NOTE (hygon flagtree): --disable-jit-fuser is INSUFFICIENT there — the jit
 # fuser binds torch.compile at import time, before args flip. A container-side
@@ -304,12 +310,12 @@ if [[ -n "${APP_IMAGE}" ]]; then
 else
     log_step "Step 3: Installing megatron-core==${MEGATRON_VERSION}"
 
-    # Per-backend gap fix: nvidia-cuda13.3 runtime ships no psutil, and
-    # megatron-core Requires-Dist it — preinstall from aliyun (public PyPI)
-    # before the vendor single-step install resolves it (megatron-nvidia-e2e.md).
-    if [[ -n "${PSUTIL_PREINSTALL}" ]]; then
-        log_info "Preinstalling psutil (${VENDOR_BACKEND} runtime gap)"
-        docker exec "${CONTAINER}" bash -c "${PSUTIL_PREINSTALL}"
+    # Per-backend gap fix: preinstall torch transitives dropped by the repacked
+    # vendor torch before the single-step install resolves them from aliyun
+    # (public PyPI), never the vendor index (megatron-nvidia-e2e.md).
+    if [[ -n "${PREINSTALL}" ]]; then
+        log_info "Preinstalling ${PREINSTALL_NOTE}"
+        docker exec "${CONTAINER}" bash -c "${PREINSTALL}"
     fi
 
     # PYTHONPATH=/opt/triton mirrors the runtime Containerfile DEPS install:
