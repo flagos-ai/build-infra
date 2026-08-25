@@ -175,8 +175,12 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # sourced in every shell (BASH_ENV → /etc/profile.d/zz-compiler.sh); `compiler
 # <name>` exports PYTHONPATH to the selected side dir and fails (rc 1) if that
 # compiler is absent. Empty = leave the runtime's default compiler active.
+# stdout is discarded: `compiler triton` prints a status line ("triton (active)
+# - 3.6.0"), and the guard is inlined into the snapshot() heredoc where that
+# line would otherwise be captured as a second "triton" package record and
+# make Step 4b's grep-based comparison report a false "Matrix corrupted".
 COMPILER_GUARD=""
-[[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} || exit 1"
+[[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} >/dev/null || exit 1"
 
 # Per-backend E2E overrides. The training recipe is canonical across backends
 # (mock-data pretrain_gpt, 5 iters, seed 42, fixed model size — the validation
@@ -247,7 +251,6 @@ print(vendor_config.get('toolkit', '') or vendor_config.get('raw', ''))
 docker run -d --name "${CONTAINER}" \
     ${RUN_FLAGS} \
     --shm-size=8g \
-    --network host \
     "${RUNTIME_IMAGE}" \
     sleep infinity
 
@@ -257,7 +260,6 @@ if [[ -n "${APP_IMAGE}" ]]; then
     docker run -d --name "${APP_CONTAINER}" \
         ${RUN_FLAGS} \
         --shm-size=8g \
-        --network host \
         "${APP_IMAGE}" \
         sleep infinity
     log_info "Container started: ${APP_CONTAINER} (${APP_IMAGE})"
