@@ -54,6 +54,8 @@
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 |
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 |
 | 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/355 |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 |
 | 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
 | 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
 | 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 |
@@ -79,7 +81,7 @@
 
 ### vllm0.20.2
 
-> 数据截止：2026-08-24
+> 数据截止：2026-08-25
 
 **App 级设施（全后端共享）**
 
@@ -97,7 +99,7 @@
 | CANN 8.5.0 | ✅ | ✅ | ✅ |
 | CANN 9.0.0 | ✅ | ✅ | ✅ |
 | NEUWARE 4.4.3 | ⬜ | ⬜ | ⬜ |
-| NEUWARE 4.7.2 | ✅ | ✅ | ⬜ |
+| NEUWARE 4.7.2 | ✅ | ✅ | ✅ |
 | TOPS 1.9.10 | ✅ | ✅ | ⬜ |
 | TOPS 1.10.6 | ✅ | ✅ | ⬜ |
 | DTK 26.04 | ⬜ | ⬜ | ⬜ |
