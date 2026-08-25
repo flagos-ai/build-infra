@@ -40,14 +40,12 @@ title: "megatron_training-cambricon-neuware4.4.3"
 
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1_15.g56acf36ba`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.4.3:2.1.2-0.2.1_15.g56acf36ba
 ```
 
 ### Without a toolkit — plain docker / podman
