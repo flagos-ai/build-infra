@@ -50,7 +50,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: verify-driver
+  group: verify-driver-${{ inputs.apps }}
   cancel-in-progress: false
 
 jobs:
@@ -174,13 +174,13 @@ jobs:
     needs: [plan, verify]
     if: ${{ always() && needs.plan.outputs.has_cells == 'true' }}
     runs-on: ubuntu-latest
-    # Serialize record jobs: concurrent verify-driver runs (cancel-in-progress:
-    # false) would otherwise both rebase onto origin/auto/verify-results and
-    # force-push, and the loser clobbers the winner's cell results. Queueing the
-    # second record until the first finishes keeps the branch accumulation
-    # correct without breaking the terminate self-trigger loop.
+    # Serialize record jobs within one app line: two runs of the same app (the
+    # terminate self-trigger loop) would otherwise both force-push the same
+    # per-component branch and clobber. Different app lines (vllm vs megatron)
+    # push different branches (auto/verify-results-<component>) and run in
+    # parallel.
     concurrency:
-      group: verify-driver-record
+      group: verify-driver-record-${{ inputs.apps }}
       cancel-in-progress: false
     outputs:
       remaining: ${{ steps.summarize.outputs.remaining }}
