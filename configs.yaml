@@ -498,6 +498,7 @@ vendors:
           MACA_PATH: /opt/maca
           LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
       deps:
+        - filelock==3.32.4
         - torch==2.8.0+metax3.7.2.0
         - torchaudio==2.4.1+metax3.7.2.0
         - torchvision==0.15.1+metax3.7.2.0
@@ -533,6 +534,7 @@ vendors:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
       deps:
         - apex==0.1+metax3.8.1.0
+        - filelock==3.32.4
         - torch==2.10.0+metax3.8.1.0
         - torchcodec==0.6.0+metax3.8.1.0
         - torchaudio==2.4.1+metax3.8.1.0
