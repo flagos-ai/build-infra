@@ -17,7 +17,7 @@ run-name: verify-driver · ${{ inputs.apps || 'all-apps' }} · ${{ inputs.backen
 
 # Verify orchestrator driver. One trigger advances every pending (⬜) cell one
 # round: plan -> verify (matrix, parallel) -> build (passed) + record (PR) ->
-# terminate (re-trigger while ⬜ remain and progress was made). See
+# terminate (report remaining ⬜; NO automatic re-trigger). See
 # docs/verify-orchestrator.md §4.1.
 #
 # Each cell is verified at its app's *primary* scenario (inference for vllm,
@@ -30,8 +30,11 @@ run-name: verify-driver · ${{ inputs.apps || 'all-apps' }} · ${{ inputs.backen
 # marked ⛔ (upstream-blocked: MLF #116 + flash-attn wheel), so the collector
 # emits none of them.
 #
-# Self-triggers via workflow_dispatch only; the terminate job re-dispatches the
-# same scope while pending cells remain and the round made progress.
+# Triggered via workflow_dispatch only. Each run does exactly one round and then
+# terminates; re-running without a change is pointless (results land on the
+# auto/verify-results-* branch + draft PR, which never mutates main's ⬜ cells),
+# so the driver no longer self-triggers. A fresh round is dispatched manually, or
+# by the debug-loop after a fix lands on main.
 
 on:
   workflow_dispatch:
@@ -264,7 +267,7 @@ jobs:
           python-version: '3.11'
       - name: Install deps
         run: pip install pyyaml
-      - name: Decide re-trigger
+      - name: Report remaining
         id: decide
         env:
           APPS_INPUT: ${{ github.event.inputs.apps }}
@@ -279,17 +282,8 @@ jobs:
           for b in $BACKENDS_INPUT; do args+=(--backend "$b"); done
           left=$(python3 scripts/verify_collect_cells.py "${args[@]}" --json | python3 -c "import sys,json; print(len(json.load(sys.stdin)['include']))")
           echo "left=$left" >> "$GITHUB_OUTPUT"
-          echo "terminate: left=$left progress=${{ needs.record.outputs.progress }}"
-      - name: Re-trigger
-        if: ${{ steps.decide.outputs.left != '0' && needs.record.outputs.progress != '0' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          APPS_INPUT: ${{ github.event.inputs.apps }}
-          BACKENDS_INPUT: ${{ github.event.inputs.backends }}
-        run: |
-          set -euo pipefail
-          args=(workflow run verify-driver.yml)
-          if [ -n "$APPS_INPUT" ]; then args+=(-f "apps=$APPS_INPUT"); fi
-          if [ -n "$BACKENDS_INPUT" ]; then args+=(-f "backends=$BACKENDS_INPUT"); fi
-          gh "${args[@]}"
-          echo "re-triggered verify-driver.yml"
+          # No automatic re-trigger: cells only resolve when their results land on
+          # main (via a merged fix PR) — re-dispatching the same scope with no
+          # change in between is a no-op loop. A fresh round is dispatched
+          # manually or by the debug-loop after a fix merges.
+          echo "terminate: left=$left remaining ⬜ (manual re-dispatch required for another round)"

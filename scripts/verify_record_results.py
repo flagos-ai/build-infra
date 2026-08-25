@@ -108,9 +108,10 @@ def upsert_queue(cards: list[dict]) -> None:
 
 
 def remaining_pending() -> int:
-    """Count compiler cells still ⬜ across all app matrices (for the
-    terminate job). Mirrors collect(): every pending F and T column counts, so
-    the driver keeps re-triggering until both compiler paths resolve."""
+    """Count compiler cells still ⬜ across all app matrices. Reported by the
+    terminate job as the round's tail; the driver does NOT re-trigger on it —
+    a cell only resolves when its result lands on main (via a merged fix PR), so
+    a further round is dispatched manually or by the debug-loop after a fix."""
     n = 0
     for app, rel in MATRICES.items():
         matrix = yaml.safe_load((REPO_ROOT / rel).read_text()) or {}
