@@ -14,13 +14,14 @@
 
 name: FlagGems Release Wheels
 
-# RELEASE.md step 5:
-#   5a — Build the pure-Python flag_gems wheel → push to every vendor PyPI.
-#   5b — Build cpp operator wheels inside runtime:v1 (local, from step 4).
-#   5c — Write flaggems: into configs.yaml, commit, open a PR.
+# This workflow:
 #
-# Prerequisites: step 4 must have completed — runtime:v1 images (built with
-# --no-flaggems) must be present on each vendor's self-hosted runner.
+# — build the pure-Python flag_gems wheel → push to every vendor PyPI.
+# — Build cpp operator wheels inside runtime:v1 (local, from step 4).
+# — Write flaggems: into configs.yaml, commit, open a PR.
+#
+# Prerequisites: runtime:v1 images (built with --no-flaggems)
+# must be present on each vendor's self-hosted runner.
 
 on:
   workflow_dispatch:
@@ -30,7 +31,7 @@ on:
         type: string
         required: true
       skip_cpp:
-        description: 'skip cpp operator wheel build + upload (step 5b)'
+        description: 'skip cpp operator wheel build + upload'
         type: boolean
         default: false
 
@@ -45,21 +46,16 @@ defaults:
 jobs:
   authorize:
     # Only accounts listed in .github/builders.txt may trigger this workflow
-    # manually; see .github/actions/check-trigger-author for the check.
-    # actions/checkout is required: local composite actions are resolved from
-    # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/check-trigger-author
 
-  # ── 5a: pure-Python wheel, all vendor PyPIs ──────────────────────────────
+  # ── pure-Python wheel, all vendor PyPIs ──────────────────────────────
   python-wheel:
     needs: authorize
-    # Self-hosted runner for fast upload — pushing a 5.4 MB wheel to 14
-    # vendor Nexus repositories over the public internet (GitHub runner) has
-    # been observed at ~60 kB/s. An internal self-hosted runner saturates
-    # the link in seconds. The build itself is pure Python and runs anywhere.
+    # Self-hosted runner for fast upload.
+    # The build itself is pure Python and runs anywhere.
     runs-on: [self-hosted, h20]
     env:
       FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
@@ -82,7 +78,7 @@ jobs:
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-python "$wheel"
 
-  # ── 5b: cpp operator wheels, inside runtime:v1 ───────────────────────────
+  # ── cpp operator wheels, inside runtime:v1 ───────────────────────────
   cpp-matrix:
     needs: python-wheel
     if: ${{ !inputs.skip_cpp }}
@@ -145,7 +141,7 @@ jobs:
           wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
 
-  # ── 5c: update configs.yaml ──────────────────────────────────────────────
+  # ── update configs.yaml ──────────────────────────────────────────────
   update-config:
     needs: [python-wheel, cpp-wheels]
     if: always() && needs.python-wheel.result == 'success' && needs.cpp-wheels.result == 'success'
