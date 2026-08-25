@@ -649,6 +649,27 @@ runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 | FlagGems pyproject build-system.requires 加 `wheel==0.45.0` | ⬜ | |
 | flag_gems scalar 返回 bug 固化 | ✅ 已固化 | flag_gems 5.3.5 clean wheel（含 `1537bde93a8e`）已发布并重建 runtime 镜像，verify-driver F/T 双路径 E2E 通过 |
 
+### MetaX maca3.8.1.3（2026-08-25 复验）
+
+maca3.8.1.3 是 MetaX 较新后端（driver 3.9.6 / MACA SDK 3.8.1.3，C550），
+与 maca3.7.2.1 共用 §2.2 的 empty 流程与 plugin-FL #333，无需额外补丁。
+堆栈版本不同，且 **triton 3.6.0 不受 scalar 返回 bug 影响**（该 bug 仅
+triton 3.0.0 触发）：
+
+```
+torch:        2.10.0+metax3.8.1.0    ✅
+torchvision:  0.25.0+metax3.8.1.0    ✅
+flash_attn:   2.6.3+metax3.8.1.0torch2.10  ✅
+flagtree:     0.6.1+metax3.6         ✅  F 路径（默认）
+triton:       3.6.0+metax3.8.1.0     ✅  T 路径
+flag_gems:    5.3.5                  ✅
+```
+
+**验证（2026-08-25）：** `flagos-runtime-metax-maca3.8.1.3:2.1.2`（flag_gems
+5.3.5 重建后）verify-driver `--compiler flagtree` 与 `--compiler triton`
+双路径 E2E 均通过（serve ready + `200 OK` 真实 completion）。image_tag
+`2.1.2-0.2.1_g3bc66eb.d20260825`。
+
 ## 2.3 mthreads-musa5.2.0（标准流程范例）
 
 **日期:** 2026-08-01/02　**平台:** MTT S5000 (8×, 80GB)
