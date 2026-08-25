@@ -1,1 +1,44 @@
-[]
+- app: megatron_training
+  backend: iluvatar-corex4.4.0
+  compiler: F
+  scenario: training
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.1.2
+  verify_script: packaging/megatron/verify/verify-megatron-backend.sh
+  verify_args: --scenario training
+  failure:
+    step: '[STEP] Step 5: Import check (megatron.core + helpers_cpp)'
+    exit_code: 1
+    error_head: "  File \"/flagos/lib/python3.12/site-packages/megatron/core/transformer/transformer_config.py\"\
+      , line 19, in <module>\n    from ..fusions.fused_bias_geglu import quick_gelu\n\
+      \  File \"/flagos/lib/python3.12/site-packages/megatron/core/fusions/fused_bias_geglu.py\"\
+      , line 16, in <module>\n    @jit_fuser\n     ^^^^^^^^^\n  File \"/flagos/lib/python3.12/site-packages/torch/__init__.py\"\
+      , line 2579, in compile\n    return torch._dynamo.optimize(\n           ^^^^^^^^^^^^^^^^^^^^^^^\n\
+      \  File \"/flagos/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py\"\
+      , line 944, in optimize\n    return _optimize(rebuild_ctx, *args, **kwargs)\n\
+      \           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/flagos/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py\"\
+      , line 998, in _optimize\n    backend = get_compiler_fn(backend)\n         \
+      \     ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/flagos/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py\"\
+      , line 878, in get_compiler_fn\n    from .repro.after_dynamo import wrap_backend_debug\n\
+      \  File \"/flagos/lib/python3.12/site-packages/torch/_dynamo/repro/after_dynamo.py\"\
+      , line 35, in <module>\n    from torch._dynamo.debug_utils import (\n  File\
+      \ \"/flagos/lib/python3.12/site-packages/torch/_dynamo/debug_utils.py\", line\
+      \ 44, in <module>\n    from torch._dynamo.testing import rand_strided"
+    error_tail: "  File \"/flagos/lib/python3.12/site-packages/torch/_dynamo/testing.py\"\
+      , line 33, in <module>\n    from torch._dynamo.backends.debugging import aot_eager\n\
+      \  File \"/flagos/lib/python3.12/site-packages/torch/_dynamo/backends/debugging.py\"\
+      , line 35, in <module>\n    from functorch.compile import min_cut_rematerialization_partition\n\
+      \  File \"/flagos/lib/python3.12/site-packages/functorch/compile/__init__.py\"\
+      , line 2, in <module>\n    from torch._functorch.aot_autograd import (\n  File\
+      \ \"/flagos/lib/python3.12/site-packages/torch/_functorch/aot_autograd.py\"\
+      , line 38, in <module>\n    from ._aot_autograd.autograd_cache import (  # noqa:\
+      \ F401\n  File \"/flagos/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/autograd_cache.py\"\
+      , line 23, in <module>\n    from torch._inductor.codecache import (\n  File\
+      \ \"/flagos/lib/python3.12/site-packages/torch/_inductor/codecache.py\", line\
+      \ 103, in <module>\n    from .triton_bundler import TritonBundler\n  File \"\
+      /flagos/lib/python3.12/site-packages/torch/_inductor/triton_bundler.py\", line\
+      \ 11, in <module>\n    from torch.utils._filelock import FileLock\n  File \"\
+      /flagos/lib/python3.12/site-packages/torch/utils/_filelock.py\", line 5, in\
+      \ <module>\n    from filelock import FileLock as base_FileLock\nModuleNotFoundError:\
+      \ No module named 'filelock'\n\n\e[0;32m[INFO]\e[0m Cleaning up containers...\n\
+      megatron-verify-iluvatar-corex4.4.0"
+    log_path: /tmp/verify.log
