@@ -53,7 +53,7 @@ RUN curl -fsSL -O ${FILE_STORE}/topsruntime_1.10.6-1_amd64.deb \
       -O ${FILE_STORE}/topsaten_3.8.20260710-1_amd64.deb \
       -O ${FILE_STORE}/eccl_3.6.3.11-1_amd64.deb \
       -O ${FILE_STORE}/eccl-tests_3.6.3.11-1_amd64.deb \
-      -O ${FILE_STORE}/triton-gcu_3.6.0+1.0.20260722.cc.1.10.6-1_amd64.deb \
+      -O ${FILE_STORE}/triton-gcu_3.6.0+1.0.20260821.cc.1.10.6-1_amd64.deb \
     && dpkg -i *.deb || true \
     && apt-get install -yf 2>/dev/null || true \
     && rm -f *.deb

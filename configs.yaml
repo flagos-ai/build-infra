@@ -379,7 +379,7 @@ vendors:
         - EFML 1.10.6             # efml_1.10.6-1_amd64.deb
         - ECCL 3.6.3.11           # eccl_3.6.3.11-1_amd64.deb
         - ECCL Tests 3.6.3.11     # eccl-tests_3.6.3.11-1_amd64.deb
-        - Triton GCU 3.6.0+1.0.20260722.cc.1.10.6  # triton-gcu_3.6.0+1.0.20260722.cc.1.10.6-1_amd64.deb
+        - Triton GCU 3.6.0+1.0.20260821.cc.1.10.6  # triton-gcu_3.6.0+1.0.20260821.cc.1.10.6-1_amd64.deb
         - Gculare-perftest 1.10.6 # gculare-perftest_1.10.6-1_amd64.deb
 
   hygon:
