@@ -401,7 +401,7 @@ docker exec "${AFTER_CONTAINER}" bash -c '
     WORLD_SIZE=1 \
     TORCHINDUCTOR_COMPILE_THREADS=1 \
         python3 -m pretrain_gpt \
-            --mock-data --train-iters 5 --lr 1e-6 --eval-interval 1000 --seed 42 \
+            --mock-data --train-iters 5 --micro-batch-size 1 --lr 1e-6 --eval-interval 1000 --seed 42 \
             --transformer-impl local --attention-backend unfused --bf16 \
             --no-masked-softmax-fusion --disable-jit-fuser --no-persist-layer-norm \
             --no-gradient-accumulation-fusion --untie-embeddings-and-output-weights
