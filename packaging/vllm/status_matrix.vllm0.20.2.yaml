@@ -29,7 +29,7 @@ scenarios:
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "⬜", F: "—"}
-      cambricon-neuware4.7.2: {T: "✅", F: "—"}
+      cambricon-neuware4.7.2: {T: "⬜", F: "—"}
       enflame-tops1.9.10:    {T: "✅", F: "❌"}
       enflame-tops1.10.6:    {T: "✅", F: "❌"}
       hygon-dtk26.04:        {T: "—", F: "✅"}
