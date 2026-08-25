@@ -1,1 +1,101 @@
-[]
+- app: vllm0.20.2
+  backend: cambricon-neuware4.7.2
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2
+  verify_script: packaging/vllm/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.20.2 --plugin-fl-version 0.2.1+g8d2bf5e.d20260825
+  failure:
+    step: '[STEP] Step 6: Testing vllm serve (real completion required)'
+    exit_code: 1
+    error_head: '(EngineCore pid=808) UserWarning: Enable tracemalloc to get the object
+      allocation traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead
+
+      (EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None, :] <
+      N
+
+      (EngineCore pid=808) UserWarning: Enable tracemalloc to get the object allocation
+      traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead
+
+      (EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None, :] <
+      N
+
+      (EngineCore pid=808) UserWarning: Enable tracemalloc to get the object allocation
+      traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead
+
+      (EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None, :] <
+      N
+
+      (EngineCore pid=808) UserWarning: Enable tracemalloc to get the object allocation
+      traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead
+
+      (EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None, :] <
+      N
+
+      (EngineCore pid=808) UserWarning: Enable tracemalloc to get the object allocation
+      traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead
+
+      (EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None, :] <
+      N
+
+      (EngineCore pid=808) UserWarning: Enable tracemalloc to get the object allocation
+      traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead
+
+      (EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None, :] <
+      N
+
+      (EngineCore pid=808) UserWarning: Enable tracemalloc to get the object allocation
+      traceback
+
+      (EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:
+      UserWarning: Logical operators ''and'' and ''or'' are deprecated for non-scalar
+      tensors; please use ''&'' or ''|'' instead'
+    error_tail: "(EngineCore pid=808)   mask = m_offset[:, None] < M and n_offset[None,\
+      \ :] < N\n(EngineCore pid=808) UserWarning: Enable tracemalloc to get the object\
+      \ allocation traceback\n(EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:\
+      \ UserWarning: Logical operators 'and' and 'or' are deprecated for non-scalar\
+      \ tensors; please use '&' or '|' instead\n(EngineCore pid=808)   mask = m_offset[:,\
+      \ None] < M and n_offset[None, :] < N\n(EngineCore pid=808) UserWarning: Enable\
+      \ tracemalloc to get the object allocation traceback\n(EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:\
+      \ UserWarning: Logical operators 'and' and 'or' are deprecated for non-scalar\
+      \ tensors; please use '&' or '|' instead\n(EngineCore pid=808)   mask = m_offset[:,\
+      \ None] < M and n_offset[None, :] < N\n(EngineCore pid=808) UserWarning: Enable\
+      \ tracemalloc to get the object allocation traceback\n(EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/runtime/backend/_cambricon/ops/argmax.py:139:\
+      \ UserWarning: Logical operators 'and' and 'or' are deprecated for non-scalar\
+      \ tensors; please use '&' or '|' instead\n(EngineCore pid=808)   mask = m_offset[:,\
+      \ None] < M and n_offset[None, :] < N\n(EngineCore pid=808) UserWarning: Enable\
+      \ tracemalloc to get the object allocation traceback\n(EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n(EngineCore pid=808)   resolved_benchmark =\
+      \ resolve_benchmarker(\n(EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n(EngineCore pid=808)   resolved_benchmark =\
+      \ resolve_benchmarker(\n(EngineCore pid=808) /flagos/lib/python3.12/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n(EngineCore pid=808)   resolved_benchmark =\
+      \ resolve_benchmarker(\n\n\e[0;32m[INFO]\e[0m Cleaning up containers...\nvllm-verify-cambricon-neuware4.7.2"
+    log_path: /tmp/verify.log
