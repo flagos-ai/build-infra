@@ -392,7 +392,12 @@ log_step "Step 6: E2E training (mock-data pretrain_gpt, 5 iters)"
 # / hidden_size / num_attention_heads / max_position_embeddings / seq_length),
 # and validate_args (arguments.py) asserts they are set — so they MUST be
 # passed or pretrain_gpt aborts before the first step ("either num-layers or
-# encoder-num-layers should be specified"). `python -m pretrain_gpt` is the
+# encoder-num-layers should be specified"). `--tokenizer-type NullTokenizer
+# --vocab-size 50257` forces the synthetic no-download tokenizer: the gpt2
+# default (GPT2BPETokenizer) downloads gpt2-vocab.json from S3 via the `wget`
+# library, which vendor runtime images lack → `ModuleNotFoundError: wget
+# library should be isntalled.` (cambricon app-image runs 32807773771/580).
+# `python -m pretrain_gpt` is the
 # full-scope wheel's top-level entry (no torchrun); env:// rendezvous needs
 # explicit MASTER_ADDR/MASTER_PORT/RANK/WORLD_SIZE.
 # TORCHINDUCTOR_COMPILE_THREADS=1 forces inline compile (no fork) — the
@@ -410,6 +415,7 @@ docker exec "${AFTER_CONTAINER}" bash -c '
             --num-layers 2 --hidden-size 256 --num-attention-heads 4 \
             --max-position-embeddings 1024 --seq-length 1024 \
             --mock-data --train-iters 5 --micro-batch-size 1 --lr 1e-6 --eval-interval 1000 --seed 42 \
+            --tokenizer-type NullTokenizer --vocab-size 50257 \
             --transformer-impl local --attention-backend unfused --bf16 \
             --no-masked-softmax-fusion --disable-jit-fuser --no-persist-layer-norm \
             --no-gradient-accumulation-fusion --untie-embeddings-and-output-weights
