@@ -519,7 +519,7 @@ torch，pip 不激活 extras，无需处理。
 pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" \
   torch==2.8.0+metax3.7.2.0 torchaudio==2.4.1+metax3.7.2.0 \
   torchvision==0.15.1+metax3.7.2.0 flash_attn==2.6.3+metax3.7.2.0torch2.8 \
-  flagtree==3.1.0+metax3.7.2.0 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.2 \
+  flagtree==3.1.0+metax3.7.2.0 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.4 \
   pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.3 numpy==2.3.5
 ```
 
@@ -595,13 +595,42 @@ torchvision:  0.15.1+metax3.7.2.0   ✅
 flash_attn:   2.6.3+metax3.7.2.0    ✅
 flagtree:     3.1.0+metax3.7.2.0    ✅  默认编译器
 triton:       3.0.0+metax3.7.2.0    ✅
-flag_gems:    5.3.2                 ✅
+flag_gems:    5.3.4                 ✅
 vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
 vllm_fl:      installed             ✅  纯 Python + #333
 MACA device:  ✅ 可见                mx-smi (C550 8×64GB)
 vllm serve:   ✅ 启动成功            TP=1, enforce-eager, gpu-util 0.6
 Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16
 ```
+
+### Triton 路径（T）复验：flag_gems scalar 返回 bug（2026-08-25）
+
+**运行时镜像:** `flagos-runtime-metax-maca3.7.2.1:2.1.2`（flag_gems 5.3.4）。
+maca3.7.2.1-T 在 `vllm serve` 阶段崩溃，报 `EngineCore` 初始化失败（v1 引擎
+吞掉真实子进程 traceback）。根因在 flag_gems `LibTuner` 与 triton 3.0.0
+的基准接口不匹配，两层：
+
+1. triton 3.0.0 的 `Autotuner._bench` 在 `use_cuda_graph=True` 时走
+   `do_bench_cudagraph(..., return_mode="median")`，返回**标量** median，
+   而非标准的 `(p50, p20, p80)` 三元组。
+2. flag_gems `LibTuner` 默认 `benchmark_mode=REPLAY`，triton 3.0.x 分支跳过
+   `resolve_benchmarker`，`super().__init__` 拿到 `use_cuda_graph=True`；
+   其 `bench` 闭包 `for value in ret` 迭代标量 → `TypeError: 'float' object
+   is not iterable`（libentry.py:997）。
+3. 即使把标量包成单元素 list，flagtune BenchmarkCache v2 按 3 分位数存取
+   （sql.py `p50, p20, p80 = benchmark`）→ `ValueError: not enough values to
+   unpack (expected 3, got 1)`。
+
+**修复（上游 FlagGems `1537bde93a8e` / PR #5375）：** 在 `bench` 闭包把标量
+归一化为 `(ret, ret, ret)`，`benchmark_with_requested_quantiles` 同步归一化
+（`isinstance(ret, (int, float))`）。该修复**不在**任何 ≤ v5.3.4 的 tag，
+已进入每日构建 `5.3.5.dev20260825`（下载 wheel 确认含归一化代码）。
+
+**验证（2026-08-25）：** 本地补丁 triton 3.0.x legacy 分支
+`use_cuda_graph=False`（等效于上游归一化，让 `_bench` 走 `do_bench` 返回
+三元组）后，`vllm serve` 稳定到 `serve_ready`（~145s），真实
+`POST /v1/completions` 返回 `200 OK` —— T 路径 E2E 通过。**但这是补丁验证，
+runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 
 ### 待办
 
@@ -613,6 +642,7 @@ Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16
 | repack.py empty 支持 + 递归审计 | ✅ | PR #244 #247 |
 | 更大模型 / graph / TP>1 | ⬜ | 仅测过 Qwen3-4B + eager |
 | FlagGems pyproject build-system.requires 加 `wheel==0.45.0` | ⬜ | |
+| flag_gems scalar 返回 bug 固化 | ⬜ | 上游 `1537bde93a8e` 已修；运行时仍 pin 5.3.4，需决定 bump 到含修复构建 vs 容器补丁 |
 
 ## 2.3 mthreads-musa5.2.0（标准流程范例）
 
