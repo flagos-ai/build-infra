@@ -106,13 +106,17 @@ jobs:
           CELL_IMAGE: ${{ matrix.image }}
           CELL_SCRIPT: ${{ matrix.verify_script }}
           CELL_ARGS: ${{ matrix.verify_args }}
+          RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set +e
           mkdir -p /tmp/verify-result
           bash "$CELL_SCRIPT" "$CELL_BACKEND" $CELL_ARGS --compiler "$CELL_COMPILER_PATH" > /tmp/verify.log 2>&1
           rc=$?
-          RESULT="/tmp/verify-result/result-$CELL_APP-$CELL_BACKEND-$CELL_COMPILER.json"
+          # run_id suffix keeps the result filename unique per run: self-hosted
+          # runners keep /tmp/verify-result between jobs, and the old deterministic
+          # name let a stale prior-run result be globbed into this run's artifact.
+          RESULT="/tmp/verify-result/result-$CELL_APP-$CELL_BACKEND-$CELL_COMPILER-$RUN_ID.json"
           python3 - "$rc" "$RESULT" <<'PY'
           import json, os, sys
           rc = int(sys.argv[1])
@@ -161,7 +165,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-${{ matrix.backend }}-${{ matrix.compiler }}
-          path: /tmp/verify-result/*.json
+          # Scoped to this run's exact file — never glob *.json, or a stale
+          # prior-run result on a shared self-hosted runner gets re-uploaded.
+          path: /tmp/verify-result/result-${{ matrix.app }}-${{ matrix.backend }}-${{ matrix.compiler }}-${{ github.run_id }}.json
           if-no-files-found: ignore
 
   record:
