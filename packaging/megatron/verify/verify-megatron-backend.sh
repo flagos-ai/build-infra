@@ -179,8 +179,9 @@ COMPILER_GUARD=""
 [[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} || exit 1"
 
 # Per-backend E2E overrides. The training recipe is canonical across backends
-# (mock-data pretrain_gpt, 5 iters, seed 42 — proven byte-identical validation
-# loss 8.360331E+00 in packaging/megatron/docs/megatron-*-e2e.md), but a few
+# (mock-data pretrain_gpt, 5 iters, seed 42, fixed model size — the validation
+# loss is per-platform and NOT cross-backend byte-identical: nvidia 8.360331E+00,
+# cambricon 5.973097E+00, ascend 1.084173E+01 in megatron-*-e2e.md), but a few
 # backends need local adjustments. Append a branch as each backend earns a
 # manual ✅. MASTER_PORT avoids a port collision with a concurrent cell on the
 # same node; PSUTIL_PREINSTALL fixes a runtime package gap before the
@@ -385,10 +386,15 @@ PY
 
 log_step "Step 6: E2E training (mock-data pretrain_gpt, 5 iters)"
 
-# Canonical recipe (megatron-*-e2e.md §2 baseline, proven byte-identical
-# validation loss 8.360331E+00 across backends, seed 42). `python -m
-# pretrain_gpt` is the full-scope wheel's top-level entry (no torchrun);
-# env:// rendezvous needs explicit MASTER_ADDR/MASTER_PORT/RANK/WORLD_SIZE.
+# Canonical recipe (megatron-*-e2e.md §2 baseline, fixed model size, seed 42).
+# The merged wheel's dataclass-driven argparse defaults model-size fields to
+# None (transformer_config.py `argparse_meta: {"default": None}` on num_layers
+# / hidden_size / num_attention_heads / max_position_embeddings / seq_length),
+# and validate_args (arguments.py) asserts they are set — so they MUST be
+# passed or pretrain_gpt aborts before the first step ("either num-layers or
+# encoder-num-layers should be specified"). `python -m pretrain_gpt` is the
+# full-scope wheel's top-level entry (no torchrun); env:// rendezvous needs
+# explicit MASTER_ADDR/MASTER_PORT/RANK/WORLD_SIZE.
 # TORCHINDUCTOR_COMPILE_THREADS=1 forces inline compile (no fork) — the
 # flagtree inductor fork-crash workaround; inert for triton. exit 0 required:
 # any crash → script exits non-zero → cell ❌ + debug queue (record path).
@@ -401,6 +407,8 @@ docker exec "${AFTER_CONTAINER}" bash -c '
     WORLD_SIZE=1 \
     TORCHINDUCTOR_COMPILE_THREADS=1 \
         python3 -m pretrain_gpt \
+            --num-layers 2 --hidden-size 256 --num-attention-heads 4 \
+            --max-position-embeddings 1024 --seq-length 1024 \
             --mock-data --train-iters 5 --micro-batch-size 1 --lr 1e-6 --eval-interval 1000 --seed 42 \
             --transformer-impl local --attention-backend unfused --bf16 \
             --no-masked-softmax-fusion --disable-jit-fuser --no-persist-layer-norm \
