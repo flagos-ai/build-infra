@@ -103,6 +103,13 @@ def main() -> None:
 
     comps = sorted({component_of(p) for p in changed})
     branch = "auto/verify-results-" + "-".join(comps)
+    # Per-backend granularity: when the driver runs a single backend (the
+    # per-backend dispatch mode), suffix the record branch + PR title with that
+    # backend so concurrent single-backend runs push distinct branches and open
+    # distinct PRs instead of clobbering one shared branch.
+    backends = (os.environ.get("VERIFY_BACKENDS") or "").split()
+    if backends:
+        branch += "-" + "-".join(backends)
     for comp in comps:
         _run_py(REPO_ROOT / "scripts" / "render_status_matrix.py", "--component", comp)
 
@@ -115,7 +122,8 @@ def main() -> None:
         return
 
     n = len(changed)
-    commit_msg = f"chore(verify): record {n} cell result(s) from verify-driver"
+    scope = f" for {' '.join(backends)}" if backends else ""
+    commit_msg = f"chore(verify): record {n} cell result(s) from verify-driver{scope}"
     for k, v in GIT_IDENTITY.items():
         os.environ.setdefault(k, v)
     _git("config", "user.name", "flagos-ci", check=False)
