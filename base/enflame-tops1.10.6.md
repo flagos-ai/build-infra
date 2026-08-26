@@ -42,7 +42,7 @@ Explicitly installed; the version is the one baked into this image:
 - EFML 1.10.6
 - ECCL 3.6.3.11
 - ECCL Tests 3.6.3.11
-- Triton GCU 3.6.0+1.0.20260722.cc.1.10.6
+- Triton GCU 3.6.0+1.0.20260821.cc.1.10.6
 - Gculare-perftest 1.10.6
 
 ## Launch
@@ -74,4 +74,4 @@ Inside the container, confirm the accelerator is visible:
 efsmi
 ```
 
-*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
+*Last updated: 2026-08-25 22:46:22 · `29d9b1e4e7c2`*
