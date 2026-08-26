@@ -71,8 +71,9 @@ backends:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/361
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/402
   cambricon-neuware4.4.3:
-    deps_app: false
-    launch_docs: false
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_gef78dec.d20260826"
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true

@@ -1,5 +1,5 @@
 ---
-title: "vllm0.20.2-cambricon-neuware4.7.2"
+title: "vllm0.20.2-cambricon-neuware4.4.3"
 ---
 
 <!--
@@ -22,33 +22,33 @@ title: "vllm0.20.2-cambricon-neuware4.7.2"
 
 - **Architecture:** x86_64
 - **Chip models:** Cambricon MLU590
-- **Host driver:** 6.5.48
+- **Host driver:** 6.2.15
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:2.1.2</code> <a href="../../runtime/cambricon-neuware4.4.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
-3.12
+3.10
 
 ### Application package
 
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g8d2bf5e.d20260825`
+`vllm-plugin-fl==0.2.1+gef78dec.d20260826`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_g8d2bf5e.d20260825`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gef78dec.d20260826`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_g8d2bf5e.d20260825
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gef78dec.d20260826
 ```
 
 ### Without a toolkit — plain docker / podman

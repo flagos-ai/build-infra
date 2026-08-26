@@ -1,5 +1,5 @@
 ---
-title: "vllm0.20.2-cambricon-neuware4.7.2"
+title: "vllm0.20.2-cambricon-neuware4.4.3"
 ---
 
 <!--
@@ -18,42 +18,42 @@ title: "vllm0.20.2-cambricon-neuware4.7.2"
  limitations under the License.
 -->
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** Cambricon MLU590
-- **Host driver:** 6.5.48
+- **架构:** x86_64
+- **芯片型号:** Cambricon MLU590
+- **宿主机驱动:** 6.2.15
 
-## Image contents
+## 镜像内容
 
-### Built on
+### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:2.1.2</code> <a href="../../runtime/cambricon-neuware4.4.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
-3.12
+3.10
 
-### Application package
+### 应用软件包
 
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g8d2bf5e.d20260825`
+`vllm-plugin-fl==0.2.1+gef78dec.d20260826`
 
-## Launch
+## 启动
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_g8d2bf5e.d20260825`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gef78dec.d20260826`
 
-The image name is long — assign it to a variable first:
+镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_g8d2bf5e.d20260825
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gef78dec.d20260826
 ```
 
-### Without a toolkit — plain docker / podman
+### 无需工具包——直接使用 docker / podman
 
-Start an interactive shell:
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
@@ -62,7 +62,7 @@ docker run --rm -it \
   $IMG bash
 ```
 
-Start the app with its default settings:
+以默认设置启动应用：
 
 ```bash
 docker run --rm -it \
@@ -71,7 +71,7 @@ docker run --rm -it \
   $IMG
 ```
 
-Pass arguments to the launcher:
+向启动器传参：
 
 ```bash
 docker run --rm -it \
