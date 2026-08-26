@@ -1,5 +1,11 @@
 # vllm-repack — 端到端验证报告
 
+> **原则：上游 PR 不自 merge，review 期间用 PR head 推进制品。**
+> 提给上游仓库的 PR 由各自维护团队合并。
+> 为保证 review 期间不阻塞，用 PR head 构建 wheel → 验证 → 打镜像（版本指向
+> PR head commit）；PR 合并后重走一遍流程产出定稿制品。中间 PR-head 制品只用于
+> 推进验证，不作为发布件。
+
 ## 0. 背景
 
 vLLM 原生 wheel 包中包含对 Torch、Triton 等关键软件包的声明式依赖。

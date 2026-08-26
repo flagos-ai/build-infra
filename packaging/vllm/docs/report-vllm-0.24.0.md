@@ -1,5 +1,11 @@
 # vllm 0.24.0 repack 端到端验证报告
 
+> **原则：上游 PR 不自 merge，review 期间用 PR head 推进制品。**
+> 提给上游仓库的 PR 由各自维护团队合并。
+> 为保证 review 期间不阻塞，用 PR head 构建 wheel → 验证 → 打镜像（版本指向
+> PR head commit）；PR 合并后重走一遍流程产出定稿制品。中间 PR-head 制品只用于
+> 推进验证，不作为发布件。
+
 > 我们把 vllm 0.24.0 重新打包成"不显式声明对 Torch/Triton 的依赖”的 Wheel 包。
 > Wheel 包使用上游社区的 0.24.0 sdist 版本，使用 VLLM_TARGET_DEVICES=empty 模式编译。
 > 这类 Wheel 包在安装的时候不会覆盖下层（Runtime）镜像中已经精心匹配、验证的版本矩阵。
