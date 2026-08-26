@@ -442,10 +442,12 @@ else
             > /tmp/vllm-serve.log 2>&1 &
 
         SERVE_PID=\$!
-        # Poll the log for readiness (up to 300s) — a fixed 60s sleep was too short.
+        # Poll the log for readiness (up to 900s) — first-compile warmup on a
+        # shared node runs ~260s cold and can exceed 300s under load (cambricon
+        # MLU590 Qwen3-4B warmup + kv-cache profile took 249.9s on a clean node).
         echo 'Waiting for serve to become ready...'
         ready=0
-        for i in \$(seq 1 60); do
+        for i in \$(seq 1 180); do
             if ! kill -0 \${SERVE_PID} 2>/dev/null; then
                 echo 'serve process exited during startup'
                 break
