@@ -28,7 +28,7 @@
 | 英伟达 | CUDA 13.3 | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 8.5.0 | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⬜ | — |
+| 寒武纪 | NEUWARE 4.4.3 | ⬜ | — | ⬜ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⬜ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ❌ | ⬜ | ⬜ |
 | 燧原 | TOPS 1.10.6 | ✅ | ❌ | ⬜ | ⬜ |
@@ -54,8 +54,7 @@
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 |
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 |
 | 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 |
-| 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/355 |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 |
 | 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
