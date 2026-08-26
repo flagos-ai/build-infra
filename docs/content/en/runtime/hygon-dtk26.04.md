@@ -38,7 +38,7 @@ title: "hygon-dtk26.04"
 ### Major Python packages
 
 - `apex==1.7.0+das.opt1.dtk2604.torch290`
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.1+hcu3.6`
 - `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
 - `numpy==1.26.4`

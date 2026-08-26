@@ -17,11 +17,13 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.1+ascend3.5`
 - `numpy==2.3.5`
 - `torch-npu==2.10.0`
 - `torch==2.10.0+cpu`
+- `torchaudio==2.10.0+cpu`
+- `torchvision==0.25.0+cpu`
 - `triton==3.5.0 (+ triton_ascend==3.2.1)` *(alternative)*
 
 ### Switch compiler

@@ -37,11 +37,13 @@ title: "ascend-cann8.5.0"
 
 ### Major Python packages
 
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.0+ascend3.2`
 - `numpy==2.3.5`
 - `torch-npu==2.9.0`
 - `torch==2.9.0+cpu`
+- `torchaudio==2.9.0`
+- `torchvision==0.24.0`
 - <span class="muted"><code class="plain">triton-ascend==3.2.0</code></span>
 
 ### Switch compiler

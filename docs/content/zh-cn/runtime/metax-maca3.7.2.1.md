@@ -37,7 +37,7 @@ title: "metax-maca3.7.2.1"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.1+metax3.6`
 - `flash_attn==2.6.3+metax3.7.2.0torch2.8`
 - `numpy==2.3.5`
