@@ -576,6 +576,7 @@ vendors:
         - mkl==2024.0.0
         - numpy==1.26.4
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
@@ -605,6 +606,7 @@ vendors:
         - numpy==1.26.4
 
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
