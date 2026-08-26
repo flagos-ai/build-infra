@@ -5,8 +5,7 @@
 
 ## 2.5 iluvatar-corex4.4.0（负结果：厂商工具链版本过旧）
 
-**日期:** 2026-08-02　**平台:** Iluvatar CoreX (BI 系列)
-**节点:** `ix15`（JumpServer 别名，hostname n15）　**CoreX:** 4.4.0
+**日期:** 2026-08-02　**平台:** Iluvatar CoreX (BI 系列)　**CoreX:** 4.4.0
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-iluvatar-corex4.4.0:2.1.1`
 
 **这是首个跑不通推理的后端**，但结论明确、可操作。与 [§2.4](hygon.md) hygon
@@ -48,12 +47,40 @@ compressed-tensors 0.15.0.1）。
 后端里最旧的（hygon 2.9.0、mthreads 2.9.1、metax 2.8.0、nvidia 2.10.0），
 corex Triton fork 前端也比 vllm 0.20.2 的原生 kernel 所需的更旧、更严格：
 
-| # | 现象 | 性质 | 绕过手段 |
-|---|------|------|----------|
-| A | `import vllm` 崩：`ImportError: cannot import name '_SymmetricMemory' from 'torch._C._distributed_c10d'` | torch 2.7.1 < 2.8（`_SymmetricMemory` 约 torch 2.8 引入） | vllm `parallel_state.py:42` 的 `import torch.distributed._symmetric_memory` 是**无守卫**的顶层导入；而 vllm 自己在**同类文件** `symm_mem.py:16` 已用 `try/except ImportError` 守卫。给 line 42 补同样的守卫即可 import——TP=1 下 symm_mem 路径根本不走（实际算子在 `parallel_state.py:245` 的 `torch.ops.symm_mem.*`，是 TP>1 collective） |
-| B | 采样阶段 Triton 编译崩：`TypeError: Cannot use /, #, or % with triton.language.uint32 and triton.language.int32 ... different signedness` | corex Triton fork 拒绝混合符号运算 | vllm 原生采样 kernel `topk_topp_triton.py` 的 `uint32 // int32`。在 `topk_topp_sampler.py` 强制 `HAS_TRITON=False`，回退到纯 pytorch 采样路径 |
-| C | 推理阶段 Triton 编译崩：`AttributeError("'AnnAssign' object has no attribute 'targets'")`，出错行 `left: tl.int32 = 0` | corex Triton 前端解析不了 PEP 526 注解赋值 | vllm 原生 attention kernel `triton_unified_attention.py`。用 plugin 自带 flag `VLLM_FL_USE_FLAGGEMS_ATTN=1` 把 attention 路由到 plugin 的 `AttentionFLBackend`（flag_gems attn，能在 corex 上编译），替代 vllm 原生 `TRITON_ATTN`（默认值，崩）——**这是 plugin 提供的正规开关，非源码 hack** |
-| D | 绕过 A–C 后 serve 启动成功（health 200、模型可列），但推理输出**乱码** | 前向数值正确性 | 未找到 |
+- **A** —— `import vllm` 崩：`ImportError: cannot import name '_SymmetricMemory' from
+  'torch._C._distributed_c10d'`
+
+  **性质：** torch 2.7.1 < 2.8（`_SymmetricMemory` 约 torch 2.8 引入）
+
+  **绕过手段：** vllm `parallel_state.py:42` 的 `import torch.distributed._symmetric_memory`
+  是**无守卫**的顶层导入；而 vllm 自己在**同类文件** `symm_mem.py:16` 已用
+  `try/except ImportError` 守卫。给 line 42 补同样的守卫即可 import——TP=1 下 symm_mem
+  路径根本不走（实际算子在 `parallel_state.py:245` 的 `torch.ops.symm_mem.*`，
+  是 TP>1 collective）
+
+- **B** —— 采样阶段 Triton 编译崩：`TypeError: Cannot use /, #, or % with
+  triton.language.uint32 and triton.language.int32 ... different signedness`
+
+  **性质：** corex Triton fork 拒绝混合符号运算
+
+  **绕过手段：** vllm 原生采样 kernel `topk_topp_triton.py` 的 `uint32 // int32`。在
+  `topk_topp_sampler.py` 强制 `HAS_TRITON=False`，回退到纯 pytorch 采样路径
+
+- **C** —— 推理阶段 Triton 编译崩：`AttributeError("'AnnAssign' object has no attribute
+  'targets'")`，出错行 `left: tl.int32 = 0`
+
+  **性质：** corex Triton 前端解析不了 PEP 526 注解赋值
+
+  **绕过手段：** vllm 原生 attention kernel `triton_unified_attention.py`。用 plugin
+  自带 flag `VLLM_FL_USE_FLAGGEMS_ATTN=1` 把 attention 路由到 plugin 的
+  `AttentionFLBackend`（flag_gems attn，能在 corex 上编译），替代 vllm 原生
+  `TRITON_ATTN`（默认值，崩）——**这是 plugin 提供的正规开关，非源码 hack**
+
+- **D** —— 绕过 A–C 后 serve 启动成功（health 200、模型可列），但推理输出**乱码**
+
+  **性质：** 前向数值正确性
+
+  **绕过手段：** 未找到
 
 **关键区分：flag_gems 自带的 Triton kernel（rms_norm、rotary_embedding、
 silu_and_mul）在 corex 上编译运行都正常**——它们是针对 corex fork 写的；崩的
@@ -112,13 +139,18 @@ Inference:    ❌  乱码（temp=0 仍乱）——前向数值错误（trap D）
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| 反馈厂商：corex Triton fork 支持 vllm 原生 kernel | ⬜ 阻塞 | 需支持混合符号运算（B）与 PEP 526 注解赋值（C）；或 FlagGems 提供覆盖全部 vllm 原生 Triton 算子的替代 |
-| 反馈厂商：torch 升级到 ≥2.8 | ⬜ 阻塞 | vllm 0.20.2 需要 `_SymmetricMemory`（trap A），corex torch 2.7.1 缺 |
-| 前向数值正确性（trap D）| ⬜ 阻塞 | flag_gems 在 corex 上逐算子对数值；先在无 Triton 障碍的后端复现 B+C 组合做对照，排除诊断组合本身 |
-| vllm `parallel_state.py:42` 无守卫导入 | ⬜ 可提 upstream/plugin | vllm 自己在 `symm_mem.py:16` 已守卫同一导入；给 line 42 补 `try/except` 对所有 torch<2.8 后端都受益 |
-| numpy-1.x 后端单步安装 ResolutionImpossible | ✅ 已修复 | repack 剥掉 opencv 的 faked `numpy>=2`（`strip_extra_from_indirect`，[§1.3](../playbook.md)）；单步安装恢复，[§1.4](../playbook.md) 已更新 |
+1. **反馈厂商：corex Triton fork 支持 vllm 原生 kernel** —— ⬜ 阻塞：需支持混合符号运算（B）
+   与 PEP 526 注解赋值（C）；或 FlagGems 提供覆盖全部 vllm 原生 Triton 算子的替代
+1. **反馈厂商：torch 升级到 ≥2.8** —— ⬜ 阻塞：vllm 0.20.2 需要 `_SymmetricMemory`
+   （trap A），corex torch 2.7.1 缺
+1. **前向数值正确性（trap D）** —— ⬜ 阻塞：flag_gems 在 corex 上逐算子对数值；
+   先在无 Triton 障碍的后端复现 B+C 组合做对照，排除诊断组合本身
+1. **vllm `parallel_state.py:42` 无守卫导入** —— ⬜ 可提 upstream/plugin：vllm 自己在
+   `symm_mem.py:16` 已守卫同一导入；给 line 42 补 `try/except` 对所有 torch<2.8
+   后端都受益
+1. **numpy-1.x 后端单步安装 ResolutionImpossible** —— ✅ 已修复：repack 剥掉 opencv 的
+   faked `numpy>=2`（`strip_extra_from_indirect`，[§1.3](../playbook.md)）；
+   单步安装恢复，[§1.4](../playbook.md) 已更新
 
 **相关提交：** 无；复用 [§2.3](mthreads.md) mthreads 的 repack 产物（PR
 #280）。诊断补丁（trap A/B）为一次性验证手段，未落库。

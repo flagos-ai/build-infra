@@ -22,36 +22,43 @@
 
 ### 3.2 无法（完全）自动化
 
-| 任务 | 原因 |
-|------|------|
-| vllm 版本升级时复查 config.yaml 规则 | 新版本可能引入需加入 `remove_*` 的新依赖；`repack_recursive` 能自动发现声明 torch/triton 的间接依赖，但顶层黑名单（CUDA-only、orphaned）仍需人工判断 |
-| 各平台集成测试 | 各厂商 torch 构建、ABI、设备特性不同 |
-| FlagGems 版本升级 + tag | 需与 FlagGems 团队协调 |
-| 模型下载 | 环境相关，大文件，需适当存储 |
+- **vllm 版本升级时复查 config.yaml 规则** —— 新版本可能引入需加入 `remove_*`
+  的新依赖；`repack_recursive` 能自动发现声明 torch/triton 的间接依赖，
+  但顶层黑名单（CUDA-only、orphaned）仍需人工判断
+- **各平台集成测试** —— 各厂商 torch 构建、ABI、设备特性不同
+- **FlagGems 版本升级 + tag** —— 需与 FlagGems 团队协调
+- **模型下载** —— 环境相关，大文件，需适当存储
 
 ## 4. 风险与痛点
 
 **风险：**
 
-| 风险 | 严重度 | 缓解 |
-|------|--------|------|
-| vllm 版本升级引入新黑名单依赖 | 中 | 每次升级检查 METADATA diff，更新 config.yaml `remove_*` |
-| 间接依赖声明不兼容 torch 版本 | 中 | `repack_recursive()` 自动发现并剥离；监控 pip install 输出 |
-| pip 解析行为变化 | 低 | 已从 uv 迁移到 pip；pip 升级时重新测试 |
-| Vendor PyPI token 过期/更改 | 低 | CI 用 secrets；文档记录 token 轮换 |
-| macOS vs Linux 平台不匹配 | 中 | 永不在 macOS 上 repack；CI 在 H20 runner 上跑 |
-| vllm 二进制 wheel ABI 不兼容 | 低-中 | 警告可接受；生产需源码构建（仅 standard/NVIDIA 相关） |
-| FlagGems 未来又硬锁其他依赖 | 中 | 已遇 numpy + sqlalchemy；FlagGems 应用 `>=` 而非 `==` |
-| 厂商 torch 编译的 numpy ABI 与镜像 numpy 不匹配 | 中 | 已遇 iluvatar、hygon（torch 编于 numpy 1.x，镜像 numpy 2.x → `Numpy is not available`）。构建镜像时校验 `torch + tensor.numpy()` 能跑通；厂商 torch 应与 configs.yaml 的 numpy pin 对齐 |
+- **vllm 版本升级引入新黑名单依赖** —— 严重度：中。缓解：每次升级检查 METADATA
+  diff，更新 config.yaml `remove_*`
+- **间接依赖声明不兼容 torch 版本** —— 严重度：中。缓解：`repack_recursive()`
+  自动发现并剥离；监控 pip install 输出
+- **pip 解析行为变化** —— 严重度：低。缓解：已从 uv 迁移到 pip；pip 升级时重新测试
+- **Vendor PyPI token 过期/更改** —— 严重度：低。缓解：CI 用 secrets；文档记录
+  token 轮换
+- **macOS vs Linux 平台不匹配** —— 严重度：中。缓解：永不在 macOS 上 repack；
+  CI 在 H20 runner 上跑
+- **vllm 二进制 wheel ABI 不兼容** —— 严重度：低-中。缓解：警告可接受；生产需源码构建
+  （仅 standard/NVIDIA 相关）
+- **FlagGems 未来又硬锁其他依赖** —— 严重度：中。缓解：已遇 numpy + sqlalchemy；
+  FlagGems 应用 `>=` 而非 `==`
+- **厂商 torch 编译的 numpy ABI 与镜像 numpy 不匹配** —— 严重度：中。缓解：已遇
+  iluvatar、hygon（torch 编于 numpy 1.x，镜像 numpy 2.x → `Numpy is not
+  available`）。构建镜像时校验 `torch + tensor.numpy()` 能跑通；厂商 torch
+  应与 configs.yaml 的 numpy pin 对齐
 
 **痛点：**
 
-| 痛点 | 严重度 | 备注 |
-|------|--------|------|
-| wheel 上传 2-3 min/厂商 | 中 | CI 可接受，多厂商可并行 |
-| pip 依赖解析慢（vllm 82 deps，3-5 min） | 低 | Docker build 一次性成本，layer 有缓存 |
-| FlagGems 硬锁依赖级联冲突 | 中 | `sqlalchemy==2.0.48` 装了又被卸；应审查 FlagGems 其他硬锁 |
-| 节点上无模型文件 | 低 | 每个模型下载一次，用 `/data/models` 存储 |
+- **wheel 上传 2-3 min/厂商** —— 严重度：中。CI 可接受，多厂商可并行
+- **pip 依赖解析慢（vllm 82 deps，3-5 min）** —— 严重度：低。Docker build
+  一次性成本，layer 有缓存
+- **FlagGems 硬锁依赖级联冲突** —— 严重度：中。`sqlalchemy==2.0.48` 装了又被卸；
+  应审查 FlagGems 其他硬锁
+- **节点上无模型文件** —— 严重度：低。每个模型下载一次，用 `/data/models` 存储
 
 ## 5. 设计决策记录（ADR）
 
@@ -67,13 +74,16 @@ platform tag（`py3-none-any`），不伪造 `cp38-abi3-manylinux_2_35_x86_64`�
 
 **验证状态（mthreads 实证）：**
 
-| 验证项 | 状态 | 结论 |
-|--------|------|------|
-| pip 版本排序偏好 `+flagos` | ✅ mthreads | 单步 `vllm==0.20.2+flagos` 正确命中，torch 未降级 |
-| vendor + Aliyun 混合索引 | ✅ mthreads | `--index-url vendor --extra-index-url aliyun` 正确解析，131 包零泄漏 |
-| 平台匹配 vs 版本比较优先级 | ✅ mthreads | 保留 `py3-none-any` 情况下版本号（`+flagos`）优先于平台匹配度，pip 选中我们的 wheel |
-| 缓存干扰 | ⬜ | 未系统测试 pip 缓存是否跳过版本比较 |
-| 跨后端正式验证矩阵 | ✅ hygon + iluvatar | 两者均直接复用 mthreads 打的 `+flagos` wheel，单步安装零泄漏（[§2.4](backends/hygon.md)、[§2.5](backends/iluvatar.md)）——两次跨后端实证 |
+- **pip 版本排序偏好 `+flagos`** —— ✅ mthreads：单步 `vllm==0.20.2+flagos` 正确命中，
+  torch 未降级
+- **vendor + Aliyun 混合索引** —— ✅ mthreads：`--index-url vendor
+  --extra-index-url aliyun` 正确解析，131 包零泄漏
+- **平台匹配 vs 版本比较优先级** —— ✅ mthreads：保留 `py3-none-any` 情况下版本号
+  （`+flagos`）优先于平台匹配度，pip 选中我们的 wheel
+- **缓存干扰** —— ⬜：未系统测试 pip 缓存是否跳过版本比较
+- **跨后端正式验证矩阵** —— ✅ hygon + iluvatar：两者均直接复用 mthreads 打的
+  `+flagos` wheel，单步安装零泄漏（[§2.4](backends/hygon.md)、
+  [§2.5](backends/iluvatar.md)）——两次跨后端实证
 
 **若跨后端回归发现 pip 选错版本，备选：** 改用 `0.20.2.post1`（非本地
 版本，排序明确高于 `0.20.2`）。

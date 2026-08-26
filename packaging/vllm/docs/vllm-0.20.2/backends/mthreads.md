@@ -5,8 +5,7 @@
 
 ## 2.3 mthreads-musa5.2.0（标准流程范例）
 
-**日期:** 2026-08-01/02　**平台:** MTT S5000 (8×, 80GB)
-**节点:** `mthreads`（JumpServer 别名）　**MUSA:** 5.2.0-server, torch_musa 5.2.0
+**日期:** 2026-08-01/02　**平台:** MTT S5000 (8×, 80GB)　**MUSA:** 5.2.0-server, torch_musa 5.2.0
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-mthreads-musa5.2.0:2.1.1`
 
 **这是第 1 部分标准流程的范例来源**——empty 构建、`+flagos` 后缀、单步安装
@@ -71,10 +70,17 @@ RuntimeError: aten::mul.Tensor expected Tensor for 'other', found float 1.0
 所有路径均正确（实测 scalar/tensor/broadcast/fp16/bf16/int/out=/mul_/complex
 误差全为 0）。崩溃纯来自设备门控：
 
-| # | 现象 | 根因 |
-|---|------|------|
-| 1 | 所有 mul 在 MUSA 走 fallback，不走优化 Triton 路径 | [#4666](https://github.com/flagos-ai/FlagGems/pull/4666) 用 `device.type != "cuda"` 门控。MetaX 的 torch fork 报 `"cuda"` 故通过；mthreads 报 `"musa"`（唯一非 "cuda" GPU 后端）被挤出 |
-| 2 | fallback 对标量崩溃 | [#4999](https://github.com/flagos-ai/FlagGems/pull/4999) 把 fallback 从 `torch.mul(a,b)`（可处理标量）改成 `aten.mul.Tensor.redispatch(...)`，而 `mul.Tensor` 要求 `other` 是 Tensor，标量 `1.0` 无法转换 |
+1. **现象：** 所有 mul 在 MUSA 走 fallback，不走优化 Triton 路径
+
+   **根因：** [#4666](https://github.com/flagos-ai/FlagGems/pull/4666) 用
+   `device.type != "cuda"` 门控。MetaX 的 torch fork 报 `"cuda"` 故通过；mthreads 报
+   `"musa"`（唯一非 "cuda" GPU 后端）被挤出
+
+2. **现象：** fallback 对标量崩溃
+
+   **根因：** [#4999](https://github.com/flagos-ai/FlagGems/pull/4999) 把 fallback 从
+   `torch.mul(a,b)`（可处理标量）改成 `aten.mul.Tensor.redispatch(...)`，而
+   `mul.Tensor` 要求 `other` 是 Tensor，标量 `1.0` 无法转换
 
 **修复（[#5130](https://github.com/flagos-ai/FlagGems/pull/5130)）：** 门控从
 硬编码 `"cuda"` 改为按激活后端设备名判断（符合库自身惯例，如
@@ -134,12 +140,11 @@ Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 t
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| FlagGems mul 门控 #5130 | ✅ 已提，E2E 通过 | 门控改判 `runtime.device.name`；merge 后随 flag_gems release 打包进新镜像 |
-| repack & upload (+flagos) | ✅ 已完成 | vllm / xgrammar / compressed-tensors |
-| 更大模型 / TP>1 / graph | ⬜ | 仅测过 DeepSeek-8B + eager + TP=1 |
-| 非 yarn 模型覆盖 | ⬜ | 可选，验证更广 rope 路径 |
+1. **FlagGems mul 门控 #5130** —— ✅ 已提，E2E 通过：门控改判 `runtime.device.name`；
+   merge 后随 flag_gems release 打包进新镜像
+1. **repack & upload (+flagos)** —— ✅ 已完成：vllm / xgrammar / compressed-tensors
+1. **更大模型 / TP>1 / graph** —— ⬜：仅测过 DeepSeek-8B + eager + TP=1
+1. **非 yarn 模型覆盖** —— ⬜：可选，验证更广 rope 路径
 
 **相关提交：** `main` 478de6b（repack）、PR #280（递归 `+flagos` pin）；
 FlagGems [#5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
@@ -186,12 +191,11 @@ F（FlagTree）/ T（Triton）双路径均 E2E 通过（Qwen3-4B，`--enforce-ea
 serve 配方（每路径一个端口，先 `compiler <c>` 切编译器）：
 
 ```bash
-docker run -d --name vllm-verify-musa520 \
-  --runtime mthreads --env MTHREADS_VISIBLE_DEVICES=2 \
+docker run -d --runtime mthreads --env MTHREADS_VISIBLE_DEVICES=2 \
   --network host -v /datapool/models:/datapool/models \
   harbor.baai.ac.cn/flagos-app/vllm0.20.2-mthreads-musa5.2.0:2.1.2-0.2.1 \
   sleep infinity
-docker exec vllm-verify-musa520 bash -lc "
+docker exec <容器名> bash -lc "
   compiler triton
   export VLLM_PLUGINS=fl VLLM_FL_DISPATCH_DEBUG=1
   vllm serve /datapool/models/Qwen3-4B --port 8034 --enforce-eager \

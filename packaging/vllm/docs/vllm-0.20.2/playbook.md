@@ -19,10 +19,11 @@
 
 ## 1.2 构建模式
 
-| 模式 | 适用后端 | 说明 |
-|---|---|---|
-| **empty** | 所有后端（NVIDIA 于 2026-08-23 并入） | `VLLM_TARGET_DEVICE=empty` 从源码编译不含硬件 kernel 的 vllm；硬件算子由 vllm-plugin-FL + flag_gems 提供。产物为 `py3-none-any`，纯 Python。 |
-| ~~standard~~ | ~~仅 NVIDIA~~ | ~~`pip download` 官方预编译 wheel，含 vllm 自带 CUDA kernel（`_C`）。~~ **已退役（2026-08-23，见 [§5.3](decisions.md)）** |
+- **empty** —— 适用所有后端（NVIDIA 于 2026-08-23 并入）：
+  `VLLM_TARGET_DEVICE=empty` 从源码编译不含硬件 kernel 的 vllm；硬件算子由
+  vllm-plugin-FL + flag_gems 提供。产物为 `py3-none-any`，纯 Python。
+- ~~**standard**~~ —— ~~仅 NVIDIA~~：~~`pip download` 官方预编译 wheel，含 vllm
+  自带 CUDA kernel（`_C`）~~。**已退役（2026-08-23，见 [§5.3](decisions.md)）**
 
 > 2026-08-23 起全线统一 empty 模式（"都走统一个模式"），standard 构建退役，
 > 决策记录见 [§5.3](decisions.md)。

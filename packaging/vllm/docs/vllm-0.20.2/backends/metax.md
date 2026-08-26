@@ -6,15 +6,15 @@
 ## 2.2 MetaX maca3.7.2.1（首个 empty 后端）
 
 **日期:** 2026-07-28/31　**平台:** MetaX C550 (8×, 64GB)
-**节点:** metax124　**MACA:** 3.7.2.0, Driver 3.8.30
+**MACA:** 3.7.2.0, Driver 3.8.30
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-metax-maca3.7.2.1:2.1.1`
 
 首个 `empty` 构建后端。MetaX MACA 无 CUDA 扩展，走 `VLLM_TARGET_DEVICE=empty`
 ——编译不含硬件 kernel 的 vllm，硬件算子由 vllm-plugin-FL 的 metax vendor
 backend + flag_gems 提供。repack 规则、间接依赖处理、plugin 安装与 §1 一致。
 
-> **状态：端到端已完成 ✅**（2026-07-31）。在设备可见的 `vllm-serve-metax`
-> 容器里，`vllm serve Qwen3-4B`（TP=1, `--enforce-eager`, gpu-util 0.6）成功
+> **状态：端到端已完成 ✅**（2026-07-31）。在设备可见的 serve 容器里，
+> `vllm serve Qwen3-4B`（TP=1, `--enforce-eager`, gpu-util 0.6）成功
 > 启动并返回正确推理。
 
 ### Repack（empty）
@@ -184,15 +184,17 @@ runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| plugin-FL #333 | ✅ 已提，E2E 通过 | `reshape_and_cache_flash`→flag_gems（`CachedOp`） |
-| plugin-FL #319 | ✅ 已关闭 | 守卫恒真从不生效，被 #333 取代 |
-| plugin-FL #325（`_maca`→F.silu/F.gelu）| ✅ 已关闭 | empty wheel 上 dispatch 不走 vendor 路径，实测不需要（仅 +cpu wheel 有意义） |
-| repack.py empty 支持 + 递归审计 | ✅ | PR #244 #247 |
-| 更大模型 / graph / TP>1 | ⬜ | 仅测过 Qwen3-4B + eager |
-| FlagGems pyproject build-system.requires 加 `wheel==0.45.0` | ⬜ | |
-| flag_gems scalar 返回 bug 固化 | ✅ 已固化 | flag_gems 5.3.5 clean wheel（含 `1537bde93a8e`）已发布并重建 runtime 镜像，verify-driver F/T 双路径 E2E 通过 |
+1. **plugin-FL #333** —— ✅ 已提，E2E 通过：`reshape_and_cache_flash`→flag_gems
+   （`CachedOp`）
+1. **plugin-FL #319** —— ✅ 已关闭：守卫恒真从不生效，被 #333 取代
+1. **plugin-FL #325（`_maca`→F.silu/F.gelu）** —— ✅ 已关闭：empty wheel 上 dispatch
+   不走 vendor 路径，实测不需要（仅 +cpu wheel 有意义）
+1. **repack.py empty 支持 + 递归审计** —— ✅：PR #244 #247
+1. **更大模型 / graph / TP>1** —— ⬜：仅测过 Qwen3-4B + eager
+1. **FlagGems pyproject build-system.requires 加 `wheel==0.45.0`** —— ⬜
+1. **flag_gems scalar 返回 bug 固化** —— ✅ 已固化：flag_gems 5.3.5 clean wheel
+   （含 `1537bde93a8e`）已发布并重建 runtime 镜像，verify-driver F/T 双路径 E2E
+   通过
 
 ### MetaX maca3.8.1.3（2026-08-25 复验）
 

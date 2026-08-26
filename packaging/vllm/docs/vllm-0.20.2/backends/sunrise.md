@@ -58,8 +58,10 @@ complete`；推理连贯（knowledge "Paris..." / math "56"）、decode 正常�
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| 回退：切官方 Triton 运行 | ✅ E2E 已验证 | `compiler triton` 后 serve + 推理端到端通过、结果正确;当前 sunrise 的可交付路径 |
-| FlagTree flash-attn 解码 kernel 挂死复现交厂商 | ✅ 已交付 | 最小复现（Docker-free，A/B 编译器归因）已交 FlagTree 团队 |
-| FlagTree 侧修复落地 | ✅ 2026-08-19 | PR 978 已合入；重建 wheel 后 A/B 实证解码 0.4→2.4 tok/s；F 路径升级 ✅（上文"后续"，详见 [0.24.0 §11.5](../../vllm-0.24.0/backends/sunrise.md)） |
+1. **回退：切官方 Triton 运行** —— ✅ E2E 已验证：`compiler triton` 后 serve +
+   推理端到端通过、结果正确；当前 sunrise 的可交付路径
+1. **FlagTree flash-attn 解码 kernel 挂死复现交厂商** —— ✅ 已交付：最小复现
+   （Docker-free，A/B 编译器归因）已交 FlagTree 团队
+1. **FlagTree 侧修复落地** —— ✅ 2026-08-19：PR 978 已合入；重建 wheel 后 A/B
+   实证解码 0.4→2.4 tok/s；F 路径升级 ✅（上文"后续"，详见
+   [0.24.0 §11.5](../../vllm-0.24.0/backends/sunrise.md)）

@@ -22,23 +22,26 @@ Qwen3-4B 在**移除 `USE_RESHAPE_AND_CACHE_FLASH=1`** 后不再乱码，但出�
 
 Qwen3-4B，请求 `temperature=0.0`（greedy），`max_tokens=12`：
 
-| 模式 | decode 走法 | `alpha` 传给 prefill_attention | 输出（12-token） |
-|---|---|---|---|
-| 原 patched | `prefill_attention(prefix_cache)` | **0.0884（= scale，错）** | "，实现的一个一个一个一个一个问题的的的" |
-| **修正 patched** | 同左，仅 alpha 改为 1.0 | 1.0（= adjusted_scale） | "，用于在Windows系统中，将一个文件夹复制" |
-| native decode | `decode_paged_attention` | —（该 kernel 期望 raw scale） | "，用于在Windows系统中部署一个简单的Python环境，" |
+- **原 patched** —— `prefill_attention(prefix_cache)`，alpha 传 **0.0884（=
+  scale，错）**：输出 "，实现的一个一个一个一个一个问题的的的"
+- **修正 patched** —— 同左，仅 alpha 改为 1.0（= adjusted_scale）：输出
+  "，用于在Windows系统中，将一个文件夹复制"
+- **native decode** —— `decode_paged_attention`（该 kernel 期望 raw scale）：
+  输出 "，用于在Windows系统中部署一个简单的Python环境，"
 
 30-token 长请求在修正后同样流畅（"…然后运行一个简单的容器，比如一个Ngin"）。三种模式下 KV 写入读回（见 §2）均 `rb_diffmax=[0.0]` —— 写入/记账始终正确，唯一变量就是 decode 读取侧的 scale。
 
 ## 2. 排除项（已插桩实证）
 
-| 假设 | 结论 | 证据 |
-|---|---|---|
-| KV 写入槽位/内容错误 | **证伪** | KVW 读回：写入 key 与缓存逐位一致（`rb_diffmax=[0.0]` 每层每步），slots 136→137→138…、seq 9→10→11… 正确递增 |
-| 长度/计数链错误 | **证伪** | `seq_lens` 9→37 递增（8 prefill + 29 decode），`[DECD]` 的 kvpsl 同步递增，`block_tables` 首 block=1 正确 |
-| slot_mapping 槽位计算错误 | **证伪** | `compute_slot_mapping_xpu` 审读：`slot = block_numbers × block_size + positions % block_size`，与实测一致 |
-| decode position ids（rotary）错乱 | **证伪** | native decode 输出正常（同一位置序列），且修正 scale 后 patched 也正常 —— 位置链本身无问题 |
-| 采样随机性 | **排除** | temperature=0.0 确定性输出，可稳定复现 |
+- **KV 写入槽位/内容错误** —— **证伪**：KVW 读回：写入 key 与缓存逐位一致
+  （`rb_diffmax=[0.0]` 每层每步），slots 136→137→138…、seq 9→10→11… 正确递增
+- **长度/计数链错误** —— **证伪**：`seq_lens` 9→37 递增（8 prefill + 29 decode），
+  `[DECD]` 的 kvpsl 同步递增，`block_tables` 首 block=1 正确
+- **slot_mapping 槽位计算错误** —— **证伪**：`compute_slot_mapping_xpu` 审读：
+  `slot = block_numbers × block_size + positions % block_size`，与实测一致
+- **decode position ids（rotary）错乱** —— **证伪**：native decode 输出正常
+  （同一位置序列），且修正 scale 后 patched 也正常 —— 位置链本身无问题
+- **采样随机性** —— **排除**：temperature=0.0 确定性输出，可稳定复现
 
 ## 3. 根因机制
 

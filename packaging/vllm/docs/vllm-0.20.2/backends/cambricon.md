@@ -54,12 +54,34 @@ torch / torch_mlu:      2.11.0+cpu / 2.11.0    ✅  from 镜像，无公有 torc
 MLU590 上带起 serve 需 4 个修复。前 3 个是 plugin 未覆盖 cambricon 的缺口，第 4 个是
 flag_gems `empty` 内核在 MLU 上撞 triton grid 上限：
 
-| # | 症状 | 根因 | 修复 |
-|---|---|---|---|
-| 1 | `Vendor 'cambricon' not found in VENDOR_DEVICE_MAP`（`utils.py`） | `VENDOR_DEVICE_MAP` 无 cambricon 条目，`_get_vendor_device_field` 抛 ValueError | `utils.py:53` 加 `"cambricon": {"device_type": "mlu", "device_name": "mlu"}` |
-| 2 | `NotImplementedError: not support graph`（`compilation/graph.py`） | `Graph` 类无 mlu 分支 | `graph.py:52-53` 加 `elif current_platform.device_type == "mlu": graph = torch.mlu.MLUGraph` |
-| 3 | `OutOfResources: grid size 607744 > 65535`（`flag_gems/ops/empty.py:87`） | flag_gems `empty` 内核对 Qwen3 词表 embedding（151936×4096）算出 grid 607744，超 MLU triton grid 上限 65535 | 黑名单 `empty`。**定稿走 plugin 内建配置 `dispatch/config/cambricon.yaml`（Priority 3），非 env**：文件名须匹配 `current_platform.vendor_name`（`cambricon`）才被 `get_config_path()` 自动加载。已容器验证：不设 `VLLM_FL_FLAGOS_BLACKLIST` 时 `use_flaggems_op('empty')=False`、serve 启动完成、推理连贯（隔离测试另证 `flag_gems.enable(unused=)` 键是 `empty` 而非 registry 名 `empty.memory_format`） |
-| 4 | 内存不足（62.68 GiB free < 67 GiB） | 前次崩溃留下孤儿 `VLLM::EngineCore` 进程占住 MLU0 约 16.5 GiB | 清理孤儿进程 + `MLU_VISIBLE_DEVICES=0` 单卡 |
+1. **症状：** `Vendor 'cambricon' not found in VENDOR_DEVICE_MAP`（`utils.py`）
+
+   **根因：** `VENDOR_DEVICE_MAP` 无 cambricon 条目，`_get_vendor_device_field` 抛 ValueError
+
+   **修复：** `utils.py:53` 加 `"cambricon": {"device_type": "mlu", "device_name": "mlu"}`
+
+2. **症状：** `NotImplementedError: not support graph`（`compilation/graph.py`）
+
+   **根因：** `Graph` 类无 mlu 分支
+
+   **修复：** `graph.py:52-53` 加 `elif current_platform.device_type == "mlu": graph = torch.mlu.MLUGraph`
+
+3. **症状：** `OutOfResources: grid size 607744 > 65535`（`flag_gems/ops/empty.py:87`）
+
+   **根因：** flag_gems `empty` 内核对 Qwen3 词表 embedding（151936×4096）算出 grid 607744，
+   超 MLU triton grid 上限 65535
+
+   **修复：** 黑名单 `empty`。**定稿走 plugin 内建配置 `dispatch/config/cambricon.yaml`
+   （Priority 3），非 env**：文件名须匹配 `current_platform.vendor_name`（`cambricon`）才被
+   `get_config_path()` 自动加载。已容器验证：不设 `VLLM_FL_FLAGOS_BLACKLIST` 时
+   `use_flaggems_op('empty')=False`、serve 启动完成、推理连贯（隔离测试另证
+   `flag_gems.enable(unused=)` 键是 `empty` 而非 registry 名 `empty.memory_format`）
+
+4. **症状：** 内存不足（62.68 GiB free < 67 GiB）
+
+   **根因：** 前次崩溃留下孤儿 `VLLM::EngineCore` 进程占住 MLU0 约 16.5 GiB
+
+   **修复：** 清理孤儿进程 + `MLU_VISIBLE_DEVICES=0` 单卡
 
 修复后 serve 启动：`init engine (profile, create kv cache, warmup model) took 406.84 s
 (compilation: 96.79 s)`，KV cache 350,240 tokens，`Application startup complete`。
@@ -152,11 +174,26 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 
 ### plugin 侧修复（3 处代码 + 2 次黑名单演进，均容器内验证，已入 PR #411）
 
-| 修复 | 文件 | 性质 |
-|---|---|---|
-| `VENDOR_DEVICE_MAP` 加 cambricon → mlu | `vllm_fl/utils.py:53` | plugin 未覆盖 cambricon（真实缺口） |
-| `Graph` 加 mlu → `torch.mlu.MLUGraph` 分支 | `vllm_fl/compilation/graph.py:52` | plugin `Graph` 无 mlu 分支（真实缺口） |
-| 黑名单 `index`（内建配置；`empty` 已随 5.3.4 修复移除） | `dispatch/config/cambricon.yaml` `flagos_blacklist: [index]` | `index` op flagtune bench 时 expand_shape/AutoTileForTritonPass 崩溃（见 2026-08-15 复核）；回退 torch_mlu。**过渡**：根因已修 flag_gems PR #5510，发布前保留。`empty` 同机制黑名单于初验加入、5.3.4（PR #4435）落地后删除。定稿走 plugin 内建配置（非 env），文件名匹配 vendor_name=`cambricon` 才自动加载 |
+1. **修复：** `VENDOR_DEVICE_MAP` 加 cambricon → mlu
+
+   **文件：** `vllm_fl/utils.py:53`
+
+   **性质：** plugin 未覆盖 cambricon（真实缺口）
+
+2. **修复：** `Graph` 加 mlu → `torch.mlu.MLUGraph` 分支
+
+   **文件：** `vllm_fl/compilation/graph.py:52`
+
+   **性质：** plugin `Graph` 无 mlu 分支（真实缺口）
+
+3. **修复：** 黑名单 `index`（内建配置；`empty` 已随 5.3.4 修复移除）
+
+   **文件：** `dispatch/config/cambricon.yaml` `flagos_blacklist: [index]`
+
+   **性质：** `index` op flagtune bench 时 expand_shape/AutoTileForTritonPass 崩溃
+   （见 2026-08-15 复核）；回退 torch_mlu。**过渡：** 根因已修 flag_gems PR #5510，
+   发布前保留。`empty` 同机制黑名单于初验加入、5.3.4（PR #4435）落地后删除。定稿走
+   plugin 内建配置（非 env），文件名匹配 vendor_name=`cambricon` 才自动加载
 
 本地补丁副本：`/tmp/camb-patches/{utils.py,graph.py}`。serve 脚本：
 `/tmp/camb_serve6.sh`（复核用 `/tmp/launch_serve534.sh`，日志 `/tmp/serve534.log`）。
@@ -170,14 +207,25 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| 3 处修复对齐 Mac 源码并提 PR | ✅ 已提 | **PR #411**（flagos-ai/vllm-plugin-FL）：VENDOR_DEVICE_MAP cambricon→mlu + graph.py mlu→MLUGraph（2 处代码，通用缺口非 cambricon hack）+ `dispatch/config/cambricon.yaml`（内建配置非 env）。三处全部 E2E 验证 |
-| `empty` 黑名单固化 → 2026-08-15 已随 5.3.4 移除 | ✅ 已入 PR #411 | 初验定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）。5.3.4 含 #4435 分块修复后，复核实测 `flagos_blacklist: []` serve + 推理正常 → PR 已删 `empty` 黑名单 |
-| `index` op 崩溃根因修复 | ✅ 已提 flag_gems PR #5510 | 两处：libentry `bench()` RuntimeError→inf 防护 + `_cambricon` index 调参删 `BLOCK_SIZE1=4096`。去黑名单 E2E 实测通过（首请求 200、EngineCore 存活）。发布前 plugin 黑名单保留作过渡 |
-| flag_gems `empty` MLU grid 分块 | ✅ 上游已修，已进 5.3.4 | **PR #4435**（2026-08-07 合入 master）cambricon 专属 `_cambricon/ops/empty.py`（grid 上限 `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset）。5.3.3 发布早于 #4435 故不含；2.1.2 镜像装 5.3.4 已含 → `empty` 黑名单删除且实测无回归 |
-| cambricon `+flagos` wheel 上架 per-vendor index | ✅ 已上传 | 4 个 wheel（vllm / xgrammar cp312 / compressed-tensors / opencv-headless）已上架 `flagos-pypi-cambricon`；不再依赖本地 wheel |
-| index expand_shape / AutoTileForTritonPass 厂商 hand-off | ⬜ 待整理 | flag_gems/MLU Triton 编译 bug（libentry 防护已绕开）；reproducer 已留存 `/tmp/serve534_crash_index2.log`，文档待补 |
+1. **3 处修复对齐 Mac 源码并提 PR** —— **✅ 已提**：PR #411（flagos-ai/vllm-plugin-FL），
+   VENDOR_DEVICE_MAP cambricon→mlu + graph.py mlu→MLUGraph（2 处代码，通用缺口非
+   cambricon hack）+ `dispatch/config/cambricon.yaml`（内建配置非 env），三处全部 E2E 验证
+2. **`empty` 黑名单固化 → 2026-08-15 已随 5.3.4 移除** —— **✅ 已入 PR #411**：
+   初验定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）。5.3.4 含 #4435 分块修复后，
+   复核实测 `flagos_blacklist: []` serve + 推理正常 → PR 已删 `empty` 黑名单
+3. **`index` op 崩溃根因修复** —— **✅ 已提 flag_gems PR #5510**：两处，libentry
+   `bench()` RuntimeError→inf 防护 + `_cambricon` index 调参删 `BLOCK_SIZE1=4096`。
+   去黑名单 E2E 实测通过（首请求 200、EngineCore 存活）。发布前 plugin 黑名单保留作过渡
+4. **flag_gems `empty` MLU grid 分块** —— **✅ 上游已修，已进 5.3.4**：PR #4435
+   （2026-08-07 合入 master）cambricon 专属 `_cambricon/ops/empty.py`（grid 上限
+   `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset）。5.3.3 发布早于 #4435 故不含；
+   2.1.2 镜像装 5.3.4 已含 → `empty` 黑名单删除且实测无回归
+5. **cambricon `+flagos` wheel 上架 per-vendor index** —— **✅ 已上传**：4 个 wheel
+   （vllm / xgrammar cp312 / compressed-tensors / opencv-headless）已上架
+   `flagos-pypi-cambricon`；不再依赖本地 wheel
+6. **index expand_shape / AutoTileForTritonPass 厂商 hand-off** —— **⬜ 待整理**：
+   flag_gems/MLU Triton 编译 bug（libentry 防护已绕开）；reproducer 已留存
+   `/tmp/serve534_crash_index2.log`，文档待补
 
 **相关提交：** 2026-08-15 复核后 **PR #411 分支已更新**（`b954912`，仅 cambricon.yaml：
 删 `empty` 黑名单、加 `index` 黑名单）。**根因修复 = flag_gems PR #5510**
@@ -224,13 +272,40 @@ prompt: "The capital of France is" → " Paris. The capital of Germany is Berlin
 The capital of Italy is Rome."（finish_reason=length，16 token 上限）
 ```
 
-| # | 症状 | 根因 | 修复（`vllm_fl/__init__.py` / `worker/model_runner.py`） |
-|---|---|---|---|
-| 1 | `AttributeError: torch.float4_e2m1fn_x2` | 该 dtype 仅存在于 CUDA torch 2.7+，cambricon torch 2.7.1+cpu 无 | import 前注入 `_torch.float4_e2m1fn_x2 = _torch.uint8` 哨兵（**已有**，源自 #176 MUSA） |
-| 2 | `AttributeError: get_mlu_view_from_cpu_tensor`，torch._inductor init 中止 | torch_mlu 把 `_C::get_mlu_view_from_cpu_tensor` 注册为 CIA op，但无 `torch.ops._C` Python handle，`_materialize_cpp_cia_ops` getattr 抛错 | 覆盖为 tolerant 版：getattr 失败即跳过该 op |
-| 3 | `KeyError: 'aten::copy_'`（flag_gems copy_ hook） | flag_gems 5.3.5 用 `torch.library.get_kernel()` 填 torch_ops_map，该 API 仅 torch 2.8+，2.7.1 无 → map 空 | 提供 2.7.1 兼容 get_kernel：`OpOverload.redispatch(CompositeExplicitAutograd keyset)` |
-| 4 | `RuntimeError: Backend doesn't support synchronizing all streams` | plugin `_accelerator_synchronize` 走 `torch.accelerator.synchronize()`，无 mlu 分支 | `model_runner.py` 加 `elif device_type == "mlu": torch.mlu.synchronize()` |
-| 5 | `TypeError: task_type='block'`（triton launch kwarg） | flag_gems 5.3.5 cambricon 后端 emit `task_type='block'`，triton 3.2.0+mlu1.7.2 不支持 | `JITFunction.run` 剥掉 task_type kwarg（须在 `import torch_mlu` 之后 patch，避免 triton init 循环导入） |
+修复侧文件：`vllm_fl/__init__.py` / `worker/model_runner.py`。
+
+1. **症状：** `AttributeError: torch.float4_e2m1fn_x2`
+
+   **根因：** 该 dtype 仅存在于 CUDA torch 2.7+，cambricon torch 2.7.1+cpu 无
+
+   **修复：** import 前注入 `_torch.float4_e2m1fn_x2 = _torch.uint8` 哨兵（**已有**，源自 #176 MUSA）
+
+2. **症状：** `AttributeError: get_mlu_view_from_cpu_tensor`，torch._inductor init 中止
+
+   **根因：** torch_mlu 把 `_C::get_mlu_view_from_cpu_tensor` 注册为 CIA op，但无
+   `torch.ops._C` Python handle，`_materialize_cpp_cia_ops` getattr 抛错
+
+   **修复：** 覆盖为 tolerant 版：getattr 失败即跳过该 op
+
+3. **症状：** `KeyError: 'aten::copy_'`（flag_gems copy_ hook）
+
+   **根因：** flag_gems 5.3.5 用 `torch.library.get_kernel()` 填 torch_ops_map，该 API 仅
+   torch 2.8+，2.7.1 无 → map 空
+
+   **修复：** 提供 2.7.1 兼容 get_kernel：`OpOverload.redispatch(CompositeExplicitAutograd keyset)`
+
+4. **症状：** `RuntimeError: Backend doesn't support synchronizing all streams`
+
+   **根因：** plugin `_accelerator_synchronize` 走 `torch.accelerator.synchronize()`，无 mlu 分支
+
+   **修复：** `model_runner.py` 加 `elif device_type == "mlu": torch.mlu.synchronize()`
+
+5. **症状：** `TypeError: task_type='block'`（triton launch kwarg）
+
+   **根因：** flag_gems 5.3.5 cambricon 后端 emit `task_type='block'`，triton 3.2.0+mlu1.7.2 不支持
+
+   **修复：** `JITFunction.run` 剥掉 task_type kwarg（须在 `import torch_mlu` 之后 patch，
+   避免 triton init 循环导入）
 
 其中 #1 是既有缺口（float4 哨兵来自 PR #176 MUSA 支持），#2~#5 为本后端新暴露、本次
 上提（PR #411 head `b954912`：CIA/get_kernel/task_type 三 shim + mlu sync）。
@@ -250,9 +325,7 @@ Inference:    ✅  HTTP 200，completion 输出连贯
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| 4 处新 shim 上提 plugin | ✅ PR #411 | base release/0.2，head `b954912`（#2~#5；#1 float4 已有） |
-| `deps_app.vllm0.20.2` 加 4.4.3 | ✅ configs.yaml | `neuware4.4.3.deps_app.vllm0.20.2: []` |
-| xgrammar cp310 wheel | ✅ 已上架 | 本后端首个 cp310 xgrammar，`flagos-pypi-cambricon` |
-| docs flag_gems 5.3.4 → 5.3.5 | ⬜ 待重渲 | `docs/content/**/runtime/*.md` 仍 5.3.4，configs.yaml/data 已 5.3.5 |
+1. **4 处新 shim 上提 plugin** —— **✅ PR #411**：base release/0.2，head `b954912`（#2~#5；#1 float4 已有）
+2. **`deps_app.vllm0.20.2` 加 4.4.3** —— **✅ configs.yaml**：`neuware4.4.3.deps_app.vllm0.20.2: []`
+3. **xgrammar cp310 wheel** —— **✅ 已上架**：本后端首个 cp310 xgrammar，`flagos-pypi-cambricon`
+4. **docs flag_gems 5.3.4 → 5.3.5** —— **⬜ 待重渲**：`docs/content/**/runtime/*.md` 仍 5.3.4，configs.yaml/data 已 5.3.5
