@@ -476,7 +476,10 @@ req = urllib.request.Request(
     headers={'Content-Type': 'application/json'},
 )
 try:
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    # First request on a cold serve compiles triton kernels per-shape — on
+    # cambricon MLU590 that runs ~60s+ (report-vllm-0.20.2.md §2.7: 60s curl
+    # timed out, 300s returned). 600s leaves headroom on a shared node.
+    with urllib.request.urlopen(req, timeout=600) as resp:
         status, body = resp.status, json.loads(resp.read())
 except Exception as e:
     print('request failed:', e)
