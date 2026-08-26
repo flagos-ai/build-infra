@@ -204,7 +204,7 @@ jobs:
       - name: Install deps
         run: pip install pyyaml
       - name: Download verify results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: results
           merge-multiple: true
@@ -246,7 +246,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Download verify results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: results
           merge-multiple: true
