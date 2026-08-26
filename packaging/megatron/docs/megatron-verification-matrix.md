@@ -49,7 +49,7 @@
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
-| 摩尔线程 | MUSA 5.2.0 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
+| 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⛔ | — | ？ | — | ⛔ | — |
 | 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⛔ | — | ？ | — | ⛔ | — |
@@ -87,6 +87,11 @@
 | 海光 | DTK 26.04 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
 | 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
 | 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/116 |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 |
 
 <!-- /status-matrix:verification -->
 
@@ -100,7 +105,7 @@
 
 ### megatron_training
 
-> 数据截止：2026-08-23
+> 数据截止：2026-08-26
 
 **App 级设施（全后端共享）**
 
