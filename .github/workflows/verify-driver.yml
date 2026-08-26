@@ -173,7 +173,7 @@ jobs:
         # consumed by record/build.
       - name: Upload result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.app }}-${{ matrix.backend }}-${{ matrix.compiler }}
           # Scoped to this run's exact file — never glob *.json, or a stale
