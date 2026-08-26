@@ -7,7 +7,7 @@
 
 日期：2026-08-16
 
-节点：`h20`（H20 GPU，x86_64）
+平台：H20 GPU（x86_64）
 
 镜像：`flagos-runtime-nvidia-cuda12.8:2.1.2` / `flagos-runtime-nvidia-cuda13.3:2.1.2`
 

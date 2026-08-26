@@ -15,8 +15,6 @@
 
 **模型:** Qwen3-4B（`/data/models/Qwen/Qwen3-4B`，modelscope 下载 7.6G）
 
-**NPU 绑定:** **NPU 1**（NPU 0 有他人 `pytest` 进程占用，故换绑；仅 Python 安装阶段无关设备）
-
 ascend 是此前 flag_gems `j0`/`log2` 缺失致 import 崩溃的两个后端之一，故本次 E2E
 同时是**修复后 5.3.4 wheel 的在硬件确认**。全链路 serve + 推理一次跑通，910B4 上
 Qwen3-4B 贪婪解码输出连贯英语。这也是首个 **aarch64 + Python 3.11** 组合的 repack。

@@ -132,8 +132,6 @@ vLLM 顶层的依赖声明相应改成 `==X.Y.Z+flagos`，单步安装时命中�
 
 日期：2026-08-15
 
-节点：`metax124`
-
 镜像：`flagos-runtime-metax-maca3.8.1.3:2.1.2-build`
 
 插件： main 分支 43edeb6（main）+ 本机未提交的 0.24.0 shim

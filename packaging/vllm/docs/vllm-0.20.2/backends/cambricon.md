@@ -7,7 +7,7 @@
 
 **日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）；2026-08-26（复核，flag_gems 5.3.5 / PR #5745 mask-logic 修复）
 
-**平台:** Cambricon MLU590　**节点:** `cambricon`
+**平台:** Cambricon MLU590
 
 **driver/neuware:** 4.7.2　**镜像:** `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（`1a2a53ebab3b`，全量升级包集）
 
@@ -242,7 +242,7 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 
 **日期:** 2026-08-26
 
-**平台:** Cambricon MLU590　**节点:** `cambricon`
+**平台:** Cambricon MLU590
 
 **driver/neuware:** 4.4.3　**镜像:** `flagos-runtime-cambricon-neuware4.4.3:2.1.2`
 
