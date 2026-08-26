@@ -166,8 +166,9 @@ backends:
     deps_app: false
     launch_docs: false
   mthreads-musa5.2.0:
-    deps_app: false
-    launch_docs: false
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_14_g6f61e9c5b"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
