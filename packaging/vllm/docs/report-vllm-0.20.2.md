@@ -1745,21 +1745,11 @@ vllm `0.20.2+flagos` cp310 wheel 与 xgrammar cp310 wheel（xgrammar 为本后�
 均 from 镜像，无公有 torch/cuda/triton 链。xgrammar 为 cp310-locked 二进制，须本机 build
 （与 4.7.2 的 cp312 分属不同 Python，不可复用）。
 
-### 插件 —— ✅ 干净 wheel build（--no-build-isolation，纯 Python）
+### 插件 —— ✅ PR #355（5 处兼容 shim，均在 plugin 侧）
 
-vllm-plugin-FL **PR #355 head `1cc50f1`**（base release/0.2）。wheel
-`vllm_plugin_fl-0.2.1+g1cc50f1-py3-none-any.whl` 在容器内
-`pip wheel --no-build-isolation` 构建（`SETUPTOOLS_SCM_PRETEND_VERSION=0.2.1+g1cc50f1`；
-源码 = `git archive HEAD` 解包，可复现，无手工 patch）。
-
-### serve + 推理 —— ✅ 成功（5 处兼容 shim，均在 plugin 侧）
-
-serve ready ~125s，`Application startup complete`，completion HTTP 200，Qwen3-4B 输出连贯：
-
-```
-prompt: "The capital of France is" → " Paris. The capital of Germany is Berlin.
-The capital of Italy is Rome."（finish_reason=length，16 token 上限）
-```
+vllm-plugin-FL 在 release/0.2 上合入 PR #355（merge commit `ef78dec`）后走每日构建，
+产出 wheel `vllm_plugin_fl-0.2.1+gef78dec.d20260826-py3-none-any.whl`，上架
+`flagos-pypi-cambricon`；app 镜像单步安装它。5 处兼容 shim 均在此 wheel 内：
 
 | # | 症状 | 根因 | 修复（`vllm_fl/__init__.py` / `worker/model_runner.py`） |
 |---|---|---|---|
@@ -1770,28 +1760,36 @@ The capital of Italy is Rome."（finish_reason=length，16 token 上限）
 | 5 | `TypeError: task_type='block'`（triton launch kwarg） | flag_gems 5.3.5 cambricon 后端 emit `task_type='block'`，triton 3.2.0+mlu1.7.2 不支持 | `JITFunction.run` 剥掉 task_type kwarg（须在 `import torch_mlu` 之后 patch，避免 triton init 循环导入） |
 
 其中 #1 是既有缺口（float4 哨兵来自 PR #176 MUSA 支持），#2~#5 为本后端新暴露、本次
-上提（PR #355 head `1cc50f1`，两个 commit：`88ae7d9` = CIA/get_kernel/task_type 三 shim，
-`1cc50f1` = mlu sync）。
+上提（PR #355，两个 commit：`88ae7d9` = CIA/get_kernel/task_type 三 shim，`1cc50f1` =
+mlu sync）。
 
-### Stack 验证（cambricon-neuware4.4.3，✅ E2E 通过 2026-08-26）
+### E2E 验证 —— ✅ 通过（app 镜像，daily wheel）
+
+对工作流产出的 app 镜像
+`flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gef78dec.d20260826`
+（sha256 `60a7158…`，单步安装 `vllm==0.20.2+flagos` + `vllm-plugin-fl==0.2.1+gef78dec.d20260826`）：
 
 ```
-Python:       3.10.20                 ✅
-torch/torch_mlu: 2.7.1+cpu / 1.29.2   ✅  from 镜像
-triton:       3.2.0+mlu1.7.2          ✅  T-only（无 FlagTree）
-vllm:         0.20.2+flagos           ✅  cp310，单步安装
-vllm_fl:      0.2.1+g1cc50f1          ✅  纯 Python wheel（5 处 shim）
-flag_gems:    5.3.5                   ✅
-vllm serve:   ✅  application startup complete（~125s，Qwen3-4B TP=1）
-Inference:    ✅  HTTP 200，completion 输出连贯
+vllm:          0.20.2+flagos                     ✅
+vllm_fl:       0.2.1+gef78dec.d20260826          ✅  daily wheel（release/0.2 head ef78dec）
+flag_gems:     5.3.5                             ✅
+triton:        3.2.0+mlu1.7.2                    ✅  T-only（无 FlagTree）
+torch/torch_mlu: 2.7.1+cpu / 1.29.2              ✅  from 镜像
+vllm serve:    ✅  application startup complete（~7.5min cold，含 kernel 编译）
+Inference:     ✅  HTTP 200，16 token
+               " Paris. The capital of Germany is Berlin. The capital of Italy is Rome."
 ```
+
+`generation_tokens_total` 从 0 → 16，`num_requests_running` 归零，与 4.7.2（§2.7）一致的
+连贯输出。T-only 单路径（无 FlagTree）。
 
 ### 待办
 
 | 事项 | 状态 | 备注 |
 |------|--------|-------|
-| 4 处新 shim 上提 plugin | ✅ PR #355 | base release/0.2，head `1cc50f1`（#2~#5；#1 float4 已有） |
+| 4 处新 shim 上提 plugin | ✅ PR #355 | base release/0.2，merge `ef78dec`（#2~#5；#1 float4 已有） |
 | `deps_app.vllm0.20.2` 加 4.4.3 | ✅ configs.yaml | `neuware4.4.3.deps_app.vllm0.20.2: []` |
+| app 镜像工作流构建 + E2E 复核 | ✅ 2026-08-26 | `2.1.2-0.2.1_gef78dec.d20260826`，daily wheel，T-only ✅ |
 | xgrammar cp310 wheel | ✅ 已上架 | 本后端首个 cp310 xgrammar，`flagos-pypi-cambricon` |
 | docs flag_gems 5.3.4 → 5.3.5 | ⬜ 待重渲 | `docs/content/**/runtime/*.md` 仍 5.3.4，configs.yaml/data 已 5.3.5 |
 
