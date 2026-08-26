@@ -190,10 +190,15 @@ COMPILER_GUARD=""
 # manual ✅. MASTER_PORT avoids a port collision with a concurrent cell on the
 # same node.
 MASTER_PORT="${MASTER_PORT:-29500}"
+TRAIN_EXTRA_ARGS=""
 case "${VENDOR_BACKEND}" in
     cambricon-neuware4.4.3) MASTER_PORT=29500 ;;
     cambricon-neuware4.7.2) MASTER_PORT=29501 ;;
+    mthreads-*) TRAIN_EXTRA_ARGS="--distributed-backend mccl" ;;
 esac
+# NOTE (mthreads): MUSA torch ships no NCCL — distributed backend must be mccl
+# (MCCL lives in the base image layer). Without it, DDP/checkpointing aborts
+# with "Distributed backend nccl does not exist".
 # NOTE (hygon flagtree): --disable-jit-fuser is INSUFFICIENT there — the jit
 # fuser binds torch.compile at import time, before args flip. A container-side
 # noop patch (or the upstream lazy-decorator fix) is required before a hygon
@@ -408,7 +413,8 @@ docker exec "${AFTER_CONTAINER}" bash -c '
             --tokenizer-type NullTokenizer --vocab-size 50257 \
             --transformer-impl local --attention-backend unfused --bf16 \
             --no-masked-softmax-fusion --disable-jit-fuser --no-persist-layer-norm \
-            --no-gradient-accumulation-fusion --untie-embeddings-and-output-weights
+            --no-gradient-accumulation-fusion --untie-embeddings-and-output-weights \
+            '"${TRAIN_EXTRA_ARGS}"'
 '
 log_info "✅ pretrain_gpt 5-iter E2E exit 0 (scenario=${SCENARIO}, backend=${VENDOR_BACKEND})"
 
