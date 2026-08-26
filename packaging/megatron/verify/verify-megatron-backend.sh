@@ -75,6 +75,10 @@ MEGATRON_VERSION="${MEGATRON_VERSION:-0.17.1}"
 APP_IMAGE="${APP_IMAGE:-}"
 COMPILER=""
 SCENARIO=""
+# Stack version driving the runtime image tag. Empty = read from the repo's
+# own configs.yaml (REPO_ROOT below); explicit --stack-version = use exactly
+# this version, for when the checkout is stale and you don't want to refresh.
+STACK_VERSION=""
 
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -83,10 +87,12 @@ while [[ $# -gt 0 ]]; do
         --app-image) APP_IMAGE="$2"; shift 2 ;;
         --compiler) COMPILER="$2"; shift 2 ;;
         --scenario) SCENARIO="$2"; shift 2 ;;
+        --stack-version) STACK_VERSION="$2"; shift 2 ;;
         --help)
-            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>] [--compiler <c>] [--scenario <training|rl>]"
+            echo "Usage: $0 <vendor-backend> [--megatron-version <ver>] [--app-image <tag>] [--compiler <c>] [--scenario <training|rl>] [--stack-version <ver>]"
             echo "  --compiler <c>   Compiler path to verify: flagtree | triton (default: runtime default)"
             echo "  --scenario <s>   training (run mock-data pretrain_gpt, the default) | rl (refused — upstream-blocked)"
+            echo "  --stack-version  Stack version for the runtime image tag; default: read from the discovered configs.yaml"
             exit 0
             ;;
         # Not an option: positional. Collect (don't break) so options may
@@ -126,23 +132,31 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Locate the repo root: walk up from SCRIPT_DIR until configs.yaml is found.
-REPO_ROOT=""
-d="${SCRIPT_DIR}"
-while [[ "$d" != "/" ]]; do
-    if [[ -f "$d/configs.yaml" ]]; then REPO_ROOT="$d"; break; fi
-    d="$(dirname "$d")"
-done
-if [[ -z "$REPO_ROOT" ]]; then
-    echo "Error: configs.yaml not found (searched up from ${SCRIPT_DIR})" >&2
+# Locate the repo root: this script lives at packaging/megatron/verify/ in the
+# checkout, so the root is a FIXED relative path — never a walk-up search. A
+# copy staged elsewhere (the old "sed SCRIPT_DIR" → /tmp pattern) resolves to
+# a directory with no configs.yaml and fails loudly here, instead of silently
+# picking up whatever configs.yaml happens to be nearby.
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+if [[ ! -f "${REPO_ROOT}/configs.yaml" ]]; then
+    echo "Error: configs.yaml not found at ${REPO_ROOT} (expected the repo root). Run this script from the repo checkout — do not stage it to /tmp." >&2
     exit 1
 fi
 
-STACK_VERSION=$(python3 -c "
+# Stack version for the runtime image tag. Explicit --stack-version wins;
+# otherwise it is read from ${REPO_ROOT}/configs.yaml — only correct if the
+# checkout is fresh (refresh the node first). The source is echoed in the
+# header so every log line shows which one drove the image tag.
+if [[ -z "${STACK_VERSION}" ]]; then
+    STACK_VERSION=$(python3 -c "
 import yaml
 with open('${REPO_ROOT}/configs.yaml') as f:
     print(yaml.safe_load(f)['version'])
 ")
+    STACK_VERSION_SOURCE="${REPO_ROOT}/configs.yaml (discovered)"
+else
+    STACK_VERSION_SOURCE="--stack-version (explicit)"
+fi
 
 RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR_BACKEND}:${STACK_VERSION}"
 VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple"
@@ -211,6 +225,7 @@ echo "Megatron Backend Verification"
 echo "========================================"
 echo "Vendor-Backend:    ${VENDOR_BACKEND}"
 echo "Runtime Image:     ${RUNTIME_IMAGE}"
+echo "Stack Version:     ${STACK_VERSION} (${STACK_VERSION_SOURCE})"
 if [[ -n "${APP_IMAGE}" ]]; then
     echo "App Image:         ${APP_IMAGE}"
     echo "Mode:              app-image (install baked at image build time)"
