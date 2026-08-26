@@ -62,7 +62,7 @@ title: "enflame-tops1.10.6"
 - EFML 1.10.6
 - ECCL 3.6.3.11
 - ECCL Tests 3.6.3.11
-- Triton GCU 3.6.0+1.0.20260722.cc.1.10.6
+- Triton GCU 3.6.0+1.0.20260821.cc.1.10.6
 - Gculare-perftest 1.10.6
 
 ## 启动
@@ -94,4 +94,4 @@ docker run --rm -it \
 efsmi
 ```
 
-*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*
+*更新时间: 2026-08-25 22:46:22 · `29d9b1e4e7c2`*
