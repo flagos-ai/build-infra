@@ -6,6 +6,7 @@
 ## 2.6 enflame（GCU300：✅ E2E 通过，vLLM 原生 FLASH_ATTN，跨栈收敛）
 
 **方案:** vLLM 原生 FLASH_ATTN + 五处修复（plugin A/B/C/E [PR #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) + flag_gems D [PR #5345](https://github.com/flagos-ai/FlagGems/pull/5345)）。
+
 **跨栈收敛（关键结论）:** 同一份代码在 **tops1.10.6**（torch_gcu 2.11，首次推导 2026-08-09）
 与 **tops1.9.10**（torch_gcu 2.10.0，复验 2026-08-09）上**零改动**通过 E2E——不再是每栈一个
 方案。此前 1.9.10 上的 `AttentionFLBackend` 记录（旧 §2.6.1）已删除：其诊断（int64 双层结构、
@@ -17,8 +18,10 @@
 
 ### 2.6.1 tops1.10.6 干净重推导（✅ E2E 通过，2026-08-09）—— 首次推导
 
-**日期:** 2026-08-09　**平台:** Enflame GCU300　**节点:** `enflame1`
+**日期:** 2026-08-09　**平台:** Enflame GCU300
+
 **镜像:** `flagos-runtime-enflame-tops1.10.6:2.1.2`
+
 **stack:** torch_gcu 2.11 / tops1.10.6 / **flag_gems master（editable）** / plugin main（editable）
 
 从零容器起、不预置任何补丁，逐个由硬件暴露的失败驱动修复。采用 **vLLM 原生 FLASH_ATTN**
@@ -28,13 +31,16 @@
 
 #### 五处修复（均在 git 可追踪的 editable flag_gems / plugin 内，vLLM site-packages 保持原样）
 
-| # | 缺口 | 家 |
-|---|---|---|
-| A | 模型加载期 flag_gems int64 工厂/索引算子（`zeros`/`add`/`sub`…）触 GCU300 64 位墙 | plugin 配置 `enflame.yaml`：黑名单回退 torch_gcu |
-| B | `FlashAttention version not detected`（空 wheel 无 `_vllm_fa2_C`） | plugin `__init__.py`：早期把厂商 `flash_attn.vllm_flash_attn` 别名到 `vllm.vllm_flash_attn` |
-| C | `reshape_and_cache_flash` NameError（empty build 剥离 `vllm._C`） | plugin `gcu/impl/flash_attn_backend.py`：把厂商 FA 计算 + flag_gems KV 内核绑上 `fa_utils` |
-| D | flag_gems `reshape_and_cache_flash` 内核收 int64 `slot_mapping` | flag_gems `fused/reshape_and_cache_flash.py`：降位 int32 |
-| E | vLLM 原生 `_compute_slot_mapping_kernel` 内建 int64 | plugin `gcu/impl/slot_mapping.py`：纯 torch on-device int32 重写 |
+- **A** —— 模型加载期 flag_gems int64 工厂/索引算子（`zeros`/`add`/`sub`…）触 GCU300
+  64 位墙：plugin 配置 `enflame.yaml` 黑名单回退 torch_gcu
+- **B** —— `FlashAttention version not detected`（空 wheel 无 `_vllm_fa2_C`）：plugin
+  `__init__.py` 早期把厂商 `flash_attn.vllm_flash_attn` 别名到 `vllm.vllm_flash_attn`
+- **C** —— `reshape_and_cache_flash` NameError（empty build 剥离 `vllm._C`）：plugin
+  `gcu/impl/flash_attn_backend.py` 把厂商 FA 计算 + flag_gems KV 内核绑上 `fa_utils`
+- **D** —— flag_gems `reshape_and_cache_flash` 内核收 int64 `slot_mapping`：flag_gems
+  `fused/reshape_and_cache_flash.py` 降位 int32
+- **E** —— vLLM 原生 `_compute_slot_mapping_kernel` 内建 int64：plugin
+  `gcu/impl/slot_mapping.py` 纯 torch on-device int32 重写
 
 #### 设计取舍
 
@@ -76,8 +82,10 @@ enforce-eager，`/root/run_serve.sh` 现场保留。两处插件 patch 日志（
 
 ### 2.6.2 tops1.9.10 跨栈复验（✅ E2E 通过，2026-08-09）—— 零改动 + 采样缺口修复
 
-**日期:** 2026-08-09　**平台:** Enflame GCU300　**节点:** `enflame1`
+**日期:** 2026-08-09　**平台:** Enflame GCU300
+
 **镜像:** `flagos-runtime-enflame-tops1.9.10:2.1.2`（runtime v2：仅预置 flag_gems，**无 vllm、无 plugin**）
+
 **stack:** torch_gcu **2.10.0** / tops1.9.10 / flag_gems master（editable）/ plugin #357（editable）
 
 在 1.9.10 栈全新 v2 容器上复验 §2.6.1 方案，判定是否可退役 1.9.10 上的 AttentionFLBackend。
@@ -105,11 +113,12 @@ GCU 0 显存，`docker rm -f` 解决），非代码缺口。
 贪心走 `argmax`，不触发 top-k/top-p sort 路径。显式测采样（`temp=0.8, top_p=0.9`）逐个由
 硬件失败驱动、增量补 GCU300 dispatch 黑名单（每个 op 都由一次现场失败换来，非照搬旧笔记）：
 
-| 加入 `enflame.yaml` 黑名单的 op | 修复的症状 | 类型 |
-|---|---|---|
-| `sort`, `sort_stable` | 崩溃：`logits.sort()` → gcu300 radix_sort int64 → PassManager 拒绝 | int64 墙 |
-| `rsub_scalar`, `rsub_tensor` | 崩溃：top-k `logits_sort.size(1) - k` → rsub int64 → 同墙 | int64 墙 |
-| `argmax` | 退化输出（空/纯空白，不崩溃）：flag_gems gcu300 argmax 大词表下返回越界 token id；torch_gcu argmax 正确 | correctness |
+- `sort` / `sort_stable` —— **int64 墙：** 崩溃 `logits.sort()` → gcu300 radix_sort int64
+  → PassManager 拒绝
+- `rsub_scalar` / `rsub_tensor` —— **int64 墙：** 崩溃 top-k `logits_sort.size(1) - k`
+  → rsub int64 → 同墙
+- `argmax` —— **correctness：** 退化输出（空/纯空白，不崩溃）：flag_gems gcu300 argmax
+  大词表下返回越界 token id；torch_gcu argmax 正确
 
 修复为纯配置（路由到 torch_gcu），enflame 专属。补齐后 `temp=0.8/top_p=0.9` 在 Qwen3-4B 上
 输出连贯（两个 prompt 确认）。未加密（`q.exponential_()`）经探针确认在 GCU300 上正确，无需

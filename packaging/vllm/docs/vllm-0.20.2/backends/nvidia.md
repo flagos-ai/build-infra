@@ -6,6 +6,7 @@
 ## 2.1 NVIDIA cuda12.8（参考实现，2026-08-23 起 empty 模式）
 
 **日期:** 2026-07-27/28　**平台:** NVIDIA H20 (8×)
+
 **目标:** vllm 0.20.2 + vllm-plugin-FL，`flagos-runtime-nvidia-cuda12.8:2.1.1`
 
 NVIDIA 是首个跑通的后端，最初使用 **standard 构建**（官方预编译 wheel，含
@@ -76,12 +77,30 @@ cd vllm-plugin-FL && VLLM_VENDOR=cuda pip install --no-build-isolation .
 
 ### 遇到的 Bug 及根因
 
-| # | 现象 | 根因 | 修复 |
-|---|------|------|------|
-| 1 | `import vllm` 失败：`ModuleNotFoundError: No module named 'regex'` | METADATA 在 `License-File` 删除处留空行截断，后面 82 行 `Requires-Dist` 对 pip 不可见 | 正则加 `\n?` 吃掉尾随换行（已纳入 [§1.3](../playbook.md)） |
-| 2 | numpy 1.26.4→2.3.5 升级，flaggems 崩溃 | `opencv-python-headless` 声明 `numpy>=2`，flaggems 硬锁 `numpy==1.26.4` | FlagGems 不 pin numpy；configs.yaml 按后端锁定（[§1.7](../playbook.md)） |
-| 3 | vllm 安装后 `sqlalchemy` 消失 | flaggems 用 `--no-deps` 装，其依赖未拉取，vllm 解析时又卸载 | 装 flaggems 不用 `--no-deps` |
-| 4 | serve 警告 `_C.abi3.so: undefined symbol: _ZN3c10...` | vllm 二进制 wheel 与主机 CUDA ABI 不匹配——非致命，C 扩展优雅降级 | PoC 可接受；生产需用匹配 CUDA 版本源码编译 |
+1. **现象：** `import vllm` 失败：`ModuleNotFoundError: No module named 'regex'`
+
+   **根因：** METADATA 在 `License-File` 删除处留空行截断，后面 82 行 `Requires-Dist`
+   对 pip 不可见
+
+   **修复：** 正则加 `\n?` 吃掉尾随换行（已纳入 [§1.3](../playbook.md)）
+
+2. **现象：** numpy 1.26.4→2.3.5 升级，flaggems 崩溃
+
+   **根因：** `opencv-python-headless` 声明 `numpy>=2`，flaggems 硬锁 `numpy==1.26.4`
+
+   **修复：** FlagGems 不 pin numpy；configs.yaml 按后端锁定（[§1.7](../playbook.md)）
+
+3. **现象：** vllm 安装后 `sqlalchemy` 消失
+
+   **根因：** flaggems 用 `--no-deps` 装，其依赖未拉取，vllm 解析时又卸载
+
+   **修复：** 装 flaggems 不用 `--no-deps`
+
+4. **现象：** serve 警告 `_C.abi3.so: undefined symbol: _ZN3c10...`
+
+   **根因：** vllm 二进制 wheel 与主机 CUDA ABI 不匹配——非致命，C 扩展优雅降级
+
+   **修复：** PoC 可接受；生产需用匹配 CUDA 版本源码编译
 
 ### serve + 推理 —— ✅ 成功
 
@@ -130,7 +149,7 @@ Inference:    Qwen3.6-35B-A3B ✅  (prompt=17 / completion=128 tokens)
 - 构建后验证全过：Matrix unchanged（torch/flagtree/flag_gems 未被覆盖）、
   `vllm + vllm_fl import OK`、App-image verification PASSED。
 
-**h20 节点 E2E —— 双编译器路径各跑一遍（empty 模式，同一 app 镜像）：**
+**E2E —— 双编译器路径各跑一遍（empty 模式，同一 app 镜像）：**
 
 > 空模式镜像与 2026-08-16 双编译器验证用的 vendor（standard）镜像不是同一
 > 镜像，旧记录不能背书 empty 产物。empty 模式下两条编译器路径分别实测：
@@ -138,7 +157,7 @@ Inference:    Qwen3.6-35B-A3B ✅  (prompt=17 / completion=128 tokens)
 **F 路径（flagtree，默认编译器）—— ✅**
 
 ```bash
-docker run -d --name vllm-app-e2e-nvidia --gpus all \
+docker run -d --gpus all \
   -v /data/tqm/models:/data/models:ro --network host \
   harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda12.8:2.1.2-0.2.1_g825c1cd
 ```
@@ -155,7 +174,7 @@ docker run -d --name vllm-app-e2e-nvidia --gpus all \
 **T 路径（triton 3.6.0 side compiler）—— ✅（2026-08-23 补验）**
 
 ```bash
-docker run -d --name vllm-app-e2e-triton --gpus all \
+docker run -d --gpus all \
   -e PYTHONPATH=/opt/triton \
   -v /data/tqm/models:/data/models:ro --network host \
   harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda12.8:2.1.2-0.2.1_g825c1cd
@@ -183,7 +202,7 @@ docker run -d --name vllm-app-e2e-triton --gpus all \
 **F 路径（flagtree 默认）—— ✅**
 
 ```bash
-docker run -d --name vllm-app-e2e-nv133-f --gpus all \
+docker run -d --gpus all \
   -v /data/tqm/models:/data/models:ro --network host \
   harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.1.2-0.2.1_g825c1cd
 ```
@@ -195,7 +214,7 @@ docker run -d --name vllm-app-e2e-nv133-f --gpus all \
 **T 路径（triton 3.6.0 side compiler）—— ✅**
 
 ```bash
-docker run -d --name vllm-app-e2e-nv133-t --gpus all \
+docker run -d --gpus all \
   -e PYTHONPATH=/opt/triton \
   -v /data/tqm/models:/data/models:ro --network host \
   harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.1.2-0.2.1_g825c1cd

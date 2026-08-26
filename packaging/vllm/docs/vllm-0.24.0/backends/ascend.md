@@ -71,10 +71,10 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型
   （Qwen3、Qwen2、Llama…）不受影响；重构 GDN 补丁为后续工作。
 
-### 10.3 cann8.5.0（hw26）双编译器验证
+### 10.3 cann8.5.0 双编译器验证
 
 - 镜像：`flagos-runtime-ascend-cann8.5.0:2.1.2`（aarch64，CANN 8.5.0，
-  Ascend910B4，节点 hw26）
+  Ascend910B4）
 - 版本：flagtree 0.6.0+ascend3.2（默认）；`compiler triton` →
   `/opt/triton` = triton 3.2.0 + triton_ascend 3.2.0；torch 2.9.0+cpu /
   torch_npu 2.9.0 / flag_gems 5.3.4；vllm `0.24.0+flagos`（cp311
@@ -132,13 +132,13 @@ reference]` 后再跑仍全绿 → 重排非必要，仓库未改（容器最终
 §10.2 的 `vllm-0.24.0-563743c8` 为当时会话 run 标识，本小节以 wheel
 版本 + 插件 commit 为准。
 
-### 10.4 cann9.0.0 triton 路径 E2E（hw25，2026-08-18）
+### 10.4 cann9.0.0 triton 路径 E2E（2026-08-18）
 
 补上 §10.2 缺失的 triton 侧验证（cann9.0.0 此前未单独 serve triton
 路径；cann8.5.0 的 triton 侧见 §10.3）：
 
 - 镜像：`flagos-runtime-ascend-cann9.0.0:2.1.2` 重建（PR #428
-  triton overlay unzip 修复后），节点 hw25
+  triton overlay unzip 修复后）
 - 版本指纹：vllm `0.24.0+flagos`（cp311 aarch64 empty wheel）；
   torch 2.10.0+cpu / torch_npu 2.10.0 / flag_gems 5.3.4；
   `compiler triton` → `/opt/triton` = triton 3.5.0（dist 名）+
@@ -171,7 +171,7 @@ reference]` 后再跑仍全绿 → 重排非必要，仓库未改（容器最终
   （`cf8998c`）在 triton_ascend 3.2.1 下同样成立（E2E 未触发挂死）；
   triton 编译器在 kernel 层亦验证可用（FlagGems 精度 66/66）。
 
-### 10.5 app 镜像 serve E2E（hw25，2026-08-18）
+### 10.5 app 镜像 serve E2E（2026-08-18）
 
 §10.1–10.4 均为 runtime 镜像 + editable 插件；本节验证**交付形态**：
 app 镜像（wheel 单步安装线 + `vllm-serve` launcher）在 NPU 上的
@@ -216,9 +216,9 @@ serve + 推理，即 `app/vllm/` 全流程的端到端证明。
   proc-mem 显示 "No process in device" 与真实占用不一致，须以
   `docker ps -a` + 设备 open 实测为准）。
 
-### 10.6 app 镜像 serve E2E（hw26 cann8.5.0，2026-08-24）
+### 10.6 app 镜像 serve E2E（cann8.5.0，2026-08-24）
 
-cann8.5.0（hw26）的 app 镜像交付形态验证（§10.3 为 runtime 镜像 +
+cann8.5.0 的 app 镜像交付形态验证（§10.3 为 runtime 镜像 +
 editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
 `app/vllm/` 全流程端到端证明）。
 
@@ -241,7 +241,7 @@ editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
   `Custom fusions: norm_quant, act_quant`；算子路由同 §10.3：
   `attention_backend`/`rms_norm`/`rotary_embedding` → `vendor.ascend`，
   `silu_and_mul` → `default.flagos`，`linear_backend='auto'`。指纹
-  `vllm-0.24.0-0568564d`（两路径一致；§10.5 hw25 为
+  `vllm-0.24.0-0568564d`（两路径一致；§10.5 为
   `vllm-0.24.0-0535d777`，插件 wheel 版本串相同、指纹 hash 不同）
 
 **双路径结果：F（flagtree）/ T（triton）均连贯 ✅**

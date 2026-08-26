@@ -6,7 +6,9 @@
 ## 2.4 hygon-dtk26.04（跨后端通用性验证）
 
 **日期:** 2026-08-02　**平台:** Hygon BW1000 (8× HCU)
-**节点:** `hygon25`（JumpServer 别名，hostname hygon-2-25）　**DTK:** 26.04
+
+**DTK:** 26.04
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-hygon-dtk26.04:2.1.1`
 
 **这是首个不做本地 repack、直接复用他机 wheel 的后端**——用的正是 [§2.3](mthreads.md)
@@ -18,7 +20,7 @@
 > **容器启动（DCU 直通）：** docker 默认 runtime 已是 `dcu`；仍显式带上设备
 > 与 HAL 挂载：
 > ```bash
-> docker run -d --name vllm-verify-hygon --network host --runtime dcu \
+> docker run -d --network host --runtime dcu \
 >   --device /dev/kfd --device /dev/mkfd --device /dev/dri --group-add video \
 >   -v /opt/hyhal:/opt/hyhal -v /data:/data \
 >   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.1 sleep infinity
@@ -145,11 +147,11 @@ Inference:    ✅ 成功                  Ministral-8B, 32 tokens
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| 镜像侧 torch↔numpy ABI | ⬜ 阻塞 | 反馈厂商重编 torch（numpy 2.x），或 configs.yaml pin numpy 1.26.4 |
-| 一份 wheel 上传到全部 vendor PyPI | ⬜ | 通用性已实证（[§5.2](../decisions.md)），待自动化多厂商上传 |
-| 更大模型 / TP>1 / yarn rope | ⬜ | 仅测过 Ministral-8B + eager + TP=1 |
+1. **镜像侧 torch↔numpy ABI** —— ⬜ 阻塞：反馈厂商重编 torch（numpy 2.x），或
+   configs.yaml pin numpy 1.26.4
+1. **一份 wheel 上传到全部 vendor PyPI** —— ⬜：通用性已实证
+   （[§5.2](../decisions.md)），待自动化多厂商上传
+1. **更大模型 / TP>1 / yarn rope** —— ⬜：仅测过 Ministral-8B + eager + TP=1
 
 **相关提交：** 无新增代码；复用 [§2.3](mthreads.md) mthreads 的 repack 产物
 （PR #280）。
