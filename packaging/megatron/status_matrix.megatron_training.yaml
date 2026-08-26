@@ -42,7 +42,7 @@ scenarios:
       spacemit-spacemit:     {T: "⬜", F: "—"}
       sunrise-tangrt1.2.0:   {T: "⬜", F: "⬜"}
       thead-ppu2.0.0:        {T: "⬜", F: "—"}
-      tsingmicro-tsm260610:  {T: "⬜", F: "⬜"}
+      tsingmicro-tsm260610:  {T: "❌", F: "❌"}
   post_training:
     label: 后训练
     verification:
