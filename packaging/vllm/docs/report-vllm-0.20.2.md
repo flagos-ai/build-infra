@@ -1722,6 +1722,79 @@ plain `docker run` 直接 model-not-found）。`configs.yaml` 数据与 `generat
 | 源文档配方更正（去掉 KL3 行） | ⬜ 待拍板 | 复刻源文档 3 处含 `XPU_EVENT_KL3_ENABLE=1`，已定负面教材不改 |
 | 0.24.0 验证 | ⬜ | upstream main 已删 vendor/kunlunxin 目录，0.24.0 线无插件挂点 |
 
+## 2.11 cambricon-neuware4.4.3（MLU590：✅ E2E 通过，2026-08-26；T-only，无 FlagTree）
+
+**日期:** 2026-08-26
+　**平台:** Cambricon MLU590　**节点:** `cambricon`
+**driver/neuware:** 4.4.3　**镜像:** `flagos-runtime-cambricon-neuware4.4.3:2.1.2`
+**容器:** `vllm443`　**Python:** 3.10.20　**torch/torch_mlu:** 2.7.1+cpu / 1.29.2+torch2.7.1
+**triton:** 3.2.0+mlu1.7.2　**flag_gems:** 5.3.5　**numpy:** 2.2.6
+**目标:** vllm 0.20.2+flagos + vllm-plugin-FL 单步安装，serve + 推理
+**模型:** Qwen3-4B（`/data/models/Qwen/Qwen3-4B`）
+
+cambricon 4.4.3 是 **T-only 特例**（无配套 FlagTree，用户确认），故本后端只验 Triton
+单路径。与 4.7.2（§2.7）的关键差异：Python 3.10（vs 3.12）、torch 2.7.1+cpu（vs
+2.11.0）、triton 3.2.0+mlu1.7.2（vs 3.4.0+mlu2.1.1）。旧版工具链在 serve 路径上暴露了
+4.7.2 未触及的 5 个兼容缺口，全部在 **vllm-plugin-FL 侧**修复（不碰 vllm 本体），已随
+PR #355 上提。
+
+### Repack / 安装 —— ✅ 单步，零泄漏
+
+vllm `0.20.2+flagos` cp310 wheel 与 xgrammar cp310 wheel（xgrammar 为本后端首个 cp310
+产物，见下）均已上架 `flagos-pypi-cambricon`，单步 `pip install` 零泄漏。torch / torch_mlu
+均 from 镜像，无公有 torch/cuda/triton 链。xgrammar 为 cp310-locked 二进制，须本机 build
+（与 4.7.2 的 cp312 分属不同 Python，不可复用）。
+
+### 插件 —— ✅ 干净 wheel build（--no-build-isolation，纯 Python）
+
+vllm-plugin-FL **PR #355 head `1cc50f1`**（base release/0.2）。wheel
+`vllm_plugin_fl-0.2.1+g1cc50f1-py3-none-any.whl` 在容器内
+`pip wheel --no-build-isolation` 构建（`SETUPTOOLS_SCM_PRETEND_VERSION=0.2.1+g1cc50f1`；
+源码 = `git archive HEAD` 解包，可复现，无手工 patch）。
+
+### serve + 推理 —— ✅ 成功（5 处兼容 shim，均在 plugin 侧）
+
+serve ready ~125s，`Application startup complete`，completion HTTP 200，Qwen3-4B 输出连贯：
+
+```
+prompt: "The capital of France is" → " Paris. The capital of Germany is Berlin.
+The capital of Italy is Rome."（finish_reason=length，16 token 上限）
+```
+
+| # | 症状 | 根因 | 修复（`vllm_fl/__init__.py` / `worker/model_runner.py`） |
+|---|---|---|---|
+| 1 | `AttributeError: torch.float4_e2m1fn_x2` | 该 dtype 仅存在于 CUDA torch 2.7+，cambricon torch 2.7.1+cpu 无 | import 前注入 `_torch.float4_e2m1fn_x2 = _torch.uint8` 哨兵（**已有**，源自 #176 MUSA） |
+| 2 | `AttributeError: get_mlu_view_from_cpu_tensor`，torch._inductor init 中止 | torch_mlu 把 `_C::get_mlu_view_from_cpu_tensor` 注册为 CIA op，但无 `torch.ops._C` Python handle，`_materialize_cpp_cia_ops` getattr 抛错 | 覆盖为 tolerant 版：getattr 失败即跳过该 op |
+| 3 | `KeyError: 'aten::copy_'`（flag_gems copy_ hook） | flag_gems 5.3.5 用 `torch.library.get_kernel()` 填 torch_ops_map，该 API 仅 torch 2.8+，2.7.1 无 → map 空 | 提供 2.7.1 兼容 get_kernel：`OpOverload.redispatch(CompositeExplicitAutograd keyset)` |
+| 4 | `RuntimeError: Backend doesn't support synchronizing all streams` | plugin `_accelerator_synchronize` 走 `torch.accelerator.synchronize()`，无 mlu 分支 | `model_runner.py` 加 `elif device_type == "mlu": torch.mlu.synchronize()` |
+| 5 | `TypeError: task_type='block'`（triton launch kwarg） | flag_gems 5.3.5 cambricon 后端 emit `task_type='block'`，triton 3.2.0+mlu1.7.2 不支持 | `JITFunction.run` 剥掉 task_type kwarg（须在 `import torch_mlu` 之后 patch，避免 triton init 循环导入） |
+
+其中 #1 是既有缺口（float4 哨兵来自 PR #176 MUSA 支持），#2~#5 为本后端新暴露、本次
+上提（PR #355 head `1cc50f1`，两个 commit：`88ae7d9` = CIA/get_kernel/task_type 三 shim，
+`1cc50f1` = mlu sync）。
+
+### Stack 验证（cambricon-neuware4.4.3，✅ E2E 通过 2026-08-26）
+
+```
+Python:       3.10.20                 ✅
+torch/torch_mlu: 2.7.1+cpu / 1.29.2   ✅  from 镜像
+triton:       3.2.0+mlu1.7.2          ✅  T-only（无 FlagTree）
+vllm:         0.20.2+flagos           ✅  cp310，单步安装
+vllm_fl:      0.2.1+g1cc50f1          ✅  纯 Python wheel（5 处 shim）
+flag_gems:    5.3.5                   ✅
+vllm serve:   ✅  application startup complete（~125s，Qwen3-4B TP=1）
+Inference:    ✅  HTTP 200，completion 输出连贯
+```
+
+### 待办
+
+| 事项 | 状态 | 备注 |
+|------|--------|-------|
+| 4 处新 shim 上提 plugin | ✅ PR #355 | base release/0.2，head `1cc50f1`（#2~#5；#1 float4 已有） |
+| `deps_app.vllm0.20.2` 加 4.4.3 | ✅ configs.yaml | `neuware4.4.3.deps_app.vllm0.20.2: []` |
+| xgrammar cp310 wheel | ✅ 已上架 | 本后端首个 cp310 xgrammar，`flagos-pypi-cambricon` |
+| docs flag_gems 5.3.4 → 5.3.5 | ⬜ 待重渲 | `docs/content/**/runtime/*.md` 仍 5.3.4，configs.yaml/data 已 5.3.5 |
+
 
 ---
 
