@@ -326,6 +326,13 @@ docker exec "${CONTAINER}" bash -c "
     esac
 "
 
+# ── Steps 3-5: install vllm + plugin into the RUNTIME container ─────────
+#
+# From-scratch path only. In --app-image mode these installs are already baked
+# into the image and were verified by the matrix diff above, so they are
+# skipped; Step 6 (serve) still runs against the app image.
+if [[ -z "${APP_IMAGE}" ]]; then
+
 # ── Step 3: Install repacked vllm ───────────────────────────────────────
 
 log_step "Step 3: Installing repacked vllm"
@@ -408,6 +415,8 @@ else
         echo 'Plugin installed:'
         pip show vllm-plugin-fl | grep -E '^(Name|Version|Location)'
     "
+fi
+
 fi
 
 # ── Step 6: Test vllm serve (real completion required) ───────────────────
@@ -505,10 +514,10 @@ echo "Verification Summary"
 echo "========================================"
 echo "Backend:          ${VENDOR_BACKEND}"
 echo "vLLM Version:     ${VLLM_VERSION}+flagos"
-echo "Container:        ${CONTAINER}"
+echo "Container:        ${SERVE_CONTAINER}"
 echo ""
 echo "Status:"
-docker exec "${CONTAINER}" bash -c "
+docker exec "${SERVE_CONTAINER}" bash -c "
     echo -n 'vllm: '; python3 -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo 'FAILED'
     echo -n 'torch: '; python3 -c 'import torch; print(torch.__version__)' 2>/dev/null || echo 'FAILED'
     echo -n 'flag_gems: '; python3 -c 'import flag_gems; print(flag_gems.__version__)' 2>/dev/null || echo 'FAILED'

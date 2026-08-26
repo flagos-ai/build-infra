@@ -186,6 +186,7 @@ jobs:
           bash packaging/vllm/verify-vllm-backend.sh \
             "${{ matrix.name }}" \
             --vllm-version "${{ inputs.vllm_version }}" \
+            --plugin-fl-version "${{ inputs.plugin_fl_version }}" \
             --app-image "${APP_TAG}"
 
       - name: Push vllm app image
