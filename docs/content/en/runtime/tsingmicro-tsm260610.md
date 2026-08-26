@@ -37,7 +37,7 @@ title: "tsingmicro-tsm260610"
 
 ### Major Python packages
 
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.1+tsingmicro3.3`
 - `numpy==2.2.6`
 - `torch==2.11.0+cpu`

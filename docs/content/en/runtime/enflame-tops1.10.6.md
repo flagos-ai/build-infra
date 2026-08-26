@@ -38,7 +38,7 @@ title: "enflame-tops1.10.6"
 ### Major Python packages
 
 - `enflame-modelopt==3.6.20260615+torch.2.11.0`
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.1+enflame3.6`
 - `flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706`
 - `numpy==2.3.5`

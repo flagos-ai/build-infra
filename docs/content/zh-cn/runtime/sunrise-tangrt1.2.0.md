@@ -36,7 +36,7 @@ title: "sunrise-tangrt1.2.0"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `flagtree==0.6.0+sunrise3.6`
 - `numpy==2.2.6`
 - `torch-ptpu==0.2.3+torch2.11`

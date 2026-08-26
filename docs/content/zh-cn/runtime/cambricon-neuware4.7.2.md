@@ -36,7 +36,7 @@ title: "cambricon-neuware4.7.2"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.4`
+- `flag_gems==5.3.5`
 - `numpy==2.2.6`
 - `pandas==3.0.5`
 - `torch-mlu-ops==1.12.1+torch2.11.0`
