@@ -1,8 +1,11 @@
 # 昆仑芯 P800 XPU — vLLM decode 重复退化根因（厂商 hand-off）
 
 **日期：** 2026-08-21　**报告人：** FlagOS 集成验证
+
 **硬件：** 昆仑芯 P800 OAM　**XRE：** 5.37.1（driver 5.37.1.0）　**架构：** `xpu_arch=3` / xpu3
+
 **场景：** vLLM 0.20.2（empty build）+ vllm-plugin-FL（含 kunlunxin vendor 插件层 #268）+ flag_gems 5.3.4（`_kunlunxin` 后端），serve Qwen3-4B，TP=1，block_size=128，enforce-eager，temperature=0.0
+
 **torch：** 2.9.0+cu129（stock）+ torch_xmlir　**decoder：** 厂商 `xtorch_ops`（v0.1.2935+50a5d6a4，本地 wheel 手工注入，见 §4）
 
 ---

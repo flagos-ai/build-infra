@@ -6,6 +6,7 @@
 ## 2.1 NVIDIA cuda12.8（参考实现，2026-08-23 起 empty 模式）
 
 **日期:** 2026-07-27/28　**平台:** NVIDIA H20 (8×)
+
 **目标:** vllm 0.20.2 + vllm-plugin-FL，`flagos-runtime-nvidia-cuda12.8:2.1.1`
 
 NVIDIA 是首个跑通的后端，最初使用 **standard 构建**（官方预编译 wheel，含

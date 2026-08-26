@@ -6,6 +6,7 @@
 ## 2.5 iluvatar-corex4.4.0（负结果：厂商工具链版本过旧）
 
 **日期:** 2026-08-02　**平台:** Iluvatar CoreX (BI 系列)　**CoreX:** 4.4.0
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-iluvatar-corex4.4.0:2.1.1`
 
 **这是首个跑不通推理的后端**，但结论明确、可操作。与 [§2.4](hygon.md) hygon

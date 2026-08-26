@@ -6,9 +6,13 @@
 ## 6. NVIDIA（CUDA 12.8 / 13.3）详细记录
 
 日期：2026-08-16
+
 节点：`h20`（H20 GPU，x86_64）
+
 镜像：`flagos-runtime-nvidia-cuda12.8:2.1.2` / `flagos-runtime-nvidia-cuda13.3:2.1.2`
+
 模型：Qwen3-4B（`/models/Qwen3-4B`，由 `/data/tqm/models` 挂载）
+
 参数：`--enforce-eager --dtype bfloat16`，端口 8031/8032
 
 ### 6.0 插件基线：v0.3.0-dev

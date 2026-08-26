@@ -6,7 +6,9 @@
 ## 2.4 hygon-dtk26.04（跨后端通用性验证）
 
 **日期:** 2026-08-02　**平台:** Hygon BW1000 (8× HCU)
+
 **DTK:** 26.04
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-hygon-dtk26.04:2.1.1`
 
 **这是首个不做本地 repack、直接复用他机 wheel 的后端**——用的正是 [§2.3](mthreads.md)

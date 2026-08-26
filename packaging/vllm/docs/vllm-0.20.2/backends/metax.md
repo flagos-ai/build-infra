@@ -6,7 +6,9 @@
 ## 2.2 MetaX maca3.7.2.1（首个 empty 后端）
 
 **日期:** 2026-07-28/31　**平台:** MetaX C550 (8×, 64GB)
+
 **MACA:** 3.7.2.0, Driver 3.8.30
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-metax-maca3.7.2.1:2.1.1`
 
 首个 `empty` 构建后端。MetaX MACA 无 CUDA 扩展，走 `VLLM_TARGET_DEVICE=empty`

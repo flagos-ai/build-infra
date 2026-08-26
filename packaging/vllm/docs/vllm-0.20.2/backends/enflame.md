@@ -6,6 +6,7 @@
 ## 2.6 enflame（GCU300：✅ E2E 通过，vLLM 原生 FLASH_ATTN，跨栈收敛）
 
 **方案:** vLLM 原生 FLASH_ATTN + 五处修复（plugin A/B/C/E [PR #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) + flag_gems D [PR #5345](https://github.com/flagos-ai/FlagGems/pull/5345)）。
+
 **跨栈收敛（关键结论）:** 同一份代码在 **tops1.10.6**（torch_gcu 2.11，首次推导 2026-08-09）
 与 **tops1.9.10**（torch_gcu 2.10.0，复验 2026-08-09）上**零改动**通过 E2E——不再是每栈一个
 方案。此前 1.9.10 上的 `AttentionFLBackend` 记录（旧 §2.6.1）已删除：其诊断（int64 双层结构、
@@ -18,7 +19,9 @@
 ### 2.6.1 tops1.10.6 干净重推导（✅ E2E 通过，2026-08-09）—— 首次推导
 
 **日期:** 2026-08-09　**平台:** Enflame GCU300
+
 **镜像:** `flagos-runtime-enflame-tops1.10.6:2.1.2`
+
 **stack:** torch_gcu 2.11 / tops1.10.6 / **flag_gems master（editable）** / plugin main（editable）
 
 从零容器起、不预置任何补丁，逐个由硬件暴露的失败驱动修复。采用 **vLLM 原生 FLASH_ATTN**
@@ -80,7 +83,9 @@ enforce-eager，`/root/run_serve.sh` 现场保留。两处插件 patch 日志（
 ### 2.6.2 tops1.9.10 跨栈复验（✅ E2E 通过，2026-08-09）—— 零改动 + 采样缺口修复
 
 **日期:** 2026-08-09　**平台:** Enflame GCU300
+
 **镜像:** `flagos-runtime-enflame-tops1.9.10:2.1.2`（runtime v2：仅预置 flag_gems，**无 vllm、无 plugin**）
+
 **stack:** torch_gcu **2.10.0** / tops1.9.10 / flag_gems master（editable）/ plugin #357（editable）
 
 在 1.9.10 栈全新 v2 容器上复验 §2.6.1 方案，判定是否可退役 1.9.10 上的 AttentionFLBackend。

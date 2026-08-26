@@ -6,10 +6,15 @@
 ## 2.8 ascend-cann9.0.0（Ascend 910B4 aarch64：✅ E2E 通过，2026-08-10）
 
 **日期:** 2026-08-10　**平台:** Ascend 910B4（aarch64）
+
 **driver/CANN:** npu-smi 26.0.rc1 / CANN 9.0.0　**镜像:** `flagos-runtime-ascend-cann9.0.0:2.1.2`（Phase B 用其快照）
+
 **Python:** 3.11.15　**torch/torch_npu:** 2.10.0+cpu / 2.10.0　**triton:** 3.5.1
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，全链路 serve + 推理
+
 **模型:** Qwen3-4B（`/data/models/Qwen/Qwen3-4B`，modelscope 下载 7.6G）
+
 **NPU 绑定:** **NPU 1**（NPU 0 有他人 `pytest` 进程占用，故换绑；仅 Python 安装阶段无关设备）
 
 ascend 是此前 flag_gems `j0`/`log2` 缺失致 import 崩溃的两个后端之一，故本次 E2E

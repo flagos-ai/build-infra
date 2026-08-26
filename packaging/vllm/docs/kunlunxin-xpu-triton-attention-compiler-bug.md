@@ -1,8 +1,11 @@
 # 昆仑芯 P800 XPU — Triton 编译器 attention 内核编译问题（编译器团队 hand-off）
 
 **日期：** 2026-08-11　**报告人：** FlagOS 集成验证
+
 **硬件：** 昆仑芯 P800 OAM　**XRE：** 5.37.1（driver 5.37.1.0）　**目标 arch：** `xpu_arch=3` / xpu3
+
 **场景：** vLLM 0.20.2（empty build）+ vllm-plugin-FL + flag_gems 5.3.4（`_kunlunxin` 后端），serve Qwen3-4B 全链路推理
+
 **torch：** 2.9.0+cu129（stock，CUDA-ABI 兼容）+ `torch_xmlir`
 
 ---

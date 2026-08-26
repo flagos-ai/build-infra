@@ -6,6 +6,7 @@
 ## 2.3 mthreads-musa5.2.0（标准流程范例）
 
 **日期:** 2026-08-01/02　**平台:** MTT S5000 (8×, 80GB)　**MUSA:** 5.2.0-server, torch_musa 5.2.0
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，`flagos-runtime-mthreads-musa5.2.0:2.1.1`
 
 **这是第 1 部分标准流程的范例来源**——empty 构建、`+flagos` 后缀、单步安装

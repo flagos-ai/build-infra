@@ -6,10 +6,15 @@
 ## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08；2026-08-15 / 2026-08-26 复核）
 
 **日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）；2026-08-26（复核，flag_gems 5.3.5 / PR #5745 mask-logic 修复）
-　**平台:** Cambricon MLU590　**节点:** `cambricon`
+
+**平台:** Cambricon MLU590　**节点:** `cambricon`
+
 **driver/neuware:** 4.7.2　**镜像:** `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（`1a2a53ebab3b`，全量升级包集）
+
 **Python:** 3.12.13　**torch/torch_mlu:** 2.11.0+cpu / torch_mlu 2.11.0
+
 **目标:** vllm 0.20.2 (empty) + vllm-plugin-FL，全新 wheel build（cambricon 此前无 `+flagos` 产物）
+
 **模型:** Qwen3-8B（`/data/zhaodeming/Qwen3-8B`）
 
 cambricon 是**首个从零构建 `+flagos` wheel 的后端**（无可复用产物），故本次同时是
@@ -236,11 +241,17 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 ## 2.11 cambricon-neuware4.4.3（MLU590：✅ E2E 通过，2026-08-26；T-only，无 FlagTree）
 
 **日期:** 2026-08-26
-　**平台:** Cambricon MLU590　**节点:** `cambricon`
+
+**平台:** Cambricon MLU590　**节点:** `cambricon`
+
 **driver/neuware:** 4.4.3　**镜像:** `flagos-runtime-cambricon-neuware4.4.3:2.1.2`
+
 **Python:** 3.10.20　**torch/torch_mlu:** 2.7.1+cpu / 1.29.2+torch2.7.1
+
 **triton:** 3.2.0+mlu1.7.2　**flag_gems:** 5.3.5　**numpy:** 2.2.6
+
 **目标:** vllm 0.20.2+flagos + vllm-plugin-FL 单步安装，serve + 推理
+
 **模型:** Qwen3-4B（`/data/models/Qwen/Qwen3-4B`）
 
 cambricon 4.4.3 是 **T-only 特例**（无配套 FlagTree，用户确认），故本后端只验 Triton
