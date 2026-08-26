@@ -64,8 +64,8 @@ jobs:
       matrix: ${{ steps.collect.outputs.matrix }}
       has_cells: ${{ steps.collect.outputs.has_cells }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Install deps
@@ -98,7 +98,7 @@ jobs:
       max-parallel: 4
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify cell
         id: verify
         env:
@@ -173,7 +173,7 @@ jobs:
         # consumed by record/build.
       - name: Upload result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.app }}-${{ matrix.backend }}-${{ matrix.compiler }}
           # Scoped to this run's exact file — never glob *.json, or a stale
@@ -197,14 +197,14 @@ jobs:
       remaining: ${{ steps.summarize.outputs.remaining }}
       progress: ${{ steps.summarize.outputs.progress }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Install deps
         run: pip install pyyaml
       - name: Download verify results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: results
           merge-multiple: true
@@ -241,12 +241,12 @@ jobs:
     if: ${{ always() && needs.plan.outputs.has_cells == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Download verify results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: results
           merge-multiple: true
@@ -261,8 +261,8 @@ jobs:
     if: ${{ always() && needs.plan.outputs.has_cells == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Install deps
