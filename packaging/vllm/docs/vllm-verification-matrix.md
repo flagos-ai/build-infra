@@ -220,7 +220,7 @@
   [0.24.0 §4–§5](vllm-0.24.0/backends/metax.md)。
 - **mthreads-musa5.2.0 / musa4.3.6**：✅✅（2026-08-16~17，v0.3.0-dev 零插件
   补丁，F/T 双路径；torchvision guard = 插件 PR #386）。
-  4.3.6 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（mthreads 节点无
+  4.3.6 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（该平台无
   Qwen3-4B，矩阵"Qwen3-4B"约定在此单元格不适用）——
   [0.24.0 §8–§9](vllm-0.24.0/backends/mthreads.md)。
 - **ascend-cann9.0.0 / cann8.5.0**：✅✅（2026-08-17~18，插件 PR #387 移植，

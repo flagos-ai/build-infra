@@ -149,7 +149,7 @@ Inference:    Qwen3.6-35B-A3B ✅  (prompt=17 / completion=128 tokens)
 - 构建后验证全过：Matrix unchanged（torch/flagtree/flag_gems 未被覆盖）、
   `vllm + vllm_fl import OK`、App-image verification PASSED。
 
-**h20 节点 E2E —— 双编译器路径各跑一遍（empty 模式，同一 app 镜像）：**
+**E2E —— 双编译器路径各跑一遍（empty 模式，同一 app 镜像）：**
 
 > 空模式镜像与 2026-08-16 双编译器验证用的 vendor（standard）镜像不是同一
 > 镜像，旧记录不能背书 empty 产物。empty 模式下两条编译器路径分别实测：

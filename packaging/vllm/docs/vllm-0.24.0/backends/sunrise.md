@@ -45,12 +45,11 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
 
 ### 11.3 serve + 推理（Phase C，Qwen3-8B，TP1）
 
-- 节点：`sunrise`（bastion 2224），容器 `vllm-sunrise-024`
-  （`--privileged -v /dev:/dev`），`pt_smi` 确认设备。
+- 容器：`--privileged -v /dev:/dev` 启动，`pt_smi` 确认设备。
 - 安装：`vllm==0.24.0+flagos`（cp310 wheel）+ vllm-plugin-fl editable
   （`/opt/vllm-plugin-FL`，`--no-build-isolation`）。
 - 编译器：`compiler triton`（vendor triton 3.6.0.1+git0a5cfb35）。
-- **模型为 `/models/Qwen3-8B`**（sunrise 节点无 Qwen3-4B，矩阵
+- **模型为 `/models/Qwen3-8B`**（该平台无 Qwen3-4B，矩阵
   "Qwen3-4B"约定在此单元格不适用，同 [mthreads §8](mthreads.md) 先例）。
 - serve：`--port 8031 --gpu-memory-utilization 0.6 --enforce-eager
   --trust-remote-code --max-model-len 2048 --dtype bfloat16` →

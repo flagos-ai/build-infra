@@ -5,7 +5,6 @@
 
 ## 8. mthreads（MUSA 5.2.0）详细记录
 
-- 节点：`mthreads`（JumpServer → 10.121.38.24），用户 `secure`
 - venv：`/flagos`（cpython-3.10）
 - 模型：`/data/DeepSeek-R1-0528-Qwen3-8B-FlagOS`
 - 端口：8031
@@ -113,7 +112,6 @@ MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend 
 
 ## 9. mthreads（MUSA 4.3.6）详细记录
 
-- 节点：`mthreads`（JumpServer → 10.121.38.24），用户 `secure`
 - torch 2.9.0+musa.4.3.6
 - venv：`/flagos`（cpython-3.10）
 - 插件：v0.3.0-dev head + torchvision guard（PR #386），editable install 于 `/opt/vllm-plugin-FL`
@@ -152,7 +150,7 @@ ImportError 崩溃（§9.4 首段）；应用插件 guard 后 F/T 双路径均�
 - serve E2E ✅（重建镜像复验 2026-08-17）：`Application startup complete`；
   completions greedy 与 chat CoT 均连贯；指纹 `vllm-0.24.0-5936039f`
   （5.2.0 为 `vllm-0.24.0-423da8ca`）。
-- 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（mthreads 节点无 Qwen3-4B），
+- 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（该平台无 Qwen3-4B），
   矩阵"Qwen3-4B"约定在此单元格不适用；原始 completions 直给 R1 模型 +
   temperature 0.6 的整段重复回声是模型行为伪影（同 §8.2）。
 

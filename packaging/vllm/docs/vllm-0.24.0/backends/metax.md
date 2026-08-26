@@ -5,7 +5,7 @@
 
 ## 4. SDK 3.7.2.1 详细记录
 
-- 节点：`metax123`，MACA SDK 3.7.2.0
+- MACA SDK 3.7.2.0
 - 镜像：`flagos-runtime-metax-maca3.7.2.1:2.1.2-build`
 - 模型： Qwen3-4B
 - 参数：`--enforce-eager --dtype bfloat16`

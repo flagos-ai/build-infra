@@ -25,7 +25,7 @@ cambricon 的 wheel-build 首验。全链路 **serve + 推理一次跑通**，ML
 
 MLU 无既有 `+flagos` 产物；xgrammar 为 cp312-locked 二进制，须本机 build。步骤：
 
-1. **源码用官方 flagos tarball**（`vllm-0.20.2.tar.gz`，用户下载到节点 `/tmp`），
+1. **源码用官方 flagos tarball**（`vllm-0.20.2.tar.gz`），
    **非** Aliyun pip sdist。tarball 无 git 元数据，setuptools-scm 会失败 →
    须设 `SETUPTOOLS_SCM_PRETEND_VERSION=0.20.2`。
 2. empty build：`VLLM_TARGET_DEVICE=empty MAX_JOBS=$(nproc) pip wheel --no-build-isolation --no-deps`

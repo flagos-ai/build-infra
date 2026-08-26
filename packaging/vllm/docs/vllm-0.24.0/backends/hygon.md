@@ -6,8 +6,8 @@
 ## 12. hygon（DTK 26.04）详细记录（2026-08-20）
 
 hygon 是 python 3.10（cp310 empty wheel，同 [sunrise §11.1](sunrise.md) 的构建前置），
-device_type 仍为 `"cuda"`（DCU 以 CUDA 形态暴露）。E2E 于 2026-08-20
-在 hygon25 节点完成，**双编译器路径全 ✅**：
+device_type 仍为 `"cuda"`（DCU 以 CUDA 形态暴露）。E2E 于 2026-08-20 完成，
+**双编译器路径全 ✅**：
 
 - 镜像 `flagos-runtime-hygon-dtk26.04:2.1.2`
 - 模型 `/data/Sky-T1-32B-Preview-FlagOS`（Sky-T1 32B，Qwen2 架构；矩阵
@@ -46,7 +46,7 @@ iluvatar overlay 都用 `(1,1,1)` 兜底。修复 = 一行
 - 上游：FlagTree PR #1020（`fix(compiler): default cluster_dims=(1,1,1)
   for backends that omit it`，分支 fix/cluster-dims-default，
   2026-08-20 提交）
-- 节点：临时就地 sed 到 `/opt/flagtree/triton/compiler/compiler.py`
+- 临时绕过：就地 sed 到 `/opt/flagtree/triton/compiler/compiler.py`
   （437 行 `setdefault`）解锁验证 —— 显式临时、不可复现；可复现修复
   = PR 合入后重建 flagtree hygon wheel（`packaging/flagtree/hygon`，
   待建，同 [sunrise §11.5](sunrise.md) 模式）
