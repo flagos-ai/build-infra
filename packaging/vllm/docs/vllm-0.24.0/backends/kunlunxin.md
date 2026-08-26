@@ -43,17 +43,24 @@
 
 ### 13.4 0.24.0 API 适配点（已逐一验证）
 
-| 变化 | 结论 |
-|---|---|
-| `mamba/gdn_linear_attn.py` 模块 → `mamba/gdn/` 包 | 三个 patch fn 需重指目标（名单见下） |
-| fla.ops：chunk/fused_recurrent 子包 → 平铺模块 | 兼容；双层 patch（`_fla_ops_lib` + `_fla_chunk_lib`）原样可落 |
-| `from vllm.distributed import get_tp_group` | ✅ 可解析（parallel_state 无 `__all__`，`import *` 带出 def@1349） |
-| attention.py 类接口 | 兼容（细节见下） |
-| `CommonAttentionMetadata` | ✅ backends/utils.py:37 再导出，无需改 import |
-| `patch_attention_backend_registry`（CUSTOM 注册） | 死代码（dispatch 不经 enum）但 try/except 包裹，保留无害 |
-| cudagraph | 0.24.0 有 `AttentionCGSupport`（backend.py:548）→ 可恢复（release-0.2 注释称 0.20.2 没有） |
-| `patch_sampler_rng` 签名 | 0.24.0 以三位置参调用 `random_sample(probs, generators, use_fp64_gumbel)` → wrapper 需带 `use_fp64_gumbel=False`（f780db1，旧双参签名会 TypeError） |
-| FLA 路径（实测） | `vllm/third_party/flash_linear_attention` 已不存在（仅剩 flashmla）；实为 `vllm/model_executor/layers/fla/ops` 平铺包（chunk.py / fused_recurrent.py） |
+- **`mamba/gdn_linear_attn.py` 模块 → `mamba/gdn/` 包** —— 三个 patch fn 需重指目标（名单见下）
+- **fla.ops：chunk/fused_recurrent 子包 → 平铺模块** —— 兼容；双层 patch
+  （`_fla_ops_lib` + `_fla_chunk_lib`）原样可落
+- **`from vllm.distributed import get_tp_group`** —— ✅ 可解析（parallel_state
+  无 `__all__`，`import *` 带出 def@1349）
+- **attention.py 类接口** —— 兼容（细节见下）
+- **`CommonAttentionMetadata`** —— ✅ backends/utils.py:37 再导出，无需改
+  import
+- **`patch_attention_backend_registry`（CUSTOM 注册）** —— 死代码（dispatch 不经
+  enum）但 try/except 包裹，保留无害
+- **cudagraph** —— 0.24.0 有 `AttentionCGSupport`（backend.py:548）→ 可恢复
+  （release-0.2 注释称 0.20.2 没有）
+- **`patch_sampler_rng` 签名** —— 0.24.0 以三位置参调用
+  `random_sample(probs, generators, use_fp64_gumbel)` → wrapper 需带
+  `use_fp64_gumbel=False`（f780db1，旧双参签名会 TypeError）
+- **FLA 路径（实测）** —— `vllm/third_party/flash_linear_attention` 已不存在
+  （仅剩 flashmla）；实为 `vllm/model_executor/layers/fla/ops` 平铺包
+  （chunk.py / fused_recurrent.py）
 
 适配细节：
 - GDN：三个 patch fn（patch_fla_ops / patch_fused_gdn_gating / patch_ssm_cache_update）需重指目标；

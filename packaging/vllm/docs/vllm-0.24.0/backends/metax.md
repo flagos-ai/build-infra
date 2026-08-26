@@ -5,7 +5,7 @@
 
 ## 4. SDK 3.7.2.1 详细记录
 
-- 节点：`metax123`，MACA SDK 3.7.2.0
+- MACA SDK 3.7.2.0
 - 镜像：`flagos-runtime-metax-maca3.7.2.1:2.1.2-build`
 - 模型： Qwen3-4B
 - 参数：`--enforce-eager --dtype bfloat16`
@@ -131,9 +131,11 @@ vLLM 顶层的依赖声明相应改成 `==X.Y.Z+flagos`，单步安装时命中�
 ## 5. SDK 3.8.1.3 详细记录
 
 日期：2026-08-15
-节点：`metax124`
+
 镜像：`flagos-runtime-metax-maca3.8.1.3:2.1.2-build`
+
 插件： main 分支 43edeb6（main）+ 本机未提交的 0.24.0 shim
+
 端口：8033/8034
 
 **验证过程注意事项：GPU 显存碰撞。**

@@ -105,13 +105,13 @@ Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sun
 
 MetaX 两个后端的基础软件包和编译器版本不同，行为可能不同，要逐一验证。
 
-- **3.7.2.1 + flagtree**：节点 metax123，torch 2.8.0，flagtree **0.6.1+metax3.6**
+- **3.7.2.1 + flagtree**：torch 2.8.0，flagtree **0.6.1+metax3.6**
   （triton 3.6.0 基座，最新版）→ ✅ 2026-08-14（[§4.3](backends/metax.md)）
-- **3.7.2.1 + triton**：节点 metax123，torch 2.8.0，triton 3.0.0+metax3.7.2.0
+- **3.7.2.1 + triton**：torch 2.8.0，triton 3.0.0+metax3.7.2.0
   → ✅ 2026-08-13（[§4.2](backends/metax.md)）
-- **3.8.1.3 + flagtree**：节点 metax124，torch 2.10.0，flagtree 0.6.1+metax3.6
+- **3.8.1.3 + flagtree**：torch 2.10.0，flagtree 0.6.1+metax3.6
   → ✅ 2026-08-15（[§5](backends/metax.md)）
-- **3.8.1.3 + triton**：节点 metax124，torch 2.10.0，triton 3.6.0+metax3.8.1.0
+- **3.8.1.3 + triton**：torch 2.10.0，triton 3.6.0+metax3.8.1.0
   → ✅ 2026-08-15（[§5](backends/metax.md)）
 
 **被否决的配置：**

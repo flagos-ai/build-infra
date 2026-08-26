@@ -70,10 +70,13 @@ plain `docker run` 直接 model-not-found）。`configs.yaml` 数据与 `generat
 
 ### 待办
 
-| 事项 | 状态 | 备注 |
-|------|--------|-------|
-| alpha 修复上提 vllm-plugin-FL | ✅ PR #400 | base release-0.2（0.20.2 发布线）；body 已补双编译器验证记录 |
-| app 镜像 serve E2E（plain docker run） | ✅ PR #478 | 2026-08-23 重建后验证：默认 CMD 模型路径 + export env + 4.3~9.4 tok/s |
-| Qwen3.6-27B 回归 | ⬜ | patch 初衷是规避 layer 43+ decode NaN，修复 scale 后须重验 |
-| 源文档配方更正（去掉 KL3 行） | ⬜ 待拍板 | 复刻源文档 3 处含 `XPU_EVENT_KL3_ENABLE=1`，已定负面教材不改 |
-| 0.24.0 验证 | ⬜ | upstream main 已删 vendor/kunlunxin 目录，0.24.0 线无插件挂点 |
+1. **alpha 修复上提 vllm-plugin-FL** —— ✅ PR #400：base release-0.2（0.20.2
+   发布线）；body 已补双编译器验证记录
+1. **app 镜像 serve E2E（plain docker run）** —— ✅ PR #478：2026-08-23 重建后验证：
+   默认 CMD 模型路径 + export env + 4.3~9.4 tok/s
+1. **Qwen3.6-27B 回归** —— ⬜：patch 初衷是规避 layer 43+ decode NaN，修复 scale
+   后须重验
+1. **源文档配方更正（去掉 KL3 行）** —— ⬜ 待拍板：复刻源文档 3 处含
+   `XPU_EVENT_KL3_ENABLE=1`，已定负面教材不改
+1. **0.24.0 验证** —— ⬜：upstream main 已删 vendor/kunlunxin 目录，
+   0.24.0 线无插件挂点
