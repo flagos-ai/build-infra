@@ -115,8 +115,9 @@ verl-FL `setup.py install_requires` 宇宙 **去掉** numpy<2.0.0 / torch / trit
 
 - 约束范围须尊重 verl 自身声明：`ray>=2.41.0`、`tensordict>=0.8.0,<=0.10.0,!=0.9.0`、`pyarrow>=19.0.0`、`packaging>=20.0`。
 - 后端差异：nvidia-cuda12.8 / cuda13.3 追加 `flash_attn`（拷贝 megatron_rl 项 `2.8.3.post1+fl.cu128.torch210` / `+fl.cu130.torch211`）；其余后端若 runtime/megatron 线已带 flash-attn 则留空。
-- **开放项**：TE-FL（`transformer-engine-fl`）与 FlagCX 目前 configs.yaml 全无。verify 探测：装完 megatron-core[rl] 后 `import transformer_engine` 是否成功、`FLAGCX_PATH` 指向哪。若不在 wheel deps 内，追加 `deps_app.verl0.7.0` 对应项 + 每后端 `FLAGCX_PATH` 值。
+- **开放项**：FlagCX 每后端 `FLAGCX_PATH` 值（verl 无强依赖，见下；是否配置由 megatron-core[rl]/TE-FL 线决定）。
 - **FlagCX 无强依赖（2026-08-27 实证）**：verl-FL 的 `setup.py` 不含 flagcx，核心源码无无条件 import——唯一引用在 `recipe/one_step_off_policy/distributed_util.py:46`（惰性 `from vllm_fl...import PyFlagcxCommunicator`，包来自 vllm-plugin-fl）。FlagCX 只是 `USE_FLAGCX=1` 时经 `communication_backend_name()` 选出的通信后端字符串，默认回退 vendor 原生：cuda→nccl、npu→hccl、musa→mccl（`verl/plugin/platform/platform_{cuda,npu,musa}.py`）。**因此 verl app 镜像不需要为「verl 能跑」内置 flagcx**；是否给某后端配 flagcx 取决于 megatron-core[rl]/TE-FL 线（独立开放项），不是 verl 硬性要求。
+- **TE-FL 可独立出纯 Python wheel（2026-08-27 实证）**：`TE_FL_SKIP_CUDA=1` → `ext_modules=[]` → `py3-none-any`，一个 wheel 通吃 17 后端（verl wheel 同款模式）。import 闭包干净：`backends/__init__.py` 为空、backend 注册惰性（首个 op 分发才触发），`import transformer_engine` 仅需 torch+stdlib+packaging/pydantic；flag_gems 首次 op 分发才需（runtime 矩阵已含），triton/flash_attn 惰性 try/except 可缺失。**megatron-core[rl] wheel 不携带 TE-FL**（MLF pyproject.toml 实证，deps 仅 torch/numpy/packaging）→ TE-FL 需独立 wheel 工件：新增 `packaging/transformer-engine-fl/builder/` + `tefl-wheel.yml`（克隆 megatron builder），版本源 `build_tools/VERSION.txt`=2.17.0 → `2.17.0+fl.<date>.g<sha>`，上传 flagos-pypi-hosted，Containerfile 加单步安装；builder 须设 `NVTE_SKIP_SUBMODULE_CHECKS_DURING_BUILD=1`（防拉 3rdparty/nccl 子模块）。MLF 内 TE import 全在 try/except（mlp.py:38 等）→ 无 TE 不阻塞（`--transformer-impl local` 先例），TE-FL 是优化层。
 
 ### 3.2 `env.app.verl`（全 17 后端）
 
@@ -171,14 +172,14 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 1. **矩阵不变检查**（WATCH_PKGS=torch/triton/flag_gems/numpy）：runtime 快照 vs app 镜像逐包一致，否则 "Matrix corrupted" exit 1——numpy 是头号危险包（verl `numpy<2.0.0` 绝不能被求值）。
 2. **import 检查**：`import megatron.core`、`import vllm`、`import verl`（版本 0.7.0）；`VLLM_PLUGINS=fl` 下 `import vllm_fl`。
 3. **平台探测**：`VERL_PLATFORM` 解析（期待每后端正确值）。
-4. **TE-FL / FlagCX 探测**：`import transformer_engine` + `TE_FL_PREFER` 路径、定位 `FLAGCX_PATH`——决定 §3.1/§3.2 是否要补 deps/env 项。**同时验证 `USE_FLAGCX`/`FLAGCX_PATH` 成对一致性**（`is_flagcx_enabled` assert：只设其一即 AssertionError）——flagcx 不可得的后端两者都留空，回退 nccl/hccl/mccl 也算过。
+4. **TE-FL / FlagCX 探测**：`import transformer_engine`（版本 2.17.x）+ `TE_FL_PREFER=flagos` 路径 + 首 op 分发冒烟（flag_gems 落点）——TE-FL 为独立 wheel（§3.1），不再走 deps_app 探测。定位 `FLAGCX_PATH`；**`USE_FLAGCX`/`FLAGCX_PATH` 必须成对**（`is_flagcx_enabled` assert：只设其一即 AssertionError）——未配 flagcx 的后端两者都留空，回退 nccl/hccl/mccl 也算过。
 5. **E2E smoke**（✅ 判定步骤）：单节点最小 `python3 -m verl.trainer.main_ppo`（微型 config + mock 数据，1 GPU），**F（flagtree）+ T（triton）双路径**都过才算过（`--compiler flagtree|triton`，COMPILER_GUARD 惯例）。无最小 config 前格保持 ⬜，workflow 的 verify 以 `--no-e2e` import-only 模式跑。
 6. 节点纪律：按 build-config.yml runners.overrides 在后端硬件跑，试验先记录镜像+包来源，慢/挂靠 metrics 增量判定。
 
 ## 7. 风险 / 开放项
 
 1. **vllm 0.11.0 ↔ runtime torch 兼容**：plain vllm 0.11.0 的 torch 约束（上游配 2.8）可能重装/冲突 runtime torch 2.10+cu128（nvidia）及各家 vendor torch——verify #1 矩阵检查是绊线；若冲突改走 vendor index 的 FL-patched 0.11 线。
-2. **TE-FL 每后端可得性 + flagcx 可选路径**：TE-FL（`transformer-engine-fl`）不在 configs.yaml，若 megatron-core[rl] wheel 不携带需按后端补 deps_app/env。FlagCX 经 §3.1 实证为可选（verl 无强依赖，仅 `USE_FLAGCX=1` 时被选为通信后端字符串）——是否给某后端配 flagcx 由 megatron-core[rl]/TE-FL 线决定，非 verl 硬性要求；配置时 `USE_FLAGCX`/`FLAGCX_PATH` 必须成对（§3.2）。
+2. **TE-FL 独立 wheel 可达性 + flagcx 可选路径**：TE-FL 已实证可独立出纯 Python wheel（§3.1，`packaging/transformer-engine-fl/builder/`），风险收窄为各 vendor index 对 hosted 的可见性 + 首 op 分发与 flag_gems 的兼容（同 megatron wheel 先例）。FlagCX 为可选（verl 无强依赖，仅 `USE_FLAGCX=1` 时被选为通信后端字符串）——是否配 flagcx 由 megatron-core[rl]/TE-FL 线决定；配置时 `USE_FLAGCX`/`FLAGCX_PATH` 必须成对（§3.2）。
 3. **ray[default]>=2.41 在非 x86**：ascend（cann850/cann9，aarch64）的 ray wheel 可得性未证——全后端范围下这两后端是最大风险。
 4. **verl 最小 E2E config**：verl 无 megatron 那种 mock-data 一键训练；搭 1 GPU 可跑的最小 PPO config + 数据集是最大验证工作量（§6.5 为临时项）。
 5. **版本双轨**：wheel 版本 `0.7.0+fl.<date>.g<sha>`（PEP 440 local）vs fork git describe `v0.2.0-rc2.post1-1-g45068d9e` 分居两处——tag 规则保持分离，`record_app_image_tag`/plugin 回推不得假设两者一致。
@@ -195,5 +196,6 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 ## 关键文件
 
 - 新建：`app/verl/Containerfile`、`app/verl/verl-ppo`、`packaging/verl/builder/{Containerfile,stamp_version.py,README.md}`、`packaging/verl/verify/verify-verl-backend.sh`、`packaging/verl/status_matrix.verl0.7.0.yaml`、`packaging/verl/docs/verl-verification-matrix.md`、`.github/workflows/verl-wheel.yml`、`.github/workflows/verl-app-image.yml`
+- 新建（TE-FL wheel，§3.1 实证结论）：`packaging/transformer-engine-fl/builder/`、`.github/workflows/tefl-wheel.yml`
 - 修改：`configs.yaml`（deps_app.verl0.7.0 + env.app.verl + schema 注释）、`scripts/render_status_matrix.py`、`docs/gen_data.py`、`docs/gen_descriptions.py`、`scripts/generate_matrix.py`
 - 模板（克隆参照，不改）：`app/megatron/Containerfile.rl`、`app/vllm/Containerfile`、`.github/workflows/megatron-app-image.yml`、`.github/workflows/megatron-wheel.yml`、`packaging/megatron/builder/`、`packaging/megatron/verify/verify-megatron-backend.sh`
