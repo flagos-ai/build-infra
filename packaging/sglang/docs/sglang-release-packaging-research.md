@@ -17,9 +17,10 @@
   全部错配。sglang 的 kernel 层与 torch 小版本耦合深，不能像 vllm 那样跨版本
   复用 `+flagos` wheel。
 - **若立项**，正确形态是 vllm-plugin-FL `docker/build.sh` 的每后端独立镜像线，
-  不是 build-infra "runtime + 单步安装" 模式；且每个后端都要先解决版本矩阵错配
-  与 sgl-kernel/FlagCX 的交付方式（§5、§6）。是否立项是策略决策，本文只给
-  事实与选项。
+  不是 build-infra "runtime + 单步安装" 模式——唯一例外 nvidia-cuda13.3：
+  参考环境 python/torch/triton 精确一致，该后端 "runtime + 单步安装" 可能成立
+  （§5.2）。每个后端都要先解决版本矩阵错配与 sgl-kernel/FlagCX 的交付方式
+  （§4.3、§6.2）。是否立项是策略决策，本文只给事实与选项。
 
 ## 2. 仓库结构
 
@@ -113,9 +114,100 @@ sglang CI 里没有 metax/hygon 镜像；build-infra runtime 没有 thead/spacem
 的 PPU 后端。**除 nvidia-cuda13.3 外全部错配**——不能复用 build-infra 统一
 runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 
-## 5. 打包模型分析
+## 5. 设计文档要点（2026-08-27 补充）
 
-### 5.1 可复用的部分（与 vllm 同构）
+来源：`~/work/docs/sglang-plugin-FL-design.docx`（开发团队技术设计文档，repo 同
+`sglang-plugin-FL`）。该文档是插件**设计**文档，不是打包规范；下列是打包/验证
+视角的提炼。
+
+### 5.1 三层替换机制（插件架构）
+
+插件在 SGLang 之上实现三层无侵入替换，全程不修改 SGLang 源码：
+
+| 层 | 替换对象 | 拦截机制 | 替换内容 |
+|---|---|---|---|
+| Layer 1 | PyTorch ATen 算子（300+） | `torch.library.impl` → ATen dispatch table | FlagGems Triton kernel（`flag_gems.enable()`） |
+| Layer 2 | SGLang fused kernel（SiluAndMul/RMSNorm/TopK/FusedMoE/RotaryEmb） | HookRegistry **AROUND** hook 拦截 `MultiPlatformOp.dispatch_forward()` | OpManager 按 flagos(150) > vendor(100) > reference(50) 路由，失败自动 fallback |
+| Layer 3 | 分布式通信（GroupCoordinator 12 个方法） | HookRegistry **AROUND** hook | CommunicatorFL → FlagCX / torch.distributed（NCCL/HCCL/MCCL/CNCL） |
+
+与打包相关的关键特性：
+- **Layer 2 hook 只在模型构造时生效一次**，结果缓存为函数指针，运行时零 dispatch
+  开销——与 vllm CustomOp 的 `_forward_method` 缓存同构。
+- **Layer 3 有 PyNccl 抑制**：FlagCX 激活时 disable `pynccl_comm`，避免双通信库冲突。
+- **FLA 算子不走 hook**（模块级函数，非 MultiPlatformOp 子类），用 monkey-patch
+  替换源模块引用，且须同时 patch 调用者模块（`from X import Y` 引用绑定问题）。
+- **FlagCX 按后端源码构建**：`make USE_NVIDIA=1` / `USE_ASCEND=1` / `USE_MUSA=1`，
+  `FLAGCX_PATH` 指向 build 产物；`flagcxGroupStart/GroupEnd` v0.13+ 需传 comm 参数。
+- **通信 backend 选择链**：`SGLANG_FL_DIST_BACKEND`(env) > `FLAGCX_PATH`(存在则
+  flagcx) > `_DIST_BACKEND_MAP[vendor]`（nvidia/iluvatar/metax/thead→nccl，
+  ascend→hccl，cambricon→cncl，mthreads→mccl）。
+- **stream 适配三平台**：`_get_raw_stream_handle()` 只支持 cuda/npu/musa 三分支，
+  新平台需加 elif 分支（打包验证时若新增平台要改 `flagcx.py`）。
+
+### 5.2 参考环境（设计文档 §3.1）vs build-infra runtime
+
+| 组件 | 设计文档参考环境 | build-infra runtime (cuda13.3) | 匹配 |
+|---|---|---|---|
+| Python | 3.12 | 3.12 | ✅ |
+| PyTorch | 2.11.0+cu130 | 2.11.0+cu130 | ✅ |
+| Triton | 3.6.0 | `triton==3.6.0` / flagtree 0.6.1 | ✅ |
+| CUDA | 13.0 | 13.3 SDK | ✅ |
+| SGLang | 0.5.11 | 无 | 需装 |
+| sglang-kernel | 0.4.2 | 无 | 需装 |
+| flashinfer | 0.6.8.post1 | 无 | 需装 |
+| FlagGems | 4.2.1rc0 | 5.3.5 | ❌ 见 §5.3 |
+
+**修正 §4.3 结论**：设计文档确认 cuda13.3 的 python/torch/triton 三项与参考环境
+精确一致，缺的只是 sglang + sgl-kernel + flashinfer 三个包（设计文档 §3.2 给了可
+安装配方）→ cuda13.3 上 "runtime + 单步安装" 模式**可能成立**，是唯一可能复用
+build-infra runtime 的后端。其余后端（ascend 2.8 / mthreads 2.7.1 …）设计文档未
+覆盖，维持 §4.3 原判。
+
+### 5.3 FlagGems 版本漂移（打包前必须确认）
+
+设计文档参考环境是 **4.2.1rc0**，插件 pyproject 依赖是不带版本的 `flag_gems`。
+三个事实源版本不一致：
+
+| 来源 | FlagGems 版本 |
+|---|---|
+| 设计文档参考环境 | 4.2.1rc0 |
+| CI docker（§4.1） | v5.3.1（源码构建） |
+| build-infra runtime（configs.yaml） | 5.3.5 |
+
+插件实际对哪个版本保证过兼容，是打包/验证前须向开发团队确认的问题（见 §7.7）。
+
+### 5.4 验证配方（可直接用于 E2E smoke）
+
+设计文档给出了验证所需操作事实：
+
+- **已验证模型**（设计文档 §4.5）：Qwen2.5-0.5B-Instruct（tp=1）、
+  Qwen2.5-14B-Instruct（tp=8）、Qwen3.6-27B / Qwen3.6-35B-A3B（tp=1）——E2E
+  smoke 目标模型。
+- **必带启动参数**：`--disable-piecewise-cuda-graph`（FlagGems Triton kernel 含
+  logging.Logger 调用，与 torch.compile / piecewise CUDA graph 不兼容；常规 CUDA
+  graph 不受影响）。
+- **每平台启动差异**（设计文档『多节点部署平台注意事项』表）：
+
+| 平台 | 设备选择变量 | 特殊环境变量 | 特殊 server 参数 |
+|---|---|---|---|
+| CUDA | CUDA_VISIBLE_DEVICES | — | — |
+| MUSA | MUSA_VISIBLE_DEVICES | MCCL_IB_DISABLE=1 | --page-size 1 |
+| Ascend | ASCEND_RT_VISIBLE_DEVICES | SGLANG_ENABLE_OVERLAP_PLAN_STREAM=0, HCCL_BUFFSIZE=2400 | --attention-backend ascend --device npu --dtype bfloat16 --disable-radix-cache |
+
+- **调试二分法**（设计文档 §10.3 精度二分法，与 build-infra 逐层隔离纪律同构）：
+  `SGLANG_PLUGINS="__none__"`（全禁）→ `USE_FLAGGEMS=0`（只留 Layer 2）→
+  `SGLANG_FL_PER_OP="silu_and_mul=flagos;rms_norm=reference"`（单算子隔离）→
+  `SGLANG_FL_OOT_ENABLED=0`（只留 Layer 1）→ `SGLANG_FL_FLAGOS_WHITELIST=...`
+  （逐步启用 ATen 算子）。
+- **关键环境变量**（设计文档 §9.3）：`SGLANG_FL_PREFER`（flagos/vendor/reference）、
+  `SGLANG_FL_STRICT`（0=禁 fallback）、`SGLANG_FL_PER_OP`、`SGLANG_FL_OOT_WHITELIST`
+  /`SGLANG_FL_OOT_BLACKLIST`、`SGLANG_FL_DENY_VENDORS`/`SGLANG_FL_ALLOW_VENDORS`、
+  `SGLANG_FL_DISPATCH_LOG`、`SGLANG_FL_DIST_BACKEND`、`SGLANG_PLUGINS`
+  （`__none__` 禁全部）。
+
+## 6. 打包模型分析
+
+### 6.1 可复用的部分（与 vllm 同构）
 
 - **plugin wheel**：`sglang_fl` 是纯 Python，可打 `py3-none-any` wheel，经
   entry-point 被 sglang 发现。单步 `pip install sglang-fl==X+flagos` 模型
@@ -123,7 +215,7 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 - **per-backend 交付**：沿 vllm-plugin-FL `docker/build.sh` 模式，为每个后端
   参数化 BASE_IMAGE + 版本变量，产出 `flagos-app/sglang-{backend}:{version}`。
 
-### 5.2 无法复用、必须新做/决策的部分
+### 6.2 无法复用、必须新做/决策的部分
 
 | 组件 | 问题 | 选项 |
 |---|---|---|
@@ -133,7 +225,7 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 | audited 构建 | 现 CI 只 `python -m build`，非 vendor-PyPI | 参考 vllm `build-and-repack.sh`，建立 per-vendor 索引 + twine |
 | 版本漂移 | sglang 每后端锁不同 sglang/sgl-kernel/torch | 每次 bump 都要逐后端对齐，无单一版本 |
 
-### 5.3 明确的 blocker
+### 6.3 明确的 blocker
 
 - **torch 错配**：§4.3。sglang 的 kernel 层（sgl-kernel-npu 2026.5.1、vendor
   torch 配套 sgl-kernel、sglang-kernel 0.4.2）与 torch 小版本强耦合，跨版本装
@@ -144,7 +236,7 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 - **mthreads sglang 版本钉死 0.5.12**：上游 0.5.16 有 circular-import
   regression，bump 受上游修复节奏限制。
 
-## 6. 待决策
+## 7. 待决策
 
 1. **是否立项**：sglang 发布镜像是一条新线（独立 base + 每后端构建 + 验证面
    翻倍），与 vllm/megatron 的 build-infra 模式不共享。
@@ -155,10 +247,13 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 5. **torch 对齐策略**：为 sglang 建独立 runtime 线，还是等 sglang 升到
    build-infra 的 torch 版本（目前只有 nvidia-cuda13.3 对齐）。
 6. **版本机制**：plugin 静态版本 → 动态/手动 bump 方案。
+7. **FlagGems 版本确认**（§5.3）：设计文档 4.2.1rc0 / CI docker v5.3.1 /
+   runtime 5.3.5 三源不一致，插件实际对哪个版本保证过兼容，须向开发团队确认。
 
-## 7. 信息来源
+## 8. 信息来源
 
 - `~/work/sglang-plugin-FL/`：pyproject.toml、`docker/{cuda,ascend,mthreads,thead}/containerfile`、
   `.github/workflows/_build_wheel.yml`、`sglang_fl/` 包结构。
 - `~/work/vllm-plugin-FL/docker/build.sh` + `docker/cuda/Dockerfile`（对比基准）。
 - build-infra `configs.yaml`（runtime python/torch 版本）。
+- `~/work/docs/sglang-plugin-FL-design.docx`：开发团队技术设计文档（§5 来源）。
