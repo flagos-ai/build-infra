@@ -105,7 +105,11 @@ flaggems_cpp_build_deps:
 # the mirror. pybind11 is a runtime dep of flagtree (ascend backend);
 # ninja is needed for C++ extension builds; PyYAML is a FlagGems
 # core dep that vendor torch packages import without declaring.
-# numpy is pinned per-backend (Python 3.10 vs 3.12 range differs).
+# numpy is pinned to 1.26.4 stack-wide — the safest version across all
+# vendors' torch builds (Python 3.10-3.12 range). The opencv-python-headless
+# numpy>=2 requirement was over-claimed; its wheel is runtime
+# backward-compatible with numpy>=1.19, and the upgrade attempt broke many
+# backends. torch is built against the numpy 1.x C ABI.
 runtime_prereqs:
   - "pybind11==3.0.3"
   - "ninja==1.13.0"
@@ -142,7 +146,7 @@ vendors:
         - torch==2.10.0+cu128
         - torchaudio==2.10.0+cu128
         - torchvision==0.25.0+cu128
-        - numpy==2.3.5
+        - numpy==1.26.4
       deps_app:
         megatron_training: []
         # flash-attn is a hard dependency of the RL dynamic engine
@@ -179,7 +183,7 @@ vendors:
         - torch==2.11.0+cu130
         - torchaudio==2.11.0+cu130
         - torchvision==0.26.0+cu130
-        - numpy==2.3.5
+        - numpy==1.26.4
       deps_app:
         megatron_training: []
         # flash-attn wheel source-built with ABI locked to torch 2.11.0+cu130
@@ -205,7 +209,7 @@ vendors:
         - torch-npu==2.9.0
         - torchvision==0.24.0
         - torchaudio==2.9.0
-        - numpy==2.3.5
+        - numpy==1.26.4
       deps_app:
         megatron_training: []
         vllm0.20.2: []
@@ -230,7 +234,7 @@ vendors:
         - torch-npu==2.10.0
         - torchvision==0.25.0+cpu
         - torchaudio==2.10.0+cpu
-        - numpy==2.3.5
+        - numpy==1.26.4
       deps_app:
         megatron_training: []
         vllm0.20.2: []
@@ -257,7 +261,7 @@ vendors:
         - torch==2.7.1+cpu
         - torch-mlu==1.29.2+torch2.7.1
         - torch-mlu-ops==1.8.0+torch2.7.1
-        - numpy==2.2.6
+        - numpy==1.26.4
       deps_app:
         megatron_training: []
         vllm0.20.2: []
@@ -285,7 +289,7 @@ vendors:
         - torch==2.11.0+cpu
         - torch-mlu==1.33.1+torch2.11.0
         - torch-mlu-ops==1.12.1+torch2.11.0
-        - numpy==2.2.6
+        - numpy==1.26.4
         - pandas==3.0.5
       deps_app:
         megatron_training: []
@@ -316,6 +320,7 @@ vendors:
           ENABLE_I64_CHECK: "0"
           ENFLAME_PT_OP_DEBUG_CONFIG: "fallback_cpu=all_ops"
       deps:
+        - numpy==1.26.4
         - pyefml==1.9.10
         - torch==2.10.0+cpu
         - torchaudio==2.10.0+cpu
@@ -363,7 +368,7 @@ vendors:
         - tops-extension==3.6.20260529+torch.2.11.0
         - topstx==1.10.6
         - enflame-modelopt==3.6.20260615+torch.2.11.0
-        - numpy==2.3.5
+        - numpy==1.26.4
       deps_app:
         vllm0.20.2: []
       sdk:
@@ -473,7 +478,7 @@ vendors:
         - xtorch_ops==0.1.2935+50a5d6a4
         - xformers==0.0.29+1e7a8ec.d20260114
         - xmlir==1.0.0.1+20260605
-        - numpy==2.2.6
+        - numpy==1.26.4
       deps_app:
         vllm0.20.2: []
         # vllm 0.24.0 app image: no extra deps — the runtime matrix already
@@ -503,7 +508,7 @@ vendors:
         - torchaudio==2.4.1+metax3.7.2.0
         - torchvision==0.15.1+metax3.7.2.0
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
-        - numpy==2.3.5
+        - numpy==1.26.4
       deps_app:
         vllm0.20.2: []
         vllm0.24.0: []
@@ -542,7 +547,7 @@ vendors:
         - flashinfer==0.2.6+metax3.8.1.0torch2.10
         - flash_linear_attention==0.5.0+metax3.8.1.0torch2.10
         - flash_mla==1.0.1+metax3.8.1.0torch2.10
-        - numpy==2.3.5  # TODO: Confirm this
+        - numpy==1.26.4
       deps_app:
         megatron_training: []
         megatron_rl: []  # RL verified per megatron-verification-matrix.md; no vendor extra
@@ -622,7 +627,7 @@ vendors:
       triton: triton==3.6.0+spacemit.a5
       deps:
         - torch==2.8.0+spacemit.0
-        - numpy==2.3.5
+        - numpy==1.26.4
 
   sunrise:
     tangrt1.2.0:
@@ -642,7 +647,7 @@ vendors:
         - torchaudio==2.11.0+cpu
         - torchvision==0.26.0+cpu
         - torch-ptpu==0.2.3+torch2.11
-        - numpy==2.2.6
+        - numpy==1.26.4
       deps_app:
         vllm0.20.2: []
         vllm0.24.0: []
@@ -661,7 +666,7 @@ vendors:
       triton: triton==3.5.0+ppu2.0.0.oe
       deps:
         - torch==2.9.0+ppu2.0.0.oe
-        - numpy==2.3.5
+        - numpy==1.26.4
 
   tsingmicro:
     tsm260610:
@@ -696,7 +701,7 @@ vendors:
         - torchaudio==2.11.0+cpu
         - torch_txda==0.1.0+20260728.f6fbdb71
         - txops==0.1.0+20260716.e94d9509
-        - numpy==2.2.6
+        - numpy==1.26.4
       sdk:
         - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
         - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run
