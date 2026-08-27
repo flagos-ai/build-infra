@@ -210,6 +210,9 @@ vendors:
         - torchvision==0.24.0
         - torchaudio==2.9.0
         - numpy==1.26.4
+        - attrs==24.2.0
+        - decorator==5.1.1
+        - psutil==6.0.0
       deps_app:
         megatron_training: []
         vllm0.20.2: []
