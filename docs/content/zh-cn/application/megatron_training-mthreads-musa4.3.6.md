@@ -41,14 +41,12 @@ title: "megatron_training-mthreads-musa4.3.6"
 
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
-
-`harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1_14_g6f61e9c5b`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1_14_g6f61e9c5b
 ```
 
 以下两种方式任选其一：
