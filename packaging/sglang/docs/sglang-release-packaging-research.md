@@ -114,11 +114,9 @@ sglang CI 里没有 metax/hygon 镜像；build-infra runtime 没有 thead/spacem
 的 PPU 后端。**除 nvidia-cuda13.3 外全部错配**——不能复用 build-infra 统一
 runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 
-## 5. 设计文档要点（2026-08-27 补充）
+## 5. 插件架构与验证要点（2026-08-27 补充）
 
-来源：`~/work/docs/sglang-plugin-FL-design.docx`（开发团队技术设计文档，repo 同
-`sglang-plugin-FL`）。该文档是插件**设计**文档，不是打包规范；下列是打包/验证
-视角的提炼。
+下列为打包/验证视角的事实提炼；验证工作以此为据，不需再读其他文档。
 
 ### 5.1 三层替换机制（插件架构）
 
@@ -144,9 +142,9 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 - **stream 适配三平台**：`_get_raw_stream_handle()` 只支持 cuda/npu/musa 三分支，
   新平台需加 elif 分支（打包验证时若新增平台要改 `flagcx.py`）。
 
-### 5.2 参考环境（设计文档 §3.1）vs build-infra runtime
+### 5.2 参考环境 vs build-infra runtime
 
-| 组件 | 设计文档参考环境 | build-infra runtime (cuda13.3) | 匹配 |
+| 组件 | 参考环境 | build-infra runtime (cuda13.3) | 匹配 |
 |---|---|---|---|
 | Python | 3.12 | 3.12 | ✅ |
 | PyTorch | 2.11.0+cu130 | 2.11.0+cu130 | ✅ |
@@ -157,20 +155,19 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 | flashinfer | 0.6.8.post1 | 无 | 需装 |
 | FlagGems | 4.2.1rc0 | 5.3.5 | ❌ 见 §5.3 |
 
-**修正 §4.3 结论**：设计文档确认 cuda13.3 的 python/torch/triton 三项与参考环境
-精确一致，缺的只是 sglang + sgl-kernel + flashinfer 三个包（设计文档 §3.2 给了可
-安装配方）→ cuda13.3 上 "runtime + 单步安装" 模式**可能成立**，是唯一可能复用
-build-infra runtime 的后端。其余后端（ascend 2.8 / mthreads 2.7.1 …）设计文档未
-覆盖，维持 §4.3 原判。
+**修正 §4.3 结论**：cuda13.3 的 python/torch/triton 三项与参考环境精确一致，缺的
+只是 sglang + sgl-kernel + flashinfer 三个包（均有可安装配方）→ cuda13.3 上
+"runtime + 单步安装" 模式**可能成立**，是唯一可能复用 build-infra runtime 的后
+端。其余后端（ascend 2.8 / mthreads 2.7.1 …）参考环境未覆盖，维持 §4.3 原判。
 
 ### 5.3 FlagGems 版本漂移（打包前必须确认）
 
-设计文档参考环境是 **4.2.1rc0**，插件 pyproject 依赖是不带版本的 `flag_gems`。
+参考环境 FlagGems 是 **4.2.1rc0**，插件 pyproject 依赖是不带版本的 `flag_gems`。
 三个事实源版本不一致：
 
 | 来源 | FlagGems 版本 |
 |---|---|
-| 设计文档参考环境 | 4.2.1rc0 |
+| 参考环境 | 4.2.1rc0 |
 | CI docker（§4.1） | v5.3.1（源码构建） |
 | build-infra runtime（configs.yaml） | 5.3.5 |
 
@@ -178,15 +175,15 @@ build-infra runtime 的后端。其余后端（ascend 2.8 / mthreads 2.7.1 …�
 
 ### 5.4 验证配方（可直接用于 E2E smoke）
 
-设计文档给出了验证所需操作事实：
+以下是验证所需操作事实：
 
-- **已验证模型**（设计文档 §4.5）：Qwen2.5-0.5B-Instruct（tp=1）、
+- **已验证模型**：Qwen2.5-0.5B-Instruct（tp=1）、
   Qwen2.5-14B-Instruct（tp=8）、Qwen3.6-27B / Qwen3.6-35B-A3B（tp=1）——E2E
   smoke 目标模型。
 - **必带启动参数**：`--disable-piecewise-cuda-graph`（FlagGems Triton kernel 含
   logging.Logger 调用，与 torch.compile / piecewise CUDA graph 不兼容；常规 CUDA
   graph 不受影响）。
-- **每平台启动差异**（设计文档『多节点部署平台注意事项』表）：
+- **每平台启动差异**：
 
 | 平台 | 设备选择变量 | 特殊环境变量 | 特殊 server 参数 |
 |---|---|---|---|
@@ -194,12 +191,12 @@ build-infra runtime 的后端。其余后端（ascend 2.8 / mthreads 2.7.1 …�
 | MUSA | MUSA_VISIBLE_DEVICES | MCCL_IB_DISABLE=1 | --page-size 1 |
 | Ascend | ASCEND_RT_VISIBLE_DEVICES | SGLANG_ENABLE_OVERLAP_PLAN_STREAM=0, HCCL_BUFFSIZE=2400 | --attention-backend ascend --device npu --dtype bfloat16 --disable-radix-cache |
 
-- **调试二分法**（设计文档 §10.3 精度二分法，与 build-infra 逐层隔离纪律同构）：
+- **调试二分法**（精度二分法，与 build-infra 逐层隔离纪律同构）：
   `SGLANG_PLUGINS="__none__"`（全禁）→ `USE_FLAGGEMS=0`（只留 Layer 2）→
   `SGLANG_FL_PER_OP="silu_and_mul=flagos;rms_norm=reference"`（单算子隔离）→
   `SGLANG_FL_OOT_ENABLED=0`（只留 Layer 1）→ `SGLANG_FL_FLAGOS_WHITELIST=...`
   （逐步启用 ATen 算子）。
-- **关键环境变量**（设计文档 §9.3）：`SGLANG_FL_PREFER`（flagos/vendor/reference）、
+- **关键环境变量**：`SGLANG_FL_PREFER`（flagos/vendor/reference）、
   `SGLANG_FL_STRICT`（0=禁 fallback）、`SGLANG_FL_PER_OP`、`SGLANG_FL_OOT_WHITELIST`
   /`SGLANG_FL_OOT_BLACKLIST`、`SGLANG_FL_DENY_VENDORS`/`SGLANG_FL_ALLOW_VENDORS`、
   `SGLANG_FL_DISPATCH_LOG`、`SGLANG_FL_DIST_BACKEND`、`SGLANG_PLUGINS`
@@ -247,7 +244,7 @@ build-infra runtime 的后端。其余后端（ascend 2.8 / mthreads 2.7.1 …�
 5. **torch 对齐策略**：为 sglang 建独立 runtime 线，还是等 sglang 升到
    build-infra 的 torch 版本（目前只有 nvidia-cuda13.3 对齐）。
 6. **版本机制**：plugin 静态版本 → 动态/手动 bump 方案。
-7. **FlagGems 版本确认**（§5.3）：设计文档 4.2.1rc0 / CI docker v5.3.1 /
+7. **FlagGems 版本确认**（§5.3）：参考环境 4.2.1rc0 / CI docker v5.3.1 /
    runtime 5.3.5 三源不一致，插件实际对哪个版本保证过兼容，须向开发团队确认。
 
 ## 8. 信息来源
@@ -256,4 +253,3 @@ build-infra runtime 的后端。其余后端（ascend 2.8 / mthreads 2.7.1 …�
   `.github/workflows/_build_wheel.yml`、`sglang_fl/` 包结构。
 - `~/work/vllm-plugin-FL/docker/build.sh` + `docker/cuda/Dockerfile`（对比基准）。
 - build-infra `configs.yaml`（runtime python/torch 版本）。
-- `~/work/docs/sglang-plugin-FL-design.docx`：开发团队技术设计文档（§5 来源）。
