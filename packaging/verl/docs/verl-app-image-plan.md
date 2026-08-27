@@ -12,7 +12,7 @@ verl-FL 是 FL 全栈训练框架：训练走 MegatronFLEngineWithLMHead（`mega
 **用户已确认的四个决策**：
 1. **verl 安装方式**：构建 verl wheel 发版（新增 `packaging/verl/builder/` + `verl-wheel.yml`，镜像 megatron 路线）
 2. **app 键名**：`verl0.7.0`（版本入键名，同 vllm0.20.2）→ 镜像 `flagos-app/verl0.7.0-{vendor}-{backend}:{stack_version}-{fork_ver}`
-3. **rollout vllm**：verl-FL 自带 vllm 0.11/0.12（`VLLM_VERSION` 默认 0.11.0，**不是** build-infra 的 0.20.2/0.24.0 repack）+ vllm-plugin-fl wheel
+3. **rollout vllm（Path B，分支路线）**：verl-FL 自带 vllm 0.11/0.12 与 vllm-plugin-FL（仅适配 ≥0.13.0）**版本交集为空**，无法直接组合 → 补丁 verl-FL fork 的 vllm 版本门到 0.20.2 线（§7.1 移植清单），rollout 复用 build-infra 的 `vllm==0.20.2+flagos` repack wheel + 现有 vllm-plugin-fl wheel。**⚠️ 分支路线**：Path B 是 build-infra fork 侧的移植补丁，verl-FL 主线保留自己的 0.11/0.12 线；**是否以及何时进入 verl-FL 主线由 verl-FL 团队评估**（§7.1）。
 4. **后端范围**：全部 17 个可构建后端
 
 ## 1. verl wheel 构建设施 — `packaging/verl/builder/` + `verl-wheel.yml`
@@ -34,7 +34,7 @@ FROM ${RUNTIME_IMAGE}
 
 ARG VERL_VERSION=0.7.0
 ARG MEGATRON_VERSION=0.17.1      # megatron-core[rl] wheel（同 megatron app）
-ARG VLLM_VERSION=0.11.0          # verl-FL 自带 vllm 版本
+ARG VLLM_VERSION=0.20.2          # vllm repack wheel 版本（build-infra 0.20.2 线，+flagos，Path B）
 ARG PLUGIN_FL_VERSION=""         # vllm-plugin-fl wheel
 ARG FLAGOS_PYPI=""
 ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
@@ -52,9 +52,11 @@ RUN PYTHONPATH="/opt/triton" pip install \
   --index-url "${FLAGOS_PYPI}" --extra-index-url "${EXTRA_PYPI}" \
   "megatron-core[rl]==${MEGATRON_VERSION}"
 
-# 3) vllm + vllm-plugin-fl（rollout 引擎，verl-FL 自带 0.11/0.12 线）
+# 3) vllm（repack wheel）+ vllm-plugin-fl（rollout 引擎，Path B：0.20.2 线）
+#    +flagos pin 必须——裸 "vllm==0.20.2" 会回落到官方 wheel，torch 约束扰动 runtime
+#    矩阵（vllm app Containerfile 同款注释，packaging/vllm/docs/vllm-0.20.2/playbook.md §1.2/§1.4）
 RUN pip install --index-url "${FLAGOS_PYPI}" --extra-index-url "${EXTRA_PYPI}" \
-  "vllm==${VLLM_VERSION}"
+  "vllm==${VLLM_VERSION}+flagos"
 RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
       pip install --index-url "${FLAGOS_PYPI}" --extra-index-url "${EXTRA_PYPI}" \
         "vllm-plugin-fl==${PLUGIN_FL_VERSION}"; \
@@ -81,7 +83,7 @@ CMD ["verl-ppo"]
 关键点：
 - **顺序即契约**：verl 依赖先装（它们解析时会重读已装 torch 的 METADATA，`PYTHONPATH=/opt/triton` 防 triton 被重装）；megatron-core 与 vllm 都是单步 `--no-deps` 缺失场景，与现有 app 一致。
 - **verl 必须 `--no-deps`**：`setup.py install_requires` 含 `numpy<2.0.0`，若带依赖安装 pip 会尝试把 runtime 的 numpy 2.3.5 降级。显式依赖钉在 configs.yaml `deps_app.verl0.7.0`。
-- **vllm 0.11.0 用 plain 还是 `+flagos` repack**：用户决策=verl-FL 自带 0.11/0.12 线，默认 `vllm==0.11.0`（fork 自身 install 脚本 `install_vllm_sglang_mcore.sh` 的 pin）。**开放点**：plain vllm 0.11.0 的 Requires-Dist 对 torch 的约束（上游配 torch 2.8）可能扰动 runtime torch（2.10.0+cu128）——verify 时探测；若冲突，改走 vendor index 上的 FL-patched 0.11.0 wheel（`VLLM_VERSION` build arg 已参数化）。
+- **rollout = Path B（分支路线，2026-08-27 定）**：verl 0.7.0 的 vllm 门上限 0.12.0（`vllm_async_server.py` 的 `_VLLM_VERSION` 分支）与 vllm-plugin-FL 的下限 0.13.0（最早 tag `v0.1.0+vllm0.13.0`）**交集为空**，"verl-FL 自带 vllm 0.11/0.12 + plugin" 无法组合。→ 补丁 verl-FL fork 的版本门到 0.20.2 线，rollout 直接复用 build-infra 的 `vllm==0.20.2+flagos` repack wheel + 现有 vllm-plugin-fl wheel（vllm app 先例，零新增后端适配）。**这是 build-infra fork 侧的分支路线，verl-FL 主线保留自己的 0.11/0.12 线；是否进入主线由 verl-FL 团队评估**（移植清单见 §7.1）。
 - launcher `app/verl/verl-ppo`（克隆 `app/vllm/vllm-serve`）：`set -euo pipefail` → source `/etc/bash_env.sh`（profile.d 烘的 VERL_PLATFORM/TE_FL_PREFER/FLAGCX_PATH 才可见）→ `exec /flagos/bin/python -m verl.trainer.main_ppo "$@"`。无参时打 hydra help（megatron-train 先例）。
 
 ## 3. configs.yaml 变更
@@ -155,7 +157,7 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 
 克隆 `megatron-app-image.yml`：
 
-- inputs：`backend`（all 默认）、`verl_version`（wheel 版本，如 `0.7.0+fl.20260826.g<sha>`）、`verl_ref`（fork git describe，做 tag fork 段）、`megatron_version`(0.17.1)、`vllm_version`(0.11.0)、`plugin_fl_version`(默认空)、`push`、`verify`。
+- inputs：`backend`（all 默认）、`verl_version`（wheel 版本，如 `0.7.0+fl.20260826.g<sha>`）、`verl_ref`（fork git describe，做 tag fork 段；Path B 分支补丁随此 ref 进 wheel）、`megatron_version`(0.17.1)、`vllm_version`(0.20.2，repack wheel 线)、`plugin_fl_version`(默认空)、`push`、`verify`。
 - set-matrix：`python3 scripts/generate_matrix.py --app "verl0.7.0"`（`deps_app.verl0.7.0` 键位门控，17 后端）。
 - build：`-f app/verl/Containerfile`，build args `RUNTIME_IMAGE/VERL_VERSION/MEGATRON_VERSION/VLLM_VERSION/PLUGIN_FL_VERSION/FLAGOS_PYPI/EXTRA_PYPI/APP_ENV/APP_DEPS`；tag（megatron 模式，`+`/`-`→`_`）：
   ```bash
@@ -178,7 +180,14 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 
 ## 7. 风险 / 开放项
 
-1. **vllm 0.11.0 ↔ runtime torch 兼容**：plain vllm 0.11.0 的 torch 约束（上游配 2.8）可能重装/冲突 runtime torch 2.10+cu128（nvidia）及各家 vendor torch——verify #1 矩阵检查是绊线；若冲突改走 vendor index 的 FL-patched 0.11 线。
+1. **vllm 版本交集为空 → Path B（分支路线）**：verl 0.7.0 的 vllm 门上限 0.12.0 vs vllm-plugin-FL 下限 0.13.0，交集为空，"自带 0.11 线 + plugin" 不可行（2026-08-27 实证，`~/work/verl-FL` vs `/tmp/vllm-v0202` 全树比对）。Path B = 补丁 verl-FL fork 版本门到 0.20.2 线，复用 build-infra `vllm==0.20.2+flagos` repack wheel + vllm-plugin-fl wheel。**移植范围：仅 2 文件 4 触点**——
+   - **BREAK #1** `vllm_async_server.py:448`：`CoreEngineProcManager(target_fn=...)` 在 0.20.2 无 `target_fn` 参数（`v1/engine/utils.py:98` 硬编码 `EngineCoreProc.run_engine_core`）→ 删参数。
+   - **BREAK #2** `vllm_rollout.py:214`：`WorkerWrapperBase(vllm_config=...)` 在 0.20.2 ctor 为 `(rpc_rank=0, global_rank=None)` → 删 `vllm_config=`。
+   - **BREAK #3** `vllm_rollout.py:235`：`self.inference_engine.execute_method(...)` 在 0.20.2 不存在；`init_device` 是唯一到达此路径的消息（`_init_worker` 三消息：init_worker/init_device/load_model）→ 加 `elif method == "init_device": return self.inference_engine.init_device()`。
+   - **门清理**：`vllm_async_server.py` 删 `>0.11.0`/`==0.12.0`/`>=0.12.0` 分支（argparse_utils/network_utils/harmony_utils/GrammarOutput 等），保留现代路径。fp8 补丁为 opt-in（`quantization=="fp8"` 门，默认关），6/8 符号在 0.20.2 存活、~5 重命名 helper、全惰性 import → 非阻塞，可后续再修。
+   - **已验证零改动面**：`patch.py`（7 个 MOE 类齐全）、`utils.py`（lora fallback 解析到）、`third_party/vllm/__init__.py`（distributed.parallel_state）；全部 import 路径在 0.20.2 存在（AsyncEngineArgs/build_app/init_app_state/UsageContext/FlexibleArgumentParser/get_tcp_uri/Executor/CoreEngineProcManager/LoRARequest/ModelRunnerOutput/SchedulerOutput/GrammarOutput/SamplingParams/TokensPrompt/RequestOutput@outputs.py:85）。
+   - **残余注意（非阻塞）**：`collective_rpc` override 吞掉 `non_block`（`**kwargs_extra`）——语义未保持。
+   **分支路线约束**：以上补丁只落在 build-infra 使用的 verl-FL fork 分支（发 verl wheel 时携带，`verl_ref` input 选分支 tag），**是否/何时并入 verl-FL 主线由 verl-FL 团队评估**；app 镜像按 fork 分支 tag 建，不占主线承诺。matrix torch 兼容风险随之消除（repack wheel 空依赖，vllm app 已实证）。
 2. **TE-FL 独立 wheel 可达性 + flagcx 可选路径**：TE-FL 已实证可独立出纯 Python wheel（§3.1，`packaging/transformer-engine-fl/builder/`），风险收窄为各 vendor index 对 hosted 的可见性 + 首 op 分发与 flag_gems 的兼容（同 megatron wheel 先例）。FlagCX 为可选（verl 无强依赖，仅 `USE_FLAGCX=1` 时被选为通信后端字符串）——是否配 flagcx 由 megatron-core[rl]/TE-FL 线决定；配置时 `USE_FLAGCX`/`FLAGCX_PATH` 必须成对（§3.2）。
 3. **ray[default]>=2.41 在非 x86**：ascend（cann850/cann9，aarch64）的 ray wheel 可得性未证——全后端范围下这两后端是最大风险。
 4. **verl 最小 E2E config**：verl 无 megatron 那种 mock-data 一键训练；搭 1 GPU 可跑的最小 PPO config + 数据集是最大验证工作量（§6.5 为临时项）。
