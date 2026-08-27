@@ -116,6 +116,7 @@ verl-FL `setup.py install_requires` 宇宙 **去掉** numpy<2.0.0 / torch / trit
 - 约束范围须尊重 verl 自身声明：`ray>=2.41.0`、`tensordict>=0.8.0,<=0.10.0,!=0.9.0`、`pyarrow>=19.0.0`、`packaging>=20.0`。
 - 后端差异：nvidia-cuda12.8 / cuda13.3 追加 `flash_attn`（拷贝 megatron_rl 项 `2.8.3.post1+fl.cu128.torch210` / `+fl.cu130.torch211`）；其余后端若 runtime/megatron 线已带 flash-attn 则留空。
 - **开放项**：TE-FL（`transformer-engine-fl`）与 FlagCX 目前 configs.yaml 全无。verify 探测：装完 megatron-core[rl] 后 `import transformer_engine` 是否成功、`FLAGCX_PATH` 指向哪。若不在 wheel deps 内，追加 `deps_app.verl0.7.0` 对应项 + 每后端 `FLAGCX_PATH` 值。
+- **FlagCX 无强依赖（2026-08-27 实证）**：verl-FL 的 `setup.py` 不含 flagcx，核心源码无无条件 import——唯一引用在 `recipe/one_step_off_policy/distributed_util.py:46`（惰性 `from vllm_fl...import PyFlagcxCommunicator`，包来自 vllm-plugin-fl）。FlagCX 只是 `USE_FLAGCX=1` 时经 `communication_backend_name()` 选出的通信后端字符串，默认回退 vendor 原生：cuda→nccl、npu→hccl、musa→mccl（`verl/plugin/platform/platform_{cuda,npu,musa}.py`）。**因此 verl app 镜像不需要为「verl 能跑」内置 flagcx**；是否给某后端配 flagcx 取决于 megatron-core[rl]/TE-FL 线（独立开放项），不是 verl 硬性要求。
 
 ### 3.2 `env.app.verl`（全 17 后端）
 
@@ -127,14 +128,15 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
           TE_FL_PREFER: flagos
           TE_FL_STRICT: "0"
           USE_FLAGGEMS: "true"
-          USE_FLAGCX: "1"
+          USE_FLAGCX: "1"          # 每后端：flagcx 可得才设，须与 FLAGCX_PATH 成对
           VLLM_FL_OOT_ENABLED: "1"
           VERL_PLATFORM: cuda        # 每后端：ascend→npu, mthreads→musa, 其余 cuda
-          FLAGCX_PATH: /opt/flagcx   # TBD per backend
+          FLAGCX_PATH: /opt/flagcx   # 每后端：TBD，不可得则 USE_FLAGCX/FLAGCX_PATH 都留空
 ```
 
 - `VLLM_PLUGINS=fl` 走 Containerfile `ENV`（vllm app 先例），不进 APP_ENV。
 - 每后端 `VERL_PLATFORM` 映射在 verify 时定（`verl/plugin/platform/` 只认 cuda|npu|musa|cpu）。
+- **`USE_FLAGCX` 与 `FLAGCX_PATH` 必须成对**（`FLEnvManager.is_flagcx_enabled()` assert）：只设其一即 AssertionError——`USE_FLAGCX=1` 无 PATH、或 `USE_FLAGCX=0` 却留 PATH 都炸。flagcx 不可得的后端**两者都不设**（默认回退 nccl/hccl/mccl，verl 无强依赖），flagcx 可得的后端才 `USE_FLAGCX=1` + `FLAGCX_PATH` 同设。
 
 ### 3.3 schema 注释
 
@@ -169,14 +171,14 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 1. **矩阵不变检查**（WATCH_PKGS=torch/triton/flag_gems/numpy）：runtime 快照 vs app 镜像逐包一致，否则 "Matrix corrupted" exit 1——numpy 是头号危险包（verl `numpy<2.0.0` 绝不能被求值）。
 2. **import 检查**：`import megatron.core`、`import vllm`、`import verl`（版本 0.7.0）；`VLLM_PLUGINS=fl` 下 `import vllm_fl`。
 3. **平台探测**：`VERL_PLATFORM` 解析（期待每后端正确值）。
-4. **TE-FL / FlagCX 探测**：`import transformer_engine` + `TE_FL_PREFER` 路径、定位 `FLAGCX_PATH`——决定 §3.1/§3.2 是否要补 deps/env 项。
+4. **TE-FL / FlagCX 探测**：`import transformer_engine` + `TE_FL_PREFER` 路径、定位 `FLAGCX_PATH`——决定 §3.1/§3.2 是否要补 deps/env 项。**同时验证 `USE_FLAGCX`/`FLAGCX_PATH` 成对一致性**（`is_flagcx_enabled` assert：只设其一即 AssertionError）——flagcx 不可得的后端两者都留空，回退 nccl/hccl/mccl 也算过。
 5. **E2E smoke**（✅ 判定步骤）：单节点最小 `python3 -m verl.trainer.main_ppo`（微型 config + mock 数据，1 GPU），**F（flagtree）+ T（triton）双路径**都过才算过（`--compiler flagtree|triton`，COMPILER_GUARD 惯例）。无最小 config 前格保持 ⬜，workflow 的 verify 以 `--no-e2e` import-only 模式跑。
 6. 节点纪律：按 build-config.yml runners.overrides 在后端硬件跑，试验先记录镜像+包来源，慢/挂靠 metrics 增量判定。
 
 ## 7. 风险 / 开放项
 
 1. **vllm 0.11.0 ↔ runtime torch 兼容**：plain vllm 0.11.0 的 torch 约束（上游配 2.8）可能重装/冲突 runtime torch 2.10+cu128（nvidia）及各家 vendor torch——verify #1 矩阵检查是绊线；若冲突改走 vendor index 的 FL-patched 0.11 线。
-2. **TE-FL / FlagCX 每后端可得性**：都不在 configs.yaml。若 megatron-core[rl] wheel 不携带，需按后端补 deps_app/env。
+2. **TE-FL 每后端可得性 + flagcx 可选路径**：TE-FL（`transformer-engine-fl`）不在 configs.yaml，若 megatron-core[rl] wheel 不携带需按后端补 deps_app/env。FlagCX 经 §3.1 实证为可选（verl 无强依赖，仅 `USE_FLAGCX=1` 时被选为通信后端字符串）——是否给某后端配 flagcx 由 megatron-core[rl]/TE-FL 线决定，非 verl 硬性要求；配置时 `USE_FLAGCX`/`FLAGCX_PATH` 必须成对（§3.2）。
 3. **ray[default]>=2.41 在非 x86**：ascend（cann850/cann9，aarch64）的 ray wheel 可得性未证——全后端范围下这两后端是最大风险。
 4. **verl 最小 E2E config**：verl 无 megatron 那种 mock-data 一键训练；搭 1 GPU 可跑的最小 PPO config + 数据集是最大验证工作量（§6.5 为临时项）。
 5. **版本双轨**：wheel 版本 `0.7.0+fl.<date>.g<sha>`（PEP 440 local）vs fork git describe `v0.2.0-rc2.post1-1-g45068d9e` 分居两处——tag 规则保持分离，`record_app_image_tag`/plugin 回推不得假设两者一致。
