@@ -1,7 +1,7 @@
 # sglang-plugin-FL 打包成发布镜像调研
 
 > 调研日期：2026-08-26。仓库：https://github.com/flagos-ai/sglang-plugin-FL
-> （克隆于 `~/work/sglang-plugin-FL`）。对比对象：`~/work/vllm-plugin-FL`。
+> （分析基于其当前 HEAD）。对比对象：vllm-plugin-FL。
 
 ## 1. 结论（TL;DR）
 
@@ -249,7 +249,7 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 
 ## 8. 信息来源
 
-- `~/work/sglang-plugin-FL/`：pyproject.toml、`docker/{cuda,ascend,mthreads,thead}/containerfile`、
+- sglang-plugin-FL 仓库：pyproject.toml、`docker/{cuda,ascend,mthreads,thead}/containerfile`、
   `.github/workflows/_build_wheel.yml`、`sglang_fl/` 包结构。
-- `~/work/vllm-plugin-FL/docker/build.sh` + `docker/cuda/Dockerfile`（对比基准）。
+- vllm-plugin-FL 仓库：`docker/build.sh` + `docker/cuda/Dockerfile`（对比基准）。
 - build-infra `configs.yaml`（runtime python/torch 版本）。

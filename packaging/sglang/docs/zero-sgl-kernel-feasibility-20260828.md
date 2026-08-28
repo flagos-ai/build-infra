@@ -7,16 +7,17 @@ sgl-kernel 是 ABI 绑定二进制，随 (后端, python, torch) 变，逐个厂
 本文重新审视 sglang-plugin-FL 的设计，回答：**能否用 flag_gems 替换算子、完全不依赖 sgl-kernel？**
 
 分析基线：
-- sglang v0.5.10（`~/work/sglang-src`，HEAD 1519acf）
-- sglang-plugin-FL 当前 HEAD（`~/work/sglang-plugin-FL`）
-- FlagGems HEAD 1878e888f（`~/work/FlagGems`）
+- sglang v0.5.10（HEAD 1519acf）
+- sglang-plugin-FL 当前 HEAD
+- FlagGems HEAD 1878e888f
 
 ## 结论摘要
 
 **可行，且 flagos 默认路径已经零 sgl-kernel。** 剩余工作是把 vendor backend 里
 sgl_kernel / sgl_kernel_npu 的依赖迁移到 flag_gems，其中约 2/3 的 op 在 flag_gems 已有
-覆盖，缺口集中在 enflame（gemma_rmsnorm / topk_sigmoid / causal_conv1d / merge_state_v2）
-与 kunlunxin（klx_* 专用 kernel）。
+覆盖。逐项核实缺口后（§3.5）：enflame 仅 2 个缺口（topk_sigmoid / merge_state_v2），
+gemma_rmsnorm / causal_conv1d 为接线级；ascend 缺口 ≈ 0；真正需自写的只有 kunlunxin
+klx_* 专用 kernel（attention extend / gated delta net / fused experts）。
 
 | 层面 | 现状 | 结论 |
 |---|---|---|
@@ -102,7 +103,7 @@ tsingmicro、ascend。
 | backend | sgl_kernel op | flag_gems 覆盖 |
 |---|---|---|
 | hygon | rmsnorm / fused_add_rmsnorm / rotary_embedding | ✅ 已覆盖 |
-| enflame | silu_and_mul / rmsnorm / gemma_rmsnorm×2 / topk_softmax / topk_sigmoid / fused_moe_kernel / moe_align_block_size / moe_sum / causal_conv1d / merge_state_v2 | ⚠️ 大部分覆盖，4 缺口 |
+| enflame | silu_and_mul / rmsnorm / gemma_rmsnorm×2 / topk_softmax / topk_sigmoid / fused_moe_kernel / moe_align_block_size / moe_sum / causal_conv1d / merge_state_v2 | ⚠️ 大部分覆盖，2 缺口（topk_sigmoid / merge_state_v2），其余接线即可（§3.5） |
 | kunlunxin | klx_gated_delta_net / klx_fused_experts / klx_attention_extend / causal_conv1d | ❌ klx 专用 kernel 无覆盖 |
 | mthreads | gemma_rmsnorm / fused_add_rmsnorm | ⚠️ gemma_rmsnorm 缺口 |
 | tsingmicro | moe_align_block_size（patch 绕过）+ platform_stubs | ✅ moe_align_block_size 已覆盖 |
@@ -133,11 +134,56 @@ _tsingmicro / _spacemit / _aipu / _amd。**flag_gems 设计上就是按厂商分
 
 ### 3.4 缺口清单（需自写 triton 或上游补充）
 
-- gemma_rmsnorm（enflame / mthreads）
-- topk_sigmoid（enflame）
-- causal_conv1d（enflame / kunlunxin GDN）
-- merge_state_v2（enflame flashattention patch）
-- klx_* 专用 kernel（kunlunxin attention extend / gated delta net / fused experts）
+按"flag_gems / sglang 上游已有程度"三级分级，逐项核实见 §3.5：
+
+- **A 级 · 已有覆盖，仅需接线**：gemma_rmsnorm（enflame / mthreads / ascend residual）、
+  causal_conv1d（enflame，删 REPLACE patch 用回上游）
+- **B 级 · sglang 上游已有，需显式接线**：topk_sigmoid（enflame）、
+  merge_state_v2（enflame flashattention patch）
+- **C 级 · 需新写 / 移植进 flag_gems**：klx_* 专用 kernel（kunlunxin attention
+  extend / gated delta net / fused experts）
+
+### 3.5 缺口 op 迁移面分级（逐项核实）
+
+**A 级 · 已有覆盖，仅需接线**（无新 kernel，vendor backend 改调 flag_gems / 上游）：
+
+| 缺口 op | 调用点 | 现状 | 迁移动作 |
+|---|---|---|---|
+| gemma_rmsnorm / gemma_fused_add_rmsnorm（enflame / mthreads） | enflame/impl/normalization.py:9 | flag_gems ops/gemma_rms_norm.py 已存在（weight +1 offset、fp32，语义一致）；flagos / reference backend 已经 bridge 接线 | vendor backend 加 gemma_rms_norm 路由 |
+| causal_conv1d（enflame） | enflame/patches/causal_conv1d.py:29（REPLACE 上游 causal_conv1d_triton.causal_conv1d_fn） | 上游 causal_conv1d_triton 本就是 triton 实现 | 删 REPLACE patch 用回上游（GCU triton 编译可行性待实测） |
+| add_gemma_rms_norm（ascend residual 分支） | ascend/impl/normalization.py:62 | 无 residual 分支走 torch_npu.npu_gemma_rms_norm（上游已有）；residual 分支映射 flag_gems gemma_rms_norm（含 residual 语义） | 接线 |
+| swiglu_oai（ascend） | ascend/impl/fused_moe.py:70 | flag_gems _ascend/fused/fused_moe.py:457 已有 MoEActivation.SWIGLUOAI 分支（triton _silu_and_mul_kernel），不依赖 sgl_kernel_npu | 接线，非缺口 |
+| rmsnorm / fused_add_rmsnorm（enflame） | enflame/impl/normalization.py:9 | _enflame/fused/gcu300/gcu400/fused_add_rms_norm.py 已有 | 非缺口 |
+| topk_softmax（enflame softmax 分支） | enflame/impl/topk.py:61 | flag_gems fused/topk_softmax.py + _kunlunxin/fused/topk_softmax.py 已有 | 非缺口 |
+
+**B 级 · sglang 上游已有，需显式接线**（无新 kernel，改调上游实现）：
+
+| 缺口 op | 调用点 | 现状 | 迁移动作 |
+|---|---|---|---|
+| topk_sigmoid（enflame sigmoid 分支） | enflame/impl/topk.py:61 | sglang 上游 moe/topk.py:415 scoring_func_impl 纯 torch sigmoid（gating_output.sigmoid()）已有；mthreads 直接用上游 MUSA triton kernel | enflame 改用上游实现，或 flag_gems topk_softmax 加 sigmoid scoring |
+| merge_state_v2（enflame 4 处） | enflame/patches/flashattention_backend.py:478/:621/:868/:945 | 上游 triton_ops/merge_state.py merge_state_triton 已有（is_cuda() 守卫内 fallback） | patch 改调 merge_state_triton，绕过 CUDA 守卫 |
+
+**C 级 · 需新写 / 移植进 flag_gems**（工作量大，集中在 kunlunxin）：
+
+| 缺口 op | 调用点 | 现状 | 迁移动作 |
+|---|---|---|---|
+| klx_fused_experts | kunlunxin/impl/fused_moe.py:76（int32、[E,2N,K] / [E,K,N] 布局） | _kunlunxin/fused 26 op 无 fused_moe | 移植 flag_gems 全局 fused_moe.py 到 _kunlunxin 或新写 |
+| klx_gated_delta_net | kunlunxin/impl/fla.py:115（chunk_gated_delta_rule prefill/decode 合一） | _kunlunxin 无 chunk_gated_delta_rule（全局 fused/ 有） | 需新写 decode 路径 |
+| klx_attention_extend / klx_attention_decode | kunlunxin/impl/attention_backend.py:197/:282（paged KV cache + varlen） | _kunlunxin/ops/attention.py 只有非 paged flash_attn_varlen | 需新写 paged 版 |
+
+**结论**：
+
+- 迁移面主力 = kunlunxin klx_* 三类。klx_attention_* 不可绕开上游 triton paged
+  attention——P800 XPU 上 triton attention kernel 编译失败（FlagTree 0.6.1+xpu3.6 /
+  vendor triton 3.0.0，见 vllm 线记录），正是 klx_* 存在的根因。C 级缺口只能自写 /
+  移植进 flag_gems _kunlunxin。
+- enflame 实际缺口收敛到 2 个（topk_sigmoid + merge_state_v2），gemma_rmsnorm /
+  causal_conv1d 均为"已有物、接线 / 删 patch"。
+- ascend 实际缺口 ≈ 0：swiglu_oai 已被 flag_gems _ascend 的 SWIGLUOAI 分支覆盖，
+  add_gemma_rms_norm 走 torch_npu 或 flag_gems gemma_rms_norm。
+- 对待决策 2（缺口 op 维护归属）的直接映射：A/B 级全走"上游 / flag_gems 已有物"
+  （接线为主，无需自写）；C 级才谈自写，对象明确 = flag_gems _kunlunxin 三个 kernel
+  （fused_moe + chunk_gated_delta_rule + paged attention）。
 
 ## 4. 零 sgl-kernel 可行性评估
 
@@ -148,9 +194,10 @@ _tsingmicro / _spacemit / _aipu / _amd。**flag_gems 设计上就是按厂商分
    forward_native。metax E2E（无 sgl_kernel）已验证。
 2. **默认路径已零 sgl-kernel**（§2.2）：flagos backend 6 op 全走 flag_gems；
    reference backend 零 sgl_kernel。
-3. **迁移面可控**（§2.3 + §3）：vendor backend 的 sgl_kernel op 约 2/3 在 flag_gems
+3. **迁移面可控**（§2.3 + §3.5）：vendor backend 的 sgl_kernel op 约 2/3 在 flag_gems
    已有直接对应（rms_norm / rotary / topk / fused_moe / moe_align / moe_sum / FLA）；
-   缺口 4+3 个 op 可自写 triton 实现（tsingmicro 已有"绕过 sgl_kernel 用 triton"的先例）。
+   逐项核实后（§3.5）缺口收敛为 C 级 3 类 klx_* 需自写，A/B 级均为接线（tsingmicro
+   已有"绕过 sgl_kernel 用 triton"的先例）。
 
 **收益**：不再依赖厂商提供 sgl_kernel 编译件；算子实现收敛到 flag_gems 单一依赖；
 flag_gems 已内置 per-vendor 分发机制，与 sglang-plugin-FL 的 vendor backend 一一对应。
@@ -168,7 +215,8 @@ flag_gems 已内置 per-vendor 分发机制，与 sglang-plugin-FL 的 vendor ba
 1. **短期（已具备）**：flagos 作为默认路径直接使用，vendor 未接入或不想提供 sgl_kernel
    的厂商先落 flagos。
 2. **中期**：按厂商逐个迁移 vendor backend 到 flag_gems —— hygon（rms_norm / rotary）
-   与 tsingmicro（moe_align_block_size）迁移成本最低，可先做；enflame 补 4 个缺口 op。
+   与 tsingmicro（moe_align_block_size）迁移成本最低，可先做；enflame 补 2 个缺口 op
+   （topk_sigmoid / merge_state_v2）+ A/B 级接线。
 3. **kunlunxin / ascend**：klx_* 与 sgl_kernel_npu 依赖最重，评估是否用 flag_gems
    对应 backend 覆盖，或维持 vendor 提供（如厂商已有编译件）。
 4. 缺口 op 的 triton 实现按"进 flag_gems 上游"为目标写，避免长期 fork。
