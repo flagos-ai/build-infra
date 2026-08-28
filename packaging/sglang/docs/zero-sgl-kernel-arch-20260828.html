@@ -1,0 +1,499 @@
+<title>零 sgl-kernel 架构</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --surface-2:#edf0f4; --surface-3:#e4e9ef;
+  --ink:#17202e; --ink-dim:#5b6574; --ink-faint:#8b94a1;
+  --line:#dbe1e8; --line-strong:#c6cfda;
+  --accent:#2f5bd8; --accent-soft:#e7ecfb; --accent-ink:#2449b5;
+  --ok:#1e8a4c; --ok-bg:#e1f3e8; --ok-line:#bfe2cd;
+  --a:#0d7d7d; --a-bg:#e0f1f1; --a-line:#bcdddd;
+  --b:#a06a00; --b-bg:#f6ecd8; --b-line:#e6d3ab;
+  --c:#c2410c; --c-bg:#f8e5dc; --c-line:#ebc3b2;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1218; --surface:#151c26; --surface-2:#1b2330; --surface-3:#222c3b;
+    --ink:#e8edf4; --ink-dim:#93a0b0; --ink-faint:#6b7787;
+    --line:#2a3342; --line-strong:#39465a;
+    --accent:#7ea3ff; --accent-soft:#1d2945; --accent-ink:#9db9ff;
+    --ok:#3fcf80; --ok-bg:#13301f; --ok-line:#23573a;
+    --a:#3ab8b8; --a-bg:#0e2b2b; --a-line:#1f4a4a;
+    --b:#dda03c; --b-bg:#2e2413; --b-line:#55421e;
+    --c:#e06a3f; --c-bg:#31170f; --c-line:#5a2c1d;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1218; --surface:#151c26; --surface-2:#1b2330; --surface-3:#222c3b;
+  --ink:#e8edf4; --ink-dim:#93a0b0; --ink-faint:#6b7787;
+  --line:#2a3342; --line-strong:#39465a;
+  --accent:#7ea3ff; --accent-soft:#1d2945; --accent-ink:#9db9ff;
+  --ok:#3fcf80; --ok-bg:#13301f; --ok-line:#23573a;
+  --a:#3ab8b8; --a-bg:#0e2b2b; --a-line:#1f4a4a;
+  --b:#dda03c; --b-bg:#2e2413; --b-line:#55421e;
+  --c:#e06a3f; --c-bg:#31170f; --c-line:#5a2c1d;
+}
+body{background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  line-height:1.6; -webkit-font-smoothing:antialiased}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.wrap{max-width:1100px;margin:0 auto;padding:44px 28px 72px}
+
+/* hero */
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent-ink);font-weight:600;margin-bottom:14px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.2;font-weight:700;letter-spacing:-.01em;
+  text-wrap:balance}
+.thesis{margin-top:14px;max-width:64ch;color:var(--ink-dim);font-size:15.5px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:4px 10px;border-radius:6px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);font-weight:500}
+
+/* section head */
+.sec{margin-top:46px}
+.sec-eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.sec-title{font-size:21px;font-weight:700;margin-top:4px;text-wrap:balance}
+.sec-sub{color:var(--ink-dim);font-size:14px;margin-top:6px;max-width:70ch}
+
+/* layer stack */
+.stack{margin-top:22px}
+.band{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:stretch}
+.band-label{padding-top:10px}
+.band-no{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);font-weight:600}
+.band-name{font-size:13.5px;font-weight:700;margin-top:2px;color:var(--ink-dim)}
+.band-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.flow{height:26px;display:flex;align-items:center;justify-content:center;
+  color:var(--ink-faint);font-size:13px;font-family:"IBM Plex Mono",monospace}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  padding:13px 15px}
+.box.dashed{border-style:dashed;border-color:var(--line-strong);background:var(--surface-2)}
+.box-title{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.box-tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+  font-weight:500;letter-spacing:.04em}
+.box-body{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.op{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:2px 8px;border-radius:5px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-weight:500}
+.op.ok{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+.op.a{background:var(--a-bg);border-color:var(--a-line);color:var(--a)}
+.op.b{background:var(--b-bg);border-color:var(--b-line);color:var(--b)}
+.op.c{background:var(--c-bg);border-color:var(--c-line);color:var(--c)}
+.route{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}
+.route:last-child{border-bottom:none}
+.route-name{font-weight:600;white-space:nowrap}
+.route-arrow{font-family:"IBM Plex Mono",monospace;color:var(--ink-faint);font-size:12px}
+.route-target{color:var(--ink-dim);font-family:"IBM Plex Mono",monospace;font-size:12px}
+.route-status{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:5px;white-space:nowrap}
+.st-ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+.st-warn{background:var(--b-bg);color:var(--b);border:1px solid var(--b-line)}
+.hw-row{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
+  font-size:12px;color:var(--ink-dim)}
+
+/* vendor routes grid */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:18px}
+.vcard{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.vhead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.vname{font-size:15px;font-weight:700}
+.vhw{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);font-weight:500}
+.vsum{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:5px}
+.vs-ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+.vs-a{background:var(--a-bg);color:var(--a);border:1px solid var(--a-line)}
+.vs-b{background:var(--b-bg);color:var(--b);border:1px solid var(--b-line)}
+.vs-c{background:var(--c-bg);color:var(--c);border:1px solid var(--c-line)}
+.vrows{margin-top:10px}
+.vrow{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:6px 0;border-top:1px solid var(--line);
+  align-items:start}
+.vrow:first-child{border-top:none;padding-top:0}
+.g{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;padding:2px 6px;
+  border-radius:5px;text-align:center;width:fit-content;height:fit-content;margin-top:1px}
+.g-ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+.g-a{background:var(--a-bg);color:var(--a);border:1px solid var(--a-line)}
+.g-b{background:var(--b-bg);color:var(--b);border:1px solid var(--b-line)}
+.g-c{background:var(--c-bg);color:var(--c);border:1px solid var(--c-line)}
+.vops{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink);font-weight:500;line-height:1.5}
+.vhow{font-size:12px;color:var(--ink-dim);margin-top:1px;line-height:1.45}
+.vnote{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);font-size:12px;color:var(--ink-dim)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:18px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.stat-num{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:600;color:var(--accent-ink);
+  font-variant-numeric:tabular-nums}
+.stat-t{font-size:12.5px;font-weight:600;margin-top:2px}
+.stat-d{font-size:12px;color:var(--ink-dim);margin-top:3px}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.lg{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-dim);
+  background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 11px}
+.lg-dot{width:9px;height:9px;border-radius:3px;flex:none}
+
+/* footer */
+.foot{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--ink-faint);line-height:1.7}
+.foot b{color:var(--ink-dim);font-weight:600}
+.pending{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pd{font-size:12px;color:var(--ink-dim);background:var(--surface-2);border:1px solid var(--line);
+  border-radius:6px;padding:4px 10px}
+.pd b{color:var(--ink)}
+
+/* deploy pipeline */
+.deploy{display:grid;grid-template-columns:1fr auto 1.2fr auto 1fr;gap:14px;align-items:stretch;margin-top:22px}
+.dbox{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.dbox.install{border-color:var(--accent);background:var(--accent-soft)}
+.dhead{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.dtag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.04em}
+.dlist{margin-top:9px;font-size:12.5px;color:var(--ink-dim);line-height:1.75}
+.dlist b{color:var(--ink);font-weight:600}
+.dsub{font-size:11.5px;color:var(--ink-faint)}
+.dcode{margin-top:9px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+.dcode .dl{font-size:12px;padding:2px 0}
+.darrow{display:flex;align-items:center;justify-content:center;color:var(--ink-faint);
+  font-size:20px;font-family:"IBM Plex Mono",monospace;padding-bottom:6px}
+.oldnew{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.on{border-radius:8px;padding:12px 16px;font-size:12.5px;line-height:1.7}
+.on-title{font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:6px;
+  font-family:"IBM Plex Mono",monospace}
+.on.old{background:var(--surface-2);border:1px dashed var(--line-strong);color:var(--ink-dim)}
+.on.old .on-title{color:var(--ink-faint)}
+.on.new{background:var(--ok-bg);border:1px solid var(--ok-line);color:var(--ink-dim)}
+.on.new .on-title{color:var(--ok)}
+.dconstraint{margin-top:12px;font-size:12.5px;color:var(--ink-dim);
+  background:var(--b-bg);border:1px solid var(--b-line);border-radius:6px;padding:8px 14px}
+.dconstraint b{color:var(--b)}
+
+@media (max-width:760px){
+  .band{grid-template-columns:1fr}
+  .band-label{display:flex;align-items:baseline;gap:8px;padding-top:0}
+  .deploy{grid-template-columns:1fr}
+  .darrow{transform:rotate(90deg);padding:2px 0}
+  .oldnew{grid-template-columns:1fr}
+}
+</style>
+
+<header class="wrap">
+  <div class="eyebrow">flagos · sglang-plugin-FL · packaging</div>
+  <h1>零 sgl-kernel 目标架构</h1>
+  <p class="thesis">用 flag_gems 替换 sgl_kernel / sgl_kernel_npu 后的算子分发架构：sglang-plugin-FL
+  三层 dispatch 把 sglang 融合算子路由到 flag_gems 的 per-vendor 后端。逐项核实后真正需新写的
+  只剩 kunlunxin 三类 klx_* kernel，其余为接线（A/B 级）或已有覆盖。</p>
+  <div class="meta">
+    <span class="chip">基线 sglang v0.5.10</span>
+    <span class="chip">FlagGems 1878e888f</span>
+    <span class="chip">PR #599 已并（§3.5 分级）</span>
+    <span class="chip">PR #5829 等 review</span>
+    <span class="chip">metax 3.8.1.3 · cuda12.8 双路径已实证</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="sec">
+    <div class="sec-eyebrow">封装分发 · 工程化落地形态</div>
+    <div class="sec-title">统一 runtime + 两个 pip 包，单步安装即可执行服务</div>
+    <div class="sec-sub">这是零 sgl-kernel 方案的最终交付目标：不再为每个后端单独构建 sglang 镜像线，
+    sgl-kernel 编译件从安装清单中消失，kernel 层依赖收敛到 runtime 已内置的 flag_gems。</div>
+
+    <div class="deploy">
+      <div class="dbox build">
+        <div class="dhead">构建层 <span class="dtag">build-infra</span></div>
+        <div class="dlist">
+          统一 <b>flagos-runtime-{vendor}-{backend}</b> 镜像<br>
+          内置：Python venv · <b>FlagGems wheel</b> · FlagTree（/flagos）· vendor triton（/opt/triton）<br>
+          <span class="dsub">runtime/Containerfile 一份通吃 13+ 后端</span>
+        </div>
+      </div>
+      <div class="darrow">→</div>
+      <div class="dbox install">
+        <div class="dhead">安装层 <span class="dtag">pip 单步</span></div>
+        <div class="dcode">
+          <div class="dl"><span class="mono">pip install sglang==0.5.10</span></div>
+          <div class="dl"><span class="mono">pip install sglang-plugin-FL</span></div>
+        </div>
+        <div class="dlist">
+          无 sgl_kernel 编译件 · plugin 为 <b>py3-none-any</b> 纯 Python wheel<br>
+          entry-point 自动发现，零源码修改 · 一份 wheel 跨后端
+        </div>
+      </div>
+      <div class="darrow">→</div>
+      <div class="dbox run">
+        <div class="dhead">运行层 <span class="dtag">launch</span></div>
+        <div class="dcode">
+          <div class="dl"><span class="mono">python -m sglang.launch_server --platform fl</span></div>
+        </div>
+        <div class="dlist">
+          启动即走 <b>L1–L4 分层路由</b><br>
+          默认 flagos backend（已零 sgl_kernel），vendor 按迁移分级接入
+        </div>
+      </div>
+    </div>
+
+    <div class="oldnew">
+      <div class="on old">
+        <div class="on-title">旧形态 · 每后端镜像线</div>
+        <div class="on-list">
+          sglang × sgl-kernel × torch × python 四元组逐后端对齐<br>
+          sgl-kernel ABI 绑定二进制，随 (后端, python, torch) 变<br>
+          每个后端独立 Containerfile + 版本变量
+        </div>
+      </div>
+      <div class="on new">
+        <div class="on-title">新形态 · 统一 runtime + 单步安装</div>
+        <div class="on-list">
+          kernel 层依赖收敛到 flag_gems（runtime 已内置）<br>
+          plugin 纯 Python wheel 一份通吃，entry-point 发现<br>
+          镜像内只剩 sglang + plugin 两个 pip 包需安装
+        </div>
+      </div>
+    </div>
+    <div class="dconstraint">
+      残存约束：sglang 版本与 runtime torch 小版本仍须匹配（§4.3 错配矩阵，仅 nvidia-cuda13.3 精确对齐）——kernel 层障碍已除，版本层仍是待决策项。
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-eyebrow">目标架构 · 运行时分层</div>
+    <div class="sec-title">四层路由：应用 → 插件分发 → 算子提供方 → 编译与硬件</div>
+    <div class="stack">
+
+      <div class="band">
+        <div class="band-label"><div class="band-no">L1</div><div class="band-name">应用层<br>sglang srt</div></div>
+        <div class="band-body">
+          <div class="box">
+            <div class="box-title">MultiPlatformOp <span class="box-tag">dispatch_forward</span></div>
+            <div class="box-body">
+              <span class="op">gemma_rms_norm</span><span class="op">rms_norm</span>
+              <span class="op">rotary_embedding</span><span class="op">topk_softmax</span>
+              <span class="op">topk_sigmoid</span><span class="op">fused_moe</span>
+              <span class="op">causal_conv1d</span><span class="op">gated_delta_rule</span>
+              <span class="op">merge_state</span>
+            </div>
+            <div class="hw-row">模型 block：Transformer · MoE · MLA · Mamba 融合算子，经 dispatch_forward 被插件拦截</div>
+          </div>
+          <div class="box">
+            <div class="box-title">Attention backend <span class="box-tag">非 CUDA 默认</span></div>
+            <div class="box-body">
+              <span class="op ok">triton backend</span><span class="op">flashinfer（仅 CUDA）</span>
+            </div>
+            <div class="hw-row">无硬依赖：MultiPlatformOp 对未知平台落 forward_native（metax E2E 已实证）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow">↓</div>
+
+      <div class="band">
+        <div class="band-label"><div class="band-no">L2</div><div class="band-name">分发插件<br>sglang-plugin-FL</div></div>
+        <div class="band-body">
+          <div class="box">
+            <div class="box-title">bridge <span class="box-tag">_BRIDGE_MAP</span></div>
+            <div class="box-body">
+              <span class="op">hook MultiPlatformOp</span><span class="op">逐平台路由</span>
+            </div>
+            <div class="hw-row">拦截 dispatch_forward，把 op 引到对应 backend 的实现</div>
+          </div>
+          <div class="box">
+            <div class="box-title">backends</div>
+            <div class="box-body">
+              <div class="route">
+                <span class="route-name">flagos</span><span class="route-arrow">→</span>
+                <span class="route-target">flag_gems（6 op）</span>
+                <span class="route-status st-ok">已零依赖</span>
+              </div>
+              <div class="route">
+                <span class="route-name">reference</span><span class="route-arrow">→</span>
+                <span class="route-target">flag_gems / 上游</span>
+                <span class="route-status st-ok">零依赖</span>
+              </div>
+              <div class="route">
+                <span class="route-name">vendor ×7</span><span class="route-arrow">→</span>
+                <span class="route-target">sgl_kernel（迁移面）</span>
+                <span class="route-status st-warn">需迁移</span>
+              </div>
+            </div>
+            <div class="hw-row"><span class="mono">cuda · hygon · enflame · kunlunxin · mthreads · tsingmicro · ascend</span>　cuda = NVIDIA 原生，不属范围</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow">↓</div>
+
+      <div class="band">
+        <div class="band-label"><div class="band-no">L3</div><div class="band-name">算子提供方</div></div>
+        <div class="band-body">
+          <div class="box">
+            <div class="box-title">flag_gems <span class="box-tag">主路径</span></div>
+            <div class="box-body">
+              <span class="op">ops/ ATen 注册</span><span class="op">fused/ kernel 级</span>
+              <span class="op">runtime/backend/&lt;vendor&gt;/</span>
+            </div>
+            <div class="hw-row">15 个厂商目录（_ascend/_kunlunxin/_enflame/…）＝ 设计上按厂商分发算子，与 vendor backend 一一对应</div>
+          </div>
+          <div class="box dashed">
+            <div class="box-title">sgl_kernel / sgl_kernel_npu <span class="box-tag">移除目标</span></div>
+            <div class="box-body">
+              <span class="op">厂商二进制</span><span class="op">ABI 绑定</span><span class="op">随 (后端,python,torch) 变</span>
+            </div>
+            <div class="hw-row">per-backend 编译路线已叫停；迁移后从依赖面移除</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow">↓</div>
+
+      <div class="band">
+        <div class="band-label"><div class="band-no">L4</div><div class="band-name">编译与硬件</div></div>
+        <div class="band-body">
+          <div class="box">
+            <div class="box-title">编译器 <span class="box-tag">triton</span></div>
+            <div class="box-body">
+              <span class="op">FlagTree（默认 /flagos）</span><span class="op">vendor triton（/opt/triton 备用）</span>
+            </div>
+            <div class="hw-row">双路径验证纪律：F / T 都跑通才算验证完成</div>
+          </div>
+          <div class="box">
+            <div class="box-title">硬件 <span class="box-tag">13+ 厂商</span></div>
+            <div class="box-body">
+              <span class="op">GCU300/400</span><span class="op">XPU P800</span><span class="op">910B/910C</span>
+              <span class="op">H20</span><span class="op">MLU590</span><span class="op">C550</span>
+            </div>
+            <div class="hw-row">enflame · kunlunxin · ascend · nvidia · cambricon · metax …</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-eyebrow">迁移面 · 逐 vendor 分级</div>
+    <div class="sec-title">缺口路由：色标 = 剩余工作量</div>
+    <div class="sec-sub">A 级已有覆盖仅接线 · B 级上游已有显式接线 · C 级需新写/移植进 flag_gems。分级依据
+    zero-sgl-kernel-feasibility-20260828.md §3.5，调用点逐项核实于 backends/vendor/ 与 flag_gems runtime/backend/。</div>
+    <div class="vgrid">
+
+      <div class="vcard">
+        <div class="vhead"><span class="vname">enflame</span><span class="vhw">GCU300/400</span><span class="vsum vs-b">2 缺口</span></div>
+        <div class="vrows">
+          <div class="vrow"><span class="g g-ok">已有</span>
+            <div><div class="vops">rmsnorm · fused_add_rmsnorm · topk_softmax · silu_and_mul · fused_moe · moe_align · moe_sum</div>
+            <div class="vhow">_enflame/fused/gcu300 + gcu400 已有实现</div></div>
+          </div>
+          <div class="vrow"><span class="g g-a">A</span>
+            <div><div class="vops">gemma_rmsnorm ×2 · causal_conv1d</div>
+            <div class="vhow">flag_gems ops/gemma_rms_norm.py 已有（flagos 已接线）；causal_conv1d 删 REPLACE patch 用回上游 triton</div></div>
+          </div>
+          <div class="vrow"><span class="g g-b">B</span>
+            <div><div class="vops">topk_sigmoid · merge_state_v2 ×4</div>
+            <div class="vhow">上游 scoring_func_impl（torch sigmoid）与 merge_state_triton 已有，显式接线</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vcard">
+        <div class="vhead"><span class="vname">kunlunxin</span><span class="vhw">XPU P800</span><span class="vsum vs-c">3 类新写</span></div>
+        <div class="vrows">
+          <div class="vrow"><span class="g g-c">C</span>
+            <div><div class="vops">klx_attention_extend · klx_attention_decode</div>
+            <div class="vhow">paged KV cache + varlen；_kunlunxin/ops/attention.py 仅非 paged，需新写 paged 版</div></div>
+          </div>
+          <div class="vrow"><span class="g g-c">C</span>
+            <div><div class="vops">klx_gated_delta_net</div>
+            <div class="vhow">chunk_gated_delta_rule prefill/decode 合一；_kunlunxin 无此 op，需新写 decode 路径</div></div>
+          </div>
+          <div class="vrow"><span class="g g-c">C</span>
+            <div><div class="vops">klx_fused_experts</div>
+            <div class="vhow">int32、[E,2N,K]/[E,K,N] 布局；_kunlunxin/fused 26 op 无 fused_moe，移植全局实现</div></div>
+          </div>
+        </div>
+        <div class="vnote">klx_attention_* 不可绕开上游 triton paged attention：P800 XPU 上 triton attention 编译失败（FlagTree 0.6.1+xpu3.6 / vendor triton 3.0.0）正是 klx_* 存在的根因</div>
+      </div>
+
+      <div class="vcard">
+        <div class="vhead"><span class="vname">ascend</span><span class="vhw">910B/910C</span><span class="vsum vs-a">缺口 ≈ 0</span></div>
+        <div class="vrows">
+          <div class="vrow"><span class="g g-a">A</span>
+            <div><div class="vops">swiglu_oai · add_gemma_rms_norm</div>
+            <div class="vhow">_ascend/fused/fused_moe.py 已有 SWIGLUOAI 分支（triton，不依赖 sgl_kernel_npu）；gemma rms_norm 走 torch_npu.npu_gemma_rms_norm 或 flag_gems</div></div>
+          </div>
+          <div class="vrow"><span class="g g-ok">已有</span>
+            <div><div class="vops">chunk_gated_delta_rule_npu</div>
+            <div class="vhow">flag_gems fused/chunk_gated_delta_rule 已覆盖</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vcard">
+        <div class="vhead"><span class="vname">mthreads</span><span class="vhw">MUSA</span><span class="vsum vs-a">1 接线</span></div>
+        <div class="vrows">
+          <div class="vrow"><span class="g g-ok">已有</span>
+            <div><div class="vops">fused_add_rmsnorm</div>
+            <div class="vhow">已覆盖；topk 直接用 sglang 上游 MUSA triton kernel（非 sgl_kernel 依赖）</div></div>
+          </div>
+          <div class="vrow"><span class="g g-a">A</span>
+            <div><div class="vops">gemma_rmsnorm</div>
+            <div class="vhow">接线到 flag_gems ops/gemma_rms_norm.py</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vcard">
+        <div class="vhead"><span class="vname">hygon</span><span class="vhw">DCU</span><span class="vsum vs-ok">已覆盖</span></div>
+        <div class="vrows">
+          <div class="vrow"><span class="g g-ok">已有</span>
+            <div><div class="vops">rmsnorm · rotary_embedding</div>
+            <div class="vhow">已覆盖；megatron 线已双路径实证</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vcard">
+        <div class="vhead"><span class="vname">tsingmicro</span><span class="vhw">TSU</span><span class="vsum vs-ok">已覆盖</span></div>
+        <div class="vrows">
+          <div class="vrow"><span class="g g-ok">已有</span>
+            <div><div class="vops">moe_align_block_size</div>
+            <div class="vhow">patch 绕过 sgl_kernel，platform_stubs 无 kernel 依赖——"绕过 sgl_kernel 用 triton"先例</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-eyebrow">工作量收敛</div>
+    <div class="sec-title">分级结论</div>
+    <div class="stats">
+      <div class="stat"><div class="stat-num">4 → 2</div><div class="stat-t">enflame 缺口</div>
+        <div class="stat-d">gemma_rmsnorm / causal_conv1d 实为接线级，真实缺口仅 topk_sigmoid + merge_state_v2</div></div>
+      <div class="stat"><div class="stat-num">≈ 0</div><div class="stat-t">ascend 缺口</div>
+        <div class="stat-d">SWIGLUOAI 已被 _ascend 分支覆盖，add_gemma_rms_norm 走 torch_npu 或 flag_gems</div></div>
+      <div class="stat"><div class="stat-num">3 类</div><div class="stat-t">需新写</div>
+        <div class="stat-d">全部集中在 kunlunxin klx_*：paged attention · gated delta decode · fused experts</div></div>
+      <div class="stat"><div class="stat-num">2/3</div><div class="stat-t">已有直接覆盖</div>
+        <div class="stat-d">A/B 级全走上游/flag_gems 已有物（接线为主），无需自写 kernel</div></div>
+    </div>
+    <div class="legend">
+      <span class="lg"><span class="lg-dot" style="background:var(--ok)"></span>已有直接覆盖</span>
+      <span class="lg"><span class="lg-dot" style="background:var(--a)"></span>A 仅接线（flag_gems / 上游已有实现）</span>
+      <span class="lg"><span class="lg-dot" style="background:var(--b)"></span>B 上游已有，显式接线</span>
+      <span class="lg"><span class="lg-dot" style="background:var(--c)"></span>C 需新写/移植进 flag_gems _kunlunxin</span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <b>依据</b>：zero-sgl-kernel-feasibility-20260828.md §3.5（PR #599 已并，build-infra main 6114184）；调用点逐项核实于
+    sglang-plugin-FL backends/vendor/ 与 flag_gems runtime/backend/。<br>
+    <b>验证纪律</b>：任何平台 F（FlagTree）/ T（vendor triton）双路径都跑通才算验证完成；换镜像后旧记录不背书新产物。
+    <div class="pending">
+      <span class="pd"><b>待决策 1</b> 迁移立项 / 优先级</span>
+      <span class="pd"><b>待决策 2</b> C 级 klx_* 维护归属（flag_gems 上游 vs 自写）</span>
+      <span class="pd"><b>待决策 3</b> 性能验收口径</span>
+    </div>
+  </footer>
+
+</main>

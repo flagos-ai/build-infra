@@ -5,6 +5,7 @@
 | 文档 | 内容 |
 |---|---|
 | [sglang-release-packaging-research.md](sglang-release-packaging-research.md) | sglang-plugin-FL 打包成发布镜像的调研：与 vllm-plugin-FL 的对比、仓库结构、各后端 CI 镜像版本矩阵、插件架构与验证要点（三层替换机制 / 参考环境对照 / 验证配方）、打包模型分析与待决策 |
+| [zero-sgl-kernel-arch-20260828.html](zero-sgl-kernel-arch-20260828.html) | 零 sgl-kernel 方案架构图（本地 HTML）：目标架构四层路由 + 逐 vendor 迁移面分级 + 封装分发落地形态（统一 runtime + 单步安装） |
 
 ## 结论速览
 
