@@ -35,17 +35,17 @@ title: "kunlunxin-xre5.37.1"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `git` — 2.34.1
-- `make` — 4.3
-- `pciutils` — 3.7.0
-- `unzip` — 6.0
-- `vim` — 8.2.3995
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `git`
+- `make`
+- `pciutils`
+- `unzip`
+- `vim`
 
 ### SDK 组件
 
@@ -85,5 +85,3 @@ docker run --rm -it \
 ```bash
 xpu-smi
 ```
-
-*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*
