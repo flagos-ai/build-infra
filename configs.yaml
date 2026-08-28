@@ -419,7 +419,7 @@ vendors:
 
   iluvatar:
     corex4.4.0:
-      extras: iluvatar
+      extras: iluvatar-corex440
       hardware: ["Iluvatar BI-V150"]
       driver: "4.4.0"
       python: "3.12"
@@ -440,6 +440,29 @@ vendors:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
         - CMake (Iluvatar) 3.31.8  # cmake-3.31.8+corex.4.4.0-linux-x86_64.sh
+
+    corex4.5.0:
+      extras: iluvatar-corex450
+      hardware: ["Iluvatar BI-V150"]
+      driver: "4.5.0"
+      python: "3.12"
+      cmake_backend: IX
+      triton: triton==3.2.0+corex.4.5.0.20260804
+      flagtree: flagtree==0.6.1+iluvatar3.6
+      env:
+        base:
+          COREX_ROOT: /usr/local/corex
+          PATH: /usr/local/corex/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/corex/lib
+      deps:
+        - torch==2.10.0+corex.4.5.0.20260804
+        - torchaudio==2.10.0+corex.4.5.0.20260804
+        - torchvision==0.25.0+corex.4.5.0.20260804
+        - numpy==1.26.4
+      sdk:
+        - Corex Runtime 4.5.0      # corex-installer-linux64-4.5.0_x86_64_10.2.run
+        - CUDA Header files 260604 # cuda-header-260604.zip
+        - CMake (Iluvatar) 3.31.8  # cmake-3.31.8+corex.4.5.0.20260804-linux-x86_64.sh
 
   kunlunxin:
     xre5.37.1:
