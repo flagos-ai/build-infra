@@ -1,0 +1,78 @@
+---
+title: "iluvatar-corex4.5.0"
+---
+
+<!--
+ Copyright 2026 FlagOS Contributors
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Iluvatar BI-V150
+- **Host driver:** 4.5.0
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: ix-container-toolkit >= 1.1.0
+
+## Image contents
+
+### Built on
+
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.1.2</code> <a href="../../base/iluvatar-corex4.5.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+
+### Python
+
+3.12
+
+### Major Python packages
+
+- `flag_gems==5.3.5`
+- `flagtree==0.6.1+iluvatar3.6`
+- `numpy==1.26.4`
+- `torch==2.10.0+corex.4.5.0.20260804`
+- `torchaudio==2.10.0+corex.4.5.0.20260804`
+- `torchvision==0.25.0+corex.4.5.0.20260804`
+- <span class="muted"><code class="plain">triton==3.2.0+corex.4.5.0.20260804</code></span>
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+## Launch
+
+**With the container toolkit** *(optional)*:
+
+```bash
+docker run --rm -it \
+  --runtime iluvatar \
+  --env IX_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it \
+  --device /dev/iluvatar0 \
+  -v /usr/local/corex:/usr/local/corex:ro \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+ixsmi
+```
