@@ -1,7 +1,7 @@
 # sglang 0.5.18 — MetaX maca3.8.1.3 验证记录
 
-> **首个 0.5.18 后端**。零 sgl-kernel F/T 双路径 E2E 全过；flag_gems
-> ConfigCache 跨编译器污染处置；JIT 缺口 fallback 落进交付形态（ADR §5.5）。
+> **首个 0.5.18 后端**。零 sgl-kernel F/T 双路径 E2E 全过；JIT 缺口 fallback
+> 落进交付形态（ADR §5.5）。
 
 ## 1. 环境
 
@@ -82,14 +82,14 @@ wheel / plugin 层，非仅测试容器）：
 | 3 | flashinfer import 链（metax 无）| `SGLANG_IS_FLASHINFER_AVAILABLE=false` |
 | 4 | F 路径 inductor 并发 fork 崩溃 | `TORCHINDUCTOR_COMPILE_THREADS=1` |
 | 5 | CUDA-alias 无 nvcc 的 load_jit 链 | §4 三处 fallback 落进 wheel |
-| 6 | **flag_gems SQL ConfigCache 跨编译器污染**（专题，见下）| F/T 切换前移 db |
 
-**坑 6 专题**：flag_gems ConfigCache（`/root/.flaggems/config_cache/
-TunedConfig_metax_triton_3_6.db`）F/T 同 db 同表——F 路径 tuning 写
-`BLOCK_SIZE_M=8` config 后，T 路径 cache-hit 直接复用 → 硬崩
+**注意事项：flag_gems SQL ConfigCache 跨编译器污染**（仅 F/T 双路径验证场景
+需要处理；最终用户钉单一编译器不触发，无影响）。F/T 同 db 同表
+（`/root/.flaggems/config_cache/TunedConfig_metax_triton_3_6.db`）——F 路径
+tuning 写 `BLOCK_SIZE_M=8` config 后，T 路径 cache-hit 直接复用 → 硬崩
 `PassManager::run failed`。解法：F/T 切换前 `mv .../TunedConfig_*.db
-.../.F_backup`，让 T fresh tuning。副作用：T 路径首 token 慢（fresh tuning
-代价）。
+.../.F_backup`，让 T fresh tuning（副作用：T 首 token 慢）。根因链完整证据
+闭环见 [metax-0.5.12.md](metax-0.5.12.md)。
 
 ## 6. 遗留
 

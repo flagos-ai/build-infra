@@ -1,6 +1,8 @@
-# metax maca3.8.1.3 零 sgl-kernel 从零验证（2026-08-28）
+# MetaX maca3.8.1.3 — sglang 0.5.12 零 sgl-kernel 参考记录
 
-标签：sglang 0.5.12 / metax maca3.8.1.3 / 零 sgl-kernel / flag_gems 5.3.5 / 双编译器
+> 0.5.18 方案的前身实证（2026-08-28）：零 sgl-kernel 路线可行性闭环 + 完整根因链。
+> 0.5.18 正式记录见 [metax.md](metax.md)；已落进交付形态的处置（shim / flashinfer
+> 开关 / inductor 线程钉 1）以 0.5.18 记录为准，本文保留根因链参考价值。
 
 ## 背景与目标
 
@@ -61,12 +63,9 @@ vendor triton-3.6.0+metax3.8.1.0 的 bf16 MMA 断言 `shape_judge && "tn and tk 
 conditon"`：BLOCK_SIZE_M=8 的 GEMM tile 编译失败，M-tile≥16 全过（raw kernel 14 组合
 实证）。flagtree 无此限制。处置：vendor triton 侧缺陷，移交厂商。
 
-### 6. 跨编译器 SQL ConfigCache 污染（flag_gems 侧，本次主坑）
+## 注意事项：flag_gems SQL ConfigCache 跨编译器污染
 
-见下节专题。这是 T 路径 serve 启动崩溃（`RuntimeError: PassManager::run failed` at
-libentry.py:1085）的根因。
-
-## 专题：flag_gems SQL ConfigCache 跨编译器污染
+> 仅 F/T 双路径验证场景需要处理；最终用户钉一个编译器不触发，无影响。
 
 ### 现象
 
@@ -112,6 +111,6 @@ num_stages=5)（安全）→ T 路径 serve + E2E 全过（9.5/11.0/6.9 tok/s）
 
 ## 遗留
 
-- 性能：零 sgl-kernel 路径 7-11 tok/s vs 基线 ~40 tok/s，慢 4-5 倍，未优化。
-- 文档 3 个待决策（迁移立项 / 缺口 op 维护归属 / 性能验收口径）等待项目层定案。
+- 性能：零 sgl-kernel 路径 7-11 tok/s vs 基线 ~40 tok/s，慢 4-5 倍，未优化（0.5.18
+  同机 ~4 tok/s，见 [metax.md](metax.md) §6）。
 - 验证容器已拆；模型权重在节点 /data/models/Qwen/Qwen3-0.6B，容器创建时映射即可用。
