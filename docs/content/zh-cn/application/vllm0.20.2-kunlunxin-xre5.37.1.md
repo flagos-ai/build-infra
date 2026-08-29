@@ -39,6 +39,9 @@ title: "vllm0.20.2-kunlunxin-xre5.37.1"
 
 `vllm==0.20.2+flagos`
 
+
+`vllm-plugin-fl==0.2.1+g8236c0a.d20260821`
+
 ## 环境变量
 
 - `VLLM_FL_PLATFORM=kunlunxin`
@@ -48,14 +51,12 @@ title: "vllm0.20.2-kunlunxin-xre5.37.1"
 
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2-0.2.1_g8236c0a.d20260821`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2-0.2.1_g8236c0a.d20260821
 ```
 
 以下两种方式任选其一：
