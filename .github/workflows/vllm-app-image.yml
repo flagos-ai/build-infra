@@ -26,7 +26,7 @@ name: vllm app image
 # Then verifies the built image on the node: the critical-package matrix must
 # be identical to the runtime's (BEFORE snapshot from the runtime image, AFTER
 # from the app image), and vllm + vllm_fl must import (see
-# packaging/vllm/verify-vllm-backend.sh --app-image). Verify gates push.
+# packaging/vllm/verify/verify-vllm-backend.sh --app-image). Verify gates push.
 #
 # Backend matrix comes from scripts/generate_matrix.py --app vllm{version}
 # (same runtime fields as runtime-image.yml plus the per-backend app env vars
@@ -183,7 +183,7 @@ jobs:
         if: ${{ inputs.verify }}
         run: |
           set -euo pipefail
-          bash packaging/vllm/verify-vllm-backend.sh \
+          bash packaging/vllm/verify/verify-vllm-backend.sh \
             "${{ matrix.name }}" \
             --vllm-version "${{ inputs.vllm_version }}" \
             --plugin-fl-version "${{ inputs.plugin_fl_version }}" \

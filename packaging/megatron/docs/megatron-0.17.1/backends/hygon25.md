@@ -31,7 +31,7 @@ wheel 单步安装直跑，均 exit 0，并已在 vendor triton 3.5.1（[build-i
 
 **flagtree 线（2026-08-17 复验）：** 四场景在 `compiler flagtree`
 （3.6.0）下全验通过（flagtree 编译器全 ✅，矩阵见
-[[megatron-verification-matrix.md]]）。跨场景前置 = jit_fuser noop
+[[../megatron-verification-matrix.md]]）。跨场景前置 = jit_fuser noop
 （§1.4：`--disable-jit-fuser` 不足——import 期已绑定 torch.compile，
 warmup 触发 inductor→flagtree `cluster_dims` 崩溃；复验用容器侧
 jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/inference
@@ -466,5 +466,5 @@ tensorboard 一个，而是一组，偏离方式分三种：
   PR [#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)——§1.4
   jit_fuser import 期惰性装饰（flagtree 四场景实证支撑，2026-08-17 §1.4）
 
-**相关文档:** `packaging/megatron/builder/report-megatron-0.17.1.md`（构建与依赖面；
+**相关文档:** `packaging/megatron/docs/megatron-0.17.1/report-builder.md`（构建与依赖面；
 依赖处理并入其 §1/§3）。

@@ -60,7 +60,7 @@ runtime
    **local-THD（rl_utils.py:666 无条件 thd）**：实证链以容器侧条件化补丁
    （transformer_impl=="local" 时 thd=None）落地、非阻塞；归类为 MLF 反馈项
    （见待反馈项），**不再是 metax RL 阻塞项**。真实障碍链 17 个（全 E2E 实证）
-   全为本地代码/参数/harness 缺陷，详见 `megatron-metax-e2e.md` RL。
+   全为本地代码/参数/harness 缺陷，详见 `megatron-0.17.1/backends/metax.md` RL。
 
    **metax RL 固化清单（2026-08-19 两编译器并齐后，阶段二输入；2026-08-19 落地）**：
    容器内 5 补丁（6 hunk，全 5 文件已提 **MLF PR #116 OPEN**，与实证容器补丁逐字节
@@ -99,7 +99,7 @@ runtime
    需先还原为连续 TND 布局——**方案待用户权衡**。RL 路径三处代码级障碍已
    在 910B 实证并上提（packed_seq gate：MLF #119 / NVIDIA #6709；KV-append
    设备断言：MLF #120 / NVIDIA #6730；flagtree driver is_active：FlagTree
-   #1023，均 OPEN）。详见 `megatron-ascend-e2e.md`。
+   #1023，均 OPEN）。详见 `megatron-0.17.1/backends/ascend.md`。
 
 **待 MLF 反馈项**（建议权，不阻塞 build-infra）：jit_fuser 惰性装饰、RL extra 声明偏差（**已提 PR #114，见 C 定稿**）、**RL local-impl 全套（2026-08-19 已提 PR #116 OPEN，见固化清单）**：local-THD 条件化（rl_utils.py:666 无条件 thd → 条件构造，实证必需）、null_tokenizer pad/bos/eos、inference/utils.py getattr 回退、`--return-log-probs` 注册、attention.py:943 flash_attn 断言门控、rl_utils.py unwrap_model。余：eos_id None 兜底、dynamic 引擎 flash_attn 依赖软化（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 #116 DotProductAttention 跳过，L677 待软化）。
 
@@ -129,8 +129,8 @@ runtime
 ## 文件状态
 
 - `/Users/baai/work/Megatron-LM-FL/pyproject.toml` — **已提交**（commit ba22f6b67，分支 feat/wheel-full-scope）：packages.find.include 扩到 training+legacy+rl+post_training+inference，py-modules 收编 9 个顶层入口文件（gpt_builders/mamba_builders/model_provider/pretrain_gpt/pretrain_bert/pretrain_mamba/pretrain_t5/pretrain_vlm/train_rl）。**PR #107 OPEN**（https://github.com/flagos-ai/Megatron-LM-FL/pull/107），3 个 CI check queued（fork 侧）。repo 工作树 clean。
-- `/Users/baai/work/build-infra/findings/megatron-hygon25-e2e.md` — 今天已更新：①Status 表去掉 PART A/B 命名改"wheel-only 训练循环"/"完整训练服务"，②新增"打包背景"节（wheel 范围继承上游、缺 training 是若干发现根因、repo checkout 验证的原因），③"上游"歧义明确（代码来源=ADLR/Megatron-LM，提交/反馈目标=flagos-ai/Megatron-LM-FL），④§2.1 编译器 mask 表，⑤§4 `--disable-jit-fuser` 标注仅 flagtree 需要。
-- **报告位置（2026-08-13 晚移动）**：`/Users/baai/work/build-infra/packaging/megatron/docs/megatron-hygon25-e2e.md`（不在 findings/ 下；用户指定放 packaging/megatron/docs/）。
+- `/Users/baai/work/build-infra/packaging/megatron/docs/megatron-0.17.1/backends/hygon25.md` — 今天已更新：①Status 表去掉 PART A/B 命名改"wheel-only 训练循环"/"完整训练服务"，②新增"打包背景"节（wheel 范围继承上游、缺 training 是若干发现根因、repo checkout 验证的原因），③"上游"歧义明确（代码来源=ADLR/Megatron-LM，提交/反馈目标=flagos-ai/Megatron-LM-FL），④§2.1 编译器 mask 表，⑤§4 `--disable-jit-fuser` 标注仅 flagtree 需要。
+- **报告位置（2026-08-13 晚移动）**：`/Users/baai/work/build-infra/packaging/megatron/docs/megatron-0.17.1/backends/hygon25.md`（不在 findings/ 下；用户指定放 packaging/megatron/docs/，后随 per-version 重构迁入 backends/）。
 - **runtime 镜像层待办**：hygon DTK 26.04 的默认编译器是 flagtree（错误默认）——需在 runtime 镜像层改默认 vendor triton 或移除 flagtree。属 runtime 仓库工作。
 
 ## 任务

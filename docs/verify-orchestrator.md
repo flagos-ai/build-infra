@@ -190,7 +190,7 @@ driver 为每个失败 cell 生成一张卡，worker 从零开始只拿卡：
 ```yaml
 cell:        vllm0.24.0 / cambricon-neuware4.4.3 / T
 image:       harbor.../flagos-runtime-cambricon-neuware4.4.3:2.1.2
-verify_script: packaging/vllm/verify-vllm-backend.sh
+verify_script: packaging/vllm/verify/verify-vllm-backend.sh
 failure:     # 预压缩摘要，见 §5.2
   step:      serve
   exit_code: 1

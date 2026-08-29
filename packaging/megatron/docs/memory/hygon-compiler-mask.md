@@ -30,7 +30,7 @@ metadata:
 ## 对 megatron 参数的影响
 
 - flagtree 下的旧结论：需要 `--disable-jit-fuser` 规避 §1.3 import 期绑定 + 无法编译 HCU。**"无法编译 HCU"已证伪**（2026-08-16 flag_gems 全过）；`--disable-jit-fuser` 是否仍需，待新镜像 flagtree 环境 E2E 复测确认（RL(GRPO) 场景下一步）。
-  - **2026-08-16 RL 复测进度：** rl-new 容器（repack 修复后新镜像）已启动 RL(GRPO) E2E（flagtree 默认，刻意不传 `--disable-jit-fuser`），但**先被 tensorboard 未声明依赖在 import 期阻塞**（`megatron/rl/rl_utils.py:24` → `has_rl_utils=False` → 断言，详见 [[megatron-hygon25-e2e]] §5.4），尚未到达 jit-fuser warmup 阶段 → **mask-doc 问题仍未回答**。tensorboard 补上后，下一预期阻塞是 flash-attn `__version__` 硬编码 "2.6.1"（§5.1 修正）。
+  - **2026-08-16 RL 复测进度：** rl-new 容器（repack 修复后新镜像）已启动 RL(GRPO) E2E（flagtree 默认，刻意不传 `--disable-jit-fuser`），但**先被 tensorboard 未声明依赖在 import 期阻塞**（`megatron/rl/rl_utils.py:24` → `has_rl_utils=False` → 断言，详见 [[megatron-0.17.1/backends/hygon25.md]] §5.4），尚未到达 jit-fuser warmup 阶段 → **mask-doc 问题仍未回答**。tensorboard 补上后，下一预期阻塞是 flash-attn `__version__` 硬编码 "2.6.1"（§5.1 修正）。
 - vendor triton 下**不需要**——`--disable-jit-fuser`、jit.py 补丁都去掉，E2E 复跑 exit 0（loss 9.1295→8.8622）。
 
 详见 [[megatron-verification-state]]。

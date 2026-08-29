@@ -7,3 +7,7 @@ versions/
 versions-remote/
 scripts/verify-nodes.local.yaml
 .github/verify-remaining.json
+
+# packaging/ build artifacts and working files
+packaging/**/*.whl
+packaging/*/WORKING-CONTEXT.md
