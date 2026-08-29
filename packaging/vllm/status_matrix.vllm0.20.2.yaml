@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.20.2
 description: vLLM 0.20.2 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-08-26"
+last_updated: "2026-08-29"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -103,6 +103,7 @@ backends:
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: true
+    image_tag: "2.1.2-0.2.1_g8236c0a.d20260821"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/268
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/400

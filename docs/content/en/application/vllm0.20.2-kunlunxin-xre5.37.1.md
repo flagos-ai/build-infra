@@ -39,6 +39,9 @@ title: "vllm0.20.2-kunlunxin-xre5.37.1"
 
 `vllm==0.20.2+flagos`
 
+
+`vllm-plugin-fl==0.2.1+g8236c0a.d20260821`
+
 ## Environment
 
 - `VLLM_FL_PLATFORM=kunlunxin`
@@ -48,14 +51,12 @@ title: "vllm0.20.2-kunlunxin-xre5.37.1"
 
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2-0.2.1_g8236c0a.d20260821`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-kunlunxin-xre5.37.1:2.1.2-0.2.1_g8236c0a.d20260821
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
