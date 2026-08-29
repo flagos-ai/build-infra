@@ -150,6 +150,10 @@ vllm serve:   ✅ 启动成功            TP=1, enforce-eager, gpu-util 0.6
 Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16
 ```
 
+> 注：`3.1.0+metax3.7.2.0` 是 MACA SDK 内签的 flagtree（非 flagos-ai
+> 上游版本），因缺 API 否决，runtime 安装 `0.6.1+metax3.6`（configs.yaml
+> 单一事实源）。
+
 ### Triton 路径（T）复验：flag_gems scalar 返回 bug（2026-08-25）
 
 **运行时镜像:** `flagos-runtime-metax-maca3.7.2.1:2.1.2`（flag_gems 5.3.4）。
