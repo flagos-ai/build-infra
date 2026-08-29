@@ -63,7 +63,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # backend's published image_tag (see plugin_fl_version below).
 APP_VERIFY = {
     "vllm0.20.2": {
-        "script": "packaging/vllm/verify-vllm-backend.sh",
+        "script": "packaging/vllm/verify/verify-vllm-backend.sh",
         "scenario": "inference",
         "verify_args": "--vllm-version 0.20.2",
         # derive_plugin: the serve test (Step 6) needs vllm-plugin-fl — without
@@ -74,7 +74,7 @@ APP_VERIFY = {
         "derive_plugin": True,
     },
     "vllm0.24.0": {
-        "script": "packaging/vllm/verify-vllm-backend.sh",
+        "script": "packaging/vllm/verify/verify-vllm-backend.sh",
         "scenario": "inference",
         "verify_args": "--vllm-version 0.24.0",
         "derive_plugin": True,

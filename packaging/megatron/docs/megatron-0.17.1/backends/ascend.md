@@ -15,7 +15,7 @@ runtime 镜像内置的 `compiler` 命令，下文不重复。
 flagos-ai/Megatron-LM-FL 的
 [ci/merge-105-106-107-114](https://github.com/flagos-ai/Megatron-LM-FL/tree/ci/merge-105-106-107-114)
 （commit 48b97a13f）。wheel 制作流程见
-[builder/README.md](../../builder/README.md)（构建环境 = 后端 runtime
+[builder/README.md](../../../builder/README.md)（构建环境 = 后端 runtime
 镜像，版本号自动带 commit 溯源）。
 该分支合入 MLF 的四个 PR：
 [#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
@@ -48,7 +48,7 @@ validation test set 两线均 1.084173E+01。
 --bf16 --no-masked-softmax-fusion --no-gradient-accumulation-fusion
 --attention-backend unfused --transformer-impl local --lr 1e-6
 --eval-interval 1000。
-逐参数原因见 [[megatron-hygon25-e2e.md]] §2 参数基线表
+逐参数原因见 [[hygon.md]] §2 参数基线表
 （同 wheel、同非 CUDA 平台）。
 
 ## post_training（双编译器 ✅）
@@ -60,7 +60,7 @@ DummyModel + `simple_generate`，输出 shape=(1, 8)，两线均 exit 0。
 不带会撞 `torch_norm.py:48` 断言。
 
 modelopt 0.45.0 为临时装入（未入镜像）。
-纳入镜像的决策与状态见 [[megatron-hygon25-e2e.md]] §1.3.3。
+纳入镜像的决策与状态见 [[hygon.md]] §1.3.3。
 
 ## inference（双编译器 ✅）
 
@@ -193,4 +193,4 @@ legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。动态引�
   ——决定后 RL 全链 E2E 可继续。
 
 **通用跟进规则:** 每个上游 PR 合并后 → 重建对应 wheel →
-重跑受影响场景 → 更新 [[megatron-verification-matrix.md]] 跟踪表。
+重跑受影响场景 → 更新 [[../megatron-verification-matrix.md]] 跟踪表。

@@ -1,4 +1,4 @@
-# verl-FL hygon25 E2E 验证报告
+# verl-FL hygon E2E 验证报告
 
 验证在 hygon25（Hygon BW1000 8× HCU，DTK 26.04）上进行，runtime 镜像
 `flagos-runtime-hygon-dtk26.04:2.1.2`，Python 3.10.20，torch

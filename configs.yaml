@@ -409,7 +409,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training: []
-        # RL 训练 forward 强制 TE（hygon25 E2E §5.4）；vendor 条件包。
+        # RL 训练 forward 强制 TE（hygon E2E §5.4）；vendor 条件包。
         megatron_rl:
           - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
         vllm0.24.0: []

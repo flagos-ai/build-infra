@@ -26,8 +26,8 @@
 
 > 注：各编译器在对应后端的具体版本、前置与 workaround（hygon jit_fuser
 > 补丁、ascend torch-first 导入顺序、nvidia inductor fork 规避等）见厂商
-> 文档：[[megatron-hygon25-e2e.md]] / [[megatron-nvidia-e2e.md]] /
-> [[megatron-ascend-e2e.md]] / [[megatron-metax-e2e.md]]。
+> 文档：[[megatron-0.17.1/backends/hygon.md]] / [[megatron-0.17.1/backends/nvidia.md]] /
+> [[megatron-0.17.1/backends/ascend.md]] / [[megatron-0.17.1/backends/metax.md]]。
 
 ## 矩阵
 
@@ -232,16 +232,16 @@
 各后端 E2E 验证详情已分拆至厂商文档，matrix 仅保留跨后端共享事实与指针：
 
 - **nvidia**（training / post_training×inference / RL / app image，cuda12.8
-  与 cuda13.3 双后端）：[[megatron-nvidia-e2e.md]]
+  与 cuda13.3 双后端）：[[megatron-0.17.1/backends/nvidia.md]]
 - **ascend**（training / post_training×inference / app image / RL 路径三障碍
-  上提 + 全链 E2E 暂停）：[[megatron-ascend-e2e.md]]
+  上提 + 全链 E2E 暂停）：[[megatron-0.17.1/backends/ascend.md]]
 - **metax**（training / post_training×inference / RL，实证链终止 2026-08-19，
-  17 障碍全为本地代码/参数/harness 缺陷）：[[megatron-metax-e2e.md]]
+  17 障碍全为本地代码/参数/harness 缺陷）：[[megatron-0.17.1/backends/metax.md]]
 - **cambricon**（training / post_training×inference，NEUWARE 4.4.3+4.7.2
   双后端，triton-only；RL 两端暂缓；首例平台抽象缺口——megatron platform
   registry 无 mlu 平台，已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
   并入集成分支 wheel 关闭，无需容器侧补丁，见跟踪表 B#11）：
-  [[megatron-cambricon-e2e.md]]
+  [[megatron-0.17.1/backends/cambricon.md]]
 - **full-scope wheel 重建（2026-08-22，verify-driver E2E 前置）**：
   `0.17.1+fl.20260822.g56acf36bacd1`（MLF 集成分支
   ci/merge-105-106-107-114 头 `56acf36bacd1`，较旧 4-PR wheel 多
@@ -265,7 +265,7 @@
 
 - **hygon**（training / post_training×inference / RL，四场景 × 双编译器
   F/T 全 ✅，前提 jit_fuser noop §1.4；编译器机制跨版本不移植，3.3.0 时代
-  结论仅参考）：[[megatron-hygon25-e2e.md]]
+  结论仅参考）：[[megatron-0.17.1/backends/hygon.md]]
 - **inference 裸 import 阻塞（已由全范围 wheel 关闭）**：
   `megatron/inference/utils.py` 依赖的 `gpt_builders`/`mamba_builders`/
   `model_provider` 是 **repo 根顶层入口文件**（不在 `megatron/` 包内）——

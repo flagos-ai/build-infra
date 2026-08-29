@@ -210,7 +210,7 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
 | `packaging/script/repack.py` | repack 工具：`+flagos` 后缀、Metadata 降级、递归剥离间接依赖 |
 | `packaging/vllm/config.yaml` | repack 分类规则（`remove_*` / `strip_from_indirect`） |
 | `packaging/vllm/build-and-repack.sh` | 构建（empty/standard）→ repack → `--upload` twine 上传到 vendor PyPI |
-| `packaging/vllm/verify-vllm-backend.sh` | 在目标机安装 repacked vllm + plugin，验证 serve/推理 |
+| `packaging/vllm/verify/verify-vllm-backend.sh` | 在目标机安装 repacked vllm + plugin，验证 serve/推理 |
 
 **待建（⬜，记录写就时的状态）：**
 

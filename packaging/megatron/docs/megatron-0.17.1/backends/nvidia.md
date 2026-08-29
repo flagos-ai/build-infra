@@ -17,8 +17,8 @@ megatron-core 安装形态为 merged wheel
 场景组织：每场景 = 双后端 × 双编译器（flagtree 3.6.0 默认 /opt/flagtree，
 vendor triton 3.6.0 `compiler triton` → /opt/triton）。跨后端通用事实
 （merged wheel 参数接口、inference 裸 import、依赖面分析）见
-[[megatron-verification-matrix.md]] 事实段；编译链问题见
-[[megatron-hygon25-e2e.md]]（§1.4 jit_fuser、§5.5 flash_attn 动态引擎硬依赖）。
+[[../megatron-verification-matrix.md]] 事实段；编译链问题见
+[[hygon.md]]（§1.4 jit_fuser、§5.5 flash_attn 动态引擎硬依赖）。
 
 ## training
 
@@ -96,7 +96,7 @@ merged wheel
 `0.17.1+fl.20260818.g48b97a13f1bb`，前置 = [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) 5 补丁（RL
 local-impl，容器 site-packages 直打）+ 自建 flash-attn wheel
 `2.8.3.post1+fl.cu128.torch210`（hygon 报告 §5.5：flash_attn dynamic
-引擎硬依赖 ≥2.7.3）。同 metax 配方（[[megatron-metax-e2e.md]] RL：
+引擎硬依赖 ≥2.7.3）。同 metax 配方（[[metax.md]] RL：
 `--transformer-impl local` 无 vendor TE、`--rl-partial-rollouts`、
 `--return-log-probs`、`--skip-train --no-load-optim`、dynamic 批参数、
 `TORCHINDUCTOR_COMPILE_THREADS=1` + `--disable-jit-fuser`）——
@@ -198,4 +198,4 @@ app-image 装配路径相对 runtime+wheel 无行为回归（mock 数据确定�
   补入或 wheel extra 声明
 
 **通用跟进规则:** 每个上游 PR 合并后 → 重建对应 wheel →
-重跑受影响场景 → 更新 [[megatron-verification-matrix.md]] 跟踪表。
+重跑受影响场景 → 更新 [[../megatron-verification-matrix.md]] 跟踪表。

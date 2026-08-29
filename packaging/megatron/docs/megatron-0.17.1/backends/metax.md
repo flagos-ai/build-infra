@@ -20,7 +20,7 @@ ci/merge-105-106-107-114（合入四个 PR）：
 1.084006E+01）与 vendor triton 3.6.0+metax3.8.1.0（loss 1.084290E+01，
 量级与 flagtree 线吻合）。环境要点：huggingface.co 不通 →
 NullTokenizer 离线路径。
-逐参数原因见 [[megatron-hygon25-e2e.md]] §2 参数基线表（同 wheel、同非
+逐参数原因见 [[hygon.md]] §2 参数基线表（同 wheel、同非
 CUDA 平台）。
 
 ## post_training × inference（2026-08-18，双编译器全 ✅）
@@ -74,4 +74,4 @@ log "python exit=" 信号 + 25min 停滞双条件。
   重跑 RL，更新矩阵
 
 **通用跟进规则:** 每个上游 PR 合并后 → 重建对应 wheel →
-重跑受影响场景 → 更新 [[megatron-verification-matrix.md]] 跟踪表。
+重跑受影响场景 → 更新 [[../megatron-verification-matrix.md]] 跟踪表。
