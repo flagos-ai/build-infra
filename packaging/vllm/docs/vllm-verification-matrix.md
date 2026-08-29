@@ -182,8 +182,8 @@
 
 - **nvidia-cuda12.8**（参考实现）：✅（2026-08-23，empty 模式 app 镜像
   F/T 双路径 E2E，吞吐一致 3.2 tok/s）—— [0.20.2 §2.1](vllm-0.20.2/backends/nvidia.md)。
-- **metax-maca3.7.2.1**：✅ flagtree 3.1.0+metax3.7.2.0（厂商自带）与
-  triton 3.0.0 均已入栈（T 路径的 flag_gems scalar 返回 bug 已由 flag_gems
+- **metax-maca3.7.2.1**：✅ flagtree 0.6.1+metax3.6（MACA SDK 内签
+  3.1.0 缺 API 否决）与 triton 3.0.0 均已入栈（T 路径的 flag_gems scalar 返回 bug 已由 flag_gems
   5.3.5 固化，2026-08-25 F/T 双路径复验 ✅）—— [0.20.2 §2.2](vllm-0.20.2/backends/metax.md)。
 - **metax-maca3.8.1.3**：✅（2026-08-25 复验，triton 3.6.0 不受 scalar bug 影响）——
   同 [§2.2](vllm-0.20.2/backends/metax.md)。
