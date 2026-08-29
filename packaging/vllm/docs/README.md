@@ -19,12 +19,3 @@ vllm-0.X.Y/
 ├── decisions.md    # 决策：自动化边界、风险痛点、ADR、版本推进协作问题
 └── backends/       # 每后端一节验证记录（nvidia/metax/mthreads/hygon/…）
 ```
-
-## 伴随文档（留在顶层，跨版本引用）
-
-- [kunlunxin-xpu-triton-attention-compiler-bug.md](kunlunxin-xpu-triton-attention-compiler-bug.md) —
-  kunlunxin P800 XPU 三处 Triton attention 内核编译失败（厂商移交件）
-- [kunlunxin-decode-repetition-scale-bug.md](kunlunxin-decode-repetition-scale-bug.md) —
-  kunlunxin 解码乱码（scale 传参错误）
-- [vllm-ascend-app-image-handoff.md](vllm-ascend-app-image-handoff.md) — ascend app 镜像使用说明
-- [vllm-sunrise-app-image-handoff.md](vllm-sunrise-app-image-handoff.md) — sunrise app 镜像使用说明
