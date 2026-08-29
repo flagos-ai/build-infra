@@ -66,7 +66,7 @@ METADATA 声明了 torch/triton（对比 [§2.1](nvidia.md) standard 构建更�
 pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" \
   torch==2.8.0+metax3.7.2.0 torchaudio==2.4.1+metax3.7.2.0 \
   torchvision==0.15.1+metax3.7.2.0 flash_attn==2.6.3+metax3.7.2.0torch2.8 \
-  flagtree==3.1.0+metax3.7.2.0 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.5 \
+  flagtree==0.6.1+metax3.6 triton==3.0.0+metax3.7.2.0 flag_gems==5.3.5 \
   pybind11==3.0.3 ninja==1.13.0 PyYAML==6.0.3 numpy==2.3.5
 ```
 
@@ -140,7 +140,7 @@ torch:        2.8.0+metax3.7.2.0    ✅  from vendor PyPI (未降级)
 torchaudio:   2.4.1+metax3.7.2.0    ✅
 torchvision:  0.15.1+metax3.7.2.0   ✅
 flash_attn:   2.6.3+metax3.7.2.0    ✅
-flagtree:     3.1.0+metax3.7.2.0    ✅  默认编译器
+flagtree:     0.6.1+metax3.6       ✅  默认编译器
 triton:       3.0.0+metax3.7.2.0    ✅
 flag_gems:    5.3.5                 ✅
 vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
