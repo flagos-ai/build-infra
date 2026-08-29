@@ -127,7 +127,6 @@ _LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+\n?", re.MULTILINE | re.IGNOR
 _DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
 _VERSION_LOCAL_RE = re.compile(r"^Version:\s*(.+?)\+.+$", re.MULTILINE | re.IGNORECASE)
 _WHEEL_TAG_RE = re.compile(r"^Tag:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
-_VLLM_PLATFORM_TAG = "cp38-abi3-manylinux_2_35_x86_64"
 
 
 def _downgrade_metadata_version(text: str) -> str:

@@ -33,7 +33,7 @@ vllm 依赖链里 `opencv-python-headless` 声明 `numpy>=2`，与当时 FlagGem
 ```bash
 pip download --no-deps --dest /tmp/vllm-dl "vllm==0.20.2" \
   --index-url https://mirrors.aliyun.com/pypi/simple
-python3 packaging/vllm/repack.py /tmp/vllm-dl/vllm-0.20.2-*.whl
+python3 packaging/script/repack.py /tmp/vllm-dl/vllm-0.20.2-*.whl
 ```
 
 > **历史差异：** 此次 repack 早于 `+flagos` 后缀方案（当时按

@@ -30,7 +30,7 @@
 
 ## 1.3 Repack
 
-使用 `packaging/vllm/repack.py`（分类规则见 `packaging/vllm/config.yaml`）处理 wheel：
+使用 `packaging/script/repack.py`（分类规则见 `packaging/vllm/config.yaml`）处理 wheel：
 
 1. **加 `+flagos` 版本后缀** —— 主包与所有递归发现的间接依赖统一处理。
    保持原始 platform tag，不改 WHEEL Tag。
@@ -207,7 +207,7 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
 
 | 文件 | 用途 |
 |------|------|
-| `packaging/vllm/repack.py` | repack 工具：`+flagos` 后缀、Metadata 降级、递归剥离间接依赖 |
+| `packaging/script/repack.py` | repack 工具：`+flagos` 后缀、Metadata 降级、递归剥离间接依赖 |
 | `packaging/vllm/config.yaml` | repack 分类规则（`remove_*` / `strip_from_indirect`） |
 | `packaging/vllm/build-and-repack.sh` | 构建（empty/standard）→ repack → `--upload` twine 上传到 vendor PyPI |
 | `packaging/vllm/verify-vllm-backend.sh` | 在目标机安装 repacked vllm + plugin，验证 serve/推理 |
