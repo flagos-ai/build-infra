@@ -24,7 +24,7 @@ name: vllm-plugin wheel
 # run, so it can be installed single-step without pulling in (or upgrading)
 # any runtime package.
 #
-# Dependency audit gate: after the wheel is built, packaging/vllm/audit-deps.py
+# Dependency audit gate: after the wheel is built, packaging/script/audit-deps.py
 # reads the wheel's METADATA Requires-Dist and fails the build if it declares
 # any critical package (torch / torch_npu / torchvision / torchaudio / triton /
 # flag_gems / numpy / vllm). The plugin must not ship dependencies that could
@@ -208,7 +208,11 @@ jobs:
       - name: Audit the wheel dependencies
         run: |
           set -euo pipefail
-          python3 packaging/vllm/audit-deps.py "${WORK}"/out/*.whl
+          python3 packaging/script/audit-deps.py \
+            --watch torch --watch torch_npu --watch torchvision \
+            --watch torchaudio --watch triton --watch flag_gems \
+            --watch numpy --watch vllm \
+            "${WORK}"/out/*.whl
 
       # Upload only when explicitly requested (default false so a manual build
       # from a branch is safe). Upload runs from inside the runtime image —

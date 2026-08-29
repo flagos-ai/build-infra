@@ -49,9 +49,9 @@
 #   - PKG-INFO Version must equal --version — setuptools_scm must resolve
 #     the git tag; a 0.0.0.dev0 fallback fails the build loudly.
 #   - Requires-Dist must not contain the critical watchlist (torch chain,
-#     sglang-kernel, cuda stack, …) — a smoke check mirroring the
-#     audit-deps.py watchlist; the authoritative gate re-runs on every wheel
-#     at build-and-repack.sh audit time.
+#     sglang-kernel, cuda stack, …) — the same gate as the wheel-time audit
+#     (packaging/script/audit-deps.py --pkginfo), so the sdist fails fast
+#     before any per-vendor wheel build.
 #
 # TODO:
 #   - Record the tarball sha256 in the build manifest
@@ -139,34 +139,19 @@ if [[ "$ver" != "$SGLANG_VERSION" ]]; then
     exit 1
 fi
 
-# Requires-Dist smoke check — mirrors audit-deps.py's --watch default
-# semantics (trailing '*' = prefix). Keep in sync with that list; the
-# wheel-time audit in build-and-repack.sh / sglang-wheel.yml is authoritative.
-python3 - "$PKG_INFO" <<'PY'
-import sys
-
-watch = [
-    "torch", "torchaudio", "torchvision", "torchcodec", "torch-c-dlpack-ext",
-    "triton", "sglang-kernel", "cuda-python", "flashinfer*", "flash-attn-4",
-    "sgl-deep-gemm", "sgl-deep-ep", "tilelang", "tokenspeed-mla",
-    "quack-kernels", "nvidia-*", "numba", "kernels",
-    "torch-memory-saver", "torchao", "nvidia-modelopt", "flag-gems",
-]
-prefixes = [w[:-1] for w in watch if w.endswith("*")]
-exact = {w for w in watch if not w.endswith("*")}
-
-hits = []
-for ln in open(sys.argv[1]):
-    if ln.startswith("Requires-Dist:"):
-        name = (ln.split(":", 1)[1].strip()
-                  .split(";", 1)[0].split("[", 1)[0].strip().lower()
-                  .replace("_", "-"))
-        if name in exact or any(name.startswith(p) for p in prefixes):
-            hits.append(name)
-if hits:
-    sys.exit("ERROR: sdist declares critical package(s): "
-             + ", ".join(sorted(set(hits))))
-PY
+# Requires-Dist smoke check — the shared wheel audit run in --pkginfo mode
+# (reads PKG-INFO text instead of a wheel zip). Same watchlist as the
+# wheel-time audit; that one stays authoritative, this fails the sdist early.
+python3 "${SCRIPT_DIR}/../script/audit-deps.py" \
+    --watch torch --watch torchaudio --watch torchvision \
+    --watch torchcodec --watch torch-c-dlpack-ext --watch triton \
+    --watch sglang-kernel --watch cuda-python --watch 'flashinfer*' \
+    --watch flash-attn-4 --watch sgl-deep-gemm --watch sgl-deep-ep \
+    --watch tilelang --watch tokenspeed-mla --watch quack-kernels \
+    --watch 'nvidia-*' --watch numba --watch kernels \
+    --watch torch-memory-saver --watch torchao --watch nvidia-modelopt \
+    --watch flag-gems \
+    --pkginfo "$PKG_INFO"
 
 sha=$(shasum -a 256 "${WORK_DIR}/dist/${SRC_TAR}" | awk '{print $1}')
 size=$(du -h "${WORK_DIR}/dist/${SRC_TAR}" | cut -f1)

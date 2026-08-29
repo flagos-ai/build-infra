@@ -131,7 +131,10 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
-          python3 packaging/vllm/audit-deps.py \
+          python3 packaging/script/audit-deps.py \
+            --watch torch --watch torch_npu --watch torchvision \
+            --watch torchaudio --watch triton --watch flag_gems \
+            --watch numpy --watch vllm \
             "/tmp/vllm-repack-${vendor}-${backend}/output/"*.whl
 
       # Upload only when explicitly requested. Runs from inside the -build
