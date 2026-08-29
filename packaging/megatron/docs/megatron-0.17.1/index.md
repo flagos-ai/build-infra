@@ -26,7 +26,7 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
 | 后端 | 文档 | 状态 |
 |---|---|---|
 | nvidia（CUDA 12.8 / 13.3） | [backends/nvidia.md](backends/nvidia.md) | 四场景 × 双编译器全 ✅；training/rl app 镜像已 push |
-| hygon（DTK 26.04） | [backends/hygon25.md](backends/hygon25.md) | 四场景 × 双编译器全 ✅（flagtree 需 jit_fuser noop） |
+| hygon（DTK 26.04） | [backends/hygon.md](backends/hygon.md) | 四场景 × 双编译器全 ✅（flagtree 需 jit_fuser noop） |
 | metax（MACA 3.8.1.3） | [backends/metax.md](backends/metax.md) | 四场景 × 双编译器全 ✅；17 障碍全闭环 |
 | ascend（CANN 8.5.0 / 9.0.0） | [backends/ascend.md](backends/ascend.md) | training / post_training / inference ✅；RL 暂停（无 flash-attn） |
 | cambricon（NEUWARE 4.4.3 / 4.7.2） | [backends/cambricon.md](backends/cambricon.md) | 三场景 ✅（triton-only）；RL 暂缓 |

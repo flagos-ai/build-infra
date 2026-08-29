@@ -48,7 +48,7 @@ validation test set 两线均 1.084173E+01。
 --bf16 --no-masked-softmax-fusion --no-gradient-accumulation-fusion
 --attention-backend unfused --transformer-impl local --lr 1e-6
 --eval-interval 1000。
-逐参数原因见 [[hygon25.md]] §2 参数基线表
+逐参数原因见 [[hygon.md]] §2 参数基线表
 （同 wheel、同非 CUDA 平台）。
 
 ## post_training（双编译器 ✅）
@@ -60,7 +60,7 @@ DummyModel + `simple_generate`，输出 shape=(1, 8)，两线均 exit 0。
 不带会撞 `torch_norm.py:48` 断言。
 
 modelopt 0.45.0 为临时装入（未入镜像）。
-纳入镜像的决策与状态见 [[hygon25.md]] §1.3.3。
+纳入镜像的决策与状态见 [[hygon.md]] §1.3.3。
 
 ## inference（双编译器 ✅）
 

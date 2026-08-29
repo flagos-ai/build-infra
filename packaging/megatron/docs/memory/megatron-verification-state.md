@@ -129,8 +129,8 @@ runtime
 ## 文件状态
 
 - `/Users/baai/work/Megatron-LM-FL/pyproject.toml` — **已提交**（commit ba22f6b67，分支 feat/wheel-full-scope）：packages.find.include 扩到 training+legacy+rl+post_training+inference，py-modules 收编 9 个顶层入口文件（gpt_builders/mamba_builders/model_provider/pretrain_gpt/pretrain_bert/pretrain_mamba/pretrain_t5/pretrain_vlm/train_rl）。**PR #107 OPEN**（https://github.com/flagos-ai/Megatron-LM-FL/pull/107），3 个 CI check queued（fork 侧）。repo 工作树 clean。
-- `/Users/baai/work/build-infra/packaging/megatron/docs/megatron-0.17.1/backends/hygon25.md` — 今天已更新：①Status 表去掉 PART A/B 命名改"wheel-only 训练循环"/"完整训练服务"，②新增"打包背景"节（wheel 范围继承上游、缺 training 是若干发现根因、repo checkout 验证的原因），③"上游"歧义明确（代码来源=ADLR/Megatron-LM，提交/反馈目标=flagos-ai/Megatron-LM-FL），④§2.1 编译器 mask 表，⑤§4 `--disable-jit-fuser` 标注仅 flagtree 需要。
-- **报告位置（2026-08-13 晚移动）**：`/Users/baai/work/build-infra/packaging/megatron/docs/megatron-0.17.1/backends/hygon25.md`（不在 findings/ 下；用户指定放 packaging/megatron/docs/，后随 per-version 重构迁入 backends/）。
+- `/Users/baai/work/build-infra/packaging/megatron/docs/megatron-0.17.1/backends/hygon.md` — 今天已更新：①Status 表去掉 PART A/B 命名改"wheel-only 训练循环"/"完整训练服务"，②新增"打包背景"节（wheel 范围继承上游、缺 training 是若干发现根因、repo checkout 验证的原因），③"上游"歧义明确（代码来源=ADLR/Megatron-LM，提交/反馈目标=flagos-ai/Megatron-LM-FL），④§2.1 编译器 mask 表，⑤§4 `--disable-jit-fuser` 标注仅 flagtree 需要。
+- **报告位置（2026-08-13 晚移动）**：`/Users/baai/work/build-infra/packaging/megatron/docs/megatron-0.17.1/backends/hygon.md`（不在 findings/ 下；用户指定放 packaging/megatron/docs/，后随 per-version 重构迁入 backends/）。
 - **runtime 镜像层待办**：hygon DTK 26.04 的默认编译器是 flagtree（错误默认）——需在 runtime 镜像层改默认 vendor triton 或移除 flagtree。属 runtime 仓库工作。
 
 ## 任务

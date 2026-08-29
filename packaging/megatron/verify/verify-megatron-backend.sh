@@ -216,7 +216,7 @@ esac
 # NOTE (hygon flagtree): --disable-jit-fuser is INSUFFICIENT there — the jit
 # fuser binds torch.compile at import time, before args flip. A container-side
 # noop patch (or the upstream lazy-decorator fix) is required before a hygon
-# flagtree cell can pass; see megatron-0.17.1/backends/hygon25.md §1.4. Not scripted here.
+# flagtree cell can pass; see megatron-0.17.1/backends/hygon.md §1.4. Not scripted here.
 
 # ── Print header ────────────────────────────────────────────────────────
 

@@ -18,7 +18,7 @@ megatron-core 安装形态为 merged wheel
 vendor triton 3.6.0 `compiler triton` → /opt/triton）。跨后端通用事实
 （merged wheel 参数接口、inference 裸 import、依赖面分析）见
 [[../megatron-verification-matrix.md]] 事实段；编译链问题见
-[[hygon25.md]]（§1.4 jit_fuser、§5.5 flash_attn 动态引擎硬依赖）。
+[[hygon.md]]（§1.4 jit_fuser、§5.5 flash_attn 动态引擎硬依赖）。
 
 ## training
 

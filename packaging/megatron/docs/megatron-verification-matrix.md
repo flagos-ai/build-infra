@@ -26,7 +26,7 @@
 
 > 注：各编译器在对应后端的具体版本、前置与 workaround（hygon jit_fuser
 > 补丁、ascend torch-first 导入顺序、nvidia inductor fork 规避等）见厂商
-> 文档：[[megatron-0.17.1/backends/hygon25.md]] / [[megatron-0.17.1/backends/nvidia.md]] /
+> 文档：[[megatron-0.17.1/backends/hygon.md]] / [[megatron-0.17.1/backends/nvidia.md]] /
 > [[megatron-0.17.1/backends/ascend.md]] / [[megatron-0.17.1/backends/metax.md]]。
 
 ## 矩阵
@@ -265,7 +265,7 @@
 
 - **hygon**（training / post_training×inference / RL，四场景 × 双编译器
   F/T 全 ✅，前提 jit_fuser noop §1.4；编译器机制跨版本不移植，3.3.0 时代
-  结论仅参考）：[[megatron-0.17.1/backends/hygon25.md]]
+  结论仅参考）：[[megatron-0.17.1/backends/hygon.md]]
 - **inference 裸 import 阻塞（已由全范围 wheel 关闭）**：
   `megatron/inference/utils.py` 依赖的 `gpt_builders`/`mamba_builders`/
   `model_provider` 是 **repo 根顶层入口文件**（不在 `megatron/` 包内）——
