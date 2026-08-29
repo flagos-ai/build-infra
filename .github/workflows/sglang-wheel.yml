@@ -12,27 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: vllm wheel
+name: sglang wheel
 
-# Build + repack vllm wheels for one (or all) backend(s), and optionally
-# upload them to the per-vendor PyPI. This is the CI consolidation of the
-# manual packaging/vllm/build-and-repack.sh — same build (runtime
-# flagos-runtime-{vendor}-{backend}:{version}-build image, all backends =
-# VLLM_TARGET_DEVICE=empty source build; nvidia unified onto the empty mode
-# 2026-08-23, the former standard pip-download mode is retired), same repack
-# (packaging/script/repack.py + config.yaml), same per-vendor
-# upload target.
+# Build + repack sglang wheels for one (or all) backend(s), and optionally
+# upload them to the per-vendor PyPI. CI consolidation of the manual
+# packaging/sglang/build-and-repack.sh — same build (runtime
+# flagos-runtime-{vendor}-{backend}:{version}-build image; all backends build
+# from the one source tarball on the internal filestore, x86 and ascend
+# aarch64 alike), same repack (+flagos stamp, empty rules), same per-vendor
+# upload target. Design rationale: docs/sglang-0.5.18/decisions.md.
 #
-# Why the wheel at all: vllm >= 0.24.0 ships rust frontend components, so the
-# wheel is ABI-bound to the vendor image's (python, arch) — there is no
-# py3-none-any wheel (user correction, 2026-08-18). Repacking strips the
-# torch chain and pins the binary deps (opencv, xgrammar) to the vendor
-# matrix; keeping the matched set on one index is what makes a vllm version
-# bump safe. The app image installs this wheel single-step
-# (vllm==<version>+flagos), never touching the runtime matrix.
-#
-# Note: per-vendor vllm_version defaults are not yet in configs.yaml — pass
-# --vllm-version / the vllm_version input explicitly.
+# Note: per-vendor sglang_version defaults are not yet in configs.yaml — pass
+# --sglang-version / the sglang_version input explicitly. The source tarball
+# must already be on the filestore (see build-sdist.sh --upload).
 #
 # Upload target defaults to flagos-pypi-<vendor>. There is no schedule:
 # uploads are manual.
@@ -41,13 +33,13 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose -build image repacks the wheel (e.g. ascend-cann9.0.0, or "all")'
+        description: 'Backend whose -build image builds the wheel (e.g. ascend-cann9.0.0, or "all")'
         type: string
         default: ascend-cann9.0.0
-      vllm_version:
-        description: 'vLLM version to build (e.g. 0.24.0)'
+      sglang_version:
+        description: 'sglang version to build (e.g. 0.5.18)'
         type: string
-        default: 0.24.0
+        default: 0.5.18
       upload:
         description: 'upload the repacked +flagos wheel(s) to the vendor PyPI'
         type: boolean
@@ -102,24 +94,24 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runson) }}
     env:
       STACK_VERSION: ${{ matrix.version }}
-      VLLM_VERSION: ${{ inputs.vllm_version }}
+      SGLANG_VERSION: ${{ inputs.sglang_version }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@v7
 
       # Wraps build-and-repack.sh; the -build image must already exist on the
       # runner (pulled by the script, `|| true`). Wheels land in
-      # /tmp/vllm-repack-<vendor>-<backend>/output on the runner host.
-      # HTTPS_PROXY is not needed: the build pulls vllm source from the
-      # internal filestore / aliyun, never github.com.
-      - name: Build + repack the vllm wheel
+      # /tmp/sglang-repack-<vendor>-<backend>/output on the runner host.
+      # HTTPS_PROXY is not needed: the build pulls the sglang source tarball
+      # from the internal filestore / aliyun, never github.com.
+      - name: Build + repack the sglang wheel
         run: |
           set -euo pipefail
           # STACK_VERSION comes from the matrix; the script also needs pyyaml
           # on the runner, which set-matrix already installed.
-          bash packaging/vllm/build-and-repack.sh \
+          bash packaging/sglang/build-and-repack.sh \
             "${{ matrix.name }}" \
-            --vllm-version "${VLLM_VERSION}"
+            --sglang-version "${SGLANG_VERSION}"
 
       - name: Audit the wheel dependencies
         run: |
@@ -132,10 +124,15 @@ jobs:
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
           python3 packaging/script/audit-deps.py \
-            --watch torch --watch torch_npu --watch torchvision \
-            --watch torchaudio --watch triton --watch flag_gems \
-            --watch numpy --watch vllm \
-            "/tmp/vllm-repack-${vendor}-${backend}/output/"*.whl
+            --watch torch --watch torchaudio --watch torchvision \
+            --watch torchcodec --watch torch-c-dlpack-ext --watch triton \
+            --watch sglang-kernel --watch cuda-python --watch 'flashinfer*' \
+            --watch flash-attn-4 --watch sgl-deep-gemm --watch sgl-deep-ep \
+            --watch tilelang --watch tokenspeed-mla --watch quack-kernels \
+            --watch 'nvidia-*' --watch numba --watch kernels \
+            --watch torch-memory-saver --watch torchao --watch nvidia-modelopt \
+            --watch flag-gems \
+            "/tmp/sglang-repack-${vendor}-${backend}/output/"*.whl
 
       # Upload only when explicitly requested. Runs from inside the -build
       # image (no host python needed); the secret travels via `-e
@@ -159,12 +156,12 @@ jobs:
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}-build"
-          echo ">>> uploading $(ls /tmp/vllm-repack-${vendor}-${backend}/output/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          echo ">>> uploading $(ls /tmp/sglang-repack-${vendor}-${backend}/output/*.whl | xargs -n1 basename) to ${pypi_repo}"
           docker run --rm \
             -e NEXUS_TOKEN \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
-            -v "/tmp/vllm-repack-${vendor}-${backend}:/work" \
+            -v "/tmp/sglang-repack-${vendor}-${backend}:/work" \
             "${img}" \
             bash -euo pipefail -c '
               # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
@@ -193,6 +190,6 @@ jobs:
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
           img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${vendor}-${backend}:${STACK_VERSION}-build"
-          docker rm -f "vllm-build-${vendor}-${backend}" 2>/dev/null || true
-          docker run --rm -v "/tmp/vllm-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
-          rm -rf "/tmp/vllm-repack-${vendor}-${backend}" 2>/dev/null || true
+          docker rm -f "sglang-build-${vendor}-${backend}" 2>/dev/null || true
+          docker run --rm -v "/tmp/sglang-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
+          rm -rf "/tmp/sglang-repack-${vendor}-${backend}" 2>/dev/null || true

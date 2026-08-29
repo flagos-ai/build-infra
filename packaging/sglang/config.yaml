@@ -1,0 +1,47 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ── Wheel Repack Classification Rules ────────────────────────────────
+# Each key is a set of *package names* (no version, case-insensitive).
+#
+# Top-level rules (applied to sglang's own METADATA):
+#   remove_torch_chain, remove_cuda_only, remove_orphaned
+#
+# Indirect-dep rules (applied to retained deps that declare torch/triton
+# in their own METADATA — discovered automatically by repack_recursive):
+#   strip_from_indirect
+#
+# sglang builds from the non-CUDA pyproject variant (srt_empty base) — the
+# wheel's METADATA is torch-free / sglang-kernel-free by construction, so
+# all rules below are empty: repack.py only stamps the +flagos local
+# version and downgrades Metadata-Version (2.4 → 2.2, Nexus requirement).
+# See docs/sglang-0.5.18/decisions.md §2.
+
+# ── Top-level removal rules (applied to sglang's own METADATA) ──
+remove_torch_chain: []
+
+# NVIDIA / CUDA-only packages.
+remove_cuda_only: []
+
+# Packages whose only consumer was stripped above (no other consumers left).
+remove_orphaned: []
+
+# ── Indirect dependency stripping rules ───────────────────────────────
+strip_from_indirect: []
+
+# ── Per-package extra strip rules ─────────────────────────────────────
+strip_extra_from_indirect: {}
+
+# ── Per-package indirect version pins ──────────────────────────────────
+pin_indirect: {}

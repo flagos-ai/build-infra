@@ -415,7 +415,7 @@ if [[ -z "${PLUGIN_FL_VERSION}" ]]; then
 else
     # Clean single-step install from the vendor PyPI, same index pair as
     # vllm. The wheel's Requires-Dist is audited to be empty of the runtime's
-    # critical packages (packaging/vllm/audit-deps.py), so pip has no reason
+    # critical packages (packaging/script/audit-deps.py), so pip has no reason
     # to touch the baked torch/triton/flag_gems matrix.
     docker exec "${CONTAINER}" bash -c "
         pip install \

@@ -195,7 +195,6 @@ entry points `sglang.srt.platforms` + `sglang.srt.plugins`，package-data
 | `repack.py` + `config.yaml` | `+flagos` 戳 + Metadata 降级（§4）|
 | `audit-deps.py` | 禁入依赖审计（§4）|
 | `merge-runtime-base.py` | runtime_base 合并 + xgrammar 补点（§2）|
-| `cache-rust-toolchain.sh` | rust 工具链 filestore 缓存（aarch64 triple 待补，见 [decisions.md](decisions.md) §5.6）|
 | `wheels/metax/sgl-kernel-shim/` | 零 sgl-kernel import 面 shim（§5.2）|
 | `wheels/metax/setup_maca.py` | metax 库层 patch（构建期落进 wheel）|
 
@@ -204,5 +203,5 @@ entry points `sglang.srt.platforms` + `sglang.srt.plugins`，package-data
 - **0.5.16+ circular-import 回归**（PR #33371 BCG/CP 路径等）：0.5.18 是否
   修复未知，构建期与 E2E 实证——metax 0.5.18 双路径全过，回归未触发。
 - **rust 版本升级**：sglang rust workspace 需要 resolver="3"/edition="2024"
-  （cargo>=1.84），apt 默认 1.75 不够——filestore 缓存 1.98.0 工具链，aarch64
-  triple 待缓存（§5.6）。
+  （cargo>=1.84），apt 默认 1.75 不够——filestore 缓存 1.98.0 工具链
+  （x86_64 + aarch64 双 triple 均已缓存，2026-08-29 补齐，§5.6）。

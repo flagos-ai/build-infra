@@ -125,12 +125,13 @@ plugin 层），不得只活在验证容器：
 **状态**：✅ metax 交付形态已含（构建期 patch 落进 wheel，E2E 实证）；ascend
 等后续后端需各自评估。
 
-### 5.6 ascend aarch64 rust 工具链缓存（TODO）
+### 5.6 rust 工具链（filestore 缓存）
 
-**决策**：rust 工具链从 filestore 缓存
-`rust-${RUST_VERSION}-${TRIPLE}.tar.xz`（默认 1.98.0），apt cargo=1.75 不够
-（需 >=1.84）。
+**决策**：sglang rust workspace 需 cargo>=1.84 / rustc>=1.85（resolver="3" /
+edition="2024"），Ubuntu 24.04 apt cargo=1.75 不够。构建容器内优先用
+filestore 缓存的官方 dist tarball `rust-${RUST_VERSION}-${TRIPLE}.tar.xz`
+（默认 1.98.0），缺失时 rustup fallback。
 
-**状态**：⏳ **aarch64 triple 未缓存（filestore 404）**——ascend aarch64
-构建前置 TODO：在 aarch64 目标机上跑
-`cache-rust-toolchain.sh --triple aarch64-unknown-linux-gnu --upload`。
+**状态**：✅ x86_64 + aarch64 双 triple 的 1.98.0 均已上传 filestore
+（2026-08-29）。tarball 人工上传——原 cache-rust-toolchain.sh 缓存脚本
+使命完成已移除，构建只消费不再自动化缓存。
