@@ -50,11 +50,19 @@ def _requires_dist(lines: list[str]) -> list[str]:
 
     A line is ``Requires-Dist: name[extras]>=spec; marker`` — drop the label,
     extras, version specifier, and environment marker, leaving just the name.
+    Lines whose marker references ``extra`` (e.g. ``; extra == "test"``) are
+    optional extras: installed only when that extra is explicitly requested,
+    never by a plain single-step ``pip install``, so they cannot drift the
+    runtime matrix and are skipped.
     """
     names = []
     for ln in lines:
         if ln.startswith("Requires-Dist:"):
-            m = _NAME_RE.match(ln.split(":", 1)[1].lstrip())
+            body = ln.split(":", 1)[1]
+            marker = body.split(";", 1)[1] if ";" in body else ""
+            if re.search(r"\bextra\b", marker):
+                continue  # optional extra — not installed by default
+            m = _NAME_RE.match(body.lstrip())
             if m:
                 names.append(m.group(0))
     return names
