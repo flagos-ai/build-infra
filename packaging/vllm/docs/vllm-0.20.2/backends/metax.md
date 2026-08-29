@@ -140,7 +140,7 @@ torch:        2.8.0+metax3.7.2.0    ✅  from vendor PyPI (未降级)
 torchaudio:   2.4.1+metax3.7.2.0    ✅
 torchvision:  0.15.1+metax3.7.2.0   ✅
 flash_attn:   2.6.3+metax3.7.2.0    ✅
-flagtree:     0.6.1+metax3.6       ✅  默认编译器
+flagtree:     0.6.1+metax3.6       ✅  默认编译器（基于 PR #1052，见下注）
 triton:       3.0.0+metax3.7.2.0    ✅
 flag_gems:    5.3.5                 ✅
 vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
@@ -150,9 +150,11 @@ vllm serve:   ✅ 启动成功            TP=1, enforce-eager, gpu-util 0.6
 Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16
 ```
 
-> 注：`3.1.0+metax3.7.2.0` 是 MACA SDK 内签的 flagtree（非 flagos-ai
-> 上游版本），因缺 API 否决，runtime 安装 `0.6.1+metax3.6`（configs.yaml
-> 单一事实源）。
+> 注：`3.1.0+metax3.7.2.0` 是 MACA SDK 内嵌的 flagtree（非 flagos-ai
+> 上游版本），因缺 API 否决。runtime 实际安装**基于 PR #1052 的
+> flagtree**（tag `0.6.1+metax3.6` 早于该 PR，不含 F 路径 torch 2.8
+> inductor 所需的 `triton_key` 重导出修复）；PR #1052 已 merge，待上游
+> 发布正式版本后更新 flagtree 版本（configs.yaml 单一事实源）。
 
 ### Triton 路径（T）复验：flag_gems scalar 返回 bug（2026-08-25）
 
@@ -213,7 +215,7 @@ triton 3.0.0 触发）：
 torch:        2.10.0+metax3.8.1.0    ✅
 torchvision:  0.25.0+metax3.8.1.0    ✅
 flash_attn:   2.6.3+metax3.8.1.0torch2.10  ✅
-flagtree:     0.6.1+metax3.6         ✅  F 路径（默认）
+flagtree:     0.6.1+metax3.6         ✅  F 路径（默认，基于 PR #1052，见 §2.2 注）
 triton:       3.6.0+metax3.8.1.0     ✅  T 路径
 flag_gems:    5.3.5                  ✅
 ```
