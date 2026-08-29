@@ -42,7 +42,7 @@ per-backend pages for image references and launch commands.
 
 The official vLLM wheel declares `Requires-Dist` on torch, triton, and
 CUDA-only packages that would overwrite the carefully curated stack in the
-runtime image. We run `packaging/vllm/repack.py` to surgically strip these
+runtime image. We run `packaging/script/repack.py` to surgically strip these
 entries from the wheel's METADATA, then upload the repacked wheel to the
 vendor's `FLAGOS_PYPI` as `vllm-{version}+flagos`.
 
@@ -54,7 +54,7 @@ is pinned explicitly in the build (`vllm==${VLLM_VERSION}+flagos`) — a bare
 `vllm=={version}` would resolve to the official wheel, whose torch
 Requires-Dist would overwrite the pinned vendor torch.
 
-See `packaging/vllm/repack.py` for the repacking tool and
+See `packaging/script/repack.py` for the repacking tool and
 `packaging/vllm/config.yaml` for the classification rules.
 
 ## vllm-plugin-FL

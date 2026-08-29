@@ -26,7 +26,7 @@ cd /workspace/vllm
 VLLM_TARGET_DEVICE=empty MAX_JOBS=64 \
   pip wheel --no-build-isolation --no-deps -w /tmp/empty .
 # → vllm-0.20.2+empty-...whl（无 .so）
-python3 packaging/vllm/repack.py /tmp/empty/vllm-0.20.2+empty-*.whl
+python3 packaging/script/repack.py /tmp/empty/vllm-0.20.2+empty-*.whl
 ```
 
 empty 构建跳过了硬件后端，empty vllm 的 77 个间接依赖中只有 **2 个**在自身

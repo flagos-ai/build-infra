@@ -155,7 +155,7 @@ mkdir -p "$WORK_DIR/output" "$WORK_DIR/cache"
 
 # ── Copy repack files into work dir ─────────────────────────────────────
 
-cp "$SCRIPT_DIR/repack.py" "$SCRIPT_DIR/config.yaml" "$WORK_DIR/"
+cp "$SCRIPT_DIR/../script/repack.py" "$SCRIPT_DIR/config.yaml" "$WORK_DIR/"
 
 # ── Start build container ───────────────────────────────────────────────
 

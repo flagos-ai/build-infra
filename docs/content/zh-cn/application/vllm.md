@@ -41,7 +41,7 @@ weight: 10
 
 官方 vLLM wheel 在 METADATA 中声明了对 torch、triton 以及 NVIDIA 独占包的
 `Requires-Dist` — 直接安装会覆盖 runtime 镜像中精心编排的软件栈。我们先用
-`packaging/vllm/repack.py` 将这些条目从 wheel 的 METADATA 中摘除，再将手术后的
+`packaging/script/repack.py` 将这些条目从 wheel 的 METADATA 中摘除，再将手术后的
 wheel 以 `vllm-{version}+flagos` 名称上传到厂商的 `FLAGOS_PYPI`。
 
 `pip install` 时优先搜索厂商 PyPI — 找到手术后的 wheel 并使用。其余（安全）依赖
@@ -50,7 +50,7 @@ wheel 以 `vllm-{version}+flagos` 名称上传到厂商的 `FLAGOS_PYPI`。
 （`vllm==${VLLM_VERSION}+flagos`）——裸 `vllm=={version}` 会解析到官方 wheel，
 其 torch Requires-Dist 会覆盖已固定的 vendor torch。
 
-手术工具见 `packaging/vllm/repack.py`，分类规则见 `packaging/vllm/config.yaml`。
+手术工具见 `packaging/script/repack.py`，分类规则见 `packaging/vllm/config.yaml`。
 
 ## vllm-plugin-FL
 

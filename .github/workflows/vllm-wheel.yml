@@ -20,7 +20,7 @@ name: vllm wheel
 # flagos-runtime-{vendor}-{backend}:{version}-build image, all backends =
 # VLLM_TARGET_DEVICE=empty source build; nvidia unified onto the empty mode
 # 2026-08-23, the former standard pip-download mode is retired), same repack
-# (packaging/vllm/repack.py + config.yaml), same per-vendor
+# (packaging/script/repack.py + config.yaml), same per-vendor
 # upload target.
 #
 # Why the wheel at all: vllm >= 0.24.0 ships rust frontend components, so the
