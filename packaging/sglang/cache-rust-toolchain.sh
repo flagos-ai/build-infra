@@ -17,16 +17,13 @@
 # cache-rust-toolchain.sh — Cache a modern Rust toolchain on the filestore
 # ============================================================
 #
-# Every sglang wheel build (build-and-repack.sh) needs a cargo/rustc that can
-# parse the sglang rust workspace manifest (resolver = "3" / edition = "2024"
-# need cargo >= 1.84 / rustc >= 1.85). Ubuntu 24.04's apt cargo is 1.75 and
-# cannot even parse it, so the build fetches a modern toolchain. Instead of
-# rustup-installing per build from static.rust-lang.org — re-downloading the
-# ~1GB unpacked toolchain into every build container and coupling every build
-# to the external CDN — this script downloads the official toolchain tarball
-# once and caches it on the filestore, the same pattern as the sglang source
-# tarball (build-sdist.sh): one shared, sha256-verified artifact serves every
-# backend, x86 and ascend aarch64 alike (one tarball per --triple).
+# Every sglang wheel build needs a cargo/rustc that can parse the rust
+# workspace manifest (resolver = "3" / edition = "2024" need cargo >= 1.84 /
+# rustc >= 1.85); Ubuntu 24.04's apt cargo is 1.75. This caches the official
+# ~1GB dist tarball once instead of rustup-installing into every build
+# container from the external CDN — same pattern as the source tarball
+# (build-sdist.sh): one sha256-verified artifact per --triple serves every
+# backend, x86 and ascend aarch64 alike. See docs/sglang-0.5.18/decisions.md §5.6.
 #
 # Usage:
 #   cache-rust-toolchain.sh --version 1.98.0 [--triple ...] [--upload]

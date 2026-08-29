@@ -17,21 +17,12 @@
 # build-sdist.sh — Build the shared sglang source tarball
 # ============================================================
 #
-# sglang publishes wheels only — no sdist on PyPI, no release assets on
-# GitHub. Every per-vendor wheel build (build-and-repack.sh) needs the same
-# architecture-independent source tarball, so we build it once here and
-# upload it to flagos-filestore (one tarball serves every backend, x86 and
-# ascend aarch64 alike — the sdist is pure source).
-#
-# The tarball is built from the non-CUDA pyproject variant
-# (pyproject_other.toml, srt_empty base) with `runtime_base` merged into
-# `dependencies` — see docs/sglang-0.5.18/decisions.md. That makes the
-# wheel's Requires-Dist carry the full runtime set (transformers /
-# llguidance / …), so a runtime image installs the service with a single
-# `pip install sglang==<version>+flagos` — no extra to declare. The merge is
-# additive: the device-specific extras that pin torch (srt_mps / srt_musa)
-# stay out of the default set, so the wheel stays torch-free and
-# sglang-kernel-free by construction.
+# sglang publishes wheels only (no pip sdist, no release assets), so we
+# build the architecture-independent source tarball once here and upload it
+# to flagos-filestore — every per-vendor wheel build consumes the same
+# tarball (x86 and ascend aarch64 alike). Built from the non-CUDA pyproject
+# variant (pyproject_other.toml, srt_empty base) with runtime_base merged
+# into dependencies — see docs/sglang-0.5.18/decisions.md §2.
 #
 # Usage:
 #   build-sdist.sh --version 0.5.18 [--upload]
@@ -101,20 +92,16 @@ cd "${WORK_DIR}/sglang/python"
 cp pyproject_other.toml pyproject.toml
 
 # ── pyproject references readme/LICENSE files ───────────────────────────
-# The 0.5.x python/ dir has no README.md / LICENSE of its own (observed in
-# 0.5.10) yet pyproject_other.toml declares readme = "README.md" and
-# license = { file = "LICENSE" } — setuptools refuses to build without the
-# files. Copy them from the repo root (idempotent: a no-op when a future
-# version ships them inside python/).
+# The 0.5.x python/ dir lacks README.md / LICENSE (observed in 0.5.10) yet
+# pyproject_other.toml declares them — setuptools refuses to build without.
+# Copy from the repo root (idempotent).
 [[ -f README.md ]] || cp ../README.md .
 [[ -f LICENSE ]] || cp ../LICENSE .
 
 # ── Merge runtime_base into dependencies ────────────────────────────────
-# The wheel must carry the full runtime set (transformers / llguidance / …)
-# in Requires-Dist so `pip install sglang==<version>+flagos` is a one-step
-# install. The merge lives in merge-runtime-base.py — the single source of
-# truth shared with build-and-repack.sh (which runs it inside the -build
-# container on the official source tarball), so the two paths cannot drift.
+# So the wheel's Requires-Dist carries the full runtime set for a one-step
+# install. Single source of truth: merge-runtime-base.py is shared with
+# build-and-repack.sh, so the two paths cannot drift.
 python3 "${SCRIPT_DIR}/merge-runtime-base.py" pyproject.toml
 
 # ── Build the sdist ─────────────────────────────────────────────────────

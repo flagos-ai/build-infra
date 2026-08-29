@@ -15,25 +15,12 @@
 name: sglang wheel
 
 # Build + repack sglang wheels for one (or all) backend(s), and optionally
-# upload them to the per-vendor PyPI. This is the CI consolidation of the
-# manual packaging/sglang/build-and-repack.sh — same build (runtime
-# flagos-runtime-{vendor}-{backend}:{version}-build image, all backends build
-# from the one architecture-independent source tarball produced by
-# packaging/sglang/build-sdist.sh on the internal filestore), same repack
-# (packaging/sglang/repack.py + config.yaml — rules are all empty, it only
-# stamps the +flagos local version and downgrades Metadata-Version 2.4 -> 2.2),
-# same per-vendor upload target.
-#
-# Why the wheel at all: sglang publishes wheels only — no sdist on PyPI, no
-# release assets on GitHub. Every per-vendor wheel build needs the same
-# architecture-independent source tarball, so the official source archive
-# lives on the filestore (one tarball serves every backend, x86 and ascend
-# aarch64 alike). Each build switches in the non-CUDA pyproject variant
-# (pyproject_other.toml, srt_empty base) and merges runtime_base into
-# `dependencies` inside the build container — the wheel's METADATA is
-# torch-free and sglang-kernel-free by construction, and the wheel carries the
-# full runtime set in Requires-Dist so the app image installs it single-step
-# (sglang==<version>+flagos), never touching the runtime matrix.
+# upload them to the per-vendor PyPI. CI consolidation of the manual
+# packaging/sglang/build-and-repack.sh — same build (runtime
+# flagos-runtime-{vendor}-{backend}:{version}-build image; all backends build
+# from the one source tarball on the internal filestore, x86 and ascend
+# aarch64 alike), same repack (+flagos stamp, empty rules), same per-vendor
+# upload target. Design rationale: docs/sglang-0.5.18/decisions.md.
 #
 # Note: per-vendor sglang_version defaults are not yet in configs.yaml — pass
 # --sglang-version / the sglang_version input explicitly. The source tarball

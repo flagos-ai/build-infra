@@ -16,18 +16,12 @@
 
 """Audit a built wheel's declared dependencies against the critical set.
 
-The runtime image bakes a pinned matrix (torch / torch_npu / torchvision /
-torchaudio / triton / flag_gems / numpy, plus sglang itself for the app layer).
-App images install wheels single-step, so a wheel that *declares* one of
-these packages would give pip a reason to resolve/upgrade it and silently
-drift the matrix. This gate reads each wheel's METADATA ``Requires-Dist`` and
-fails the build when a watched package is declared.
-
-sglang wheels build from the non-CUDA pyproject variant (srt_empty base —
-see docs/sglang-0.5.18/decisions.md), so the torch / sglang-kernel / CUDA
-stack must never appear in Requires-Dist. The sglang-plugin-FL wheel is the
-same story as vllm-plugin-FL: it must ship with an empty requirement set
-even though its runtime needs torch — the torch comes from the image, never
+The runtime image bakes a pinned matrix (torch / triton / flag_gems / …);
+app images install wheels single-step, so a wheel that *declares* one of
+these would give pip a reason to resolve/upgrade it and silently drift the
+matrix (see docs/sglang-0.5.18/decisions.md §2). The sglang wheel builds
+torch-free by construction; the sglang-plugin-FL wheel, like vllm-plugin-FL,
+ships with an empty requirement set — torch comes from the image, never
 from the wheel.
 
 A watch entry ending in ``*`` is a prefix match (e.g. ``nvidia-*`` matches

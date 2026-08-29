@@ -14,65 +14,34 @@
 # limitations under the License.
 
 # ============================================================
-# build-and-repack.sh — Build and repack sglang for one backend
+# build-and-repack.sh — Build + repack the sglang wheel for one backend
 # ============================================================
 #
 # Usage:
-#   build-and-repack.sh metax-maca3.8.1.3
-#   build-and-repack.sh ascend-cann9.0.0 --sglang-version 0.5.18
-#   build-and-repack.sh metax-maca3.8.1.3 --upload
-#   build-and-repack.sh metax-maca3.8.1.3 --rust-version 1.98.0
+#   build-and-repack.sh metax-maca3.8.1.3 [--sglang-version 0.5.18]
+#                       [--rust-version 1.98.0] [--upload]
 #
 # Options:
-#   --sglang-version X.Y.Z  sglang version to build (default: 0.5.18)
-#   --rust-version X.Y.Z    Rust toolchain version for the multimodal rust
-#                           ext (default: 1.98.0; fetched from the filestore
-#                           cache, rustup fallback)
-#   --upload                After repacking, twine-upload the +flagos wheels
-#                           to the per-vendor PyPI (flagos-pypi-<vendor>).
-#                           Opt-in: uploading publishes artifacts, so it never
-#                           runs by default. All repacked wheels stay per-vendor
-#                           alongside that backend's torch/flag_gems/flagtree —
-#                           the wheel is ABI-bound to the vendor image's
-#                           (python, arch), and keeping the matched sglang+deps
-#                           set on one index avoids split-index fragility on an
-#                           sglang version bump.
+#   --sglang-version X.Y.Z  sglang version (default 0.5.18)
+#   --rust-version X.Y.Z    Rust toolchain for the multimodal rust ext
+#                           (default 1.98.0; filestore cache, rustup fallback)
+#   --upload                twine-upload the repacked wheel to the per-vendor
+#                           PyPI (flagos-pypi-<vendor>); publishing is
+#                           outward-facing so it never runs by default
 #
 # Env:
-#   STACK_VERSION        Override the stack version read from configs.yaml
-#                        (used for the build image tag).
-#   DOCKER_RUN_FLAGS     Extra `docker run` flags for the build container.
-#                        Defaults to the vendor's run flags from
-#                        .github/build-config.yml (toolkit ?: raw) — ptpu
-#                        vendors (e.g. sunrise) abort in torch at import when
-#                        no device is visible (tangGetDeviceCount failed), so
-#                        their build container must see /dev. An explicit env
-#                        still overrides the default.
+#   STACK_VERSION      stack version for the -build image tag (default: read
+#                      from configs.yaml)
+#   DOCKER_RUN_FLAGS   extra `docker run` flags; defaults to the vendor's run
+#                      flags from .github/build-config.yml (toolkit ?: raw) —
+#                      ptpu vendors (e.g. sunrise) need /dev visible at build
 #
-# Prerequisites:
-#   - Docker with harbor.baai.ac.cn access
-#   - python3 + pyyaml on the host (for reading configs.yaml)
-#   - build image flagos-runtime-<vendor>-<backend>:<version>-build
-#   - sglang source tarball at flagos-filestore (official source archive —
-#     sglang publishes no pip sdist — one architecture-independent tarball
-#     serves every backend; see build-sdist.sh)
-#   - twine on the host (only when --upload is used)
+# Prereqs: docker + harbor access; python3 + pyyaml on the host; the
+# flagos-runtime-<vendor>-<backend>:<version>-build image; the shared source
+# tarball on the filestore (build-sdist.sh).
 #
-# Build base: sglang builds from the non-CUDA pyproject variant (srt_empty
-# base) whose METADATA is torch-free and sglang-kernel-free by construction —
-# see docs/sglang-0.5.18/decisions.md. The filestore tarball is the official
-# source archive (no pip sdist exists); the non-CUDA variant is switched in
-# and runtime_base merged into `dependencies` inside the container via
-# merge-runtime-base.py (the same single source of truth build-sdist.sh uses).
-# repack.py therefore only stamps the +flagos local version (and downgrades
-# Metadata-Version 2.4 → 2.2); no dependency stripping happens (config.yaml
-# rules are all empty). --no-recurse skips the recursion pass entirely — with
-# zero strip rules it would only do a pointless network resolve of every
-# declared runtime dep.
-#
-# TODO:
-#   - Per-backend default sglang_version in configs.yaml
-#   - Record empty wheel sha256 in manifest
+# Model (srt_empty base, no dep stripping, per-vendor upload, rust cache):
+# see docs/sglang-0.5.18/decisions.md; step-by-step: playbook.md.
 
 set -euo pipefail
 
@@ -125,20 +94,13 @@ fi
 BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}-build"
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 
-# Upload target.  Everything stays on the per-vendor index: the wheel and its
-# runtime deps are ABI-bound to this vendor image's (python, arch), and
-# keeping the whole matched set — sglang + its exact transformers/llguidance/
-# compressed-tensors — on one index is what makes an sglang version bump safe
-# (re-repack regenerates a coherent set; no split-index skew reintroducing a
-# torch/sglang-kernel leak).
+# Per-vendor index: the wheel + its ABI-bound runtime deps form one matched
+# set, so a version bump regenerates a coherent set (decisions.md §3).
 UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
 
-# ptpu vendors (e.g. sunrise) abort in torch at import when no device is
-# visible (tangGetDeviceCount failed), so the build container must see /dev.
-# Default DOCKER_RUN_FLAGS from build-config.yml run.vendors.<vendor> — the
-# same single source verify scripts read — so CI and manual runs get the
-# right flags without hardcoding them here. An explicit DOCKER_RUN_FLAGS
-# env still wins. (pyyaml is required on the host anyway for configs.yaml.)
+# ptpu vendors (e.g. sunrise) need /dev visible at build. Default flags from
+# build-config.yml run.vendors (same source verify scripts read); an
+# explicit DOCKER_RUN_FLAGS env wins.
 if [[ -z "${DOCKER_RUN_FLAGS:-}" ]]; then
     DOCKER_RUN_FLAGS=$(python3 -c "
 import yaml
@@ -157,16 +119,12 @@ CONTAINER="sglang-build-${VENDOR}-${BACKEND}"
 # ── Clean up previous run ───────────────────────────────────────────────
 
 docker rm -f "$CONTAINER" 2>/dev/null || true
-# The build container writes as root into the bind mount; under /tmp's
-# sticky bit a non-root runner cannot rm those files, so a stale work dir
-# poisons the next run. Delete from inside the image (root) when it is
-# available, then tolerate a leftover (the container may not be pullable
-# on a first run). Same pattern as vllm build-and-repack.sh.
-# Create the dir FIRST as the runner: docker auto-creates a missing
-# bind-mount source as root, and a root-owned dir under /tmp's sticky bit
-# is then neither rm-able nor mkdir-able by the runner. The docker cleanup
-# also chowns the (emptied) dir back to the runner so a stale root-owned
-# dir from a crashed manual build self-heals.
+# The container (root) writes into the bind mount; under /tmp's sticky bit a
+# non-root runner cannot rm those files, so delete from inside the image
+# (root) first — a stale root-owned work dir poisons the next run (same as
+# vllm). Create the dir FIRST as the runner: docker auto-creates a missing
+# bind-mount source as root, which is then neither rm-able nor mkdir-able;
+# the docker cleanup chowns it back so a stale dir self-heals.
 mkdir -p "$WORK_DIR" 2>/dev/null || true
 docker run --rm -v "${WORK_DIR}:/work" "$BUILD_IMAGE" \
     bash -c "rm -rf /work; chown -R $(id -u):$(id -g) /work" 2>/dev/null || true
@@ -197,11 +155,8 @@ docker run -d --name "$CONTAINER" --network host \
 
 # Ensure build deps — remove once build images include setuptools-scm.
 # setuptools-rust is required by the sglang rust extensions
-# (rust-extensions = ["multimodal"] in the non-CUDA pyproject variant).
-# The rust *toolchain* itself is set up in the build step below — the distro
-# apt cargo (1.75 on Ubuntu 24.04) cannot even parse the 0.5.18 workspace
-# manifest (resolver = "3" / edition = "2024" need cargo ≥ 1.84 / rustc ≥
-# 1.85), so a modern stable is rustup-installed right before the wheel build.
+# (rust-extensions = ["multimodal"]); the rust *toolchain* is set up in the
+# build step below.
 docker exec "$CONTAINER" bash -c "
     set -e
     pip install -i https://mirrors.aliyun.com/pypi/simple \
@@ -209,17 +164,11 @@ docker exec "$CONTAINER" bash -c "
         > /dev/null 2>&1
 "
 
-# Every backend builds the same wheel from the filestore source tarball.
-# Note: sglang publishes wheels only — no pip sdist, no GitHub release
-# assets — so the filestore tarball is the official source archive
-# (sglang-<version>/ with python/ nested at the repo root). The non-CUDA
-# pyproject variant (pyproject_other.toml, srt_empty base) is switched in
-# and runtime_base merged into `dependencies` inside the container, exactly
-# as build-sdist.sh does via merge-runtime-base.py — the single source of
-# truth — so the wheel's METADATA is torch-free / sglang-kernel-free by
-# construction and carries the full runtime set in Requires-Dist for a
-# single-step `pip install sglang==<version>+flagos`. A future sdist-style
-# tarball (pyproject.toml at top level) is handled too.
+# Every backend builds the same wheel from the filestore source tarball
+# (sglang ships no pip sdist). The non-CUDA pyproject variant (srt_empty
+# base) is switched in and runtime_base merged into `dependencies` inside
+# the container, exactly as build-sdist.sh does — single source of truth,
+# the wheel's METADATA is torch-free by construction (decisions.md §2).
 echo "==> Mode: source build (non-CUDA variant)"
 SRC_TAR="sglang-${SGLANG_VERSION}.tar.gz"
 SRC_URL="${FILESTORE}/sglang/sglang-${SGLANG_VERSION}.tar.gz"
@@ -253,19 +202,14 @@ docker exec "$CONTAINER" bash -c "
     # rewrite is idempotent). Shared with build-sdist.sh, cannot drift.
     python3 ${WORK_DIR}/merge-runtime-base.py pyproject.toml
 
-    # Rust toolchain for the multimodal rust ext. Guard: if the present
-    # cargo can already read the workspace manifest, skip — a -build image
-    # that ships a modern cargo is used as-is (never downgrade it with the
-    # distro apt package). Ubuntu 24.04's apt cargo (1.75) fails on
-    # resolver = "3" / edition = "2024", so fetch a modern toolchain. The
-    # official dist tarball is cached on the filestore by
-    # cache-rust-toolchain.sh (same pattern as the sglang source tarball —
-    # one sha256-verified artifact serves every build; no external CDN at
-    # wheel time). Fall back to rustup from static.rust-lang.org only when
-    # the tarball is not cached yet, so a fresh filestore never blocks the
-    # first build. If the ext is hard-required the wheel build below fails
-    # loudly rather than silently skipping (decisions.md documents the rust
-    # workspace rides in the source tarball).
+    # Rust toolchain for the multimodal rust ext. Skip if the present cargo
+    # already reads the workspace manifest — never downgrade a -build image
+    # with the distro apt cargo (1.75 on Ubuntu 24.04 fails on resolver="3" /
+    # edition="2024"). Official dist tarball cached on the filestore by
+    # cache-rust-toolchain.sh (sha256-verified, no external CDN at wheel
+    # time); rustup from static.rust-lang.org is the fallback for a fresh
+    # filestore (decisions.md §5.6). A hard-required ext fails the build
+    # loudly rather than silently skipping.
     if ! cargo metadata --format-version 1 --no-deps \
             --manifest-path ${WORK_DIR}/src/sglang/rust/Cargo.toml >/dev/null 2>&1; then
         TRIPLE=\"\$(uname -m)\"

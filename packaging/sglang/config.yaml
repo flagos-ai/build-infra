@@ -22,18 +22,16 @@
 # in their own METADATA — discovered automatically by repack_recursive):
 #   strip_from_indirect
 #
-# sglang builds from the non-CUDA pyproject variant (pyproject_other.toml)
-# with the runtime_base extra merged into `dependencies` — the wheel's
-# METADATA is torch-free and sglang-kernel-free by construction (see
-# docs/sglang-0.5.18/decisions.md).  All rules below are therefore empty:
-# repack.py only stamps the +flagos local version and downgrades the
-# Metadata-Version (2.4 → 2.2, Nexus requirement).  No dependency stripping
-# happens here — there is nothing to strip.
+# sglang builds from the non-CUDA pyproject variant (srt_empty base) — the
+# wheel's METADATA is torch-free / sglang-kernel-free by construction, so
+# all rules below are empty: repack.py only stamps the +flagos local
+# version and downgrades Metadata-Version (2.4 → 2.2, Nexus requirement).
+# See docs/sglang-0.5.18/decisions.md §2.
 
 # ── Top-level removal rules (applied to sglang's own METADATA) ──
 remove_torch_chain: []
 
-# NVIDIA / CUDA-only packages — meaningless on non-CUDA platforms.
+# NVIDIA / CUDA-only packages.
 remove_cuda_only: []
 
 # Packages whose only consumer was stripped above (no other consumers left).

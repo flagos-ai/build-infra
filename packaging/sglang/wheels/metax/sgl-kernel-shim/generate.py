@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """Generate the `sgl_kernel` zero-kernel shim package for sglang 0.5.18.
 
-Satisfies the 0.5.18 import face (82 module-level `from sgl_kernel import
-<sym>` sites + 29 submodule imports across 178 files) with stubs. Runtime
-symbols are never called on the flagos backend path (all ops go through
-flag_gems / platform-guarded branches) — the E2E proves it, matching the
-0.5.12 record. Run once before `pip wheel .`:
+Satisfies the 0.5.18 import face (82 `from sgl_kernel import <sym>` sites +
+29 submodule imports) with stubs — runtime symbols are never called on the
+flagos path (ops go through flag_gems). The 0.4.x `sglang_kernel` stub wheels
+here satisfy only the pip distribution `sglang-kernel`, NOT the `sgl_kernel`
+module 0.5.18 imports; this package closes that gap (decisions.md §5.3).
+
+Run once before `pip wheel .`:
 
     python3 generate.py && pip wheel . --no-deps -w out
-
-The existing `sglang_kernel-0.4.x` stub wheels in this directory satisfy
-only the pip *distribution* `sglang-kernel` (module `sglang_kernel`), NOT
-the `sgl_kernel` module 0.5.18 imports — this package closes that gap.
 """
 
 import os

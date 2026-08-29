@@ -16,17 +16,12 @@
 
 """Merge sglang's `runtime_base` extra into `dependencies`.
 
-Single source of truth for the pyproject rewrite. Used by both
-build-sdist.sh (produces the canonical sdist) and build-and-repack.sh
-(transforms the official GitHub source tarball inside the -build container),
-so the two paths cannot drift.
-
-The wheel must carry the full runtime set (transformers / llguidance / …)
-in Requires-Dist so `pip install sglang==<version>+flagos` is a one-step
-install. Rewrites only the `dependencies` array, text-preserving everything
-else (comments, other sections). The merge is additive: the device-specific
-extras that pin torch (srt_mps / srt_musa) stay out of the default set, so
-the wheel stays torch-free and sglang-kernel-free by construction.
+Single source of truth for the pyproject rewrite, shared by build-sdist.sh
+and build-and-repack.sh so the two paths cannot drift. The wheel must carry
+the full runtime set in Requires-Dist for a one-step
+`pip install sglang==<version>+flagos`. Additive merge: the torch-pinning
+extras (srt_mps / srt_musa) stay out of the default set, so the wheel stays
+torch-free by construction (docs/sglang-0.5.18/decisions.md §2).
 
 Usage:
     merge-runtime-base.py pyproject.toml
@@ -58,14 +53,10 @@ def main() -> int:
     # package name (before any version specifier), the order upstream asks for.
     merged = list(dict.fromkeys(deps + base))
 
-    # Upstream gap: the 0.5.18 engine import chain pulls `xgrammar`
-    # unconditionally (srt/function_call/inkling_detector.py and the kimik3_*
-    # detectors) yet pyproject_other.toml declares it only under runtime_common
-    # (runtime_base is documented as the "torch-free subset"; xgrammar is a
-    # pure C++/pybind11 package with no torch dep, so it belongs in the base).
-    # Without it, a srt_empty-based wheel cannot `import
-    # sglang.srt.entrypoints.engine` and `pip install sglang==<v>+flagos` is
-    # not self-sufficient. Pin to the same ==0.2.1 upstream declares.
+    # Upstream gap: the 0.5.18 import chain pulls `xgrammar` unconditionally
+    # yet pyproject_other.toml declares it only under runtime_common — a
+    # srt_empty-based wheel could not `import sglang.srt.entrypoints.engine`
+    # without it. Pin to the same ==0.2.1 upstream declares.
     if not any(re.split(r'[<=>!~\[\s]', s)[0].lower() == 'xgrammar'
                for s in merged):
         merged.append('xgrammar==0.2.1')
