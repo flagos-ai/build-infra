@@ -1,0 +1,49 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ── Wheel Repack Classification Rules ────────────────────────────────
+# Each key is a set of *package names* (no version, case-insensitive).
+#
+# Top-level rules (applied to sglang's own METADATA):
+#   remove_torch_chain, remove_cuda_only, remove_orphaned
+#
+# Indirect-dep rules (applied to retained deps that declare torch/triton
+# in their own METADATA — discovered automatically by repack_recursive):
+#   strip_from_indirect
+#
+# sglang builds from the non-CUDA pyproject variant (pyproject_other.toml)
+# with the runtime_base extra merged into `dependencies` — the wheel's
+# METADATA is torch-free and sglang-kernel-free by construction (see
+# docs/sglang-0.5.18/decisions.md).  All rules below are therefore empty:
+# repack.py only stamps the +flagos local version and downgrades the
+# Metadata-Version (2.4 → 2.2, Nexus requirement).  No dependency stripping
+# happens here — there is nothing to strip.
+
+# ── Top-level removal rules (applied to sglang's own METADATA) ──
+remove_torch_chain: []
+
+# NVIDIA / CUDA-only packages — meaningless on non-CUDA platforms.
+remove_cuda_only: []
+
+# Packages whose only consumer was stripped above (no other consumers left).
+remove_orphaned: []
+
+# ── Indirect dependency stripping rules ───────────────────────────────
+strip_from_indirect: []
+
+# ── Per-package extra strip rules ─────────────────────────────────────
+strip_extra_from_indirect: {}
+
+# ── Per-package indirect version pins ──────────────────────────────────
+pin_indirect: {}

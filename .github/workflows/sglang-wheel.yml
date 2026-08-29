@@ -1,0 +1,200 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: sglang wheel
+
+# Build + repack sglang wheels for one (or all) backend(s), and optionally
+# upload them to the per-vendor PyPI. This is the CI consolidation of the
+# manual packaging/sglang/build-and-repack.sh — same build (runtime
+# flagos-runtime-{vendor}-{backend}:{version}-build image, all backends build
+# from the one architecture-independent source tarball produced by
+# packaging/sglang/build-sdist.sh on the internal filestore), same repack
+# (packaging/sglang/repack.py + config.yaml — rules are all empty, it only
+# stamps the +flagos local version and downgrades Metadata-Version 2.4 -> 2.2),
+# same per-vendor upload target.
+#
+# Why the wheel at all: sglang publishes wheels only — no sdist on PyPI, no
+# release assets on GitHub. Every per-vendor wheel build needs the same
+# architecture-independent source tarball, so the official source archive
+# lives on the filestore (one tarball serves every backend, x86 and ascend
+# aarch64 alike). Each build switches in the non-CUDA pyproject variant
+# (pyproject_other.toml, srt_empty base) and merges runtime_base into
+# `dependencies` inside the build container — the wheel's METADATA is
+# torch-free and sglang-kernel-free by construction, and the wheel carries the
+# full runtime set in Requires-Dist so the app image installs it single-step
+# (sglang==<version>+flagos), never touching the runtime matrix.
+#
+# Note: per-vendor sglang_version defaults are not yet in configs.yaml — pass
+# --sglang-version / the sglang_version input explicitly. The source tarball
+# must already be on the filestore (see build-sdist.sh --upload).
+#
+# Upload target defaults to flagos-pypi-<vendor>. There is no schedule:
+# uploads are manual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend whose -build image builds the wheel (e.g. ascend-cann9.0.0, or "all")'
+        type: string
+        default: ascend-cann9.0.0
+      sglang_version:
+        description: 'sglang version to build (e.g. 0.5.18)'
+        type: string
+        default: 0.5.18
+      upload:
+        description: 'upload the repacked +flagos wheel(s) to the vendor PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
+        type: string
+        default: ''
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: set-matrix
+        run: |
+          if [[ "${{ inputs.backend }}" == "all" ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      STACK_VERSION: ${{ matrix.version }}
+      SGLANG_VERSION: ${{ inputs.sglang_version }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      # Wraps build-and-repack.sh; the -build image must already exist on the
+      # runner (pulled by the script, `|| true`). Wheels land in
+      # /tmp/sglang-repack-<vendor>-<backend>/output on the runner host.
+      # HTTPS_PROXY is not needed: the build pulls the sglang source tarball
+      # from the internal filestore / aliyun, never github.com.
+      - name: Build + repack the sglang wheel
+        run: |
+          set -euo pipefail
+          # STACK_VERSION comes from the matrix; the script also needs pyyaml
+          # on the runner, which set-matrix already installed.
+          bash packaging/sglang/build-and-repack.sh \
+            "${{ matrix.name }}" \
+            --sglang-version "${SGLANG_VERSION}"
+
+      - name: Audit the wheel dependencies
+        run: |
+          set -euo pipefail
+          # `${{ matrix.name }}` cannot be substituted inside a bash
+          # parameter-expansion expression — ${matrix.name%%-*} reaches bash
+          # unexpanded and dies with "bad substitution". Expand into a local
+          # var first (same fix as vllm-plugin-wheel.yml, run 32138523697).
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
+          python3 packaging/sglang/audit-deps.py \
+            "/tmp/sglang-repack-${vendor}-${backend}/output/"*.whl
+
+      # Upload only when explicitly requested. Runs from inside the -build
+      # image (no host python needed); the secret travels via `-e
+      # NEXUS_TOKEN` so it never appears in a process list or image layer.
+      - name: Upload to vendor PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          EXTRA_PYPI: ${{ matrix.extra_pypi }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          # `${{ matrix.name }}` cannot be substituted inside a bash
+          # parameter-expansion expression — expand into a local var first.
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}-build"
+          echo ">>> uploading $(ls /tmp/sglang-repack-${vendor}-${backend}/output/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -v "/tmp/sglang-repack-${vendor}-${backend}:/work" \
+            "${img}" \
+            bash -euo pipefail -c '
+              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
+              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
+              # parse -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              /flagos/bin/twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /work/output/*.whl
+            '
+
+      - name: Clean up the build container and work dir
+        if: ${{ always() }}
+        run: |
+          # The container (root) writes build files into the host bind mount;
+          # under /tmp's sticky bit the runner user cannot delete them, so a
+          # plain `rm -rf` fails on every run that reaches file creation.
+          # Delete from inside the -build image (root) first, then remove the
+          # empty host dir. `|| true` keeps a failed cleanup from failing the
+          # job — the work is already done (same pattern as
+          # vllm-plugin-wheel.yml).
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
+          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${vendor}-${backend}:${STACK_VERSION}-build"
+          docker rm -f "sglang-build-${vendor}-${backend}" 2>/dev/null || true
+          docker run --rm -v "/tmp/sglang-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
+          rm -rf "/tmp/sglang-repack-${vendor}-${backend}" 2>/dev/null || true
