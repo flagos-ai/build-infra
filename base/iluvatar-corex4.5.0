@@ -33,6 +33,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl unzip git vim ca-certificates \
         build-essential gcc g++ \
+        # corex 4.5.0 ships libnvshmem_host.so (NEEDs libmpi.so.40) but no
+        # OpenMPI; torch 2.10.0+corex links torch_nvshmem -> it, so torch
+        # import fails without libmpi.so.40. Ubuntu's OpenMPI 4.1.x provides
+        # the same SONAME.
+        libopenmpi3t64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install CUDA header
