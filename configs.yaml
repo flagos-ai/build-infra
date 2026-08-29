@@ -459,6 +459,12 @@ vendors:
         - torchaudio==2.10.0+corex.4.5.0.20260804
         - torchvision==0.25.0+corex.4.5.0.20260804
         - numpy==1.26.4
+      deps_app:
+        # vllm app images: no extra deps — the runtime matrix already
+        # carries torch/torchvision/triton/flag_gems, and the vllm wheel
+        # is dep-stripped while the plugin wheel is audit-gated (pyyaml only).
+        vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - Corex Runtime 4.5.0      # corex-installer-linux64-4.5.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
