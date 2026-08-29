@@ -205,11 +205,11 @@ docker exec "$CONTAINER" bash -c "
     # Rust toolchain for the multimodal rust ext. Skip if the present cargo
     # already reads the workspace manifest — never downgrade a -build image
     # with the distro apt cargo (1.75 on Ubuntu 24.04 fails on resolver="3" /
-    # edition="2024"). Official dist tarball cached on the filestore by
-    # cache-rust-toolchain.sh (sha256-verified, no external CDN at wheel
-    # time); rustup from static.rust-lang.org is the fallback for a fresh
-    # filestore (decisions.md §5.6). A hard-required ext fails the build
-    # loudly rather than silently skipping.
+    # edition="2024"). Official dist tarball cached on the filestore (no
+    # external CDN at wheel time); rustup from static.rust-lang.org is the
+    # fallback for a triple missing from the filestore (decisions.md §5.6).
+    # A hard-required ext fails the build loudly rather than silently
+    # skipping.
     if ! cargo metadata --format-version 1 --no-deps \
             --manifest-path ${WORK_DIR}/src/sglang/rust/Cargo.toml >/dev/null 2>&1; then
         TRIPLE=\"\$(uname -m)\"
@@ -227,7 +227,6 @@ docker exec "$CONTAINER" bash -c "
             export PATH=\"/opt/rust/bin:\${PATH}\"
         else
             echo '==> Rust tarball not cached on the filestore — falling back to rustup …'
-            echo '    (cache it once with cache-rust-toolchain.sh --upload)'
             curl -sSf https://sh.rustup.rs -o /tmp/rustup-init.sh
             sh /tmp/rustup-init.sh -y --profile minimal \
                 --default-toolchain stable --no-modify-path > /dev/null 2>&1
