@@ -109,7 +109,6 @@ All self-hosted: default is `[self-hosted, h20]` (x86_64). Ascend backends overr
 - **No extras for runtime deps.** `configs.yaml deps:` lists explicit packages passed to `uv pip install` — extras (`.[nvidia-cuda128]`) can't resolve correctly across vendor indexes.
 - **FlagTree is the default compiler.** Triton is the fallback (installed to `/opt/triton` when both present). The `compiler` bash function toggles.
 - **Wheel-based install for runtime.** FlagGems is installed from PyPI wheels. `--flaggems` pins the exact wheel version.
-- **`base_source` env = TODO.** Some vendors (ascend, hygon, thead) need a `source set_env.sh` step; the goal is to expand these into base image ENV so users don't need to source.
 - **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `docs/gen_descriptions.py`. Edit the generator or data files, not the markdown.
 - **Review-gated descriptions.** System package versions are extracted from built images and injected into description PRs. Human review of version bumps happens before descriptions go live on the docs site or Harbor.
 - **Apache 2.0 license.** All source files carry the license header. `license-tool/` provides header scanning + auto-adding.
