@@ -41,6 +41,7 @@ Explicitly installed; the version is the one baked into this image:
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libopenmpi3t64` — 4.1.6
 - `unzip` — 6.0
 - `vim` — 9.1.0016
 
@@ -72,7 +73,6 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
-  -v /usr/local/corex:/usr/local/corex:ro \
   harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.1.2 bash
 ```
 
@@ -84,4 +84,4 @@ Inside the container, confirm the accelerator is visible:
 ixsmi
 ```
 
-*Last updated: 2026-08-28 19:45:47 · `bbcebd931efa`*
+*Last updated: 2026-08-30 09:04:20 · `0517b5ef29a6`*
