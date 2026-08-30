@@ -17,7 +17,7 @@
 （§13.6/§13.7）。
 两处 0.24.0 结构性 API 变化（GDN 模块重构、fla.ops 平铺化）中，GDN 目标路径
 已实测确认；attention 后端类接口经逐项比对基本兼容。遗留 FLA patch 目标路径
-待重指（Qwen3-Next/GDN 前置，见 §13.4 与 [§14](../index.md)）。
+待重指（Qwen3-Next/GDN 前置，见 §13.4 与 [§15](../index.md)）。
 
 ### 13.2 构建侧：cp310 empty wheel
 
@@ -71,7 +71,7 @@
   flash_linear_attention` → 0.24.0 上报 `Failed to patch FLA ops` /
   `Failed to patch _forward_core` 告警；Qwen3-4B（非 GDN）不受影响，但
   Qwen3-Next/GDN 的 chunk/fused_recurrent 替换会失效 → 验证前置修复
-  （[§14](../index.md) 待办）。
+  （[§15](../index.md) 待办）。
 - attention.py：`get_required_kv_cache_layout` 基类默认 None（backend.py:378）→ 0.24.0
   selector 无条件调用，兼容；`get_supported_head_size`（单数 static）需改名
   `get_supported_head_sizes`（复数 classmethod）对齐基类；`get_name()` 返回 "CUSTOM"
@@ -116,10 +116,10 @@ triton 路径见 §13.7）：
   乱码、崩溃标记 0（100-token 长生成内容连贯，仅末尾小模型常规重复）
 - ⚠️ FLA 补丁告警（非致命，Qwen3-4B 不受影响）：patch 目标仍指旧路径
   `vllm.third_party.flash_linear_attention`（0.24.0 已不存在），实为
-  `vllm/model_executor/layers/fla/ops` → 待重指（§13.4 + [§14](../index.md)）
+  `vllm/model_executor/layers/fla/ops` → 待重指（§13.4 + [§15](../index.md)）
 - ⚠️ 否定指令型 prompt（"不要用英文，不要用代码"）30-token 出"，，，"标点
   循环 —— 已证与 alpha 无关（同镜像同参数换任务型 prompt 即流畅，
-  prompt 内容特性），记 [§14](../index.md) 观察项
+  prompt 内容特性），记 [§15](../index.md) 观察项
 
 ### 13.7 验证记录（triton 路径 serve E2E，2026-08-23）
 
@@ -137,5 +137,5 @@ triton 路径见 §13.7）：
   输出流畅、无 NaN 乱码，与 flagtree 路径输出质量可比；chat 任务型 prompt
   （长生成）内容连贯
 - ⚠️ FLA 补丁两告警同 §13.6（`vllm.third_party.flash_linear_attention`
-  旧路径，0.24.0 已不存在）—— 非致命，Qwen3-4B 不受影响，待 [§14](../index.md) 重指
+  旧路径，0.24.0 已不存在）—— 非致命，Qwen3-4B 不受影响，待 [§15](../index.md) 重指
 - 结论：flagtree（默认）与 triton（侧装）双编译器 serve E2E 均通过
