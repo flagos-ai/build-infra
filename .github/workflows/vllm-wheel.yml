@@ -134,7 +134,7 @@ jobs:
           python3 packaging/script/audit-deps.py \
             --watch torch --watch torch_npu --watch torchvision \
             --watch torchaudio --watch triton --watch flag_gems \
-            --watch numpy --watch vllm \
+            --watch numpy==1.26.4 --watch vllm \
             "/tmp/vllm-repack-${vendor}-${backend}/output/"*.whl
 
       # Upload only when explicitly requested. Runs from inside the -build
