@@ -31,19 +31,6 @@ title: "iluvatar-corex4.5.0"
 
 `ubuntu:24.04`
 
-### 系统软件包
-
-显式安装；此处版本即为该镜像中实际打包的版本：
-
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `unzip` — 6.0
-- `vim` — 9.1.0016
-
 ### SDK 组件
 
 - Corex Runtime 4.5.0
@@ -72,7 +59,6 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
-  -v /usr/local/corex:/usr/local/corex:ro \
   harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.1.2 bash
 ```
 
@@ -84,4 +70,4 @@ docker run --rm -it \
 ixsmi
 ```
 
-*更新时间: 2026-08-28 19:45:47 · `bbcebd931efa`*
+*更新时间: 2026-08-30 09:04:20 · `0517b5ef29a6`*
