@@ -24,6 +24,7 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 # ── Build arguments ────────────────────────────────────────────
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ARG SDK_INSTALLER=corex-installer-linux64-4.5.0.20260804_x86_64_10.2.run
+ARG DRIVER_INSTALLER=corex-driver-linux64-4.5.0.20260804_x86_64.run
 ARG CUDA_HEADER=cuda-header-260604.zip
 ARG CMAKE_PKG=cmake-3.31.8+corex.4.5.0.20260804-linux-x86_64.sh
 
@@ -51,6 +52,16 @@ RUN curl -o /cuda-header.zip ${FILE_STORE}/iluvatar/${CUDA_HEADER} \
 RUN curl -o corex-installer.run ${FILE_STORE}/iluvatar/${SDK_INSTALLER} \
   && bash /corex-installer.run --silent --toolkit \
   && rm /corex-installer.run
+
+# Install driver userspace (libcuda/libixml/ixsmi); kernel module can't load in-container
+RUN curl -o /corex-driver.run ${FILE_STORE}/iluvatar/${DRIVER_INSTALLER} \
+  && bash /corex-driver.run --noexec --target /tmp/drv >/dev/null \
+  && mkdir -p /usr/local/corex/lib /usr/local/corex/bin \
+  && cp /tmp/drv/corex/lib64/libcuda.so.1 /usr/local/corex/lib/ \
+  && cp /tmp/drv/corex/lib64/libixml.so /usr/local/corex/lib/ \
+  && cp /tmp/drv/corex/bin/ixsmi /usr/local/corex/bin/ \
+  && ln -s libcuda.so.1 /usr/local/corex/lib/libcuda.so \
+  && rm -rf /tmp/drv /corex-driver.run
 
 # Install Corex CMake
 # NOTE: the cmake.sh installer writes cmake/ccmake/cpack/ctest into
