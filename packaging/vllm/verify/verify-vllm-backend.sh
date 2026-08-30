@@ -110,12 +110,14 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Locate the repo root: this script lives at packaging/vllm/ in the checkout,
-# so the root is a FIXED relative path — never a walk-up search. A copy staged
-# elsewhere (the old "sed SCRIPT_DIR" → /tmp pattern) resolves to a directory
-# with no configs.yaml and fails loudly here, instead of silently picking up
-# whatever configs.yaml happens to be nearby.
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# Locate the repo root: this script lives at packaging/vllm/verify/ in the
+# checkout, so the root is a FIXED relative path — never a walk-up search. A
+# copy staged elsewhere (the old "sed SCRIPT_DIR" → /tmp pattern) resolves to
+# a directory with no configs.yaml and fails loudly here, instead of silently
+# picking up whatever configs.yaml happens to be nearby. (Three levels up:
+# packaging/vllm/verify/ — the megatron verify script at the same depth uses
+# the same ../../.. .)
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 if [[ ! -f "${REPO_ROOT}/configs.yaml" ]]; then
     echo "Error: configs.yaml not found at ${REPO_ROOT} (expected the repo root). Run this script from the repo checkout — do not stage it to /tmp." >&2
     exit 1
