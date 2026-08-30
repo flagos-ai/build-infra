@@ -103,7 +103,8 @@ backends:
     launch_docs: false
   iluvatar-corex4.5.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_gc0c060a6.d20260827"
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: true
