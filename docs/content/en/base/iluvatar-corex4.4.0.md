@@ -72,7 +72,6 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
-  -v /usr/local/corex:/usr/local/corex:ro \
   harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.2 bash
 ```
 
