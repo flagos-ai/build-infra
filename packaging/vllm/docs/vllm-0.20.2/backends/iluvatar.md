@@ -1,4 +1,4 @@
-# vllm 0.20.2 — iluvatar corex4.4.0
+# vllm 0.20.2 — iluvatar corex4.4.0 / corex4.5.0
 
 > 本文对应原报告第 2 部分 §2.5。标准流程见 [`playbook.md`](../playbook.md)，
 > 决策见 [`decisions.md`](../decisions.md)。
@@ -155,3 +155,54 @@ Inference:    ❌  乱码（temp=0 仍乱）——前向数值错误（trap D）
 
 **相关提交：** 无；复用 [§2.3](mthreads.md) mthreads 的 repack 产物（PR
 #280）。诊断补丁（trap A/B）为一次性验证手段，未落库。
+
+## 2.12 iluvatar-corex4.5.0（✅ 双编译器 E2E 通过；4.4.0 负结果由工具链解除）
+
+**日期:** 2026-08-30　**平台:** Iluvatar CoreX BI-V150（ix23 节点）
+
+**目标:** vllm 0.20.2 (empty) + vllm-plugin-FL 的 **app 镜像** 端到端验证，
+`harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_gc0c060a6.d20260827`
+
+**结论：** 4.5.0 上 F/T 双路径均 E2E 通过（flagtree 3.6.0 / vendor triton 3.2.0）。
+[§2.5](#25-iluvatar-corex440负结果厂商工具链版本过旧) 的乱码负结果根因是 4.4.0
+工具链过旧（torch 2.7.1 / corex Triton fork 无法编译 vllm 原生 kernel）；4.5.0
+的 `torch 2.10.0+corex.4.5.0.20260804` 直接解除该阻塞 —— 无补丁、无降级、零额外 env。
+
+### App 镜像验证（verify-vllm-backend.sh --app-image）
+
+`--app-image` 模式对比 runtime↔app 关键包矩阵（逐项须一致）→ vllm+vllm_fl 导入 →
+真实 serve + completion：
+
+| 检查 | F（flagtree 3.6.0） | T（vendor triton 3.2.0） |
+|---|---|---|
+| BEFORE/AFTER 矩阵 | torch 2.10.0+corex.4.5.0.20260804；torch_npu 无；triton 无（默认 python3 视角）；flag_gems 5.3.5；numpy 1.26.4 —— 逐项一致 | 同左 |
+| vllm+vllm_fl 导入 | ✅ | ✅ |
+| serve 就绪 | ~90s | ~150s |
+| completion | ✅ 同文本 | ✅ 同文本 |
+
+> 两路径 completion 同文本：`' Paris. The capital of Germany is Berlin. The capital of Italy is Rome.'`
+> 单步安装零泄漏（矩阵不变），容器用后即清。
+
+### 启动
+
+```bash
+docker run -d --network host --device /dev/iluvatar0 \
+  harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_gc0c060a6.d20260827
+```
+
+默认 CMD 直接 serve（app env 由镜像自带）；显式覆盖模型/参数同
+[`playbook.md`](../playbook.md)。
+
+### Stack 验证
+
+| 组件 | 版本 |
+|---|---|
+| vllm | 0.20.2+flagos（app 单步安装） |
+| torch | 2.10.0+corex.4.5.0.20260804（镜像自带，未降级） |
+| flagtree | 3.6.0（F 默认） |
+| triton | F 路径 venv 内置 3.6.0；T 路径 vendor 3.2.0（/opt/triton） |
+| flag_gems | 5.3.5 |
+| numpy | 1.26.4（configs.yaml pin） |
+| vllm_fl | 0.2.1+gc0c060a6.d20260827（= image_tag 后缀） |
+
+**相关提交：** app 镜像构建 + tag 记录（PR #625）；F/T 验证记录（PR #626）。

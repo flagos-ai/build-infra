@@ -47,7 +47,7 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 | MetaX maca3.7.2.1 | [metax.md](backends/metax.md) | 首个 empty 后端；3.8.1.3 复验见同文件 |
 | mthreads musa4.3.6 / 5.2.0 | [mthreads.md](backends/mthreads.md) | 标准流程范例来源；mul 门控 #5130 |
 | hygon dtk26.04 | [hygon.md](backends/hygon.md) | 首个复用他机 wheel 后端；torch↔numpy ABI |
-| iluvatar corex4.4.0 | [iluvatar.md](backends/iluvatar.md) | 首个推理乱码负结果（工具链过旧）|
+| iluvatar corex4.4.0 / 4.5.0 | [iluvatar.md](backends/iluvatar.md) | 4.4.0 乱码（工具链过旧）；4.5.0 ✅ F/T 双路径 E2E |
 | enflame tops1.9.10 / 1.10.6 | [enflame.md](backends/enflame.md) | GCU300 ✅ E2E；vLLM 原生 FLASH_ATTN |
 | cambricon neuware4.7.2 | [cambricon.md](backends/cambricon.md) | §2.7 MLU590 主记录 |
 | ascend cann9.0.0 | [ascend.md](backends/ascend.md) | 910B4 aarch64 cp311；fork-SHA 溯源表 |
