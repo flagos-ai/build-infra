@@ -31,19 +31,6 @@ title: "iluvatar-corex4.5.0"
 
 `ubuntu:24.04`
 
-### System packages
-
-Explicitly installed; the version is the one baked into this image:
-
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `unzip` — 6.0
-- `vim` — 9.1.0016
-
 ### SDK components
 
 - Corex Runtime 4.5.0
@@ -84,4 +71,4 @@ Inside the container, confirm the accelerator is visible:
 ixsmi
 ```
 
-*Last updated: 2026-08-28 19:45:47 · `bbcebd931efa`*
+*Last updated: 2026-08-30 07:33:59 · `175149b4f729`*
