@@ -86,7 +86,7 @@ run:
       raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
       toolkit: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
-      raw: "--device /dev/iluvatar0 -v /usr/local/corex:/usr/local/corex:ro"
+      raw: "--device /dev/iluvatar0"
     cambricon:
       # No container toolkit/runtime known.
       raw: "--device /dev/cambricon_dev0 --device /dev/cambricon_ctl"
