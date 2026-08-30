@@ -8,8 +8,6 @@
 | [zero-sgl-kernel-arch-20260828.html](zero-sgl-kernel-arch-20260828.html) | 零 sgl-kernel 方案架构图（本地 HTML）：目标架构四层路由 + 逐 vendor 迁移面分级 + 封装分发落地形态（统一 runtime + 单步安装）|
 | [zero-sgl-kernel-feasibility-20260828.md](zero-sgl-kernel-feasibility-20260828.md) | 零 sgl-kernel 可行性定案：flagos 默认路径已零依赖（6 op 全走 flag_gems），迁移面=vendor backend 约 2/3 op 有覆盖，缺口 enflame 4 op + kunlunxin klx_* + ascend sgl_kernel_npu |
 | [sglang-0.5.18/backends/metax-0.5.12.md](sglang-0.5.18/backends/metax-0.5.12.md) | 0.5.12 零 sgl-kernel 参考记录（0.5.18 方案的前身实证：路线可行性闭环 + 完整根因链）|
-| [metax-sgl-kernel-wheel-e2e-20260828.md](metax-sgl-kernel-wheel-e2e-20260828.md) | 0.5.10 自编 sgl-kernel 子集 wheel 验证记录（对比基线，已被零 sgl-kernel 路线取代）|
-| [notes-cuda128-e2e-20260827.md](notes-cuda128-e2e-20260827.md) | 0.5.10 cuda12.8 F/T 双路径 E2E 验证原始记录（前身实证，历史/调研）|
 | [sglang-0.5.18/](sglang-0.5.18/) | **0.5.18 per-vendor wheel 打包验证报告**（index / playbook / decisions / backends）|
 
 ## 结论速览
