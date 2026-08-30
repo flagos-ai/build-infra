@@ -39,16 +39,17 @@ title: "vllm0.24.0-iluvatar-corex4.5.0"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.1+g07063fd.d20260828`
+
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.5.0:2.1.2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.5.0:2.1.2-0.2.1_g07063fd.d20260828`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.5.0:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.5.0:2.1.2-0.2.1_g07063fd.d20260828
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
