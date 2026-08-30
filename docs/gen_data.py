@@ -102,15 +102,19 @@ def parse_containerfile(path: Path, extra_vars: dict | None = None) -> dict:
     """Summarize a base containerfile: base OS, OCI labels, and installed
     system (apt) packages — so docs readers needn't open it."""
     # Join line-continuations into logical lines.
-    # Comments don't continue — a `#` line ending with `\` does not swallow
-    # the next line; otherwise a build instruction that follows a
-    # commented-out continuation loses its apt-get install packages.
+    # A comment inside a continuation (valid Docker) does not end the
+    # instruction — it is skipped and the join continues. A standalone
+    # comment is emitted on its own and never continues: a commented-out
+    # instruction ending with `\` must not swallow the next line, or a real
+    # build instruction that follows it would lose its apt-get install
+    # packages.
     logical, buf = [], ""
     for line in path.read_text().splitlines():
         s = line.rstrip()
         if s.lstrip().startswith("#"):
-            logical.append(s)
-            buf = ""
+            if not buf:
+                logical.append(s)
+            # else: comment mid-continuation — skip it, keep joining.
         elif s.endswith("\\"):
             buf += s[:-1] + " "
         else:
