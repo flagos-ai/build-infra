@@ -65,7 +65,7 @@ serve 命令（NPU 绑定 + davinci 设备节点，容器挂载模型只读）�
   验证为目的，性能不做横向比较。
 - **非致命警告**：flag_gems `index_select.py:45` UserWarning（张量逻辑
   `and`/`or`，弃用语义）—— 上游 flag_gems 5.3.4 问题，不影响正确性，
-  列入遗留（[§14](../index.md)）。
+  列入遗留（[§15](../index.md)）。
 - **GDN/hybrid 模型（Qwen3-Next）0.24.0 暂不支持**：0.24.0 把
   `mamba/gdn_linear_attn.py` 重构为 `mamba/gdn/` 包，patch.py 的 GDN
   补丁目标符号失效（try/except 静默 no-op）。plain-attention 模型

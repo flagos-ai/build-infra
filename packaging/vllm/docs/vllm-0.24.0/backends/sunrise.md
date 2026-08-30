@@ -104,7 +104,7 @@ PR 978）重建 wheel**，并做了 A/B 实证：
 
 A/B 结论：**重建 wheel 修复了解码挂死**；F 路径（`compiler flagtree`）
 从"沿用 [0.20.2 §2.9](../../vllm-0.20.2/backends/sunrise.md) 挂死
-结论"升级为 ✅（[§14](../index.md) 已同步）。
+结论"升级为 ✅（[§15](../index.md) 已同步）。
 
 **构建 gate（全部通过，CI 内置）**：干净版本号（无 `.git<sha>` 后缀）、
 cp310 标签、22.04 可加载（无 GLIBC_2.38/GLIBCXX_3.4.31+ 符号）、
