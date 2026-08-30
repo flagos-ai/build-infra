@@ -337,6 +337,9 @@ docker exec "${CONTAINER}" bash -c "
         iluvatar)
             ixsmi 2>/dev/null || echo 'ixsmi not available'
             ;;
+        tsingmicro)
+            tsm_smi 2>/dev/null || echo 'tsm_smi not available'
+            ;;
     esac
 "
 
@@ -398,6 +401,14 @@ docker exec "${CONTAINER}" bash -c "
                 echo '✅ Torch is CUDA version'
             else
                 echo '❌ ERROR: Torch overwritten! Expected +cuXXX suffix'
+                exit 1
+            fi
+            ;;
+        tsingmicro)
+            if [[ \"\${TORCH_VER}\" == *+cpu* ]]; then
+                echo '✅ Torch is vendor version (+cpu)'
+            else
+                echo '❌ ERROR: Torch overwritten! Expected +cpu suffix'
                 exit 1
             fi
             ;;
