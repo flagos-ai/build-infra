@@ -14,6 +14,16 @@ It builds four layers for 13+ GPU/NPU vendors:
 | **Wheels** | FlagTree (C++ compiler) + FlagGems (pure Python) + Megatron-LM-FL (pybind11 ext) | `packaging/flagtree/`, `packaging/flaggems/`, `packaging/megatron/builder/` |
 | **App images** | Runtime + megatron-core installed single-step from the vendor PyPI wheel (no repack), one Containerfile per app | `app/megatron/Containerfile.megatron-training` / `app/megatron/Containerfile.rl` (mirrors `packaging/vllm/` + `app/vllm/`) |
 
+## Agent 协作纪律
+
+agent 写作/记录的唯一权威规则见 `docs/agent-protocol.md`。开箱即知：
+
+- **subagent 永不写 docs / memory / WORKING-CONTEXT** —— 写入判断收归主会话。
+- **只记结论**（为什么 / 最终状态 / 机制），**不记过程**（流水账禁止）。
+- **注释只写为什么**，不解释是什么；密度匹配周围代码。
+- 每线 `docs/README.md` 是唯一入口；先 grep 定位再读最小片段。
+- WORKING-CONTEXT 类文件有时效：并入 docs / status matrix 后**删除**。
+
 ## Key commands
 
 ```bash

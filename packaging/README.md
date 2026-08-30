@@ -19,7 +19,6 @@ packaging/<app>/                          # app = vllm | sglang | megatron | ver
     ├── README.md                         # 入口索引（每个 app 必须有）
     ├── <app>-verification-matrix.md      # 矩阵渲染目标（render_status_matrix.py 既有约定）
     ├── handoffs/                         # vendor 交接报告（vllm 已有）
-    ├── memory/                           # agent 工作记忆（megatron 特有，2026-08-13 用户指定）
     └── <app>-<version>/                  # 每版本验证报告
         ├── index.md                      # 背景 + 后端索引 + 版本级结论/遗留
         ├── playbook.md                   # 标准流程 + 弯路记录
@@ -59,7 +58,7 @@ runtime 层/编译器 wheel（非四 app，不适用本骨架）；`packaging/sc
 |---|---|
 | `verify/verify-<app>-backend.sh` | `.github/workflows/<app>-app-image.yml`（调用行 + 注释）；`scripts/verify_collect_cells.py`（`APP_VERIFY` script 字段）；`docs/verify-orchestrator.md`；app 内 playbook/decisions |
 | `status_matrix.<appkey>.yaml` | `scripts/render_status_matrix.py`（COMPONENTS 注册）；`docs/status-matrix.md` |
-| `docs/<app>-<version>/` 内文件 | 同目录互链（wiki 链接 `[[...]]` 或相对路径）；其他 app 文档；`docs/memory/*.md` |
+| `docs/<app>-<version>/` 内文件 | 同目录互链（wiki 链接 `[[...]]` 或相对路径）；其他 app 文档 |
 
 ## 未来落点
 

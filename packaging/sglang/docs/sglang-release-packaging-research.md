@@ -204,6 +204,12 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 
 ## 6. 打包模型分析
 
+> ⚠️ **过时（2026-08-31 标注）**：本节假设「sgl-kernel + FlagCX 每后端构建」路线，
+> 已被 2026-08-28 定案的**零 sgl-kernel 路线**取代（flagos 默认路径 6 op 全走
+> flag_gems；统一 runtime + 单步安装）。当前权威见
+> [zero-sgl-kernel-feasibility-20260828.md](zero-sgl-kernel-feasibility-20260828.md) 与
+> [sglang-0.5.18/index.md](sglang-0.5.18/index.md)。
+
 ### 6.1 可复用的部分（与 vllm 同构）
 
 - **plugin wheel**：`sglang_fl` 是纯 Python，可打 `py3-none-any` wheel，经
