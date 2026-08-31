@@ -158,7 +158,7 @@
 | SPACEMIT | ⬜ | ⬜ | ⬜ |
 | TANGRT 1.2.0 | ✅ | ✅ | ✅ |
 | PPU 2.0.0 | ⬜ | ⬜ | ⬜ |
-| TSM 260610 | ⬜ | ⬜ | ⬜ |
+| TSM 260610 | ✅ | ⬜ | ⬜ |
 
 
 <!-- /status-matrix:facility:vllm0.24.0 -->
