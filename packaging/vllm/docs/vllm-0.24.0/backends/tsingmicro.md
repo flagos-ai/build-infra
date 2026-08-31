@@ -43,7 +43,8 @@ torch SDPA 计算 attention、plain indexing 写 KV cache —— 两者 TX8110 �
 - 镜像 `flagos-runtime-tsingmicro-tsm260610:2.1.2`；模型 `/data/models/Qwen/Qwen3-4B`
 - python 3.10.20 / torch 2.11.0+cpu / torch_txda 0.1.0+20260728 / flag_gems 5.3.5
 - vllm `0.24.0+flagos`（cp310 empty wheel，单步安装）；vllm-plugin-fl
-  `0.3.0rc0+g2e4d4b844.d20260831`
+  `0.3.0rc0+gbd010ce.d20260831`（PR #421 head 构建；tsingmicro PyPI 上更早的
+  wheel 全部缺 KV 写路径修复 `forward_includes_kv_cache_update`，不可用于 0.24.0）
 - 编译器：flagtree 0.6.1+tsingmicro3.3（默认 `/opt/flagtree`，运行时
   `triton.__version__` 3.6.0）+ vendor triton
   3.6.0.post2026072919+git8f5b0609（`/opt/triton`），`compiler` 函数切换
