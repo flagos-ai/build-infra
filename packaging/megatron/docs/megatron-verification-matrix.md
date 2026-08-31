@@ -62,14 +62,14 @@
 | 厂商 | 后端 | App | PR |
 |---|---|---|---|
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/34 |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/34 |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
 | 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
@@ -293,7 +293,7 @@
   是使用方法变更**：训练功能仍在，但喂参接口重构。影响所有用 merged wheel 的后端，
   **hygon 留下的 E2E 参数基线需逐参数重核**（可能有更多参数同样 None 默认）。
   处置（2026-08-18 定，用法侧规避，不回馈上游）：两参数均随 sync
-  [NVIDIA #34](https://github.com/NVIDIA/Megatron-LM/pull/34) 来自上游 Core 0.17.0（非 fork 偏离，上游 0.17.0 分支已过时，
+  [MLF #34](https://github.com/flagos-ai/Megatron-LM-FL/pull/34) 来自上游 Core 0.17.0（非 fork 偏离，上游 0.17.0 分支已过时，
   提修复意义不大）；`--eval-interval` 默认 None + 无条件除法 =
   上游已知缺口，`--lr` 属训练必传参数——两者均由复现基线强制传参规避。
 
@@ -307,7 +307,7 @@
   `import megatron.inference.utils` 即 ImportError。[MLF PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
   （feat/wheel-full-scope）把顶层入口文件一并打包，hygon 已用该 wheel
   验证推理场景跑通（见下）。
-  - **归属**：上游 **core_v0.17.0** 自己的代码（[fork #34](https://github.com/NVIDIA/Megatron-LM/pull/34) 忠实同步），非
+  - **归属**：上游 **core_v0.17.0** 自己的代码（[fork #34](https://github.com/flagos-ai/Megatron-LM-FL/pull/34) 忠实同步），非
     fork 偏离。上游修复时点：0.17.0/0.17.1 = 3 处裸 import；0.18.0/0.18.2
     = 2 处；main = 0（全部收敛进 `megatron/training/models/`）。
   - **状态**：全范围 wheel 从打包侧关闭阻塞（已验证后端见矩阵推理列），
