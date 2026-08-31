@@ -445,6 +445,10 @@ vendors:
         - torchaudio==2.7.1+corex.4.4.0
         - torchvision==0.22.1+corex.4.4.0
         - numpy==1.26.4
+      deps_app:
+        # megatron_training only: verified F+T (#639). vllm gates stay off —
+        # iluvatar 4.4.0 is ⬜/❌ in the vllm 0.20.2/0.24.0 matrices.
+        megatron_training: []
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
