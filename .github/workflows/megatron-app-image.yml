@@ -184,10 +184,16 @@ jobs:
           if [[ "${{ inputs.app }}" == "megatron_rl" ]]; then
             containerfile="app/megatron/Containerfile.rl"
           fi
-          # --no-cache: the pip RUN layer caches by command string — a
-          # re-uploaded wheel under the same ==0.17.1 spec is skipped.
+          # --no-cache only on verify-only runs (push=false): the pip RUN layer
+          # caches by command string, so a re-uploaded wheel under the same
+          # ==0.17.1 spec is silently skipped — the verify must resolve the
+          # vendor index fresh. A push run reuses the layer the verify run just
+          # built (same command + parent image), which is much faster and
+          # replicates the verified build verbatim.
+          no_cache_arg=""
+          [[ "${{ inputs.push }}" != "true" ]] && no_cache_arg="--no-cache"
           docker build \
-            --no-cache \
+            ${no_cache_arg} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
