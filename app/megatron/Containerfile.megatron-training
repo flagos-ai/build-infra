@@ -47,6 +47,11 @@
 #                baked vendor env before exec'ing the training entry, so a
 #                plain `docker run <image>` shows the training arguments
 #                instead of silently losing the vendor env.
+#   2026-08-31   scipy<1.18 guard in the wheel-install step. scipy >= 1.18
+#                (unconstrained dep of nvidia-modelopt 0.43.0, pulled by the
+#                [training] extra) requires numpy>=2.0.0 and upgrades the
+#                runtime's stack-wide numpy==1.26.4 pin, corrupting the inert
+#                matrix. scipy <= 1.17 accepts numpy 1.26.4.
 # TODO
 #   - Publish-time verification (torch version, megatron.core import).
 # ============================================================
@@ -92,6 +97,9 @@ RUN if [ -n "${APP_DEPS}" ]; then \
 # The wheel keeps its torch>=2.6.0 Requires-Dist; the runtime's vendor
 # torch satisfies it, so pip resolves only the packages that are actually
 # missing (numpy / packaging are already pinned in the runtime image).
+# Guard: scipy<1.18 must ride the same install — modelopt's unconstrained
+# scipy dep resolves 1.18+ (numpy>=2.0.0) since 2026-08, which upgrades the
+# runtime's numpy 1.26.4 pin and fails the on-node inert-matrix verify.
 # The install is proven inert by the build-time smoke test in
 # packaging/megatron/builder/ (build env == delivery env) and verified
 # on-node by packaging/megatron/verify/verify-megatron-backend.sh.
@@ -103,7 +111,8 @@ RUN if [ -n "${APP_DEPS}" ]; then \
 RUN PYTHONPATH="/opt/triton" pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \
-  "megatron-core[training]==${MEGATRON_VERSION}"
+  "megatron-core[training]==${MEGATRON_VERSION}" \
+  "scipy<1.18"
 
 # --- App env ---------------------------------------------------
 
