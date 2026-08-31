@@ -184,7 +184,10 @@ jobs:
           if [[ "${{ inputs.app }}" == "megatron_rl" ]]; then
             containerfile="app/megatron/Containerfile.rl"
           fi
+          # --no-cache: the pip RUN layer caches by command string — a
+          # re-uploaded wheel under the same ==0.17.1 spec is skipped.
           docker build \
+            --no-cache \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
