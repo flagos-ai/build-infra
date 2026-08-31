@@ -6,14 +6,15 @@
 # file into the md's marker blocks; keep marker blocks in sync.
 #
 # Cell symbols: ✅ = 已验证通过 / ❌ = 已屏蔽/失败有结论 / ⛔ = 挂起（上游阻塞）
-# / ？ = 成功概率不确定 / ⬜ = 待验证 / — = 该后端无此编译器。
+# / ⏸ = 暂停（app 线降级/搁置，非验证失败——megatron_rl 转向 verl） / ？ =
+# 成功概率不确定 / ⬜ = 待验证 / — = 该后端无此编译器。
 # Column suffix: T = Triton 编译器, F = FlagTree 编译器.
 
 type: megatron
 app: megatron_rl
 description: Megatron RL app image — megatron-core[rl] single-step install on
-  the vendor runtime.
-last_updated: "2026-08-24"
+  the vendor runtime. 优先级调低：RL 框架转向 verl，除已通过后端外全场景暂停。
+last_updated: "2026-08-31"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -26,24 +27,24 @@ scenarios:
     verification:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
-      ascend-cann8.5.0:      {T: "⛔", F: "⛔"}
-      ascend-cann9.0.0:      {T: "⛔", F: "⛔"}
-      cambricon-neuware4.4.3: {T: "⛔", F: "—"}
-      cambricon-neuware4.7.2: {T: "⛔", F: "—"}
-      enflame-tops1.9.10:    {T: "⛔", F: "⛔"}
-      enflame-tops1.10.6:    {T: "⛔", F: "⛔"}
+      ascend-cann8.5.0:      {T: "⏸", F: "⏸"}
+      ascend-cann9.0.0:      {T: "⏸", F: "⏸"}
+      cambricon-neuware4.4.3: {T: "⏸", F: "⏸"}
+      cambricon-neuware4.7.2: {T: "⏸", F: "⏸"}
+      enflame-tops1.9.10:    {T: "⏸", F: "⏸"}
+      enflame-tops1.10.6:    {T: "⏸", F: "⏸"}
       hygon-dtk26.04:        {T: "✅", F: "✅"}
-      iluvatar-corex4.4.0:   {T: "⛔", F: "⛔"}
-      iluvatar-corex4.5.0:   {T: "⛔", F: "⛔"}
-      kunlunxin-xre5.37.1:   {T: "⛔", F: "⛔"}
-      metax-maca3.7.2.1:     {T: "⛔", F: "⛔"}
+      iluvatar-corex4.4.0:   {T: "⏸", F: "⏸"}
+      iluvatar-corex4.5.0:   {T: "⏸", F: "⏸"}
+      kunlunxin-xre5.37.1:   {T: "⏸", F: "⏸"}
+      metax-maca3.7.2.1:     {T: "⏸", F: "⏸"}
       metax-maca3.8.1.3:     {T: "✅", F: "✅"}
-      mthreads-musa4.3.6:    {T: "⛔", F: "⛔"}
-      mthreads-musa5.2.0:    {T: "⛔", F: "⛔"}
-      spacemit-spacemit:     {T: "⛔", F: "—"}
-      sunrise-tangrt1.2.0:   {T: "⛔", F: "⛔"}
-      thead-ppu2.0.0:        {T: "⛔", F: "—"}
-      tsingmicro-tsm260610:  {T: "⛔", F: "⛔"}
+      mthreads-musa4.3.6:    {T: "⏸", F: "⏸"}
+      mthreads-musa5.2.0:    {T: "⏸", F: "⏸"}
+      spacemit-spacemit:     {T: "⏸", F: "⏸"}
+      sunrise-tangrt1.2.0:   {T: "⏸", F: "⏸"}
+      thead-ppu2.0.0:        {T: "⏸", F: "⏸"}
+      tsingmicro-tsm260610:  {T: "⏸", F: "⏸"}
 
 # Per-backend facility booleans + the upstream PRs whose branch heads the
 # verification / images were based on (tracked at backend level, aggregated

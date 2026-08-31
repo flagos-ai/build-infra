@@ -18,6 +18,7 @@
 | ✅ | 已验证通过（E2E exit 0） |
 | ❌ | 已屏蔽（编译器不可用，不设默认/不交付） |
 | ⛔ | 挂起（需先解决上游阻塞） |
+| ⏸ | 暂停（app 线降级/搁置，非验证失败——megatron_rl 转向 verl） |
 | ？ | 成功概率不确定（缺 vendor 变体依赖） |
 | ⬜ | 待验证 |
 | — | 该后端无此编译器 |
@@ -37,24 +38,24 @@
 |---|---|---|---|---|---|---|---|---|---|
 | 英伟达 | CUDA 12.8 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 英伟达 | CUDA 13.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 8.5.0 | ✅ | ✅ | ⛔ | ⛔ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 9.0.0 | ✅ | ✅ | ⛔ | ⛔ | ✅ | ✅ | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⛔ | — | ✅ | — | ✅ | — |
-| 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⛔ | — | ✅ | — | ✅ | — |
-| 燧原 | TOPS 1.9.10 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
-| 燧原 | TOPS 1.10.6 | ✅ | ✅ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
+| 昇腾 | CANN 8.5.0 | ✅ | ✅ | ⏸ | ⏸ | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 9.0.0 | ✅ | ✅ | ⏸ | ⏸ | ✅ | ✅ | ✅ | ✅ |
+| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⏸ | ⏸ | ✅ | — | ✅ | — |
+| 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⏸ | ⏸ | ✅ | — | ✅ | — |
+| 燧原 | TOPS 1.9.10 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 燧原 | TOPS 1.10.6 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 | 海光 | DTK 26.04 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 天数智芯 | COREX 4.4.0 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
-| 天数智芯 | COREX 4.5.0 | ✅ | ✅ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
-| 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
-| 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
+| 天数智芯 | COREX 4.4.0 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 天数智芯 | COREX 4.5.0 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ | ⛔ | ⛔ | ✅ | ✅ | ✅ | ✅ |
-| 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | ⛔ | ⛔ | ✅ | ✅ | ✅ | ✅ |
-| 进迭时空 | SPACEMIT | ⬜ | — | ⛔ | — | ？ | — | ⛔ | — |
-| 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
-| 平头哥 | PPU 2.0.0 | ⬜ | — | ⛔ | — | ？ | — | ⛔ | — |
-| 清微智能 | TSM 260610 | ⬜ | ⬜ | ⛔ | ⛔ | ？ | ？ | ⛔ | ⛔ |
+| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ | ⏸ | ⏸ | ✅ | ✅ | ✅ | ✅ |
+| 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | ⏸ | ⏸ | ✅ | ✅ | ✅ | ✅ |
+| 进迭时空 | SPACEMIT | ⬜ | — | ⏸ | ⏸ | ？ | — | ⛔ | — |
+| 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 平头哥 | PPU 2.0.0 | ⬜ | — | ⏸ | ⏸ | ？ | — | ⛔ | — |
+| 清微智能 | TSM 260610 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
@@ -152,7 +153,7 @@
 
 ### megatron_rl
 
-> 数据截止：2026-08-24
+> 数据截止：2026-08-31
 
 **App 级设施（全后端共享）**
 
@@ -222,7 +223,7 @@
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
 | 11 | modelopt 入镜像 | 当前 wheel `[training]` extra 声明 `nvidia-modelopt[torch]==0.43.0`（无 `[torch]` extra，pip 仅警告后继续；核心约束 `torch>=2.6`），cambricon 双后端（torch 2.7.1/2.11.0）单步 `megatron-core[training]` 安装实测安全：modelopt 0.43.0 + 完整闭包就位，关键包（torch/torch-mlu/triton/flag_gems）复核未变 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已实证（0.43.0 安全） | app-image 实建 cambricon 可单步装；**历史 hazard（0.45.0 时代，不再适用）**：旧 extra 曾声明 0.45.0（约束 `torch>=2.8`），4.4.3 下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 替换 vendor torch，实测下载阶段 OOM（exit 137）；未来抬 modelopt 版本先核 torch 约束与 `[torch]` extra |
-| 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | Ascend ≤950 无 flash_attn，RL 暂停根因；团队倾向用 Verl 承载 ascend 强化学习服务，MLF 侧 RL 方案维持待定 | 用户权衡 | 方案待定 | 定案后更新矩阵 RL 列 |
+| 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | **定案（2026-08-31）：megatron_rl 全线降优先级，RL 框架转向 verl**；ascend ≤950 无 flash_attn 不再是需要攻坚的阻塞，MLF 侧 RL 方案维持待定 | 用户权衡 | 已定案 | 矩阵 RL 列已按暂停更新；RL 验证随 verl 线推进 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 
 ## 编译器覆盖现状（configs.yaml 2026-08-14）
@@ -301,6 +302,6 @@
 1. **training 场景**：先验双编译器后端（编译器链风险已知存在——hygon
    教训），后验单编译器后端。每后端 = runtime 镜像 + wheel 单步安装 +
    pretrain_gpt.py 小规模跑通。
-2. **rl 场景**：依赖面干净，验证成本与 training 相当；同镜像按用途补 pydantic/typing_extensions。
+2. **rl 场景**：~~依赖面干净，验证成本与 training 相当；同镜像按用途补 pydantic/typing_extensions~~。**已降级（2026-08-31 定案）：megatron_rl 暂停，RL 框架转向 verl**——矩阵 RL 列标 ⏸，RL 验证随 verl 线推进，不再按原顺序安排。
 3. **post_training 场景**：仅 NVIDIA 先行，其余后端等 modelopt 可用性结论。
 4. **inference 场景**：hygon 已用全范围 wheel（[PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)）验证 ✅（static legacy 路径）；其余后端待该 PR 合入后按序验证。
