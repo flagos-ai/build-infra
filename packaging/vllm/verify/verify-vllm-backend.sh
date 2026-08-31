@@ -55,6 +55,11 @@ MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-4B}"
 VLLM_VERSION="${VLLM_VERSION:-0.20.2}"
 PLUGIN_FL_VERSION="${PLUGIN_FL_VERSION:-}"
 SKIP_SERVE=false
+# Serve-test time budget in seconds, shared by the readiness poll window and
+# the completion request. 1800s default because first-compile cold starts
+# vary wildly by backend: cambricon ~250s, tsingmicro engine init alone was
+# 899s + startup ≈ 18.5 min (docs/vllm-0.24.0/backends/tsingmicro.md §15).
+SERVE_TIMEOUT=1800
 APP_IMAGE=""
 COMPILER=""
 # Stack version driving the runtime image tag. Empty = read from the repo's
@@ -69,6 +74,7 @@ while [[ $# -gt 0 ]]; do
         --vllm-version) VLLM_VERSION="$2"; shift 2 ;;
         --plugin-fl-version) PLUGIN_FL_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
+        --serve-timeout) SERVE_TIMEOUT="$2"; shift 2 ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
         --compiler) COMPILER="$2"; shift 2 ;;
         --stack-version) STACK_VERSION="$2"; shift 2 ;;
@@ -83,6 +89,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --vllm-version <ver> vLLM version to install (default: 0.20.2)"
             echo "  --plugin-fl-version <ver> vllm-plugin-FL wheel version (default: skip plugin)"
             echo "  --skip-serve          Skip serve test, only install and verify imports"
+            echo "  --serve-timeout <sec> Time budget for serve readiness + completion (default: 1800)"
             echo "  --app-image <image>   Verify a prebuilt vllm app image (matrix + import)"
             echo "  --compiler <c>        Compiler path to verify: flagtree | triton (default: runtime default)"
             echo "  --stack-version <ver> Stack version for the runtime image tag; default: read from the discovered configs.yaml"
@@ -103,6 +110,11 @@ BACKEND="${VENDOR_BACKEND#*-}"
 
 if [[ -n "$COMPILER" && "$COMPILER" != "flagtree" && "$COMPILER" != "triton" ]]; then
     echo "Error: --compiler must be 'flagtree' or 'triton' (got '$COMPILER')" >&2
+    exit 1
+fi
+
+if ! [[ "$SERVE_TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$SERVE_TIMEOUT" -lt 60 ]]; then
+    echo "Error: --serve-timeout must be an integer ≥ 60 (got '$SERVE_TIMEOUT')" >&2
     exit 1
 fi
 
@@ -464,6 +476,7 @@ else
         ${COMPILER_GUARD}
         export VLLM_PLUGINS=fl
         export VLLM_FL_DISPATCH_DEBUG=1
+        export SERVE_TIMEOUT=${SERVE_TIMEOUT}
 
         echo ''
         echo 'Starting serve...'
@@ -476,12 +489,15 @@ else
             > /tmp/vllm-serve.log 2>&1 &
 
         SERVE_PID=\$!
-        # Poll the log for readiness (up to 900s) — first-compile warmup on a
-        # shared node runs ~260s cold and can exceed 300s under load (cambricon
-        # MLU590 Qwen3-4B warmup + kv-cache profile took 249.9s on a clean node).
+        # Poll the log for readiness (up to SERVE_TIMEOUT). First-compile
+        # warmup varies wildly by backend — cambricon MLU590 Qwen3-4B warmup
+        # + kv-cache profile took 249.9s on a clean node, tsingmicro engine
+        # init alone was 899s + startup ≈ 18.5 min cold (docs/
+        # vllm-0.24.0/backends/tsingmicro.md §15) — so the window is
+        # configurable via --serve-timeout (default 1800s).
         echo 'Waiting for serve to become ready...'
         ready=0
-        for i in \$(seq 1 180); do
+        for i in \$(seq 1 \$((SERVE_TIMEOUT / 5))); do
             if ! kill -0 \${SERVE_PID} 2>/dev/null; then
                 echo 'serve process exited during startup'
                 break
@@ -512,9 +528,9 @@ req = urllib.request.Request(
 try:
     # First request on a cold serve compiles triton kernels per-shape — on
     # cambricon MLU590 that runs ~60s+ (docs/vllm-0.20.2/backends/cambricon.md
-    # §2.7: 60s curl
-    # timed out, 300s returned). 600s leaves headroom on a shared node.
-    with urllib.request.urlopen(req, timeout=600) as resp:
+    # §2.7: 60s curl timed out, 300s returned). SERVE_TIMEOUT leaves headroom
+    # on a shared node and on slow-cold-start backends (tsingmicro §15).
+    with urllib.request.urlopen(req, timeout=$SERVE_TIMEOUT) as resp:
         status, body = resp.status, json.loads(resp.read())
 except Exception as e:
     print('request failed:', e)
