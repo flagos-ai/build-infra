@@ -334,15 +334,18 @@ COPY zz-compiler.sh /etc/profile.d/zz-compiler.sh
 #   bash.bashrc          → profile.d/*.sh   (non-login interactive)
 #   BASH_ENV             → profile.d/*.sh   (non-interactive, bash -c)
 #
-# Base images with vendor SDK env (ascend, hygon) already set up
-# /etc/bash_env.sh to source profile.d/*.sh. For those, we only append
-# the PATH fix so /flagos/bin stays first (vendor.sh may have prepended
-# SDK paths). For all others, create the full plumbing here.
+# Bases with a vendor SDK env (ascend, hygon) ship /etc/bash_env.sh plus a
+# vendor.sh that assigns PATH absolutely (captured from set_env.sh). Re-sourcing
+# it resets any accumulated prepends, so for those we append an export that
+# restores /flagos/bin to the front (without it, the SDK paths would clobber
+# the flagos prefix baked in by ENV). All other bases leave PATH untouched at
+# shell startup — the ENV prefix is the only prepend — so the plain loop
+# suffices and re-sourcing never accumulates duplicates.
 # This way base and runtime don't do the same work twice and never conflict.
 RUN if [ -f /etc/bash_env.sh ]; then \
       printf 'export PATH="/flagos/bin:$PATH"\n' >> /etc/bash_env.sh; \
     else \
-      printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n\nexport PATH="/flagos/bin:$PATH"\n' \
+      printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n' \
         > /etc/bash_env.sh; \
       printf '. /etc/bash_env.sh\n%%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc; \
     fi

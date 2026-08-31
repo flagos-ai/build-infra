@@ -134,8 +134,14 @@ vendors:
       flagtree: flagtree==0.6.1
       env:
         base:
-          PATH: /usr/local/cuda/bin:$PATH
-          LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+          # Effective env = nvcr 12.8.0-runtime-ubuntu24.04 unchanged: our
+          # Containerfile re-declares the NVIDIA_* vars (identical to nvcr) and
+          # prepends nothing. cuda libs resolve via ldconfig, not LD_LIBRARY_PATH.
+          # Re-check against nvcr on base version bump.
+          PATH: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+          NVIDIA_VISIBLE_DEVICES: all
+          NVIDIA_DRIVER_CAPABILITIES: compute,utility
         app:
           vllm:
             # vLLM 0.24.0 unconditionally imports flashinfer (sampler switch
@@ -171,8 +177,14 @@ vendors:
       flagtree: flagtree==0.6.1
       env:
         base:
-          PATH: /usr/local/cuda/bin:$PATH
-          LD_LIBRARY_PATH: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
+          # Effective env = nvcr 13.3.0-runtime-ubuntu24.04 unchanged: our
+          # Containerfile re-declares the NVIDIA_* vars (identical to nvcr) and
+          # prepends nothing.
+          # Re-check against nvcr on base version bump.
+          PATH: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64
+          NVIDIA_VISIBLE_DEVICES: all
+          NVIDIA_DRIVER_CAPABILITIES: compute,utility
         app:
           vllm:
             # vLLM 0.24.0 unconditionally imports flashinfer (sampler switch

@@ -35,8 +35,9 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# nvcr upstream already sets PATH (with /usr/local/cuda/bin) and
+# LD_LIBRARY_PATH (with /usr/local/cuda/lib64); the NVIDIA_* vars below are
+# identical to nvcr's — kept only as explicit intent.
 ENV NVIDIA_VISIBLE_DEVICES="all" \
-    NVIDIA_DRIVER_CAPABILITIES="compute,utility" \
-    PATH="/usr/local/cuda/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+    NVIDIA_DRIVER_CAPABILITIES="compute,utility"
  
