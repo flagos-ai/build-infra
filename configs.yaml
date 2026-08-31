@@ -468,6 +468,10 @@ vendors:
         - torchvision==0.25.0+corex.4.5.0.20260804
         - numpy==1.26.4
       deps_app:
+        # megatron_training: no vendor-conditional deps — the wheel's
+        # [training] extra (nvidia-modelopt/tqdm/datasets/pyarrow) resolves
+        # from the mirror; training is verified F+T on this backend.
+        megatron_training: []
         # vllm app images: no extra deps — the runtime matrix already
         # carries torch/torchvision/triton/flag_gems, and the vllm wheel
         # is dep-stripped while the plugin wheel is audit-gated (pyyaml only).
