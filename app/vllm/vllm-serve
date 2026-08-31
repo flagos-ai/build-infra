@@ -25,8 +25,8 @@
 #   docker run <image> vllm-serve --model /data/models/Qwen/Qwen3-4B --port 8031
 #   docker run <image> vllm-serve --help
 #
-# The env source is idempotent (export lines + the zz-compiler function), so
-# it is safe whether or not the caller already ran through bash.
+# Re-sourcing is safe: the profile.d scripts are idempotent, and vendor.sh
+# (where present) assigns PATH absolutely, so no prepend accumulates.
 # ============================================================================
 
 set -euo pipefail
