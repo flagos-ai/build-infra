@@ -381,6 +381,7 @@ vendors:
         - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==1.26.4
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
       sdk:
         - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
