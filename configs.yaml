@@ -134,10 +134,8 @@ vendors:
       flagtree: flagtree==0.6.1
       env:
         base:
-          # Effective env = nvcr 12.8.0-runtime-ubuntu24.04 unchanged: our
-          # Containerfile re-declares the NVIDIA_* vars (identical to nvcr) and
-          # prepends nothing. cuda libs resolve via ldconfig, not LD_LIBRARY_PATH.
-          # Re-check against nvcr on base version bump.
+          # Effective env — inherited verbatim from nvcr 12.8.0-runtime-ubuntu24.04
+          # (our layer adds no ENV of its own). Re-verify against nvcr on version bump.
           PATH: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64
           NVIDIA_VISIBLE_DEVICES: all
@@ -177,10 +175,8 @@ vendors:
       flagtree: flagtree==0.6.1
       env:
         base:
-          # Effective env = nvcr 13.3.0-runtime-ubuntu24.04 unchanged: our
-          # Containerfile re-declares the NVIDIA_* vars (identical to nvcr) and
-          # prepends nothing.
-          # Re-check against nvcr on base version bump.
+          # Effective env — inherited verbatim from nvcr 13.3.0-runtime-ubuntu24.04
+          # (our layer adds no ENV of its own). Re-verify against nvcr on version bump.
           PATH: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64
           NVIDIA_VISIBLE_DEVICES: all
