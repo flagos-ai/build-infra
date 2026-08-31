@@ -77,7 +77,7 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
   （`megatron/plugin/utils.py:30`，import 在 try/except 之外）时直接抛
   `ModuleNotFoundError`——wheel-only 的数据集构建必然触发。
 - **原因:** include 范围继承自 NVIDIA 上游 ADLR/Megatron-LM 的
-  `pyproject.toml`（同步 [NVIDIA #34](https://github.com/NVIDIA/Megatron-LM/pull/34) 引入 0.17.0 后未改动），fork 未检查入口是否随包。
+  `pyproject.toml`（同步 [MLF #34](https://github.com/flagos-ai/Megatron-LM-FL/pull/34) 引入 0.17.0 后未改动），fork 未检查入口是否随包。
 - **解决方案:** 全范围打包（core+training+legacy+rl+post_training+inference），
   顶层入口文件（`gpt_builders` / `mamba_builders` / `model_provider` /
   `pretrain_gpt` / `pretrain_bert` / `pretrain_mamba` / `pretrain_t5` /

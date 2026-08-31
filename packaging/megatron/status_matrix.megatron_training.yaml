@@ -101,7 +101,7 @@ backends:
     image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/NVIDIA/Megatron-LM/pull/34
+      - https://github.com/flagos-ai/Megatron-LM-FL/pull/34
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/120
       - https://github.com/NVIDIA/Megatron-LM/pull/6709
   nvidia-cuda13.3:
@@ -110,7 +110,7 @@ backends:
     image_tag: "2.1.2-0.2.1_9.g48b97a13f"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/NVIDIA/Megatron-LM/pull/34
+      - https://github.com/flagos-ai/Megatron-LM-FL/pull/34
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/120
       - https://github.com/NVIDIA/Megatron-LM/pull/6709
   ascend-cann8.5.0:
