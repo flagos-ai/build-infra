@@ -41,14 +41,12 @@ title: "megatron_training-enflame-tops1.10.6"
 
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1_13_gc32a6e40e`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-enflame-tops1.10.6:2.1.2-0.2.1_13_gc32a6e40e
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
