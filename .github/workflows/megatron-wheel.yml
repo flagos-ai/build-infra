@@ -32,8 +32,11 @@ name: Megatron wheel
 # install with deps resolved) fail `docker build` on a broken wheel, so a bad
 # wheel never reaches the extract/upload steps.
 #
-# Upload target defaults to flagos-pypi-hosted (the release repo;
-# flagos-pypi-daily is the dev repo). There is no schedule: uploads are manual.
+# Upload target: blank pypi_repo -> the per-vendor repo flagos-pypi-{vendor}
+# derived from the backend (the wheel is built in and consumed by that
+# backend's vendor index); flagos-pypi-hosted is the release repo and
+# flagos-pypi-daily the dev repo — pass them explicitly for release/dev
+# uploads. There is no schedule: uploads are manual.
 #
 # NOTE (decision 6, not yet validated): one cpXXX wheel is assumed shareable
 # across all backends running that Python version. A wheel built on the hygon
@@ -61,9 +64,9 @@ on:
         type: boolean
         default: false
       pypi_repo:
-        description: 'Nexus PyPI repo (default flagos-pypi-hosted)'
+        description: 'Nexus PyPI repo; blank = per-vendor flagos-pypi-{vendor} derived from the backend (fallback flagos-pypi-hosted)'
         type: string
-        default: flagos-pypi-hosted
+        default: ''
 
 defaults:
   run:
@@ -171,7 +174,16 @@ jobs:
             exit 1
           fi
           pypi_repo="${{ inputs.pypi_repo }}"
-          pypi_repo="${pypi_repo:-flagos-pypi-hosted}"
+          # Blank input -> per-vendor flagos-pypi-{vendor}: the app image
+          # installs from the same vendor index. Explicit value wins.
+          if [ -z "${pypi_repo}" ]; then
+            vendor="${matrix.name%%-*}"
+            if [ -n "${vendor}" ]; then
+              pypi_repo="flagos-pypi-${vendor}"
+            else
+              pypi_repo="flagos-pypi-hosted"
+            fi
+          fi
           # Upload FROM INSIDE the build image, not the runner host: the wheel
           # and the python/pip/twine toolchain both live in $IMAGE (build env ==
           # delivery env), so no host python is needed — the hygon runner's
