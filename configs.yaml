@@ -339,6 +339,8 @@ vendors:
         - torch-gcu==2.10.0+3.7.20260408
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
       deps_app:
+        # megatron_training added: verified F+T (#639).
+        megatron_training: []
         vllm0.20.2: []
       sdk:
         - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
