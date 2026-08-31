@@ -24,16 +24,18 @@ val 1.088866E+01、test 1.088891E+01）。前置为两个容器侧补丁（均�
    `InductorError: No module named 'triton_gcu'`。容器侧补丁：
    `sed -i "s/            jit_fuser = torch.compile/            jit_fuser = noop_decorator/" /flagos/lib/python3.12/site-packages/megatron/core/jit.py`
    （T 路径一并生效）。
-2. **ECCL all_gather_object sizes 回传垃圾值**：
+2. **ECCL all_gather_object sizes 回传垃圾值**（vendor 缺陷，workaround 已提
+   MLF [PR #130](https://github.com/flagos-ai/Megatron-LM-FL/pull/130)，缺陷
+   报告见 [../handoffs/enflame-torch-gcu-all-gather-object-garbage.md](../handoffs/enflame-torch-gcu-all-gather-object-garbage.md)）：
    `megatron/core/optimizer/__init__.py:369` —— ECCL/torch-gcu
    2.10.0+3.7.20260408 上 `all_gather_object` 的 sizes all_gather 回传垃圾值
-   （repro：本地 21 收回来 -4888733163028742123 →
+   （repro：本地 rank 收回来 -4888733163028742123 →
    `input_tensor.resize_(max_object_size)` 1EB OOM）；`torch.gcu.synchronize()`
-   无效；普通 all_gather 各 dtype 全对。容器侧补丁（WORLD_SIZE==1 语义安全，
-   无需该集体通信）：
-   `sed -i "s/        if world_size == 1:/        if world_size == 1:\n            gathered_params_key = [params_key]\n        else:/" /flagos/lib/python3.12/site-packages/megatron/core/optimizer/__init__.py`
+   无效；普通 all_gather 各 dtype 全对。容器侧补丁 = 将 all_gather_object 调用
+   替换为 `world_size == 1` 短路（WORLD_SIZE==1 语义安全，无需该集体通信）：
+   `sed -i "s/        torch.distributed.all_gather_object(gathered_params_key, params_key)/        if torch.distributed.get_world_size() == 1:\n            gathered_params_key = [params_key]\n        else:\n            torch.distributed.all_gather_object(gathered_params_key, params_key)/" /flagos/lib/python3.12/site-packages/megatron/core/optimizer/__init__.py`
 
-**与 1.10.6 的差异：** ECCL fp64/int64 all_reduce 限制（training.py:1043/1049
+**与 1.10.6 的差异：** ECCL fp64 all_reduce 限制（training.py:1042/1048
 启动 timestamp 同步）在 1.9.10 **未打 fp32 补丁直接通过**（1.10.6 需要打）。
 fp64 patch 仅 1.10.6 需要，1.9.10 不需要。
 
@@ -60,10 +62,12 @@ Python 3.12，torch 2.11.0+cpu + torch-gcu 2.11.0+3.8.20260713，flagtree
    inductor warmup 触发 `InductorError: No module named 'triton_gcu'`
    （flagtree PYTHONPATH 上无 triton_gcu）。`--disable-jit-fuser` 太晚。
    容器侧补丁：`sed -i "s/            jit_fuser = torch.compile/            jit_fuser = noop_decorator/" /flagos/lib/python3.12/site-packages/megatron/core/jit.py`
-2. **双路径 ECCL fp64/int64 all_reduce 限制**：ECCL（enflame 的 NCCL 模拟，
-   v3.6.3.11）拒绝 fp64/int64 all_reduce——启动 timestamp 同步处
-   `torch.distributed.all_reduce(..., dtype=torch.double)` 直接抛
-   `DistBackendError: ECCL error … ecclInvalidArgument`。容器侧补丁：
+2. **双路径 ECCL fp64 all_reduce 限制**（vendor 缺陷，workaround 已提 MLF
+   [PR #131](https://github.com/flagos-ai/Megatron-LM-FL/pull/131)，缺陷报告见
+   [../handoffs/enflame-torch-gcu-all-gather-object-garbage.md](../handoffs/enflame-torch-gcu-all-gather-object-garbage.md)）：
+   ECCL（enflame 的 NCCL 模拟，v3.6.3.11）拒绝 fp64 all_reduce——启动
+   timestamp 同步处 `torch.distributed.all_reduce(..., dtype=torch.double)`
+   直接抛 `DistBackendError: ECCL error … ecclInvalidArgument`。容器侧补丁：
    `sed -i "s/dtype=torch.double, device='cuda'/dtype=torch.float32, device='cuda'/g" /flagos/lib/python3.12/site-packages/megatron/training/training.py`（2 处）。
 
 | 场景 | 状态 | 一句话事实 |
