@@ -30,8 +30,8 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
 | metax（MACA 3.8.1.3） | [backends/metax.md](backends/metax.md) | 四场景 × 双编译器全 ✅；17 障碍全闭环 |
 | ascend（CANN 8.5.0 / 9.0.0） | [backends/ascend.md](backends/ascend.md) | training / post_training / inference ✅；RL 暂停（无 flash-attn） |
 | cambricon（NEUWARE 4.4.3 / 4.7.2） | [backends/cambricon.md](backends/cambricon.md) | 三场景 ✅（triton-only）；RL 暂缓 |
-| enflame（TOPS 1.10.6） | [backends/enflame.md](backends/enflame.md) | training 双编译器 ✅（flagtree 需 jit_fuser noop + ECCL fp64 patch） |
-| iluvatar（CoreX 4.5.0） | [backends/iluvatar.md](backends/iluvatar.md) | training 双编译器 ✅，零 workaround |
+| enflame（TOPS 1.9.10 / 1.10.6） | [backends/enflame.md](backends/enflame.md) | training 双编译器 ✅（flagtree 需 jit_fuser noop；1.10.6 另需 ECCL fp64 patch） |
+| iluvatar（CoreX 4.4.0 / 4.5.0） | [backends/iluvatar.md](backends/iluvatar.md) | training 双编译器 ✅，零 workaround |
 
 完整状态见 [../megatron-verification-matrix.md](../megatron-verification-matrix.md)。
 

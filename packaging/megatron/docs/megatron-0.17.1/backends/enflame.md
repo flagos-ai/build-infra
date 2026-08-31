@@ -1,5 +1,46 @@
 # Megatron-LM-FL enflame E2E 验证记录
 
+## enflame-tops1.9.10（2026-08-31）
+
+验证在 vm-dhrj-gd-zone7-d-s60-48g-1-48（ENFLAME GCU 48G 节点，`ssh enflame`，
+user `secure`）上进行，**GCU 1**（`ENFLAME_VISIBLE_DEVICES=1`，避开 0 号与镜像
+制作冲突）。runtime 镜像 `flagos-runtime-enflame-tops1.9.10:2.1.2`，Python
+3.12。宿主驱动 1.10.6；TOPS Runtime 1.9.10（topsruntime/topscc/topspti/topstx
+均 1.9.10，topsaten 3.7.20260514，ECCL 3.6.3.11）。torch 2.10.0+cpu +
+torch-gcu 2.10.0+3.7.20260408，flagtree 0.6.0+enflame3.6（默认 /flagos），
+triton 3.6.0 + triton_gcu 3.6.0+1.0.20260521.cc.1.9.10（/opt/triton），
+flag_gems 5.3.5。megatron-core 安装形态为 `packaging/megatron/builder/` 打包
+产出的 wheel `0.17.1+fl.20260822.g56acf36bacd1`，`pip install` 单步安装（无
+`--no-deps`）。
+
+**结论：** training 场景双编译器（flagtree / triton）全部打通，mock-data
+`pretrain_gpt.py` 5 iters 均 exit 0（RC 显式捕获于容器 /tmp/*_rerun_rc.txt）。
+F/T 两路径 loss 完全一致，且与 1.10.6 已记录值逐位一致（iter1 1.090257E+01、
+val 1.088866E+01、test 1.088891E+01）。前置为两个容器侧补丁（均不改 wheel）：
+
+1. **flagtree 线 jit_fuser 陷阱（同 hygon §1.4 / 1.10.6 记录）**：
+   `megatron/core/jit.py:21` import 期即绑定 `jit_fuser = torch.compile`，
+   flagtree 编译器路径下 inductor warmup 触发
+   `InductorError: No module named 'triton_gcu'`。容器侧补丁：
+   `sed -i "s/            jit_fuser = torch.compile/            jit_fuser = noop_decorator/" /flagos/lib/python3.12/site-packages/megatron/core/jit.py`
+   （T 路径一并生效）。
+2. **ECCL all_gather_object sizes 回传垃圾值**：
+   `megatron/core/optimizer/__init__.py:369` —— ECCL/torch-gcu
+   2.10.0+3.7.20260408 上 `all_gather_object` 的 sizes all_gather 回传垃圾值
+   （repro：本地 21 收回来 -4888733163028742123 →
+   `input_tensor.resize_(max_object_size)` 1EB OOM）；`torch.gcu.synchronize()`
+   无效；普通 all_gather 各 dtype 全对。容器侧补丁（WORLD_SIZE==1 语义安全，
+   无需该集体通信）：
+   `sed -i "s/        if world_size == 1:/        if world_size == 1:\n            gathered_params_key = [params_key]\n        else:/" /flagos/lib/python3.12/site-packages/megatron/core/optimizer/__init__.py`
+
+**与 1.10.6 的差异：** ECCL fp64/int64 all_reduce 限制（training.py:1043/1049
+启动 timestamp 同步）在 1.9.10 **未打 fp32 补丁直接通过**（1.10.6 需要打）。
+fp64 patch 仅 1.10.6 需要，1.9.10 不需要。
+
+---
+
+## enflame-tops1.10.6（2026-08-31）
+
 验证在 vm-dhrj-gd-zone7-d-s60-48g-1-48（ENFLAME GCU 48G 节点，`ssh enflame`，
 user `secure`）上进行，runtime 镜像 `flagos-runtime-enflame-tops1.10.6:2.1.2`，
 Python 3.12，torch 2.11.0+cpu + torch-gcu 2.11.0+3.8.20260713，flagtree
