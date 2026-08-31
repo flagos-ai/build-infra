@@ -43,7 +43,7 @@
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | ✅ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
-| 清微智能 | TSM 260610 | ⬜ | ⬜ | ⬜ | ⬜ |
+| 清微智能 | TSM 260610 | ⬜ | ⬜ | ✅ | ✅ |
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
@@ -71,6 +71,7 @@
 | 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 |
 | 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 |
 | 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 |
+| 清微智能 | TSM 260610 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/421 |
 
 <!-- /status-matrix:verification -->
 
@@ -125,7 +126,7 @@
 
 ### vllm0.24.0
 
-> 数据截止：2026-08-23
+> 数据截止：2026-08-31
 
 **App 级设施（全后端共享）**
 

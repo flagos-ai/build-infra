@@ -21,7 +21,7 @@
 > - mthreads 见 [§8–§9](backends/mthreads.md)、ascend 见 [§10](backends/ascend.md)、
 >   sunrise 见 [§11](backends/sunrise.md)、hygon 见 [§12](backends/hygon.md)、
 >   kunlunxin 见 [§13](backends/kunlunxin.md)、iluvatar 见
->   [§14](backends/iluvatar.md)。
+>   [§14](backends/iluvatar.md)、tsingmicro 见 [§15](backends/tsingmicro.md)。
 >
 > 类似的工作也在 0.20.2 版本的 vLLM 上开展，相关记录见
 > [vllm-0.20.2/index.md](../vllm-0.20.2/index.md)。
@@ -36,7 +36,7 @@
 |---|---|
 | [`playbook.md`](playbook.md) | §2 · 0.24.0 相比 0.20.2 的变化（只列影响打包的部分）+ 附录 · 验证命令 |
 | [`decisions.md`](decisions.md) | §7 · 版本推进协作问题 |
-| `backends/` | §4–§14 · 后端验证记录（worked examples）|
+| `backends/` | §4–§15 · 后端验证记录（worked examples）|
 
 后端记录按 [§2](playbook.md) 的差异点组织：**环境 → 阻塞点 → 验证 → Stack → 待办**。完整标准流程
 （empty 构建 + `+flagos` + 单步安装）见 [vllm-0.20.2/playbook.md](../vllm-0.20.2/playbook.md)。
@@ -53,6 +53,7 @@
 | hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器；flagtree wheel 待建 |
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | §13；cp310 + PR #401 + app 镜像 serve |
 | iluvatar corex4.5.0 | [iluvatar.md](backends/iluvatar.md) | §14；cp312 empty wheel；F/T 双编译器 app 镜像 |
+| tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §15；cp310；KV 写路径修复 PR #421；F/T 双编译器 |
 
 ---
 
@@ -80,6 +81,8 @@ Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sun
   wheel + 插件 PR #401 + app 镜像 serve E2E，Qwen3-4B）
 - Iluvatar（COREX 4.5.0）× FlagTree / Triton：✅ 通过（2026-08-30，cp312
   empty wheel + app 镜像 serve E2E，Qwen3-4B，[§14](backends/iluvatar.md)）
+- Tsingmicro（TSM 260610）× FlagTree / Triton：✅ 通过（2026-08-31，cp310
+  empty wheel，F/T 双路径 E2E，Qwen3-4B，[§15](backends/tsingmicro.md)）
 
 "通过" 意味着：1） vLLM 服务可以正常启动；2）使用 Qwen3-4B 模型可以执行正常推理服务；
 
@@ -127,7 +130,7 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
 
 ---
 
-## 15. 遗留事项
+## 16. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
@@ -142,7 +145,9 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
       修复）；hygon ✅（[§12](backends/hygon.md)，F/T 双编译器，2026-08-20）；
       **kunlunxin ✅（[§13](backends/kunlunxin.md)，flagtree + triton 双编译器，
       2026-08-23）**；**iluvatar ✅（[§14](backends/iluvatar.md)，cp312 empty
-      wheel + F/T 双编译器 app 镜像 serve E2E，2026-08-30）**
+      wheel + F/T 双编译器 app 镜像 serve E2E，2026-08-30）**；
+      **tsingmicro ✅（[§15](backends/tsingmicro.md)，KV 写路径修复
+      PR #421，F/T 双路径 E2E，2026-08-31）**
 - [ ] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
       flash_linear_attention` → `vllm.model_executor.layers.fla.ops`）——
       Qwen3-Next/GDN 模型验证前置（[§13.4](backends/kunlunxin.md)）

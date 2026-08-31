@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.24.0
 description: vLLM 0.24.0 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-08-23"
+last_updated: "2026-08-31"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -43,7 +43,7 @@ scenarios:
       spacemit-spacemit:     {T: "⬜", F: "—"}
       sunrise-tangrt1.2.0:   {T: "✅", F: "✅"}
       thead-ppu2.0.0:        {T: "⬜", F: "—"}
-      tsingmicro-tsm260610:  {T: "⬜", F: "⬜"}
+      tsingmicro-tsm260610:  {T: "✅", F: "✅"}
 
 # Per-backend facility booleans + the upstream PRs whose branch heads the
 # verification / images were based on (tracked at backend level, aggregated
@@ -131,3 +131,5 @@ backends:
   tsingmicro-tsm260610:
     deps_app: false
     launch_docs: false
+    prs:
+      - https://github.com/flagos-ai/vllm-plugin-FL/pull/421
