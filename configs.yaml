@@ -751,6 +751,11 @@ vendors:
         - torch_txda==0.1.0+20260728.f6fbdb71
         - txops==0.1.0+20260716.e94d9509
         - numpy==1.26.4
+      deps_app:
+        # vllm0.24.0: no vendor-conditional deps — the runtime matrix carries
+        # torch/torchvision/triton/flag_gems, and the plugin wheel is
+        # audit-gated. Verified F+T on this backend (tsingmicro.md §15).
+        vllm0.24.0: []
       sdk:
         - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
         - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run
