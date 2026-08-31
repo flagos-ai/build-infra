@@ -58,5 +58,5 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
   verification-matrix「待合并/待落地修复跟踪」）。
 - **cambricon 需复验**：runtime 5.3.3 之后 +39k kernel rewrite，neuware
   4.7.2:2.1.2 的 E2E 结果不再背书新产物（见 [backends/cambricon.md](backends/cambricon.md)）。
-- **决策未决**：ascend RL 路径（npu_fusion_attention 映射 vs verl 承载）；
-  modelopt 入镜像的版本约束演进（抬版本前先核 torch 约束）。
+- **决策未决**：modelopt 入镜像的版本约束演进（抬版本前先核 torch 约束）。
+- **megatron_rl 降级（2026-08-31 定案）**：RL 框架转向 verl，megatron_rl 全线暂停（矩阵 RL 列 ⏸），验证随 verl 线推进。
