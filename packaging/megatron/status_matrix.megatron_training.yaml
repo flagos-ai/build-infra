@@ -157,8 +157,9 @@ backends:
     deps_app: false
     launch_docs: false
   iluvatar-corex4.5.0:
-    deps_app: false
-    launch_docs: false
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_15_g56acf36ba"
   kunlunxin-xre5.37.1:
     deps_app: false
     launch_docs: false
