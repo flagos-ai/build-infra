@@ -39,16 +39,17 @@ title: "vllm0.24.0-tsingmicro-tsm260610"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.3.0rc0+gbd010ce.d20260831`
+
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-tsingmicro-tsm260610:2.1.2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-tsingmicro-tsm260610:2.1.2-0.3.0rc0_gbd010ce.d20260831`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-tsingmicro-tsm260610:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-tsingmicro-tsm260610:2.1.2-0.3.0rc0_gbd010ce.d20260831
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
