@@ -33,6 +33,14 @@
    0.24.0 的依赖清单更新（新增剥离 `humming-kernels`、`quack-kernels`、`tokenspeed-mla`、
    `torch-c-dlpack-ext` 等 CUDA 内核库，清空不再依赖的 `apache-tvm-ffi`。
 
+5. **KV 缓存写入流程变更（跨平台根因，plugin 侧修复）**：0.24.0 中 `Attention.forward` 在调
+   `unified_attention_with_output` 前单独调 `unified_kv_cache_update`，调用 gate 是后端类的
+   `forward_includes_kv_cache_update`（True 则跳过写缓存）。vLLM 全部 9 个官方 v1 后端都覆盖为
+   False，`AttentionFLBackend` 继承默认值 True → KV 缓存永不写入、forward 读零 → 全平台乱码
+   （tsingmicro 首次暴露，[§15](backends/tsingmicro.md)）。修复 = flaggems 基类 + 各后端类覆盖
+   为 False（[vllm-plugin-FL PR #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)）。
+   这是运行时行为变化、非打包变化，但影响所有走该 plugin 的后端。
+
 **待确认事项**
 
 - **setuptools 版本问题**：Runtime 镜像中目前 `setuptools==84.0.0`，超出 vllm-plugin-FL
