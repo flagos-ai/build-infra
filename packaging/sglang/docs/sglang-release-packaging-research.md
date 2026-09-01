@@ -228,6 +228,25 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
 | audited 构建 | 现 CI 只 `python -m build`，非 vendor-PyPI | 参考 vllm `build-and-repack.sh`，建立 per-vendor 索引 + twine |
 | 版本漂移 | sglang 每后端锁不同 sglang/sgl-kernel/torch | 每次 bump 都要逐后端对齐，无单一版本 |
 
+### 6.2.1 sgl-kernel 非 CUDA 工程，非 CUDA 后端可跑（2026-08-27 修正）
+
+早前表述称 sgl-kernel 是 "CUDA 工程"、非 CUDA 后端跑不了，**不成立**：
+
+- **非 CUDA 后端已在跑**：CI 镜像里 ascend（0.5.11 + `sgl-kernel-npu==2026.5.1`）、
+  mthreads（0.5.12 + vendor 配套）、thead（0.5.12+ppu2.1.0 + vendor）三族皆非
+  CUDA。
+- **计算语言是 triton DSL 而非 CUDA**：sgl-kernel-npu 适配方式是 "patch 6 处
+  stale `tl.insert_slice(` → `al.insert_slice(`"（`tl`=triton.language，
+  `al`=ascend triton 方言），即内核以 triton 源码随包发布，由该 vendor 的
+  triton fork（triton-ascend 3.2.1）编译——与 build-infra "triton 内核交给
+  各后端 triton fork 编" 机制同构。
+- **9 个无 sgl-kernel 后端的 blocker 是上游只维护了 cuda/ascend/mthreads/thead
+  四族变体包**，不是 CUDA 限制。扩展路径 = 把 tl 内核集合移植到该 vendor
+  triton 方言（ascend 同类工作：6 处 patch + 替换 triton 版本），再由 vendor
+  triton fork 编译——工程量 = 逐算子适配，非 CUDA 重写。
+- **推论**：§6.2 "vendor 源码构建" 选项成本被高估。build-infra runtime 每后端
+  内置 vendor triton fork，天然具备编译这些内核的环境。
+
 ### 6.3 明确的 blocker
 
 - **torch 错配**：§4.3。sglang 的 kernel 层（sgl-kernel-npu 2026.5.1、vendor
@@ -245,7 +264,8 @@ runtime 作为 sglang 发布镜像的 base（至少 torch 层必须换）。
    翻倍），与 vllm/megatron 的 build-infra 模式不共享。
 2. **发布形态**：每后端独立镜像（build.sh 模式）确认？还是先做 cuda/ascend
    两条线试点？
-3. **sgl-kernel 交付**：repack 进 vendor PyPI vs 镜像内现装 vs vendor 源码构建。
+3. **sgl-kernel 交付**：repack 进 vendor PyPI vs 镜像内现装 vs vendor 源码构建
+   （§6.2.1：源码构建 = triton 方言移植，成本被 §6.2 高估）。
 4. **FlagCX 构建**：镜像内 `make` 构建是否可接受（vllm 已这么做）。
 5. **torch 对齐策略**：为 sglang 建独立 runtime 线，还是等 sglang 升到
    build-infra 的 torch 版本（目前只有 nvidia-cuda13.3 对齐）。
