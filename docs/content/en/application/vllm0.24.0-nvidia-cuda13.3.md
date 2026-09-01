@@ -39,20 +39,21 @@ title: "vllm0.24.0-nvidia-cuda13.3"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.0+ga9435a3.d20260821`
+
 ## Environment
 
 - `VLLM_USE_FLASHINFER_SAMPLER=0`
 
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2-0.2.0_ga9435a3.d20260821`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2-0.2.0_ga9435a3.d20260821
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

@@ -39,20 +39,21 @@ title: "vllm0.24.0-nvidia-cuda13.3"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.0+ga9435a3.d20260821`
+
 ## 环境变量
 
 - `VLLM_USE_FLASHINFER_SAMPLER=0`
 
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2-0.2.0_ga9435a3.d20260821`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.1.2-0.2.0_ga9435a3.d20260821
 ```
 
 以下两种方式任选其一：

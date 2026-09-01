@@ -56,6 +56,7 @@ backends:
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true
+    image_tag: "2.1.2-0.2.0_ga9435a3.d20260821"
     note: "验证 ✅，app 镜像未发布（仅 cuda12.8 发布，§6.4）"
   ascend-cann8.5.0:
     deps_app: true
