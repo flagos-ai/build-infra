@@ -4,11 +4,11 @@
 `flagos-runtime-metax:2.1.2`。megatron-core 安装形态为 merged wheel
 `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装——该 wheel 来自 MLF 集成分支
 ci/merge-105-106-107-114（合入四个 PR）：
-[#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
-[#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
-[#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，其中
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 声明
+[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
+[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
+[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
+[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，其中
+[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 声明
 `[training]`/`[rl]` extras。验证周期为 2026-08-18 ~ 2026-08-19。
 编译器为 flagtree 0.6.1（模块版本 triton 3.6.0）与 vendor triton 3.6.0，
 无 jit_fuser noop 补丁前置（flagtree 0.6.1 实测

@@ -28,8 +28,12 @@
 随后将容器插件换成 **v0.3.0-dev head（fbc115d）** 重跑 E2E：
 
 - **结果：零补丁，全部通过。** 8 处 drift 修复在 v0.3.0-dev 上均有官方实现
-  （已合入 PR #274 / #294 / #308 / #338 / #376），其中：
-  - InputBatch 签名、`use_uniform_kv_cache` 单参 → model_runner.py:717 / :7300（#274）
+  （已合入 [VPF #274](https://github.com/flagos-ai/vllm-plugin-FL/pull/274) /
+  [VPF #294](https://github.com/flagos-ai/vllm-plugin-FL/pull/294) /
+  [VPF #308](https://github.com/flagos-ai/vllm-plugin-FL/pull/308) /
+  [VPF #338](https://github.com/flagos-ai/vllm-plugin-FL/pull/338) /
+  [VPF #376](https://github.com/flagos-ai/vllm-plugin-FL/pull/376)），其中：
+  - InputBatch 签名、`use_uniform_kv_cache` 单参 → model_runner.py:717 / :7300（[VPF #274](https://github.com/flagos-ai/vllm-plugin-FL/pull/274)）
   - FusedMoE 工厂函数注入 `_patch_fused_moe_factory`（custom_ops.py）
     → 替代我们的 `inspect.isclass` 门控 + OOT_OPS + oracle 方案
   - MarlinExperts / TritonExperts / rocm_aiter 新路径 → fused_moe_utils.py:19、router.py:9
@@ -77,7 +81,7 @@ MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend 
   import 链到达 `torchvision.transforms`（`transformers_utils/processors/
   minimax_m3.py`），而 OOT Runtime 不装 torchvision（装它必然覆盖厂商匹配的
   torch 矩阵）。该 warmup 对非 MiniMaxM3 模型是 no-op。
-- **归属已定：进插件调用侧（PR #386）** —— `kernel_warmup` 调用点在插件
+- **归属已定：进插件调用侧（[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)）** —— `kernel_warmup` 调用点在插件
   `vllm_fl/worker/worker.py`，在调用处 `try/except ImportError` 门控即可，
   不改 vllm wheel（wheel 保持与上游逐字节一致），也不在镜像里装 torchvision。
   这是 **0.24.0 全部无 torchvision OOT 后端（cambricon×2、hygon、ascend×2、
@@ -87,7 +91,7 @@ MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend 
   `kernel_warmup.py`（`/tmp/patch_minimax_warmup.py`，不可复现），不是 wheel
   内建能力；重建镜像的新容器不补丁必崩（torchvision ImportError）。
   §8.2/§9.2 的"零补丁"仅指**插件**零补丁，vllm 在树补丁一直存在。
-  可复现路径 = 插件 guard（PR #386），重建镜像后已按此路径重验（§9.4）。
+  可复现路径 = 插件 guard（[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)），重建镜像后已按此路径重验（§9.4）。
 
 ### 8.4 验证过程要点
 
@@ -114,7 +118,7 @@ MUSA 平台走插件路径（`PlatformFL` → device_type `musa`、dist_backend 
 
 - torch 2.9.0+musa.4.3.6
 - venv：`/flagos`（cpython-3.10）
-- 插件：v0.3.0-dev head + torchvision guard（PR #386），editable install 于 `/opt/vllm-plugin-FL`
+- 插件：v0.3.0-dev head + torchvision guard（[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)），editable install 于 `/opt/vllm-plugin-FL`
 - 模型：`/data/DeepSeek-R1-0528-Qwen3-8B-FlagOS`
 - 端口：8031
 
@@ -126,13 +130,13 @@ wheel，无 torch 侧漏）；`pin_indirect: {xgrammar: "0.2.3"}` 同。
 ### 9.2 插件基线：v0.3.0-dev + torchvision guard
 
 插件 v0.3.0-dev head（fbc115d），除 **torchvision guard**（§8.3/§9.4，插件
-PR #386 的调用侧补丁）外零补丁。serve 启动链与 5.2.0 一致：
+[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386) 的调用侧补丁）外零补丁。serve 启动链与 5.2.0 一致：
 OpManager **10 ops / 14 implementations** → attention_backend fallback
 `default.flagos` → `vendor.musa` → 权重加载 → `Application startup complete`。
 非致命遥测 fork 报错（`Cannot re-initialize MUSA in forked subprocess`）与
 §8.2 相同，不影响服务。
 
-**重建镜像复验（2026-08-17）**：configs bump（PR #414）后重建的镜像
+**重建镜像复验（2026-08-17）**：configs bump（[build-infra #414](https://github.com/flagos-ai/build-infra/pull/414)）后重建的镜像
 （flagtree 0.6.1 烘焙于 `/opt/flagtree`），新容器首次 serve 因 torchvision
 ImportError 崩溃（§9.4 首段）；应用插件 guard 后 F/T 双路径均重验 ✅
 （F 见 §9.3，T 见 §9.4 末段）。早期首轮 serve 记录在 §9.3 的 0.6.0/0.6.1
@@ -181,7 +185,7 @@ ImportError 崩溃（§9.4 首段）；应用插件 guard 后 F/T 双路径均�
    - serve E2E ✅：`Application startup complete`（OpManager 10 ops / 14
      impls，rms_norm / silu_and_mul 走 `default.flagos`），completions greedy
      + chat CoT 均连贯；指纹 `vllm-0.24.0-5936039f`（同 T 路径，同容器同插件）。
-3. **烘焙镜像复验（2026-08-17，configs bump #414 已合并）**：configs.yaml
+3. **烘焙镜像复验（2026-08-17，configs bump [build-infra #414](https://github.com/flagos-ai/build-infra/pull/414) 已合并）**：configs.yaml
    bump 后重建的镜像把 **0.6.1+mthreads3.6 烘焙于 `/opt/flagtree`**（不再
    手动替换）。F 路径（`compiler flagtree`）+ 插件 torchvision guard 下
    serve 到 `Application startup complete`、completions greedy + chat CoT
@@ -189,10 +193,10 @@ ImportError 崩溃（§9.4 首段）；应用插件 guard 后 F/T 双路径均�
 
 结论：`self.base ** pos_freqs` 在 flagtree **0.6.1** 下可用 —— 0.6.0→0.6.1
 即修复（不再对 `tl.exp2` 发出 vendor llc 不可选择的 `v2f32 = fexp2`）。
-configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交付物验证完成；
+configs bump（[build-infra #414](https://github.com/flagos-ai/build-infra/pull/414)）已合并、镜像已重建，4.3.6 F 路径对应交付物验证完成；
 5.2.0 自始即 0.6.1（§8，F 路径 ✅），mthreads 平台 F 路径全线一致。
 
-### 9.4 torchvision guard：0.24.0 通用 OOT 前置（插件 PR #386）
+### 9.4 torchvision guard：0.24.0 通用 OOT 前置（插件 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)）
 
 - **现象**：重建镜像的新容器（flagtree 0.6.1 烘焙）首次 serve 在 EngineCore
   init 崩溃 —— vllm 0.24.0 `kernel_warmup()` 无条件 import
@@ -203,13 +207,13 @@ configs bump（PR #414）已合并、镜像已重建，4.3.6 F 路径对应交�
   site-packages 的 `kernel_warmup.py`（`/tmp/patch_minimax_warmup.py`）——
   不可复现，不属于任何 wheel。**重建镜像的新容器即复现**，排除了
   "wheel 自带补丁" 的误判。
-- **修复（插件调用侧，PR #386）**：`kernel_warmup(self)` 调用处
+- **修复（插件调用侧，[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)）**：`kernel_warmup(self)` 调用处
   `try/except ImportError` 门控 + warning（warmup 对非 MiniMaxM3 是 no-op）。
   不改 vllm wheel（与上游逐字节一致），不装 torchvision（不污染厂商 torch
   矩阵）。**影响全部无 torchvision OOT 后端**：cambricon×2、hygon、
   ascend×2、mthreads×2。
 - **复验**：同一新容器应用 guard 后（`/opt/vllm-plugin-FL/vllm_fl/worker/
-  worker.py`，与 PR #386 逐字相同，compile OK）→ F/T 双路径 serve 均到
+  worker.py`，与 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386) 逐字相同，compile OK）→ F/T 双路径 serve 均到
   `Application startup complete`、推理连贯、指纹 `vllm-0.24.0-5936039f`。
 
 ---

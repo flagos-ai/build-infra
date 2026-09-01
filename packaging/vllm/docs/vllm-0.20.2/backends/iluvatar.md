@@ -128,7 +128,7 @@ KV cache 127,024 tokens。但推理（含 temp=0）输出乱码：
 torch:        2.7.1+corex.4.4.0    ✅  from 镜像（未降级，四后端中最旧）
 triton:       corex fork           ⚠️  flag_gems 自带 kernel 可编译；vllm 原生 kernel 不可
 flagtree:     (镜像自带)            ✅
-flag_gems:    5.3.2                 ✅  自带算子编译运行正常（mul 门控 #5130 不影响，device=cuda）
+flag_gems:    5.3.2                 ✅  自带算子编译运行正常（mul 门控 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130) 不影响，device=cuda）
 numpy:        1.26.4               ✅  configs.yaml 已 pin（torch 编于 numpy 1.x ABI）
 vllm:         0.20.2+flagos        ✅  empty, 复用 mthreads PyPI 产物
 vllm_fl:      0.0.0+gd1327ae0a     ✅  纯 Python（无 VLLM_VENDOR）
@@ -153,8 +153,9 @@ Inference:    ❌  乱码（temp=0 仍乱）——前向数值错误（trap D）
    faked `numpy>=2`（`strip_extra_from_indirect`，[§1.3](../playbook.md)）；
    单步安装恢复，[§1.4](../playbook.md) 已更新
 
-**相关提交：** 无；复用 [§2.3](mthreads.md) mthreads 的 repack 产物（PR
-#280）。诊断补丁（trap A/B）为一次性验证手段，未落库。
+**相关提交：** 无；复用 [§2.3](mthreads.md) mthreads 的 repack 产物（
+[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)）。
+诊断补丁（trap A/B）为一次性验证手段，未落库。
 
 ## 2.12 iluvatar-corex4.5.0（✅ 双编译器 E2E 通过；4.4.0 负结果由工具链解除）
 
@@ -205,4 +206,4 @@ docker run -d --network host --device /dev/iluvatar0 \
 | numpy | 1.26.4（configs.yaml pin） |
 | vllm_fl | 0.2.1+gc0c060a6.d20260827（= image_tag 后缀） |
 
-**相关提交：** app 镜像构建 + tag 记录（PR #625）；F/T 验证记录（PR #626）。
+**相关提交：** app 镜像构建 + tag 记录（[build-infra #625](https://github.com/flagos-ai/build-infra/pull/625)）；F/T 验证记录（[build-infra #626](https://github.com/flagos-ai/build-infra/pull/626)）。

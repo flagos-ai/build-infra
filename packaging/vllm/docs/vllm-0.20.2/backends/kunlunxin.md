@@ -8,20 +8,20 @@
 **结论（2026-08-22~23）：** 0.20.2 双编译器路径均 E2E 通过 —— FlagTree（默认）
 7/7（7.3~9.8 tok/s）、Triton 3.6.0 3/3（5.7~7.3 tok/s），serve + 推理连贯。
 此前两个阻塞（解码乱码、解码假死）均已 A/B 定位根因并闭环；旧阻塞（三处
-attention 内核编译失败）由厂商插件层 **PR #268**（xtorch_ops 原生 attention
-backend，不碰 Triton 编译）+ triton 3.6.0 升级（#469）解除。解码乱码根因详见
+attention 内核编译失败）由厂商插件层 **[VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)**（xtorch_ops 原生 attention
+backend，不碰 Triton 编译）+ triton 3.6.0 升级（[build-infra #469](https://github.com/flagos-ai/build-infra/pull/469)）解除。解码乱码根因详见
 [`kunlunxin-decode-repetition-scale-bug.md`](../../kunlunxin-decode-repetition-scale-bug.md)。
 
 ### 阻塞点与闭环
 
-**P2 解码乱码 —— 插件 patch 传错 attention scale（已闭环，PR #400）。**
+**P2 解码乱码 —— 插件 patch 传错 attention scale（已闭环，[VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400)）。**
 `patch_decode_attention`（`patch.py:401`）把 decode 借道
 `xtorch_ops.prefill_attention` 时传 `alpha=scale`（≈0.0884），而
 `prefill_attention` 期望 adjusted scale（`scale×√head_size` = 1.0，原生 prefill
 路径即如此）。α 小 √128 ≈ 11.3 倍 → QKᵀ 打分整体收缩 → softmax 趋平 → 输出
 重复退化（greedy 下高频 token 主导）。一行修复 `alpha = scale × √head_size`
 后，probe 对照 native 路径 max error 0.0014、serve 输出连贯。修复已上提
-vllm-plugin-FL **PR #400**（base **release-0.2** = 0.20.2 发布线；upstream main
+vllm-plugin-FL **[VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400)**（base **release-0.2** = 0.20.2 发布线；upstream main
 已删除 vendor/kunlunxin 目录，0.24.0 线无挂点），body 含双编译器验证记录。
 
 **P1 解码假死 —— 触发源 = `XPU_EVENT_KL3_ENABLE=1`（已闭环，配方去掉该行）。**
@@ -36,14 +36,14 @@ flagtree 7/7 + triton 3/6.0 3/3 全跑通 + dmesg 零新事件**。CUDA_LAUNCH_B
 flag_gems 实现）。
 
 **app 镜像 serve 慢 —— 根因 = env 缺失（export 缺陷），不是 block-size（2026-08-23
-闭环，PR #478）。** 原 configs.yaml kunlunxin 仅 `env.base`、无 `env.app.vllm` → app
+闭环，[build-infra #478](https://github.com/flagos-ai/build-infra/pull/478)）。** 原 configs.yaml kunlunxin 仅 `env.base`、无 `env.app.vllm` → app
 镜像零 serve env；补四变量（`VLLM_FL_PLATFORM=kunlunxin`、`VLLM_FL_PREFER=flagos`、
 `USE_FLAGGEMS=1`、`VLLM_FL_FLAGOS_WHITELIST=silu_and_mul,rms_norm,rotary_embedding`，
-#476）后，plain `docker run <app镜像>` 仍慢到 ~0.1 tok/s。2×2 控制实验定案：同一镜像、
+[build-infra #476](https://github.com/flagos-ai/build-infra/pull/476)）后，plain `docker run <app镜像>` 仍慢到 ~0.1 tok/s。2×2 控制实验定案：同一镜像、
 同一 CLI、同一 block-size=16，仅差这四变量 → 6.4 vs 0.1 tok/s，env 是差别因子，bs 不是。
 链路断点在 Containerfile：`/etc/profile.d/app_env.sh` 以裸 `KEY=value` 写入，vllm-serve
 source 后 `exec` 新进程 → 非 export 的赋值随 sourcing shell 消失，到不了 exec 的 server。
-修复（PR #478）：runtime/Containerfile + app/vllm/Containerfile + app/megatron 两个
+修复（[build-infra #478](https://github.com/flagos-ai/build-infra/pull/478)）：runtime/Containerfile + app/vllm/Containerfile + app/megatron 两个
 Containerfile 写 profile.d 时统一 `sed 's/^/export /'` 前缀；同时修正 app/vllm 默认 CMD
 模型路径 `/data/models/Qwen/Qwen3-4B` → `/data/models/Qwen3-4B`（旧路径在参考节点不存在，
 plain `docker run` 直接 model-not-found）。`configs.yaml` 数据与 `generate_matrix.py`
@@ -70,9 +70,9 @@ plain `docker run` 直接 model-not-found）。`configs.yaml` 数据与 `generat
 
 ### 待办
 
-1. **alpha 修复上提 vllm-plugin-FL** —— ✅ PR #400：base release-0.2（0.20.2
+1. **alpha 修复上提 vllm-plugin-FL** —— ✅ [VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400)：base release-0.2（0.20.2
    发布线）；body 已补双编译器验证记录
-1. **app 镜像 serve E2E（plain docker run）** —— ✅ PR #478：2026-08-23 重建后验证：
+1. **app 镜像 serve E2E（plain docker run）** —— ✅ [build-infra #478](https://github.com/flagos-ai/build-infra/pull/478)：2026-08-23 重建后验证：
    默认 CMD 模型路径 + export env + 4.3~9.4 tok/s
 1. **Qwen3.6-27B 回归** —— ⬜：patch 初衷是规避 layer 43+ decode NaN，修复 scale
    后须重验

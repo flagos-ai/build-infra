@@ -200,7 +200,7 @@ entry points `sglang.srt.platforms` + `sglang.srt.plugins`，package-data
 
 ## 8. 演进与经验（弯路记录）
 
-- **0.5.16+ circular-import 回归**（PR #33371 BCG/CP 路径等）：0.5.18 是否
+- **0.5.16+ circular-import 回归**（[sglang #33371](https://github.com/sgl-project/sglang/pull/33371) BCG/CP 路径等）：0.5.18 是否
   修复未知，构建期与 E2E 实证——metax 0.5.18 双路径全过，回归未触发。
 - **rust 版本升级**：sglang rust workspace 需要 resolver="3"/edition="2024"
   （cargo>=1.84），apt 默认 1.75 不够——filestore 缓存 1.98.0 工具链

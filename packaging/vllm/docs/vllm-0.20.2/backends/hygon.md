@@ -98,7 +98,7 @@ numpy 版本的真实约束（这也纠正了历史 numpy saga 的一个前提�
 当前 `configs.yaml` 的 `hygon: numpy==2.2.6` 与所发 torch wheel 不兼容——短期
 按 (b) 改 1.26.4，同时把 (a) 反馈给构建 DTK26.04 torch wheel 的一方。
 
-> **flag_gems mul 门控 #5130 不影响 Hygon：** Hygon 报
+> **flag_gems mul 门控 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130) 不影响 Hygon：** Hygon 报
 > `device.type=='cuda'`、`torch.cuda.device_count()==8`、flag_gems
 > `runtime.device.name=='cuda'`——与 MetaX 同，非 mthreads 的 `"musa"`。故
 > [§2.3](mthreads.md) 的 mul 门控回归在此为 no-op。
@@ -134,7 +134,7 @@ Op 'silu_and_mul' using 'default.flagos' (kind=flagos, vendor=None)
 torch:        2.9.0+das.opt1.dtk2604  ✅  from 镜像（未降级）
 triton:       (absent)                ✅  DTK 无 triton，由 flagtree 提供
 flagtree:     0.5.1+hcu3.1            ✅
-flag_gems:    5.3.2                   ✅  mul 门控 #5130 不影响（device=cuda）
+flag_gems:    5.3.2                   ✅  mul 门控 FlagGems #5130 不影响（device=cuda）
 numpy:        1.26.4 (绕过)           ⚠️  镜像默认 2.2.6 与 torch ABI 不匹配
 vllm:         0.20.2+flagos           ✅  empty, 复用 mthreads PyPI 产物
 xgrammar:     0.2.5+flagos            ✅  复用 mthreads PyPI 产物
@@ -154,4 +154,4 @@ Inference:    ✅ 成功                  Ministral-8B, 32 tokens
 1. **更大模型 / TP>1 / yarn rope** —— ⬜：仅测过 Ministral-8B + eager + TP=1
 
 **相关提交：** 无新增代码；复用 [§2.3](mthreads.md) mthreads 的 repack 产物
-（PR #280）。
+（[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)）。

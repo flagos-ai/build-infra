@@ -19,7 +19,7 @@ snapshot 矩阵前后逐项相等，`helpers_cpp` 3 callable 绑定 OK。
 | training | ✅ 通过 | 双编译器直跑 `pretrain_gpt.py` exit 0；F/T loss 完全一致 |
 | post_training | ? 未验证 | — |
 | inference | ⛔ 挂起 | 同矩阵其余未验后端（上游阻塞） |
-| rl | ⛔ 挂起 | 上游阻塞（MLF #116） |
+| rl | ⛔ 挂起 | 上游阻塞（[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)） |
 
 **loss 一致性：** flagtree 与 triton 两路径 test-set validation loss 均为
 1.087055E+01（F=T 完全一致），与 4.5.0 兄弟记录（1.087054E+01）同数量级。
@@ -57,7 +57,7 @@ snapshot 矩阵（torch / triton / flag_gems / numpy）前后逐项相等，
 | training | ✅ 通过 | 双编译器直跑 `pretrain_gpt.py` exit 0；F/T loss 完全一致 |
 | post_training | ? 未验证 | — |
 | inference | ⛔ 挂起 | 同矩阵其余未验后端（上游阻塞） |
-| rl | ⛔ 挂起 | 上游阻塞（MLF #116） |
+| rl | ⛔ 挂起 | 上游阻塞（[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)） |
 
 **loss 一致性：** flagtree 与 triton 两路径 test-set validation loss 均为
 1.087054E+01（F=T 完全一致）。

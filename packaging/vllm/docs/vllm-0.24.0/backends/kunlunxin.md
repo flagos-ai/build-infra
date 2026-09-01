@@ -6,7 +6,7 @@
 ## 13. kunlunxin（XRE 5.37.1）详细记录（2026-08-23）
 
 > 状态：**验证完成（2026-08-23）**。构建（cp310 empty wheel）、插件移植
-> （PR #401 → 插件 wheel）、app 镜像 serve E2E 三线全通过；serve E2E 覆盖
+> （[VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) → 插件 wheel）、app 镜像 serve E2E 三线全通过；serve E2E 覆盖
 > flagtree 默认 + triton 侧装双编译器（§13.6/§13.7）。
 
 ### 13.1 结论摘要
@@ -84,7 +84,7 @@
 2. **cp310 empty wheel 首建** —— ✅ 构建通过并上传（首个非 cp312 的 0.24.0 wheel）。
 3. **flag_gems flagos 路径** —— ✅ whitelist 生效（silu_and_mul / rms_norm /
    rotary_embedding）；op_backends 沿用 release-0.2 无需改。
-4. **PR #400 alpha 修复**（patch.py:401）—— ✅ 0.24.0 路径生效（patched
+4. **[VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400) alpha 修复**（patch.py:401）—— ✅ 0.24.0 路径生效（patched
    forward_decode 应用 + 推理无 NaN/乱码，§13.6）。
 5. **triton 侧装编译器路径** —— ✅ 同一 app 镜像 `compiler triton`
    （/opt/triton，vendor triton 3.6.0+gitcd2d6c1b）serve E2E 通过，

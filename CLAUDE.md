@@ -63,8 +63,11 @@ configs.yaml + base/ Containerfiles + build-config.yml
 ```
 
 `configs.yaml` owns: vendors, backends, deps, env vars, SDK components, Python version, compiler packages, cmake backend.
+
 `build-config.yml` owns: registry host+prefixes, runner labels per backend, `docker run` flags per vendor, verify commands.
+
 `docs/gen_data.py` parses `configs.yaml` + `base/` Containerfiles (FROM, apt packages, env) + `build-config.yml` to produce `docs/data/images.yaml` — the intermediate data file that feeds doc generation.
+
 `docs/gen_descriptions.py` renders `images.yaml` into per-image markdown (web flavor for Hugo, plain flavor for in-repo + Harbor).
 
 ### Image naming
@@ -76,33 +79,73 @@ configs.yaml + base/ Containerfiles + build-config.yml
 
 ### Base image version (flat, stack-wide)
 
-`configs.yaml` declares `version: "X.Y.Z"` — the single stack-wide release version. Every base image carries the same flat `X.Y.Z` tag, stamped as an OCI label at build time (Containerfiles do not hardcode it). Because rebuilt images overwrite the same tag, whether a pushed image is stale is answered by `scripts/base_image_status.py` — it reads the `revision`/`version` OCI labels off the pushed image and diffs the corresponding `base/<name>` Containerfile since that commit.
+`configs.yaml` declares `version: "X.Y.Z"` — the single stack-wide release version.
+Every base image carries the same flat `X.Y.Z` tag, stamped as an OCI label at build time
+(Containerfiles do not hardcode it).
+Because rebuilt images overwrite the same tag, whether a pushed image is stale is answered by
+`scripts/base_image_status.py` — it reads the `revision`/`version` OCI labels off the pushed image
+and diffs the corresponding `base/<name>` Containerfile since that commit.
 
 ### Runtime Containerfile (multi-stage, dual-compiler)
 
-`runtime/Containerfile` is a single file for all backends. `scripts/build_runtime.py` resolves build args from `configs.yaml`:
+`runtime/Containerfile` is a single file for all backends. `scripts/build_runtime.py`
+resolves build args from `configs.yaml`:
+
 - `BASE_IMAGE` — the base image ref (built from same git tag)
-- `DEPS` — space-separated vendor packages from `configs.yaml deps:` (explicit, no extras — extras are unreliable across vendor indexes)
+- `DEPS` — space-separated vendor packages from `configs.yaml deps:`
+  (explicit, no extras — extras are unreliable across vendor indexes)
 - `CPP_EXTRA` — e.g. `cpp-cuda`, derived from `cmake_backend`
 - `FLAGTREE_PKG` / `TRITON_PKG` — compiler packages
 - `FLAGGEMS_VERSION` — from `configs.yaml` `flaggems:`, override with `--flaggems`
 
-Two stages: **builder** (installs uv, venv, deps, compilers, FlagGems wheel) → **runtime** (copies venv + uv). When both compilers are configured, FlagTree is default (`/flagos`) and Triton is a side install (`/opt/triton`), switchable via the `compiler` shell function.
+Two stages: **builder** (installs uv, venv, deps, compilers, FlagGems wheel) → **runtime** (copies venv + uv).
+When both compilers are configured, FlagTree is default (`/flagos`) and Triton is a side install (`/opt/triton`),
+switchable via the `compiler` shell function.
 
 ### CI workflows (manual trigger, not push-driven)
 
-- **`trigger.yml`** — Base Image Build (manual). `workflow_dispatch` with backend + push inputs. Generates matrix via `generate_matrix.py`, calls reusable `imagebuild.yml` per backend.
+- **`trigger.yml`** — Base Image Build (manual). `workflow_dispatch` with backend + push inputs.
+  Generates matrix via `generate_matrix.py`, calls reusable `imagebuild.yml` per backend.
+
 - **`runtime.yml`** — Runtime Image Build (manual). Same pattern, additionally checks out FlagGems repo for version derivation.
+
 - **`flaggems-wheel.yml`** — Daily (01:17 UTC) + manual FlagGems wheel build + upload to `flagos-pypi-daily` via twine.
-- **`megatron-wheel.yml`** — Manual (no schedule; release repo). Builds megatron-core wheels from Megatron-LM-FL (`MLF_REF` input), one per backend in the runtime matrix — the build environment **is** the backend's runtime image (`BASE_IMAGE = flagos-runtime-{vendor}-{backend}:{version}`, no toolchain image). Uploads to `flagos-pypi-hosted` via twine when `upload=true`. All three cp-version wheels must be uploaded — the package ships a compiled `helpers_cpp` extension. Whether one cpXXX wheel is shareable across the backends running that Python is decision 6, not yet validated.
-- **`megatron-app-image.yml`** — Manual. Builds `flagos-app/{app}{app_version}-{vendor}-{backend}:{version}` (`{app}` = `megatron_training` | `megatron_rl`, app name + version with no separator) from `flagos-runtime-{vendor}-{backend}` by installing the megatron-core wheel single-step (no `--no-deps`; the wheel keeps `torch>=2.6.0` and the vendor torch satisfies it), selecting the app's Containerfile + wheel extra (`[training]` / `[rl]`) plus vendor-conditional deps (configs.yaml `deps_app`), then verifies the built image on-node (torch/triton/flag_gems matrix unchanged + megatron.core import) before push. Never executed end-to-end yet; `megatron_rl` builds only from a wheel carrying the `[rl]` extra (MLF PR #114 pending — current wheels lack it), and the current `[training]` extra lacks modelopt/tqdm/datasets(+pyarrow), so full-scope builds of both apps wait on that PR + a new wheel (see `packaging/megatron/docs/`).
-- **`gendoc-base.yaml`** — Triggered on base image build completion. Extracts system package versions from built images (`dpkg-query`), runs `gen_data.py` + `gen_descriptions.py`, opens a **review-gated PR** with the version diff. Publication to Harbor (`pubdoc-base.yaml`) only happens when that PR lands on `main` (push to `base/*.md`).
-- **`gendoc-runtime.yaml`** — Runtime twin of `gendoc-base.yaml` (manual trigger; runtime images rebuild often during FlagGems testing, so no auto `workflow_run`). Opens a review-gated PR with `runtime/*.md`. Publication to Harbor (`pubdoc-runtime.yaml`) happens when that PR lands on `main` (push to `runtime/*.md`).
-- **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`, `configs.yaml`, or `base/**` changes).
+
+- **`megatron-wheel.yml`** — Manual (no schedule; release repo).
+  Builds megatron-core wheels from Megatron-LM-FL (`MLF_REF` input), one per backend in the runtime matrix.
+  The build environment **is** the backend's runtime image (`BASE_IMAGE = flagos-runtime-{vendor}-{backend}:{version}`,
+  no toolchain image). Uploads to `flagos-pypi-hosted` via twine when `upload=true`.
+  All three cp-version wheels must be uploaded — the package ships a compiled `helpers_cpp` extension.
+  Whether one cpXXX wheel is shareable across the backends running that Python is decision 6, not yet validated.
+
+- **`megatron-app-image.yml`** — Manual.
+  Builds `flagos-app/{app}{app_version}-{vendor}-{backend}:{version}`
+  (`{app}` = `megatron_training` | `megatron_rl`, app name + version with no separator)
+  from `flagos-runtime-{vendor}-{backend}` by installing the megatron-core wheel single-step
+  (no `--no-deps`; the wheel keeps `torch>=2.6.0` and the vendor torch satisfies it),
+  selecting the app's Containerfile + wheel extra (`[training]` / `[rl]`) plus vendor-conditional deps
+  (configs.yaml `deps_app`), then verifies the built image on-node
+  (torch/triton/flag_gems matrix unchanged + megatron.core import) before push.
+  Never executed end-to-end yet; `megatron_rl` builds only from a wheel carrying the `[rl]` extra
+  ([MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) pending — current wheels lack it), and the current `[training]` extra lacks modelopt/tqdm/datasets(+pyarrow),
+  so full-scope builds of both apps wait on that PR + a new wheel (see `packaging/megatron/docs/`).
+
+- **`gendoc-base.yaml`** — Triggered on base image build completion.
+  Extracts system package versions from built images (`dpkg-query`), runs `gen_data.py` + `gen_descriptions.py`,
+  opens a **review-gated PR** with the version diff.
+  Publication to Harbor (`pubdoc-base.yaml`) only happens when that PR lands on `main` (push to `base/*.md`).
+
+- **`gendoc-runtime.yaml`** — Runtime twin of `gendoc-base.yaml`
+  (manual trigger; runtime images rebuild often during FlagGems testing, so no auto `workflow_run`).
+  Opens a review-gated PR with `runtime/*.md`.
+  Publication to Harbor (`pubdoc-runtime.yaml`) happens when that PR lands on `main` (push to `runtime/*.md`).
+- **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`,
+  `configs.yaml`, or `base/**` changes).
 
 ### Runners
 
-All self-hosted: default is `[self-hosted, h20]` (x86_64). Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in `build-config.yml` runners.overrides.
+All self-hosted: default is `[self-hosted, h20]` (x86_64).
+Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in `build-config.yml` runners.overrides.
 
 ### Adding a new backend
 

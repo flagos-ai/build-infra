@@ -51,18 +51,18 @@
 | ascend cann9.0.0 / cann8.5.0 | [ascend.md](backends/ascend.md) | §10；CANN 双栈双编译器 + app 镜像 |
 | sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | §11；cp310 + CUSTOM 移植；FlagTree 挂死已修复 |
 | hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器；flagtree wheel 待建 |
-| kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | §13；cp310 + PR #401 + app 镜像 serve |
+| kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | §13；cp310 + [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) + app 镜像 serve |
 | iluvatar corex4.5.0 | [iluvatar.md](backends/iluvatar.md) | §14；cp312 empty wheel；F/T 双编译器 app 镜像 |
-| tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §15；cp310；KV 写路径修复 PR #421；F/T 双编译器 |
+| tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §15；cp310；KV 写路径修复 [VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)；F/T 双编译器 |
 
 ---
 
 ## 0. 结论摘要（TL;DR）
 
 结论：Metax 全线 4 种环境全部验证通过；NVIDIA 2 种 CUDA 环境（×双编译器）全部验证通过；
-Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sunrise（TANGRT 1.2.0）
+Ascend（CANN 9.0.0）验证通过（插件 [VPF #387](https://github.com/flagos-ai/vllm-plugin-FL/pull/387) 移植，2026-08-17）；Sunrise（TANGRT 1.2.0）
 验证通过（cp310 wheel + 插件 CUSTOM 移植 + triton 路径，2026-08-19）；Kunlunxin
-（XRE 5.37.1）验证通过（cp310 empty wheel + 插件 PR #401 移植 + app 镜像 serve，
+（XRE 5.37.1）验证通过（cp310 empty wheel + 插件 [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) 移植 + app 镜像 serve，
 2026-08-23，[§13](backends/kunlunxin.md)）。
 
 - 构建 + 重新打包（wheel）：✅ 通过（2026-08-12）
@@ -74,11 +74,11 @@ Ascend（CANN 9.0.0）验证通过（插件 PR #387 移植，2026-08-17）；Sun
 - CUDA 12.8 × Triton：✅ 通过（2026-08-16，空模式）
 - CUDA 13.3 × FlagTree：✅ 通过（2026-08-16，空模式）
 - CUDA 13.3 × Triton：✅ 通过（2026-08-16，空模式）
-- Ascend（CANN 9.0.0）× FlagTree：✅ 通过（2026-08-17，插件 PR #387，Qwen3-4B）
+- Ascend（CANN 9.0.0）× FlagTree：✅ 通过（2026-08-17，插件 [VPF #387](https://github.com/flagos-ai/vllm-plugin-FL/pull/387)，Qwen3-4B）
 - Sunrise（TANGRT 1.2.0）× Triton：✅ 通过（2026-08-19，cp310 wheel +
   CUSTOM 移植，Qwen3-8B）
 - Kunlunxin（XRE 5.37.1）× FlagTree：✅ 通过（2026-08-23，cp310 empty
-  wheel + 插件 PR #401 + app 镜像 serve E2E，Qwen3-4B）
+  wheel + 插件 [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) + app 镜像 serve E2E，Qwen3-4B）
 - Iluvatar（COREX 4.5.0）× FlagTree / Triton：✅ 通过（2026-08-30，cp312
   empty wheel + app 镜像 serve E2E，Qwen3-4B，[§14](backends/iluvatar.md)）
 - Tsingmicro（TSM 260610）× FlagTree / Triton：✅ 通过（2026-08-31，cp310
@@ -133,7 +133,7 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
 ## 16. 遗留事项
 
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
-- [x] **插件 PR #386（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
+- [x] **插件 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
       已合入（5b592be）；ascend 验证即基于该基线（[§10](backends/ascend.md)）。
 - [ ] 0.24.0 其余后端（iluvatar、enflame、cambricon 等）
       的验证 —— nvidia ✅（[§6](backends/nvidia.md)）；metax ✅
@@ -141,25 +141,25 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
       ascend ✅（[§10](backends/ascend.md)，CANN 9.0.0 + cann8.5.0 双编译器）；
       sunrise ✅（[§11](backends/sunrise.md)，T 路径 triton；F 路径 rebuilt
       flagtree ✅ [§11.5](backends/sunrise.md) —— 旧
-      [0.20.2 §2.9](../vllm-0.20.2/backends/sunrise.md) 解码挂死已由 PR 978
-      修复）；hygon ✅（[§12](backends/hygon.md)，F/T 双编译器，2026-08-20）；
+      [0.20.2 §2.9](../vllm-0.20.2/backends/sunrise.md) 解码挂死已由
+      [FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978) 修复）；hygon ✅（[§12](backends/hygon.md)，F/T 双编译器，2026-08-20）；
       **kunlunxin ✅（[§13](backends/kunlunxin.md)，flagtree + triton 双编译器，
       2026-08-23）**；**iluvatar ✅（[§14](backends/iluvatar.md)，cp312 empty
       wheel + F/T 双编译器 app 镜像 serve E2E，2026-08-30）**；
       **tsingmicro ✅（[§15](backends/tsingmicro.md)，KV 写路径修复
-      PR #421，F/T 双路径 E2E，2026-08-31）**
+      [VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)，F/T 双路径 E2E，2026-08-31）**
 - [ ] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
       flash_linear_attention` → `vllm.model_executor.layers.fla.ops`）——
       Qwen3-Next/GDN 模型验证前置（[§13.4](backends/kunlunxin.md)）
 - [ ] kunlunxin 否定指令型 prompt 标点循环 —— 已证与 alpha 无关（prompt
       内容特性，[§13.6](backends/kunlunxin.md)），留待 Qwen3-Next 验证时观察
-- [ ] hygon flagtree hygon wheel 重建（PR #1020 合入后固化到
+- [ ] hygon flagtree hygon wheel 重建（[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入后固化到
       `packaging/flagtree/hygon`，替换容器内临时 sed）
 - [ ] hygon app 镜像 —— **暂不做**（2026-08-20 决策）：F 路径默认
-      编译器被 PR #1020 合入 + `packaging/flagtree/hygon` wheel 重建
+      编译器被 [FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入 + `packaging/flagtree/hygon` wheel 重建
       发布卡死（无新 flagtree release 前 runtime 镜像无法刷新）；T
       路径（vendor triton 3.5.1 已在 runtime，同 [sunrise §11.6](backends/sunrise.md)
       烘焙 `compiler triton` 先例）技术上今天可做，但同轮交付意义不大。
-      PR #1020 合入、wheel 重建后可重估。
+      [FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入、wheel 重建后可重估。
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （[§10.2](backends/ascend.md)，非致命）—— 上游 flag_gems 侧修复后复验

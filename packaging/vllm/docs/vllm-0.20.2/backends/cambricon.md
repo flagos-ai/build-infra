@@ -5,7 +5,7 @@
 
 ## 2.7 cambricon-neuware4.7.2（MLU590：✅ E2E 通过，2026-08-08；2026-08-15 / 2026-08-26 复核）
 
-**日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）；2026-08-26（复核，flag_gems 5.3.5 / PR #5745 mask-logic 修复）
+**日期:** 2026-08-08（初验）；2026-08-15（复核，empty 黑名单删除 + index 回归）；2026-08-26（复核，flag_gems 5.3.5 / [FlagGems #5745](https://github.com/flagos-ai/FlagGems/pull/5745) mask-logic 修复）
 
 **平台:** Cambricon MLU590
 
@@ -97,9 +97,9 @@ flag_gems `empty` 内核在 MLU 上撞 triton grid 上限：
 ### 2026-08-15 复核（2.1.2 镜像 / flag_gems 5.3.4）：empty 黑名单可删 ✅，index op 回归 → flag_gems 根因修复
 
 **empty ✅（黑名单已删，无回归）：** 2.1.2 镜像装 flag_gems **5.3.4**（已含
-cambricon 专属 `_cambricon/ops/empty.py` 分块修复，PR #4435）。将 `cambricon.yaml`
+cambricon 专属 `_cambricon/ops/empty.py` 分块修复，[FlagGems #4435](https://github.com/flagos-ai/FlagGems/pull/4435)）。将 `cambricon.yaml`
 的 `flagos_blacklist` 清空为 `[]` 实测：serve 启动完成、推理连贯 → **`empty` 黑名单
-可安全删除**（这正是 §2.7 初验时"根治 = 升 flag_gems 到含 #4435 的版本"的兑现）。
+可安全删除**（这正是 §2.7 初验时"根治 = 升 flag_gems 到含 [FlagGems #4435](https://github.com/flagos-ai/FlagGems/pull/4435) 的版本"的兑现）。
 
 **index op 回归（E2E 确定性崩溃，黑名单已加）：** 复核过程中首次请求即触发 flag_gems
 cambricon `index` op 在 **flagtune 自动调参 bench** 阶段崩溃，EngineCore 直接死亡
@@ -123,18 +123,18 @@ cambricon `index` op 在 **flagtune 自动调参 bench** 阶段崩溃，EngineCo
   BACKED dynamic shapes + VLLM_COMPILE=3），standalone 不触发。
 - **修复（两处，E2E 已验证）：** ① 过渡：`vllm_fl/dispatch/config/cambricon.yaml`
   `flagos_blacklist: [index]`（与 `empty` 同机制：Priority 3 内建配置，回退 torch_mlu）。
-  ② 根因：**flag_gems PR #5510**（libentry `bench()` 将任意 `RuntimeError` 视为 inf
+  ② 根因：**flag_gems [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510)**（libentry `bench()` 将任意 `RuntimeError` 视为 inf
   非候选，防后端编译 bug 杀进程；`_cambricon/tune_configs.yaml` index 块删
   `BLOCK_SIZE1=4096`——该 config 是崩溃触发者，且 ns=2 下 4096 宽 tile 恒超 NRAM
   本就不能赢）。**实测：** 去掉黑名单（`flagos_blacklist: []`）重启 serve 后，原崩溃
-  请求 200 返回正确输出，连续请求 EngineCore 存活、0 ERROR。黑名单在 #5510 随
+  请求 200 返回正确输出，连续请求 EngineCore 存活、0 ERROR。黑名单在 [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510) 随
   flag_gems 发布前保留作过渡。
 - **遗留：** 原始 MLIR reproducer 已留存（容器 `/tmp/serve534_crash_index2.log`）。厂商
   hand-off 文档（flag_gems/MLU Triton AutoTileForTritonPass expand_shape bug）待整理。
 
-### 2026-08-26 复核（flag_gems 5.3.5 / PR #5745 mask-logic 修复）：✅ E2E 通过
+### 2026-08-26 复核（flag_gems 5.3.5 / [FlagGems #5745](https://github.com/flagos-ai/FlagGems/pull/5745) mask-logic 修复）：✅ E2E 通过
 
-**背景：** FlagGems PR #5745（`fix/cambricon-tensor-mask-logical-ops`，commit 9737224bf）把
+**背景：** [FlagGems #5745](https://github.com/flagos-ai/FlagGems/pull/5745)（`fix/cambricon-tensor-mask-logical-ops`，commit 9737224bf）把
 cambricon/MLU 后端 23 个文件里对多元素 tensor mask 的 Python `and`/`or`/`not` 机械替换为
 元素级 `&`/`|`/`~`（`&` 优先级高于 `<` 处补括号），触发算子是 argmax。已合并并重打
 flag_gems **5.3.5** tag，cambricon runtime 镜像重打（flat tag `2.1.2`，
@@ -145,18 +145,18 @@ MLU590 真机复核改后算子跑出**正确结果**（而非仅"不崩"）。
 
 - 镜像：`flagos-runtime-cambricon-neuware4.7.2:2.1.2`（sha256 `907c1c8285da…`，flag_gems 5.3.5）
 - vllm：`vllm==0.20.2+flagos` 单步 `pip install`（wheel 已上架 `flagos-pypi-cambricon`，单步零泄漏）
-- 插件：vllm-plugin-FL **PR #411 head `b954912`**（`cambricon.yaml` `flagos_blacklist: [index]`）
+- 插件：vllm-plugin-FL **[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) head `b954912`**（`cambricon.yaml` `flagos_blacklist: [index]`）
 - serve：Qwen3-8B TP=1 / max-len 4096 / mem-util 0.85，`Application startup complete`（编译 ~11 min）
 - 推理：2 次 chat completion 均 200、连贯。`"Reply with exactly the words: hello world"`
   → 先 `<think>` 后输出 `hello world`，`finish_reason=stop`；另一问 `2+2` 思考推理正确。
 
 **结论：** flagos dispatch 活跃（`OpManager: 35 ops / 61 impls`，`attention_backend →
 default.flagos`），改后 mask-logic 算子（含 argmax——温度 0 贪婪采样走 argmax 路径）在 E2E
-中运行，输出无乱码、无数值错误 → **PR #5745 修复正确**。
+中运行，输出无乱码、无数值错误 → **[FlagGems #5745](https://github.com/flagos-ai/FlagGems/pull/5745) 修复正确**。
 
-**黑名单现状：** flag_gems 5.3.5 **不含** PR #5510（`index` 根因修复，仍 OPEN——
+**黑名单现状：** flag_gems 5.3.5 **不含** [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510)（`index` 根因修复，仍 OPEN——
 实测 5.3.5 的 `_cambricon/tune_configs.yaml` index 块仍含 `block_size1: [1024, 2048, 4096]`），
-故 `cambricon.yaml` 的 `flagos_blacklist: [index]` 保留（本次 PR #411 head 已正确携带）。
+故 `cambricon.yaml` 的 `flagos_blacklist: [index]` 保留（本次 [VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) head 已正确携带）。
 
 
 ### Stack 验证（cambricon-neuware4.7.2，✅ E2E 通过 2026-08-08）
@@ -166,8 +166,8 @@ setuptools:   稳定（无降级）           ✅
 torch/torch_mlu: 2.11.0+cpu / 2.11.0  ✅  from 镜像
 vllm:         0.20.2+flagos          ✅  empty，cambricon 本地 build（cp312）
 vllm_fl:      0.2.0 + 3 patch        ✅  纯 Python（VENDOR_DEVICE_MAP / MLUGraph / —）
-flag_gems:    5.3.4（empty 分块修复已含，见 PR #4435）  ✅  empty 黑名单已删；
-                                          index 根因修复已提 PR #5510（libentry 防护 +
+flag_gems:    5.3.4（empty 分块修复已含，见 FlagGems #4435）  ✅  empty 黑名单已删；
+                                          index 根因修复已提 FlagGems #5510（libentry 防护 +
                                           删 b1=4096 调参项）；黑名单为过渡（发布前保留）
 MLU device:   ✅ MLU0 单卡           MLU590
 vllm import:  ✅
@@ -177,7 +177,7 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
                   POST /v1/chat/completions 200 OK，生成 ~4.3 tokens/s
 ```
 
-### plugin 侧修复（3 处代码 + 2 次黑名单演进，均容器内验证，已入 PR #411）
+### plugin 侧修复（3 处代码 + 2 次黑名单演进，均容器内验证，已入 [VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411)）
 
 1. **修复：** `VENDOR_DEVICE_MAP` 加 cambricon → mlu
 
@@ -196,8 +196,8 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
    **文件：** `dispatch/config/cambricon.yaml` `flagos_blacklist: [index]`
 
    **性质：** `index` op flagtune bench 时 expand_shape/AutoTileForTritonPass 崩溃
-   （见 2026-08-15 复核）；回退 torch_mlu。**过渡：** 根因已修 flag_gems PR #5510，
-   发布前保留。`empty` 同机制黑名单于初验加入、5.3.4（PR #4435）落地后删除。定稿走
+   （见 2026-08-15 复核）；回退 torch_mlu。**过渡：** 根因已修 flag_gems [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510)，
+   发布前保留。`empty` 同机制黑名单于初验加入、5.3.4（[FlagGems #4435](https://github.com/flagos-ai/FlagGems/pull/4435)）落地后删除。定稿走
    plugin 内建配置（非 env），文件名匹配 vendor_name=`cambricon` 才自动加载
 
 本地补丁副本：`/tmp/camb-patches/{utils.py,graph.py}`。serve 脚本：
@@ -212,18 +212,18 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
 
 ### 待办
 
-1. **3 处修复对齐 Mac 源码并提 PR** —— **✅ 已提**：PR #411（flagos-ai/vllm-plugin-FL），
+1. **3 处修复对齐 Mac 源码并提 PR** —— **✅ 已提**：[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411)（flagos-ai/vllm-plugin-FL），
    VENDOR_DEVICE_MAP cambricon→mlu + graph.py mlu→MLUGraph（2 处代码，通用缺口非
    cambricon hack）+ `dispatch/config/cambricon.yaml`（内建配置非 env），三处全部 E2E 验证
-2. **`empty` 黑名单固化 → 2026-08-15 已随 5.3.4 移除** —— **✅ 已入 PR #411**：
-   初验定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）。5.3.4 含 #4435 分块修复后，
+2. **`empty` 黑名单固化 → 2026-08-15 已随 5.3.4 移除** —— **✅ 已入 [VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411)**：
+   初验定稿为内建配置 `dispatch/config/cambricon.yaml`（非 env）。5.3.4 含 [FlagGems #4435](https://github.com/flagos-ai/FlagGems/pull/4435) 分块修复后，
    复核实测 `flagos_blacklist: []` serve + 推理正常 → PR 已删 `empty` 黑名单
-3. **`index` op 崩溃根因修复** —— **✅ 已提 flag_gems PR #5510**：两处，libentry
+3. **`index` op 崩溃根因修复** —— **✅ 已提 flag_gems [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510)**：两处，libentry
    `bench()` RuntimeError→inf 防护 + `_cambricon` index 调参删 `BLOCK_SIZE1=4096`。
    去黑名单 E2E 实测通过（首请求 200、EngineCore 存活）。发布前 plugin 黑名单保留作过渡
-4. **flag_gems `empty` MLU grid 分块** —— **✅ 上游已修，已进 5.3.4**：PR #4435
+4. **flag_gems `empty` MLU grid 分块** —— **✅ 上游已修，已进 5.3.4**：[FlagGems #4435](https://github.com/flagos-ai/FlagGems/pull/4435)
    （2026-08-07 合入 master）cambricon 专属 `_cambricon/ops/empty.py`（grid 上限
-   `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset）。5.3.3 发布早于 #4435 故不含；
+   `TOTAL_CORE_NUM` + grid-stride 循环 + int64 offset）。5.3.3 发布早于 [FlagGems #4435](https://github.com/flagos-ai/FlagGems/pull/4435) 故不含；
    2.1.2 镜像装 5.3.4 已含 → `empty` 黑名单删除且实测无回归
 5. **cambricon `+flagos` wheel 上架 per-vendor index** —— **✅ 已上传**：4 个 wheel
    （vllm / xgrammar cp312 / compressed-tensors / opencv-headless）已上架
@@ -232,10 +232,10 @@ Inference:    ✅  连贯英语——"What is the capital of France?" → 正确
    flag_gems/MLU Triton 编译 bug（libentry 防护已绕开）；reproducer 已留存
    `/tmp/serve534_crash_index2.log`，文档待补
 
-**相关提交：** 2026-08-15 复核后 **PR #411 分支已更新**（`b954912`，仅 cambricon.yaml：
-删 `empty` 黑名单、加 `index` 黑名单）。**根因修复 = flag_gems PR #5510**
+**相关提交：** 2026-08-15 复核后 **[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) 分支已更新**（`b954912`，仅 cambricon.yaml：
+删 `empty` 黑名单、加 `index` 黑名单）。**根因修复 = flag_gems [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510)**
 （`fix/cambricon-index-expand-shape`：libentry RuntimeError 防护 + 删 `BLOCK_SIZE1=4096`），
-去黑名单 E2E 验证通过；PR #411 的 `index` 黑名单保留为过渡，待 #5510 随 flag_gems
+去黑名单 E2E 验证通过；[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) 的 `index` 黑名单保留为过渡，待 [FlagGems #5510](https://github.com/flagos-ai/FlagGems/pull/5510) 随 flag_gems
 发布后删除。wheel 在 cambricon 镜像内从官方 tarball 重新 build + repack。
 
 ## 2.11 cambricon-neuware4.4.3（MLU590：✅ E2E 通过，2026-08-26；T-only，无 FlagTree）
@@ -258,7 +258,7 @@ cambricon 4.4.3 是 **T-only 特例**（无配套 FlagTree，用户确认），�
 单路径。与 4.7.2（§2.7）的关键差异：Python 3.10（vs 3.12）、torch 2.7.1+cpu（vs
 2.11.0）、triton 3.2.0+mlu1.7.2（vs 3.4.0+mlu2.1.1）。旧版工具链在 serve 路径上暴露了
 4.7.2 未触及的 5 个兼容缺口，全部在 **vllm-plugin-FL 侧**修复（不碰 vllm 本体），已随
-PR #411 上提。
+[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) 上提。
 
 ### Repack / 安装 —— ✅ 单步，零泄漏
 
@@ -269,7 +269,7 @@ vllm `0.20.2+flagos` cp310 wheel 与 xgrammar cp310 wheel（xgrammar 为本后�
 
 ### 插件 —— ✅ 干净 wheel build（--no-build-isolation，纯 Python）
 
-vllm-plugin-FL **PR #411 head `b954912`**（base release/0.2）。wheel
+vllm-plugin-FL **[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) head `b954912`**（base release/0.2）。wheel
 `vllm_plugin_fl-0.2.1+gb954912.d20260826-py3-none-any.whl` 在容器内
 `pip wheel --no-build-isolation` 构建（`SETUPTOOLS_SCM_PRETEND_VERSION=0.2.1+gb954912.d20260826`；
 源码 = `git archive HEAD` 解包，可复现，无手工 patch）。
@@ -289,7 +289,7 @@ The capital of Italy is Rome."（finish_reason=length，16 token 上限）
 
    **根因：** 该 dtype 仅存在于 CUDA torch 2.7+，cambricon torch 2.7.1+cpu 无
 
-   **修复：** import 前注入 `_torch.float4_e2m1fn_x2 = _torch.uint8` 哨兵（**已有**，源自 #176 MUSA）
+   **修复：** import 前注入 `_torch.float4_e2m1fn_x2 = _torch.uint8` 哨兵（**已有**，源自 [VPF #176](https://github.com/flagos-ai/vllm-plugin-FL/pull/176) MUSA）
 
 2. **症状：** `AttributeError: get_mlu_view_from_cpu_tensor`，torch._inductor init 中止
 
@@ -318,8 +318,8 @@ The capital of Italy is Rome."（finish_reason=length，16 token 上限）
    **修复：** `JITFunction.run` 剥掉 task_type kwarg（须在 `import torch_mlu` 之后 patch，
    避免 triton init 循环导入）
 
-其中 #1 是既有缺口（float4 哨兵来自 PR #176 MUSA 支持），#2~#5 为本后端新暴露、本次
-上提（PR #411 head `b954912`：CIA/get_kernel/task_type 三 shim + mlu sync）。
+其中 #1 是既有缺口（float4 哨兵来自 [VPF #176](https://github.com/flagos-ai/vllm-plugin-FL/pull/176) MUSA 支持），#2~#5 为本后端新暴露、本次
+上提（[VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) head `b954912`：CIA/get_kernel/task_type 三 shim + mlu sync）。
 
 ### Stack 验证（cambricon-neuware4.4.3，✅ E2E 通过 2026-08-26）
 
@@ -336,7 +336,7 @@ Inference:    ✅  HTTP 200，completion 输出连贯
 
 ### 待办
 
-1. **4 处新 shim 上提 plugin** —— **✅ PR #411**：base release/0.2，head `b954912`（#2~#5；#1 float4 已有）
+1. **4 处新 shim 上提 plugin** —— **✅ [VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411)**：base release/0.2，head `b954912`（#2~#5；#1 float4 已有）
 2. **`deps_app.vllm0.20.2` 加 4.4.3** —— **✅ configs.yaml**：`neuware4.4.3.deps_app.vllm0.20.2: []`
 3. **xgrammar cp310 wheel** —— **✅ 已上架**：本后端首个 cp310 xgrammar，`flagos-pypi-cambricon`
 4. **docs flag_gems 5.3.4 → 5.3.5** —— **⬜ 待重渲**：`docs/content/**/runtime/*.md` 仍 5.3.4，configs.yaml/data 已 5.3.5

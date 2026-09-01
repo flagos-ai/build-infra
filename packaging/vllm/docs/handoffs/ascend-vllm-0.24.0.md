@@ -18,7 +18,7 @@
 - vllm `0.24.0+flagos`（cp311 aarch64 empty wheel，单步安装）
 - vllm-plugin-fl `0.2.0+gcf8998c.d20260818`（vendor PyPI wheel，
   commit [`cf8998c`](https://github.com/flagos-ai/vllm-plugin-FL/commit/cf8998c4bf2c349cfafb8a66e1994517526aa650)，
-  PR #387）
+  [VPF #387](https://github.com/flagos-ai/vllm-plugin-FL/pull/387)）
 - torch 2.10.0+cpu / torch_npu 2.10.0 / flag_gems 5.3.4
 - torchvision / torchaudio 未安装
 - 编译器：默认 flagtree 0.6.1+ascend3.5

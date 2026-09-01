@@ -27,9 +27,11 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
 
 ### 11.2 插件移植（Phase B，分支 feat/sunrise-v024）
 
-基线 v0.3.0-dev（5b592be，含 torchvision guard PR #386），2 个文件改动：
+基线 v0.3.0-dev（5b592be，含 torchvision guard
+[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)），2 个文件改动：
 
-1. **`impl/attention.py` 改 CUSTOM 注册**（ascend PR #387 同款模式）：
+1. **`impl/attention.py` 改 CUSTOM 注册**（ascend
+   [VPF #387](https://github.com/flagos-ai/vllm-plugin-FL/pull/387) 同款模式）：
    `get_name()` 返回 `"CUSTOM"` + 模块级
    `register_backend(AttentionBackendEnum.CUSTOM,
    "vllm_fl.dispatch.backends.vendor.sunrise.impl.attention.
@@ -90,11 +92,15 @@ sunrise 是 python 3.10，0.24.0 empty wheel 绑定 CPython 小版本
 
 [0.20.2 §2.9](../../vllm-0.20.2/backends/sunrise.md) 定位的 FlagTree
 flash-attn 解码 kernel 挂死，根因锁定在**上游 FlagTree 旧 vendor 标签
-0.6.0+sunrise3.6（PR 978 之前）的 sunrise 后端代码生成缺陷**；PR 978
-重写了 sunrise backend pass pipeline 并删掉 `add_split_dot`（疑似修复点）。
+0.6.0+sunrise3.6（[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)
+之前）的 sunrise 后端代码生成缺陷**；
+[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978) 重写了
+sunrise backend pass pipeline 并删掉 `add_split_dot`（疑似修复点）。
 本次将 sunrise wheel 构建固化到 `packaging/flagtree/sunrise`
-（PR #447→#450 链，2026-08-19 合入 main），**从 FlagTree main（含
-PR 978）重建 wheel**，并做了 A/B 实证：
+（[build-infra #447](https://github.com/flagos-ai/build-infra/pull/447)→[build-infra #450](https://github.com/flagos-ai/build-infra/pull/450)
+链，2026-08-19 合入 main），**从 FlagTree main（含
+[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)）重建
+wheel**，并做了 A/B 实证：
 
 | 项目 | 旧 vendor 标签（pre-978） | 重建 wheel（post-978） |
 |------|--------------------------|------------------------|
@@ -112,7 +118,7 @@ pybind11 internals **v12**（与 sunriseTritonPlugin_v0.6.0.4 ABI 匹配；
 metax 插件是 v11，两者相反）、`triton.language.extra` 同时带
 `ptpu`+`tang` 别名（flag_gems ≤5.3.4 引用 tang）、RUNPATH 含 `$ORIGIN`。
 
-**RUNPATH 修复（PR #450）**：`CMAKE_INSTALL_RPATH` 只作用于 install 期，
+**RUNPATH 修复（[build-infra #450](https://github.com/flagos-ai/build-infra/pull/450)）**：`CMAKE_INSTALL_RPATH` 只作用于 install 期，
 而 wheel 直接打包 build-tree 的 `libtriton.so`（无 `cmake --install`），
 必须补 `-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON` 才会把 `$ORIGIN` 写到
 build-tree .so 上；否则安装到 `/opt/flagtree` 后 loader 找不到同目录的
@@ -142,7 +148,8 @@ sunrise deps（LLVM/plugin/triton toolkits）从预置 URL 下载并 md5 门禁�
   id `sha256:22a8f7f1...`，与节点本地镜像逐字节一致）
 - 版本指纹：vllm `0.24.0+flagos`（cp310 empty wheel，单步安装）；
   vllm-plugin-fl `0.2.0+g687217a.d20260819`（vendor PyPI wheel，非
-  editable —— 同一 PR #391 代码，同 §11.2/11.3）；torch 2.11.0+cpu /
+  editable —— 同一 [VPF #391](https://github.com/flagos-ai/vllm-plugin-FL/pull/391)
+  代码，同 §11.2/11.3）；torch 2.11.0+cpu /
   torch_ptpu 0.2.3+torch2.11 / flag_gems 5.3.4 / xgrammar 0.2.3+flagos /
   compressed-tensors 0.17.0+flagos；编译器 = vendor triton
   3.6.0.1+git0a5cfb35（`compiler triton`，`VLLM_PLUGINS=fl` 烘焙）

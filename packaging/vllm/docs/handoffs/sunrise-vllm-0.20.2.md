@@ -20,7 +20,7 @@
   2026-08-20 重建，run 32323105369，上传 flagos-pypi-sunrise）
 - vllm-plugin-fl `0.2.0+g687217a.d20260819`（vendor PyPI wheel，commit
   [`687217a`](https://github.com/flagos-ai/vllm-plugin-FL/commit/687217afad5d64289bb5c374ad6a671b645db523)，
-  PR #391）
+  [VPF #391](https://github.com/flagos-ai/vllm-plugin-FL/pull/391)）
 - Python 3.10.20
 - torch 2.11.0+cpu / torch_ptpu 0.2.3+torch2.11 / flag_gems 5.3.4 /
   numpy 2.2.6
@@ -29,7 +29,7 @@
   3.6.0.1+git0a5cfb35（`/opt/triton`）
 - 环境设置：`ENV VLLM_PLUGINS=fl`
 
-> 注：镜像内插件为 wheel 安装（release 形态，PR #391 分支）。若需迭代插件
+> 注：镜像内插件为 wheel 安装（release 形态，[VPF #391](https://github.com/flagos-ai/vllm-plugin-FL/pull/391) 分支）。若需迭代插件
 > 源码，请用 runtime 镜像 editable 安装 vllm-plugin-FL（v0.3.0-dev 分支）。
 
 ## 3. 启动（实测通过的完整命令）
@@ -68,8 +68,9 @@ curl http://localhost:8031/v1/completions \
 
 **FlagTree decode-hang 修复复测（0.20.2 环境内，2026-08-20）**
 
-- 门禁：`/opt/flagtree/triton/_C/libtriton.so` md5 `924b1c0d`（FlagTree
-  PR 978 修复 + rebuilt wheel 烘焙进 runtime 2.1.2）
+- 门禁：`/opt/flagtree/triton/_C/libtriton.so` md5 `924b1c0d`
+  （[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978) 修复 +
+  rebuilt wheel 烘焙进 runtime 2.1.2）
 - A/B：decode 0.4 → 2.4 tok/s（修复前挂死，修复后正常终止）
 - serve `/data/nmodels/Qwen3-8B` 达 `Application startup complete`；推理
   连贯（knowledge "Paris..." / math "56"）；decode 正常终止（2 请求均
@@ -81,12 +82,14 @@ curl http://localhost:8031/v1/completions \
 - BEFORE / AFTER critical matrix（torch / torch_ptpu / triton /
   flag_gems）一致
 - `import vllm`、`import vllm_fl` 通过
-- 证明 PR #391 分支 plugin（CUSTOM 注册形态）在 0.20.2 下可 import ——
+- 证明 [VPF #391](https://github.com/flagos-ai/vllm-plugin-FL/pull/391) 分支
+  plugin（CUSTOM 注册形态）在 0.20.2 下可 import ——
   0.24.0 移植的回归证据
 
 > 如实说明：serve E2E 复测在 runtime 容器内进行，插件为 vllm-plugin-FL
 > main（0.20.2 原生形态，`get_name()`="TRITON_ATTN"，editable 安装）；
-> app 镜像内插件为 PR #391 分支 wheel（CUSTOM 形态，
+> app 镜像内插件为 [VPF #391](https://github.com/flagos-ai/vllm-plugin-FL/pull/391)
+> 分支 wheel（CUSTOM 形态，
 > `get_name()`="CUSTOM"）。CUSTOM 注册是 0.24.0 移植的核心改动，app-image
 > 的 import 级验证证明其在 0.20.2 下注册可用；serve 级回归证据见
 > [vllm-0.24.0/backends/sunrise.md](vllm-0.24.0/backends/sunrise.md)。

@@ -30,7 +30,7 @@
 | compressed-tensors | 0.15.0.1+flagos | 间接依赖，剥 torch |
 
 关键：`+flagos` 后缀（主包 + 所有递归发现的间接依赖）、A→B→C 依赖链全部
-pin 到 `+flagos`（PR #280）。
+pin 到 `+flagos`（[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)）。
 
 > **xgrammar 版本说明：** 此处解析到 `0.2.5`，MetaX 记录（[§2.2](metax.md)）
 > 当时是 `0.2.3`——两次验证时间不同、上游版本推进所致。同一 vllm 0.20.2
@@ -54,9 +54,9 @@ torch/triton/nvidia 泄漏：
 
 > **transformers 不是泄漏源** —— 其 torch 引用全在未激活的 extras
 > (`[torch]`/`[all]`/`[dev]`) 之后。早前"transformers 拉 torch"的判断实为
-> 未 pin 的 xgrammar bug（PR #280 已修）。
+> 未 pin 的 xgrammar bug（[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280) 已修）。
 
-### 阻塞点：flag_gems mul 设备门控回归（由 FlagGems #5130 修复）
+### 阻塞点：flag_gems mul 设备门控回归（由 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130) 修复）
 
 `vllm serve` 在模型加载阶段崩溃，命中 rope 的 `1.0 / freqs` 路径：
 
@@ -130,7 +130,7 @@ serve 到达 `Application startup complete`（device_config=musa，MCCL 后端�
 torch:        2.9.1+musa5.2.0     ✅  from vendor PyPI（未降级）
 triton:       (absent)            ✅  MUSA 无 triton，由 flagtree 提供
 flagtree:     0.6.0+mthreads3.6   ✅
-flag_gems:    5.3.2 + #5130       ✅  mul 门控修复
+flag_gems:    5.3.2 + FlagGems #5130  ✅  mul 门控修复
 numpy:        2.2.6               ✅  (Python 3.10)
 vllm:         0.20.2+flagos       ✅  empty, repacked, vendor PyPI
 vllm_fl:      0.0.0+gd1327ae0a    ✅  纯 Python（无 VLLM_VENDOR）
@@ -141,14 +141,14 @@ Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 t
 
 ### 待办
 
-1. **FlagGems mul 门控 #5130** —— ✅ 已提，E2E 通过：门控改判 `runtime.device.name`；
+1. **FlagGems mul 门控 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130)** —— ✅ 已提，E2E 通过：门控改判 `runtime.device.name`；
    merge 后随 flag_gems release 打包进新镜像
 1. **repack & upload (+flagos)** —— ✅ 已完成：vllm / xgrammar / compressed-tensors
 1. **更大模型 / TP>1 / graph** —— ⬜：仅测过 DeepSeek-8B + eager + TP=1
 1. **非 yarn 模型覆盖** —— ⬜：可选，验证更广 rope 路径
 
-**相关提交：** `main` 478de6b（repack）、PR #280（递归 `+flagos` pin）；
-FlagGems [#5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
+**相关提交：** `main` 478de6b（repack）、[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)（递归 `+flagos` pin）；
+[FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
 
 ### app image 验证 —— 双后端 F/T 全通（2026-08-24）
 
@@ -207,6 +207,6 @@ docker exec <容器名> bash -lc "
 四条 serve 的 completion 一致输出 "Paris. The capital of Germany is
 Berlin..."，health endpoint 均 200。
 
-**mul 门控（#5130）已在镜像内。** flag_gems 5.3.4 自带
-[#5130](https://github.com/flagos-ai/FlagGems/pull/5130) 修复，无需再手工
+**mul 门控（[FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130)）已在镜像内。** flag_gems 5.3.4 自带
+[FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130) 修复，无需再手工
 打 patch——早前本节的临时补丁到此收敛为制品。
