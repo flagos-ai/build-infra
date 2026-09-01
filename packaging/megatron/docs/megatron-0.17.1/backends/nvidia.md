@@ -7,11 +7,11 @@ megatron-core 安装形态为 merged wheel
 `0.17.1+fl.20260818.g48b97a13f1bb` 单步安装（[training]/[rl] extra
 随 wheel 装入）——该 wheel 来自 MLF 集成分支 ci/merge-105-106-107-114，
 合入四个 PR：
-[#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
-[#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
-[#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，其中
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 声明
+[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
+[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
+[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
+[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，其中
+[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 声明
 `[training]`/`[rl]` extras。验证周期为 2026-08-19 ~ 2026-08-20。
 
 场景组织：每场景 = 双后端 × 双编译器（flagtree 3.6.0 默认 /opt/flagtree，

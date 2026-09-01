@@ -18,11 +18,11 @@ flagos-ai/Megatron-LM-FL 的
 [builder/README.md](../../../builder/README.md)（构建环境 = 后端 runtime
 镜像，版本号自动带 commit 溯源）。
 该分支合入 MLF 的四个 PR：
-[#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
-[#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
-[#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，
-其中 [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)
+[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
+[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
+[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
+[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)，
+其中 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)
 声明 `[training]`/`[rl]` extras。
 本平台装入 `[training]` extra。
 
@@ -32,7 +32,7 @@ flagos-ai/Megatron-LM-FL 的
 - **原因:** flagtree ascend backend discovery 嵌套 `import torch`，
   触发 torch_npu autoload 失败；源头是 `testing.py:27` 顶层 import。
 - **解决:** [FlagTree #1024](https://github.com/flagos-ai/FlagTree/issues/1024)
-  （issue）与 [#1025](https://github.com/flagos-ai/FlagTree/pull/1025)
+  （issue）与 [FlagTree #1025](https://github.com/flagos-ai/FlagTree/pull/1025)
   （PR）已把两处 import 惰性化进 `do_bench_npu_profiler` /
   `do_bench_npu_mspti`。
 - **现状:** 修复合并前保持 torch-first 顺序；docker exec 经 `bash -c`
@@ -154,7 +154,7 @@ legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。动态引�
 
 同 CANN 9.0.0：910B4 无 flash-attn，三处代码级障碍
 （[MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119) /
-[#120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) /
+[MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) /
 [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)）
 未合并，路径未验证，细节见 CANN 9.0.0 段 RL 节。
 
@@ -182,7 +182,7 @@ legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。动态引�
   （nvidia driver is_active 守卫）— 重建 flagtree wheel，
   重跑 RL，更新矩阵
 - [FlagTree #1024](https://github.com/flagos-ai/FlagTree/issues/1024) /
-  [#1025](https://github.com/flagos-ai/FlagTree/pull/1025)
+  [FlagTree #1025](https://github.com/flagos-ai/FlagTree/pull/1025)
   （testing.py 惰性化）— 重建 flagtree wheel 后解除「torch-first
   导入顺序」用法前提
 

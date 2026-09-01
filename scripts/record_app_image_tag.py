@@ -26,6 +26,8 @@ What the script does, in order:
   1. Update ``image_tag`` and set ``launch_docs: true`` + ``deps_app: true``
      for the backend in the status matrix YAML (surgical line edit — the matrix
      files carry a human header comment that a YAML round-trip would drop).
+     Also drops a backend note of the form "验证 ✅，app 镜像未推送/未发布"
+     — the push just recorded makes it stale by construction.
      Idempotent: all three facts already recorded → no-op, exit 0.
   2. Regenerate the pipeline so the docs stay consistent with the matrix:
      ``gen_data.py`` → ``render_status_matrix.py`` → ``gen_descriptions.py
@@ -199,6 +201,25 @@ def update_deps_app(matrix_path: Path, backend: str) -> bool:
     return _set_facility_field(matrix_path, backend, "deps_app", "true")
 
 
+def clear_stale_note(matrix_path: Path, backend: str) -> bool:
+    """Drop the backend's note if it claims the image was never pushed.
+
+    A note of the form "验证 ✅，app 镜像未推送/未发布" becomes stale the moment
+    ``image_tag`` is written — the push is the publication event, so the two
+    facts cannot both hold. Notes carrying other content (F-path failures,
+    ABI blockers, deliberate holds) are left alone.
+    """
+    lines = matrix_path.read_text().splitlines()
+    start, end = _backend_bounds(lines, backend)
+    block = lines[start + 1:end]
+    for k, ln in enumerate(block):
+        if re.match(r'^    note:\s+"验证 ✅，app 镜像未(推送|发布)', ln):
+            del lines[start + 1 + k]
+            matrix_path.write_text("\n".join(lines) + "\n")
+            return True
+    return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matrix", required=True, help="status matrix YAML path, relative to repo root")
@@ -212,15 +233,20 @@ def main() -> None:
         sys.exit(f"Error: matrix file not found: {matrix_rel}")
     tag = args.tag.rsplit(":", 1)[-1]
 
+    # A stale "未推送" note contradicts image_tag by construction — clear it
+    # before the idempotency check so already-recorded backends self-heal.
+    changed = clear_stale_note(matrix_path, args.backend)
+
     # Idempotency: all three facts already recorded → nothing to do.
     backend_cfg = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(args.backend, {})
     if (backend_cfg.get("image_tag", "") == tag and backend_cfg.get("launch_docs", False)
             and backend_cfg.get("deps_app", False)):
-        print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
+        if not changed:
+            print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
         return
     print(f"Recording image_tag {tag} + launch_docs + deps_app for {args.backend} in {matrix_rel}")
 
-    changed = update_image_tag(matrix_path, args.backend, tag)
+    changed = update_image_tag(matrix_path, args.backend, tag) or changed
     changed = update_launch_docs(matrix_path, args.backend) or changed
     changed = update_deps_app(matrix_path, args.backend) or changed
     if not changed:

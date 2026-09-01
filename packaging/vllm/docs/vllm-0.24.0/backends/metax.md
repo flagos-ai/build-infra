@@ -81,7 +81,8 @@ vLLM 顶层的依赖声明相应改成 `==X.Y.Z+flagos`，单步安装时命中�
 
    修复：改用 `from flag_gems import reshape_and_cache_flash`
    （纯 Python 实现，签名逐参吻合）。
-   **同一问题也存在于 0.20.2 版本适配中，已向插件提交 PR #333**。
+   **同一问题也存在于 0.20.2 版本适配中，已向插件提交
+   [VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333)**。
    另外，vllm-plugin-FL 的 0.3-dev 分支也不存在此修复（详 [§7](../decisions.md)）。
 
 5. **Triton 3.0.0 编译器拒绝链式布尔操作**：`A or B or C` 语法报

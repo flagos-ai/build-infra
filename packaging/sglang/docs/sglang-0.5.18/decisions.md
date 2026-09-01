@@ -4,7 +4,7 @@
 
 - **0.5.18**（PyPI 2026-08-22 发布，8 wheel × ~23MB，wheel-only 无 sdist，
   GitHub release 无 assets → sdist 自建）。
-- 0.5.12 太老（2026-05-17）；0.5.16+ 有 circular-import 回归记录（PR #33371
+- 0.5.12 太老（2026-05-17）；0.5.16+ 有 circular-import 回归记录（[sglang #33371](https://github.com/sgl-project/sglang/pull/33371)
   BCG/CP 路径等），0.5.18 未知 → 构建期与 E2E 实证（metax 已全过）。
 
 ## 2. 打包模型（从调研到落地）

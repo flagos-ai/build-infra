@@ -109,7 +109,8 @@ pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" vllm==0.20.2+flago
 > pip 仍会从 Aliyun 拉一个更高的 base 版本 torch → 覆盖 vendor 的本地版本
 > torch。早期 MetaX 因此被迫用 `--no-deps` 两步锚定（见
 > [§2.2](backends/metax.md)）。
-> **PR #280** 让 repack **递归**把所有间接依赖 pin 到 `+flagos` 后，torch
+> **[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)** 让
+> repack **递归**把所有间接依赖 pin 到 `+flagos` 后，torch
 > 约束不再泄漏，单步安装即安全——已在 mthreads 上实测（131 包依赖树零
 > torch/triton/nvidia 泄漏，见 [§2.3](backends/mthreads.md)）。
 
@@ -245,7 +246,8 @@ FlagGems 侧**不 pin** numpy（`pyproject.toml` 用不锁定的 `numpy`），�
   `py3-none-any` 改写成 `cp38-abi3-manylinux...` 来抢过 Aliyun 原版。
   [§5.1](decisions.md) 否定：`+flagos` 版本号排序已足够，伪造 ABI 有害。
 - **两步 `--no-deps` 安装（[§2.2](backends/metax.md)）** —— MetaX 曾因间接
-  依赖 torch 泄漏被迫两步锚定。PR #280 递归 pin `+flagos` 后，单步安装即安全
+  依赖 torch 泄漏被迫两步锚定。[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)
+  递归 pin `+flagos` 后，单步安装即安全
   （§1.4），mthreads 实证。
 - **`also_repack` 手工列表 → 递归发现** —— 早期手工维护"还需 repack 的
   间接依赖"列表；现由 `repack_recursive()` 在 repack 时解析实际依赖树自动

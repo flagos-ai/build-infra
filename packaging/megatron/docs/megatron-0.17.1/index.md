@@ -41,19 +41,19 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
   双编译器（flagtree / triton）在 nvidia、hygon、metax 全 ✅；ascend 前三
   场景 ✅、RL 暂停（动态引擎硬依赖 flash-attn，910B4 无）。编译器验证面
   不归并：每后端 × 双编译器分别验证。
-- **阶段二（固化）**：deps_app 机制（PR #424）、Containerfile 拆分
-  （PR #427）、apex 纳入 hygon runtime（PR #422）、app 参数化 workflow
-  （PR #425）、TORCHINDUCTOR_COMPILE_THREADS 固化（PR #443）全部合并。
+- **阶段二（固化）**：deps_app 机制（[build-infra PR #424](https://github.com/flagos-ai/build-infra/pull/424)）、Containerfile 拆分
+  （[build-infra PR #427](https://github.com/flagos-ai/build-infra/pull/427)）、apex 纳入 hygon runtime（[build-infra PR #422](https://github.com/flagos-ai/build-infra/pull/422)）、app 参数化 workflow
+  （[build-infra PR #425](https://github.com/flagos-ai/build-infra/pull/425)）、TORCHINDUCTOR_COMPILE_THREADS 固化（[build-infra PR #443](https://github.com/flagos-ai/build-infra/pull/443)）全部合并。
 - **app 镜像**：megatron_training / megatron_rl 在 nvidia 双后端构建 + 验证 +
   push 全 ✅；training 无 vendor 条件包（deps_app = `[]`），rl 仅 hygon 有
   vendor TE（transformer_engine）。
 
 ## 遗留
 
-- **MLF PR 全 OPEN**：#105（core 独立 import）、#106（psutil 声明）、#107
-  （wheel 全 scope）、#114（`[rl]` extra）、#116（RL local-impl 5 文件补丁）、
-  #119（packed_seq gate）、#120（KV-append 断言 + NPU paged attention）、
-  #122（jit_fuser 惰性装饰）、#124（persist_layer_norm 默认）、#125（mlu
+- **MLF PR 全 OPEN**：[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)（core 独立 import）、[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)（psutil 声明）、[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
+  （wheel 全 scope）、[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)（`[rl]` extra）、[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)（RL local-impl 5 文件补丁）、
+  [MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119)（packed_seq gate）、[MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)（KV-append 断言 + NPU paged attention）、
+  [MLF #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)（jit_fuser 惰性装饰）、[MLF #124](https://github.com/flagos-ai/Megatron-LM-FL/pull/124)（persist_layer_norm 默认）、[MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（mlu
   平台注册）——每个合并后重建 wheel、重跑受影响场景、更新矩阵（跟踪表见
   verification-matrix「待合并/待落地修复跟踪」）。
 - **cambricon 需复验**：runtime 5.3.3 之后 +39k kernel rewrite，neuware

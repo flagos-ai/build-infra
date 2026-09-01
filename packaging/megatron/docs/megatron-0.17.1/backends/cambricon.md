@@ -10,14 +10,15 @@
 megatron-core 安装形态为 merged wheel
 `0.17.1+fl.20260822.g56acf36bacd1` 单步安装——该 wheel 来自 MLF 集成分支
 ci/merge-105-106-107-114（合入五个 PR）：
-[#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
-[#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
-[#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
-[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) /
-[#125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（分支头
+[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105) /
+[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106) /
+[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) /
+[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) /
+[MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（分支头
 `56acf36ba` = merge origin/pr-125）。wheel 经 megatron-wheel.yml 为两后端
 各构建一次（cp310/cp312），上传至 flagos-pypi-cambricon。验证周期
-2026-08-22（含 #125 并入集成分支后的复验），节点为 MLU590-M9DE（8 卡）。
+2026-08-22（含 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+并入集成分支后的复验），节点为 MLU590-M9DE（8 卡）。
 
 ## training（2026-08-22，双后端全 ✅）
 
@@ -55,9 +56,11 @@ cpu/cuda/musa/txda/npu/enflame/kunlunxin）→ cuda 平台经 gpu_migration 桥�
 上游修复已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
 （2026-08-22）：PlatformMLU 原生注册，继承 PlatformCUDA（gpu_migration
 桥接），`is_available()` 强制设备初始化，MLU 注册/选中均在 CUDA 之前；
-含 4 个单测。**#125 已并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`），
+含 4 个单测。**[MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+已并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`），
 三场景复验全 ✅**（training / post_training / inference 均打印
-`mlu Selected`，见下文各节）。待 #125 合入 MLF main 即完全落地。
+`mlu Selected`，见下文各节）。待 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+合入 MLF main 即完全落地。
 
 其余配方参数缺口（merged wheel config dataclass，与 metax/hygon 同源）：
 `--max-position-embeddings`（arguments.py:1131 默认 None 断言）、
@@ -95,7 +98,8 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 
 静态 legacy 路径不需要动态批（KV-append 内核设备断言，跟踪表 #2
 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)），故推理
-⛔→✅；**动态批推理仍被 #120 阻塞**（矩阵 ⛔ 的原始语义）。
+⛔→✅；**动态批推理仍被 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)
+阻塞**（矩阵 ⛔ 的原始语义）。
 
 ## RL（暂缓）
 
@@ -107,7 +111,8 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 - 平台抽象缺口（#11）已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
   并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`）：复验
   training / post_training / inference 双后端全 ✅（矩阵 B#11 已同步）。
-  #125 上游保持 OPEN，按决策不等待其 merge；合入 main 后仅剩文档表述收尾。
+  [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
+  上游保持 OPEN，按决策不等待其 merge；合入 main 后仅剩文档表述收尾。
 - modelopt 已随当前 wheel 的 `[training]` extra（0.43.0）实测安全：单步安装、
   关键包未动（详见上文 modelopt 依赖面）——0.45.0 时代 hazard 不再适用，
   未来抬 modelopt 版本需先核 torch 约束。

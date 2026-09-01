@@ -184,9 +184,9 @@ builtin.module(
 
 ---
 
-## 2026-08-21 补充（续）：厂商插件层修复 —— vllm-plugin-FL PR #268
+## 2026-08-21 补充（续）：厂商插件层修复 —— vllm-plugin-FL [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)
 
-**厂商立场：该修补没有问题。** vllm-plugin-FL PR #268（"Support kunlunxin
+**厂商立场：该修补没有问题。** vllm-plugin-FL [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)（"Support kunlunxin
 backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
 推理路径以它为官方实现；attention 不再经过 Triton 编译器：
 
@@ -210,7 +210,8 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
   5.0.21.43 + FlagGems 5.0.0 + flagtree 0.6.1a1 + sdnn-objects
   v0.3.6.2.0；我们 = **llvm19** + driver 5.37.1 + FlagGems 5.3.4。
   sdnn-objects v0.3.6.2.0 与本任务 A1 重编回退版本一致
-- **依赖**：插件版本需含 #268；`xtorch_ops` 随 FlagCX 工具链提供，
+- **依赖**：插件版本需含 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)；
+  `xtorch_ops` 随 FlagCX 工具链提供，
   需 `FLAGCX_PATH` 指向其目录
 
 **与本文档前文的关系：**
@@ -218,12 +219,14 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
 - 三处 Triton attention 编译失败（问题 1/2/3）依然成立、复现方式不变；厂商方案
   是在应用层以新增 native backend 整体替换 attention 内核，前文"应用层无法绕过"
   仅指 vLLM 自带 backends。
-- 若 kunlunxin 目标是推理可用性，以 #268 为准（厂商立场：修补无问题），
+- 若 kunlunxin 目标是推理可用性，以 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)
+  为准（厂商立场：修补无问题），
   Qwen3-4B 乱码按厂商说明设 `USE_RESHAPE_AND_CACHE_FLASH=1` 解决；若仍要
   修复 Triton 编译本身（FlagTree SDNN pass 链与基础 lowering 对循环携带
   PtrState 的支持），前文请求与复现要点不变。
-- **待办**：本任务尚未跑 #268 路径（缺含 #268 的插件、xtorch_ops、FlagCX），
-  乱码修复结论需在该路径上以 Qwen3-4B 复验。
+- **待办**：本任务尚未跑 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)
+  路径（缺含 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268) 的
+  插件、xtorch_ops、FlagCX），乱码修复结论需在该路径上以 Qwen3-4B 复验。
 
 ---
 
@@ -247,9 +250,11 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
 通过（FlagTree 7/7、triton 3.6.0 3/3，serve + 推理连贯，详见
 [vllm-0.20.2/backends/kunlunxin.md](vllm-0.20.2/backends/kunlunxin.md)）。两条绕过路径：
 
-1. **厂商插件层 PR #268**（vllm-plugin-FL）：新增 xtorch_ops 原生 attention
+1. **厂商插件层 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)**
+   （vllm-plugin-FL）：新增 xtorch_ops 原生 attention
    backend，attention 不再走 Triton 编译，三处失败一并绕开。
-2. **triton 3.6.0 升级（#469）**：`/opt/triton` 由 3.0.0 升到 3.6.0
+2. **triton 3.6.0 升级（[build-infra #469](https://github.com/flagos-ai/build-infra/pull/469)）**：
+   `/opt/triton` 由 3.0.0 升到 3.6.0
    （vendor wheel 3.6.0+gitcd2d6c1b），问题 3 的 XTDK LLVM19 空 SetVector
    断言在升级后不再出现（3.0.0 另缺 libz3.so.4 的问题也随之解除）。
 

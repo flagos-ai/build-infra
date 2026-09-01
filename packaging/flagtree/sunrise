@@ -24,7 +24,7 @@
 # kernel (vllm plugin reports report-vllm-0.20.2.md §2.9 / report-vllm-0.24.0.md
 # §11; A/B compile-only IR dumps show identical TTGIR between old flagtree and
 # stock triton, locating the defect downstream in the backend post-passes).
-# Building from main (default FLAGTREE_VERSION=main) captures PR 978 + any later
+# Building from main (default FLAGTREE_VERSION=main) captures FlagTree PR 978 + any later
 # fix; pin a specific commit sha for reproducible releases.
 #
 # The prebuilt sunrise deps are staged into FlagTree's offline cache so the
@@ -59,7 +59,7 @@ FROM ubuntu:22.04
 # Proxy is only consumed during build (predefined ARG, not persisted in the image).
 ARG http_proxy=
 ARG https_proxy=
-# FlagTree git ref to build. The sunrise fix (PR 978) exists only on main -- the
+# FlagTree git ref to build. The sunrise fix (FlagTree PR 978) exists only on main -- the
 # vendor tag 0.6.0+sunrise3.6 is pre-978. Default main; pass a commit sha for
 # reproducible builds.
 ARG FLAGTREE_VERSION=main
@@ -72,7 +72,7 @@ ARG FLAGTREE_VERSION=main
 ARG FLAGTREE_WHEEL_VERSION=0.6.0+sunrise3.6
 # Prebuilt sunrise deps, pinned by URL. These are backend inputs, not source:
 #  - llvm-71bd243f: prebuilt LLVM 22 (configure_llvm post_hook wires LLVM_SYSPATH).
-#  - sunriseTritonPlugin_v0.6.0.4: prebuilt sunrise codegen (PR 978 version,
+#  - sunriseTritonPlugin_v0.6.0.4: prebuilt sunrise codegen (FlagTree PR 978 version,
 #    .so md5 4c77b8c0; compiled against pybind11 internals v12).
 #  - build-deps-triton: triton origin toolkits (nvidia nvcc/cudart + json/gtest).
 ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
@@ -119,7 +119,7 @@ RUN printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /
 # Pre-stage the prebuilt sunrise deps into FlagTree's offline cache dirs so the
 # build wires them itself: LLVM -> sunrise_llvm22_dev_release (post_hook),
 # plugin -> sunriseTritonPlugin.so, triton toolkits -> ~/.triton. The plugin .so
-# is md5-gated to the PR 978 build (4c77b8c0); a drifted plugin fails the build
+# is md5-gated to the FlagTree PR 978 build (4c77b8c0); a drifted plugin fails the build
 # instead of silently pairing the new compiler.py with the old codegen. Retry the
 # large downloads (LLVM ~1 GB) since the runner's link to the bucket is flaky.
 RUN mkdir -p /root/.flagtree/sunrise /root/.triton \

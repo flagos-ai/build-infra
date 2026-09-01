@@ -42,8 +42,8 @@ exit 0，零 SIGSEGV。**
 
 **运行所需补丁（BREAK 清单）:** 全链路跑通需要 6 个代码补丁 + 1 个环境变量
 （§1）。分布：verl 2 个、vllm-plugin-fl 2 个、torch/_inductor 1 个、
-flag_gems 1 个。**六个代码补丁已上提 fork PR（§3）：verl-FL [PR #20]、
-vllm-plugin-FL [PR #420]、FlagGems [PR #5841]；torch/_inductor 容错等
+flag_gems 1 个。**六个代码补丁已上提 fork PR（§3）：[verl-FL #20](https://github.com/flagos-ai/verl-FL/pull/20)、
+[VPF #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420)、[FlagGems #5841](https://github.com/flagos-ai/FlagGems/pull/5841)；torch/_inductor 容错等
 FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite 补丁
 （§1.6）仅 triton 路径需要，flagtree 路径不受影响；其余补丁双路径都需要。
 
@@ -84,7 +84,7 @@ FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite �
   替换 `return self.inference_engine.execute_method(method, *args, **kwargs)`。
 - **原因:** vllm 0.20.2 的 worker 方法经 `run_method` 序列化执行，
   `execute_method` 路径不可用。
-- **处置:** 已上提 verl-FL [PR #20](https://github.com/flagos-ai/verl-FL/pull/20)（Fixes
+- **处置:** 已上提 [verl-FL #20](https://github.com/flagos-ai/verl-FL/pull/20)（Fixes
   [#19](https://github.com/flagos-ai/verl-FL/issues/19)，`_VLLM_GE_0_20`
   guard 门控，等 merge）。
 
@@ -102,7 +102,7 @@ FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite �
   了这段 → `IndexError: list index out of range`。multi-engine
   （n_gpus_per_node=2）下每个 EngineCore 拿到自己的单元素 list（TP=1），须按
   len==1 取 `[0]`，TP>1 才按 engine rank 索引。
-- **处置:** 已上提 vllm-plugin-FL [PR #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420)
+- **处置:** 已上提 [VPF #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420)
   （Closes [#419](https://github.com/flagos-ai/vllm-plugin-FL/issues/419)，base=release/0.2，
   与 §1.3 同一 commit，等 merge）。
 
@@ -114,7 +114,7 @@ FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite �
 - **原因:** stock WorkerBase 同处有该上下文；fork override 缺失 → 下游
   `get_current_vllm_config()`（kv cache reshape 的
   `get_kv_connector_cache_layout`）失败。
-- **处置:** 已上提 vllm-plugin-FL [PR #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420)
+- **处置:** 已上提 [VPF #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420)
   （与 §1.2 同一 commit，等 merge）。
 
 ### 1.4 verl max_model_len 守卫
@@ -126,7 +126,7 @@ FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite �
       self.config.max_model_len = self.model_config.hf_config.max_position_embeddings
   ```
 - **原因:** 显式传入 `rollout.max_model_len`（768）时不应被 hf_config 覆盖。
-- **处置:** 已上提 verl-FL [PR #20](https://github.com/flagos-ai/verl-FL/pull/20)
+- **处置:** 已上提 [verl-FL #20](https://github.com/flagos-ai/verl-FL/pull/20)
   （与 §1.1 同一 commit，等 merge）。
 
 ### 1.5 torch/_inductor make_launcher cluster_dims 容错
@@ -140,7 +140,7 @@ FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite �
 - **原因:** flagtree 3.6.0 kernel metadata 缺 cluster_dims → make_launcher
   AttributeError；与 megatron 线 jit_fuser 崩溃（同根因）的另一点入口。
 - **处置:** 不上提代码；等 FlagTree 侧修复重建 wheel——flagtree 上游
-  [PR #1020](https://github.com/flagos-ai/flagtree/pull/1020)（补 cluster_dims
+  [FlagTree #1020](https://github.com/flagos-ai/flagtree/pull/1020)（补 cluster_dims
   默认值）已 merge（2026-08-26），0.6.1+hcu3.6 wheel 不含，待 rebuild 后复验。
 
 ### 1.6 flag_gems isfinite fallback（triton 路径唯一训练阻塞）
@@ -159,7 +159,7 @@ FlagTree 重建，ray 环境变量待固化到 verl 启动环境。** isfinite �
   在 HIP backend 无法 lowering → 编译为 None → `TypeError: cannot convert
   None to tensor`。`(x-x)==0.0` 只用 core triton operator，全后端可
   lowering；对任意有限 x 恒为真（x-x 精确 0），对 +-inf/NaN lane 恒为假。
-- **处置:** 已上提 FlagGems [PR #5841](https://github.com/flagos-ai/FlagGems/pull/5841)
+- **处置:** 已上提 [FlagGems #5841](https://github.com/flagos-ai/FlagGems/pull/5841)
   （Closes [#5840](https://github.com/flagos-ai/FlagGems/issues/5840)，等 merge）。
 
 ### 1.7 ray teardown SIGSEGV（环境变量，非代码补丁）
@@ -222,9 +222,9 @@ perf/throughput ≈ 5.2~5.6 tok/s；step 0 验证 reward/acc = 0.125（4 样本�
 
 | 补丁 | 去向 | 状态 |
 |---|---|---|
-| §1.1 / §1.4 verl | verl-FL [PR #20](https://github.com/flagos-ai/verl-FL/pull/20) | 已开，等 merge |
-| §1.2 / §1.3 vllm-plugin-fl | vllm-plugin-FL [PR #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420) | 已开，等 merge |
-| §1.6 flag_gems | FlagGems [PR #5841](https://github.com/flagos-ai/FlagGems/pull/5841) | 已开，等 merge |
+| §1.1 / §1.4 verl | [verl-FL #20](https://github.com/flagos-ai/verl-FL/pull/20) | 已开，等 merge |
+| §1.2 / §1.3 vllm-plugin-fl | [VPF #420](https://github.com/flagos-ai/vllm-plugin-FL/pull/420) | 已开，等 merge |
+| §1.6 flag_gems | [FlagGems #5841](https://github.com/flagos-ai/FlagGems/pull/5841) | 已开，等 merge |
 | §1.5 torch/_inductor | flagtree 侧修复，不上提代码 | 等 wheel rebuild 后复验 |
 | §1.7 ray env | 随 verl app 镜像线固化到启动文档/脚本 | 未开始 |
 

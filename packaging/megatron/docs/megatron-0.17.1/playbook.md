@@ -38,7 +38,7 @@
   pretrain_gpt 5 iter exit 0。
 - **F/T 双路径都必须跑**（验证面不归并）：`--compiler flagtree` 与
   `--compiler triton` 各一遍，loss 逐位一致才算过。
-- `--scenario rl` 被脚本拒绝（上游阻塞：MLF #116 + flash-attn），RL cell
+- `--scenario rl` 被脚本拒绝（上游阻塞：[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) + flash-attn），RL cell
   标 ⛔ 不收集。
 - 陈旧 checkout 时用 `--stack-version` 显式钉 runtime 镜像 tag（repo root
   固定路径，无 walk-up）。
@@ -47,11 +47,11 @@
 
 | 弯路 | 现象 | 处置 |
 |---|---|---|
-| flash_attn 版本断言 | `flash_attn.__version__` 硬编码 "2.6.1" 检查，vendor 变体不适用 | 随 MLF #116 按 DotProductAttention 跳过 |
+| flash_attn 版本断言 | `flash_attn.__version__` 硬编码 "2.6.1" 检查，vendor 变体不适用 | 随 [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) 按 DotProductAttention 跳过 |
 | TORCHINDUCTOR_COMPILE_THREADS | flagtree inductor fork × driver current_device 崩溃 | 镜像 ENV 固化 =1（进程内编译） |
 | apex | MLF 4 处使用全 try/except fallback | 熔断可选；hygon runtime 纳入 vendor apex |
 | tensorboard 未声明依赖 | rl_utils.py:24 import 期阻塞 → has_rl_utils=False 断言 | 补装；MLF 反馈项 |
-| cambricon `_copy_from` kernel 缺失 | NPU 递归分发 segfault（torch_npu 缺 PrivateUse1 kernel） | FlagGems #4962/#4960 闭环 |
+| cambricon `_copy_from` kernel 缺失 | NPU 递归分发 segfault（torch_npu 缺 PrivateUse1 kernel） | [FlagGems #4962](https://github.com/flagos-ai/FlagGems/pull/4962)/[#4960](https://github.com/flagos-ai/FlagGems/pull/4960) 闭环 |
 | `--lr` / `--eval-interval` 默认 None | merged wheel 参数接口重构，不传即 TypeError | 复现基线强制传参 |
 | `--no-persist-layer-norm` 缺失 | post_training 撞 torch_norm.py:48 断言（persist 默认 True） | 必传参数 |
-| torch-first 导入顺序（ascend） | `import triton` 先于 torch 即崩（flagtree backend discovery） | FlagTree #1025 惰性化前保持 torch-first |
+| torch-first 导入顺序（ascend） | `import triton` 先于 torch 即崩（flagtree backend discovery） | [FlagTree #1025](https://github.com/flagos-ai/FlagTree/pull/1025) 惰性化前保持 torch-first |

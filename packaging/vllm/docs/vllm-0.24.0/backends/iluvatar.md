@@ -57,5 +57,5 @@ docker run -d --network host --device /dev/iluvatar0 \
 | numpy | 1.26.4（configs.yaml pin） |
 | python | 3.12 |
 
-**相关提交：** 镜像构建 + tag 记录（PR #628 记录 image_tag）；F/T 验证记录
-（状态矩阵 PR #629）。
+**相关提交：** 镜像构建 + tag 记录（[build-infra #628](https://github.com/flagos-ai/build-infra/pull/628) 记录 image_tag）；F/T 验证记录
+（状态矩阵 [build-infra #629](https://github.com/flagos-ai/build-infra/pull/629)）。

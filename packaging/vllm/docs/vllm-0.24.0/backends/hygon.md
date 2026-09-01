@@ -43,7 +43,7 @@ serve 在 KV-cache profiling warmup 阶段崩 `AttributeError`（torch
 iluvatar overlay 都用 `(1,1,1)` 兜底。修复 = 一行
 `metadata.setdefault("cluster_dims", (1, 1, 1))`：
 
-- 上游：FlagTree PR #1020（`fix(compiler): default cluster_dims=(1,1,1)
+- 上游：FlagTree [PR #1020](https://github.com/flagos-ai/FlagTree/pull/1020)（`fix(compiler): default cluster_dims=(1,1,1)
   for backends that omit it`，分支 fix/cluster-dims-default，
   2026-08-20 提交）
 - 临时绕过：就地 sed 到 `/opt/flagtree/triton/compiler/compiler.py`

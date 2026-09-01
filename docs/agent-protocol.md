@@ -50,3 +50,14 @@
 - 删除前检查：
   - `git ls-files` 确认是否入库；gitignored 文件删除 = 真丢失，先确认内容已并入。
   - 删除动作不赶时机：文件仍在使用就保留（verl 线案例）。
+
+## 6. 上游 PR 注册
+
+- 任何新增对**其他仓库**的 PR（vllm-plugin-FL / FlagGems / FlagTree /
+  Megatron-LM-FL / verl-FL / NVIDIA 上游等），合并后必须把完整 GitHub PR URL
+  注册到对应 `packaging/<comp>/status_matrix.<app>.yaml` 对应后端的 `prs:`
+  列表。只写裸 `#N` 视为未注册；渲染器会对 `prs:` 做 URL 格式校验。
+- 本仓库内部 PR 由既有 PR 体系跟踪，不入 `prs:`（沿用 `docs/status-matrix.md`
+  既有约定）。
+- 正文提到其他仓库 PR 时同样用完整 Markdown 链接
+  `[<RepoAbbrev> #N](https://github.com/<owner>/<repo>/pull/N)`，不写裸号。

@@ -4,7 +4,10 @@
 
 **硬件：** 昆仑芯 P800 OAM　**XRE：** 5.37.1（driver 5.37.1.0）　**架构：** `xpu_arch=3` / xpu3
 
-**场景：** vLLM 0.20.2（empty build）+ vllm-plugin-FL（含 kunlunxin vendor 插件层 #268）+ flag_gems 5.3.4（`_kunlunxin` 后端），serve Qwen3-4B，TP=1，block_size=128，enforce-eager，temperature=0.0
+**场景：** vLLM 0.20.2（empty build）+ vllm-plugin-FL（含 kunlunxin vendor
+插件层 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)）+
+flag_gems 5.3.4（`_kunlunxin` 后端），serve Qwen3-4B，TP=1，
+block_size=128，enforce-eager，temperature=0.0
 
 **torch：** 2.9.0+cu129（stock）+ torch_xmlir　**decoder：** 厂商 `xtorch_ops`（v0.1.2935+50a5d6a4，本地 wheel 手工注入，见 §4）
 
@@ -77,11 +80,13 @@ Qwen3-4B，请求 `temperature=0.0`（greedy），`max_tokens=12`：
 
 ## 更新（2026-08-23）：可复现性缺口已关闭，修复已上提
 
-- **xtorch_ops 已入管线**：configs.yaml kunlunxin `deps:` 自 #469（2026-08-21）起
-  含 `xtorch_ops==0.1.2935+50a5d6a4`（deps 共 17 包），重建的 runtime 镜像直接携带，
-  不再依赖 §4 所述手工注入。vendor index 上架状态以厂商为准（容器层/节点/索引
-  wheel 逐字节一致已核）。
-- **修复已上提 PR #400**（vllm-plugin-FL，base `release-0.2`，即 0.20.2 发布线）：
+- **xtorch_ops 已入管线**：configs.yaml kunlunxin `deps:` 自
+  [build-infra #469](https://github.com/flagos-ai/build-infra/pull/469)
+  （2026-08-21）起含 `xtorch_ops==0.1.2935+50a5d6a4`（deps 共 17 包），重建的
+  runtime 镜像直接携带，不再依赖 §4 所述手工注入。vendor index 上架状态以厂商
+  为准（容器层/节点/索引 wheel 逐字节一致已核）。
+- **修复已上提 [VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400)**
+  （vllm-plugin-FL，base `release-0.2`，即 0.20.2 发布线）：
   `patch_decode_attention` 中 `alpha = scale * sqrt(head_size)`。0.20.2 双编译器
   路径验证记录（FlagTree 7/7 + triton 3.6.0 3/3）已补进 PR body。
 - **Qwen3.6-27B 回归**仍未执行（见 §5），PR 合入后须补验。

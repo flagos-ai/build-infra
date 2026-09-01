@@ -339,7 +339,7 @@ vendors:
         - torch-gcu==2.10.0+3.7.20260408
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
       deps_app:
-        # megatron_training added: verified F+T (#639).
+        # megatron_training added: verified F+T ([build-infra #639](https://github.com/flagos-ai/build-infra/pull/639)).
         megatron_training: []
         vllm0.20.2: []
       sdk:
@@ -448,7 +448,7 @@ vendors:
         - torchvision==0.22.1+corex.4.4.0
         - numpy==1.26.4
       deps_app:
-        # megatron_training only: verified F+T (#639). vllm gates stay off —
+        # megatron_training only: verified F+T ([build-infra #639](https://github.com/flagos-ai/build-infra/pull/639)). vllm gates stay off —
         # iluvatar 4.4.0 is ⬜/❌ in the vllm 0.20.2/0.24.0 matrices.
         megatron_training: []
       sdk:
