@@ -134,9 +134,18 @@ RUN MLF_VERSION="${MLF_VERSION}" python /usr/local/bin/stamp_version.py
 # (pip would otherwise try to build a torch wheel from PyPI). --no-deps is
 # essential: only the wheel itself is built; runtime deps resolve at install
 # time from the vendor index.
+#
+# NO_VCS_VERSION=1: upstream 0.18.2's megatron/core/package_info.py carries a
+# VCS auto-stamp block that appends `+<git-short-sha>` to __version__ at import
+# time (git rev-parse --short HEAD, skipped only when NO_VCS_VERSION is set).
+# setuptools' dynamic-version attr import runs inside the git checkout, so the
+# stamp_version.py-derived version would gain a SECOND PEP 440 local label:
+# `0.18.2+fl.<date>.g<sha12>+<sha7>` — InvalidVersion, egg_info fails, and the
+# wheel build dies in "Preparing metadata". 0.17.1's package_info.py (fork main)
+# has no such block, which is why this only bites on the 0.18.2 rebase.
 RUN cd /opt/megatron-lm-fl \
     && for i in 1 2 3 4 5; do \
-         python -m pip wheel . --no-deps --no-build-isolation -w /wheels -v && break; \
+         NO_VCS_VERSION=1 python -m pip wheel . --no-deps --no-build-isolation -w /wheels -v && break; \
          echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
        done \
     && ls -la /wheels/*.whl
