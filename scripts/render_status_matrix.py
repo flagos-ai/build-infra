@@ -252,6 +252,9 @@ def validate_app(data: dict, path: Path, comp_md: Path) -> None:
         for pr in prs or []:
             if not isinstance(pr, str):
                 bad(f"backends.{bkey}.prs: expected strings, got {pr!r}")
+        note = binfo.get("note")
+        if note is not None and (not isinstance(note, str) or not note):
+            bad(f"backends.{bkey}.note: expected a non-empty string")
 
     if problems:
         for p in problems:
@@ -343,7 +346,7 @@ def render_facility(app: dict, apps: list[dict]) -> str:
     lines.append("")
     lines.append("**后端级设施**")
     lines.append("")
-    headers = ["后端"] + [label for _, label in FACILITY_BACKEND_ITEMS] + ["镜像发布"]
+    headers = ["后端"] + [label for _, label in FACILITY_BACKEND_ITEMS] + ["镜像发布", "备注"]
     rows = []
     for bkey in BACKENDS:
         if bkey not in app["backends"]:
@@ -353,6 +356,7 @@ def render_facility(app: dict, apps: list[dict]) -> str:
         row += [BOOL_SYMBOL[bool(binfo.get(item))]
                 for item, _ in FACILITY_BACKEND_ITEMS]
         row.append(BOOL_SYMBOL[bool(binfo.get("image_tag"))])
+        row.append(binfo.get("note") or "—")
         rows.append(row)
     lines.append(render_table(headers, rows))
     lines.append("")
