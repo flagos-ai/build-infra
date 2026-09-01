@@ -52,29 +52,29 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 | 厂商 | 后端 | App | PR | 状态 |
 |---|---|---|---|---|
-| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | — |
-| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | — |
-| 昇腾 | CANN 8.5.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | — |
-| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | — |
-| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | — |
-| 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | — |
-| 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | — |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | — |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 | — |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 | — |
-| 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | — |
-| 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | — |
-| 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 | — |
-| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 | — |
-| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 | — |
-| 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 | — |
-| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | — |
-| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | — |
-| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | — |
-| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | — |
-| 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 | — |
-| 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 | — |
-| 清微智能 | TSM 260610 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/421 | — |
+| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | OPEN |
+| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
+| 昇腾 | CANN 8.5.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
+| 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 | 已合并 |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 | 已合并 |
+| 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
+| 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
+| 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 | 已合并 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 | 已合并 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 | OPEN |
+| 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 | OPEN |
+| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | 已合并 |
+| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
+| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | 已合并 |
+| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
+| 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
+| 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
+| 清微智能 | TSM 260610 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/421 | OPEN |
 
 <!-- /status-matrix:verification -->
 
