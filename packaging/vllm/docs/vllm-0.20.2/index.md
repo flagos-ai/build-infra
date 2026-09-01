@@ -45,12 +45,12 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 |---|---|---|
 | NVIDIA cuda12.8 / cuda13.3 | [nvidia.md](backends/nvidia.md) | 首个标准构建后端；2026-08-23 empty 复核 F/T 双路径 |
 | MetaX maca3.7.2.1 | [metax.md](backends/metax.md) | 首个 empty 后端；3.8.1.3 复验见同文件 |
-| mthreads musa4.3.6 / 5.2.0 | [mthreads.md](backends/mthreads.md) | 标准流程范例来源；mul 门控 #5130 |
+| mthreads musa4.3.6 / 5.2.0 | [mthreads.md](backends/mthreads.md) | 标准流程范例来源；mul 门控 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130) |
 | hygon dtk26.04 | [hygon.md](backends/hygon.md) | 首个复用他机 wheel 后端；torch↔numpy ABI |
 | iluvatar corex4.4.0 / 4.5.0 | [iluvatar.md](backends/iluvatar.md) | 4.4.0 乱码（工具链过旧）；4.5.0 ✅ F/T 双路径 E2E |
 | enflame tops1.9.10 / 1.10.6 | [enflame.md](backends/enflame.md) | GCU300 ✅ E2E；vLLM 原生 FLASH_ATTN |
 | cambricon neuware4.7.2 | [cambricon.md](backends/cambricon.md) | §2.7 MLU590 主记录 |
 | ascend cann9.0.0 | [ascend.md](backends/ascend.md) | 910B4 aarch64 cp311；fork-SHA 溯源表 |
-| sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | FlagTree decode 挂死 → 已修复（PR 978）|
-| kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | P800 XPU；解码乱码 PR #400 + 假死 KL3 |
+| sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | FlagTree decode 挂死 → 已修复（[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)）|
+| kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | P800 XPU；解码乱码 [VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400) + 假死 KL3 |
 | cambricon neuware4.4.3 | [cambricon.md](backends/cambricon.md) | §2.11，T-only 兼容 shim ×5 |
