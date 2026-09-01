@@ -39,16 +39,17 @@ title: "vllm0.24.0-mthreads-musa4.3.6"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.3.0rc0+g5b592be.d20260817`
+
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.1.2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.1.2-0.3.0rc0_g5b592be.d20260817`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.1.2-0.3.0rc0_g5b592be.d20260817
 ```
 
 以下两种方式任选其一：
