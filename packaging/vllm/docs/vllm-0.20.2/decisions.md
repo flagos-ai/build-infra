@@ -88,7 +88,8 @@ platform tag（`py3-none-any`），不伪造 `cp38-abi3-manylinux_2_35_x86_64`�
 **若跨后端回归发现 pip 选错版本，备选：** 改用 `0.20.2.post1`（非本地
 版本，排序明确高于 `0.20.2`）。
 
-**相关提交：** `main` 478de6b、PR #280（递归 `+flagos` pin，使单步安装成立）。
+**相关提交：** `main` 478de6b、[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)
+（递归 `+flagos` pin，使单步安装成立）。
 
 ### 5.2 empty vllm 包的通用性与 wheel 的落点（per-vendor 决策）
 

@@ -99,8 +99,14 @@ marker 块缺失时渲染器报错退出（防止手删块后静默丢失）。
 
 `prs`（可选，string 列表）：**上游** PR 跟踪项 —— 验证/镜像基于 PR 分支 Head
 完成的那些 PR（如 vllm-plugin-FL / FlagTree / FlagGems 的 PR），合并后需联动
-更新矩阵格与 fact 条目。设施落地 PR（build-infra 本仓库、由仓库内 PR 跟踪
-体系负责）不放在这里，**facility 不携带 PR**。
+更新矩阵格与 fact 条目。**每项必须是完整 GitHub PR URL**
+（`https://github.com/<owner>/<repo>/pull/<N>`，渲染器校验，裸 `#N` 无法注册）。
+设施落地 PR（build-infra 本仓库、由仓库内 PR 跟踪体系负责）不放在这里，
+**facility 不携带 PR**。
+
+验证矩阵 PR 表的"状态"列在**渲染时**由 `render_status_matrix.py` 经 `gh`
+实时查询各 PR 的合并状态（值域：已合并 / OPEN / 已关闭；查询失败显示 `—`，
+重新渲染即刷新）。合并状态在 PR 所属的上游仓库变化，不维护在 YAML 里。
 
 ## 刷新机制
 

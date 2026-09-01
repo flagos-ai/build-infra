@@ -25,6 +25,9 @@
 
 列名后缀：T = Triton 编译器，F = FlagTree 编译器。
 
+PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 / OPEN / 已关闭）；
+查询失败显示 `—`，重新渲染即刷新。
+
 > 注：各编译器在对应后端的具体版本、前置与 workaround（hygon jit_fuser
 > 补丁、ascend torch-first 导入顺序、nvidia inductor fork 规避等）见厂商
 > 文档：[[megatron-0.17.1/backends/hygon.md]] / [[megatron-0.17.1/backends/nvidia.md]] /
@@ -59,76 +62,76 @@
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
-| 厂商 | 后端 | App | PR |
-|---|---|---|---|
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 |
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 |
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
-| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 |
-| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
-| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 |
-| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 |
-| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 |
-| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 |
-| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 |
-| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 |
-| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 |
-| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 |
-| 寒武纪 | NEUWARE 4.4.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
-| 寒武纪 | NEUWARE 4.7.2 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/130 |
-| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/131 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/130 |
-| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/131 |
-| 海光 | DTK 26.04 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 |
-| 海光 | DTK 26.04 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
-| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 |
-| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/116 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 |
-| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 |
-| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 |
-| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 |
-| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 |
-| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 |
+| 厂商 | 后端 | App | PR | 状态 |
+|---|---|---|---|---|
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | — |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | — |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | — |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | — |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | — |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | — |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | — |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | — |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | — |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | — |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 | — |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | — |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | — |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 | — |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | — |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | — |
+| 寒武纪 | NEUWARE 4.4.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | — |
+| 寒武纪 | NEUWARE 4.7.2 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/130 | — |
+| 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/131 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/130 | — |
+| 燧原 | TOPS 1.10.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/131 | — |
+| 海光 | DTK 26.04 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 | — |
+| 海光 | DTK 26.04 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 天数智芯 | COREX 4.4.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | — |
+| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 天数智芯 | COREX 4.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | — |
+| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 沐曦 | MACA 3.8.1.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 沐曦 | MACA 3.8.1.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/116 | — |
+| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 摩尔线程 | MUSA 4.3.6 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 | — |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | — |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | — |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | — |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | — |
+| 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 | — |
 
 <!-- /status-matrix:verification -->
 
@@ -163,7 +166,7 @@
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
-| DTK 26.04 | ✅ | ✅ | ⬜ | app 镜像未发布：modelopt 未入镜像（已决策进 MLF #114 [training] extra），单步安装测试待 extra 合入后随 app 镜像走 |
+| DTK 26.04 | ✅ | ✅ | ⬜ | app 镜像未发布：modelopt 未入镜像（已决策进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) [training] extra），单步安装测试待 extra 合入后随 app 镜像走 |
 | COREX 4.4.0 | ✅ | ✅ | ✅ | — |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ⬜ | ⬜ | ⬜ | — |
@@ -334,4 +337,4 @@
    pretrain_gpt.py 小规模跑通。
 2. **rl 场景**：~~依赖面干净，验证成本与 training 相当；同镜像按用途补 pydantic/typing_extensions~~。**已降级（2026-08-31 定案）：megatron_rl 暂停，RL 框架转向 verl**——矩阵 RL 列标 ⏸，RL 验证随 verl 线推进，不再按原顺序安排。
 3. **post_training 场景**：仅 NVIDIA 先行，其余后端等 modelopt 可用性结论。
-4. **inference 场景**：hygon 已用全范围 wheel（[PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)）验证 ✅（static legacy 路径）；其余后端待该 PR 合入后按序验证。
+4. **inference 场景**：hygon 已用全范围 wheel（[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)）验证 ✅（static legacy 路径）；其余后端待该 PR 合入后按序验证。

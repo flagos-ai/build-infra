@@ -89,21 +89,21 @@ Inference:    ✅  "The capital of France is" → " Paris. The capital of German
 ### 待办
 
 1. **`lift_fresh`/`lift_fresh_copy`/`_to_copy` 黑名单对齐 Mac 源码并提 PR** —— **✅ 已提**：
-   [PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)（flagos-ai/vllm-plugin-FL，
+   [VPF #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)（flagos-ai/vllm-plugin-FL，
    分支 `ascend-blacklist-lift-fresh`→`release-0.2`）：`dispatch/config/ascend.yaml`；
    coreDim=0 标量崩溃规避，回退 torch_npu 无损。根治方向：flag_gems 标量/极小张量 grid 下限保护
 2. **ATB `set_env.sh` 烘焙进 base image env** —— **✅ 已提**：两后端分属不同 PR，
-   cann9.0.0 = [PR #353](https://github.com/flagos-ai/build-infra/pull/353)
+   cann9.0.0 = [build-infra #353](https://github.com/flagos-ai/build-infra/pull/353)
    （`base/ascend-cann9.0.0` 在 CANN 之后 source NNAL/ATB `set_env.sh`）；cann8.5.0 =
-   [PR #354](https://github.com/flagos-ai/build-infra/pull/354)（补 NNAL）+
-   [PR #355](https://github.com/flagos-ai/build-infra/pull/355)（捕获 NNAL/ATB env 进
+   [build-infra #354](https://github.com/flagos-ai/build-infra/pull/354)（补 NNAL）+
+   [build-infra #355](https://github.com/flagos-ai/build-infra/pull/355)（捕获 NNAL/ATB env 进
    `vendor.sh`）。`ATB_HOME_PATH` / ATB lib path 进 `vendor.sh`，消除运行时手动 source；
    否则 ATB 后端算子（reshape_and_cache/rotary_embedding）在裸 shell 崩溃
 3. **flag_gems 5.3.4 重推 v2 镜像刷新** —— **🔄 进行中**：现镜像烘焙旧 wheel，
    须强制重装才可用；全部 17 个 v2 runtime 镜像重建后消除（用户驱动）
 4. **ascend `+flagos` wheel 上架** —— **✅ 已上传**：4 个 wheel 已上架 `flagos-pypi-ascend`（用户上传）
 
-**相关提交：** plugin 黑名单已提 **[PR #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`release-0.2`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
+**相关提交：** plugin 黑名单已提 **[VPF #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)**（`ascend-blacklist-lift-fresh`→`release-0.2`，commit baeafde）。wheel 复用 Phase A + 用户上传（无落库）；ATB env 1 处在容器内，base image 待对齐。
 
 ### 后续（2026-08-24）：ascend 双后端 0.20.2 全路径 F/T 双编译器 E2E 全 ✅
 
@@ -126,7 +126,7 @@ _to_copy）同落 `dispatch/config/ascend.yaml`（cann8.5.0 / cann9.0.0 共用�
    cann9.0.0（flagtree 0.6.1+ascend3.5）仅 vendor triton 拒绝，F 路径已修
 
    **修复：** `flagos_blacklist` 加 `pow_scalar`（回退 torch_npu 无损；8.5.0 遮 F+T、9.0.0
-   仅需遮 T），已提 [PR #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402)
+   仅需遮 T），已提 [VPF #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402)
    （`ascend-blacklist-pow-scalar`→`release-0.2`）
 
 **两后端修补差异（`dispatch/config/ascend.yaml` 共用，但根因/作用域不同）：** pow_scalar 黑名单是
@@ -141,22 +141,25 @@ NPU 冷启动 JIT 极慢：T 路径首请求 872s（逐 shape 编译 triton/NPU 
 64 token decode 约 11~15 min。慢≠挂：以 `generation_tokens_total` 增量 + `num_requests_running` 归零
 判断完成，勿以客户端 curl 超时误判卡死。
 
-**构建源与上游 PR 追踪（fork 分支 provenance）：** #361 与 #402 是**两个独立分支**，各自只含一半
-黑名单（#361 = lift_fresh 系 3 条、#402 = pow_scalar 1 条），0.20.2 ascend 两后端需**四条全齐**。
+**构建源与上游 PR 追踪（fork 分支 provenance）：** [VPF #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361) 与
+[VPF #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) 是**两个独立分支**，各自只含一半
+黑名单（[VPF #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361) = lift_fresh 系 3 条、
+[VPF #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) = pow_scalar 1 条），0.20.2 ascend 两后端需**四条全齐**。
 上游 merge 由 plugin 团队掌控、无法控制，故 wheel 从 fork 上的合成分支构建（`vllm-plugin-wheel.yml`
 `plugin_repo` 指 fork、`plugin_ref` 指合成分支 SHA），与其它后端从 fork 打 pre-merge wheel 同一流程。
 
 | 合成分支 commit（构建源） | 上游原始 commit | 上游 PR |
 |---|---|---|
-| `00cc275` lift_fresh 系 | `baeafde` | [vllm-plugin-FL#361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361) |
-| `05f246b` pow_scalar | `13a91ef` | [vllm-plugin-FL#402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) |
-| `2b6b635` pow_scalar 注释修正 | `e084195` | [vllm-plugin-FL#402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) |
+| `00cc275` lift_fresh 系 | `baeafde` | [VPF #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361) |
+| `05f246b` pow_scalar | `13a91ef` | [VPF #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) |
+| `2b6b635` pow_scalar 注释修正 | `e084195` | [VPF #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) |
 
 合成分支 = `tengqm/vllm-plugin-FL:ascend-blacklist-release-0.2` @ `2b6b635cd93c5578ba945cf935f7c7f7e1d5d882`
 （基于 `release-0.2` @ `825c1cd` cherry-pick 三笔，内容与上游逐字节一致，SHA 因 cherry-pick 重写
 committer/date/parent 而不同）。wheel 版本串 `0.2.0+g2b6b635.d20260824` 把构建 SHA 烙进元数据，app 镜像
-安装 pin 带进 image_tag，status_matrix 记 image_tag → 版本串 → 上游 PR，追踪链闭合。**#361/#402 merge 进
-上游 release-0.2 后，用上游新 HEAD 重打 wheel（内容逐字节相同，仅版本串 SHA 换上游值），届时删除本表。**
+安装 pin 带进 image_tag，status_matrix 记 image_tag → 版本串 → 上游 PR，追踪链闭合。**[VPF #361](https://github.com/flagos-ai/vllm-plugin-FL/pull/361)/
+[VPF #402](https://github.com/flagos-ai/vllm-plugin-FL/pull/402) merge 进上游 release-0.2 后，用上游新 HEAD 重打 wheel（内容逐字节相同，仅版本串 SHA
+换上游值），届时删除本表。**
 
 **PR 追踪约定（6 个 app × 17 后端 × F/T 双路径，PR 数量会很多）：** 持久源 = status_matrix 的
 `backends.<name>.prs:` 字段（结构化，已被 enflame/kunlunxin/sunrise 使用，记录「该后端 image 依赖的

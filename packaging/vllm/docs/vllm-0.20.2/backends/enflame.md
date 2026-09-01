@@ -5,7 +5,7 @@
 
 ## 2.6 enflame（GCU300：✅ E2E 通过，vLLM 原生 FLASH_ATTN，跨栈收敛）
 
-**方案:** vLLM 原生 FLASH_ATTN + 五处修复（plugin A/B/C/E [PR #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) + flag_gems D [PR #5345](https://github.com/flagos-ai/FlagGems/pull/5345)）。
+**方案:** vLLM 原生 FLASH_ATTN + 五处修复（plugin A/B/C/E [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) + flag_gems D [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345)）。
 
 **跨栈收敛（关键结论）:** 同一份代码在 **tops1.10.6**（torch_gcu 2.11，首次推导 2026-08-09）
 与 **tops1.9.10**（torch_gcu 2.10.0，复验 2026-08-09）上**零改动**通过 E2E——不再是每栈一个
@@ -26,7 +26,7 @@
 
 从零容器起、不预置任何补丁，逐个由硬件暴露的失败驱动修复。采用 **vLLM 原生 FLASH_ATTN**
 （干净 plugin main 已改用该路径——更贴近上游、用厂商快内核）：原生后端需要把厂商 flash_attn
-的计算算子与 flag_gems 的 KV 写内核接进 vLLM。此方案已提 PR（#357 / #5345），并在 1.9.10 栈上
+的计算算子与 flag_gems 的 KV 写内核接进 vLLM。此方案已提 PR（[VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) / [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345)），并在 1.9.10 栈上
 复验通过（见 §2.6.2），确认跨栈收敛。
 
 #### 五处修复（均在 git 可追踪的 editable flag_gems / plugin 内，vLLM site-packages 保持原样）
@@ -68,8 +68,8 @@ token→request 映射用 `torch.searchsorted(qsl[1:], tok, right=True)`，而�
 
 ```
 vllm:         0.20.2+flagos           ✅  empty，enflame 本地 build（cp312），site-packages 原样
-vllm_fl:      main f4ebc258 (editable) ✅  A 配置改名 + B FA 别名 + C FA/KV 绑定 + E slot_mapping 重写（PR #357）
-flag_gems:    master 469bb00d (editable)✅  D reshape_and_cache_flash slot_mapping int32（PR #5345）
+vllm_fl:      main f4ebc258 (editable) ✅  A 配置改名 + B FA 别名 + C FA/KV 绑定 + E slot_mapping 重写（VPF #357）
+flag_gems:    master 469bb00d (editable)✅  D reshape_and_cache_flash slot_mapping int32（FlagGems #5345）
 torch_gcu:    2.11                    ✅  透明 Long→Int（torch 层无 64 位问题）
 GCU device:   ✅ 可见
 推理:         Qwen3-4B → "Paris"      ✅  连贯英文，20→64 token，finish_reason=length，HTTP 200 9.2s
@@ -86,7 +86,7 @@ enforce-eager，`/root/run_serve.sh` 现场保留。两处插件 patch 日志（
 
 **镜像:** `flagos-runtime-enflame-tops1.9.10:2.1.2`（runtime v2：仅预置 flag_gems，**无 vllm、无 plugin**）
 
-**stack:** torch_gcu **2.10.0** / tops1.9.10 / flag_gems master（editable）/ plugin #357（editable）
+**stack:** torch_gcu **2.10.0** / tops1.9.10 / flag_gems master（editable）/ plugin [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)（editable）
 
 在 1.9.10 栈全新 v2 容器上复验 §2.6.1 方案，判定是否可退役 1.9.10 上的 AttentionFLBackend。
 纪律：vllm 从厂商 index 单步装（`vllm==0.20.2+flagos`，非磁盘捞取），flag_gems / plugin 走
@@ -98,7 +98,7 @@ entry point 自动发现）。完整记录即本节所述（§2.6.2）。
 
 ```
 vllm:         0.20.2+flagos（vendor index 单步装）   ✅  site-packages 原样
-vllm_fl:      #357 分支 6e35613 (editable)            ✅  A/B/C/E 全部生效
+vllm_fl:      VPF #357 分支 6e35613 (editable)        ✅  A/B/C/E 全部生效
 flag_gems:    master 3f5fb04 (editable, Fix D 已合并)  ✅  D
 torch_gcu:    2.10.0                                  ✅  vs 1.10.6 的 2.11，无需代码差异
 compiler:     vendor triton（compiler triton）        ✅  显式，flagtree 不信任
@@ -122,7 +122,7 @@ GCU 0 显存，`docker rm -f` 解决），非代码缺口。
 
 修复为纯配置（路由到 torch_gcu），enflame 专属。补齐后 `temp=0.8/top_p=0.9` 在 Qwen3-4B 上
 输出连贯（两个 prompt 确认）。未加密（`q.exponential_()`）经探针确认在 GCU300 上正确，无需
-黑名单。**已推 #357（commit 851bbda）。**
+黑名单。**已推 [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)（commit 851bbda）。**
 
 **结论 3 —— flag_gems gcu300 argmax 是真实内核 bug（根因已定，非 `and`/`&`）：**
 
@@ -132,16 +132,16 @@ GCU 0 显存，`docker rm -f` 解决），非代码缺口。
 mask lane。**根因：GCU300 triton_gcu 跨 tile 归约累加的 codegen 误编译（偶数 lane 奇偶性）。**
 `and`-on-tensor 反模式确实广泛存在（~50 处 / ~20 个 gcu300 算子）但修它不改 argmax 行为，两
 件事分开。已生成面向厂商的中文根因报告（`flaggems-gcu300-argmax-bug.md`，**待移交** docs 目录）。
-已验证的生产修复仍是黑名单（argmax → torch_gcu，已在 #357）。
+已验证的生产修复仍是黑名单（argmax → torch_gcu，已在 [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)）。
 
 #### 待办 / 落库
 
 - **本节为 enflame GCU300 唯一主路径，跨栈收敛已坐实**（1.10.6 + 1.9.10 同一份代码零改动通过）。
   旧 §2.6.1（1.9.10 AttentionFLBackend 历史记录）已删除，诊断内容并入 §2.6.2。
 - **已落库**：五处修复 + 采样黑名单已提 PR（均直推 flagos-ai）：
-  - **plugin（A/B/C/E + 采样黑名单）→ [PR #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)**：分支 `enflame-gcu300-native-flash-attn` → `main`。走 vLLM 原生 FLASH_ATTN。**注：** slot_mapping / fa_utils 绑定耦合 vLLM v1 worker/attention 布局，须对齐 vLLM 0.24.0 迁移后重新推导。
-  - **flag_gems（D）→ [PR #5345](https://github.com/flagos-ai/FlagGems/pull/5345)**：分支 `enflame-gcu300-reshape-cache-int32` → `master`。vendor+dtype gated 的 slot_mapping int32 降位，与 vLLM 版本解耦。
-- **flag_gems gcu300 argmax codegen bug** → 中文厂商报告（`flaggems-gcu300-argmax-bug.md`，**待移交** docs 目录），待发厂商 triton_gcu 团队；修复后可从 #357 黑名单移除 `argmax`。
+  - **plugin（A/B/C/E + 采样黑名单）→ [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)**：分支 `enflame-gcu300-native-flash-attn` → `main`。走 vLLM 原生 FLASH_ATTN。**注：** slot_mapping / fa_utils 绑定耦合 vLLM v1 worker/attention 布局，须对齐 vLLM 0.24.0 迁移后重新推导。
+  - **flag_gems（D）→ [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345)**：分支 `enflame-gcu300-reshape-cache-int32` → `master`。vendor+dtype gated 的 slot_mapping int32 降位，与 vLLM 版本解耦。
+- **flag_gems gcu300 argmax codegen bug** → 中文厂商报告（`flaggems-gcu300-argmax-bug.md`，**待移交** docs 目录），待发厂商 triton_gcu 团队；修复后可从 [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) 黑名单移除 `argmax`。
 - 仅测单轮 64 token 生成；多轮 / 长上下文未验。
 - 加密采样（`exponential_(generator=)`）未测。
 - E 的 CP>1 交织分支已实现但未测（本配置 cp_world=1）。

@@ -57,7 +57,7 @@ METADATA 声明了 torch/triton（对比 [§2.1](nvidia.md) standard 构建更�
 > pip install --no-deps --index-url "$VENDOR" vllm==0.20.2   # 锁 repacked
 > pip install         --index-url "$ALIYUN" vllm==0.20.2     # 补 safe deps
 > ```
-> PR #280（递归 `+flagos` pin）之后此坑消失，单步即可（[§1.4](../playbook.md)）。
+> [build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)（递归 `+flagos` pin）之后此坑消失，单步即可（[§1.4](../playbook.md)）。
 > mthreads 已实测验证单步安全（[§2.3](mthreads.md)）。
 
 运行时依赖（vendor 为主）：
@@ -76,7 +76,7 @@ pip install --index-url "$VENDOR" --extra-index-url "$ALIYUN" \
 cd /workspace/vllm-plugin-FL && pip install --no-build-isolation -e .
 ```
 
-### 阻塞点：`reshape_and_cache_flash` 算子（由 plugin-FL #333 修复）
+### 阻塞点：`reshape_and_cache_flash` 算子（由 [VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333) 修复）
 
 empty wheel 不含编译的 `_C_cache_ops` C kernel。MetaX flash attn 后端在
 `fa_utils.py` 把 `reshape_and_cache_flash` 直接绑定到
@@ -87,11 +87,11 @@ AttributeError: '_OpNamespace' '_C_cache_ops' object has no attribute
 'reshape_and_cache_flash'
 ```
 
-早期尝试 #319（`_C_cache_ops` Triton fallback）**从未生效**——守卫
+早期尝试 [VPF #319](https://github.com/flagos-ai/vllm-plugin-FL/pull/319)（`_C_cache_ops` Triton fallback）**从未生效**——守卫
 `hasattr(torch.ops, "_C_cache_ops")` 对惰性 `_OpNamespace` 恒真，且 metax
 C550 已禁用 Triton。
 
-**修复（[#333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333)）：**
+**修复（[VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333)）：**
 把 `reshape_and_cache_flash` 注册为一等 dispatch op：
 
 - `flaggems/flaggems.py` — 新增 `FlagGemsBackend.reshape_and_cache_flash`，
@@ -101,7 +101,7 @@ C550 已禁用 Triton。
   `CachedOp("reshape_and_cache_flash")`，不再绑定 vllm 私有 C op。
 
 留在 dispatch 抽象内（policy 驱动、可回退、厂商无关），不耦合 vllm 私有
-`_C_cache_ops` ABI。#333 取代 #319（已关闭）。
+`_C_cache_ops` ABI。[VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333) 取代 [VPF #319](https://github.com/flagos-ai/vllm-plugin-FL/pull/319)（已关闭）。
 
 ### serve + 推理 —— ✅ 成功
 
@@ -140,20 +140,20 @@ torch:        2.8.0+metax3.7.2.0    ✅  from vendor PyPI (未降级)
 torchaudio:   2.4.1+metax3.7.2.0    ✅
 torchvision:  0.15.1+metax3.7.2.0   ✅
 flash_attn:   2.6.3+metax3.7.2.0    ✅
-flagtree:     0.6.1+metax3.6       ✅  默认编译器（基于 PR #1052，见下注）
+flagtree:     0.6.1+metax3.6       ✅  默认编译器（基于 FlagTree #1052，见下注）
 triton:       3.0.0+metax3.7.2.0    ✅
 flag_gems:    5.3.5                 ✅
 vllm:         0.20.2                ✅  empty, repacked, vendor PyPI
-vllm_fl:      installed             ✅  纯 Python + #333
+vllm_fl:      installed             ✅  纯 Python + VPF #333
 MACA device:  ✅ 可见                mx-smi (C550 8×64GB)
 vllm serve:   ✅ 启动成功            TP=1, enforce-eager, gpu-util 0.6
 Inference:    ✅ 成功                Qwen3-4B, prompt=5 / completion=16
 ```
 
 > 注：`3.1.0+metax3.7.2.0` 是 MACA SDK 内嵌的 flagtree（非 flagos-ai
-> 上游版本），因缺 API 否决。runtime 实际安装**基于 PR #1052 的
+> 上游版本），因缺 API 否决。runtime 实际安装**基于 [FlagTree #1052](https://github.com/flagos-ai/FlagTree/pull/1052) 的
 > flagtree**（tag `0.6.1+metax3.6` 早于该 PR，不含 F 路径 torch 2.8
-> inductor 所需的 `triton_key` 重导出修复）；PR #1052 已 merge，待上游
+> inductor 所需的 `triton_key` 重导出修复）；[FlagTree #1052](https://github.com/flagos-ai/FlagTree/pull/1052) 已 merge，待上游
 > 发布正式版本后更新 flagtree 版本（configs.yaml 单一事实源）。
 
 ### Triton 路径（T）复验：flag_gems scalar 返回 bug（2026-08-25）
@@ -174,7 +174,7 @@ maca3.7.2.1-T 在 `vllm serve` 阶段崩溃，报 `EngineCore` 初始化失败�
    （sql.py `p50, p20, p80 = benchmark`）→ `ValueError: not enough values to
    unpack (expected 3, got 1)`。
 
-**修复（上游 FlagGems `1537bde93a8e` / PR #5375）：** 在 `bench` 闭包把标量
+**修复（上游 FlagGems `1537bde93a8e` / [FlagGems #5375](https://github.com/flagos-ai/FlagGems/pull/5375)）：** 在 `bench` 闭包把标量
 归一化为 `(ret, ret, ret)`，`benchmark_with_requested_quantiles` 同步归一化
 （`isinstance(ret, (int, float))`）。该修复**不在**任何 ≤ v5.3.4 的 tag，
 已进入每日构建 `5.3.5.dev20260825`（下载 wheel 确认含归一化代码）。
@@ -192,12 +192,12 @@ runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 
 ### 待办
 
-1. **plugin-FL #333** —— ✅ 已提，E2E 通过：`reshape_and_cache_flash`→flag_gems
+1. **[VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333)** —— ✅ 已提，E2E 通过：`reshape_and_cache_flash`→flag_gems
    （`CachedOp`）
-1. **plugin-FL #319** —— ✅ 已关闭：守卫恒真从不生效，被 #333 取代
-1. **plugin-FL #325（`_maca`→F.silu/F.gelu）** —— ✅ 已关闭：empty wheel 上 dispatch
+1. **[VPF #319](https://github.com/flagos-ai/vllm-plugin-FL/pull/319)** —— ✅ 已关闭：守卫恒真从不生效，被 [VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333) 取代
+1. **[VPF #325](https://github.com/flagos-ai/vllm-plugin-FL/pull/325)（`_maca`→F.silu/F.gelu）** —— ✅ 已关闭：empty wheel 上 dispatch
    不走 vendor 路径，实测不需要（仅 +cpu wheel 有意义）
-1. **repack.py empty 支持 + 递归审计** —— ✅：PR #244 #247
+1. **repack.py empty 支持 + 递归审计** —— ✅：[build-infra #244](https://github.com/flagos-ai/build-infra/pull/244) [build-infra #247](https://github.com/flagos-ai/build-infra/pull/247)
 1. **更大模型 / graph / TP>1** —— ⬜：仅测过 Qwen3-4B + eager
 1. **FlagGems pyproject build-system.requires 加 `wheel==0.45.0`** —— ⬜
 1. **flag_gems scalar 返回 bug 固化** —— ✅ 已固化：flag_gems 5.3.5 clean wheel
@@ -207,7 +207,7 @@ runtime 镜像（flag_gems 5.3.4）尚未含修复，见待办。**
 ### MetaX maca3.8.1.3（2026-08-25 复验）
 
 maca3.8.1.3 是 MetaX 较新后端（driver 3.9.6 / MACA SDK 3.8.1.3，C550），
-与 maca3.7.2.1 共用 §2.2 的 empty 流程与 plugin-FL #333，无需额外补丁。
+与 maca3.7.2.1 共用 §2.2 的 empty 流程与 [VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333)，无需额外补丁。
 堆栈版本不同，且 **triton 3.6.0 不受 scalar 返回 bug 影响**（该 bug 仅
 triton 3.0.0 触发）：
 
@@ -215,7 +215,7 @@ triton 3.0.0 触发）：
 torch:        2.10.0+metax3.8.1.0    ✅
 torchvision:  0.25.0+metax3.8.1.0    ✅
 flash_attn:   2.6.3+metax3.8.1.0torch2.10  ✅
-flagtree:     0.6.1+metax3.6         ✅  F 路径（默认，基于 PR #1052，见 §2.2 注）
+flagtree:     0.6.1+metax3.6         ✅  F 路径（默认，基于 FlagTree #1052，见 §2.2 注）
 triton:       3.6.0+metax3.8.1.0     ✅  T 路径
 flag_gems:    5.3.5                  ✅
 ```

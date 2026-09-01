@@ -11,7 +11,7 @@
   helpers_cpp 绑定）通过才推送 Harbor。
 - **record_app_image_tag**：镜像发布 tag 自动记录（`record_app_image_tag.py`），
   image_tag 为已发布 tag 唯一事实源。
-- **`--scenario rl` 不自动化**：上游阻塞（MLF #116 + flash-attn 依赖），RL
+- **`--scenario rl` 不自动化**：上游阻塞（[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) + flash-attn 依赖），RL
   cell 标 ⛔ 不收集。
 - **断言不进最终镜像**：锁版才是交付契约；verify 断言是测试阶段手段。
 

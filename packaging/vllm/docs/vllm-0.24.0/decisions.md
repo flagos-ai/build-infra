@@ -6,15 +6,15 @@
 ## 7. 版本推进协作问题
 
 vllm-plugin-FL 项目组在 **`v0.3.0-dev`** 分支上展开 vLLM 0.24.0 适配工作。
-在 #252 处与 main 分叉，尚未合入 main。适配主线：
+在 [VPF #252](https://github.com/flagos-ai/vllm-plugin-FL/pull/252) 处与 main 分叉，尚未合入 main。适配主线：
 
-- PR #274（升级 0.20.2→0.24.0）、
-- PR #294（metax C550 适配）、
-- PR #308（musa）、
-- PR #334（mtp）、
-- PR #338（CUDA stable-ABI wheels）
+- [VPF #274](https://github.com/flagos-ai/vllm-plugin-FL/pull/274)（升级 0.20.2→0.24.0）、
+- [VPF #294](https://github.com/flagos-ai/vllm-plugin-FL/pull/294)（metax C550 适配）、
+- [VPF #308](https://github.com/flagos-ai/vllm-plugin-FL/pull/308)（musa）、
+- [VPF #334](https://github.com/flagos-ai/vllm-plugin-FL/pull/334)（mtp）、
+- [VPF #338](https://github.com/flagos-ai/vllm-plugin-FL/pull/338)（CUDA stable-ABI wheels）
 
-build-infra 验证用的基线是 main + PR #377，vllm-plugin-FL 的正式适配线是 v0.3.0-dev。
+build-infra 验证用的基线是 main + [VPF #377](https://github.com/flagos-ai/vllm-plugin-FL/pull/377)，vllm-plugin-FL 的正式适配线是 v0.3.0-dev。
 需要尽早确定合并路线。
 
 两个分支的重叠/差异：
@@ -32,7 +32,7 @@ build-infra 验证用的基线是 main + PR #377，vllm-plugin-FL 的正式适�
 2. **`fa_utils.py` 改用 `flag_gems` 的 `reshape_and_cache_flash`，
    dev 仍用 `ops.reshape_and_cache_flash` —— dev 没处理 empty wheel 场景**：
    dev 分支 + empty wheel 组合未验证（问题 4 同因，
-   0.20.2 #333 的修法没 upstream 过去）。
+   0.20.2 [VPF #333](https://github.com/flagos-ai/vllm-plugin-FL/pull/333) 的修法没 upstream 过去）。
 
 3. **`vllm024_compat.py`（问题 3/5/6 的 4 个补丁），dev 上不存在**：
    项目组没有使用过 3.1.0 的编译器，验证路径不同。

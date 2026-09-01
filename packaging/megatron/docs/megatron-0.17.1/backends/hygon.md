@@ -47,14 +47,15 @@ jit.py 补丁绕过，上游修复方向 = 惰性装饰）。post_training/infer
 3. **vendor 包不可信，问题分四类**——元数据、包间版本失配、平台覆盖、
    源码杂质；逐包 repack 修正并记录（§1.3）。
 4. **平台移植性默认值**——fused kernel 默认开启、jit_fuser import 期绑定，
-   非 CUDA 平台需显式关闭（§1.4）。已上提惰性装饰（[MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) issue → [PR #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)，OPEN）。
+   非 CUDA 平台需显式关闭（§1.4）。已上提惰性装饰（[MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121)
+   issue → [MLF #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)，OPEN）。
 5. **工具链按平台验证**——flagtree 曾误判"无法编译 HCU kernel"：根因是旧
    容器缺 DTK LLVM 包，[build-infra PR #403](https://github.com/flagos-ai/build-infra/pull/403)
    在 hygon base 镜像补装 clang-18 后，两编译器均可编译 HCU kernel（§1.5）。
 6. **venv 缺 python3-config** 使数据集构建 import 期挂（§2.1）。已落地
    sysconfig 兜底 + [MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)。
 7. **datasets/pyarrow 版本对不兼容**——5.0.1 写、≤25 读崩（§5.2）。已规避；
-   版本对已固化进 MLF pyproject datasets 声明（[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 内）。
+   版本对已固化进 MLF pyproject datasets 声明（[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 内）。
 8. **tokenizer 无 eos** 使轨迹准备 TypeError（§5.3）。数据层声明即解决。
 9. **RL 训练 forward 强制 TE**——local 不支持 THD 打包序列（§5.4）。hygon
    已跑通（vendor TE）；local-THD 条件化已上提
@@ -194,7 +195,7 @@ vendor 包（`flagos-pypi-{vendor}` 上我们掌控、可 repack）的问题分�
   仅测试用途，非仓库改动）绕过。修复方向不变：`jit_fuser` 改为惰性装饰
   （或 `enable_jit_fuser` 默认 no-op，由训练入口显式开启）——落地后
   `--disable-jit-fuser` 才真正生效，flagtree/triton 两线均不需要补丁。
-- **现在状态:** 已上提本 fork（[MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) issue → [PR #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)，OPEN）。
+- **现在状态:** 已上提本 fork（[MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) issue → [MLF #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)，OPEN）。
 
 ### 1.5 工具链：编译器可用性与 DTK LLVM 前置（flagtree"屏蔽"已修正）
 
@@ -399,7 +400,7 @@ tensorboard 一个，而是一组，偏离方式分三种：
 - **对 CI 的意义:** MLF grpo 测试的预生成 artifact 若用同一
   (datasets 5.0.1, pyarrow ≤25) 组合生成会踩同坑——CI 需固定经过实测的
   (datasets, pyarrow) 版本对。
-- **现在状态:** 已规避；版本对已固化进 MLF pyproject datasets 声明（[#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 内）。
+- **现在状态:** 已规避；版本对已固化进 MLF pyproject datasets 声明（[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) 内）。
 
 ### 5.3 tokenizer 无 eos
 
@@ -449,21 +450,21 @@ tensorboard 一个，而是一组，偏离方式分三种：
 ## 6. 跟踪事项
 
 **已提交至本 fork（flagos-ai/Megatron-LM-FL）:**
-- PR [#105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)——
+- PR [MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)——
   §1.1 `megatron.training` import 修复
-- PR [#106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)——§1.2
+- PR [MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)——§1.2
   psutil 依赖声明
-- PR [#107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)——§1.1
+- PR [MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)——§1.1
   全范围打包
-- PR [#112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)——§2.1
+- PR [MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112)——§2.1
   python3-config → sysconfig
-- PR [#114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)——§5.1 RL
+- PR [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)——§5.1 RL
   依赖 `[rl]` extra 15 包全 pin（含 datasets/pyarrow 版本对）
-- PR [#116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)——§5.4
+- PR [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)——§5.4
   local-THD 条件化 + metax RL 固化清单（null_tokenizer / unwrap_model /
   `--return-log-probs` / flash_attn 断言门控）
-- issue [#121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) →
-  PR [#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)——§1.4
+- issue [MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121) →
+  PR [MLF #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)——§1.4
   jit_fuser import 期惰性装饰（flagtree 四场景实证支撑，2026-08-17 §1.4）
 
 **相关文档:** `packaging/megatron/docs/megatron-0.17.1/report-builder.md`（构建与依赖面；

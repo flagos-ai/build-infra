@@ -79,7 +79,8 @@ tar.gz 解包到 `/app/vllm-plugin-FL`；与 main 分支的差异与合并路线
 改从 **main 分支取快照**（HEAD `a9435a3`，2026-08-21，即 tag v0.3.0-rc0）构建插件 wheel
 `vllm_plugin_fl-0.2.0+ga9435a3.d20260821`，经 `vllm-app-image.yml` 构建 app 镜像
 `flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_ga9435a3.d20260821`（wheel 单步安装
-vllm `0.24.0+flagos` + 插件 wheel）并 push Harbor（记录 PR #504）。
+vllm `0.24.0+flagos` + 插件 wheel）并 push Harbor（记录
+  [build-infra #504](https://github.com/flagos-ai/build-infra/pull/504)）。
 
 对已 push 镜像实测 serve（`--enforce-eager --dtype bfloat16 --max-model-len 2048`，
 端口 8031）：

@@ -38,6 +38,11 @@ them (root-cause notes, decisions, verified facts) stays untouched:
 Adding an app YAML therefore requires adding its facility marker block to
 the md first — the renderer errors and lists whatever is missing.
 
+The PR index table's 状态 column is resolved fresh on every render via `gh`
+(merge state changes in the PR's own repo, not build-infra), so regenerating
+the md also refreshes upstream PR status; when `gh` is unavailable the
+column falls back to "—".
+
 Driven from the pre-commit hook (scripts/install-git-hooks.sh) and from CI
 (.github/workflows/status-matrix-consistency.yml), which opens a
 review-gated fix PR when the committed md drifts from the YAMLs. Schema and
@@ -52,7 +57,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -154,6 +161,14 @@ _OPEN_RE = re.compile(r"<!--\s*(status-matrix:[^-\s]+(?:-[^\s]+)?)\s*-->")
 _CLOSE_RE = re.compile(r"<!--\s*/\s*(status-matrix:[^-\s]+(?:-[^\s]+)?)\s*-->")
 VERIFICATION_BLOCK = "status-matrix:verification"
 
+# Registration rule for upstream PRs: prs: entries must be full pull URLs so
+# the tracking table is unambiguous about repo and number (bare #N is not
+# tracked). Enforced here so no naked number can re-enter the YAMLs.
+_PR_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/\d+$")
+
+# `gh pr view --json state` values → display. Merged PRs report MERGED.
+PR_STATE = {"MERGED": "已合并", "OPEN": "OPEN", "CLOSED": "已关闭"}
+
 
 def backend_parts(key: str) -> tuple[str, str]:
     vendor, _, backend = key.partition("-")
@@ -252,6 +267,9 @@ def validate_app(data: dict, path: Path, comp_md: Path) -> None:
         for pr in prs or []:
             if not isinstance(pr, str):
                 bad(f"backends.{bkey}.prs: expected strings, got {pr!r}")
+            elif not _PR_URL_RE.match(pr):
+                bad(f"backends.{bkey}.prs: {pr!r} is not a GitHub PR URL — "
+                    f"register the full link, bare #N is not tracked")
         note = binfo.get("note")
         if note is not None and (not isinstance(note, str) or not note):
             bad(f"backends.{bkey}.note: expected a non-empty string")
@@ -310,7 +328,46 @@ def matrix_rows(cols: list[tuple[dict, str]]) -> list[list[str]]:
     return rows
 
 
-def pr_rows(apps: list[dict]) -> list[list[str]]:
+def collect_pr_urls(apps: list[dict]) -> list[str]:
+    """All backend PR URLs of a component, for one batched state lookup."""
+    urls = []
+    for app in apps:
+        for binfo in app["backends"].values():
+            urls += (binfo or {}).get("prs") or []
+    return urls
+
+
+def resolve_pr_states(urls: list[str]) -> dict[str, str]:
+    """Best-effort {url: 已合并|OPEN|已关闭|—} map, one gh call per unique URL.
+
+    Merge state changes in the PR's own repo, not build-infra, so it cannot
+    be maintained in YAML — resolve it fresh on every render. Public repos,
+    so CI's GITHUB_TOKEN suffices; any failure (offline, unauthenticated,
+    rate limit) falls back to "—" so rendering stays deterministic."""
+    states: dict[str, str] = {}
+    failures = 0
+    for url in sorted(set(urls)):
+        try:
+            out = subprocess.run(
+                ["gh", "pr", "view", url, "--json", "state"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if out.returncode == 0:
+                state = json.loads(out.stdout).get("state")
+                states[url] = PR_STATE.get(state, "—")
+            else:
+                states[url] = "—"
+                failures += 1
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            states[url] = "—"
+            failures += 1
+    if failures:
+        print(f"render_status_matrix: {failures} 个 PR 状态查询失败，状态列显示 —"
+              f"（渲染需在可访问 GitHub 的环境执行）", file=sys.stderr)
+    return states
+
+
+def pr_rows(apps: list[dict], states: dict[str, str] | None = None) -> list[list[str]]:
     """Backend-level PR index rows: one per PR, ordered by backend then app."""
     rows = []
     for bkey in BACKENDS:
@@ -318,7 +375,8 @@ def pr_rows(apps: list[dict]) -> list[list[str]]:
             prs = (app["backends"].get(bkey) or {}).get("prs") or []
             for pr in prs:
                 rows.append([vendor_display(backend_parts(bkey)[0]),
-                             backend_display(bkey), app["app"], pr])
+                             backend_display(bkey), app["app"], pr,
+                             (states or {}).get(pr, "—")])
     return rows
 
 
@@ -366,10 +424,11 @@ def render_facility(app: dict, apps: list[dict]) -> str:
 def render_verification_block(apps: list[dict]) -> str:
     cols = scenario_columns(apps)
     parts = [render_table(matrix_header(cols), matrix_rows(cols))]
-    prs = pr_rows(apps)
+    states = resolve_pr_states(collect_pr_urls(apps))
+    prs = pr_rows(apps, states)
     if prs:
         parts += ["", "**后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**", ""]
-        parts.append(render_table(["厂商", "后端", "App", "PR"], prs))
+        parts.append(render_table(["厂商", "后端", "App", "PR", "状态"], prs))
     return "\n".join(parts)
 
 
