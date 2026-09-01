@@ -1,0 +1,31 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# metax (ADR 5.5): the vendor flashinfer build strips the bmm_fp8 symbols
+# (__init__:55 commented), so the import must not abort the module import.
+# The op is only invoked on fp8-quantized models (not the default path).
+--- a/python/sglang/srt/layers/quantization/fp8_utils.py
++++ b/python/sglang/srt/layers/quantization/fp8_utils.py
+@@ -185,7 +185,10 @@
+         N = mat_b.shape[-1]
+         return mat_a.new_empty((M, N), dtype=out_dtype)
+ 
+-    from flashinfer import bmm_fp8 as _raw_bmm_fp8_batched
++    try:
++        from flashinfer import bmm_fp8 as _raw_bmm_fp8_batched
++    except ImportError:
++        _raw_bmm_fp8_batched = None  # metax flashinfer build strips bmm_fp8
+ 
+     @register_custom_op(op_name="flashinfer_bmm_fp8_batched", mutates_args=["out"])
+     def _bmm_fp8_batched_op(
