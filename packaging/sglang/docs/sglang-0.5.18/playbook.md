@@ -191,12 +191,12 @@ entry points `sglang.srt.platforms` + `sglang.srt.plugins`，package-data
 | 脚本 | 职责 |
 |---|---|
 | `build-sdist.sh` | 自建共享 sdist（§2）|
-| `build-and-repack.sh` | 容器内构建 + repack + 可选上传（§3）|
+| `build-and-repack.sh` | host 侧拉取+应用 patches，容器内构建 + repack + 可选上传（§3）|
 | `repack.py` + `config.yaml` | `+flagos` 戳 + Metadata 降级（§4）|
 | `audit-deps.py` | 禁入依赖审计（§4）|
 | `merge-runtime-base.py` | runtime_base 合并 + xgrammar 补点（§2）|
 | `wheels/metax/sgl-kernel-shim/` | 零 sgl-kernel import 面 shim（§5.2）|
-| `wheels/metax/setup_maca.py` | metax 库层 patch（构建期落进 wheel）|
+| `wheels/metax/patches/*.patch` | metax 构建期源码 patch（host 侧应用，不入容器）|
 
 ## 8. 演进与经验（弯路记录）
 

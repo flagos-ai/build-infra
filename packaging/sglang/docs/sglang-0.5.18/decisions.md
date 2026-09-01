@@ -79,7 +79,8 @@ runtime + 单步安装"。2026-08-28 用户 pivot 后定案：**封装分发角�
 
 **决策**：per-vendor wheel 一律以 srt_empty（非 CUDA variant）为基座，同一
 sdist 全后端共用；per-vendor 库层差异（metax maca patch 等）入构建期 patch
-（`setup_maca.py`）或 plugin 层，不进 wheel 本身。
+（`wheels/<vendor>/patches/*.patch`，host 侧应用）或 plugin 层，不进 wheel
+本身。
 
 **理由**：wheel METADATA 天然零 torch 零 sglang-kernel，无需 per-vendor
 剥离规则；torch 版本匹配留给各 runtime（runtime 已有 per-vendor 精确矩阵）。
@@ -108,22 +109,28 @@ thead-ppu2.0.0 + spacemit 无基础镜像，排除。同一 python 的后端可�
 
 ### 5.5 metax JIT 缺口 fallback 必须落进交付形态（2026-08-29）
 
-**决策**：metax 后端三处 JIT 缺口 fallback 必须随交付形态分发（wheel /
-plugin 层），不得只活在验证容器：
+**决策**：metax 后端 JIT 缺口 fallback 必须随交付形态分发（wheel / plugin
+层），不得只活在验证容器：
 
-1. `sglang/kernels/ops/attention/clamp_position.py` clamp_position fallback
-   patch；
-2. `sglang/srt/layers/attention/vision.py` cudnn guard（sglang/ 内唯一携带
-   "flagos" 标记的文件）；
-3. PlatformFL `is_pin_memory_available(self, device=None)` 签名修复。
+1. `wheels/metax/patches/0001-clamp-position-fallback.patch`
+   clamp_position fallback；
+2. `wheels/metax/patches/0002-vision-cudnn-guard.patch` vision.py cudnn
+   guard（sglang/ 内唯一携带 "flagos" 标记的文件）；
+3. `wheels/metax/patches/0003-fp8-bmm-guard.patch` fp8_utils bmm_fp8 guard；
+4. PlatformFL `is_pin_memory_available(self, device=None)` 签名修复。
 
 **理由**：metax torch 是 CUDA-alias（`torch.version.cuda="11.6"`，
 `is_cuda()` True → CUDA 分支被走，无 nvcc → 每个 `load_jit` 优雅失败）。
-若 fallback 只留在测试容器，则单步安装产物在干净 runtime 内会崩。落地方式
-待定：构建期 patch 脚本（对齐 `setup_maca.py` 模式）或 plugin 层覆盖。
+若 fallback 只留在测试容器，则单步安装产物在干净 runtime 内会崩。
 
-**状态**：✅ metax 交付形态已含（构建期 patch 落进 wheel，E2E 实证）；ascend
-等后续后端需各自评估。
+**落地方式**：构建期 patch 以 unified diff 存于 `wheels/<vendor>/patches/`，
+由 `build-and-repack.sh` 在 **host 侧**（容器启动前）应用到源树
+（`patch -d src -p1`）——容器只消费已 patch 的树，`patch` 不是 build image
+依赖。用户约束：不在容器内做 patch；hunk 由修改后源 `diff -u` 生成
+（手写 hunk 偶发失败，canonical diff 必然成功）。
+
+**状态**：✅ metax 交付形态已含（三处 wheel patch + 插件签名，E2E 实证）；
+ascend 等后续后端需各自评估。
 
 ### 5.6 rust 工具链（filestore 缓存）
 
