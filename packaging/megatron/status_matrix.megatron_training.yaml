@@ -173,7 +173,7 @@ backends:
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true
-    note: "app 镜像未发布：modelopt 未入镜像（已决策进 MLF #114 [training] extra），单步安装测试待 extra 合入后随 app 镜像走"
+    note: "app 镜像未发布：modelopt 未入镜像（已决策进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) [training] extra），单步安装测试待 extra 合入后随 app 镜像走"
     prs:
       - https://github.com/flagos-ai/Megatron-LM-FL/pull/122
   iluvatar-corex4.4.0:
