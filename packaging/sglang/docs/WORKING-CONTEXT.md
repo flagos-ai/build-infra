@@ -45,6 +45,7 @@ rebase 跟踪 main 前进；在分支上做全面后端验证与镜像制作。
 - [x] Phase 0 进度跟踪机制：render_status_matrix.py 注册 sglang、
       `packaging/sglang/status_matrix.sglang0.5.18.yaml`、
       `docs/sglang-verification-matrix.md`（两 marker block）。
+      已入库：**PR #670 已合并（a6476c2）**；verify 脚本随 PR 一并入库。
 - [ ] Phase 1 exp/0.5.18 分支体系（基础修补 + per-backend 分支）。
 - [ ] Phase 2 metax-maca3.8.1.3 验证（F/T 双路径；verify-sglang-backend.sh；
       新 wheel 重装重验，旧记录 sglang_fl-0.1.0 不背书）。
