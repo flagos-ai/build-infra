@@ -39,16 +39,17 @@ title: "vllm0.24.0-mthreads-musa5.2.0"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.3.0rc0+g5b592be.d20260817`
+
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2-0.3.0rc0_g5b592be.d20260817`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2-0.3.0rc0_g5b592be.d20260817
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
