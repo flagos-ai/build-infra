@@ -18,6 +18,9 @@
 
 列名后缀：T = Triton 编译器，F = FlagTree 编译器。
 
+PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 / OPEN / 已关闭）；
+查询失败显示 `—`，重新渲染即刷新。
+
 ## 矩阵
 
 <!-- status-matrix:verification -->
@@ -47,31 +50,31 @@
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
-| 厂商 | 后端 | App | PR |
-|---|---|---|---|
-| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 |
-| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 |
-| 昇腾 | CANN 8.5.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 |
-| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 |
-| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 |
-| 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 |
-| 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 |
-| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 |
-| 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
-| 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 |
-| 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 |
-| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 |
-| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 |
-| 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 |
-| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 |
-| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 |
-| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 |
-| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 |
-| 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 |
-| 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 |
-| 清微智能 | TSM 260610 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/421 |
+| 厂商 | 后端 | App | PR | 状态 |
+|---|---|---|---|---|
+| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | OPEN |
+| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
+| 昇腾 | CANN 8.5.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
+| 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 | 已合并 |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 | 已合并 |
+| 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
+| 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
+| 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 | 已合并 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 | 已合并 |
+| 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 | OPEN |
+| 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 | OPEN |
+| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | 已合并 |
+| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
+| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | 已合并 |
+| 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
+| 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
+| 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
+| 清微智能 | TSM 260610 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/421 | OPEN |
 
 <!-- /status-matrix:verification -->
 
@@ -104,8 +107,8 @@
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
-| TOPS 1.9.10 | ✅ | ✅ | ⬜ | app 镜像未发布：F 路径 ❌（等待 FlagGems #5345 合入后重建） |
-| TOPS 1.10.6 | ✅ | ✅ | ⬜ | app 镜像未发布：F 路径 ❌（等待 FlagGems #5345 合入后重建） |
+| TOPS 1.9.10 | ✅ | ✅ | ⬜ | app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建） |
+| TOPS 1.10.6 | ✅ | ✅ | ⬜ | app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建） |
 | DTK 26.04 | ⬜ | ⬜ | ⬜ | F 路径 ✅；app 镜像未发布：镜像侧 torch↔numpy ABI 不匹配（阻塞） |
 | COREX 4.4.0 | ⬜ | ⬜ | ⬜ | F 路径 ❌：工具链代差（corex Triton 前端与 torch 2.7.1 落后于 vllm 要求，§2.5） |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
@@ -186,7 +189,7 @@
 
 - **nvidia-cuda12.8**（参考实现）：✅（2026-08-23，empty 模式 app 镜像
   F/T 双路径 E2E，吞吐一致 3.2 tok/s）—— [0.20.2 §2.1](vllm-0.20.2/backends/nvidia.md)。
-- **metax-maca3.7.2.1**：✅ flagtree 0.6.1+metax3.6（基于 PR #1052；
+- **metax-maca3.7.2.1**：✅ flagtree 0.6.1+metax3.6（基于 [FlagTree #1052](https://github.com/flagos-ai/FlagTree/pull/1052)；
   MACA SDK 内嵌 3.1.0 缺 API 否决）与 triton 3.0.0 均已入栈（T 路径的 flag_gems scalar 返回 bug 已由 flag_gems
   5.3.5 固化，2026-08-25 F/T 双路径复验 ✅）—— [0.20.2 §2.2](vllm-0.20.2/backends/metax.md)。
 - **metax-maca3.8.1.3**：✅（2026-08-25 复验，triton 3.6.0 不受 scalar bug 影响）——
@@ -206,11 +209,12 @@
 - **ascend-cann9.0.0**（910B4，aarch64 cp311）：✅ flagtree 路径（修复
   flag_gems 5.3.4 `j0`/`log2` 后全链路跑通）—— [0.20.2 §2.8](vllm-0.20.2/backends/ascend.md)。
 - **sunrise-tangrt1.2.0**：✅ 双编译器（官方 Triton ✅；flagtree decode 挂死
-  由 PR 978 + rebuilt wheel 修复，2026-08-20 复测 0.20.2(F) 路径 ✅）——
+  由 [FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978) + rebuilt wheel 修复，2026-08-20 复测 0.20.2(F) 路径 ✅）——
   [0.20.2 §2.9](vllm-0.20.2/backends/sunrise.md)。
 - **kunlunxin-xre5.37.1**（P800 XPU）：✅（2026-08-22~23）0.20.2 双编译器
   E2E —— flagtree 0.6.1+xpu3.6 7/7、triton 3.6.0 3/3。此前三处 attention
-  内核编译失败由插件层 PR #268 + triton 3.6.0 升级绕开；解码乱码（PR #400）、
+  内核编译失败由插件层 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)
+  + triton 3.6.0 升级绕开；解码乱码（[VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400)）、
   假死（`XPU_EVENT_KL3_ENABLE=1` 配方去掉）已闭环 ——
   [0.20.2 §2.10](vllm-0.20.2/backends/kunlunxin.md)。
 
@@ -224,19 +228,19 @@
   `vllm024_compat.py` 4 个 monkey-patch（老 SDK 特有）——
   [0.24.0 §4–§5](vllm-0.24.0/backends/metax.md)。
 - **mthreads-musa5.2.0 / musa4.3.6**：✅✅（2026-08-16~17，v0.3.0-dev 零插件
-  补丁，F/T 双路径；torchvision guard = 插件 PR #386）。
+  补丁，F/T 双路径；torchvision guard = 插件 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)）。
   4.3.6 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（该平台无
   Qwen3-4B，矩阵"Qwen3-4B"约定在此单元格不适用）——
   [0.24.0 §8–§9](vllm-0.24.0/backends/mthreads.md)。
-- **ascend-cann9.0.0 / cann8.5.0**：✅✅（2026-08-17~18，插件 PR #387 移植，
+- **ascend-cann9.0.0 / cann8.5.0**：✅✅（2026-08-17~18，插件 [VPF #387](https://github.com/flagos-ai/vllm-plugin-FL/pull/387) 移植，
   双编译器 + app 镜像）—— [0.24.0 §10](vllm-0.24.0/backends/ascend.md)。
 - **sunrise-tangrt1.2.0**：✅（2026-08-19，cp310 wheel + CUSTOM 移植；
   T 路径 + F 路径（rebuilt flagtree wheel）+ app 镜像）——
   [0.24.0 §11](vllm-0.24.0/backends/sunrise.md)。
 - **hygon-dtk26.04**：✅✅（2026-08-20，cp310 wheel，F/T 双路径 TP2；flagtree
-  0.6.1+hcu3.6 临时就地补 `cluster_dims` 默认值，FlagTree PR #1020 上游修复）——
+  0.6.1+hcu3.6 临时就地补 `cluster_dims` 默认值，[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 上游修复）——
   [0.24.0 §12](vllm-0.24.0/backends/hygon.md)。
-- **kunlunxin-xre5.37.1**：✅（2026-08-23，cp310 empty wheel + 插件 PR #401
+- **kunlunxin-xre5.37.1**：✅（2026-08-23，cp310 empty wheel + 插件 [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401)
   移植 + app 镜像 serve E2E，flagtree + triton 双编译器）——
   [0.24.0 §13](vllm-0.24.0/backends/kunlunxin.md)。
 - **0.24.0 其余后端待验证**：iluvatar、enflame、cambricon。
@@ -251,18 +255,19 @@
 - 所有适配补丁收敛在 vllm-plugin-FL 插件侧，不修改官方 vLLM。
 - **torchvision 依赖（0.24.0 通用 OOT 缺口）**：`kernel_warmup()` 无条件
   import minimax_m3_msa_warmup → torchvision，无 torchvision 后端首次 serve
-  在 EngineCore init 崩溃；修复在插件调用侧（PR #386，try/except skip）——
+  在 EngineCore init 崩溃；修复在插件调用侧（[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)，try/except skip）——
   [0.24.0 §9.4](vllm-0.24.0/backends/mthreads.md)。
-- **`runtime/zz-compiler.sh` 修复（PR #411）**："T 路径不可用"注记作废 ——
+- **`runtime/zz-compiler.sh` 修复**
+  （[build-infra #411](https://github.com/flagos-ai/build-infra/pull/411)）："T 路径不可用"注记作废 ——
   裸 `compiler`（status）探测 `_compiler_import_triton` prepend 不清除已在
   PYTHONPATH 的 side dir 导致 entry-point 混叠，切换路径本身干净。
-- **hygon flagtree wheel 待建**（PR #1020 合入后重建 `packaging/flagtree/hygon`，
+- **hygon flagtree wheel 待建**（[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入后重建 `packaging/flagtree/hygon`，
   替换容器内临时 sed）；**hygon app 镜像暂不做**（2026-08-20 决策，见
   [0.24.0 §14](vllm-0.24.0/index.md)）。
 
 ## 已知问题 / 阻塞
 
-- **sunrise**：flagtree flash-attn decode 挂死（已交 FlagTree 团队，PR 978
+- **sunrise**：flagtree flash-attn decode 挂死（已交 FlagTree 团队，[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)
   修复，2026-08-19 起 F 路径 ✅）；交付固定走官方 Triton。
 - **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
 - **enflame**：策略性不用 flagtree（不信任），走 vendor triton + native FLASH_ATTN。
