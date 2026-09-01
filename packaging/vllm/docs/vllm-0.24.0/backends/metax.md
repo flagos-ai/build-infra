@@ -149,3 +149,28 @@ vLLM 二次启动报 `ValueError: Free memory on device cuda:0 (2.02/63.59 GiB) 
 **教训：杀 serve 后必须 `ps aux | grep -E "api_server|EngineCore"` 兜底检查孤儿进程。**
 
 ---
+
+## 5.1 app 镜像 F/T 双路径验证（2026-09-01，plugin 0.2.1+g928bc19.d20260901）
+
+镜像：`harbor.baai.ac.cn/flagos-app/vllm0.24.0-metax-maca3.8.1.3:2.1.2-0.2.1_g928bc19.d20260901`
+（[VPF #377](https://github.com/flagos-ai/vllm-plugin-FL/pull/377) head 928bc19，
+`use_uniform_kv_cache` 修复；Qwen3-4B，`--port 8031 --gpu-memory-utilization 0.6
+--enforce-eager --max-model-len 2048`）。
+
+- **F 路径（flagtree 3.6.0 默认）**：serve 启动就绪 + 真实 `/v1/completions`
+  ✅（32 tokens，`system_fingerprint vllm-0.24.0-60a361ff`）。
+- **T 路径（triton 3.6.0）**：serve ~120s 就绪 + 真实 completion ✅。
+  **前置 workaround**：`FLAGGEMS_DB_URL=sqlite:////tmp/TunedConfig_metax_triton_3_6_t.db`
+  按编译器隔离 flag_gems ConfigCache（详见 [§8](../decisions.md) 跨后端建议）。
+
+**T 路径根因（同 sglang 线 2026-08-28，见 [§8](../decisions.md)）**：
+flag_gems ConfigCache（`TunedConfig_metax_triton_3_6.db`）key/DB 名不含编译器身份，
+F 路径写入 BLOCK_M=8/1 config 对 vendor triton 不可编译，T 路径 cache-hit 盲启动
+硬崩（cache-miss bench() 有 per-config 兜底，cache-hit run() 没有）。**app 镜像不携带
+缓存**（`/root/.flaggems/config_cache/` 运行时懒创建）→ 无需重建镜像。
+
+**遗留**：上游自愈修复 [FlagGems #5829](https://github.com/flagos-ai/FlagGems/pull/5829)
+（OPEN）合并进新 wheel 后，`FLAGGEMS_DB_URL` 隔离降级为防御性。
+
+
+---
