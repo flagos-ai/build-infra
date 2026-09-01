@@ -47,6 +47,13 @@ jobs:
             python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Render verification matrix from YAML
+        # gh pr view resolves PR states fresh on every render; without a token
+        # the unauthenticated lookups all fail and every 状态 cell falls back
+        # to "—", which reads as drift and opens a fix PR that wipes real
+        # statuses. GH_TOKEN must be set on this step, not only on the fix-PR
+        # step below.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/render_status_matrix.py
 
       - name: Detect drift
