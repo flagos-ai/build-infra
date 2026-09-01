@@ -4,9 +4,10 @@
 
 | 文档 | 内容 |
 |---|---|
+| [case-for-zero-sgl-kernel.md](case-for-zero-sgl-kernel.md) | **零 sgl-kernel 路线论证（面向项目组开发人员）**：结论先行——路线已由 MetaX 端到端实证，是当前唯一能覆盖全量非 NVIDIA 平台的 sglang 分发方式；§1 为什么不能直接装官方 wheel → §2 路线对比（A/B/C/D）→ §3 可行性证据链 → §4 必要性（与 vllm 线同构、kernel 收敛到 flag_gems）→ §5 风险与处置 → §6 待拍板项 |
 | [sglang-release-packaging-research.md](sglang-release-packaging-research.md) | sglang-plugin-FL 打包成发布镜像的调研：与 vllm-plugin-FL 的对比、仓库结构、各后端 CI 镜像版本矩阵、插件架构与验证要点（三层替换机制 / 参考环境对照 / 验证配方）、打包模型分析与待决策 |
 | [zero-sgl-kernel-arch-20260828.html](zero-sgl-kernel-arch-20260828.html) | 零 sgl-kernel 方案架构图（本地 HTML）：目标架构四层路由 + 逐 vendor 迁移面分级 + 封装分发落地形态（统一 runtime + 单步安装）|
-| [zero-sgl-kernel-feasibility-20260828.md](zero-sgl-kernel-feasibility-20260828.md) | 零 sgl-kernel 可行性定案：flagos 默认路径已零依赖（6 op 全走 flag_gems），迁移面=vendor backend 约 2/3 op 有覆盖，缺口 enflame 4 op + kunlunxin klx_* + ascend sgl_kernel_npu |
+| [zero-sgl-kernel-feasibility-20260828.md](zero-sgl-kernel-feasibility-20260828.md) | 零 sgl-kernel 可行性定案：flagos 默认路径已零依赖（6 op 全走 flag_gems），迁移面=vendor backend 约 2/3 op 有覆盖，缺口 enflame 2 op + kunlunxin klx_*（ascend ≈ 0）|
 | [sglang-0.5.18/backends/metax-0.5.12.md](sglang-0.5.18/backends/metax-0.5.12.md) | 0.5.12 零 sgl-kernel 参考记录（0.5.18 方案的前身实证：路线可行性闭环 + 完整根因链）|
 | [sglang-0.5.18/](sglang-0.5.18/) | **0.5.18 per-vendor wheel 打包验证报告**（index / playbook / decisions / backends）|
 
