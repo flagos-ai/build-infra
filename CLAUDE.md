@@ -66,15 +66,21 @@ configs.yaml + base/ Containerfiles + build-config.yml
 
 `build-config.yml` owns: registry host+prefixes, runner labels per backend, `docker run` flags per vendor, verify commands.
 
-`docs/gen_data.py` parses `configs.yaml` + `base/` Containerfiles (FROM, apt packages, env) + `build-config.yml` to produce `docs/data/images.yaml` — the intermediate data file that feeds doc generation.
+`docs/gen_data.py` parses `configs.yaml` + `base/` Containerfiles (FROM, apt packages, env) + `build-config.yml`
+to produce `docs/data/images.yaml` — the intermediate data file that feeds doc generation.
 
 `docs/gen_descriptions.py` renders `images.yaml` into per-image markdown (web flavor for Hugo, plain flavor for in-repo + Harbor).
 
 ### Image naming
 
-- **Base:** `flagos-base-{vendor}-{backend}:{version}` — version from configs.yaml `version:`. All backends share the same flat tag during a release cycle; rebuilt images overwrite it. (A per-backend `-N` commit-count affix was tried and dropped as confusing.)
+- **Base:** `flagos-base-{vendor}-{backend}:{version}` — version from configs.yaml `version:`.
+  All backends share the same flat tag during a release cycle; rebuilt images overwrite it.
+  (A per-backend `-N` commit-count affix was tried and dropped as confusing.)
+
 - **Runtime:** `flagos-runtime-{vendor}-{backend}:{version}` — version from configs.yaml `version:` (same as base)
+
 - Registry: `harbor.baai.ac.cn/{prefix}/` (prefix from `build-config.yml` registry.prefixes)
+
 - `base/<name>` Containerfile names match the `{vendor}-{backend}` key (e.g. `base/nvidia-cuda12.8`)
 
 ### Base image version (flat, stack-wide)
@@ -156,12 +162,29 @@ Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in
 
 ## Conventions
 
-- **Version from configs.yaml.** `configs.yaml` `version:` is the single stack-wide release version; all images share it as their flat tag. At release: bump `version:` and `flaggems:` in one place → `git tag vX.Y.Z`.
-- **FlagGems version from configs.yaml.** `configs.yaml` `flaggems:` sets the wheel version for runtime builds. Override with `--flaggems` CLI flag when needed.
-- **Per-vendor PyPI indexes.** Each vendor has a separate index: `flagos-pypi-{vendor}`. This isolates vendor-specific packages so there is no cross-vendor package confusion.
-- **No extras for runtime deps.** `configs.yaml deps:` lists explicit packages passed to `uv pip install` — extras (`.[nvidia-cuda128]`) can't resolve correctly across vendor indexes.
-- **FlagTree is the default compiler.** Triton is the fallback (installed to `/opt/triton` when both present). The `compiler` bash function toggles.
-- **Wheel-based install for runtime.** FlagGems is installed from PyPI wheels. `--flaggems` pins the exact wheel version.
-- **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `docs/gen_descriptions.py`. Edit the generator or data files, not the markdown.
-- **Review-gated descriptions.** System package versions are extracted from built images and injected into description PRs. Human review of version bumps happens before descriptions go live on the docs site or Harbor.
+- **Version from configs.yaml.** `configs.yaml` `version:` is the single stack-wide release version;
+  all images share it as their flat tag.
+  At release: bump `version:` and `flaggems:` in one place → `git tag vX.Y.Z`.
+
+- **FlagGems version from configs.yaml.** `configs.yaml` `flaggems:` sets the wheel version for runtime builds.
+  Override with `--flaggems` CLI flag when needed.
+
+- **Per-vendor PyPI indexes.** Each vendor has a separate index: `flagos-pypi-{vendor}`.
+  This isolates vendor-specific packages so there is no cross-vendor package confusion.
+
+- **No extras for runtime deps.** `configs.yaml deps:` lists explicit packages passed to `uv pip install` —
+  extras (`.[nvidia-cuda128]`) can't resolve correctly across vendor indexes.
+
+- **FlagTree is the default compiler.** Triton is the fallback (installed to `/opt/triton` when both present).
+  The `compiler` bash function toggles.
+
+- **Wheel-based install for runtime.** FlagGems is installed from PyPI wheels.
+  `--flaggems` pins the exact wheel version.
+
+- **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `docs/gen_descriptions.py`.
+  Edit the generator or data files, not the markdown.
+
+- **Review-gated descriptions.** System package versions are extracted from built images and injected into description PRs.
+  Human review of version bumps happens before descriptions go live on the docs site or Harbor.
+
 - **Apache 2.0 license.** All source files carry the license header. `license-tool/` provides header scanning + auto-adding.
