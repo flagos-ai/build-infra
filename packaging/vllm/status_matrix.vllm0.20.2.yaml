@@ -88,19 +88,23 @@ backends:
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
+    note: "app 镜像未发布：F 路径 ❌（等待 FlagGems #5345 合入后重建）"
     prs:
       - https://github.com/flagos-ai/FlagGems/pull/5345
   enflame-tops1.10.6:
     deps_app: true
     launch_docs: true
+    note: "app 镜像未发布：F 路径 ❌（等待 FlagGems #5345 合入后重建）"
     prs:
       - https://github.com/flagos-ai/FlagGems/pull/5345
   hygon-dtk26.04:
     deps_app: false
     launch_docs: false
+    note: "F 路径 ✅；app 镜像未发布：镜像侧 torch↔numpy ABI 不匹配（阻塞）"
   iluvatar-corex4.4.0:
     deps_app: false
     launch_docs: false
+    note: "F 路径 ❌：工具链代差（corex Triton 前端与 torch 2.7.1 落后于 vllm 要求，§2.5）"
   iluvatar-corex4.5.0:
     deps_app: true
     launch_docs: true
