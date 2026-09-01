@@ -142,7 +142,7 @@ FACILITY_BACKEND_ITEMS = (
 BOOL_SYMBOL = {True: "✅", False: "⬜"}
 
 # app type key in status_matrix YAML (maps to the matrix scenario family).
-APP_TYPES = ("megatron", "vllm")
+APP_TYPES = ("megatron", "vllm", "sglang")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 COMPONENTS = {
@@ -153,6 +153,10 @@ COMPONENTS = {
     "vllm": {
         "yaml_dir": REPO_ROOT / "packaging" / "vllm",
         "md": REPO_ROOT / "packaging" / "vllm" / "docs" / "vllm-verification-matrix.md",
+    },
+    "sglang": {
+        "yaml_dir": REPO_ROOT / "packaging" / "sglang",
+        "md": REPO_ROOT / "packaging" / "sglang" / "docs" / "sglang-verification-matrix.md",
     },
 }
 
@@ -225,6 +229,8 @@ def validate_app(data: dict, path: Path, comp_md: Path) -> None:
         bad(f"type megatron renders into megatron-verification-matrix.md, not {comp}")
     if data.get("type") == "vllm" and comp != "vllm":
         bad(f"type vllm renders into vllm-verification-matrix.md, not {comp}")
+    if data.get("type") == "sglang" and comp != "sglang":
+        bad(f"type sglang renders into sglang-verification-matrix.md, not {comp}")
 
     scenarios = data.get("scenarios")
     if not isinstance(scenarios, dict) or not scenarios:
