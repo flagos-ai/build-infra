@@ -69,6 +69,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
 | 燧原 | TOPS 1.10.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/432 | OPEN |
 | 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 | 已合并 |
+| 天数智芯 | COREX 4.4.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/434 | OPEN |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 | 已合并 |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 | OPEN |
 | 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 | OPEN |

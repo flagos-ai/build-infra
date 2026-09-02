@@ -98,6 +98,8 @@ backends:
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: false
+    prs:
+      - https://github.com/flagos-ai/vllm-plugin-FL/pull/434
   iluvatar-corex4.5.0:
     deps_app: true
     launch_docs: true
