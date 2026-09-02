@@ -477,6 +477,15 @@ else
 
     log_info "Starting vllm serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
+    # GCU300 caps Triton kernel grid.x at 65535. Qwen3-4B q_norm runs
+    # batch×32 per block; kv-cache profiling at the default 256-token batch
+    # exceeds that, so the engine dies in the profile. Cap the batch for
+    # enflame only (other backends keep the default).
+    EXTRA_SERVE_ARGS=""
+    if [[ "$VENDOR" == "enflame" ]]; then
+        EXTRA_SERVE_ARGS="--max-num-batched-tokens 1024"
+    fi
+
     docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         export VLLM_PLUGINS=fl
@@ -491,6 +500,7 @@ else
             --enforce-eager \
             --trust-remote-code \
             --max-model-len 2048 \
+            ${EXTRA_SERVE_ARGS} \
             > /tmp/vllm-serve.log 2>&1 &
 
         SERVE_PID=\$!
