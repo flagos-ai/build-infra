@@ -181,25 +181,22 @@ cache-hit 直接复用 → 硬崩 `PassManager::run failed`。解法：**F/T 切
 
 OOT 插件注册 `PlatformFL`（vendor=metax, device=cuda），
 `BaseFusedOp._resolve_forward_method()` 给 OOT override 优先级 →
-`forward_native` 绕过未守卫的 JIT 调用。插件仓库 sglang-plugin-FL，
-分支 `exp/0.5.18`（per-vendor 修补走 `exp/0.5.18-<vendor>` 子分支，PR 合回）。
-**metax JIT 缺口三 guard 落插件层**（ADR §5.5）：
-`sglang_fl/dispatch/backends/vendor/metax/patches/`，load_plugin 时应用，
-sglang 源树 pristine 零 patch。entry points `sglang.srt.platforms` +
-`sglang.srt.plugins`，package-data `*.yaml` 分发配置。两步验证：
-git-clone 安装 → wheel 安装，均 F/T 双路径全过（回归纪律：旧产物不背书
-新 wheel）。
+`forward_native` 绕过未守卫的 JIT 调用。插件 wheel
+`packaging/sglang/wheels/metax/sglang-plugin-fl/`（`sglang_fl-0.1.0-py3-none-any.whl`），
+entry points `sglang.srt.platforms` + `sglang.srt.plugins`，package-data
+`*.yaml` 分发配置。两步验证：git-clone 安装 → wheel 安装，均 F/T 双路径全过。
 
 ## 7. 工具链
 
 | 脚本 | 职责 |
 |---|---|
 | `build-sdist.sh` | 自建共享 sdist（§2）|
-| `build-and-repack.sh` | host 侧拉取源 tarball，容器内构建 + repack + 可选上传（§3）|
+| `build-and-repack.sh` | host 侧拉取+应用 patches，容器内构建 + repack + 可选上传（§3）|
 | `repack.py` + `config.yaml` | `+flagos` 戳 + Metadata 降级（§4）|
 | `audit-deps.py` | 禁入依赖审计（§4）|
 | `merge-runtime-base.py` | runtime_base 合并 + xgrammar 补点（§2）|
 | `wheels/metax/sgl-kernel-shim/` | 零 sgl-kernel import 面 shim（§5.2）|
+| `wheels/metax/patches/*.patch` | metax 构建期源码 patch（host 侧应用，不入容器）|
 
 ## 8. 演进与经验（弯路记录）
 
