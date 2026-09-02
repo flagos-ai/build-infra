@@ -32,9 +32,9 @@ What the script does, in order:
   2. Regenerate the pipeline so the docs stay consistent with the matrix:
      ``gen_data.py`` → ``render_status_matrix.py`` → ``gen_descriptions.py
      --app-only`` (app pages read no version TSVs, so no VERSIONS_DIR).
-  3. Commit the changed matrix + app pages as ``flagos-ci``, force-push the
-     ``auto/app-image-tag`` branch, and open (or update) a review-gated PR
-     against the workflow's ref — the same dup-PR pattern as
+  3. Commit the changed matrix + app pages as ``flagos-ci``, push (or
+     recreate) the ``auto/app-image-tag`` branch, and open (or update) a
+     review-gated PR against the workflow's ref — the same dup-PR pattern as
      status-matrix-consistency.yml. PR ops go through the REST API via curl
      (``GITHUB_TOKEN``), not the ``gh`` CLI — the step runs on self-hosted
      hardware runners that do not carry gh.
@@ -275,20 +275,31 @@ def main() -> None:
     _git("checkout", "-B", BRANCH, check=False)
     _git("commit", "-m", commit_msg)
 
-    # Rebase onto the branch tip if a previous run (or a parallel matrix
-    # instance) already pushed commits — otherwise our force-push would
-    # silently clobber them. A conflict means two runs changed the same
-    # matrix; fail loudly rather than lose a record (the image is already
-    # pushed; re-running the workflow converges).
-    _git("fetch", "origin", BRANCH, check=False)
-    if _git("rev-parse", "--verify", f"origin/{BRANCH}", check=False).returncode == 0:
+    # The record PR's merge deletes this branch (delete_branch_on_merge), so
+    # ask origin, not the (possibly stale) local mirror, whether it exists.
+    probe = _git("ls-remote", "origin", f"refs/heads/{BRANCH}", check=False)
+    if probe.returncode == 0 and probe.stdout.strip():
+        # Another record sits on the branch: rebase onto it, then plain-push —
+        # we are its descendant, and --force would clobber that record.
+        _git("fetch", "origin", BRANCH, check=False)
         if _git("rebase", f"origin/{BRANCH}", check=False).returncode != 0:
             _git("rebase", "--abort", check=False)
             sys.exit(
-                f"Error: auto/app-image-tag moved concurrently and the branch conflict cannot "
-                f"be resolved automatically — re-run the workflow to record {tag}"
+                f"Error: {BRANCH} already carries a conflicting record — merge or close its "
+                f"PR, then re-run the workflow to record {tag}"
             )
-    _git("push", "--force", "origin", BRANCH)
+        _git("push", "origin", BRANCH)
+    else:
+        # Branch deleted: recreate from fresh main so the regenerated pages
+        # embed records merged since this run was dispatched.
+        _git("fetch", "origin", "main", check=False)
+        if _git("rebase", "origin/main", check=False).returncode != 0:
+            _git("rebase", "--abort", check=False)
+            sys.exit(
+                f"Error: {BRANCH} is absent but this run's base conflicts with origin/main — "
+                f"re-run the workflow to record {tag}"
+            )
+        _git("push", "origin", BRANCH)
 
     base = os.environ.get("GITHUB_REF_NAME", "main")
     repo = os.environ.get("GITHUB_REPOSITORY")
