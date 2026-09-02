@@ -99,7 +99,8 @@ backends:
       - https://github.com/flagos-ai/FlagTree/pull/1020
   iluvatar-corex4.4.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_g84a4ca2.d20260902"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/434
   iluvatar-corex4.5.0:
