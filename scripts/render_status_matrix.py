@@ -38,10 +38,13 @@ them (root-cause notes, decisions, verified facts) stays untouched:
 Adding an app YAML therefore requires adding its facility marker block to
 the md first — the renderer errors and lists whatever is missing.
 
-The PR index table's 状态 column is resolved fresh on every render via `gh`
-(merge state changes in the PR's own repo, not build-infra), so regenerating
-the md also refreshes upstream PR status; when `gh` is unavailable the
-column falls back to "—".
+The PR index table's 状态 column is resolved fresh on every render (merge
+state changes in the PR's own repo, not build-infra), so regenerating the md
+also refreshes upstream PR status. Resolution prefers the GitHub REST API
+with GH_TOKEN/GITHUB_TOKEN (every CI step has one, including the record step
+on self-hosted runners that carry no `gh` binary), and falls back to the
+`gh` CLI for local renders without a token; when neither works the column
+falls back to "—".
 
 Driven from the pre-commit hook (scripts/install-git-hooks.sh) and from CI
 (.github/workflows/status-matrix-consistency.yml), which opens a
@@ -58,9 +61,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -343,28 +348,60 @@ def collect_pr_urls(apps: list[dict]) -> list[str]:
     return urls
 
 
+def _rest_pr_state(url: str) -> str | None:
+    """PR merge state via the REST API; None when no token or the call fails.
+
+    The record workflow's step runs on self-hosted runners that carry no
+    `gh` binary, so resolving states must not depend on the CLI — every such
+    runner does have GITHUB_TOKEN, and the matrix lists same-org public PRs
+    whose read scope the token covers.
+    """
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return None
+    path = url.split("github.com/", 1)[-1]  # owner/repo/pull/N
+    owner_repo, _, num = path.rpartition("/pull/")
+    if not owner_repo or not num.isdigit():
+        return None
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{owner_repo}/pulls/{num}", method="GET"
+    )
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("X-GitHub-Api-Version", "2022-11-28")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read()).get("state")
+    except OSError:
+        return None
+
+
 def resolve_pr_states(urls: list[str]) -> dict[str, str]:
-    """Best-effort {url: 已合并|OPEN|已关闭|—} map, one gh call per unique URL.
+    """Best-effort {url: 已合并|OPEN|已关闭|—} map, one call per unique URL.
 
     Merge state changes in the PR's own repo, not build-infra, so it cannot
-    be maintained in YAML — resolve it fresh on every render. Public repos,
-    so CI's GITHUB_TOKEN suffices; any failure (offline, unauthenticated,
-    rate limit) falls back to "—" so rendering stays deterministic."""
+    be maintained in YAML — resolve it fresh on every render. Resolution
+    order: REST with a workflow token (deterministic across runners, `gh`
+    binary or not), then the `gh` CLI (tokenless local renders); any failure
+    (offline, unauthenticated, rate limit) falls back to "—" so rendering
+    stays deterministic."""
     states: dict[str, str] = {}
     failures = 0
     for url in sorted(set(urls)):
-        try:
-            out = subprocess.run(
-                ["gh", "pr", "view", url, "--json", "state"],
-                capture_output=True, text=True, timeout=15,
-            )
-            if out.returncode == 0:
-                state = json.loads(out.stdout).get("state")
-                states[url] = PR_STATE.get(state, "—")
-            else:
-                states[url] = "—"
-                failures += 1
-        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        state = _rest_pr_state(url)
+        if state is None:
+            try:
+                out = subprocess.run(
+                    ["gh", "pr", "view", url, "--json", "state"],
+                    capture_output=True, text=True, timeout=15,
+                )
+                if out.returncode == 0:
+                    state = json.loads(out.stdout).get("state")
+            except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+                state = None
+        if state is not None:
+            states[url] = PR_STATE.get(state, "—")
+        else:
             states[url] = "—"
             failures += 1
     if failures:
