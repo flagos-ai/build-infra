@@ -40,7 +40,7 @@ runtime + 单步安装"。2026-08-28 用户 pivot 后定案：**封装分发角�
   在 aarch64 的 wheel 可得性需构建期实证——ascend 线最大未知，若缺需源码构建
   或换包。
 - **metax 库层 JIT 缺口处置**（ADR §5.5）：clamp_position / vision.py /
-  fp8_utils 三处 guard 落插件层（metax vendor patch），是人工代码修补
+  PlatformFL 三处 fallback 需落进交付形态（wheel/plugin 层），是人工 patch
   流程，无法全自动。
 
 ## 4. 风险与痛点
@@ -78,9 +78,9 @@ runtime + 单步安装"。2026-08-28 用户 pivot 后定案：**封装分发角�
 ### 5.2 srt_empty 基座通用性与 per-vendor 落点（2026-08-28）
 
 **决策**：per-vendor wheel 一律以 srt_empty（非 CUDA variant）为基座，同一
-sdist 全后端共用；per-vendor 库层差异一律入 plugin 层
-（`sglang_fl/dispatch/backends/vendor/<vendor>/`，load_plugin 时应用），
-不进 wheel 本身——sglang 源树保持 pristine 官方 tag。
+sdist 全后端共用；per-vendor 库层差异（metax maca patch 等）入构建期 patch
+（`wheels/<vendor>/patches/*.patch`，host 侧应用）或 plugin 层，不进 wheel
+本身。
 
 **理由**：wheel METADATA 天然零 torch 零 sglang-kernel，无需 per-vendor
 剥离规则；torch 版本匹配留给各 runtime（runtime 已有 per-vendor 精确矩阵）。
@@ -109,28 +109,28 @@ thead-ppu2.0.0 + spacemit 无基础镜像，排除。同一 python 的后端可�
 
 ### 5.5 metax JIT 缺口 fallback 必须落进交付形态（2026-08-29）
 
-**决策**：metax 后端 JIT 缺口 fallback 必须随交付形态分发（plugin 层），
-不得只活在验证容器：
+**决策**：metax 后端 JIT 缺口 fallback 必须随交付形态分发（wheel / plugin
+层），不得只活在验证容器：
 
-1. `sglang_fl/dispatch/backends/vendor/metax/patches/`
-   clamp_position fallback（JIT 失败 → `torch.clamp(seq_lens-1, min=0)`）；
-2. 同目录 vision.py cudnn guard（预置
-   `flashinfer.prefill.cudnn_batch_prefill_with_kv_cache=None`）；
-3. 同目录 fp8_utils bmm_fp8 guard（预置 `flashinfer.bmm_fp8=None`）；
+1. `wheels/metax/patches/0001-clamp-position-fallback.patch`
+   clamp_position fallback；
+2. `wheels/metax/patches/0002-vision-cudnn-guard.patch` vision.py cudnn
+   guard（sglang/ 内唯一携带 "flagos" 标记的文件）；
+3. `wheels/metax/patches/0003-fp8-bmm-guard.patch` fp8_utils bmm_fp8 guard；
 4. PlatformFL `is_pin_memory_available(self, device=None)` 签名修复。
 
 **理由**：metax torch 是 CUDA-alias（`torch.version.cuda="11.6"`，
 `is_cuda()` True → CUDA 分支被走，无 nvcc → 每个 `load_jit` 优雅失败）。
 若 fallback 只留在测试容器，则单步安装产物在干净 runtime 内会崩。
 
-**落地方式**：三处 guard 全部落插件层（sglang-plugin-FL metax vendor
-patch，镜像 ascend `npu_kernel_stubs.py` 先例），在 **load_plugin 时应用**
-（早于模型模块 import，playbook §6）——sglang 源树保持 pristine 官方
-v0.5.18，wheel 构建零 patch，无 `wheels/<vendor>/patches/` 目录。
-用户约束：不保留任何构建期 .patch 文件机制（2026-09-01 撤除）。
+**落地方式**：构建期 patch 以 unified diff 存于 `wheels/<vendor>/patches/`，
+由 `build-and-repack.sh` 在 **host 侧**（容器启动前）应用到源树
+（`patch -d src -p1`）——容器只消费已 patch 的树，`patch` 不是 build image
+依赖。用户约束：不在容器内做 patch；hunk 由修改后源 `diff -u` 生成
+（手写 hunk 偶发失败，canonical diff 必然成功）。
 
-**状态**：✅ 插件层形态已定（wheel-patch 形态 E2E 实证过，插件层出包后
-需按回归纪律重装重验）；ascend 等后续后端需各自评估。
+**状态**：✅ metax 交付形态已含（三处 wheel patch + 插件签名，E2E 实证）；
+ascend 等后续后端需各自评估。
 
 ### 5.6 rust 工具链（filestore 缓存）
 
