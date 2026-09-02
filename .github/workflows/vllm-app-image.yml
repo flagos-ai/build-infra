@@ -28,6 +28,9 @@ name: vllm app image
 # from the app image), and vllm + vllm_fl must import (see
 # packaging/vllm/verify/verify-vllm-backend.sh --app-image). Verify gates push.
 #
+# record_only: skip pull/build/verify/push, only re-record — recovers a tag
+# that was pushed but never recorded (failed record step / closed record PR).
+#
 # Backend matrix comes from scripts/generate_matrix.py --app vllm{version}
 # (same runtime fields as runtime-image.yml plus the per-backend app env vars
 # and vendor-conditional deps from configs.yaml deps_app.vllm{version}).
@@ -58,6 +61,12 @@ on:
         description: 'Run the on-node verification step (matrix + import check)'
         type: boolean
         default: true
+      record_only:
+        description: >-
+          Skip pull/build/verify/push, only re-record the tag derived from the
+          same inputs (recover a tag pushed but never recorded).
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -121,7 +130,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Harbor login (push only)
-        if: ${{ inputs.push }}
+        if: ${{ inputs.push && !inputs.record_only }}
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
@@ -138,21 +147,21 @@ jobs:
           exit 1
 
       - name: Pull runtime image
+        if: ${{ !inputs.record_only }}
         run: |
           docker pull "${{ matrix.image_tag }}" || {
             echo "::error::Failed to pull runtime image ${{ matrix.image_tag }}"
             exit 1
           }
 
-      - name: Build vllm app image
+      # Tag = vllm{vllm_version}-{backend}:{version}[-{plugin}]; plugin '+' →
+      # '_' (invalid image-tag char). Computed in every mode: record_only must
+      # derive the original push's tag from the inputs alone.
+      - name: Compute app image tag
         run: |
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          # Tag naming (same as the images already in flagos-app):
-          #   vllm{vllm_version}-{backend}:{stack_version}[-{plugin_fl_version}]
-          # The plugin wheel's PEP 440 local version (0.2.0+g687217a.d20260819)
-          # carries a '+', which is not allowed in an image tag — use '_'.
           plugin="${{ inputs.plugin_fl_version }}"
           if [[ -n "${plugin}" ]]; then
               app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
@@ -160,6 +169,11 @@ jobs:
               app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.name }}:${{ matrix.version }}"
           fi
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
+
+      - name: Build vllm app image
+        if: ${{ !inputs.record_only }}
+        run: |
+          set -euo pipefail
           docker build \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
@@ -168,9 +182,9 @@ jobs:
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
             --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
-            -t "${app_tag}" \
+            -t "${APP_TAG}" \
             -f app/vllm/Containerfile .
-          echo "Built: ${app_tag}"
+          echo "Built: ${APP_TAG}"
 
       # On-node verify of the built artifact. Reuses verify-vllm-backend.sh in
       # --app-image mode: BEFORE snapshot from the runtime image, AFTER from
@@ -179,8 +193,9 @@ jobs:
       # was inert), then import vllm + vllm_fl on the app container. Runs
       # before push so a failed verify gates the push. Needs hardware access
       # (the script reads run flags from .github/build-config.yml).
+      # record_only: skip — no fresh image, the original run already verified.
       - name: Verify vllm app image
-        if: ${{ inputs.verify }}
+        if: ${{ inputs.verify && !inputs.record_only }}
         run: |
           set -euo pipefail
           bash packaging/vllm/verify/verify-vllm-backend.sh \
@@ -190,7 +205,7 @@ jobs:
             --app-image "${APP_TAG}"
 
       - name: Push vllm app image
-        if: ${{ inputs.push }}
+        if: ${{ inputs.push && !inputs.record_only }}
         run: |
           docker push "${APP_TAG}"
 
@@ -200,8 +215,9 @@ jobs:
       # right after the push — this regenerates the verification matrix and
       # app launch pages and opens a review-gated PR (scripts/
       # record_app_image_tag.py). Idempotent: same tag → no-op.
+      # Also runs in record_only — that mode exists to re-run this step.
       - name: Record app image tag
-        if: ${{ success() && inputs.push }}
+        if: ${{ success() && (inputs.record_only || inputs.push) }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
