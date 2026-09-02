@@ -34,7 +34,7 @@ runners:
   default: [self-hosted, h20]
   overrides:
     ascend-cann8.5.0: [self-hosted, cann850]
-    ascend-cann9.0.0: [self-hosted, cann9]
+    ascend-cann9.0.0: [self-hosted, cann900]
     cambricon-neuware4.4.3: [self-hosted, cambricon]
     cambricon-neuware4.7.2: [self-hosted, cambricon]
     enflame-tops1.9.10: [self-hosted, tops1106]
