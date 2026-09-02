@@ -71,8 +71,8 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 | 事项 | 状态 |
 |---|---|
-| Containerfile | ⬜ |
-| 构建 workflow | ⬜ |
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
 
 **后端级设施**
 

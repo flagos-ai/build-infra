@@ -1,0 +1,35 @@
+#!/bin/bash
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================================
+# sglang-serve — the single serve command for the sglang app image.
+#
+# Sources the baked vendor env (full CANN / MACA LD_LIBRARY_PATH lives in
+# /etc/profile.d, NOT in the image ENV — a plain
+# `docker run <image> /flagos/bin/python ...` bypasses bash and misses it),
+# then execs sglang's server with the caller's arguments passed through
+# verbatim. The model is a positional first argument (sglang's CLI shape —
+# unlike vllm's --model).
+#
+#   docker run <image> sglang-serve /data/models/Qwen/Qwen3-0.6B --port 8032
+#   docker run <image> sglang-serve --help
+#
+# Re-sourcing is safe: the profile.d scripts are idempotent, and vendor.sh
+# (where present) assigns PATH absolutely, so no prepend accumulates.
+# ============================================================================
+
+set -euo pipefail
+[ -r /etc/bash_env.sh ] && . /etc/bash_env.sh
+exec /flagos/bin/python -m sglang.launch_server "$@"

@@ -27,19 +27,30 @@
 # ConfigCache is cleared before serve so the F and T compiler paths never
 # cross-pollinate (playbook §5.4).
 #
-# The plugin is NOT on any index: it is built in-container from the
+# The plugin is NOT on any index yet: verify builds it in-container from the
 # sglang-plugin-FL repo (exp/0.5.18 branch) — git clone + `pip wheel` — then
-# pip-installed. Same recipe the app image build will replay.
+# pip-installs the wheel. The app image build does NOT build from source: it
+# installs the plugin wheel from the vendor PyPI once the sglang-plugin-wheel
+# publication workflow has run (Containerfile PLUGIN_FL_VERSION).
+#
+# --app-image <image>: instead of steps 2-6, verify a prebuilt
+#   flagos-app/sglang{sglang_version}-{vendor}-{backend}:{version}[-{plugin}]
+#   image (built by the sglang-app-image workflow): the critical-package
+#   matrix (torch/triton/flag_gems/numpy) must be identical to the runtime
+#   image's, and sglang + sgl_kernel + sglang_fl must import on the app
+#   image. No installs run; the serve test (Step 7) still runs against the
+#   app image — a cell only earns ✅ by returning a real completion.
 #
 # One compiler per invocation (--compiler F or T); a cell only earns ✅ when
 # both invocations pass (F = flagtree, the runtime default, T = vendor triton).
 #
 # Usage:
-#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--serve-timeout <sec>] [--skip-serve] [--stack-version <ver>]
+#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--app-image <image>] [--serve-timeout <sec>] [--skip-serve] [--stack-version <ver>]
 #
 # Examples:
 #   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler F
 #   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler T --device 1 --model /data/models/Qwen/Qwen3-0.6B
+#   ./verify-sglang-backend.sh metax-maca3.8.1.3 --app-image harbor.baai.ac.cn/flagos-app/sglang0.5.18-metax-maca3.8.1.3:2.1.2
 #
 # Prerequisites:
 #   - Running on the target node with hardware access
@@ -81,6 +92,9 @@ DEVICE=""
 # own configs.yaml (REPO_ROOT below); explicit --stack-version = use exactly
 # this version, for when the checkout is stale and you don't want to refresh.
 STACK_VERSION=""
+# Prebuilt app image to verify instead of installing from scratch (see the
+# --app-image doc above). Empty = the from-scratch install path (Steps 2-6).
+APP_IMAGE=""
 
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -93,6 +107,7 @@ while [[ $# -gt 0 ]]; do
         --compiler) COMPILER="$2"; shift 2 ;;
         --device) DEVICE="$2"; shift 2 ;;
         --stack-version) STACK_VERSION="$2"; shift 2 ;;
+        --app-image) APP_IMAGE="$2"; shift 2 ;;
         --help)
             echo "Usage: $0 <vendor-backend> [options]"
             echo ""
@@ -108,6 +123,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-serve         Skip serve test, only install and verify imports"
             echo "  --serve-timeout <sec> Time budget for serve readiness + each completion (default: 1800)"
             echo "  --stack-version <ver> Stack version for the runtime image tag; default: read from the discovered configs.yaml"
+            echo "  --app-image <image>   Verify a prebuilt sglang app image (matrix + import)"
             exit 0
             ;;
         # Not an option: positional. Collect (don't break) so options may
@@ -180,6 +196,11 @@ RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR_BACKEND}
 VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple"
 ALIYUN_PYPI="https://mirrors.aliyun.com/pypi/simple"
 CONTAINER="sglang-verify-${VENDOR}-${BACKEND}"
+APP_CONTAINER="sglang-app-verify-${VENDOR}-${BACKEND}"
+# Which container the serve test (Step 7) + summary run against: the app image
+# container in --app-image mode, the installed runtime container otherwise.
+SERVE_CONTAINER="${CONTAINER}"
+[[ -n "${APP_IMAGE}" ]] && SERVE_CONTAINER="${APP_CONTAINER}"
 WORK_DIR="/tmp/sglang-verify-${VENDOR}-${BACKEND}-$$"
 
 # Packages that must survive the installs bit-for-bit (single-step install
@@ -264,14 +285,18 @@ cleanup() {
     echo ""
     log_info "Container kept for audit (persistent-container discipline)"
     local cid
-    cid=$(docker ps --filter "name=${CONTAINER}" --format '{{.ID}}' 2>/dev/null | head -1)
-    echo "  Container id:   ${cid:-<not running>}  (name: ${CONTAINER})"
+    for c in "${CONTAINER}" "${APP_CONTAINER}"; do
+        cid=$(docker ps --filter "name=${c}" --format '{{.ID}}' 2>/dev/null | head -1)
+        echo "  Container id:   ${cid:-<not running>}  (name: ${c})"
+    done
     echo "  Serve log:      /tmp/sglang-serve.log (in container) | ${WORK_DIR}/sglang-serve.log (node)"
-    echo "  Debug:          docker exec -it ${CONTAINER} bash"
-    echo "  Free device:    docker rm -f ${CONTAINER}"
+    echo "  Debug:          docker exec -it ${SERVE_CONTAINER} bash"
+    echo "  Free device:    docker rm -f ${CONTAINER} ${APP_CONTAINER}"
     # Node-side audit copy: the container may be removed later, WORK_DIR is
-    # host-persistent. Best-effort — the serve step may never have run.
-    docker cp "${CONTAINER}:/tmp/sglang-serve.log" "${WORK_DIR}/sglang-serve.log" 2>/dev/null || true
+    # host-persistent. Best-effort — the serve step may never have run. In
+    # --app-image mode the serve ran on ${SERVE_CONTAINER} (the app container);
+    # the runtime container may also hold a stale copy.
+    docker cp "${SERVE_CONTAINER}:/tmp/sglang-serve.log" "${WORK_DIR}/sglang-serve.log" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -280,7 +305,7 @@ trap cleanup EXIT
 log_step "Step 1: Starting runtime container"
 
 mkdir -p "${WORK_DIR}"
-docker rm -f "${CONTAINER}" 2>/dev/null || true
+docker rm -f "${CONTAINER}" "${APP_CONTAINER}" 2>/dev/null || true
 
 # Read device flags from build-config.yml (toolkit preferred over raw).
 RUN_FLAGS=$(python3 -c "
@@ -335,6 +360,83 @@ PY
         done
     '
 }
+
+# ── App-image mode: verify a prebuilt sglang app image ────────────────────
+#
+# Facility 2 of the sglang-app-image workflow: prove the wheel installs baked
+# into the app image were inert AND that sglang + sgl_kernel + sglang_fl
+# actually import there. BEFORE snapshot from the runtime image, AFTER from the
+# app image — the critical-package matrix (torch / triton / flag_gems / numpy)
+# must match item by item. Steps 2-6 (the from-scratch install path) are
+# skipped in this mode; the serve test (Step 7) still runs against the app
+# container (SERVE_CONTAINER).
+if [[ -n "${APP_IMAGE}" ]]; then
+    log_step "App-image mode: verifying ${APP_IMAGE}"
+
+    log_step "BEFORE dependency snapshot (runtime image)"
+    snapshot "${CONTAINER}" | tee "${WORK_DIR}/before.txt"
+
+    # Same hardware/driver access as the Step 1 runtime container (RUN_FLAGS +
+    # DEVICE_ENV) plus the model mount for the Step 7 serve test.
+    docker run -d --name "${APP_CONTAINER}" \
+        ${RUN_FLAGS} \
+        ${DEVICE_ENV} \
+        --shm-size=8g \
+        -v "${WORK_DIR}:${WORK_DIR}" \
+        ${MODEL_MOUNT} \
+        --network host \
+        "${APP_IMAGE}" \
+        sleep infinity
+    log_info "App container started: ${APP_CONTAINER}"
+
+    log_step "AFTER dependency snapshot (app image)"
+    snapshot "${APP_CONTAINER}" | tee "${WORK_DIR}/after.txt"
+
+    log_step "Comparing critical-package matrix"
+    if diff -u "${WORK_DIR}/before.txt" "${WORK_DIR}/after.txt"; then
+        log_info "Matrix unchanged: the app image did not overwrite runtime packages"
+    else
+        log_error "Matrix changed: the app image overwrote a runtime package"
+        docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+        exit 1
+    fi
+
+    log_step "Import check (sglang + sgl_kernel + sglang_fl)"
+    # Same import face as Step 6 with the same SGLANG_SWITCHES export, so both
+    # modes check under identical env. The app image additionally bakes these
+    # from configs.yaml env.app.sglang (via /etc/profile.d/app_env.sh) — the
+    # export here is belt-and-braces for a backend whose app env is not yet
+    # complete, and a no-op when it is.
+    if docker exec "${APP_CONTAINER}" bash -c '
+        '"${COMPILER_GUARD}"'
+        '"${SGLANG_SWITCHES}"'
+        python3 - <<'"'"'PY'"'"'
+import importlib.metadata
+import sglang
+import sgl_kernel
+import sglang_fl
+
+print("sglang imported:", sglang.__file__)
+print("sglang version:", importlib.metadata.version("sglang"))
+print("sgl_kernel imported:", sgl_kernel.__file__)
+print("sglang_fl imported:", sglang_fl.__file__)
+PY
+    '; then
+        log_info "sglang + sgl_kernel + sglang_fl import OK on app image"
+    else
+        log_error "Import failed on app image"
+        docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+        exit 1
+    fi
+
+    log_info "App-image matrix + import PASSED — proceeding to the serve test (Step 7)"
+fi
+
+# ── Steps 2-6: from-scratch install path (skipped in --app-image mode) ────
+#
+# The app-image block above already proved matrix inertness + imports; nothing
+# is installed in this mode. Step 7 (serve) runs in both modes.
+if [[ -z "${APP_IMAGE}" ]]; then
 
 # ── Step 2: BEFORE snapshot ─────────────────────────────────────────────
 
@@ -440,6 +542,8 @@ print("sglang_fl imported:", sglang_fl.__file__)
 PY
 '
 
+fi
+
 # ── Step 7: E2E serve (Qwen3-0.6B, 3× chat/completions) ─────────────────
 
 if [[ "$SKIP_SERVE" == true ]]; then
@@ -454,9 +558,9 @@ else
         exit 1
     fi
 
-    log_info "Starting sglang serve on ${CONTAINER} (this may take several minutes)..."
+    log_info "Starting sglang serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
-    docker exec "${CONTAINER}" bash -c "
+    docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         ${SGLANG_SWITCHES}
         export SERVE_TIMEOUT=${SERVE_TIMEOUT}
@@ -577,10 +681,10 @@ echo "Backend:          ${VENDOR_BACKEND}"
 echo "sglang Version:   ${SGLANG_VERSION}+flagos"
 echo "Plugin Ref:       ${PLUGIN_REF}"
 echo "Compiler:         ${COMPILER:-<runtime default>}"
-echo "Container:        ${CONTAINER}"
+echo "Container:        ${SERVE_CONTAINER}"
 echo ""
 echo "Status:"
-docker exec "${CONTAINER}" bash -c "
+docker exec "${SERVE_CONTAINER}" bash -c "
     ${COMPILER_GUARD}
     echo -n 'sglang: '; python3 -c 'import importlib.metadata, sglang; print(importlib.metadata.version(\"sglang\"))' 2>/dev/null || echo 'FAILED'
     echo -n 'sglang_fl: '; python3 -c 'import importlib.metadata, sglang_fl; print(importlib.metadata.version(\"sglang-fl\"))' 2>/dev/null || echo 'FAILED'
@@ -589,5 +693,5 @@ docker exec "${CONTAINER}" bash -c "
 "
 echo ""
 echo "To debug:"
-echo "  docker exec -it ${CONTAINER} bash"
+echo "  docker exec -it ${SERVE_CONTAINER} bash"
 echo ""

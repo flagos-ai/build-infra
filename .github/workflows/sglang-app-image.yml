@@ -1,0 +1,213 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: sglang app image
+
+# Builds flagos-app/sglang{sglang_version}-{vendor}-{backend}:{version}[-{plugin}]
+# from the runtime image by installing the repacked sglang wheel (+flagos) and
+# — once the sglang-plugin-wheel workflow has published them — the sglang-fl
+# plugin + sgl_kernel shim wheels (single clean pip installs, no source builds;
+# the srt_empty base is deliberately torch-free and sgl-kernel-free, so none of
+# the installs can touch the runtime's baked torch/triton/flag_gems/numpy
+# matrix). The +flagos pin is mandatory: a bare "sglang=={version}" would fall
+# through to the official wheel whose torch Requires-Dist overwrites the vendor
+# torch.
+#
+# Then verifies the built image on the node: the critical-package matrix must
+# be identical to the runtime's (BEFORE snapshot from the runtime image, AFTER
+# from the app image), and sglang + sgl_kernel + sglang_fl must import (see
+# packaging/sglang/verify/verify-sglang-backend.sh --app-image). Verify gates
+# push.
+#
+# Backend matrix comes from scripts/generate_matrix.py --app sglang{version}
+# (same runtime fields as runtime-image.yml plus the per-backend app env vars
+# and vendor-conditional deps from configs.yaml deps_app.sglang{version}).
+# Per-vendor PyPI (flagos_pypi) is searched first; aliyun is the fallback.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend to build (e.g. metax-maca3.8.1.3), or "all"'
+        type: string
+        default: all
+      sglang_version:
+        description: 'sglang version to install (repacked +flagos wheel, e.g. 0.5.18)'
+        type: string
+        default: 0.5.18
+      plugin_fl_version:
+        description: >-
+          sglang-fl plugin wheel version to install (commit-precise pin, e.g.
+          0.2.0rc0.post2.dev11+gb9e835e85). Empty = skip the plugin install
+          (verify builds it in-container from the repo during E2E).
+        type: string
+        default: ''
+      push:
+        description: 'Push image(s) to the registry'
+        type: boolean
+        default: false
+      verify:
+        description: 'Run the on-node verification step (matrix + import check)'
+        type: boolean
+        default: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      harbor_host: ${{ steps.harbor-host.outputs.host }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+
+      - id: set-matrix
+        shell: bash
+        run: |
+          if [[ "${{ inputs.backend }}" == "all" ]]; then
+            python3 scripts/generate_matrix.py --app "sglang${{ inputs.sglang_version }}" > matrix.json
+          else
+            python3 scripts/generate_matrix.py --app "sglang${{ inputs.sglang_version }}" ${{ inputs.backend }} > matrix.json
+          fi
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+      - id: harbor-host
+        shell: bash
+        run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    name: app-${{ matrix.name }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      - name: Harbor login (push only)
+        if: ${{ inputs.push }}
+        env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
+      - name: Pull runtime image
+        run: |
+          docker pull "${{ matrix.image_tag }}" || {
+            echo "::error::Failed to pull runtime image ${{ matrix.image_tag }}"
+            exit 1
+          }
+
+      - name: Build sglang app image
+        run: |
+          set -euo pipefail
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
+          app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
+          # Tag naming (same as the vllm app images in flagos-app):
+          #   sglang{sglang_version}-{backend}:{stack_version}[-{plugin_fl_version}]
+          # The plugin wheel's PEP 440 local version (…+gb9e835e85) carries a
+          # '+', which is not allowed in an image tag — use '_'.
+          plugin="${{ inputs.plugin_fl_version }}"
+          if [[ -n "${plugin}" ]]; then
+              app_tag="${host}/${app_prefix}/sglang${{ inputs.sglang_version }}-${{ matrix.name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
+          else
+              app_tag="${host}/${app_prefix}/sglang${{ inputs.sglang_version }}-${{ matrix.name }}:${{ matrix.version }}"
+          fi
+          echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
+          docker build \
+            --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
+            --build-arg "SGLANG_VERSION=${{ inputs.sglang_version }}" \
+            --build-arg "PLUGIN_FL_VERSION=${{ inputs.plugin_fl_version }}" \
+            --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
+            --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
+            --build-arg "APP_ENV=${{ matrix.app_env }}" \
+            --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
+            -t "${app_tag}" \
+            -f app/sglang/Containerfile .
+          echo "Built: ${app_tag}"
+
+      # On-node verify of the built artifact. Reuses verify-sglang-backend.sh
+      # in --app-image mode: BEFORE snapshot from the runtime image, AFTER from
+      # the app image — the torch/triton/flag_gems/numpy matrix must match item
+      # by item (proves the single-step install baked into the image was
+      # inert), then import sglang + sgl_kernel + sglang_fl on the app
+      # container. Runs before push so a failed verify gates the push. Needs
+      # hardware access (the script reads run flags from .github/build-config.yml).
+      - name: Verify sglang app image
+        if: ${{ inputs.verify }}
+        run: |
+          set -euo pipefail
+          bash packaging/sglang/verify/verify-sglang-backend.sh \
+            "${{ matrix.name }}" \
+            --sglang-version "${{ inputs.sglang_version }}" \
+            --app-image "${APP_TAG}"
+
+      - name: Push sglang app image
+        if: ${{ inputs.push }}
+        run: |
+          docker push "${APP_TAG}"
+
+      # image_tag in the status matrix is the single source of truth for
+      # "this backend is published" (docs/status-matrix.md). Only the
+      # workflow knows the exact tag at push time, so it records it itself
+      # right after the push — this regenerates the verification matrix and
+      # app launch pages and opens a review-gated PR (scripts/
+      # record_app_image_tag.py). Idempotent: same tag → no-op.
+      - name: Record app image tag
+        if: ${{ success() && inputs.push }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/record_app_image_tag.py \
+            --matrix "packaging/sglang/status_matrix.sglang${{ inputs.sglang_version }}.yaml" \
+            --backend "${{ matrix.name }}" \
+            --tag "${APP_TAG}"
