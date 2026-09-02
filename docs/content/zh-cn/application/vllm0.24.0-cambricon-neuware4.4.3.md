@@ -38,16 +38,17 @@ title: "vllm0.24.0-cambricon-neuware4.4.3"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.1+gea38c86.d20260902`
+
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.4.3:2.1.2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.4.3:2.1.2-0.2.1_gea38c86.d20260902`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.4.3:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.4.3:2.1.2-0.2.1_gea38c86.d20260902
 ```
 
 ### 无需工具包——直接使用 docker / podman
