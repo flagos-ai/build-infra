@@ -39,16 +39,17 @@ title: "vllm0.24.0-enflame-tops1.10.6"
 
 `vllm==0.24.0+flagos`
 
+
+`vllm-plugin-fl==0.2.1+g369a551.d20260902`
+
 ## Launch
 
-**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.24.0-enflame-tops1.10.6:2.1.2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-enflame-tops1.10.6:2.1.2-0.2.1_g369a551.d20260902`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-enflame-tops1.10.6:2.1.2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-enflame-tops1.10.6:2.1.2-0.2.1_g369a551.d20260902
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
