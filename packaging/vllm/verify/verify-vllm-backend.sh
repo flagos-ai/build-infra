@@ -227,6 +227,13 @@ raw = vendor_config.get('raw', '')
 print(toolkit if toolkit else raw)
 ")
 
+# Some vendor toolkits (e.g. enflame) already carry `--network host` in their
+# run flags; adding it again makes docker abort with "network host is
+# specified multiple times", so only inject it when the flags do not name one.
+if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
+    RUN_FLAGS="${RUN_FLAGS} --network host"
+fi
+
 # The model mount is only needed for the serve test. Mount it read-only when
 # the node has the model dir; the serve test (Step 6) exits 1 when it is absent
 # rather than silently skipping.
@@ -237,7 +244,6 @@ docker run -d --name "${CONTAINER}" \
     ${RUN_FLAGS} \
     -v "${WORK_DIR}:${WORK_DIR}" \
     ${MODEL_MOUNT} \
-    --network host \
     "${RUNTIME_IMAGE}" \
     sleep infinity
 
@@ -276,7 +282,6 @@ if [[ -n "${APP_IMAGE}" ]]; then
     docker run -d --name "${APP_CONTAINER}" \
         ${RUN_FLAGS} \
         ${MODEL_MOUNT} \
-        --network host \
         "${APP_IMAGE}" \
         sleep infinity
     log_info "App container started: ${APP_CONTAINER}"

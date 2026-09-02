@@ -166,7 +166,15 @@ echo ""
 
 docker pull "$BUILD_IMAGE" > /dev/null 2>&1 || true
 
-docker run -d --name "$CONTAINER" --network host \
+# Some vendor toolkits (e.g. enflame) already carry `--network host` in their
+# run flags; adding it again makes docker abort with "network host is
+# specified multiple times" (run 33592252375), so only inject it when the
+# flags do not name a network.
+if [[ " ${DOCKER_RUN_FLAGS:-} " != *" --network "* ]]; then
+    DOCKER_RUN_FLAGS="${DOCKER_RUN_FLAGS:-} --network host"
+fi
+
+docker run -d --name "$CONTAINER" \
     -v "${WORK_DIR}:${WORK_DIR}" \
     ${DOCKER_RUN_FLAGS:-} \
     "$BUILD_IMAGE" sleep infinity
