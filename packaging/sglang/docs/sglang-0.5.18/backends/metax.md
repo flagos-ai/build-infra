@@ -1,7 +1,7 @@
 # sglang 0.5.18 — MetaX maca3.8.1.3 验证记录
 
-> **首个 0.5.18 后端**。零 sgl-kernel F/T 双路径 E2E 全过；JIT 缺口 fallback
-> 落进交付形态（ADR §5.5）。**2026-09-02 回归**：exp/0.5.18 新插件 wheel
+> **首个 0.5.18 后端**。零 sgl-kernel F/T 双路径 E2E 全过；JIT 缺口 guard
+> 落插件层（ADR §5.5）。**2026-09-02 回归**：exp/0.5.18 新插件 wheel
 > （sglang_fl-0.2.0rc0，替代旧 0.1.0）重装重验，F/T 双路径全过。
 
 ## 1. 环境
@@ -68,30 +68,36 @@ gen tok/s，3× chat/completions。
 > 必然值——Qwen3 默认 thinking 早停，多数请求在 144 前 finish=stop；T 路径
 > 第 2 次请求恰好顶满 144（finish=length）。sampling_backend 经 server_args
 > dump 确认（0.5.18 chat 响应体无此字段，见 ascend.md 方法论修正）。
-> 三个 fallback patch 双路径全良性：0001 clamp_position 优雅回落 eager
-> （nvcc: not found，无中断）、0002 vision 未触达（多模态导入忽略）、0003
+> 三处 guard 双路径全良性（wheel-patch 形态实证）：clamp_position 优雅回落
+> eager（nvcc: not found，无中断）、vision cudnn 未触达（多模态导入忽略）、
 > fp8 bmm 未成为导入拦路石（仅 fp8 模型路径触达）。
 
 > 性能参考：0.5.12 零 sgl-kernel 同机 ~7-11 tok/s；sgl-kernel 基线 ~40
 > tok/s。0.5.18 慢 ~2 倍于 0.5.12，未优化（见 §5 遗留）。
 
-## 4. JIT 缺口 fallback（metax 交付形态，ADR §5.5）
+## 4. JIT 缺口 guard（metax 交付形态，ADR §5.5）
 
 metax torch 是 CUDA-alias，`is_cuda()` True → CUDA 分支被走；无 nvcc →
-每个 `load_jit` 优雅失败。三处 fallback 以构建期源码 patch 落进交付 wheel
-（`wheels/metax/patches/*.patch`，host 侧应用，见 §3），一处落插件层：
+每个 `load_jit` 优雅失败；metax flashinfer build 缺 cudnn/bmm 符号。三处
+guard 全部落**插件层**（sglang-plugin-FL metax vendor patch，镜像 ascend
+`npu_kernel_stubs.py` 先例），sglang 源树保持 pristine 官方 v0.5.18 ——
+wheel 构建零 patch：
 
-| 文件 | 修复 |
+| guard | 修复 |
 |---|---|
-| `patches/0001-clamp-position-fallback.patch` | clamp_position fallback（JIT 失败 → torch-native）|
-| `patches/0002-vision-cudnn-guard.patch` | vision.py cudnn guard |
-| `patches/0003-fp8-bmm-guard.patch` | fp8_utils bmm_fp8 guard |
-| `sglang_fl` PlatformFL | `is_pin_memory_available(self, device=None)` 签名修复（platform.py:318）|
+| clamp_position | `clamp_position_cuda` 包一层 try/except：JIT 失败 → `torch.clamp(seq_lens-1, min=0)` 回落（forward_batch_info 模块级绑定在插件 patch 之后，取到安全版）|
+| vision.py cudnn | 预置 `flashinfer.prefill.cudnn_batch_prefill_with_kv_cache=None`（模块级 bare import 取到 None，不中断 vision.py 导入链）|
+| fp8_utils bmm_fp8 | 预置 `flashinfer.bmm_fp8=None`（同上，仅 fp8 模型路径触达）|
+| PlatformFL | `is_pin_memory_available(self, device=None)` 签名修复（platform.py:318，exp/0.5.18 主分支）|
 
-构建期 patch 在 **host 侧**完成：源 tarball 下载、解压、打补丁全部发生在
-build 容器启动之前（`build-and-repack.sh` "Pull + patch source" 段），容器只
-消费已 patch 的树——`patch` 不是 build image 依赖，改动落在可审计处（用户
-约束：不在容器内做 patch）。
+patch 在 **load_plugin 时应用**（早于模型模块 import，playbook §6）：插件
+wheel 随 app 镜像单步安装，`_apply_vendor_patches()` 按 DeviceDetector
+vendor_name 加载 metax patch 模块，模块级 `apply_metax_patches()` 以
+setattr/monkey-patch 打进 sglang 内部模块。
+
+> **回归状态**：三 guard 的行为（JIT 优雅回落 / cudnn、bmm 符号缺失不中断
+> 导入）在 wheel-patch 形态下双路径 E2E 实证过（§3 回归说明）；插件层形态
+> 出包后需按回归纪律重装重验（旧记录不背书新产物）。
 
 ## 5. 坑清单
 
@@ -101,7 +107,7 @@ build 容器启动之前（`build-and-repack.sh` "Pull + patch source" 段），
 | 2 | shim 版本号硬校验 | `SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1` |
 | 3 | flashinfer import 链（metax 无）| `SGLANG_IS_FLASHINFER_AVAILABLE=false` |
 | 4 | F 路径 inductor 并发 fork 崩溃 | `TORCHINDUCTOR_COMPILE_THREADS=1` |
-| 5 | CUDA-alias 无 nvcc 的 load_jit 链 | §4 三处 fallback 以构建期 patch 落进 wheel |
+| 5 | CUDA-alias 无 nvcc 的 load_jit 链 | §4 三处 guard 以插件层 metax patch 落进交付 |
 
 **注意事项：flag_gems SQL ConfigCache 跨编译器污染**（仅 F/T 双路径验证场景
 需要处理；最终用户钉单一编译器不触发，无影响）。F/T 同 db 同表

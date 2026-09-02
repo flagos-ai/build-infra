@@ -98,9 +98,10 @@ MetaX 端到端落地的改动可以数出来：约 7 处——1 个导入替身
 
 ### 3.4 修复都落进了交付形态
 
-MetaX 平台的三处 JIT 缺口 fallback（clamp_position / vision.py cudnn
-guard / PlatformFL 签名）全部以构建期 patch 形式落进 wheel 与插件层，
-不是只活在验证容器里——干净 runtime 单步安装即可复现。
+MetaX 平台的三处 JIT 缺口 guard（clamp_position / vision.py cudnn
+guard / fp8_utils bmm_fp8 / PlatformFL 签名）全部落插件层
+（sglang-plugin-FL metax vendor patch，load_plugin 时应用），
+sglang 源树 pristine 零 patch——干净 runtime 单步安装即可复现。
 
 ### 3.5 可复现
 
