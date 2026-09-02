@@ -136,6 +136,25 @@ mkdir -p "$WORK_DIR/output" "$WORK_DIR/cache"
 cp "$SCRIPT_DIR/../script/repack.py" "$SCRIPT_DIR/config.yaml" \
     "$SCRIPT_DIR/merge-runtime-base.py" "$WORK_DIR/"
 
+# ── Pull source (host-side) ──────────────────────────────────────────────
+#
+# The source tarball is downloaded and extracted on the host, never inside the
+# build container: the container consumes the pristine official tree, so
+# `patch` is not a build-image dependency and the wheel carries exactly the
+# upstream tag. Per-vendor runtime compatibility (JIT/cudnn/fp8 fallbacks)
+# lives in the plugin layer — sglang_fl vendor patches applied at load_plugin —
+# not in the wheel (ADR §5.5).
+
+echo "==> Mode: source build (non-CUDA variant)"
+SRC_TAR="sglang-${SGLANG_VERSION}.tar.gz"
+SRC_URL="${FILESTORE}/sglang/sglang-${SGLANG_VERSION}.tar.gz"
+echo "==> Downloading ${SRC_URL} …"
+curl -sL -o "${WORK_DIR}/${SRC_TAR}" "${SRC_URL}"
+mkdir -p "${WORK_DIR}/src" "${WORK_DIR}/out"
+tar xzf "${WORK_DIR}/${SRC_TAR}" -C "${WORK_DIR}/src"
+mv "${WORK_DIR}/src/sglang-${SGLANG_VERSION}" "${WORK_DIR}/src/sglang"
+rm "${WORK_DIR}/${SRC_TAR}"
+
 # ── Start build container ───────────────────────────────────────────────
 
 echo "==> Image:  ${BUILD_IMAGE}"
@@ -165,24 +184,14 @@ docker exec "$CONTAINER" bash -c "
 "
 
 # Every backend builds the same wheel from the filestore source tarball
-# (sglang ships no pip sdist). The non-CUDA pyproject variant (srt_empty
-# base) is switched in and runtime_base merged into `dependencies` inside
-# the container, exactly as build-sdist.sh does — single source of truth,
-# the wheel's METADATA is torch-free by construction (decisions.md §2).
-echo "==> Mode: source build (non-CUDA variant)"
-SRC_TAR="sglang-${SGLANG_VERSION}.tar.gz"
-SRC_URL="${FILESTORE}/sglang/sglang-${SGLANG_VERSION}.tar.gz"
+# (sglang ships no pip sdist). The tarball was already pulled on the host
+# (above); in the container only the non-CUDA pyproject variant
+# (srt_empty base) is switched in and runtime_base merged into `dependencies`,
+# exactly as build-sdist.sh does — single source of truth, the wheel's
+# METADATA is torch-free by construction (decisions.md §2).
 docker exec "$CONTAINER" bash -c "
     set -e
     cd ${WORK_DIR}
-    mkdir -p ${WORK_DIR}/src ${WORK_DIR}/out
-
-    # Pull source from filestore
-    echo 'Downloading ${SRC_URL} …'
-    curl -sL -o ${WORK_DIR}/${SRC_TAR} '${SRC_URL}'
-    tar xzf ${WORK_DIR}/${SRC_TAR} -C ${WORK_DIR}/src
-    mv ${WORK_DIR}/src/sglang-${SGLANG_VERSION} ${WORK_DIR}/src/sglang
-    rm ${WORK_DIR}/${SRC_TAR}
 
     # Locate the python package dir. The official source archive nests it
     # under python/; a built sdist-style tarball would have pyproject.toml

@@ -1,0 +1,272 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: sglang-plugin wheel
+
+# Build sglang-plugin-FL (sglang_fl) wheels in the backend's runtime image,
+# and (optionally) upload them to the per-vendor PyPI.
+#
+# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
+# flagos-runtime-{vendor}-{backend}:{version} (from generate_matrix --runtime),
+# exactly the megatron-wheel.yml / vllm-plugin-wheel.yml model. Build env ==
+# delivery env: the wheel is built against the same python/torch/triton/
+# flag_gems the app image will run, so it can be installed single-step without
+# pulling in (or upgrading) any runtime package.
+#
+# Dependency audit gate: after the wheel is built, packaging/script/audit-deps.py
+# reads the wheel's METADATA Requires-Dist and fails the build if it declares
+# any critical package (torch / torch_npu / torchvision / torchaudio / triton /
+# flag_gems / numpy / sglang). The plugin must not ship dependencies that could
+# overwrite the runtime matrix — the image provides them.
+#
+# Wheel flavor: pure-python (py3-none-any) — sglang_fl has no compiled
+# extension, so every backend builds the same wheel and no vendor toolchain is
+# needed. The version (setuptools-scm <ver>+g<sha>, or the explicit
+# plugin_version input) encodes the exact plugin commit, so the app
+# Containerfile's `pip install sglang-plugin-fl==<version>` is a
+# commit-precise pin.
+#
+# Clone source: plugin_repo defaults to the flagos-ai upstream, so the default
+# path builds released/merged code. Pre-merge per-backend branches (exp/0.5.18
+# ports, which the plugin team merges only after seeing E2E results) live on
+# the exp/0.5.18 branch family — dispatch with plugin_ref=<branch|SHA> to
+# build them, and gate the upload with audit-deps.py as usual.
+#
+# Upload target defaults to flagos-pypi-<vendor> so the wheel lands next to
+# that backend's sglang+flagos / torch / flag_gems. There is no schedule:
+# uploads are manual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend whose runtime image builds the wheel (e.g. ascend-cann9.0.0, or "all")'
+        type: string
+        default: ascend-cann9.0.0
+      plugin_ref:
+        description: 'sglang-plugin-FL git ref to build (full 40-hex SHA pinning preferred — abbreviated SHAs are not fetchable by git; a branch name works but moves)'
+        type: string
+        default: exp/0.5.18
+      plugin_repo:
+        description: 'sglang-plugin-FL git clone URL (default: flagos-ai upstream; point at a fork for pre-merge port branches)'
+        type: string
+        default: 'https://github.com/flagos-ai/sglang-plugin-FL.git'
+      plugin_version:
+        description: 'Wheel version override (e.g. 0.2.0+gf0abc123); blank = setuptools-scm derivation'
+        type: string
+        default: ''
+      upload:
+        description: 'upload the wheel to the vendor PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
+        type: string
+        default: ''
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: set-matrix
+        run: |
+          if [[ "${{ inputs.backend }}" == "all" ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      WORK: /tmp/sglang-plugin-${{ matrix.name }}-${{ github.run_id }}
+      BASE_IMAGE: ${{ matrix.image_tag }}
+      PLUGIN_REF: ${{ inputs.plugin_ref }}
+      PLUGIN_REPO: ${{ inputs.plugin_repo }}
+      PLUGIN_VERSION: ${{ inputs.plugin_version }}
+      EXTRA_PYPI: ${{ matrix.extra_pypi }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      # Build the wheel inside the runtime image: same python/ABI as delivery.
+      # The git clone goes through HTTPS_PROXY (the secret) — github.com is
+      # not on the runtime image's baked NO_PROXY.
+      - name: Build the wheel in the runtime image
+        run: |
+          set -euo pipefail
+          # GitHub serves unadvertised SHAs only in full 40-hex form; a bare
+          # abbreviated SHA (e.g. cf8998c) cannot be fetched by git. Fail with
+          # the resolution command instead of an opaque "couldn't find remote
+          # ref" error from inside the container.
+          if [[ "${PLUGIN_REF}" =~ ^[0-9a-fA-F]{7,39}$ ]]; then
+            echo "ERROR: abbreviated SHA '${PLUGIN_REF}' is not fetchable." \
+                 "Pass the full 40-hex SHA (get it from the commit page, or" \
+                 " \`gh api repos/<owner>/<repo>/commits/${PLUGIN_REF} --jq .sha\`)." >&2
+            exit 1
+          fi
+          docker pull "${BASE_IMAGE}"
+          mkdir -p "${WORK}/src" "${WORK}/out"
+          # The runtime image bakes no NO_PROXY, so without it every pip
+          # request (aliyun/flagos) tunnels through the proxy and dies with
+          # "Tunnel connection failed: 500". Mirror the megatron builder's
+          # baked NO_PROXY (packaging/megatron/builder/Containerfile):
+          # vendor-adjacent traffic bypasses the tunnel, github.com (not on
+          # the list) keeps using the proxy for the clone.
+          docker run --rm \
+            -e PLUGIN_VERSION \
+            -e PLUGIN_REPO \
+            -e PLUGIN_REF \
+            -e EXTRA_PYPI \
+            -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
+            -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
+            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -v "${WORK}/src:/work/src" \
+            -v "${WORK}/out:/work/out" \
+            "${BASE_IMAGE}" \
+            bash -euo pipefail -c '
+              # /work/src is a bind mount owned by the runner user (secure),
+              # not the container root — git would refuse it as dubious
+              # ownership on the first fetch.
+              git config --global --add safe.directory "*"
+              git clone --depth 1 "${PLUGIN_REPO}" /work/src
+              cd /work/src
+              git fetch --depth 1 origin "${PLUGIN_REF}"
+              git checkout FETCH_HEAD
+              git rev-parse HEAD > /work/out/commit.txt
+              # --no-build-isolation: build against the runtime venv (same
+              # python/ABI as delivery). An explicit PLUGIN_VERSION forces the
+              # setuptools-scm version deterministically.
+              if [ -n "${PLUGIN_VERSION}" ]; then
+                export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SGLANG_FL="${PLUGIN_VERSION}"
+              fi
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
+                "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
+              /flagos/bin/pip wheel --no-build-isolation --no-deps \
+                -w /work/out .
+              ls -la /work/out/
+            '
+          echo ">>> plugin commit: $(cat "${WORK}/out/commit.txt")"
+          wheel=$(ls "${WORK}"/out/*.whl | head -n1)
+          if [ -z "${PLUGIN_VERSION}" ] && \
+             [[ "$(basename "${wheel}")" == sglang_fl-0.0.0* ]]; then
+            echo "ERROR: derived version is 0.0.0 — the plugin repo tag is " \
+                 "unreachable on this runner (cached mirror). Pass " \
+                 "plugin_version to pin the version explicitly." >&2
+            exit 1
+          fi
+          echo ">>> built: $(basename "${wheel}")"
+
+      # Host-side audit (stdlib only): fail the build if the wheel declares a
+      # critical package — it would drift the runtime matrix on a single-step
+      # app-image install.
+      - name: Audit the wheel dependencies
+        run: |
+          set -euo pipefail
+          python3 packaging/script/audit-deps.py \
+            --watch torch --watch torch_npu --watch torchvision \
+            --watch torchaudio --watch triton --watch flag_gems \
+            --watch numpy==1.26.4 --watch sglang \
+            "${WORK}"/out/*.whl
+
+      # Upload only when explicitly requested (default false so a manual build
+      # from a branch is safe). Upload runs from inside the runtime image —
+      # no host python needed (the node runner's /usr/bin/python3 may lack
+      # pip). The secret travels via `-e NEXUS_TOKEN` so it never appears in
+      # a process list or image layer.
+      - name: Upload to vendor PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          # `${{ matrix.name }}` cannot be substituted inside a bash
+          # parameter-expansion expression — ${matrix.name%%-*} reaches bash
+          # unexpanded and dies with "bad substitution". Expand into a local
+          # var first (2026-08-18, run 32138523697: build+audit passed, upload
+          # died on this line).
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          # Same proxy bypass as the build step: no baked NO_PROXY in the
+          # runtime image, so aliyun (twine/pkginfo install) and
+          # resource.flagos.net (upload) must bypass the tunnel.
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -v "${WORK}/out:/wheels" \
+            "${BASE_IMAGE}" \
+            bash -euo pipefail -c '
+              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
+              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
+              # parse -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              /flagos/bin/twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
+
+      - name: Clean up the work dir
+        if: ${{ always() }}
+        run: |
+          # The container (root) writes git-clone and wheel-build files into
+          # the host bind mounts; under /tmp's sticky bit the runner user
+          # cannot delete them, so a plain `rm -rf` fails on every run that
+          # reaches file creation. Delete from inside the same runtime image
+          # (root) first, then remove the empty host dir. `|| true` keeps a
+          # failed cleanup from failing the job — the work is already done.
+          docker run --rm -v "${WORK}:/work" "${BASE_IMAGE}" rm -rf /work 2>/dev/null || true
+          rm -rf "${WORK}" 2>/dev/null || true
