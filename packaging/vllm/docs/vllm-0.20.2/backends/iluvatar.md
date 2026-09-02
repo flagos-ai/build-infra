@@ -2,6 +2,10 @@
 
 > 本文对应原报告第 2 部分 §2.5。标准流程见 [`playbook.md`](../playbook.md)，
 > 决策见 [`decisions.md`](../decisions.md)。
+> **TODO（iluvatar 插件 wheel 必须收敛，2026-09-02）：** 本线 corex4.4.0（§2.5 负结果）
+> 若日后启用，其插件 wheel 必须与 corex4.5.0（§2.12，`0.2.1+gc0c060a6.d20260827`）统一 ——
+> 先以统一 head 重验再记录，禁止本线出现第二个 iluvatar wheel。0.24.0 线两变体分叉见
+> [vllm-0.24.0 iluvatar](../vllm-0.24.0/backends/iluvatar.md)。
 
 ## 2.5 iluvatar-corex4.4.0（负结果：厂商工具链版本过旧）
 

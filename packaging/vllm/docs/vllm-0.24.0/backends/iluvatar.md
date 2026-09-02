@@ -1,8 +1,16 @@
 # vllm 0.24.0 — iluvatar corex4.5.0
 
 > 本文对应 0.20.2 线 [§2.5 / §2.12](../vllm-0.20.2/backends/iluvatar.md) 的 0.24.0 延续。
-> 0.24.0 仅验证 corex4.5.0（4.4.0 工具链过旧，见 0.20.2 [§2.5](../vllm-0.20.2/backends/iluvatar.md)）。
+> 0.24.0 已验证 corex4.5.0（§14）与 corex4.4.0（2026-09-02，guard #434，
+> wheel `0.2.1+g84a4ca2.d20260902`，记录随 build-infra #688）；0.20.2 线 corex4.4.0
+> 仍为负结果（工具链过旧，见 0.20.2 [§2.5](../vllm-0.20.2/backends/iluvatar.md)）。
 > 标准流程见 [`playbook.md`](../playbook.md)，决策见 [`decisions.md`](../decisions.md)。
+> **TODO（iluvatar 插件 wheel 必须收敛，2026-09-02）：** 本线两 corex 变体现各钉一个 wheel ——
+> corex4.5.0 = `0.2.1+g07063fd.d20260828`、corex4.4.0 = `0.2.1+g84a4ca2.d20260902`；
+> 0.20.2 线若日后启用 corex4.4.0 还会再涨一个。两 wheel 的代码差仅是 #434
+> `_symmetric_memory` guard（torch≥2.8 时为 no-op），后验 head 是超集 → **必须收敛**：
+> 以统一 head（≥ #434）重验 corex4.5.0（§14 流程），matrix 两行 `image_tag` 指向同一
+> vllm_fl 版本后退役旧 wheel（g07063fd）。禁止「vllm 线 × corex 变体」逐格涨 wheel。
 
 ## 14. iluvatar（COREX 4.5.0）详细记录（2026-08-30）
 
