@@ -59,11 +59,15 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
 | 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
 | 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
+| 寒武纪 | NEUWARE 4.4.3 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/431 | OPEN |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 | 已合并 |
+| 寒武纪 | NEUWARE 4.7.2 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/431 | OPEN |
 | 燧原 | TOPS 1.9.10 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
+| 燧原 | TOPS 1.9.10 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/432 | OPEN |
 | 燧原 | TOPS 1.10.6 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5345 | 已合并 |
+| 燧原 | TOPS 1.10.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/432 | OPEN |
 | 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 | 已合并 |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 | 已合并 |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 | OPEN |
@@ -148,12 +152,12 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 13.3 | ✅ | ✅ | ✅ | — |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
-| NEUWARE 4.4.3 | ⬜ | ⬜ | ⬜ | — |
-| NEUWARE 4.7.2 | ⬜ | ⬜ | ⬜ | — |
-| TOPS 1.9.10 | ⬜ | ⬜ | ⬜ | — |
-| TOPS 1.10.6 | ⬜ | ⬜ | ⬜ | — |
+| NEUWARE 4.4.3 | ✅ | ⬜ | ⬜ | — |
+| NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | — |
+| TOPS 1.9.10 | ✅ | ⬜ | ⬜ | — |
+| TOPS 1.10.6 | ✅ | ⬜ | ⬜ | — |
 | DTK 26.04 | ✅ | ✅ | ⬜ | app 镜像暂不做（2026-08-20 决策）：F 路径等待 FlagTree 发布修复版本（flagtree hygon wheel 重建） |
-| COREX 4.4.0 | ⬜ | ⬜ | ⬜ | — |
+| COREX 4.4.0 | ✅ | ⬜ | ⬜ | — |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | — |

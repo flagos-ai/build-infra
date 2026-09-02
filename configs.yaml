@@ -276,6 +276,7 @@ vendors:
       deps_app:
         megatron_training: []
         vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - cnmon 6.2.15         # cnmon-6.2.15-x86_64.zip
         - cntoolkit 4.4.3      # cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb
@@ -305,6 +306,7 @@ vendors:
       deps_app:
         megatron_training: []
         vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - cnmon 6.5.48           # cnmon-6.5.48-x86_64.zip
         - cntoolkit 4.7.2        # cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
@@ -342,6 +344,7 @@ vendors:
         # megatron_training added: verified F+T ([build-infra #639](https://github.com/flagos-ai/build-infra/pull/639)).
         megatron_training: []
         vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
         - TOPS Runtime 1.9.10     # topsruntime_1.9.10-1_amd64.deb
@@ -385,6 +388,7 @@ vendors:
       deps_app:
         megatron_training: []
         vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
         - TOPS Runtime 1.10.6     # topsruntime_1.10.6-1_amd64.deb
@@ -448,9 +452,11 @@ vendors:
         - torchvision==0.22.1+corex.4.4.0
         - numpy==1.26.4
       deps_app:
-        # megatron_training only: verified F+T ([build-infra #639](https://github.com/flagos-ai/build-infra/pull/639)). vllm gates stay off —
-        # iluvatar 4.4.0 is ⬜/❌ in the vllm 0.20.2/0.24.0 matrices.
+        # megatron_training only: verified F+T ([build-infra #639](https://github.com/flagos-ai/build-infra/pull/639)).
+        # vllm0.24.0 added for the 4.4.0 garbage-output bypass attempt (2026-09-02);
+        # vllm0.20.2 stays off — 4.4.0 is ❌ in that matrix.
         megatron_training: []
+        vllm0.24.0: []
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
