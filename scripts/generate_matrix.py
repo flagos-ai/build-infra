@@ -30,13 +30,15 @@ Usage:
 --runtime mode pre-computes all docker build args so self-hosted
 runners don't need Python/pyyaml installed.  --app mode is the
 same superset plus the per-backend app-layer env vars
-(configs.yaml env.app.{app}, bare name for vllm) serialized as
+(configs.yaml env.app.{app} — a versioned app key like vllm0.24.0 or
+sglang0.5.18 resolves to the bare name vllm / sglang) serialized as
 "KEY=value\n...".  Only backends whose deps_app carries the app
 key are included (key presence = verified in the app's matrix).
 """
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -103,8 +105,9 @@ def _runtime_matrix(
     as "KEY=value\\n..." (same format as runtime_env) under ``app_env``,
     and the per-backend app deps from configs.yaml deps_app.{app}
     (space-separated) under ``app_deps``.  ``app`` is a deps_app key —
-    vllm keys are versioned (vllm0.24.0); env.app keys stay bare
-    ('vllm'), so the env lookup drops a vllm prefix.
+    vllm and sglang keys are versioned (vllm0.24.0 / sglang0.5.18)
+    while env.app keys stay bare ('vllm' / 'sglang'), so the env
+    lookup strips a trailing version suffix.
     """
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
     registry = build_config.get("registry") or {}
@@ -162,9 +165,11 @@ def _runtime_matrix(
         # (configs.yaml deps_app.{app}). Space-separated, same format as deps.
         app_deps = ""
         if app is not None:
-            # env.app keys stay bare app names ('vllm') while deps_app keys
-            # may be versioned ('vllm0.24.0') — resolve to the bare name.
-            env_key = "vllm" if app.startswith("vllm") else app
+            # env.app keys stay bare app names ('vllm' / 'sglang') while deps_app
+            # keys may be versioned ('vllm0.24.0' / 'sglang0.5.18') — resolve to
+            # the bare name by stripping the trailing version (megatron_rl /
+            # megatron_training end in no digits and pass through untouched).
+            env_key = re.sub(r"\d[\d.]*$", "", app) or app
             app_env = ((backend_info.get("env") or {}).get("app") or {}).get(env_key, {})
             app_env_lines = "\n".join(
                 f"{k}={v}" for k, v in (app_env or {}).items()
@@ -217,8 +222,9 @@ def main():
     parser.add_argument(
         "--app", metavar="APP",
         help="Generate app build matrix for the named app key "
-             "(vllm0.24.0 / megatron_training / megatron_rl / vllm): "
-             "runtime matrix fields + per-backend env.app.{APP} as app_env",
+             "(vllm0.24.0 / sglang0.5.18 / megatron_training / "
+             "megatron_rl): runtime matrix fields + per-backend "
+             "env.app.{APP} as app_env",
     )
     parser.add_argument(
         "backends", nargs="*",

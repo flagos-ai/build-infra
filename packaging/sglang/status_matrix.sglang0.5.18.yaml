@@ -19,9 +19,13 @@ description: sglang 0.5.18 app — srt_empty 基座 +flagos wheel + sglang-plugi
 last_updated: "2026-09-02"
 
 # App-level facility (shared across all backends of this app).
+# containerfile/workflow flipped true by the phase-5 landing (app/sglang/
+# Containerfile + sglang-app-image.yml) — presence, not verification: the
+# app-image verify gates on plugin/shim wheels published to the vendor PyPI
+# (see the workflow's PLUGIN_FL_VERSION/SHIM_VERSION inputs).
 facility:
-  containerfile: false
-  workflow: false
+  containerfile: true
+  workflow: true
 
 scenarios:
   inference:

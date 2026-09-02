@@ -53,19 +53,22 @@
 #                          runtime:     vars baked into flagos-runtime-{vendor}-{backend}
 #                          app:         per-app vars baked into
 #                                       flagos-app/{app}-{vendor}-{backend}, keyed by
-#                                       app name (vllm / megatron_training / megatron_rl)
+#                                       app name (vllm / sglang / megatron_training /
+#                                       megatron_rl)
 #                        base/runtime/app must mirror EXACTLY what the image sets —
 #                        the source of truth for per-image env documentation.
 #   "deps:"            — Python dependencies (torch stack, etc.).
 #   "deps_app:"        — per-app vendor-conditional Python packages, keyed by
 #                        app name: megatron_training / megatron_rl /
-#                        vllm<version>. vllm is split per repacked version
-#                        (vllm0.24.0 / vllm0.20.2): each is verified
-#                        independently and its empty wheel binds a CPython
-#                        minor version.
+#                        vllm<version> / sglang<version>. vllm and sglang are
+#                        split per repacked version (vllm0.24.0 / vllm0.20.2 /
+#                        sglang0.5.18): each is verified independently and its
+#                        empty wheel binds a CPython minor version.
 #                        KEY PRESENCE = the app is VERIFIED on this backend
 #                        (per the verification matrices in packaging/megatron/
-#                        docs/ and packaging/vllm/docs/). Backends without a
+#                        docs/, packaging/vllm/docs/, and the per-version
+#                        status_matrix.sglang*.yaml under packaging/sglang/).
+#                        Backends without a
 #                        key neither build the app nor get a launch page.
 #                        [] means "verified, but has no vendor package".
 #                        Public packages never appear here (they ride the
@@ -240,6 +243,26 @@ vendors:
       flagtree: flagtree==0.6.1+ascend3.5
       triton_post_install:
         - triton_ascend==3.2.1
+      env:
+        app:
+          sglang:
+            # The ascend sglang route is torch-native (plugin-layer
+            # npu_kernel_stubs) — flag_gems.enable() pollutes torch_npu (see
+            # packaging/sglang/docs/sglang-0.5.18/backends/ascend.md pit #1), so
+            # the app image must serve with flag_gems disabled. The other three
+            # keys mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image> sglang-serve ...` serves identically to the
+            # verified from-scratch install: TORCHINDUCTOR_COMPILE_THREADS
+            # compiles inductor in-process (flagtree fork crash, same as the
+            # megatron_rl env), SGLANG_IS_FLASHINFER_AVAILABLE=false skips
+            # flashinfer (absent on this runtime), and
+            # SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1 skips the sgl_kernel_npu
+            # shim's version hard check (it ships +flagos-shim, not the
+            # upstream version sglang asserts).
+            USE_FLAGGEMS: "0"
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - torch==2.10.0+cpu
         - torch-npu==2.10.0
@@ -250,6 +273,7 @@ vendors:
         megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18: []  # sglang 0.5.18 F/T dual-path E2E green (status_matrix.sglang0.5.18.yaml)
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910B Ops 9.0.0 (aarch64) # Ascend-cann-910b-ops_9.0.0_linux-aarch64.run
@@ -594,6 +618,19 @@ vendors:
             # TORCHINDUCTOR_COMPILE_THREADS=1 compiles in-process instead.
             # This is specific to metax → app layer, not runtime.
             TORCHINDUCTOR_COMPILE_THREADS: "1"
+          sglang:
+            # Zero sgl-kernel route: hardware ops come from flag_gems, the shim
+            # only satisfies the sgl_kernel import face (playbook §5.2). These
+            # three keys mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image> sglang-serve ...` serves identically to the
+            # verified from-scratch install: skip flashinfer (absent on this
+            # runtime's import path), compile inductor in-process (flagtree
+            # fork crash — same reason as megatron_rl above), and skip the
+            # shim's version hard check (it ships +flagos-shim, not the
+            # upstream version sglang asserts).
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - apex==0.1+metax3.8.1.0
         - torch==2.10.0+metax3.8.1.0
@@ -610,6 +647,7 @@ vendors:
         megatron_rl: []  # RL verified per megatron-verification-matrix.md; no vendor extra
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18: []  # sglang 0.5.18 F/T dual-path E2E green (status_matrix.sglang0.5.18.yaml)
       sdk:
         - MetaX Driver 3.8.1.6   # metax-driver-3.8.1.6-deb-x86_64.run
         - MACA SDK 3.8.1.3       # maca-sdk-3.8.1.3-deb-x86_64.tar.xz
