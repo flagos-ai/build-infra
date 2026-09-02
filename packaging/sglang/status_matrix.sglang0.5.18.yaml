@@ -66,6 +66,8 @@ backends:
     deps_app: true
     launch_docs: false
     note: "aarch64 cp311 双路径 E2E 全过（zero-sgl_kernel_npu shim + 插件层 torch-native stubs，exp/0.5.18/ascend）；坑见 backends/ascend.md"
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/84
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: false
@@ -98,6 +100,8 @@ backends:
     deps_app: true
     launch_docs: false
     note: "exp/0.5.18 新 wheel（sglang_fl-0.2.0rc0）回归双路径 E2E 全过；唯一偏差 numpy 1.26.4→2.3.5（pip 自动升级，健康）"
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/86
   mthreads-musa4.3.6:
     deps_app: true
     launch_docs: false
