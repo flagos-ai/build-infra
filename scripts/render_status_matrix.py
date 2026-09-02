@@ -371,9 +371,16 @@ def _rest_pr_state(url: str) -> str | None:
     req.add_header("X-GitHub-Api-Version", "2022-11-28")
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read()).get("state")
+            data = json.loads(resp.read())
     except OSError:
         return None
+    # REST reports state lowercase ("open"/"closed"), and a merged PR comes
+    # back "closed" with merged_at set. Normalize to the gh CLI scheme
+    # ("OPEN"/"CLOSED"/"MERGED") so PR_STATE applies to both resolution
+    # paths — feeding raw REST state through it rendered every row "—".
+    if data.get("merged_at"):
+        return "MERGED"
+    return (data.get("state") or "").upper() or None
 
 
 def resolve_pr_states(urls: list[str]) -> dict[str, str]:
