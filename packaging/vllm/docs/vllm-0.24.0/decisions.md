@@ -53,3 +53,29 @@ build-infra 验证用的基线是 main + [VPF #377](https://github.com/flagos-ai
 - [ ] dev 分支 + empty wheel：`reshape_and_cache_flash` 是否同样报错
       → flaggems 方案是否要 upstream 到 dev。
 - [ ] 我们的验证路径补测 `USE_EXP2` 相关内核（chunk delta，Qwen3-Next/GDN 类模型）。
+
+---
+
+## 8. 跨后端建议：flag_gems ConfigCache 按编译器隔离
+
+**背景（2026-09-01 metax 实证，2026-08-28 sglang 线同坑先踩）**：
+
+flag_gems 的 SQL ConfigCache DB 名（`TunedConfig_<vendor>_triton_<ver>.db`）与
+cache key（source hash + shape）都**不含编译器身份**。同一 vendor 同 triton 版本下，
+F（flagtree）/T（triton）共用同一 DB：
+
+- F 路径调优写入的 config（metax：BLOCK_M=8/1，Qwen3-4B qkv_proj 6144×2560；
+  sglang：BLOCK_SIZE_M=8，Qwen3-0.6B）对 vendor triton **不可编译**；
+- T 路径 cache-hit 盲启动编译直接硬崩（`PassManager::run failed`）——
+  **cache-miss 的 bench() 有 per-config try/except（失败记 inf 重选），
+  cache-hit 的 run() 没有**；
+- app 镜像**不携带**该缓存（`/root/.flaggems/config_cache/` 运行时懒创建在容器
+  可写层），故无需重建镜像。
+
+**建议（对所有双编译器 runtime 镜像适用，非 metax 个案）**：
+serve/验证配方按编译器隔离缓存，`FLAGGEMS_DB_URL=sqlite:////tmp/..._<compiler>.db`，
+或切换编译器前删除默认 DB。结构上所有 runtime 镜像都是 /flagos + /opt/triton 双编译器。
+
+**上游修复**：[FlagGems #5829](https://github.com/flagos-ai/FlagGems/pull/5829)
+（`LibTuner.run` 自愈：config_from_cache 专用标志 + 删中毒条目 + retune_from_scratch，
+OPEN 未合并）。合并进新 flag_gems wheel 后，上述隔离降级为防御性写法。
