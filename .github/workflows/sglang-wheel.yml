@@ -22,6 +22,12 @@ name: sglang wheel
 # aarch64 alike), same repack (+flagos stamp, empty rules), same per-vendor
 # upload target. Design rationale: docs/sglang-0.5.18/decisions.md.
 #
+# A metax upload also publishes the sgl_kernel import-face shim (the `shim`
+# job below): sglang 0.5.18 imports sgl_kernel unconditionally, but the
+# repacked +flagos wheel deliberately does not ship it (playbook §5.2), so app
+# images install the zero-dep stub from the same index. Pure-Python build, so
+# the job runs on ubuntu-latest rather than the vendor -build image.
+#
 # Note: per-vendor sglang_version defaults are not yet in configs.yaml — pass
 # --sglang-version / the sglang_version input explicitly. The source tarball
 # must already be on the filestore (see build-sdist.sh --upload).
@@ -193,3 +199,58 @@ jobs:
           docker rm -f "sglang-build-${vendor}-${backend}" 2>/dev/null || true
           docker run --rm -v "/tmp/sglang-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
           rm -rf "/tmp/sglang-repack-${vendor}-${backend}" 2>/dev/null || true
+
+  # Publish the sgl_kernel import-face shim alongside the metax wheel upload.
+  # The shim is pure Python with its source in-repo, so it rides this
+  # workflow as a job instead of a separate workflow: same authorize gate,
+  # same upload flag, same NEXUS_TOKEN channel. Fires only when the dispatch's
+  # matrix resolves and includes metax — today the only vendor with an in-repo
+  # shim source (wheels/metax/sgl-kernel-shim/).
+  shim:
+    needs: [authorize, set-matrix]
+    if: ${{ inputs.upload && fromJSON(needs.set-matrix.outputs.matrix).include[0] != null && (inputs.backend == 'all' || startsWith(inputs.backend, 'metax')) }}
+    runs-on: ubuntu-latest
+    env:
+      PYPI_REPO: ${{ inputs.pypi_repo || 'flagos-pypi-metax' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # build.sh runs on a throwaway copy (generate.py stamps the package
+      # next to itself) and isolates the pip work in a venv, so the runner's
+      # interpreter state never matters — same shape as packaging/flaggems.
+      - name: Build the shim wheel
+        run: bash packaging/sglang/wheels/metax/sgl-kernel-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
+
+      # The shim must stay dependency-free: it only survives the import face,
+      # and any Requires-Dist on the runtime's baked matrix (torch / triton /
+      # flag_gems) would give pip a reason to drift it on a single-step
+      # install. Zero-dep today, so the gate is a guard for future edits.
+      - name: Audit the wheel dependencies
+        run: |
+          python3 packaging/script/audit-deps.py \
+            --watch torch --watch triton --watch flag-gems \
+            --watch 'flashinfer*' \
+            "${GITHUB_WORKSPACE}/wheels/"*.whl
+
+      # Upload only when explicitly requested (manual dispatch defaults to
+      # false so a dry-run build is safe).
+      - name: Upload to vendor PyPI
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          python3 -m pip install --quiet twine
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+          python3 -m twine upload \
+            --repository-url "https://resource.flagos.net/repository/${PYPI_REPO}/" \
+            --non-interactive \
+            "${GITHUB_WORKSPACE}/wheels/"*.whl
