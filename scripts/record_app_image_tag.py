@@ -286,7 +286,8 @@ def main() -> None:
             _git("rebase", "--abort", check=False)
             sys.exit(
                 f"Error: {BRANCH} already carries a conflicting record — merge or close its "
-                f"PR, then re-run the workflow to record {tag}"
+                f"PR, then re-run the workflow (or dispatch record-app-image-tag.yml to "
+                f"record without a rebuild) to record {tag}"
             )
         _git("push", "origin", BRANCH)
     else:
@@ -297,7 +298,8 @@ def main() -> None:
             _git("rebase", "--abort", check=False)
             sys.exit(
                 f"Error: {BRANCH} is absent but this run's base conflicts with origin/main — "
-                f"re-run the workflow to record {tag}"
+                f"re-run the workflow (or dispatch record-app-image-tag.yml to record "
+                f"without a rebuild) to record {tag}"
             )
         _git("push", "origin", BRANCH)
 

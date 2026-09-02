@@ -1,0 +1,117 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: record app image tag
+
+# Backfill record of an already-pushed app image into the status matrix.
+#
+# The {vllm,megatron,sglang}-app-image workflows record the tag themselves
+# right after push (their "Record app image tag" step), so the common path
+# never needs this workflow. But that step only runs inside a full
+# build+verify+push run: when a record failed to land after a successful push
+# (e.g. auto/app-image-tag was moved by a concurrent record and the rebase
+# conflicted — the script exits telling you to re-run the workflow), the only
+# fix used to be re-running the entire pipeline, re-verifying on a GPU node
+# and re-pushing an image that already sits in Harbor. That is a record-only
+# failure being fixed by a build.
+#
+# This workflow is the cheap re-run for that case: give it the same
+# --matrix/--backend/--tag that scripts/record_app_image_tag.py expects and it
+# runs the record script alone on a hosted runner — no hardware, no build, no
+# push (the tag must already exist in the registry; the script is idempotent
+# and will no-op on a tag that is already recorded).
+#
+# It funnels into the exact same auto/app-image-tag branch + review-gated
+# dup-PR mechanism as the embedded record steps (the script rebases onto
+# whatever the branch already carries, or recreates it from fresh main), so
+# standalone and embedded records converge safely. Like them, it must dispatch
+# from main — the record PR's base is the dispatch ref — so a non-main
+# dispatch is refused loudly (record job skip) instead of opening a PR against
+# a feature branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      matrix:
+        description: >-
+          Status matrix to update, relative to repo root (e.g.
+          packaging/vllm/status_matrix.vllm0.24.0.yaml)
+        type: string
+        required: true
+      backend:
+        description: 'Backend key in the matrix (e.g. enflame-tops1.9.10)'
+        type: string
+        required: true
+      tag:
+        description: >-
+          Image tag to record — full ref or bare tag (e.g.
+          harbor.baai.ac.cn/flagos-app/vllm0.24.0-enflame-tops1.9.10:
+          2.1.2-0.2.1_g369a551.d20260902, or 2.1.2-0.2.1_g369a551.d20260902)
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # Serialize standalone records: each one may recreate or push the shared
+  # auto/app-image-tag branch, and overlapping runs would race the rebase the
+  # script relies on for convergence. cancel-in-progress: false queues instead
+  # of killing — every dispatch records in turn. (Embedded records from the
+  # app-image workflows are not in this group; their script-side fetch→rebase→
+  # plain-push handles overlap with this branch as designed.)
+  group: record-app-image-tag
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-trigger-author
+
+  record:
+    needs: authorize
+    # The record PR's base is the dispatch ref (scripts/record_app_image_tag.py
+    # reads GITHUB_REF_NAME); records always target main. Guarding here makes a
+    # non-main dispatch skip visibly instead of opening a PR against a feature
+    # branch.
+    if: ${{ github.ref_name == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@v7
+
+      # The record script runs docs/gen_data.py, scripts/render_status_matrix.py
+      # and docs/gen_descriptions.py, whose only third-party import is PyYAML.
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+
+      - name: Record app image tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/record_app_image_tag.py \
+            --matrix "${{ inputs.matrix }}" \
+            --backend "${{ inputs.backend }}" \
+            --tag "${{ inputs.tag }}"

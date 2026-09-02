@@ -200,6 +200,8 @@ jobs:
       # right after the push — this regenerates the verification matrix and
       # app launch pages and opens a review-gated PR (scripts/
       # record_app_image_tag.py). Idempotent: same tag → no-op.
+      # Backfill for a push whose record failed to land: dispatch
+      # record-app-image-tag.yml with the same matrix/backend/tag — no rebuild.
       - name: Record app image tag
         if: ${{ success() && inputs.push }}
         env:
