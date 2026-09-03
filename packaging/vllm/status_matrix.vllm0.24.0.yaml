@@ -83,7 +83,8 @@ backends:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/431
   enflame-tops1.9.10:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_g7c6758c.d20260903"
     note: "app 镜像已发布但验证记录已撤销（2026-09-03）：record verify 跑在默认 flagtree 编译器，未覆盖 vendor triton 交付路径；1.9.10 triton 路径 engine init 崩。基于完整 PR 链条（plugin #432 + flag_gems master）重做后再记录。"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/432
