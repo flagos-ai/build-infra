@@ -601,6 +601,19 @@ else
 
     log_info "Starting sglang serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
+    # The serve command differs by mode: the app image carries the
+    # sglang-serve launcher, which sources the baked vendor env
+    # (/etc/profile.d MACA/CANN LD_LIBRARY_PATH) before exec'ing the server —
+    # a bare `python3 -m sglang.launch_server` inside the app container
+    # bypasses bash and misses that env. The from-scratch runtime container
+    # has no launcher (it is COPY'd only into the app image), so it runs the
+    # server module directly.
+    if [[ -n "${APP_IMAGE}" ]]; then
+        SERVE_CMD="sglang-serve '${MODEL_PATH}'"
+    else
+        SERVE_CMD="python3 -m sglang.launch_server '${MODEL_PATH}'"
+    fi
+
     docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         ${SGLANG_SWITCHES}
@@ -617,7 +630,7 @@ else
 
         echo ''
         echo 'Starting serve...'
-        python3 -m sglang.launch_server '${MODEL_PATH}' \
+        ${SERVE_CMD} \
             --port \${SGLANG_PORT} \
             --mem-fraction-static 0.6 \
             --trust-remote-code \
