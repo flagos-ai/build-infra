@@ -209,7 +209,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   2.7.1+corex 过旧；corex triton fork 下 vllm 原生 kernel 亦不可编译 ——
   [0.20.2 §2.5](vllm-0.20.2/backends/iluvatar.md)。
 - **enflame（TOPS 1.9.10 / 1.10.6）**：T ✅（显式 `compiler triton`，vendor
-  triton + 原生 FLASH_ATTN）；flagtree 不信任、不交付 → F ❌ ——
+  triton + 原生 FLASH_ATTN）；F（flagtree）路径未交付 → ❌ ——
   [0.20.2 §2.6](vllm-0.20.2/backends/enflame.md)。
 - **cambricon-neuware4.7.2**（MLU590）：✅（仅 triton）——
   [0.20.2 §2.7](vllm-0.20.2/backends/cambricon.md)。
@@ -277,7 +277,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 - **sunrise**：flagtree flash-attn decode 挂死（已交 FlagTree 团队，[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)
   修复，2026-08-19 起 F 路径 ✅）；交付固定走官方 Triton。
 - **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
-- **enflame**：策略性不用 flagtree（不信任），走 vendor triton + native FLASH_ATTN。
+- **enflame**：交付路径 = vendor triton + native FLASH_ATTN（见 [0.20.2 §2.6](vllm-0.20.2/backends/enflame.md)）。
 
 ## 验证顺序建议
 

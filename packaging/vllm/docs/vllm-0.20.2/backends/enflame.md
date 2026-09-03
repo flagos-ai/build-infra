@@ -90,8 +90,8 @@ enforce-eager，`/root/run_serve.sh` 现场保留。两处插件 patch 日志（
 
 在 1.9.10 栈全新 v2 容器上复验 §2.6.1 方案，判定是否可退役 1.9.10 上的 AttentionFLBackend。
 纪律：vllm 从厂商 index 单步装（`vllm==0.20.2+flagos`，非磁盘捞取），flag_gems / plugin 走
-上游 PR 树 editable，无手改。**环境变量策略：** 仅显式 `compiler triton`（flagtree 不信任，
-故明确选 vendor triton），不设任何其他环境变量——`VLLM_PLUGINS=fl` 经确认冗余（plugin 靠
+上游 PR 树 editable，无手改。**环境变量策略：** 仅显式 `compiler triton`（验证固定走
+vendor triton 编译器），不设任何其他环境变量——`VLLM_PLUGINS=fl` 经确认冗余（plugin 靠
 entry point 自动发现）。完整记录即本节所述（§2.6.2）。
 
 **结论 1 —— 贪心零改动通过（跨栈收敛坐实）：**
@@ -101,7 +101,7 @@ vllm:         0.20.2+flagos（vendor index 单步装）   ✅  site-packages 原
 vllm_fl:      VPF #357 分支 6e35613 (editable)        ✅  A/B/C/E 全部生效
 flag_gems:    master 3f5fb04 (editable, Fix D 已合并)  ✅  D
 torch_gcu:    2.10.0                                  ✅  vs 1.10.6 的 2.11，无需代码差异
-compiler:     vendor triton（compiler triton）        ✅  显式，flagtree 不信任
+compiler:     vendor triton（compiler triton）        ✅  显式指定
 推理:         Qwen3-4B, greedy → 连贯英文             ✅  "…Paris is the capital"，HTTP 200，27.8s
 ```
 
