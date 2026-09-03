@@ -88,8 +88,8 @@ sdist 全后端共用；per-vendor 库层差异（metax maca patch 等）入构�
 ### 5.3 零 sgl-kernel 路线（2026-08-28，可行性定案后落地）
 
 **决策**：sglang 安装链路不再携带 sgl-kernel 原生 wheel；用 import 面 shim
-（`sgl_kernel-0.5.18+flagos-shim`）满足 178 文件 import，硬件算子全部由
-runtime 内置 flag_gems 提供。
+（发行名 `sgl-kernel-shim`，版本 = sglang 版本，模块名 `sgl_kernel`）满足
+178 文件 import，硬件算子全部由 runtime 内置 flag_gems 提供。
 
 **理由**：sgl-kernel 是 per-平台 ABI 硬编译件，官方 wheel 不覆盖 metax；flagos
 后端路径 6 op 全走 flag_gems，shim 运行时符号从不被调用（E2E 实证）。

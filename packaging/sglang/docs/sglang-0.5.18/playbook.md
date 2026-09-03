@@ -125,7 +125,7 @@ torch 零 sgl-kernel，因此不会动 runtime 的 torch/triton/flag_gems 矩阵
 ```bash
 git clone --depth 1 --branch exp/0.5.18 https://github.com/flagos-ai/sglang-plugin-FL.git
 cd sglang-plugin-FL/addon/sgl-kernel-shim
-bash build.sh            # → sgl_kernel-0.5.18+flagos-shim wheel（纯 Python，无原生算子）
+bash build.sh            # → sgl_kernel_shim-0.5.18-py3-none-any.whl（发行名 sgl-kernel-shim，纯 Python，无原生算子）
 ```
 
 shim 的设计（`generate.py` 生成）：
