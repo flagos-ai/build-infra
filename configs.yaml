@@ -273,7 +273,10 @@ vendors:
         megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
-        sglang0.5.18: []  # sglang 0.5.18 F/T dual-path E2E green (status_matrix.sglang0.5.18.yaml)
+        sglang0.5.18:
+          # ascend 插件 load_plugin step3 无条件 import activation→quantization 链
+          # → compressed_tensors（同 metax 实证）；serve 硬依赖，非 CUDA 也不豁免。
+          - compressed-tensors==0.17.0+flagos
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910B Ops 9.0.0 (aarch64) # Ascend-cann-910b-ops_9.0.0_linux-aarch64.run

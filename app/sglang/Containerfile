@@ -152,11 +152,11 @@ RUN if [ -n "${APP_DEPS}" ]; then \
 # (top-level module for 0.5.18, playbook §5.3), passing user args verbatim.
 # Default CMD = the reference serve (Qwen3-0.6B, port 8032 — distinct from the
 # vllm images' 8031 so both can run on one node); users override with e.g.
-# `docker run <image> sglang-serve <model> --port 9000`.
+# `docker run <image> sglang-serve --model-path <model> --port 9000`.
 COPY app/sglang/sglang-serve /usr/local/bin/sglang-serve
 RUN chmod +x /usr/local/bin/sglang-serve
 
 WORKDIR /workspace
-CMD ["sglang-serve", "/data/models/Qwen/Qwen3-0.6B", "--port", "8032", \
+CMD ["sglang-serve", "--model-path", "/data/models/Qwen/Qwen3-0.6B", "--port", "8032", \
   "--mem-fraction-static", "0.6", "--trust-remote-code", \
   "--disable-cuda-graph", "--disable-piecewise-cuda-graph"]
