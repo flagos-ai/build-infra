@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.24.0
 description: vLLM 0.24.0 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-08-31"
+last_updated: "2026-09-03"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -30,8 +30,8 @@ scenarios:
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "⬜", F: "—"}
       cambricon-neuware4.7.2: {T: "⬜", F: "—"}
-      enflame-tops1.9.10:    {T: "⬜", F: "⬜"}
-      enflame-tops1.10.6:    {T: "⬜", F: "⬜"}
+      enflame-tops1.9.10:    {T: "✅", F: "✅"}
+      enflame-tops1.10.6:    {T: "✅", F: "✅"}
       hygon-dtk26.04:        {T: "✅", F: "✅"}
       iluvatar-corex4.4.0:   {T: "⬜", F: "⬜"}
       iluvatar-corex4.5.0:   {T: "✅", F: "✅"}
@@ -85,14 +85,12 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_g7c6758c.d20260903"
-    note: "app 镜像已发布但验证记录已撤销（2026-09-03）：record verify 跑在默认 flagtree 编译器，未覆盖 vendor triton 交付路径；1.9.10 triton 路径 engine init 崩。基于完整 PR 链条（plugin #432 + flag_gems master）重做后再记录。"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/432
   enflame-tops1.10.6:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_g7c6758c.d20260903"
-    note: "app 镜像已发布但验证记录已撤销（2026-09-03）：record verify 跑在默认 flagtree 编译器，未覆盖 vendor triton 交付路径；triton 路径未验。基于完整 PR 链条（plugin #432 + flag_gems master）重做后再记录。"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/432
   hygon-dtk26.04:
