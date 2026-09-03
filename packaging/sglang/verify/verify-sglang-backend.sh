@@ -35,7 +35,7 @@
 # publication workflow has run (Containerfile PLUGIN_FL_VERSION).
 #
 # sgl_kernel: the repacked +flagos wheel deliberately ships no sgl-kernel
-# dependency (playbook §5.2); the shim (version = <sglang-version>+flagos-shim)
+# dependency (playbook §5.2); the shim (version = <sglang-version>)
 # is installed from the vendor index before the import check.
 #
 # --app-image <image>: instead of steps 2-6, verify a prebuilt
@@ -86,7 +86,7 @@ SGLANG_VERSION="${SGLANG_VERSION:-0.5.18}"
 PLUGIN_REF="${PLUGIN_REF:-exp/0.5.18}"
 PLUGIN_REPO="https://github.com/flagos-ai/sglang-plugin-FL"
 # sgl_kernel shim version — derived below from SGLANG_VERSION once the args
-# are parsed (the shim tracks the sglang version, +flagos-shim).
+# are parsed (the shim tracks the sglang version).
 SHIM_VERSION="${SHIM_VERSION-}"
 SKIP_SERVE=false
 # Serve-test time budget in seconds, shared by the readiness poll window and
@@ -131,7 +131,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --model <dir>        Path to model for serve test (default: /data/models/Qwen/Qwen3-0.6B)"
             echo "  --sglang-version <ver>  sglang version to install (default: 0.5.18; +flagos suffix appended)"
             echo "  --plugin-ref <ref>   sglang-plugin-FL branch/tag/sha to build the plugin from (default: exp/0.5.18)"
-            echo "  --shim-version <ver>  sgl_kernel shim version (default: <sglang-version>+flagos-shim; '' skips)"
+            echo "  --shim-version <ver>  sgl_kernel shim version (default: <sglang-version>; '' skips)"
             echo "  --skip-serve         Skip serve test, only install and verify imports"
             echo "  --serve-timeout <sec> Time budget for serve readiness + each completion (default: 1800)"
             echo "  --stack-version <ver> Stack version for the runtime image tag; default: read from the discovered configs.yaml"
@@ -174,11 +174,11 @@ if ! [[ "$SERVE_TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$SERVE_TIMEOUT" -lt 60 ]]; then
     exit 1
 fi
 
-# sgl_kernel shim version tracks the sglang version (+flagos-shim) — the
-# repacked sglang wheel ships no sgl-kernel dep, so the from-scratch route
-# installs the shim from the vendor index before the Step 6 import check.
+# sgl_kernel shim version tracks the sglang version — the repacked sglang
+# wheel ships no sgl-kernel dep, so the from-scratch route installs the shim
+# (sgl-kernel-shim) from the vendor index before the Step 6 import check.
 # Explicit --shim-version '' skips it (manual debugging only).
-SHIM_VERSION="${SHIM_VERSION-${SGLANG_VERSION}+flagos-shim}"
+SHIM_VERSION="${SHIM_VERSION-${SGLANG_VERSION}}"
 
 # ── Configuration ───────────────────────────────────────────────────────
 
@@ -486,7 +486,7 @@ docker exec "${CONTAINER}" pip show sglang | grep -E "^(Name|Version|Location)" 
 
 # sglang imports sgl_kernel unconditionally but the repacked +flagos wheel
 # ships no sgl-kernel dep (playbook §5.2) — install the shim separately or the
-# Step 6 import check fails. Versioned <sglang>+flagos-shim on the vendor
+# Step 6 import check fails. sgl-kernel-shim@<sglang-version> on the vendor
 # index; zero deps, so it cannot move the watched matrix.
 if [[ -n "${SHIM_VERSION}" ]]; then
     log_info "Step 3b: Installing sgl_kernel shim==${SHIM_VERSION}"
@@ -495,7 +495,7 @@ if [[ -n "${SHIM_VERSION}" ]]; then
         PYTHONPATH=/opt/triton pip install \
             --index-url '${VENDOR_PYPI}' \
             --extra-index-url '${ALIYUN_PYPI}' \
-            'sgl-kernel==${SHIM_VERSION}'
+            'sgl-kernel-shim==${SHIM_VERSION}'
     "
 else
     log_warn "sgl_kernel shim skipped (--shim-version '') — Step 6 will fail unless a shim is already present."

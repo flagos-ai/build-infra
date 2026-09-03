@@ -15,7 +15,7 @@
 | vendor triton | 3.6.0+metax3.8.1.0 @ `/opt/triton`（T 路径）|
 | flag_gems | 5.3.5（runtime 内置，零 sgl-kernel 路线唯一算子来源）|
 | sglang | 0.5.18+flagos（srt_empty 基座 wheel）|
-| sgl_kernel | 0.5.18+flagos-shim（import 面 shim）|
+| sgl_kernel | sgl-kernel-shim 0.5.18（import 面 shim；发行名 sgl-kernel-shim，模块名 sgl_kernel）|
 | sglang-plugin-FL | sglang_fl 0.2.0rc0.post2.dev6+g3a5fc2960（wheel 安装，sha256 3e839424…，构建源 exp/0.5.18 @ 3a5fc29，不含 ascend commit）|
 | numpy | 1.26.4 → 2.3.5（pip 随 sglang wheel 依赖自动升级，唯一依赖偏差；升级后双路径健康）|
 | 模型 | Qwen3-0.6B |
@@ -37,8 +37,8 @@ pip install sglang_fl-0.2.0rc0.post2.dev6+g3a5fc2960-py3-none-any.whl \
 ```
 
 - `pip show` 三证：direct_url.json 显示 wheel 安装模式（非 editable）；版本
-  sglang 0.5.18 / sglang_fl 0.2.0rc0 / flag_gems 5.3.5 / sgl_kernel
-  0.5.18+flagos-shim。
+  sglang 0.5.18 / sglang_fl 0.2.0rc0 / flag_gems 5.3.5 / sgl-kernel-shim
+  0.5.18。
 - **回归纪律**：旧记录（sglang_fl-0.1.0）不背书新 wheel——本次用 exp/0.5.18
   构建的 0.2.0rc0 重装重验（构建源 @ 3a5fc29 = 4aed74a→eb68346→2d556ac→3a5fc29
   前四 commit，不含 ascend-only commit）。
@@ -97,7 +97,7 @@ build 容器启动之前（`build-and-repack.sh` "Pull + patch source" 段），
 
 | # | 坑 | 处置 |
 |---|---|---|
-| 1 | 178 文件对 `sgl_kernel` 的 import 面（82 模块级 sym + 29 子模块）| shim 包 `sgl_kernel-0.5.18+flagos-shim`（generate.py + `_Dummy` 全能替身）|
+| 1 | 178 文件对 `sgl_kernel` 的 import 面（82 模块级 sym + 29 子模块）| shim 发行名 `sgl-kernel-shim`（模块 `sgl_kernel`，generate.py + `_Dummy` 全能替身）|
 | 2 | shim 版本号硬校验 | `SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1` |
 | 3 | flashinfer import 链（metax 无）| `SGLANG_IS_FLASHINFER_AVAILABLE=false` |
 | 4 | F 路径 inductor 并发 fork 崩溃 | `TORCHINDUCTOR_COMPILE_THREADS=1` |

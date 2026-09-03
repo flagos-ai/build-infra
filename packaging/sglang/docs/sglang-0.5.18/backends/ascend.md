@@ -14,7 +14,7 @@
 | Python | 3.11 |
 | torch | torch_npu（CANN 9.0.0）|
 | sglang | 0.5.18+flagos（srt_empty 基座 wheel，aarch64）|
-| sgl_kernel_npu | 0.5.18+flagos.shim（import 面 shim，零原生算子）|
+| sgl_kernel_npu | sgl-kernel-shim 0.5.18（sgl_kernel_npu import 面由插件 sys.modules 别名指向 sgl_kernel shim，零原生算子；见 §3）|
 | sglang-plugin-FL | `sglang_fl 0.2.0rc0.post2.dev11+gb9e835e85`（exp/0.5.18/ascend 分支 wheel）|
 | 模型 | Qwen3-0.6B |
 | flag_gems | 库技术路线已定，serve 时 `USE_FLAGGEMS=0`（flag_gems.enable() 污染 torch_npu，见 §5）|
