@@ -71,7 +71,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.1.dev1_g2e568482e"
-    note: "aarch64 cp311 双路径 E2E 全过（zero-sgl_kernel_npu shim + 插件层 torch-native stubs，exp/0.5.18/ascend）；坑见 backends/ascend.md"
     prs:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/84
   cambricon-neuware4.4.3:
