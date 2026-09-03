@@ -3,7 +3,8 @@
 > **零 sgl_kernel_npu 路线实证**（用户定案：全后端统一 flag_gems 算子库，不构建
 > 原生 sgl_kernel_npu）。E2E 揭示 shim `_Dummy` 对**真调用点**会崩
 > `ValueError: not enough values to unpack` → 以插件层 torch-native 真实现覆盖
-> 7 个 genuine 符号，F/T 双路径 E2E 全过。
+> 7 个 genuine 符号，F/T 双路径 E2E 全过；app 镜像已发布
+> （`sglang0.5.18-ascend-cann9.0.0:2.1.2-0.1.dev1_g2e568482e`）。
 
 ## 1. 环境
 
@@ -14,9 +15,9 @@
 | Python | 3.11 |
 | torch | torch_npu（CANN 9.0.0）|
 | sglang | 0.5.18+flagos（srt_empty 基座 wheel，aarch64）|
-| sgl_kernel_npu | sgl-kernel-shim 0.5.18（sgl_kernel_npu import 面由插件 sys.modules 别名指向 sgl_kernel shim，零原生算子；见 §3）|
-| sglang-plugin-FL | `sglang_fl 0.2.0rc0.post2.dev11+gb9e835e85`（exp/0.5.18/ascend 分支 wheel）|
-| 模型 | Qwen3-0.6B |
+| sgl_kernel_npu | 共享 `sgl-kernel-shim` 0.5.18 内的 `sgl_kernel_npu` 磁盘级 stub 树（零原生算子；import 面见 §2.1）|
+| sglang-plugin-FL | `sglang_fl 0.1.dev1+g2e568482e`（exp/0.5.18/ascend 分支 wheel，含 torch-native 真实现）|
+| 模型 | Qwen3-4B（节点无 0.6B；同 qwen3 架构同内核路径）|
 | flag_gems | 库技术路线已定，serve 时 `USE_FLAGGEMS=0`（flag_gems.enable() 污染 torch_npu，见 §5）|
 
 ## 2. 崩溃链定性（E2E 实证）
@@ -27,6 +28,18 @@
 | 2 | import 崩 | 0.5.18 无 `runner.hybrid_gdn_config` / `mambaish_config` | `getattr` 守卫（插件 commit e38d01f / c8a8421）|
 | 3 | 首次 forward 崩 | shim `_Dummy.__iter__` 空迭代 → `ValueError: not enough values to unpack (expected 3, got 0)` | torch-native 真实现（§3）|
 | 4 | KV cache OOB DDR（507035 MTE 异常）| shimmed `alloc_extend_kernel` no-op → `out_indices` 残留 garbage → 坏 `loc` 喂给 `_npu_reshape_and_cache` | `_AllocExtendKernel` trampoline → `alloc_extend_naive`（§3）|
+
+### 2.1 sgl_kernel_npu import 面为什么必须磁盘级（2026-09-03 实证修正）
+
+初版设想把 `sgl_kernel_npu` 名在插件 load_plugin 时 sys.modules 别名/seed 到
+`sg_kernel` shim——**结构上不可行**：spawn 的 scheduler worker 在模块导入期
+（scheduler.py → mem_cache → mha.py:65 `from sgl_kernel_npu.kvcacheio import
+TransferDirection`）就 import `sgl_kernel_npu`，早于任何插件加载；load_plugin
+自身的 step3（activation→quantization→layernorm）也早于 step5 patch。import 面
+必须是**磁盘级包**（任何进程、任何时机可 import）。落法：`sgl_kernel_npu` stub
+树（9 子包 48 叶子，E2E 权威清单）并入共享 `sgl-kernel-shim` wheel
+（addon generate.py `_write_tree`，同 `_Dummy` + 模块级 `__getattr__` 机制）；
+仅 ascend 会 import 它，其余平台 inert。
 
 ## 3. 符号盘点与落法（genuine vs import-only）
 
@@ -52,7 +65,7 @@ float32 variance、rsqrt、weight、cast back）；`_apply_rope` 兼容 `(N,1,1,
 BSNH cache 切片与 `(N,freq_dim)` plain cache 两种 cos/sin 形态；k/v 3D head 布局是
 `torch_npu._npu_reshape_and_cache` 硬要求（2D flat 会让 ATB op setup failed / 507035）。
 
-## 4. E2E 验证（F/T 双路径，Qwen3-0.6B，NPU 2）
+## 4. E2E 验证（F/T 双路径，Qwen3-4B，NPU 5）
 
 服务：`python -m sglang.launch_server`，`--mem-fraction-static 0.6
 --trust-remote-code --disable-cuda-graph --disable-piecewise-cuda-graph`。
@@ -81,9 +94,10 @@ BSNH cache 切片与 `(N,freq_dim)` plain cache 两种 cos/sin 形态；k/v 3D h
 
 ## 6. 覆盖范围与残留
 
-- **实证覆盖**：Qwen3-0.6B 走 `split_qkv_rmsnorm_rope`（变体 1）+ `alloc_extend_kernel`
-  两路，F/T 双路径全过。变体 2/3/4（qwen3_next、llada2/minimax_m3、minimax_m2）按
-  各模型 native forward_prepare 语义推导实现，**未实证**——换模型时按同法补跑。
+- **实证覆盖**：Qwen3-4B 走 `split_qkv_rmsnorm_rope`（变体 1）+ `alloc_extend_kernel`
+  两路，F/T 双路径全过（app 镜像 serve 3×200/ct=144 复核）。变体 2/3/4
+  （qwen3_next、llada2/minimax_m3、minimax_m2）按各模型 native forward_prepare
+  语义推导实现，**未实证**——换模型时按同法补跑。
 - 残留 `_copy_kernel` 间歇性问题（未复现）；`USE_FLAGGEMS=1` 组合未验证。
-- 插件 wheel 本地构建、未 push（exp/0.5.18/ascend 分支 5 commit 待网络恢复后
-  push + PR 回 exp/0.5.18）。
+- 插件 ascend commit（torch-native 真实现 + §2.1 import 面落法）已在
+  exp/0.5.18-ascend（PR #84）；shim 的 npu stub 树在共享 addon（exp/0.5.18）。
