@@ -75,10 +75,15 @@ ARG APP_DEPS=""
 # pull a generic torch over the runtime's pinned vendor torch. The srt_empty
 # base's METADATA is audited torch-free and sgl-kernel-free (playbook §2/§4),
 # so this install cannot touch the baked matrix.
+# Guard: scipy<1.18 must ride the same install — the wheel's unconstrained
+# scipy dep (runtime_common, #697) resolves 1.18+ (requires numpy>=2.0.0)
+# since 2026-08, which upgrades the runtime's stack-wide numpy==1.26.4 pin and
+# fails the on-node inert-matrix verify (same guard as megatron #637).
 RUN pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \
-  "sglang==${SGLANG_VERSION}+flagos"
+  "sglang==${SGLANG_VERSION}+flagos" \
+  "scipy<1.18"
 
 # --- Install the sglang_fl plugin (wheel) --------------------
 
