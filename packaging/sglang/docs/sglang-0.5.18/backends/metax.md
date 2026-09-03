@@ -17,7 +17,7 @@
 | sglang | 0.5.18+flagos（srt_empty 基座 wheel）|
 | sgl_kernel | sgl-kernel-shim 0.5.18（import 面 shim；发行名 sgl-kernel-shim，模块名 sgl_kernel）|
 | sglang-plugin-FL | sglang_fl 0.2.0rc0.post2.dev6+g3a5fc2960（wheel 安装，sha256 3e839424…，构建源 exp/0.5.18 @ 3a5fc29，不含 ascend commit）|
-| numpy | 1.26.4 → 2.3.5（pip 随 sglang wheel 依赖自动升级，唯一依赖偏差；升级后双路径健康）|
+| numpy | 1.26.4（scipy<1.18 guard 后不再漂，app-image 矩阵 unchanged）|
 | 模型 | Qwen3-0.6B |
 
 ## 2. 构建与安装
@@ -63,8 +63,9 @@ gen tok/s，3× chat/completions。
 | F | flagtree 0.6.1 @ /opt/flagtree | ✅ 3/3 全过（200/200/200，completion_tokens 85/79/109）| 3.32–4.19 |
 | T | vendor triton 3.6.0 @ /opt/triton | ✅ 3/3 全过（200/200/200，77/144/93）| ~3.45–3.55 |
 
-> **回归说明**：numpy 1.26.4→2.3.5 为唯一依赖偏差（pip 随 sglang wheel 自动
-> 升级），双路径 import/serve 全健康。completion_tokens=144 是 max cap 而非
+> **回归说明**：numpy 曾随 sglang wheel 依赖被 pip 升到 2.3.5（af2e687 实证，
+> 当时判「健康」）；后 #706 以 `scipy<1.18` guard 锁死 numpy 1.26.4，app-image
+> 矩阵实测 unchanged，不再漂移。completion_tokens=144 是 max cap 而非
 > 必然值——Qwen3 默认 thinking 早停，多数请求在 144 前 finish=stop；T 路径
 > 第 2 次请求恰好顶满 144（finish=length）。sampling_backend 经 server_args
 > dump 确认（0.5.18 chat 响应体无此字段，见 ascend.md 方法论修正）。
