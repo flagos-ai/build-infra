@@ -477,6 +477,17 @@ else
 
     log_info "Starting vllm serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
+    # A decode that actually answers "The capital of France is" names Paris.
+    # Broken decodes (mojibake / sampling corruption — e.g. enflame served
+    # under the wrong compiler, 2026-09-03) still return HTTP 200 + non-empty
+    # text, so a status check alone lets garbage pass as a ✅. Assert the
+    # anchor for the matrix model; custom-model runs (mthreads-4.3.6 serves a
+    # DeepSeek model, no Qwen3-4B) opt out so they do not false-fail.
+    EXPECT_ANCHOR=""
+    case "$MODEL_PATH" in
+        *Qwen3-4B*) EXPECT_ANCHOR="Paris" ;;
+    esac
+
     docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         export VLLM_PLUGINS=fl
@@ -543,6 +554,10 @@ except Exception as e:
 text = (body.get('choices') or [{}])[0].get('text') or ''
 if status != 200 or not text:
     print('no completion: status=%s body=%r' % (status, body))
+    sys.exit(1)
+expect = \"${EXPECT_ANCHOR}\"
+if expect and expect not in text:
+    print('completion failed semantic check: expected %r in text %r' % (expect, text))
     sys.exit(1)
 print('completion returned (status=%s): %r' % (status, text))
 PY
