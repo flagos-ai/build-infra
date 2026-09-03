@@ -470,13 +470,17 @@ log_step "Step 3: Installing sglang==${SGLANG_VERSION}+flagos"
 # side-dir triton dist-info, or any triton resolution (the vendor torch's
 # Requires-Dist, future extras) pulls a fresh generic triton into
 # site-packages and the Step 5b matrix diff fails. Runtime switches exported
-# BEFORE the install per the playbook.
+# BEFORE the install per the playbook. scipy<1.18 rides the same install: the
+# wheel's unconstrained scipy dep (runtime_common, #697) resolves 1.18+
+# (numpy>=2.0.0) since 2026-08 and would upgrade the runtime numpy==1.26.4
+# pin — same guard as app/sglang Containerfile / megatron #637.
 docker exec "${CONTAINER}" bash -c "
     ${SGLANG_SWITCHES}
     PYTHONPATH=/opt/triton pip install \
         --index-url '${VENDOR_PYPI}' \
         --extra-index-url '${ALIYUN_PYPI}' \
-        'sglang==${SGLANG_VERSION}+flagos'
+        'sglang==${SGLANG_VERSION}+flagos' \
+        'scipy<1.18'
 "
 
 log_info "sglang installed:"
