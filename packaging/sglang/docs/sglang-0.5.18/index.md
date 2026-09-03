@@ -46,5 +46,5 @@ flag_gems + 零 sgl-kernel 路线提供（见 [playbook.md](playbook.md) §4）�
 
 | 后端 | 文件 | 要点 |
 |---|---|---|
-| MetaX maca3.8.1.3 | [metax.md](backends/metax.md) | 首个 0.5.18 后端；零 sgl-kernel F/T 双路径 E2E 全过；F/T 切换注意 flag_gems ConfigCache（根因链见 [metax-0.5.12.md](backends/metax-0.5.12.md)）|
-| ascend cann9.0.0 | ⬜ | aarch64 cp311；`-build` 镜像即 aarch64，容器内编译天然产出 aarch64 wheel；待构建（rust aarch64 工具链缓存 TODO 见 [decisions.md](decisions.md) §5.6）|
+| MetaX maca3.8.1.3 | [metax.md](backends/metax.md) | 首个 0.5.18 后端；零 sgl-kernel F/T 双路径 E2E 全过；app 镜像已发布（`sglang0.5.18-metax-maca3.8.1.3:2.1.2-0.1.dev1_g0900c244b`）；F/T 切换注意 flag_gems ConfigCache（根因链见 [metax-0.5.12.md](backends/metax-0.5.12.md)）|
+| ascend cann9.0.0 | [ascend.md](backends/ascend.md) | aarch64 cp311；零 sgl_kernel_npu（stub 树并入共享 sgl-kernel-shim wheel + 插件 torch-native 真实现）；app 镜像已发布（`sglang0.5.18-ascend-cann9.0.0:2.1.2-0.1.dev1_g2e568482e`）|
