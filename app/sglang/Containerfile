@@ -75,11 +75,17 @@ ARG APP_DEPS=""
 # pull a generic torch over the runtime's pinned vendor torch. The srt_empty
 # base's METADATA is audited torch-free and sgl-kernel-free (playbook §2/§4),
 # so this install cannot touch the baked matrix.
+# PYTHONPATH=/opt/triton mirrors the runtime Containerfile DEPS install (and
+# the megatron/vllm app Containerfiles): the wheel's deps re-read the baked
+# torch's triton Requires-Dist, and pip must see the side-dir triton dist-info
+# (xgrammar declares bare triton on linux-x86_64) or it installs a fresh
+# generic triton into site-packages — bypassing the vendor triton and failing
+# the inert-matrix verify. No-op on single-compiler backends.
 # Guard: scipy<1.18 must ride the same install — the wheel's unconstrained
 # scipy dep (runtime_common, #697) resolves 1.18+ (requires numpy>=2.0.0)
 # since 2026-08, which upgrades the runtime's stack-wide numpy==1.26.4 pin and
 # fails the on-node inert-matrix verify (same guard as megatron #637).
-RUN pip install \
+RUN PYTHONPATH="/opt/triton" pip install \
   --index-url "${FLAGOS_PYPI}" \
   --extra-index-url "${EXTRA_PYPI}" \
   "sglang==${SGLANG_VERSION}+flagos" \
@@ -89,9 +95,11 @@ RUN pip install \
 
 # Clean single-step install of the audited plugin wheel — same index pair as
 # sglang. The plugin auto-loads via its sglang.srt entry points, so no env var
-# turns it on (unlike vllm's VLLM_PLUGINS).
+# turns it on (unlike vllm's VLLM_PLUGINS). PYTHONPATH=/opt/triton for the
+# same reason as the sglang step above: the plugin depends on flag_gems, whose
+# resolution re-reads torch's triton Requires-Dist.
 RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
-    pip install \
+    PYTHONPATH="/opt/triton" pip install \
       --index-url "${FLAGOS_PYPI}" \
       --extra-index-url "${EXTRA_PYPI}" \
       "sglang-fl==${PLUGIN_FL_VERSION}" ; \
@@ -101,7 +109,7 @@ RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
 
 # Same index pair + version-pin discipline as the plugin. The shim source is
 # the sglang-plugin-FL addon (playbook §5.2), published as sgl-kernel-shim by
-# the sglang-wheel workflow's shim job.
+# the sglang-wheel workflow's shim job. Zero deps — no PYTHONPATH needed.
 RUN if [ -n "${SHIM_VERSION}" ]; then \
     pip install \
       --index-url "${FLAGOS_PYPI}" \
@@ -125,8 +133,11 @@ RUN if [ -n "${APP_ENV}" ]; then \
 
 # --- Vendor-conditional app deps -----------------------------
 
+# PYTHONPATH=/opt/triton for the same reason as the sglang step above:
+# resolving any APP_DEPS that pulls torch (metax's compressed-tensors dep
+# chain → transformers) re-reads the installed torch's triton Requires-Dist.
 RUN if [ -n "${APP_DEPS}" ]; then \
-    pip install \
+    PYTHONPATH="/opt/triton" pip install \
       --index-url "${FLAGOS_PYPI}" \
       --extra-index-url "${EXTRA_PYPI}" \
       ${APP_DEPS} ; \
