@@ -105,7 +105,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.1.dev1_g0900c244b"
-    note: "exp/0.5.18 插件+wheel 双路径 E2E 全过；app 镜像已发布（scipy<1.18 guard 锁 numpy 1.26.4 不漂，矩阵 unchanged）"
     prs:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/86
   mthreads-musa4.3.6:
