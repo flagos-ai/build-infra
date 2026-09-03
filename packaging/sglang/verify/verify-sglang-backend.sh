@@ -21,17 +21,22 @@
 # `flagos-runtime-{vendor}-{backend}` container and prove the image actually
 # serves inference end-to-end: the torch/triton/flag_gems/numpy matrix is
 # unchanged after the installs, sglang + sgl_kernel + sglang_fl import, and a
-# Qwen3-0.6B serve answers 3× chat/completions with HTTP 200 +
-# completion_tokens=144 + sampling_backend=pytorch (playbook §5.5). The
-# runtime switches are exported BEFORE the install; the flag_gems SQL
-# ConfigCache is cleared before serve so the F and T compiler paths never
-# cross-pollinate (playbook §5.4).
+# Qwen3-0.6B serve answers 3× chat/completions with HTTP 200, a real
+# completion (completion_tokens>0) and sampling_backend=pytorch from
+# /server_info (0.5.18 chat bodies never carry that field — see the Step 7
+# comment; playbook §5.5). The runtime switches are exported BEFORE the
+# install; the flag_gems SQL ConfigCache is cleared before serve so the F and
+# T compiler paths never cross-pollinate (playbook §5.4).
 #
 # The plugin is NOT on any index yet: verify builds it in-container from the
 # sglang-plugin-FL repo (exp/0.5.18 branch) — git clone + `pip wheel` — then
 # pip-installs the wheel. The app image build does NOT build from source: it
 # installs the plugin wheel from the vendor PyPI once the sglang-plugin-wheel
 # publication workflow has run (Containerfile PLUGIN_FL_VERSION).
+#
+# sgl_kernel: the repacked +flagos wheel deliberately ships no sgl-kernel
+# dependency (playbook §5.2); the shim (version = <sglang-version>+flagos-shim)
+# is installed from the vendor index before the import check.
 #
 # --app-image <image>: instead of steps 2-6, verify a prebuilt
 #   flagos-app/sglang{sglang_version}-{vendor}-{backend}:{version}[-{plugin}]
@@ -45,7 +50,7 @@
 # both invocations pass (F = flagtree, the runtime default, T = vendor triton).
 #
 # Usage:
-#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--app-image <image>] [--serve-timeout <sec>] [--skip-serve] [--stack-version <ver>]
+#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] [--skip-serve] [--stack-version <ver>]
 #
 # Examples:
 #   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler F
@@ -63,12 +68,14 @@
 #   1. Start runtime container with hardware access (build-config.yml run flags)
 #   2. BEFORE snapshot: torch / triton / flag_gems / numpy (+ site-package path)
 #   3. Single-step install of sglang==<ver>+flagos (runtime switches exported)
+#   3b. Install the sgl_kernel import-face shim from the vendor index
+#       (--shim-version; skip when empty)
 #   4. Build + install the sglang_fl plugin (in-container, not on the node)
 #   5. AFTER snapshot: every watched package must equal BEFORE — the installs
 #      were inert
 #   6. Import check: sglang + sgl_kernel + sglang_fl
-#   7. E2E serve: 3× chat/completions (HTTP 200 + completion_tokens=144 +
-#      sampling_backend=pytorch)
+#   7. E2E serve: 3× chat/completions (HTTP 200 + completion_tokens>0 +
+#      sampling_backend=pytorch read from the server-info endpoint)
 
 set -euo pipefail
 
@@ -78,6 +85,9 @@ MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-0.6B}"
 SGLANG_VERSION="${SGLANG_VERSION:-0.5.18}"
 PLUGIN_REF="${PLUGIN_REF:-exp/0.5.18}"
 PLUGIN_REPO="https://github.com/flagos-ai/sglang-plugin-FL"
+# sgl_kernel shim version — derived below from SGLANG_VERSION once the args
+# are parsed (the shim tracks the sglang version, +flagos-shim).
+SHIM_VERSION="${SHIM_VERSION-}"
 SKIP_SERVE=false
 # Serve-test time budget in seconds, shared by the readiness poll window and
 # each completion request. 1800s default because cold-start first-compile
@@ -102,6 +112,7 @@ while [[ $# -gt 0 ]]; do
         --model) MODEL_PATH="$2"; shift 2 ;;
         --sglang-version) SGLANG_VERSION="$2"; shift 2 ;;
         --plugin-ref) PLUGIN_REF="$2"; shift 2 ;;
+        --shim-version) SHIM_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
         --serve-timeout) SERVE_TIMEOUT="$2"; shift 2 ;;
         --compiler) COMPILER="$2"; shift 2 ;;
@@ -120,6 +131,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --model <dir>        Path to model for serve test (default: /data/models/Qwen/Qwen3-0.6B)"
             echo "  --sglang-version <ver>  sglang version to install (default: 0.5.18; +flagos suffix appended)"
             echo "  --plugin-ref <ref>   sglang-plugin-FL branch/tag/sha to build the plugin from (default: exp/0.5.18)"
+            echo "  --shim-version <ver>  sgl_kernel shim version (default: <sglang-version>+flagos-shim; '' skips)"
             echo "  --skip-serve         Skip serve test, only install and verify imports"
             echo "  --serve-timeout <sec> Time budget for serve readiness + each completion (default: 1800)"
             echo "  --stack-version <ver> Stack version for the runtime image tag; default: read from the discovered configs.yaml"
@@ -161,6 +173,12 @@ if ! [[ "$SERVE_TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$SERVE_TIMEOUT" -lt 60 ]]; then
     echo "Error: --serve-timeout must be an integer ≥ 60 (got '$SERVE_TIMEOUT')" >&2
     exit 1
 fi
+
+# sgl_kernel shim version tracks the sglang version (+flagos-shim) — the
+# repacked sglang wheel ships no sgl-kernel dep, so the from-scratch route
+# installs the shim from the vendor index before the Step 6 import check.
+# Explicit --shim-version '' skips it (manual debugging only).
+SHIM_VERSION="${SHIM_VERSION-${SGLANG_VERSION}+flagos-shim}"
 
 # ── Configuration ───────────────────────────────────────────────────────
 
@@ -464,6 +482,25 @@ docker exec "${CONTAINER}" bash -c "
 log_info "sglang installed:"
 docker exec "${CONTAINER}" pip show sglang | grep -E "^(Name|Version|Location)" || true
 
+# ── Step 3b: Install the sgl_kernel import-face shim (from the vendor index) ─
+
+# sglang imports sgl_kernel unconditionally but the repacked +flagos wheel
+# ships no sgl-kernel dep (playbook §5.2) — install the shim separately or the
+# Step 6 import check fails. Versioned <sglang>+flagos-shim on the vendor
+# index; zero deps, so it cannot move the watched matrix.
+if [[ -n "${SHIM_VERSION}" ]]; then
+    log_info "Step 3b: Installing sgl_kernel shim==${SHIM_VERSION}"
+    docker exec "${CONTAINER}" bash -c "
+        ${SGLANG_SWITCHES}
+        PYTHONPATH=/opt/triton pip install \
+            --index-url '${VENDOR_PYPI}' \
+            --extra-index-url '${ALIYUN_PYPI}' \
+            'sgl-kernel==${SHIM_VERSION}'
+    "
+else
+    log_warn "sgl_kernel shim skipped (--shim-version '') — Step 6 will fail unless a shim is already present."
+fi
+
 # ── Step 4: Build + install the sglang_fl plugin (in-container) ─────────
 
 log_step "Step 4: Building + installing sglang_fl plugin (sglang-plugin-FL @ ${PLUGIN_REF})"
@@ -617,8 +654,39 @@ import json, sys, urllib.request
 # Single-model server: the model field is a no-op, 'default' is sglang's
 # conventional placeholder. First request compiles flag_gems kernels per-shape
 # — TIMEOUT is the full SERVE_TIMEOUT budget so cold backends are not clipped.
-url = 'http://127.0.0.1:' + '${SGLANG_PORT}' + '/v1/chat/completions'
+base = 'http://127.0.0.1:' + '${SGLANG_PORT}'
+url = base + '/v1/chat/completions'
 TIMEOUT = ${SERVE_TIMEOUT}
+
+def fetch(path, timeout=30):
+    req = urllib.request.Request(base + path,
+                                 headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.status, json.loads(resp.read())
+
+# 0.5.18 chat/completions never carries sampling_backend in its body — it is a
+# server_args startup field, not a per-request field (ascend.md methodology
+# note). Read it from the server-info endpoint instead; the exact route varies
+# across sglang versions (/server_info vs /get_server_info), so probe both.
+sb = None
+info = None
+for path in ('/get_server_info', '/server_info'):
+    try:
+        st, info = fetch(path)
+    except Exception as e:
+        print('server_info %s failed: %r' % (path, e))
+        continue
+    if st != 200 or not isinstance(info, dict):
+        continue
+    sb = info.get('sampling_backend')
+    for key in ('server_args', 'args'):
+        if sb is None and isinstance(info.get(key), dict):
+            sb = info[key].get('sampling_backend')
+    break
+if sb is None:
+    print('server_info: sampling_backend not found (info=%r)' % (info,))
+    sys.exit(1)
+print('server_info: sampling_backend=%r' % (sb,))
 
 def check(i, prompt):
     payload = json.dumps({
@@ -645,8 +713,11 @@ def check(i, prompt):
         return False
     usage = body.get('usage') or {}
     ct = usage.get('completion_tokens')
-    sb = body.get('sampling_backend') or usage.get('sampling_backend')
-    ok = status == 200 and ct == 144 and sb == 'pytorch'
+    # A real completion, not a fixed count: Qwen3 thinking typically ends in
+    # finish=stop before the 144 cap (metax.md §3) — ct>0 + pytorch sampling
+    # backend is the honest "inference actually ran end-to-end" gate, and 144
+    # is only the requested max_tokens.
+    ok = status == 200 and (ct or 0) > 0 and sb == 'pytorch'
     print('request %d: status=%s completion_tokens=%s sampling_backend=%r -> %s'
           % (i, status, ct, sb, 'OK' if ok else 'FAIL'))
     return ok
@@ -657,9 +728,9 @@ results = [
     check(3, 'Describe the steps of training a large language model.'),
 ]
 if not all(results):
-    print('CRITERIA NOT MET: HTTP 200 + completion_tokens=144 + sampling_backend=pytorch on all 3 requests')
+    print('CRITERIA NOT MET: HTTP 200 + completion_tokens>0 + sampling_backend=pytorch on all 3 requests')
     sys.exit(1)
-print('ALL 3 chat/completions PASSED (completion_tokens=144, sampling_backend=pytorch)')
+print('ALL 3 chat/completions PASSED (completion_tokens>0, sampling_backend=%r)' % (sb,))
 PY
 
         rc=\$?

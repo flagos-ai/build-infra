@@ -54,16 +54,12 @@ ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
 # version.
 ARG PLUGIN_FL_VERSION=""
 
-# Zero-sgl-kernel import-face shim wheel version (e.g. "0.5.18+flagos-shim").
-# sglang 0.5.18 imports `sgl_kernel` unconditionally (178 files, playbook
-# §5.2); the srt_empty wheel deliberately does not depend on it, so the app
-# image must carry the shim or sglang never imports. Built from
-# packaging/sglang/wheels/metax/sgl-kernel-shim/ (playbook §5.2) and, like the
-# plugin, installed from the vendor PyPI by version. Empty = not published yet
-# (metax shim source is in-repo; the ascend `sgl_kernel_npu` shim has no
-# in-repo source — hand-built during the E2E) — leave empty until published,
-# then set the exact wheel version.
-ARG SHIM_VERSION=""
+# Zero-sgl-kernel import-face shim: sglang imports `sgl_kernel`
+# unconditionally (playbook §5.2) but the srt_empty wheel ships no dep on it,
+# so the app image carries the generic backend-agnostic shim from the vendor
+# PyPI. The version tracks sglang (0.5.18 -> 0.5.18+flagos-shim); override
+# with SHIM_VERSION='' to skip (pre-publication debug only).
+ARG SHIM_VERSION="${SGLANG_VERSION}+flagos-shim"
 
 # Vendor-conditional app-level deps (configs.yaml deps_app.sglang0.5.18),
 # installed after the plugin/shim. Some backends need a package in the app
@@ -98,8 +94,9 @@ RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
 # --- Install the sgl_kernel import-face shim (wheel) ---------
 
 # Same index pair + version-pin discipline as the plugin. Distribution name is
-# `sgl_kernel` (pip-canonical `sgl-kernel`), the py3-none-any wheel generated
-# by packaging/sglang/wheels/metax/sgl-kernel-shim/generate.py (playbook §5.2).
+# `sgl_kernel` (pip-canonical `sgl-kernel`); the shim source is the
+# sglang-plugin-FL addon (playbook §5.2), published by the sglang-wheel
+# workflow's shim job.
 RUN if [ -n "${SHIM_VERSION}" ]; then \
     pip install \
       --index-url "${FLAGOS_PYPI}" \

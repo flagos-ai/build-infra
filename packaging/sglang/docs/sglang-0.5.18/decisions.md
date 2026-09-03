@@ -142,3 +142,37 @@ filestore 缓存的官方 dist tarball `rust-${RUST_VERSION}-${TRIPLE}.tar.xz`
 **状态**：✅ x86_64 + aarch64 双 triple 的 1.98.0 均已上传 filestore
 （2026-08-29）。tarball 人工上传——原 cache-rust-toolchain.sh 缓存脚本
 使命完成已移除，构建只消费不再自动化缓存。
+
+### 5.7 wheel Requires-Dist 形态 + compressed-tensors 归置（2026-09-02 #697）
+
+**背景**：af2e687 metax 重验实证 serve 硬依赖 compressed_tensors（CUDA-alias
+的 quantization 链经 modelopt 无条件 import），但官方 compressed-tensors 声明
+torch，随 wheel 单步安装会顶掉 vendor torch。
+
+**决策**（Q-B，2026-09-02）：
+
+1. `merge-runtime-base.py` 整组并入 runtime_common（净增 outlines/timm/
+   xgrammar 入 Requires-Dist，含 loguru 随 CT 传递）；sglang[...] 自引用与
+   compressed-tensors 剔除。
+2. compressed-tensors 走 deps_app 的 **+flagos repack**（`0.17.0+flagos`，
+   Requires-Dist 已无 torch——仅 transformers/pydantic/loguru）：configs.yaml
+   `deps_app.sglang0.5.18` 按后端填。per-index 纪律：主 wheel 的依赖两 index
+   各自可解；发布/升版/核验按 index 各做一次。
+3. metax serve 实证必需 CT → deps_app 已填；ascend 非 CUDA（quantization 链
+   被 gate）实证不需 → 不装（镜像不装用不到的包）。
+
+**状态**：#697（7dc05b9）已并；两 index 主 wheel 重建 + deps_app pin 随
+app-image 真跑落地（configs 已填，wheel 待重建上传）。
+
+### 5.8 sgl_kernel shim 源落插件仓库 addon（2026-09-03）
+
+**决策**：零 sgl-kernel 的 import 面 shim 源从 build-infra 内
+`wheels/metax/sgl-kernel-shim/` 迁至 sglang-plugin-FL `addon/sgl-kernel-shim`
+（共享、全后端一份）。build-infra 只消费：sglang-wheel.yml shim job checkout
+插件仓库 addon 构建、上传到 sglang app-served index（metax/ascend）；app
+Containerfile 按 `SHIM_VERSION` 从 vendor index 单步安装。
+
+**理由**：sgl_kernel shim 解决的是 sglang 本体对 `sgl_kernel` 解耦不彻底的
+通用问题（后端无关）；厂商适配一律在 sglang-plugin-FL（vendor/<name>/ patch
++ impl），不散到 wheel/shim 层。ascend 的 `sgl_kernel_npu` import 名同理由
+插件在 load_plugin 内处理（不新增 ascend 专属 stub wheel）。
