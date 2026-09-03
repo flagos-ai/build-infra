@@ -114,6 +114,54 @@ def _gh_api(method: str, path: str, body: dict | None = None) -> dict:
         return json.loads(resp.read())
 
 
+# The image tag's plugin suffix is the wheel version with '+' mapped to '_'
+# (image-tag-safe): <version>_g<sha7>.d<date>. The sha7 after '_g' is the
+# plugin commit the image was built from — it must match what the backend's
+# tracked OPEN upstream PR currently points at. Enforced here so a record can
+# never silently pin an image whose plugin commit has drifted off the PR head
+# (metax 928bc19 incident, 2026-09-03).
+_PLUGIN_SHA_RE = re.compile(r"(?:^|[._-])g([0-9a-f]{7,40})\.d\d{8}$")
+
+
+def check_plugin_pin_matches_pr_head(backend_cfg: dict, tag: str) -> str | None:
+    """Return an error message if the tag's plugin commit lags an OPEN tracked PR.
+
+    ``prs`` entries in the backend block are upstream PR URLs (the mirror is
+    built from their branch head). A tag whose sha is not the current head of
+    one of those OPEN PRs is a stale pin — the fix is to rebuild the image from
+    the PR head, not to record the old tag.
+    """
+    prs = backend_cfg.get("prs") or []
+    if not prs:
+        return None
+    m = _PLUGIN_SHA_RE.search(tag)
+    if not m:
+        return None  # no plugin in the tag; nothing to check
+    tag_sha = m.group(1)
+    for url in prs:
+        pm = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", url)
+        if not pm:
+            continue
+        owner, repo, number = pm.group(1), pm.group(2), pm.group(3)
+        try:
+            pr = _gh_api("GET", f"/repos/{owner}/{repo}/pulls/{number}")
+        except Exception as exc:
+            # PR state unavailable — do not block the record on a transient API
+            # failure, but say so (the caller sees it in the log).
+            print(f"Warning: could not fetch {url} to check pin: {exc}")
+            return None
+        if pr.get("state") != "open":
+            continue
+        head = pr.get("head", {}).get("sha", "")
+        if not head.lower().startswith(tag_sha.lower()):
+            return (
+                f"{url} is OPEN but its head is {head[:7]} — the image tag {tag} "
+                f"pins plugin commit {tag_sha} (drift). Rebuild the image from the "
+                f"PR head, then re-record."
+            )
+    return None
+
+
 def component_of(matrix_rel: str) -> str:
     m = re.match(r"packaging/(\w+)/status_matrix\.", matrix_rel)
     if not m:
@@ -244,6 +292,13 @@ def main() -> None:
         if not changed:
             print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
         return
+
+    # Do not record an image whose plugin pin has drifted off a tracked OPEN
+    # upstream PR head — rebuild from the PR head first (2026-09-03 incident).
+    drift = check_plugin_pin_matches_pr_head(backend_cfg, tag)
+    if drift:
+        sys.exit(f"Error: {drift}")
+
     print(f"Recording image_tag {tag} + launch_docs + deps_app for {args.backend} in {matrix_rel}")
 
     changed = update_image_tag(matrix_path, args.backend, tag) or changed

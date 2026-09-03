@@ -50,7 +50,10 @@ on:
       plugin_fl_version:
         description: >-
           vllm-plugin-fl wheel version to install (commit-precise pin, e.g.
-          0.2.0+gcf8998c.d20260815). Empty = skip the plugin install.
+          0.2.1+gcf8998c.d20260815). Take the version the vllm-plugin-wheel
+          workflow DERIVED (base+g<sha7>.d<date> from the built ref) — never
+          type one by hand. Empty = skip the plugin install. The build then
+          asserts the installed version equals this pin.
         type: string
         default: ''
       push:
@@ -203,6 +206,29 @@ jobs:
             --vllm-version "${{ inputs.vllm_version }}" \
             --plugin-fl-version "${{ inputs.plugin_fl_version }}" \
             --app-image "${APP_TAG}"
+
+      # Content gate: the tag's plugin suffix must name what is actually
+      # installed in the image, not merely what the dispatch asked for. Read
+      # the installed vllm-plugin-fl version out of the just-built image and
+      # refuse any mismatch against the requested pin — a wrong/stale pin must
+      # fail loudly here instead of silently shipping an image whose recorded
+      # tag lies about its plugin commit.
+      - name: Verify installed plugin version matches the pin
+        if: ${{ !inputs.record_only && inputs.plugin_fl_version != '' }}
+        run: |
+          set -euo pipefail
+          requested="${{ inputs.plugin_fl_version }}"
+          installed=$(docker run --rm "${APP_TAG}" \
+            python3 -c "import importlib.metadata as m; print(m.version('vllm-plugin-fl'))" 2>/dev/null || true)
+          if [ -z "${installed}" ]; then
+            echo "::error::vllm-plugin-fl requested (${requested}) but not found in ${APP_TAG}"
+            exit 1
+          fi
+          if [ "${installed}" != "${requested}" ]; then
+            echo "::error::installed vllm-plugin-fl is ${installed}, but the image was tagged for ${requested} — the pin and the content disagree"
+            exit 1
+          fi
+          echo ">>> installed vllm-plugin-fl ${installed} == pinned ${requested}"
 
       - name: Push vllm app image
         if: ${{ inputs.push && !inputs.record_only }}

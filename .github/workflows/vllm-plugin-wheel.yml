@@ -35,15 +35,17 @@ name: vllm-plugin wheel
 # required a CUDA toolchain in the runtime image that it does not ship, and
 # the plugin's runtime fallbacks cover the empty-mode paths — retired
 # 2026-08-23 ("都走统一个模式"). vllm_vendor stays in the matrix (always "")
-# for the workflow env. The version (setuptools-scm 0.2.0+g<sha>.d<date>, or
-# the explicit plugin_version input) encodes the exact plugin commit, so the app Containerfile's
-# `pip install vllm-plugin-fl==<version>` is a commit-precise pin.
+# for the workflow env. The version is DERIVED, not typed: the resolve step
+# turns plugin_ref into its exact commit and computes
+# vllm-plugin-fl=={version_base}+g<sha7>.d<date>; post-build assertions verify
+# the wheel name and the checked-out commit match, so the version is a
+# trustworthy commit-precise pin for the app Containerfile.
 #
 # Clone source: plugin_repo defaults to the flagos-ai upstream, so the default
 # path builds released/merged code. Pre-merge port branches (e.g. the ascend
 # 0.24.0 port, which the plugin team merges only after seeing E2E results) live
-# on a fork — dispatch with plugin_repo=<fork URL> + plugin_ref=<branch|SHA> to
-# build them, and gate the upload with audit-deps.py as usual.
+# on a fork — dispatch with plugin_repo=<fork URL> + plugin_ref=<branch|tag|SHA>
+# to build them, and gate the upload with audit-deps.py as usual.
 #
 # Upload target defaults to flagos-pypi-<vendor> so the wheel lands next to
 # that backend's vllm+flagos / torch / flag_gems. There is no schedule:
@@ -57,17 +59,17 @@ on:
         type: string
         default: ascend-cann9.0.0
       plugin_ref:
-        description: 'vllm-plugin-FL git ref to build (full 40-hex SHA pinning preferred — abbreviated SHAs are not fetchable by git; a branch name works but moves)'
+        description: 'vllm-plugin-FL ref to build: a branch name, a tag, or a full 40-hex SHA (abbreviated SHAs are not fetchable by git). The exact commit is resolved and recorded by the workflow — the wheel version below is derived from it, never hand-typed.'
         type: string
         default: main
       plugin_repo:
         description: 'vllm-plugin-FL git clone URL (default: flagos-ai upstream; point at a fork for pre-merge port branches)'
         type: string
         default: 'https://github.com/flagos-ai/vllm-plugin-FL.git'
-      plugin_version:
-        description: 'Wheel version override (e.g. 0.2.0+gcf8998c.d20260815); blank = setuptools-scm derivation'
+      version_base:
+        description: 'Wheel version base line (e.g. 0.2.1). The workflow appends +g<sha7>.d<YYYYMMDD> from the resolved plugin_ref — do NOT type the full version; it is derived and asserted against the actual checkout.'
         type: string
-        default: ''
+        default: '0.2.1'
       upload:
         description: 'upload the wheel to the vendor PyPI'
         type: boolean
@@ -125,12 +127,47 @@ jobs:
       BASE_IMAGE: ${{ matrix.image_tag }}
       PLUGIN_REF: ${{ inputs.plugin_ref }}
       PLUGIN_REPO: ${{ inputs.plugin_repo }}
-      PLUGIN_VERSION: ${{ inputs.plugin_version }}
+      PLUGIN_VERSION_BASE: ${{ inputs.version_base }}
       VLLM_VENDOR: ${{ matrix.vllm_vendor }}
       EXTRA_PYPI: ${{ matrix.extra_pypi }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@v7
+
+      # Resolve the requested ref to its exact commit and derive the wheel
+      # version from it — the version is NEVER hand-typed. The derived version
+      # (base +g<sha7>.d<date>) is the single source of truth for the wheel
+      # name, the image tag, and the status-matrix record; the sha is asserted
+      # against the actual checkout below.
+      - name: Resolve plugin commit + version
+        run: |
+          set -euo pipefail
+          sha=""
+          if [[ "${PLUGIN_REF}" =~ ^[0-9a-f]{40}$ ]]; then
+            sha="${PLUGIN_REF,,}"
+            # A bare SHA only exists on some branch/tag tip (or main); GitHub
+            # refuses to serve unadvertised objects. Require it to be reachable
+            # as a head or tag so the shallow fetch below can actually get it.
+            if ! git ls-remote "${PLUGIN_REPO}" | awk '{print $1}' | grep -qx "${sha}"; then
+              echo "ERROR: ${sha} is not the tip of any branch or tag in ${PLUGIN_REPO} —" >&2
+              echo "      pass a branch/tag name, or push the commit to a branch first." >&2
+              exit 1
+            fi
+          else
+            # Branch or tag name: resolve it to its current tip (branch wins).
+            sha=$(git ls-remote "${PLUGIN_REPO}" \
+                "refs/heads/${PLUGIN_REF}" "refs/tags/${PLUGIN_REF}" \
+              | head -1 | awk '{print $1}' || true)
+            if [ -z "${sha}" ]; then
+              echo "ERROR: ref '${PLUGIN_REF}' not found as a branch or tag in ${PLUGIN_REPO}" >&2
+              exit 1
+            fi
+          fi
+          echo "PLUGIN_SHA=${sha}" >> "$GITHUB_ENV"
+          echo "PLUGIN_SHA7=${sha:0:7}" >> "$GITHUB_ENV"
+          echo "PLUGIN_VERSION=${PLUGIN_VERSION_BASE}+g${sha:0:7}.d$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
+          echo ">>> resolved ${PLUGIN_REF} -> ${sha}"
+          echo ">>> wheel version ${PLUGIN_VERSION_BASE}+g${sha:0:7}.d$(date -u +%Y%m%d)"
 
       # Build the wheel inside the runtime image: same python/ABI as delivery.
       # The git clone goes through HTTPS_PROXY (the secret) — github.com is
@@ -138,16 +175,6 @@ jobs:
       - name: Build the wheel in the runtime image
         run: |
           set -euo pipefail
-          # GitHub serves unadvertised SHAs only in full 40-hex form; a bare
-          # abbreviated SHA (e.g. cf8998c) cannot be fetched by git. Fail with
-          # the resolution command instead of an opaque "couldn't find remote
-          # ref" error from inside the container.
-          if [[ "${PLUGIN_REF}" =~ ^[0-9a-fA-F]{7,39}$ ]]; then
-            echo "ERROR: abbreviated SHA '${PLUGIN_REF}' is not fetchable." \
-                 "Pass the full 40-hex SHA (get it from the commit page, or" \
-                 " \`gh api repos/<owner>/<repo>/commits/${PLUGIN_REF} --jq .sha\`)." >&2
-            exit 1
-          fi
           docker pull "${BASE_IMAGE}"
           mkdir -p "${WORK}/src" "${WORK}/out"
           # The runtime image bakes no NO_PROXY, so without it every pip
@@ -158,9 +185,9 @@ jobs:
           # the list) keeps using the proxy for the clone.
           docker run --rm \
             -e VLLM_VENDOR \
-            -e PLUGIN_VERSION \
+            -e PLUGIN_SHA \
             -e PLUGIN_REPO \
-            -e PLUGIN_REF \
+            -e PLUGIN_VERSION \
             -e EXTRA_PYPI \
             -e HTTPS_PROXY="${{ secrets.HTTP_PROXY }}" \
             -e HTTP_PROXY="${{ secrets.HTTP_PROXY }}" \
@@ -176,31 +203,45 @@ jobs:
               git config --global --add safe.directory "*"
               git clone --depth 1 "${PLUGIN_REPO}" /work/src
               cd /work/src
-              git fetch --depth 1 origin "${PLUGIN_REF}"
-              git checkout FETCH_HEAD
+              # Fetch the resolved commit. A bare SHA that is a branch/tag tip
+              # is not served by GitHub''s shallow protocol unless every head is
+              # advertised, so fetch all branch/tag tips shallow first, then
+              # check out the exact SHA. This makes branch-tip and tag builds
+              # deterministic without a full history clone.
+              git fetch --depth 1 origin \
+                "+refs/heads/*:refs/remotes/origin/*" \
+                "+refs/tags/*:refs/tags/*"
+              git checkout -q "${PLUGIN_SHA}"
+              actual=$(git rev-parse HEAD)
+              if [ "${actual}" != "${PLUGIN_SHA}" ]; then
+                echo "ERROR: checked out ${actual}, expected ${PLUGIN_SHA}" >&2
+                exit 1
+              fi
               git rev-parse HEAD > /work/out/commit.txt
               # --no-build-isolation: build against the runtime venv (same
-              # python/ABI as delivery). An explicit PLUGIN_VERSION forces the
+              # python/ABI as delivery). The derived PLUGIN_VERSION forces the
               # setuptools-scm version deterministically.
-              if [ -n "${PLUGIN_VERSION}" ]; then
-                export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
-              fi
+              export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
               /flagos/bin/pip wheel --no-build-isolation --no-deps \
                 -w /work/out .
               ls -la /work/out/
             '
+          # Post-build assertions: the wheel must be named after the resolved
+          # version and the checkout must match — no silent version drift.
           echo ">>> plugin commit: $(cat "${WORK}/out/commit.txt")"
-          wheel=$(ls "${WORK}"/out/*.whl | head -n1)
-          if [ -z "${PLUGIN_VERSION}" ] && \
-             [[ "$(basename "${wheel}")" == vllm_plugin_fl-0.0.0* ]]; then
-            echo "ERROR: derived version is 0.0.0 — the plugin repo tag is " \
-                 "unreachable on this runner (cached mirror). Pass " \
-                 "plugin_version to pin the version explicitly." >&2
+          if [ "$(cat "${WORK}/out/commit.txt")" != "${PLUGIN_SHA}" ]; then
+            echo "ERROR: wheel built from $(cat "${WORK}/out/commit.txt"), expected ${PLUGIN_SHA}" >&2
             exit 1
           fi
-          echo ">>> built: $(basename "${wheel}")"
+          wheel=$(ls "${WORK}"/out/*.whl | head -n1)
+          wname=$(basename "${wheel}")
+          if [[ "${wname}" != vllm_plugin_fl-${PLUGIN_VERSION}-* ]]; then
+            echo "ERROR: wheel ${wname} does not match derived version ${PLUGIN_VERSION}" >&2
+            exit 1
+          fi
+          echo ">>> built: ${wname}"
 
       # Host-side audit (stdlib only): fail the build if the wheel declares a
       # critical package — it would drift the runtime matrix on a single-step
