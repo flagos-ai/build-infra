@@ -617,7 +617,7 @@ else
 
         echo ''
         echo 'Starting serve...'
-        python3 -m sglang.launch_server '${MODEL_PATH}' \
+        python3 -m sglang.launch_server --model-path '${MODEL_PATH}' \
             --port \${SGLANG_PORT} \
             --mem-fraction-static 0.6 \
             --trust-remote-code \

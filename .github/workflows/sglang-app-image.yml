@@ -61,6 +61,10 @@ on:
         description: 'Run the on-node verification step (matrix + import check)'
         type: boolean
         default: true
+      model:
+        description: 'Model path for the verify serve test (default per-node /data/models/Qwen/Qwen3-0.6B; set when the node lacks it)'
+        type: string
+        default: ''
 
 defaults:
   run:
@@ -186,10 +190,18 @@ jobs:
         if: ${{ inputs.verify }}
         run: |
           set -euo pipefail
-          bash packaging/sglang/verify/verify-sglang-backend.sh \
-            "${{ matrix.name }}" \
-            --sglang-version "${{ inputs.sglang_version }}" \
-            --app-image "${APP_TAG}"
+          if [[ -n "${{ inputs.model }}" ]]; then
+            bash packaging/sglang/verify/verify-sglang-backend.sh \
+              "${{ matrix.name }}" \
+              --sglang-version "${{ inputs.sglang_version }}" \
+              --model "${{ inputs.model }}" \
+              --app-image "${APP_TAG}"
+          else
+            bash packaging/sglang/verify/verify-sglang-backend.sh \
+              "${{ matrix.name }}" \
+              --sglang-version "${{ inputs.sglang_version }}" \
+              --app-image "${APP_TAG}"
+          fi
 
       - name: Push sglang app image
         if: ${{ inputs.push }}

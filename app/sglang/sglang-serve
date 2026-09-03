@@ -20,10 +20,10 @@
 # /etc/profile.d, NOT in the image ENV — a plain
 # `docker run <image> /flagos/bin/python ...` bypasses bash and misses it),
 # then execs sglang's server with the caller's arguments passed through
-# verbatim. The model is a positional first argument (sglang's CLI shape —
-# unlike vllm's --model).
+# verbatim. sglang 0.5.18 takes the model as --model-path/--model (no
+# positional model argument — unlike vllm's --model this is the only form).
 #
-#   docker run <image> sglang-serve /data/models/Qwen/Qwen3-0.6B --port 8032
+#   docker run <image> sglang-serve --model-path /data/models/Qwen/Qwen3-0.6B --port 8032
 #   docker run <image> sglang-serve --help
 #
 # Re-sourcing is safe: the profile.d scripts are idempotent, and vendor.sh
