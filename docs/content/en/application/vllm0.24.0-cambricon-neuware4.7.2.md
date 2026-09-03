@@ -39,16 +39,16 @@ title: "vllm0.24.0-cambricon-neuware4.7.2"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.2.1+gf997f57.d20260902`
+`vllm-plugin-fl==0.2.1+gea38c86.d20260902`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2-0.2.1_gf997f57.d20260902`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2-0.2.1_gea38c86.d20260902`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2-0.2.1_gf997f57.d20260902
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-cambricon-neuware4.7.2:2.1.2-0.2.1_gea38c86.d20260902
 ```
 
 ### Without a toolkit — plain docker / podman

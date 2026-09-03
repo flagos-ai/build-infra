@@ -78,7 +78,7 @@ backends:
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_gf997f57.d20260902"
+    image_tag: "2.1.2-0.2.1_gea38c86.d20260902"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/431
   enflame-tops1.9.10:
