@@ -81,7 +81,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 12.8 | ✅ | ⬜ | ⬜ | — |
 | CUDA 13.3 | ✅ | ⬜ | ⬜ | — |
 | CANN 8.5.0 | ✅ | ⬜ | ⬜ | — |
-| CANN 9.0.0 | ✅ | ⬜ | ⬜ | aarch64 cp311 双路径 E2E 全过（zero-sgl_kernel_npu shim + 插件层 torch-native stubs，exp/0.5.18/ascend）；坑见 backends/ascend.md |
+| CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.4.3 | ✅ | ⬜ | ⬜ | — |
 | NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | — |
 | TOPS 1.9.10 | ✅ | ⬜ | ⬜ | — |
