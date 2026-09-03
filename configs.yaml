@@ -647,7 +647,14 @@ vendors:
         megatron_rl: []  # RL verified per megatron-verification-matrix.md; no vendor extra
         vllm0.20.2: []
         vllm0.24.0: []
-        sglang0.5.18: []  # sglang 0.5.18 F/T dual-path E2E green (status_matrix.sglang0.5.18.yaml)
+        sglang0.5.18:
+          # metax 是 CUDA-alias：0.5.18 的 quantization 链（scheduler.py:69 无条件
+          # import）经 modelopt → compression schemes 导入 compressed_tensors，是
+          # serve 硬依赖（af2e687 实证：缺失则 worker 崩）。sglang wheel 的
+          # Requires-Dist 已按 Q-B 剔除 compressed-tensors（app 镜像装 +flagos
+          # repack 而非官方版），故在 deps_app 显式供给。0.17.0+flagos 的
+          # Requires-Dist 无 torch（Q-B 定案，与 runtime 的 vendor torch 无冲突）。
+          - compressed-tensors==0.17.0+flagos
       sdk:
         - MetaX Driver 3.8.1.6   # metax-driver-3.8.1.6-deb-x86_64.run
         - MACA SDK 3.8.1.3       # maca-sdk-3.8.1.3-deb-x86_64.tar.xz

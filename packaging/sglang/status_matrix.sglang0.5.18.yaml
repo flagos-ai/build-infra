@@ -9,8 +9,9 @@
 # / ？ = 成功概率不确定 / ⬜ = 待验证 / — = 该后端无此编译器。
 # Column suffix: T = Triton 编译器, F = FlagTree 编译器.
 #
-# 注：sglang 无 configs.yaml deps_app；本表 deps_app 列语义 =
-# sglang wheel 管线可构建 gate（有基础镜像 = 可构建）。
+# 注：configs.yaml deps_app.sglang0.5.18 键存在 = 该后端 sglang app 可构建
+# （有基础镜像）；非空项（如 metax 的 compressed-tensors pin）是 serve 硬
+# 依赖，随 Containerfile APP_DEPS 安装。
 
 type: sglang
 app: sglang0.5.18

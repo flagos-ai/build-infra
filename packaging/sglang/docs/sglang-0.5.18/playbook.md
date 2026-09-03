@@ -123,9 +123,9 @@ torch 零 sgl-kernel，因此不会动 runtime 的 torch/triton/flag_gems 矩阵
 来。因此用一个零算子 shim 包满足 import 面：
 
 ```bash
-cd packaging/sglang/wheels/metax/sgl-kernel-shim
-python3 generate.py && pip wheel . --no-deps -w out
-# → sgl_kernel-0.5.18+flagos-shim wheel（纯 Python，无原生算子）
+git clone --depth 1 --branch exp/0.5.18 https://github.com/flagos-ai/sglang-plugin-FL.git
+cd sglang-plugin-FL/addon/sgl-kernel-shim
+bash build.sh            # → sgl_kernel-0.5.18+flagos-shim wheel（纯 Python，无原生算子）
 ```
 
 shim 的设计（`generate.py` 生成）：
@@ -195,7 +195,7 @@ entry points `sglang.srt.platforms` + `sglang.srt.plugins`，package-data
 | `repack.py` + `config.yaml` | `+flagos` 戳 + Metadata 降级（§4）|
 | `audit-deps.py` | 禁入依赖审计（§4）|
 | `merge-runtime-base.py` | runtime_base 合并 + xgrammar 补点（§2）|
-| `wheels/metax/sgl-kernel-shim/` | 零 sgl-kernel import 面 shim（§5.2）|
+| `wheels/metax/sgl-kernel-shim/`（**已删，源迁插件仓库**）| 零 sgl-kernel import 面 shim 曾在此；现源 = sglang-plugin-FL `addon/sgl-kernel-shim`（§5.2，sglang-wheel.yml shim job 从该处构建）|
 | `wheels/metax/patches/*.patch` | metax 构建期源码 patch（host 侧应用，不入容器）|
 
 ## 8. 演进与经验（弯路记录）
