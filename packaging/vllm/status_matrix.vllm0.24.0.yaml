@@ -78,7 +78,7 @@ backends:
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_gf997f57.d20260902"
+    image_tag: "2.1.2-0.2.1_gea38c86.d20260902"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/431
   enflame-tops1.9.10:
@@ -118,13 +118,13 @@ backends:
   metax-maca3.7.2.1:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_g928bc19.d20260901"
+    image_tag: "2.1.2-0.2.1_g5c511da.d20260901"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/377
   metax-maca3.8.1.3:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_g928bc19.d20260901"
+    image_tag: "2.1.2-0.2.1_g5c511da.d20260901"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/377
   mthreads-musa4.3.6:
