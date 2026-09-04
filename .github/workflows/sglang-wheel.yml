@@ -194,13 +194,12 @@ jobs:
           docker run --rm -v "/tmp/sglang-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
           rm -rf "/tmp/sglang-repack-${vendor}-${backend}" 2>/dev/null || true
 
-  # Publish the generic sgl_kernel shim alongside the main upload: source is
-  # the sglang-plugin-FL addon (exp/0.5.18 — the wheel version encodes the
-  # sglang version, not an addon commit, so the ref is fixed). Runs for
-  # uploads to an sglang app-served backend (metax/ascend; all = both).
+  # Publish sgl-kernel-shim on every upload — the app Containerfile installs
+  # it from each backend's own vendor index. backend=all targets resolve from
+  # the sglang app matrix (no per-vendor whitelist).
   shim:
     needs: [authorize, set-matrix]
-    if: ${{ inputs.upload && fromJSON(needs.set-matrix.outputs.matrix).include[0] != null && (inputs.backend == 'all' || startsWith(inputs.backend, 'metax') || startsWith(inputs.backend, 'ascend')) }}
+    if: ${{ inputs.upload && fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -241,7 +240,11 @@ jobs:
           backend="${{ inputs.backend }}"
           pypi_repo="${{ inputs.pypi_repo }}"
           if [[ "${backend}" == "all" ]]; then
-            targets=(flagos-pypi-metax flagos-pypi-ascend)
+            # Vendors in the sglang app matrix — pyyaml only lives on
+            # set-matrix's runner, not here.
+            python3 -m pip install --quiet pyyaml
+            python3 scripts/generate_matrix.py --app "sglang${{ inputs.sglang_version }}" > app-matrix.json
+            mapfile -t targets < <(jq -r '.include[].name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
           else
             vendor="${backend%%-*}"
             targets=("${pypi_repo:-flagos-pypi-${vendor}}")
