@@ -190,6 +190,21 @@ docker run -d --name "$CONTAINER" --network host \
     ${DOCKER_RUN_FLAGS:-} \
     "$BUILD_IMAGE" sleep infinity
 
+# ── Point cargo at a China mirror ───────────────────────────────────────
+
+# crates.io is <1KB/s on some CN runners (cambricon timed out); rsproxy.cn
+# answers in <1s. Applies whichever toolchain install path is used below.
+docker exec "$CONTAINER" bash -c '
+    set -e
+    mkdir -p "$HOME/.cargo"
+    cat > "$HOME/.cargo/config.toml" <<EOF
+[source.crates-io]
+replace-with = "rsproxy-sparse"
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
+EOF
+'
+
 # ── Build + repack ──────────────────────────────────────────────────────
 
 # Ensure build deps — remove once build images include setuptools-scm.
