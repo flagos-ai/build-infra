@@ -338,6 +338,11 @@ vendors:
         megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
+        # sglang serve 硬依赖 compressed_tensors（同 metax/ascend 实证：
+        # CUDA 或非 CUDA 的 quantization 链 import 都到 CT）。走 +flagos
+        # repack（Requires-Dist 无 torch，不会顶 runtime torch）。
+        sglang0.5.18:
+          - compressed-tensors==0.17.0+flagos
       sdk:
         - cnmon 6.5.48           # cnmon-6.5.48-x86_64.zip
         - cntoolkit 4.7.2        # cntoolkit_4.7.2-1.ubuntu24.04_amd64.deb
