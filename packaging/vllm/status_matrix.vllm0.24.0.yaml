@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.24.0
 description: vLLM 0.24.0 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-09-03"
+last_updated: "2026-09-04"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -28,12 +28,12 @@ scenarios:
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
-      cambricon-neuware4.4.3: {T: "⬜", F: "—"}
-      cambricon-neuware4.7.2: {T: "⬜", F: "—"}
+      cambricon-neuware4.4.3: {T: "✅", F: "—"}
+      cambricon-neuware4.7.2: {T: "✅", F: "—"}
       enflame-tops1.9.10:    {T: "✅", F: "✅"}
       enflame-tops1.10.6:    {T: "✅", F: "✅"}
       hygon-dtk26.04:        {T: "✅", F: "✅"}
-      iluvatar-corex4.4.0:   {T: "⬜", F: "⬜"}
+      iluvatar-corex4.4.0:   {T: "⬜", F: "✅"}
       iluvatar-corex4.5.0:   {T: "✅", F: "✅"}
       kunlunxin-xre5.37.1:   {T: "✅", F: "✅"}
       metax-maca3.7.2.1:     {T: "✅", F: "✅"}
