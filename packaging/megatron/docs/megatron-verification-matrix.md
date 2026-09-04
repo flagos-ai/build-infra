@@ -81,11 +81,11 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | OPEN |
 | 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | OPEN |
-| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | OPEN |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | OPEN |
 | 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | OPEN |
-| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | OPEN |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 寒武纪 | NEUWARE 4.4.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | OPEN |
 | 寒武纪 | NEUWARE 4.7.2 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | OPEN |
 | 燧原 | TOPS 1.9.10 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | OPEN |
