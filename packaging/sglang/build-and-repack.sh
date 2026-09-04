@@ -185,7 +185,14 @@ echo ""
 
 docker pull "$BUILD_IMAGE" > /dev/null 2>&1 || true
 
-docker run -d --name "$CONTAINER" --network host \
+# Host networking reaches internal filestore/PyPI; enflame's toolkit flags
+# already carry it, and docker errors on a duplicate --network.
+NET_FLAG=""
+if [[ "${DOCKER_RUN_FLAGS:-}" != *"--network"* ]]; then
+    NET_FLAG="--network host"
+fi
+
+docker run -d --name "$CONTAINER" ${NET_FLAG:-} \
     -v "${WORK_DIR}:${WORK_DIR}" \
     ${DOCKER_RUN_FLAGS:-} \
     "$BUILD_IMAGE" sleep infinity
