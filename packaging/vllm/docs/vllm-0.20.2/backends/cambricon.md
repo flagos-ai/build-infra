@@ -158,6 +158,28 @@ default.flagos`），改后 mask-logic 算子（含 argmax——温度 0 贪婪�
 实测 5.3.5 的 `_cambricon/tune_configs.yaml` index 块仍含 `block_size1: [1024, 2048, 4096]`），
 故 `cambricon.yaml` 的 `flagos_blacklist: [index]` 保留（本次 [VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411) head 已正确携带）。
 
+### 2026-09-04 复验（发布 app 镜像 E2E）：✅ 通过
+
+**背景：** 2026-08-25 verify-driver 曾在 flag_gems 5.3.4 上对 4.7.2 记 serve 失败（草稿
+[build-infra #551](https://github.com/flagos-ai/build-infra/pull/551)，签名即 argmax
+`and`/`or` 弃用告警）——该失败是 [FlagGems #5745](https://github.com/flagos-ai/FlagGems/pull/5745)
+的修复对象，5.3.5 重打后已由上方 08-26 复核翻 ✅。本次用**发布的 app 镜像**直接复验
+发布件，收口矩阵 ✅ 与 #551 的遗留矛盾（matrix 只记录发布插件 `b954912`，#551 跑的是
+中间插件 `g8d2bf5e`）。
+
+**配方（全发布制品，无安装）：**
+
+- 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_gb954912.d20260826`
+  （runtime 5.3.5 `907c1c82…` + 插件 `b954912`，容器内 import 核对 vllm 0.20.2 / flag_gems 5.3.5）
+- serve：Qwen3-8B / 端口 8041 / mem-util 0.85 / max-len 4096（同 §2.7 配方），`Application startup complete`
+- 推理：`The capital of France is` → 连贯多句、anchor `Paris` ✅（首请求 178s 冷编译）；`Reply with
+  exactly the words: hello world` → 思考链完整、无乱码（26.6s）
+
+**结论：** 发布 app 镜像 E2E 复验通过——serve 日志 **argmax 弃用告警 0 次**（#551 失败签名已绝迹）、
+flagos dispatch 活跃（`35 ops / 61 impls`，attention/rms_norm/rotary → `default.flagos`）、
+插件自带 `flagos_blacklist: [index]`。matrix 4.7.2 0.20.2 T ✅ 成立；**草稿 #551 关闭**（其 ❌ 已被
+`bd1935f`（reset）+ `ec3decc`（5.3.5 翻 ✅）取代，记录无保留价值）。
+
 
 ### Stack 验证（cambricon-neuware4.7.2，✅ E2E 通过 2026-08-08）
 
