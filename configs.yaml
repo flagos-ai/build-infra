@@ -704,6 +704,8 @@ vendors:
       deps:
         - torch==2.9.0+musa.4.3.6
         - torch_musa==2.9.0
+        - torchaudio==2.9.0+cpu
+        - torchvision==0.24.0+cpu
         - mkl==2024.0.0
         - numpy==1.26.4
       deps_app:
@@ -733,6 +735,8 @@ vendors:
       deps:
         - torch==2.9.1+musa5.2.0
         - torch_musa==2.9.1
+        - torchaudio==2.9.1+cpu
+        - torchvision==0.24.1+cpu
         - mkl==2024.0.0
         - numpy==1.26.4
 
