@@ -87,7 +87,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | NEUWARE 4.4.3 | ✅ | ⬜ | ⬜ | — |
 | NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | — |
 | TOPS 1.9.10 | ✅ | ⬜ | ⬜ | — |
-| TOPS 1.10.6 | ✅ | ⬜ | ⬜ | — |
+| TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
 | DTK 26.04 | ✅ | ⬜ | ⬜ | F 路径等待 flagtree hygon wheel 重建（FlagTree PR 已合，packaging/flagtree/hygon 待建） |
 | COREX 4.4.0 | ✅ | ⬜ | ⬜ | — |
 | COREX 4.5.0 | ✅ | ⬜ | ⬜ | — |

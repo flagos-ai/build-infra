@@ -86,7 +86,8 @@ backends:
     launch_docs: false
   enflame-tops1.10.6:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.1.dev1_g65dff2733"
     prs:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/91
   hygon-dtk26.04:
