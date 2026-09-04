@@ -87,7 +87,7 @@ PLUGIN_REF="${PLUGIN_REF:-exp/0.5.18}"
 PLUGIN_REPO="https://github.com/flagos-ai/sglang-plugin-FL"
 # sgl_kernel shim version — derived below from SGLANG_VERSION once the args
 # are parsed (the shim tracks the sglang version).
-SHIM_VERSION="${SHIM_VERSION-}"
+SHIM_VERSION="${SHIM_VERSION:-}"
 SKIP_SERVE=false
 # Serve-test time budget in seconds, shared by the readiness poll window and
 # each completion request. 1800s default because cold-start first-compile
@@ -178,7 +178,7 @@ fi
 # wheel ships no sgl-kernel dep, so the from-scratch route installs the shim
 # (sgl-kernel-shim) from the vendor index before the Step 6 import check.
 # Explicit --shim-version '' skips it (manual debugging only).
-SHIM_VERSION="${SHIM_VERSION-${SGLANG_VERSION}}"
+SHIM_VERSION="${SHIM_VERSION:-${SGLANG_VERSION}}"
 
 # ── Configuration ───────────────────────────────────────────────────────
 
@@ -335,6 +335,13 @@ vendor_config = config.get('run', {}).get('vendors', {}).get(vendor, {})
 print(vendor_config.get('toolkit', '') or vendor_config.get('raw', ''))
 ")
 
+# Some vendor toolkits (e.g. enflame) already carry `--network host`; adding
+# it again makes docker abort with "network host is specified multiple times".
+# Inject only when the flags do not already name one (vllm script §guard).
+if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
+    RUN_FLAGS="${RUN_FLAGS} --network host"
+fi
+
 # The model mount is only needed for the serve test. Mount it read-only when
 # the node has the model dir; the serve test (Step 7) exits 1 when it is
 # absent rather than silently skipping.
@@ -347,7 +354,6 @@ docker run -d --name "${CONTAINER}" \
     --shm-size=8g \
     -v "${WORK_DIR}:${WORK_DIR}" \
     ${MODEL_MOUNT} \
-    --network host \
     "${RUNTIME_IMAGE}" \
     sleep infinity
 
@@ -402,7 +408,6 @@ if [[ -n "${APP_IMAGE}" ]]; then
         --shm-size=8g \
         -v "${WORK_DIR}:${WORK_DIR}" \
         ${MODEL_MOUNT} \
-        --network host \
         "${APP_IMAGE}" \
         sleep infinity
     log_info "App container started: ${APP_CONTAINER}"
