@@ -93,6 +93,9 @@ SKIP_SERVE=false
 # each completion request. 1800s default because cold-start first-compile
 # varies wildly by backend (same reasoning as the vllm verify script).
 SERVE_TIMEOUT="${SERVE_TIMEOUT:-1800}"
+# Readiness poll budget: cold-start kernel-compile storm on GCU/MLU can take
+# ~5-7 min before the engine is request-servable (see Step 7 comment).
+READY_TIMEOUT="${READY_TIMEOUT:-600}"
 # HTTP port for the serve test. 8032 — distinct from the vllm script's 8031
 # so a concurrent vllm cell on the same node does not collide.
 SGLANG_PORT="${SGLANG_PORT:-8032}"
@@ -610,6 +613,7 @@ else
         ${COMPILER_GUARD}
         ${SGLANG_SWITCHES}
         export SERVE_TIMEOUT=${SERVE_TIMEOUT}
+        export READY_TIMEOUT=${READY_TIMEOUT}
         export SGLANG_PORT=${SGLANG_PORT}
 
         # flag_gems SQL ConfigCache is shared across compilers: an F-path
@@ -636,12 +640,16 @@ else
         # the window is configurable via --serve-timeout like the vllm script.
         echo 'Waiting for serve to become ready...'
         ready=0
-        for i in \$(seq 1 \$((SERVE_TIMEOUT / 5))); do
+        # — Readiness budget (cold-start kernel-compile storm on GCU/MLU). uvicorn's
+# "startup complete" prints before the engine's warmup generate finishes; the
+# "ready to roll" line only appears after it, so gate on that to avoid probing
+# a compiling scheduler (enflame ~4.5min / cambricon ~6min cold).
+for i in \$(seq 1 \$((READY_TIMEOUT / 5))); do
             if ! kill -0 \${SERVE_PID} 2>/dev/null; then
                 echo 'serve process exited during startup'
                 break
             fi
-            if grep -qE 'Application startup complete|Uvicorn running' /tmp/sglang-serve.log 2>/dev/null; then
+            if grep -qE 'Application startup complete|Uvicorn running|The server is fired up and ready to roll' /tmp/sglang-serve.log 2>/dev/null; then
                 ready=1
                 echo \"serve ready after ~\$((i*5))s\"
                 break
@@ -665,9 +673,13 @@ import json, sys, urllib.request
 # — TIMEOUT is the full SERVE_TIMEOUT budget so cold backends are not clipped.
 base = 'http://127.0.0.1:' + '${SGLANG_PORT}'
 url = base + '/v1/chat/completions'
+# Readiness now waits for the engine's post-warmup "ready to roll" line, so
+# cold-start compile (~5-7 min on GCU/MLU) happens BEFORE the probes; the
+# server-info fetch and each chat request then complete quickly except when a
+# new prefill shape re-triggers compilation (120 s covers that).
 TIMEOUT = ${SERVE_TIMEOUT}
 
-def fetch(path, timeout=30):
+def fetch(path, timeout=120):
     req = urllib.request.Request(base + path,
                                  headers={'Content-Type': 'application/json'})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
