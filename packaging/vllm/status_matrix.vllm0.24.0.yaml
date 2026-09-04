@@ -33,7 +33,7 @@ scenarios:
       enflame-tops1.9.10:    {T: "✅", F: "✅"}
       enflame-tops1.10.6:    {T: "✅", F: "✅"}
       hygon-dtk26.04:        {T: "✅", F: "✅"}
-      iluvatar-corex4.4.0:   {T: "⬜", F: "✅"}
+      iluvatar-corex4.4.0:   {T: "❌", F: "✅"}
       iluvatar-corex4.5.0:   {T: "✅", F: "✅"}
       kunlunxin-xre5.37.1:   {T: "✅", F: "✅"}
       metax-maca3.7.2.1:     {T: "✅", F: "✅"}
@@ -103,6 +103,7 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_g84a4ca2.d20260902"
+    note: "T（vendor corex triton 3.1.0）路径不可交付：厂商编译器有不可修复缺陷（2026-09-04 实测，参见 Iluvatar 报告）"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/434
   iluvatar-corex4.5.0:
