@@ -33,7 +33,7 @@ scenarios:
       enflame-tops1.9.10:    {T: "✅", F: "✅"}
       enflame-tops1.10.6:    {T: "✅", F: "✅"}
       hygon-dtk26.04:        {T: "✅", F: "✅"}
-      iluvatar-corex4.4.0:   {T: "⬜", F: "✅"}
+      iluvatar-corex4.4.0:   {T: "❌", F: "✅"}
       iluvatar-corex4.5.0:   {T: "✅", F: "✅"}
       kunlunxin-xre5.37.1:   {T: "✅", F: "✅"}
       metax-maca3.7.2.1:     {T: "✅", F: "✅"}
@@ -103,6 +103,7 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_g84a4ca2.d20260902"
+    note: "T（vendor triton 3.1.0）路径 engine init 崩（2026-09-04 ix15 实测）：vllm 0.24.0 apply_top_k_top_p_triton 内核 uint32//int32 signedness 编译失败，同 0.20.2 §2.5 工具链代差；需插件侧强制 pytorch sampler 回退（随 wheel 收敛 #691 一并做）"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/434
   iluvatar-corex4.5.0:
