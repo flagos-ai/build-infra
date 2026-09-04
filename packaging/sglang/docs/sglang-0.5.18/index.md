@@ -48,3 +48,6 @@ flag_gems + 零 sgl-kernel 路线提供（见 [playbook.md](playbook.md) §4）�
 |---|---|---|
 | MetaX maca3.8.1.3 | [metax.md](backends/metax.md) | 首个 0.5.18 后端；零 sgl-kernel F/T 双路径 E2E 全过；app 镜像已发布（`sglang0.5.18-metax-maca3.8.1.3:2.1.2-0.1.dev1_g0900c244b`）；F/T 切换注意 flag_gems ConfigCache（根因链见 [metax-0.5.12.md](backends/metax-0.5.12.md)）|
 | ascend cann9.0.0 | [ascend.md](backends/ascend.md) | aarch64 cp311；零 sgl_kernel_npu（stub 树并入共享 sgl-kernel-shim wheel + 插件 torch-native 真实现）；app 镜像已发布（`sglang0.5.18-ascend-cann9.0.0:2.1.2-0.1.dev1_g2e568482e`）|
+| Cambricon neuware4.7.2 | [cambricon.md](backends/cambricon.md) | T 路径 E2E 过（无 flagtree，矩阵标 —）；runtime 补 torchvision、deps_app 补 compressed-tensors；torch_mlu CUDA 迁移层三处残缺以插件 vendor 补丁修（PR #90）|
+| Enflame tops1.10.6 | [enflame.md](backends/enflame.md) | F/T 双路径 E2E 过；vendor 层原在 0.5.18 上静默不加载（顶层 import 漂移）已修；serve 阻塞 is_integrated / fa3 断言以插件 vendor 补丁修（PR #91）|
+| NVIDIA cuda13.3 | [nvidia.md](backends/nvidia.md) | **挂起**：零 flashinfer/shim 路线在真 CUDA 不成立（shim 撑不住 sgl_kernel）；跟随插件 PR #89 完整闭包路线，待其合入 |
