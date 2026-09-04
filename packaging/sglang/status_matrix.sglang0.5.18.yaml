@@ -87,6 +87,8 @@ backends:
   enflame-tops1.10.6:
     deps_app: true
     launch_docs: false
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/91
   hygon-dtk26.04:
     deps_app: true
     launch_docs: false

@@ -56,6 +56,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 |---|---|---|---|---|
 | 昇腾 | CANN 9.0.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/84 | OPEN |
 | 寒武纪 | NEUWARE 4.7.2 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/90 | OPEN |
+| 燧原 | TOPS 1.10.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 沐曦 | MACA 3.8.1.3 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/86 | OPEN |
 
 <!-- /status-matrix:verification -->
