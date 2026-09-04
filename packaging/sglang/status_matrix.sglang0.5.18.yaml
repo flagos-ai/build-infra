@@ -79,6 +79,8 @@ backends:
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: false
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/90
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: false
