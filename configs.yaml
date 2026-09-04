@@ -326,6 +326,11 @@ vendors:
           NEUWARE_HOME: /usr/local/neuware
           PATH: /usr/local/neuware/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/neuware/lib64
+        app:
+          sglang:
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - torch==2.11.0+cpu
         - torch-mlu==1.33.1+torch2.11.0
