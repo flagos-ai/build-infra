@@ -85,7 +85,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0 | ✅ | ⬜ | ⬜ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.4.3 | ✅ | ⬜ | ⬜ | — |
-| NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | — |
+| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ⬜ | ⬜ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
 | DTK 26.04 | ✅ | ⬜ | ⬜ | F 路径等待 flagtree hygon wheel 重建（FlagTree PR 已合，packaging/flagtree/hygon 待建） |
