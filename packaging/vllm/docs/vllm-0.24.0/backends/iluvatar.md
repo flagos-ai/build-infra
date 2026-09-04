@@ -80,31 +80,31 @@ docker run -d --network host --device /dev/iluvatar0 \
 **目标:** 补验 corex4.4.0 0.24.0 的 **T（triton）格**（此前只验证了 F 路径默认编译器，
 F ✅ 记录于 2026-09-02 / build-infra #688）。
 
-**结果：❌ T 路径 engine init 崩（复现稳定）**。`compiler triton` + serve Qwen3-4B
-（`--enforce-eager --gpu-memory-utilization 0.6`，同 §14.1 配方）在
-`profile_run → _dummy_sampler_run → topk_topp_sampler → apply_top_k_top_p` 处崩：
+**结论：❌ T 路径不可交付（工具链代差，非插件可修）**。逐层剥开，vendor corex triton
+3.1.0 编译器是三层问题的最终根因——与 0.20.2 线 [§2.5](../vllm-0.20.2/backends/iluvatar.md)
+（D 前向数值乱码，工具链代差定案）完全同类。**交付路径 = F（flagtree），T 不交付。**
 
-```
-triton.compiler.errors.CompilationError: at 107:24:
-TypeError('Cannot use /, #, or % with triton.language.uint32 and triton.language.int32
-because they have different signedness; ...')
-```
+**证据链（同一 app 镜像 `g84a4ca2`、同一 ix15 节点、Qwen3-4B，逐层剥离）：**
 
-即 vllm 0.24.0 上游 `topk_topp_triton.py` 的三分搜索内核
-`(num_outliers + BLOCK_SIZE_TRUNC - 1) // BLOCK_SIZE_TRUNC`（uint32 // int32）在
-**vendor triton 3.1.0**（corex fork，严格符号检查）下不可编译——与 0.20.2 线
-[§2.5 阻塞点 B](../vllm-0.20.2/backends/iluvatar.md) 同类（工具链代差）。F 路径用
-flagtree 0.6.1+iluvatar3.6（3.6 基座前端）无此问题，故 F ✅。
+| 层 | 现象 | 性质 |
+|---|---|---|
+| 1. 原生 sampler | `apply_top_k_top_p_triton` 三分搜索 `uint32 // int32` → `CompilationError`（复现稳定） | vendor triton 3.1 严格符号检查，**插件可修** |
+| 2. 原生 attention | 真实 decode 编译 `triton_unified_attention` → cache_key AST walker 访问 `tl.make_tensor_descriptor` → 先 `AttributeError: no __name__`、补 `__name__` 后 `AssertionError: Function ... is not a Triton function` | triton 3.1 DependencyFinder 严格（3.2 可容忍纯 callable stub，故 corex4.5.0 T ✅）；vllm 0.24 统一 attention kernel 源码恒含 TD 分支，walker 无条件遍历 |
+| 3. flag_gems attention（T 下强制 `VLLM_FL_USE_FLAGGEMS_ATTN=1` 绕开 2） | serve 起来、completion 返回，但**输出乱码**（`eld \`vette记者在 ApplicationController...`） | vendor triton 3.1 对 flag_gems 内核也**误编译**（前向数值错）——**决定性：非插件可修** |
 
-**插件现有 iluvatar sampler patch 不覆盖此路径：** `patch_sampler_compile_for_iluvatar`
-unwrap 的是 `compiled_random_sample`（forward_cpu 无 generator 分支用），而崩溃点在
-`apply_top_k_top_p`（forward_native 恒走）。且 EngineCore 是 **spawn** 子进程，父进程
-运行时 patch（`topk_topp_sampler.HAS_TRITON=False` 等）不随 fork 生效——实测父进程
-patch 后 EngineCore 仍以 HAS_TRITON=True 编译该内核。
+**对照实验（锁死根因 = 编译器，而非镜像/模型/插件）：** 同一容器内、同一镜像、
+同一模型，仅切换编译器：
+- **F（默认 flagtree 0.6.1+iluvatar3.6）** → completion 干净（`' located in Paris, and the
+  capital of Germany is located in Berlin...'`，anchor ✅）。
+- **T（vendor triton 3.1.0）+ flag_gems attention** → 同上配方但输出乱码。
+同一 torch 2.7.1 下 F 干净 / T 乱码 → 乱码在 **vendor corex triton 3.1 编译器**，
+不在 torch、不在 flag_gems、不在插件。0.20.2 §2.5 的 D 结论在 0.24.0 复证。
 
-**修复方向（未实施，待插件）：** 在 vllm-plugin-FL iluvatar 后端模块**导入期**（模块作用域）
-强制 pytorch sampler 回退（`topk_topp_sampler.HAS_TRITON = False`，或 wrap
-`apply_top_k_top_p` → `apply_top_k_top_p_pytorch`），使 spawn 的 EngineCore 同样生效。
-随 wheel 收敛 TODO（[build-infra #691](https://github.com/flagos-ai/build-infra/pull/691)，
-统一 head ≥ #434）一并做；合入后重建 wheel + app 镜像 → 重验 T 格翻 ✅。
-**交付现状：corex4.4.0 0.24.0 交付路径 = F（flagtree），T 不交付。**
+**期间修的插件侧问题（探针 patch，未合入）：** 层 1 可在插件模块作用域强制
+`topk_topp_sampler.HAS_TRITON=False`（EngineCore 为 spawn 子进程，须模块导入期 patch，
+`pre_register_and_update` 内再补一刀）；层 2 的 stub 需 `__name__`。两 patch 均实测能让
+T 路径 serve 起来，但层 3（乱码）使它们**无交付价值**——corex4.4.0 的 T 格不因插件
+改动而可交付，故**未合入 vllm-plugin-FL**（避免改动共享 iluvatar 后端、波及已验证的
+F 路径与 corex4.5.0 T 路径）。若厂商日后升级 corex4.4.0 工具链（torch/triton），
+这两处 patch 是现成的恢复路径，届时随 [build-infra #691](https://github.com/flagos-ai/build-infra/pull/691)
+统一 wheel 一并评估。

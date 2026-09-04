@@ -158,7 +158,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
 | DTK 26.04 | ✅ | ✅ | ⬜ | app 镜像暂不做（2026-08-20 决策）：F 路径等待 FlagTree 发布修复版本（flagtree hygon wheel 重建） |
-| COREX 4.4.0 | ✅ | ✅ | ✅ | T（vendor triton 3.1.0）路径 engine init 崩（2026-09-04 ix15 实测）：vllm 0.24.0 apply_top_k_top_p_triton 内核 uint32//int32 signedness 编译失败，同 0.20.2 §2.5 工具链代差；需插件侧强制 pytorch sampler 回退（随 wheel 收敛 #691 一并做） |
+| COREX 4.4.0 | ✅ | ✅ | ✅ | T（vendor triton 3.1.0）路径不可交付（2026-09-04 ix15 实测，同 0.20.2 §2.5）：原生 sampler 内核 uint32//int32 + 原生 attention TD AST walker 均编译失败；强制 flag_gems attention 后 serve 起来但输出乱码（vendor triton 3.1 误编译，F 对照同镜像/同模型干净）→ 工具链代差非插件可修；交付路径 = F（flagtree） |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | — |
