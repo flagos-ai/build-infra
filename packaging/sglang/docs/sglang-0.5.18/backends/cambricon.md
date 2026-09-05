@@ -1,9 +1,10 @@
 # sglang 0.5.18 — Cambricon neuware4.7.2 验证记录
 
-> **2026-09-04 验证通过（T 路径）**。cambricon runtime 无 flagtree 编译器
+> **验证通过（T 路径，冷启动）**。cambricon runtime 无 flagtree 编译器
 > （configs.yaml `flagtree` 为空），F 路径不存在（矩阵标 —），仅 T
 > （vendor triton）单路径。serve 阻塞链（torch_mlu 的 CUDA 迁移层三处残缺）
-> 以插件层 vendor 补丁修复（sglang-plugin-FL PR #90）。
+> 以插件层 vendor 补丁修复（sglang-plugin-FL PR #90）。app 镜像冷启动 E2E
+> 全过（2026-09-05），但冷启动极慢——须烘 watchdog/warmup 预算（§3）。
 
 ## 1. 环境
 
@@ -39,17 +40,23 @@ pip install sglang==0.5.18+flagos sgl-kernel-shim==0.5.18 \
   到 CT，非 CUDA 也触发，同 metax/ascend），已入 configs.yaml
   `deps_app.sglang0.5.18`（PR #725）。
 
-## 3. E2E 验证（T 路径，2026-09-04）
+## 3. E2E 验证（T 路径，2026-09-05 冷启动复核）
 
 判据：HTTP 200 + completion_tokens>0 + sampling_backend=pytorch，3×
 chat/completions（Qwen3-4B）。
 
 | 路径 | 编译器 | 结果 |
 |---|---|---|
-| T | vendor triton 3.4.0+mlu | ✅ 3/3 全过（completion_tokens=32 each）|
+| T | vendor triton 3.4.0+mlu | ✅ app 镜像 3/3（completion_tokens=144 each）|
 
-> 性能极慢（~1 tok/s，首次调优 6-7 分钟）：SDPA 走了 torch_mlu 的 math
-> 后端（fused SDPA 对 gathered KV 不接受 → 回退 math）。未优化，见 §6。
+> **冷启动修正**（此前「首次调优 6-7 分钟」为 warm-cache 运行，冷启动不可
+> 复现，作废）：全新容器冷启动 flag_gems/triton 编译风暴下，sglang 默认
+> watchdog 300s 会在 ~15min 冷调优途中杀 scheduler——须
+> `--watchdog-timeout 900` + `SGLANG_WARMUP_TIMEOUT=1800`，~870s 才 ready；
+> 首个请求冷调优可达 ~27min；decode ~1.1 tok/s（SDPA 走 math 后端，未优化，
+> 见 §6）。app 镜像冷启动 E2E 全过（3×200/ct=144 复核）——真过但慢。这组
+> 容忍值已烘进 app 镜像（§4），`docker run <app 镜像> sglang-serve ...`
+> 冷启动即生效。
 
 ## 4. 运行时与代码改动
 
@@ -57,6 +64,7 @@ chat/completions（Qwen3-4B）。
 |---|---|---|
 | runtime deps | 补 `torchaudio==2.11.0+cpu` + `torchvision==0.26.0+cpu` | configs.yaml（PR #723）|
 | deps_app | 补 `compressed-tensors==0.17.0+flagos` | configs.yaml（PR #725）|
+| app env | 冷启动预算烘进 app 镜像（watchdog 900 / warmup 1800，#738 实测）| configs.yaml env.app.sglang |
 | 插件 | 新增 `vendor/cambricon/patch.py` 三处 torch_mlu 兜底 | sglang-plugin-FL PR #90 |
 | 插件 | 新增 `config/cambricon.yaml`（flag_gems cumsum 黑名单）+ `get_platform_name()` 识别 | 同上 |
 
@@ -93,10 +101,11 @@ vendor/stock。放 config yaml 而非 patch.py：patch 在 load_plugin 第 5 步
 | 6 | flag_gems cumsum 算错 | config 黑名单（#90）|
 | 7 | 容器内 github clone 不可达 | 节点 host clone + docker cp（见 verify 脚本缺陷）|
 | 8 | crates.io 构建超时 | cargo rsproxy 镜像（#721）|
+| 9 | 冷启动（空 ConfigCache）默认 watchdog 300s 杀 serve | app env 烘 watchdog 900 + warmup 1800（§3）|
 
 ## 6. 遗留
 
-- 性能 ~1 tok/s 未优化（SDPA 走 math 后端）；若不可接受，后续让 torch_mlu
-  fused SDPA 真正 engage。
+- 性能未优化：冷启动 decode ~1.1 tok/s（SDPA 走 torch_mlu math 后端，§3）；
+  若不可接受，后续让 torch_mlu fused SDPA 真正 engage。
 - 节点仅 Qwen3-4B（无 0.6B）——验证模型与 metax/ascend 的 0.6B 不同。
 - 验证容器已拆，节点净。

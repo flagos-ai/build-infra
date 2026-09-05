@@ -1,8 +1,10 @@
 # sglang 0.5.18 — Enflame tops1.10.6 验证记录
 
-> **2026-09-04 验证通过（F/T 双路径）**。enflame vendor 层此前在 0.5.18 wheel
-> 上**从未加载**（顶层 import 引用了 0.5.18 缺失的 API，整个模块 import 失败），
-> 修复后 serve 阻塞链全通（sglang-plugin-FL PR #91）。
+> **验证通过（F/T 双路径 + app 镜像冷启动）**。enflame vendor 层此前在
+> 0.5.18 wheel 上**从未加载**（顶层 import 引用了 0.5.18 缺失的 API，整个模块
+> import 失败），修复后 serve 阻塞链全通（sglang-plugin-FL PR #91）。app
+> 镜像冷启动 E2E 全过（2026-09-05）——须烘 `SGLANG_WARMUP_TIMEOUT=3600`
+> （§3）。
 
 ## 1. 环境
 
@@ -43,6 +45,14 @@ chat/completions（Qwen3-4B，`sampling_backend=pytorch` 经 /server_info 确认
 
 > 冷启动慢：triton prefill kernel 每次编译 ~20s，decode 3-7 tok/s——verify
 > 需长 `--serve-timeout`。
+
+> **app 镜像冷启动（2026-09-05）**：flag_gems/triton_gcu 冷编译风暴超出
+> sglang 内部 warmup 预算（600s 默认）——须烘 `SGLANG_WARMUP_TIMEOUT=3600`
+> （configs.yaml env.app.sglang → /etc/profile.d/app_env.sh，#735），否则
+> fresh serve 中途 abort。烘后 ~315s（~5min）即 ready，app 镜像 E2E 全过
+> （3×200/ct=144 复核）。watchdog 保持 sglang 默认 300s 未抬高：serve 后
+> 每批 forward 均低于 300s，实测无 watchdog kill（对比 cambricon 冷启动
+> 必须 900，见 cambricon.md §3）。
 
 ## 4. 代码改动（sglang-plugin-FL PR #91）
 
