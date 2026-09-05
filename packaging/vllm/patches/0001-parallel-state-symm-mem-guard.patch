@@ -1,0 +1,40 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# vendor torch builds < 2.8 (iluvatar corex 2.7.x) lack
+# torch.distributed._symmetric_memory; vllm.distributed.parallel_state's
+# module-level side-effect import then aborts engine start before any plugin
+# guard can run. vllm only exercises the module under explicit symm-mem
+# opt-in (off in deployment), so a guarded import is safe. Fix is universal:
+# torch >= 2.8 builds are unaffected. Applied by build-and-repack.sh on the
+# host before the wheel build (mirrors packaging/sglang wheels/<vendor>/
+# patches mechanism).
+--- a/vllm/distributed/parallel_state.py
++++ b/vllm/distributed/parallel_state.py
+@@ -39,7 +39,14 @@
+ import torch
+ import torch.distributed
+ import torch.distributed._functional_collectives as funcol
+-import torch.distributed._symmetric_memory
++try:
++    import torch.distributed._symmetric_memory  # noqa: F401  (PyTorch 2.8+)
++except ImportError:
++    # Vendor torch builds < 2.8 (iluvatar corex 2.7.x) ship no
++    # torch.distributed._symmetric_memory. vLLM only exercises the module
++    # under explicit symm-mem opt-in (off in deployment), so a plain
++    # side-effect import must not abort engine start.
++    pass
+ from torch.distributed import Backend, ProcessGroup, Store
+
+ import vllm.envs as envs
