@@ -50,4 +50,5 @@ flag_gems + 零 sgl-kernel 路线提供（见 [playbook.md](playbook.md) §4）�
 | ascend cann9.0.0 | [ascend.md](backends/ascend.md) | aarch64 cp311；零 sgl_kernel_npu（stub 树并入共享 sgl-kernel-shim wheel + 插件 torch-native 真实现）；app 镜像已发布（`sglang0.5.18-ascend-cann9.0.0:2.1.2-0.1.dev1_g2e568482e`）|
 | Cambricon neuware4.7.2 | [cambricon.md](backends/cambricon.md) | T 路径冷启动 E2E 过（无 flagtree，矩阵标 —）；app 镜像烘 watchdog 900 + warmup 1800（冷启动慢，cambricon.md §3）；runtime 补 torchvision、deps_app 补 compressed-tensors；torch_mlu CUDA 迁移层三处残缺以插件 vendor 补丁修（PR #90）|
 | Enflame tops1.10.6 | [enflame.md](backends/enflame.md) | F/T 双路径 + app 镜像冷启动 E2E 过（烘 SGLANG_WARMUP_TIMEOUT=3600）；vendor 层原在 0.5.18 上静默不加载（顶层 import 漂移）已修；serve 阻塞 is_integrated / fa3 断言以插件 vendor 补丁修（PR #91）|
+| MThreads musa5.2.0 | [mthreads.md](backends/mthreads.md) | F/T 双路径 + app 镜像 E2E 过（torch_native/SDPA，decode 慢未优化）；经典 torch_musa（不 alias CUDA）撞 sglang 的 torchada 假设，四修复（is_musa/init_cublas/flash_attn stub/torch_native 默认）落插件 PR #92；runtime 补 torchvision、deps_app 补 compressed-tensors |
 | NVIDIA cuda13.3 | [nvidia.md](backends/nvidia.md) | **挂起**：零 flashinfer/shim 路线在真 CUDA 不成立（shim 撑不住 sgl_kernel）；跟随插件 PR #89 完整闭包路线，待其合入 |
