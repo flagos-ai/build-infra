@@ -331,6 +331,13 @@ vendors:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
+            # Cold start: flag_gems/triton autotune on a fresh MLU exceeds sglang's
+            # default watchdog (300s) and warmup budget — the #738-verified values
+            # (900/1800), baked so a plain `docker run ... sglang-serve` cold works.
+            # SGLANG_WATCHDOG_TIMEOUT is launcher-level (sglang takes the watchdog
+            # only as the --watchdog-timeout CLI flag): sglang-serve maps it.
+            SGLANG_WATCHDOG_TIMEOUT: "900"
+            SGLANG_WARMUP_TIMEOUT: "1800"
       deps:
         - torch==2.11.0+cpu
         - torch-mlu==1.33.1+torch2.11.0
