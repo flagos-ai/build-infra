@@ -88,16 +88,10 @@ backends:
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
-    note: "app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建）"
-    prs:
-      - https://github.com/flagos-ai/FlagGems/pull/5345
   enflame-tops1.10.6:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_gc2e496d.d20260905"
-    note: "app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建）"
-    prs:
-      - https://github.com/flagos-ai/FlagGems/pull/5345
   hygon-dtk26.04:
     deps_app: false
     launch_docs: false
