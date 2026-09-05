@@ -39,16 +39,16 @@ title: "vllm0.20.2-cambricon-neuware4.4.3"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+gb954912.d20260826`
+`vllm-plugin-fl==0.2.1+gcab2270.d20260905`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gb954912.d20260826`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gcab2270.d20260905`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gb954912.d20260826
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gcab2270.d20260905
 ```
 
 ### 无需工具包——直接使用 docker / podman
