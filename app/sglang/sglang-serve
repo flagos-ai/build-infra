@@ -32,4 +32,12 @@
 
 set -euo pipefail
 [ -r /etc/bash_env.sh ] && . /etc/bash_env.sh
+# sglang takes the watchdog only as the --watchdog-timeout CLI flag (no env).
+# cambricon bakes SGLANG_WATCHDOG_TIMEOUT=900 (env.app.sglang) so a cold
+# `docker run ... sglang-serve ...` survives the ~15min flag_gems autotune
+# instead of dying on the 300s default. Prepended so a caller's own
+# --watchdog-timeout (later in argv) still wins.
+if [[ -n "${SGLANG_WATCHDOG_TIMEOUT:-}" ]]; then
+    set -- --watchdog-timeout "${SGLANG_WATCHDOG_TIMEOUT}" "$@"
+fi
 exec /flagos/bin/python -m sglang.launch_server "$@"
