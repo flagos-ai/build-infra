@@ -362,3 +362,36 @@ Inference:    ✅  HTTP 200，completion 输出连贯
 2. **`deps_app.vllm0.20.2` 加 4.4.3** —— **✅ configs.yaml**：`neuware4.4.3.deps_app.vllm0.20.2: []`
 3. **xgrammar cp310 wheel** —— **✅ 已上架**：本后端首个 cp310 xgrammar，`flagos-pypi-cambricon`
 4. **docs flag_gems 5.3.4 → 5.3.5** —— **⬜ 待重渲**：`docs/content/**/runtime/*.md` 仍 5.3.4，configs.yaml/data 已 5.3.5
+
+### 2026-09-05 复验（发布 app 镜像）：冷首跑乱码根因 → copy_ 黑名单 → 交付 ✅
+
+**前置（重要）：** 本节之前 4.4.3 的「✅ E2E 通过」发布于 2026-08-26，当时**无语义门禁**——
+matrix 的 ✅ 是假阳性。2026-09-05 以冷首跑语义锚（巴黎）复验发布 app 镜像时暴露乱码，修复后才真正交付。
+
+**根因：** flag_gems 5.3.5 `libentry.py` `LibTuner.run()` cache-miss 分支对**活体解码张量**跑
+在线计时 bench（triton do_bench 的 reset-cache 风暴）→ 毒化 MLU 设备态 → 冷首跑（空 config DB）
+输出乱码（`' enim enim enim …'`）；暖 DB cache 干净。**0.20.2 特有**：同 runtime 底栈的 0.24.0
+干净（不同病），非 argmax（黑名单排除后仍乱）。
+
+**修复路线（用户裁定）：** 仓库既有黑名单迭代法（把毒化算子逐一回退 torch_mlu），**不改
+libentry bench 行为**。一次迭代中曾尝试把在线 bench 换成单次非计时 launch（改 libentry，等价
+「首个可编译 config」路线），实测乱码虽消除但被用户否决——不修改上游 tuning 语义。
+
+**判定链（冷 = 每次删空 flag_gems config DB）：** c1（仅 index 黑名单）乱码 → c4（去掉
+copy_+to_copy）**逐字复现** c1 乱码 → c5（加回 copy_）绿 → c6/c7（copy_ 单独 / copy_+index）绿。
+**最小毒化集 = flag_gems `copy_`**；to_copy/fill/add/sub/fused-norm 在请求中照常 bench 但无害。
+
+**落库：** [VPF #411](https://github.com/flagos-ai/vllm-plugin-FL/pull/411)（amend）`cambricon.yaml`
+`flagos_blacklist: [index] → [index, copy_]` → head `cab2270` → plugin wheel
+`0.2.1+gcab2270.d20260905`。copy_ 回落 torch_mlu 对 4.7.2 / 0.24.0 语义等价（共 config，下游已审计），
+首请求吞吐 ~1.3 tok/s 无实质损耗。根因侧（libentry 不应在活体张量上 bench）待上游 flag_gems 修，
+黑名单为过渡。
+
+**最终交付 + 冷首跑复证（config 内建形态，非 env）：** app 镜像
+`flagos-app/vllm0.20.2-cambricon-neuware4.4.3:2.1.2-0.2.1_gcab2270.d20260905`
+（digest `sha256:506069c1…`，无 `VLLM_FL_FLAGOS_BLACKLIST` env）。全冷态（serve 前删
+`~/.flaggems` + `~/.triton`）巴黎锚：REQ1 200 / 168s（含首请求逐 shape 编译）/ `' Paris. The
+capital of Germany is Berlin…'` 干净；REQ2 热 200 / 2s / 7.75 tok/s。T-only（4.4.3 无 FlagTree）。
+
+**经验：** ① 4.4.3 起 serve 必须挂 `/dev/cambricon_devN` 直挂，`MLU_VISIBLE_DEVICES=N` env 形态下
+设备不可见提前退出；② 冷首跑语义锚是这类 libentry 在线 bench 毒化的唯一可靠判据，warm 请求无法暴露。
