@@ -206,17 +206,29 @@ jobs:
         if: ${{ inputs.verify && !inputs.record_only }}
         run: |
           set -euo pipefail
+          # Cold cambricon app-image verify needs longer serve budgets than
+          # the script defaults (watchdog/warmup/ready verified on-node);
+          # every other backend keeps the defaults.
+          backend_name="${{ matrix.name }}"
+          extra_verify_args=""
+          case "${backend_name}" in
+            cambricon-neuware4.7.2)
+              extra_verify_args="--watchdog-timeout 900 --warmup-timeout 1800 --ready-timeout 1800"
+              ;;
+          esac
           if [[ -n "${{ inputs.model }}" ]]; then
             bash packaging/sglang/verify/verify-sglang-backend.sh \
-              "${{ matrix.name }}" \
+              "${backend_name}" \
               --sglang-version "${{ inputs.sglang_version }}" \
               --model "${{ inputs.model }}" \
-              --app-image "${APP_TAG}"
+              --app-image "${APP_TAG}" \
+              ${extra_verify_args}
           else
             bash packaging/sglang/verify/verify-sglang-backend.sh \
-              "${{ matrix.name }}" \
+              "${backend_name}" \
               --sglang-version "${{ inputs.sglang_version }}" \
-              --app-image "${APP_TAG}"
+              --app-image "${APP_TAG}" \
+              ${extra_verify_args}
           fi
 
       - name: Push sglang app image
