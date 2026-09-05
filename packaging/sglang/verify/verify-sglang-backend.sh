@@ -645,8 +645,8 @@ else
         echo 'Waiting for serve to become ready...'
         ready=0
         # — Readiness budget (cold-start kernel-compile storm on GCU/MLU). uvicorn's
-# "startup complete" prints before the engine's warmup generate finishes; the
-# "ready to roll" line only appears after it, so gate on that to avoid probing
+# \"startup complete\" prints before the engine's warmup generate finishes; the
+# \"ready to roll\" line only appears after it, so gate on that to avoid probing
 # a compiling scheduler (enflame ~4.5min / cambricon ~6min cold).
 for i in \$(seq 1 \$((READY_TIMEOUT / 5))); do
             if ! kill -0 \${SERVE_PID} 2>/dev/null; then
@@ -677,7 +677,7 @@ import json, sys, urllib.request
 # — TIMEOUT is the full SERVE_TIMEOUT budget so cold backends are not clipped.
 base = 'http://127.0.0.1:' + '${SGLANG_PORT}'
 url = base + '/v1/chat/completions'
-# Readiness now waits for the engine's post-warmup "ready to roll" line, so
+# Readiness now waits for the engine's post-warmup \"ready to roll\" line, so
 # cold-start compile (~5-7 min on GCU/MLU) happens BEFORE the probes; the
 # server-info fetch and each chat request then complete quickly except when a
 # new prefill shape re-triggers compilation (120 s covers that).
@@ -740,7 +740,7 @@ def check(i, prompt):
     ct = usage.get('completion_tokens')
     # A real completion, not a fixed count: Qwen3 thinking typically ends in
     # finish=stop before the 144 cap (metax.md §3) — ct>0 + pytorch sampling
-    # backend is the honest "inference actually ran end-to-end" gate, and 144
+    # backend is the honest \"inference actually ran end-to-end\" gate, and 144
     # is only the requested max_tokens.
     ok = status == 200 and (ct or 0) > 0 and sb == 'pytorch'
     print('request %d: status=%s completion_tokens=%s sampling_backend=%r -> %s'
