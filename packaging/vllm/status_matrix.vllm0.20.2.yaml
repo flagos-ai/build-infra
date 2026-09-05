@@ -80,7 +80,7 @@ backends:
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_gb954912.d20260826"
+    image_tag: "2.1.2-0.2.1_gb954912.d20260904"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/411
       - https://github.com/flagos-ai/FlagGems/pull/5745
