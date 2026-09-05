@@ -88,6 +88,7 @@ backends:
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
+    image_tag: "2.1.2-0.2.1_gc2e496d.d20260905"
   enflame-tops1.10.6:
     deps_app: true
     launch_docs: true
