@@ -609,6 +609,10 @@ else
 
     log_info "Starting sglang serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
+    # Serve-test evidence file — the exec's output is tee'd here and the
+    # PASSED gate after the exec fails closed when the client never printed
+    # its success line (see below).
+    STEP7_OUT="${WORK_DIR}/step7.out"
     docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         ${SGLANG_SWITCHES}
@@ -757,10 +761,19 @@ PY
         rc=\$?
         kill \${SERVE_PID} 2>/dev/null || true
         exit \$rc
-    "
+    " 2>&1 | tee "${STEP7_OUT}"
+
+    # Fail closed against the "hollow pass" (sglang app-image workflows
+    # 33892034412 / 33892039203): an exec that returns 0 without the client's
+    # success line never served the image — do not let it pass.
+    if ! grep -q "ALL 3 chat/completions PASSED" "${STEP7_OUT}"; then
+        log_error "Serve test produced no PASSED evidence — tail of ${STEP7_OUT}:"
+        tail -40 "${STEP7_OUT}" >&2 || true
+        exit 1
+    fi
 
     # Node-side audit copy lives in cleanup() — this line only acknowledges.
-    log_info "Serve test done (log: ${WORK_DIR}/sglang-serve.log)"
+    log_info "Serve test PASSED (log: ${WORK_DIR}/sglang-serve.log; client output: ${STEP7_OUT})"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────

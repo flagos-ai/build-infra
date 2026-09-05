@@ -414,6 +414,15 @@ vendors:
           ENABLE_I64_CHECK: "0"
           TORCHGCU_INDUCTOR_ENABLE: "1"
           ENFLAME_PT_OP_DEBUG_CONFIG: "fallback_cpu=all_ops"
+        app:
+          sglang:
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
+            # sglang's internal warmup budget (600s default) is exceeded on GCU
+            # cold start by the flag_gems/triton_gcu compile storm; 3600 lets a
+            # fresh serve finish warming up instead of aborting.
+            SGLANG_WARMUP_TIMEOUT: "3600"
       deps:
         - pyefml==1.10.6
         - torch==2.11.0+cpu
@@ -431,12 +440,6 @@ vendors:
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18: []
-      env:
-        app:
-          sglang:
-            TORCHINDUCTOR_COMPILE_THREADS: "1"
-            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
-            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       sdk:
         - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
         - TOPS Runtime 1.10.6     # topsruntime_1.10.6-1_amd64.deb
