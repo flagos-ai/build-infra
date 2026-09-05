@@ -692,7 +692,7 @@ for i in \$(seq 1 \$((READY_TIMEOUT / 5))); do
                 echo 'serve process exited during startup'
                 break
             fi
-            if grep -qE 'Application startup complete|Uvicorn running|The server is fired up and ready to roll' /tmp/sglang-serve.log 2>/dev/null; then
+            if grep -qE 'The server is fired up and ready to roll' /tmp/sglang-serve.log 2>/dev/null; then
                 ready=1
                 echo \"serve ready after ~\$((i*5))s\"
                 break
