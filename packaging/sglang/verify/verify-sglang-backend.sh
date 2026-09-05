@@ -50,7 +50,7 @@
 # both invocations pass (F = flagtree, the runtime default, T = vendor triton).
 #
 # Usage:
-#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] [--skip-serve] [--stack-version <ver>]
+#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] [--watchdog-timeout <sec>] [--warmup-timeout <sec>] [--ready-timeout <sec>] [--skip-serve] [--stack-version <ver>]
 #
 # Examples:
 #   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler F
@@ -96,6 +96,12 @@ SERVE_TIMEOUT="${SERVE_TIMEOUT:-1800}"
 # Readiness poll budget: cold-start kernel-compile storm on GCU/MLU can take
 # ~5-7 min before the engine is request-servable (see Step 7 comment).
 READY_TIMEOUT="${READY_TIMEOUT:-600}"
+# sglang launch_server watchdog budget (--watchdog-timeout). Empty = do not
+# pass the flag to sglang (its default applies); cambricon cold start needs 900.
+WATCHDOG_TIMEOUT="${WATCHDOG_TIMEOUT:-}"
+# Serve-warmup budget exported to sglang as SGLANG_WARMUP_TIMEOUT. Empty = not
+# exported (sglang default); cambricon cold start needs 1800.
+WARMUP_TIMEOUT="${WARMUP_TIMEOUT:-}"
 # HTTP port for the serve test. 8032 — distinct from the vllm script's 8031
 # so a concurrent vllm cell on the same node does not collide.
 SGLANG_PORT="${SGLANG_PORT:-8032}"
@@ -118,6 +124,9 @@ while [[ $# -gt 0 ]]; do
         --shim-version) SHIM_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
         --serve-timeout) SERVE_TIMEOUT="$2"; shift 2 ;;
+        --watchdog-timeout) WATCHDOG_TIMEOUT="$2"; shift 2 ;;
+        --warmup-timeout) WARMUP_TIMEOUT="$2"; shift 2 ;;
+        --ready-timeout) READY_TIMEOUT="$2"; shift 2 ;;
         --compiler) COMPILER="$2"; shift 2 ;;
         --device) DEVICE="$2"; shift 2 ;;
         --stack-version) STACK_VERSION="$2"; shift 2 ;;
@@ -137,6 +146,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --shim-version <ver>  sgl_kernel shim version (default: <sglang-version>; '' skips)"
             echo "  --skip-serve         Skip serve test, only install and verify imports"
             echo "  --serve-timeout <sec> Time budget for serve readiness + each completion (default: 1800)"
+            echo "  --watchdog-timeout <sec>  sglang launch_server watchdog budget; empty = not passed (default: not passed)"
+            echo "  --warmup-timeout <sec>    SGLANG_WARMUP_TIMEOUT for the serve warmup; empty = not set (default: not set)"
+            echo "  --ready-timeout <sec>     Readiness poll budget override (default: 600)"
             echo "  --stack-version <ver> Stack version for the runtime image tag; default: read from the discovered configs.yaml"
             echo "  --app-image <image>   Verify a prebuilt sglang app image (matrix + import)"
             exit 0
@@ -176,6 +188,20 @@ if ! [[ "$SERVE_TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$SERVE_TIMEOUT" -lt 60 ]]; then
     echo "Error: --serve-timeout must be an integer ≥ 60 (got '$SERVE_TIMEOUT')" >&2
     exit 1
 fi
+
+# The cold-start knobs are optional (empty = not set). Same ≥60 floor as
+# SERVE_TIMEOUT when present.
+for spec in "WATCHDOG_TIMEOUT --watchdog-timeout" "WARMUP_TIMEOUT --warmup-timeout" "READY_TIMEOUT --ready-timeout"; do
+    var="${spec%% *}"
+    flag="${spec#* }"
+    val="${!var}"
+    if [[ -n "$val" ]]; then
+        if [[ ! "$val" =~ ^[0-9]+$ ]] || [[ "$val" -lt 60 ]]; then
+            echo "Error: ${flag} must be an integer ≥ 60 (got '$val')" >&2
+            exit 1
+        fi
+    fi
+done
 
 # sgl_kernel shim version tracks the sglang version — the repacked sglang
 # wheel ships no sgl-kernel dep, so the from-scratch route installs the shim
@@ -619,6 +645,18 @@ else
         export SERVE_TIMEOUT=${SERVE_TIMEOUT}
         export READY_TIMEOUT=${READY_TIMEOUT}
         export SGLANG_PORT=${SGLANG_PORT}
+        export WATCHDOG_TIMEOUT=${WATCHDOG_TIMEOUT}
+        export WARMUP_TIMEOUT=${WARMUP_TIMEOUT}
+        # Watchdog + warmup reach sglang only when set (cambricon cold start
+        # needs --watchdog-timeout 900 + SGLANG_WARMUP_TIMEOUT=1800).
+        if [ -n \"\${WATCHDOG_TIMEOUT}\" ]; then
+            WATCHDOG_ARGS=\"--watchdog-timeout \${WATCHDOG_TIMEOUT}\"
+        else
+            WATCHDOG_ARGS=\"\"
+        fi
+        if [ -n \"\${WARMUP_TIMEOUT}\" ]; then
+            export SGLANG_WARMUP_TIMEOUT=\"\${WARMUP_TIMEOUT}\"
+        fi
 
         # flag_gems SQL ConfigCache is shared across compilers: an F-path
         # tuned BLOCK_SIZE_M=8 config is cache-hit by the T path and
@@ -632,6 +670,7 @@ else
         echo 'Starting serve...'
         python3 -m sglang.launch_server --model-path '${MODEL_PATH}' \
             --port \${SGLANG_PORT} \
+            \${WATCHDOG_ARGS} \
             --mem-fraction-static 0.6 \
             --trust-remote-code \
             --disable-cuda-graph \
