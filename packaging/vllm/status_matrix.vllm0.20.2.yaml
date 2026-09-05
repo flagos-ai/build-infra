@@ -98,8 +98,9 @@ backends:
     launch_docs: false
     note: "F 路径 ✅；app 镜像未发布：镜像侧 torch↔numpy ABI 不匹配（阻塞）"
   iluvatar-corex4.4.0:
-    deps_app: false
-    launch_docs: false
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_gec9fded.d20260905"
     note: "F 路径 ❌：工具链代差（corex Triton 前端与 torch 2.7.1 落后于 vllm 要求，§2.5）"
   iluvatar-corex4.5.0:
     deps_app: true
