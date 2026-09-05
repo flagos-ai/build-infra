@@ -511,9 +511,12 @@ vendors:
         - numpy==1.26.4
       deps_app:
         # megatron_training only: verified F+T ([build-infra #639](https://github.com/flagos-ai/build-infra/pull/639)).
-        # vllm0.24.0 added for the 4.4.0 garbage-output bypass attempt (2026-09-02);
-        # vllm0.20.2 stays off — 4.4.0 is ❌ in that matrix.
+        # vllm0.24.0 added for the 4.4.0 garbage-output bypass attempt (2026-09-02).
+        # vllm0.20.2 enabled 2026-09-05: cold-start blocker lifted by the guarded
+        # vllm wheel (parallel_state symm_mem, #745) + gated pytorch sampler
+        # fallback (vllm-plugin-FL #450); pending app-image semantic verify.
         megatron_training: []
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
