@@ -115,7 +115,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ⬜ | app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建） |
-| TOPS 1.10.6 | ✅ | ✅ | ⬜ | app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建） |
+| TOPS 1.10.6 | ✅ | ✅ | ✅ | app 镜像未发布：F 路径 ❌（等待 [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345) 合入后重建） |
 | DTK 26.04 | ⬜ | ⬜ | ⬜ | F 路径 ✅；app 镜像未发布：镜像侧 torch↔numpy ABI 不匹配（阻塞） |
 | COREX 4.4.0 | ⬜ | ⬜ | ⬜ | F 路径 ❌：工具链代差（corex Triton 前端与 torch 2.7.1 落后于 vllm 要求，§2.5） |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
