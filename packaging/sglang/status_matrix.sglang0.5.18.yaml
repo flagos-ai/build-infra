@@ -118,7 +118,8 @@ backends:
     launch_docs: false
   mthreads-musa5.2.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.1.dev1_g607b9672c"
   spacemit-spacemit:
     deps_app: false
     launch_docs: false
