@@ -43,7 +43,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ⬜ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ |
+| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ |
@@ -59,6 +59,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.9.10 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 燧原 | TOPS 1.10.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 沐曦 | MACA 3.8.1.3 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/86 | OPEN |
+| 摩尔线程 | MUSA 4.3.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
 | 摩尔线程 | MUSA 5.2.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
 
 <!-- /status-matrix:verification -->
