@@ -42,6 +42,10 @@ title: "vllm0.24.0-iluvatar-corex4.4.0"
 
 `vllm-plugin-fl==0.2.1+g84a4ca2.d20260902`
 
+## Environment
+
+- `VLLM_FL_USE_FLAGGEMS_ATTN=1`
+
 ## Launch
 
 **Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.4.0:2.1.2-0.2.1_g84a4ca2.d20260902`
