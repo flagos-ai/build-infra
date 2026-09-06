@@ -742,6 +742,8 @@ vendors:
         megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18:
+          - compressed-tensors==0.17.0+flagos
       sdk:
         - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
         - MCCL RC2.1.6              # mccl_rc2.1.6.PH1.tar.gz
