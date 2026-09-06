@@ -1,10 +1,11 @@
-# sglang 0.5.18 — Enflame tops1.10.6 验证记录
+# sglang 0.5.18 — Enflame tops1.10.6 / tops1.9.10 验证记录
 
 > **验证通过（F/T 双路径 + app 镜像冷启动）**。enflame vendor 层此前在
 > 0.5.18 wheel 上**从未加载**（顶层 import 引用了 0.5.18 缺失的 API，整个模块
 > import 失败），修复后 serve 阻塞链全通（sglang-plugin-FL PR #91）。app
 > 镜像冷启动 E2E 全过（2026-09-05）——须烘 `SGLANG_WARMUP_TIMEOUT=3600`
-> （§3）。
+> （§3）。§1–§6 为 tops1.10.6 记录；tops1.9.10 同 PR #91、同修复链，仅
+> 工具链版本与 deps_app 不同，见 §7。
 
 ## 1. 环境
 
@@ -97,3 +98,40 @@ GCU flash-attn build（`vllm_flash_attn`）绕过——故回迁必需。
   相应功能 enflame 上不启用——若需多模态等再补。
 - 冷启动慢、性能未优化。
 - 验证容器已拆，节点净。
+
+## 7. tops1.9.10（同 PR #91，工具链版本差异）
+
+tops1.9.10 与 tops1.10.6 走**同一条插件修复链**（PR #91 的
+`is_integrated` / fa3 断言 / vendor FA rewrite 三类补丁对 1.9.10 同样必需），
+但插件 commit 更靠前：tops1.10.6 用的是 `g65dff2733`，tops1.9.10 用
+`g32eabf40e`（PR #91 head，单 commit 前向 diff——"make sglang 0.5.18 serve
+on tops1.9.10 and tops1.10.6"，`flashattention_backend.py` 回迁到 0.5.18
+类契约，见 §4）。`g65dff2733` 不服务 1.9.10。
+
+| 项 | tops1.9.10 | tops1.10.6（§1）|
+|---|---|---|
+| runtime 镜像 | `flagos-runtime-enflame-tops1.9.10:2.1.2` | `...-tops1.10.6:2.1.2` |
+| torch | 2.10.0+cpu + torch-gcu 2.10.0+3.7.20260408 | 2.11.0+cpu + 2.11.0+3.8.20260713 |
+| flagtree（F）| 0.6.0+enflame3.6 @ `/opt/flagtree` | 0.6.1+enflame3.6 |
+| vendor triton（T）| 3.6.0 + triton-gcu 3.6.0+1.0.20260521.cc.1.9.10 @ `/opt/triton` | triton-gcu 3.6.0+1.0.20260722 |
+| flag_gems | 5.3.5 | 5.3.5 |
+| sglang_fl | 0.1.dev1+g32eabf40e | 0.1.dev1+g65dff2733 |
+| deps_app.sglang0.5.18 | `[compressed-tensors==0.18.0]` | `[]`（enflame-modelopt 已带）|
+| SDK | driver 1.9.10 / TOPS Runtime 1.9.10（Zixiao C200 / S60）| driver 1.10.6 |
+
+**deps_app 差异的根因**：tops1.9.10 的 torch 栈（2.10.0，deps 无
+enflame-modelopt）不内带 compressed-tensors，sglang 量化链 gate 需要它；
+tops1.10.6 经 enflame-modelopt 依赖已带（§2"compressed-tensors 不需要"），
+故留空。
+
+**E2E 结果（2026-09-06）**：F/T 双路径 + app 镜像冷启动全过，判据与 §3 相同
+（HTTP 200 + completion_tokens>0 + sampling_backend=pytorch，Qwen3-4B）。
+
+| 路径 | 编译器 | 结果 |
+|---|---|---|
+| F | flagtree 0.6.0+enflame3.6 | ✅ 3/3（completion_tokens=144；app 镜像 verify，serve ready ~440s）|
+| T | vendor triton 3.6.0（1.9.10 cc）| ✅ 3/3（completion_tokens=144；on-node `--compiler T`，serve ready ~555s）|
+
+app 镜像 `sglang0.5.18-enflame-tops1.9.10:2.1.2-0.1.dev1_g32eabf40e` 已发布；
+`SGLANG_WARMUP_TIMEOUT=3600` 同 tops1.10.6 经 env.app.sglang 烘入（冷启动
+编译风暴超出 sglang 600s 预算，见 §3）。
