@@ -1,5 +1,5 @@
 ---
-title: "vllm0.24.0-iluvatar-corex4.4.0"
+title: "vllm0.20.2-iluvatar-corex4.4.0"
 ---
 
 <!--
@@ -37,10 +37,7 @@ title: "vllm0.24.0-iluvatar-corex4.4.0"
 
 ### Application package
 
-`vllm==0.24.0+flagos`
-
-
-`vllm-plugin-fl==0.2.1+g84a4ca2.d20260902`
+`vllm==0.20.2+flagos`
 
 ## Environment
 
@@ -48,12 +45,14 @@ title: "vllm0.24.0-iluvatar-corex4.4.0"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.4.0:2.1.2-0.2.1_g84a4ca2.d20260902`
+**Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.**
+
+`harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.4.0:2.1.2`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-iluvatar-corex4.4.0:2.1.2-0.2.1_g84a4ca2.d20260902
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.4.0:2.1.2
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
