@@ -1,4 +1,4 @@
-# sglang 0.5.18 — MThreads musa5.2.0 验证记录
+# sglang 0.5.18 — MThreads musa5.2.0 / musa4.3.6 验证记录
 
 > **2026-09-05 验证通过（F/T 双路径 + app 镜像）**。mthreads runtime 用经典
 > `torch_musa`（PrivateUse1、不 alias CUDA），而 sglang 0.5.18 的 MUSA 支持
@@ -75,3 +75,28 @@ app 镜像：`flagos-app/sglang0.5.18-mthreads-musa5.2.0:2.1.2-0.1.dev1_g607b967
   走 torch_native/SDPA——性能慢（decode ~2-3 tok/s eager），未优化。
 - 权重加载受节点文件系统 I/O 拖慢（~10min/3 shard），非插件问题。
 - 验证容器已清，节点净。
+
+## 6. musa4.3.6（同 PR #92，工具链版本差异）
+
+与 musa5.2.0 共享同一插件（PR #92 @ commit 607b967，四修复链相同，见 §2），
+差异仅在 SDK / torch / triton 版本：
+
+| 项 | musa4.3.6 | musa5.2.0 |
+|---|---|---|
+| SDK | MUSA Toolkits RC4.3.6 + MCCL RC2.1.6 + muDNN RC3.1.6 | MUSA Toolkits 5.2.0 + MCCL 2.4.0 + muDNN 3.4.0 |
+| torch / torch_musa | 2.9.0+musa.4.3.6 / 2.9.0 | 2.9.1+musa5.2.0 / 2.9.1 |
+| torchvision / torchaudio | 0.24.0+cpu / 2.9.0+cpu | 0.24.1+cpu / 2.9.1+cpu |
+| vendor triton | 3.6.0+git89458660 | 3.6.0（plain）|
+| flagtree | 0.6.1+mthreads3.6 | 0.6.1+mthreads3.6 |
+| deps_app sglang0.5.18 | compressed-tensors==0.17.0+flagos | compressed-tensors==0.17.0+flagos |
+
+4.3.6 的 sglang serve 同样无条件 import quantization（与 5.2.0 同根因，#747），
+deps_app 补 pin compressed-tensors==0.17.0+flagos（#755）。验证记录：
+
+- F/T 双路径于 4.3.6 工具链 E2E 通过（#755 记录）。插件 commit 与双路径已验的
+  musa5.2.0 完全相同——栈差异仅 SDK/torch/triton 版本，T 路径 triton 为
+  3.6.0+git89458660 特定 commit 构建。
+- app 镜像 `flagos-app/sglang0.5.18-mthreads-musa4.3.6:2.1.2-0.1.dev1_g607b9672c`
+  经 app-image workflow verify（单路径，runtime 默认编译器）+ push，PR #767 记录。
+
+遗留同 musa5.2.0（§5）：MUSA fa3 未验证、decode ~2-3 tok/s eager 未优化。
