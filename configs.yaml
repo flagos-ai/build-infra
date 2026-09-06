@@ -521,14 +521,6 @@ vendors:
           COREX_ROOT: /usr/local/corex
           PATH: /usr/local/corex/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/corex/lib
-        app:
-          # Unified across both compiler paths (F and T): the corex triton
-          # 3.1 front end cannot compile vllm 0.20.2's native triton attention
-          # kernel, so T must route attention through flag_gems. Baked here —
-          # not left to the user — so F and T run under the same env (2026-09-05
-          # rule: same backend, same env regardless of compiler).
-          vllm:
-            VLLM_FL_USE_FLAGGEMS_ATTN: "1"
       deps:
         - torch==2.7.1+corex.4.4.0
         - torchaudio==2.7.1+corex.4.4.0
