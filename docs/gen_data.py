@@ -251,9 +251,27 @@ APP_CMD_DEFAULTS = {
     ],
 }
 
+def status_matrix_path(app: str) -> Path | None:
+    """Status matrix YAML for an app key, or None when no matrix exists.
+
+    Matrix files live one-per-app-key at ``packaging/<component>/
+    status_matrix.<app>.yaml`` — the component is the app-key prefix
+    (megatron_training / vllm0.24.0 / sglang0.5.18). vllm and sglang split
+    per repacked version, so the component is only derivable from that
+    prefix, never from a lookup.
+    """
+    for component in ("megatron", "vllm", "sglang"):
+        if app.startswith(component):
+            path = (
+                find_repo_root() / "packaging" / component / f"status_matrix.{app}.yaml"
+            )
+            return path if path.is_file() else None
+    return None
+
+
 # App image repos already published to Harbor are tracked by the status
-# matrix: `packaging/{megatron|vllm}/status_matrix.{app}.yaml` carries an
-# `image_tag` on the published backend block — the verifier who pushes the
+# matrix: `packaging/{megatron|vllm|sglang}/status_matrix.{app}.yaml` carries
+# an `image_tag` on the published backend block — the verifier who pushes the
 # image records the tag, and a backend with a tag is published (single source,
 # no separate boolean to drift). Combos without a tag are not published yet
 # and render as placeholders.
@@ -266,14 +284,31 @@ def app_published_tag(app: str, name: str) -> str:
     upstream branch heads that a build cannot discover inside the container,
     so the matrix is the only record of what went into each pushed tag.
     """
-    component = "megatron" if app.startswith("megatron") else "vllm"
-    path = (
-        find_repo_root() / "packaging" / component / f"status_matrix.{app}.yaml"
-    )
-    if not path.is_file():
+    path = status_matrix_path(app)
+    if path is None:
         return ""
     matrix = load_yaml(path)
     return ((matrix.get("backends") or {}).get(name) or {}).get("image_tag") or ""
+
+
+def app_launch_docs(app: str, name: str) -> bool:
+    """True when the app's status matrix records a launch page for this backend.
+
+    configs.yaml ``deps_app`` keys are added *before* verification — key
+    presence pulls the backend into the app-image build matrix (configs first
+    → trigger verify), so it does not mean the app works on this backend yet
+    and cannot decide the launch page. Delivery lands in the status matrix:
+    ``backends.<name>.launch_docs`` is flipped true at publication
+    (scripts/record_app_image_tag.py sets it atomically with the pushed tag)
+    or when a verified-but-unpublished app image is documented, and stays
+    false while verification is pending or failed. Generate the page only
+    then — a backend whose matrix has no such record has nothing to launch.
+    """
+    path = status_matrix_path(app)
+    if path is None:
+        return False
+    matrix = load_yaml(path)
+    return bool(((matrix.get("backends") or {}).get(name) or {}).get("launch_docs"))
 
 
 def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> dict:
@@ -438,14 +473,20 @@ def main():
                         "env": env.get("app") or {},
                         # Per-app launch data for the docs site: image ref,
                         # published status, launcher and default CMD. Which apps
-                        # a backend builds/verifies/publishes is decided by
-                        # configs.yaml deps_app.{app} — key presence means the app
-                        # is buildable here, so the launch pages follow deps_app,
-                        # not a hardcoded app list.
+                        # a backend builds is decided by configs.yaml
+                        # deps_app.{app} — key presence pulls the backend into
+                        # the app-image build matrix and can precede
+                        # verification (configs first → trigger verify → docs
+                        # after). The launch page therefore additionally
+                        # requires the app's status matrix to record the
+                        # backend as delivered (`launch_docs: true`), so an
+                        # unverified combo whose deps_app key was added to
+                        # trigger a build gets no page.
                         "images": {
                             a: app_image_data(app_prefix, a, name, configs["version"])
                             for a in spec.get("deps_app") or {}
-                            if a in APP_IMAGE_DEFAULTS or a.startswith("vllm")
+                            if (a in APP_IMAGE_DEFAULTS or a.startswith("vllm"))
+                            and app_launch_docs(a, name)
                         },
                     },
                 }
