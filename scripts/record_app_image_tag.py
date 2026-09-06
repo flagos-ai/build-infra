@@ -33,11 +33,14 @@ What the script does, in order:
      ``gen_data.py`` → ``render_status_matrix.py`` → ``gen_descriptions.py
      --app-only`` (app pages read no version TSVs, so no VERSIONS_DIR).
   3. Commit the changed matrix + app pages as ``flagos-ci``, push (or
-     recreate) the ``auto/app-image-tag`` branch, and open (or update) a
-     review-gated PR against the workflow's ref — the same dup-PR pattern as
-     status-matrix-consistency.yml. PR ops go through the REST API via curl
-     (``GITHUB_TOKEN``), not the ``gh`` CLI — the step runs on self-hosted
-     hardware runners that do not carry gh.
+     recreate) a per-record branch ``auto/app-image-tag-<backend>-<app>``
+     (app = the status-matrix stem, e.g. sglang0.5.18) and open (or update)
+     a review-gated PR against the workflow's ref — the same dup-PR pattern
+     as status-matrix-consistency.yml. The branch names the record's own
+     backend+app so a stale record PR from an unrelated app/backend cannot
+     block later records with rebase conflicts. PR ops go through the REST
+     API via curl (``GITHUB_TOKEN``), not the ``gh`` CLI — the step runs on
+     self-hosted hardware runners that do not carry gh.
 
 ``launch_docs`` and ``deps_app`` are set alongside ``image_tag`` because step 2
 regenerates the app launch pages — a pushed backend's launch docs exist by
@@ -73,9 +76,6 @@ GIT_IDENTITY = {
     "GIT_COMMITTER_NAME": "flagos-ci",
     "GIT_COMMITTER_EMAIL": "noreply@flagos.net",
 }
-
-BRANCH = "auto/app-image-tag"
-
 
 def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -167,6 +167,31 @@ def component_of(matrix_rel: str) -> str:
     if not m:
         sys.exit(f"Error: cannot derive component from matrix path '{matrix_rel}'")
     return m.group(1)
+
+
+def app_key_of(matrix_rel: str) -> str:
+    """Versioned app key from the matrix filename stem (``status_matrix.<app>.yaml``).
+
+    Carries the app version (sglang0.5.18, vllm0.24.0) so two versions of one
+    app map to distinct records; megatron's per-app matrices stem as
+    megatron_training / megatron_rl.
+    """
+    name = Path(matrix_rel).name
+    prefix, suffix = "status_matrix.", ".yaml"
+    if not (name.startswith(prefix) and name.endswith(suffix)):
+        sys.exit(f"Error: cannot derive app key from matrix path '{matrix_rel}'")
+    return name[len(prefix):-len(suffix)]
+
+
+def record_branch(matrix_rel: str, backend: str) -> str:
+    """Per-record branch: derived from this record's backend+app.
+
+    Never the shared ``auto/app-image-tag`` — a stale open record PR from an
+    unrelated app/backend used to block every later record with rebase
+    conflicts (mthreads-musa4.3.6 sglang record, 2026-09-04). Same record
+    re-run → same branch, so recovery rebases onto the existing PR.
+    """
+    return f"auto/app-image-tag-{backend}-{app_key_of(matrix_rel)}"
 
 
 def _backend_bounds(lines: list[str], backend: str) -> tuple[int, int]:
@@ -308,6 +333,7 @@ def main() -> None:
         return
 
     comp = component_of(matrix_rel)
+    branch = record_branch(matrix_rel, args.backend)
 
     # Refresh the pipeline so matrix, verification md, and app pages agree.
     _run_py(REPO_ROOT / "docs" / "gen_data.py")
@@ -327,23 +353,24 @@ def main() -> None:
         os.environ.setdefault(k, v)
     _git("config", "user.name", "flagos-ci", check=False)
     _git("config", "user.email", "noreply@flagos.net", check=False)
-    _git("checkout", "-B", BRANCH, check=False)
+    _git("checkout", "-B", branch, check=False)
     _git("commit", "-m", commit_msg)
 
     # The record PR's merge deletes this branch (delete_branch_on_merge), so
     # ask origin, not the (possibly stale) local mirror, whether it exists.
-    probe = _git("ls-remote", "origin", f"refs/heads/{BRANCH}", check=False)
+    probe = _git("ls-remote", "origin", f"refs/heads/{branch}", check=False)
     if probe.returncode == 0 and probe.stdout.strip():
-        # Another record sits on the branch: rebase onto it, then plain-push —
-        # we are its descendant, and --force would clobber that record.
-        _git("fetch", "origin", BRANCH, check=False)
-        if _git("rebase", f"origin/{BRANCH}", check=False).returncode != 0:
+        # The same record already sits on the branch (re-run / recovery): rebase
+        # onto it, then plain-push — we are its descendant, and --force would
+        # clobber its commit.
+        _git("fetch", "origin", branch, check=False)
+        if _git("rebase", f"origin/{branch}", check=False).returncode != 0:
             _git("rebase", "--abort", check=False)
             sys.exit(
-                f"Error: {BRANCH} already carries a conflicting record — merge or close its "
-                f"PR, then re-run the workflow to record {tag}"
+                f"Error: {branch} already carries a record for {tag} — merge or close its "
+                f"PR, then re-run the workflow"
             )
-        _git("push", "origin", BRANCH)
+        _git("push", "origin", branch)
     else:
         # Branch deleted: recreate from fresh main so the regenerated pages
         # embed records merged since this run was dispatched.
@@ -351,20 +378,20 @@ def main() -> None:
         if _git("rebase", "origin/main", check=False).returncode != 0:
             _git("rebase", "--abort", check=False)
             sys.exit(
-                f"Error: {BRANCH} is absent but this run's base conflicts with origin/main — "
+                f"Error: {branch} is absent but this run's base conflicts with origin/main — "
                 f"re-run the workflow to record {tag}"
             )
-        _git("push", "origin", BRANCH)
+        _git("push", "origin", branch)
 
     base = os.environ.get("GITHUB_REF_NAME", "main")
     repo = os.environ.get("GITHUB_REPOSITORY")
     if not repo:
         sys.exit("Error: GITHUB_REPOSITORY not set — cannot open a PR")
     existing = _gh_api(
-        "GET", f"/repos/{repo}/pulls?head={repo.split('/', 1)[0]}:{BRANCH}&state=open"
+        "GET", f"/repos/{repo}/pulls?head={repo.split('/', 1)[0]}:{branch}&state=open"
     )
     if existing:
-        print(f"PR already open for {BRANCH}; force-pushed updated content")
+        print(f"PR already open for {branch}; updated content pushed")
         return
     body = (
         f"The {comp} app-image workflow pushed an image for `{args.backend}` and recorded "
@@ -374,7 +401,7 @@ def main() -> None:
     )
     _gh_api("POST", f"/repos/{repo}/pulls", {
         "title": commit_msg,
-        "head": BRANCH,
+        "head": branch,
         "base": base,
         "body": body,
     })
