@@ -389,6 +389,12 @@ vendors:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
           ENABLE_I64_CHECK: "0"
           ENFLAME_PT_OP_DEBUG_CONFIG: "fallback_cpu=all_ops"
+        app:
+          sglang:
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
+            SGLANG_WARMUP_TIMEOUT: "3600"
       deps:
         - numpy==1.26.4
         - pyefml==1.9.10
@@ -402,6 +408,8 @@ vendors:
         megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18:
+          - compressed-tensors==0.18.0
       sdk:
         - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
         - TOPS Runtime 1.9.10     # topsruntime_1.9.10-1_amd64.deb
