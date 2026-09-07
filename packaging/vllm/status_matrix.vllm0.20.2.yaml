@@ -100,7 +100,7 @@ backends:
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_g71b9482.d20260906"
+    image_tag: "2.1.2-0.2.1_g16e8655.d20260907"
   iluvatar-corex4.5.0:
     deps_app: true
     launch_docs: true

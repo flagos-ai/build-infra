@@ -53,10 +53,10 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 厂商 | 后端 | App | PR | 状态 |
 |---|---|---|---|---|
 | 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | OPEN |
-| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
+| 昇腾 | CANN 8.5.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | 已合并 |
 | 昇腾 | CANN 8.5.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | OPEN |
-| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | OPEN |
+| 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | 已合并 |
 | 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | OPEN |
 | 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | OPEN |
 | 寒武纪 | NEUWARE 4.4.3 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/431 | OPEN |
