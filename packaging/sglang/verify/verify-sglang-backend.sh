@@ -656,6 +656,25 @@ else
 
     log_info "Starting sglang serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
+    # The serve shell must run under the env the backend's app image bakes
+    # (configs.yaml env.app.sglang — see the cann8.5.0 block; absent key =
+    # empty, SGLANG_SWITCHES above still applies either way).
+    APP_ENV=$(python3 -c "
+import yaml
+with open('${REPO_ROOT}/configs.yaml') as f:
+    cfg = yaml.safe_load(f)
+try:
+    env = cfg['vendors']['${VENDOR}']['${BACKEND}']['env']['app']['sglang']
+    parts = []
+    for k, v in env.items():
+        if isinstance(v, bool):
+            v = str(v).lower()
+        parts.append(f'{k}={v}')
+    print('export ' + ' '.join(parts))
+except (KeyError, TypeError):
+    print('')
+")
+
     # Serve-test evidence file — the exec's output is tee'd here and the
     # PASSED gate after the exec fails closed when the client never printed
     # its success line (see below).
@@ -663,6 +682,7 @@ else
     docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         ${SGLANG_SWITCHES}
+        ${APP_ENV}
         export SERVE_TIMEOUT=${SERVE_TIMEOUT}
         export READY_TIMEOUT=${READY_TIMEOUT}
         export SGLANG_PORT=${SGLANG_PORT}
