@@ -658,6 +658,15 @@ vendors:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
           MACA_PATH: /opt/maca
           LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
+        app:
+          sglang:
+            # Mirror maca3.8.1.3: skip flashinfer use (its wheel here only
+            # satisfies the unconditional sampler import), compile inductor
+            # in-process (flagtree fork crash), skip the shim version hard
+            # check (it ships +flagos-shim, not the version sglang asserts).
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - torch==2.8.0+metax3.7.2.0
         - torchaudio==2.4.1+metax3.7.2.0
