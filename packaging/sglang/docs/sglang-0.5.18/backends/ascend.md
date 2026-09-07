@@ -101,3 +101,12 @@ BSNH cache 切片与 `(N,freq_dim)` plain cache 两种 cos/sin 形态；k/v 3D h
 - 残留 `_copy_kernel` 间歇性问题（未复现）；`USE_FLAGGEMS=1` 组合未验证。
 - 插件 ascend commit（torch-native 真实现 + §2.1 import 面落法）已在
   exp/0.5.18-ascend（PR #84）；shim 的 npu stub 树在共享 addon（exp/0.5.18）。
+
+## 7. 外部线索（未实测，待 flag_gems-ON 窗口验证）
+
+- **`index_select` 黑名单提效（2026-09-07 其他团队反应）**：ascend 上把
+  `index_select` 加进 `flagos_blacklist`（插件 ascend.yaml）可有明显性能提升，
+  我方未实测。适用前提 = flag_gems ON（cann9.0.0 交付与 cann8.5.0 配置均为
+  `USE_FLAGGEMS=0`，此线索 inert）。测法：yaml `flagos_blacklist` 单加
+  `index_select`（env `SGLANG_FL_FLAGOS_*` 会整体覆盖 yaml，勿用），起 serve
+  对比 tok/s 与 AICore。命中则按本文件 §5/#1 同款英文 why 注释固化。
