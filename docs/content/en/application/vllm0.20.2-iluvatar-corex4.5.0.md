@@ -40,16 +40,16 @@ title: "vllm0.20.2-iluvatar-corex4.5.0"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g71b9482.d20260906`
+`vllm-plugin-fl==0.2.1+g16e8655.d20260907`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_g71b9482.d20260906`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_g16e8655.d20260907`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_g71b9482.d20260906
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_g16e8655.d20260907
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
