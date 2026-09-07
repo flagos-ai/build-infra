@@ -215,6 +215,19 @@ vendors:
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
+      env:
+        app:
+          sglang:
+            # Ascend serves torch-native via the plugin's npu_kernel_stubs;
+            # flag_gems.enable() reroutes torch.pow into the flag_gems ascend
+            # kernel, whose chained-`or` source the 0.6.0+ascend3.2 frontend
+            # rejects (serve crashes on Qwen3 weight load — ascend.md pit #1).
+            # Remaining keys mirror the verify SGLANG_SWITCHES so a plain
+            # `docker run <image> sglang-serve` serves like the verified install.
+            USE_FLAGGEMS: "0"
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
