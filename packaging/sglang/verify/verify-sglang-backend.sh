@@ -657,9 +657,8 @@ else
     log_info "Starting sglang serve on ${SERVE_CONTAINER} (this may take several minutes)..."
 
     # The serve shell must run under the env the backend's app image bakes
-    # (configs.yaml env.app.sglang — e.g. the ascend USE_FLAGGEMS=0 keeping
-    # flag_gems.enable() off the torch-native route, see cann8.5.0 comment).
-    # Missing key = empty; SGLANG_SWITCHES above still applies either way.
+    # (configs.yaml env.app.sglang — see the cann8.5.0 block; absent key =
+    # empty, SGLANG_SWITCHES above still applies either way).
     APP_ENV=$(python3 -c "
 import yaml
 with open('${REPO_ROOT}/configs.yaml') as f:
