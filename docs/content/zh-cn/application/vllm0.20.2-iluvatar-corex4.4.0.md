@@ -40,16 +40,16 @@ title: "vllm0.20.2-iluvatar-corex4.4.0"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g71b9482.d20260906`
+`vllm-plugin-fl==0.2.1+g16e8655.d20260907`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.4.0:2.1.2-0.2.1_g71b9482.d20260906`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.4.0:2.1.2-0.2.1_g16e8655.d20260907`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.4.0:2.1.2-0.2.1_g71b9482.d20260906
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.4.0:2.1.2-0.2.1_g16e8655.d20260907
 ```
 
 以下两种方式任选其一：
