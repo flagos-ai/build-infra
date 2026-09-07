@@ -17,7 +17,7 @@ type: sglang
 app: sglang0.5.18
 description: sglang 0.5.18 app — srt_empty 基座 +flagos wheel + sglang-plugin-FL
   单步安装于 vendor runtime（exp/0.5.18 分支插件）。
-last_updated: "2026-09-02"
+last_updated: "2026-09-07"
 
 # App-level facility (shared across all backends of this app).
 # containerfile/workflow flipped true by the phase-5 landing (app/sglang/
@@ -34,7 +34,7 @@ scenarios:
     verification:
       nvidia-cuda12.8:       {T: "⬜", F: "⬜"}
       nvidia-cuda13.3:       {T: "⬜", F: "⬜"}
-      ascend-cann8.5.0:      {T: "⬜", F: "⬜"}
+      ascend-cann8.5.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}
       cambricon-neuware4.7.2: {T: "✅", F: "—"}
@@ -68,6 +68,8 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.1.dev1_g0f98ddc20"
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/84
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
