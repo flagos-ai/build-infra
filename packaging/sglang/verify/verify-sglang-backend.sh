@@ -508,13 +508,32 @@ log_step "Step 3: Installing sglang==${SGLANG_VERSION}+flagos"
 # wheel's unconstrained scipy dep (runtime_common, #697) resolves 1.18+
 # (numpy>=2.0.0) since 2026-08 and would upgrade the runtime numpy==1.26.4
 # pin — same guard as app/sglang Containerfile / megatron #637.
+#
+# The backend's deps_app.sglang0.5.18 pins (the app Containerfile's APP_DEPS)
+# ride the same install so a from-scratch verify matches the app image: serve
+# hard-requires packages the post-#697 +flagos wheel no longer ships
+# (compressed-tensors — decisions §5.7, #710). Missing/empty key = no extras.
+APP_DEPS=$(python3 -c "
+import yaml
+with open('${REPO_ROOT}/configs.yaml') as f:
+    cfg = yaml.safe_load(f)
+try:
+    deps = cfg['vendors']['${VENDOR}']['${BACKEND}']['deps_app']['sglang0.5.18']
+    print(' '.join(deps) if deps else '')
+except (KeyError, TypeError):
+    print('')
+")
+if [[ -n "${APP_DEPS}" ]]; then
+    log_info "deps_app.sglang0.5.18 pins ride the install: ${APP_DEPS}"
+fi
 docker exec "${CONTAINER}" bash -c "
     ${SGLANG_SWITCHES}
     PYTHONPATH=/opt/triton pip install \
         --index-url '${VENDOR_PYPI}' \
         --extra-index-url '${ALIYUN_PYPI}' \
         'sglang==${SGLANG_VERSION}+flagos' \
-        'scipy<1.18'
+        'scipy<1.18' \
+        ${APP_DEPS}
 "
 
 log_info "sglang installed:"
@@ -558,6 +577,8 @@ docker exec "${CONTAINER}" bash -c "
     pip wheel . --no-deps -w /tmp/sglang-fl-wheels \
         --index-url '${VENDOR_PYPI}' \
         --extra-index-url '${ALIYUN_PYPI}'
+    # pip >= 26 treats the same-name+version cwd as installed and skips the wheel.
+    cd /tmp
     pip install \
         --index-url '${VENDOR_PYPI}' \
         --extra-index-url '${ALIYUN_PYPI}' \
