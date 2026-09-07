@@ -59,6 +59,7 @@ IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-sunrise-tangrt1.2.0:2.1.2-0.2.0_g687
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -68,6 +69,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   $IMG
 ```
 
@@ -77,5 +79,6 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   $IMG vllm-serve --model <path> --port 9000
 ```

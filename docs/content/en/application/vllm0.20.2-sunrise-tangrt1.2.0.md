@@ -59,6 +59,7 @@ Start an interactive shell:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -68,6 +69,7 @@ Start the app with its default settings:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   $IMG
 ```
 
@@ -77,5 +79,6 @@ Pass arguments to the launcher:
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   $IMG vllm-serve --model <path> --port 9000
 ```
