@@ -211,3 +211,23 @@ docker run -d --network host --device /dev/iluvatar0 \
 | vllm_fl | 0.2.1+gc0c060a6.d20260827（= image_tag 后缀） |
 
 **相关提交：** app 镜像构建 + tag 记录（[build-infra #625](https://github.com/flagos-ai/build-infra/pull/625)）；F/T 验证记录（[build-infra #626](https://github.com/flagos-ai/build-infra/pull/626)）。
+
+## 2.13 iluvatar 0.20.2 技术路线（2026-09-07 定案，corex4.4.0 + corex4.5.0）
+
+**交付镜像：** `vllm0.20.2-iluvatar-corex{4.4.0|4.5.0}:2.1.2-0.2.1_g16e8655.d20260907`（plugin `g16e8655`，两栈同 tag）。
+
+**确定性技术路线（F/T 双路径 30/30 temp=0 确定）：**
+
+- **flag_gems GEMM 族黑名单（`linear/mm/mm.out/addmm/addmm_/addmm.out/bmm/bmm.out`）→ 回落 native corex ixblas。**
+  根因：vllm_fl `flag_gems.enable()` 把 `aten::linear` 等劫持到 flag_gems triton `linear_kernel`；该 kernel 被
+  **flagtree 编译后在 live 引擎内逐次非确定**（~1-2 bf16 ulp，同输入同指针单 stream 预 sync 仍现，offline 确定），
+  temp=0 长程解码在近并列采样带翻转。同源 kernel 被 vendor corex triton 编译则 bitwise 确定（== native）。
+  黑名单须**整族**：native linear 降级 addmm，只排 linear 仍被劫持。GEMM native 后 **F/T 均 30/30 确定，且吞吐反超**
+  （F 14.0 tok/s vs flag_gems linear 12.3；native ixblas 快于 flagtree 编译的 flag_gems kernel）。silu_and_mul 保持
+  flagos（GEMM native 下不再翻）。
+- **编译器差异是分水岭**：同一 flag_gems 源 kernel，flagtree 编译非确定、vendor corex triton 编译确定。上游
+  hand-off：FlagGems #6054-6057（linear/mm/addmm/bmm）。
+- **4.4.0 T 路径需 `VLLM_FL_USE_FLAGGEMS_ATTN=1`**（corex triton 3.1 编不了 vllm 原生 attention，attention 走
+  flag_gems）；4.5.0 T（corex triton 3.2）无需 env。F 两栈默认零 env。
+- **已知限制（不阻塞）**：4.5.0 T 冷引擎首请求（kernel JIT 发生在请求内）在 ~token40 近并列带单次 ~1ulp 翻转
+  （2/2 冷启可复现，此后逐位确定；残余 flagos op 全 native 或可消，成本未知，后做）。
