@@ -218,11 +218,16 @@ vendors:
       env:
         app:
           sglang:
-            # flag_gems stays ON (default "1"); the cann8.5.0-only pow_scalar
-            # crash is blacklisted per-op in the plugin's ascend.yaml, not by
-            # disabling flag_gems wholesale. The keys below mirror the verify
-            # SGLANG_SWITCHES so a plain `docker run <image> sglang-serve`
-            # serves like the verified install.
+            # flag_gems OFF for cann8.5.0, measured 2026-09-07: the per-op
+            # blacklist (21 ops in plugin ascend.yaml incl. the pow family)
+            # clears every crash/compile-error path, but with flag_gems ON
+            # generation stays pathologically slow (~0.05 tok/s vs ~10.2 OFF;
+            # AICore ~83% busy, no named kernel) — a flagtree 0.6.0+ascend3.2
+            # codegen efficiency defect with no discrete op left to blacklist.
+            # So cann8.5.0 follows the cann9.0.0 baseline (USE_FLAGGEMS=0).
+            # The other keys mirror the verify SGLANG_SWITCHES so a plain
+            # `docker run <image> sglang-serve` serves like the verified install.
+            USE_FLAGGEMS: "0"
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
