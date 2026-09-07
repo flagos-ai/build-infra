@@ -41,7 +41,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 天数智芯 | COREX 4.4.0 | ⬜ | ⬜ |
 | 天数智芯 | COREX 4.5.0 | ⬜ | ⬜ |
 | 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ |
-| 沐曦 | MACA 3.7.2.1 | ⬜ | ⬜ |
+| 沐曦 | MACA 3.7.2.1 | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ |
 | 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ |
@@ -60,6 +60,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 寒武纪 | NEUWARE 4.7.2 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/90 | OPEN |
 | 燧原 | TOPS 1.9.10 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 燧原 | TOPS 1.10.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
+| 沐曦 | MACA 3.7.2.1 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/86 | OPEN |
 | 沐曦 | MACA 3.8.1.3 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/86 | OPEN |
 | 摩尔线程 | MUSA 4.3.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
 | 摩尔线程 | MUSA 5.2.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
@@ -72,7 +73,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 ### sglang0.5.18
 
-> 数据截止：2026-09-07
+> 数据截止：2026-09-08
 
 **App 级设施（全后端共享）**
 

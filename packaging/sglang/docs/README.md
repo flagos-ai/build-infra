@@ -18,8 +18,8 @@
   内置 flag_gems（零 sgl-kernel 路线，import 面由共享 `sgl-kernel-shim`
   wheel 满足）。落地 = runtime 镜像内两条 pip install 即可执行服务，再叠 app
   层（plugin + shim + deps_app）成 app 镜像。
-- **已发布**：metax-maca3.8.1.3、ascend-cann9.0.0 与 ascend-cann8.5.0 的
-  sglang 0.5.18 app 镜像均已推 Harbor 并记录
+- **已发布**：metax-maca3.8.1.3 与 maca3.7.2.1、ascend-cann9.0.0 与
+  ascend-cann8.5.0 的 sglang 0.5.18 app 镜像均已推 Harbor 并记录
   （[backends/metax.md](sglang-0.5.18/backends/metax.md)、
   [backends/ascend.md](sglang-0.5.18/backends/ascend.md)、
   [sglang-verification-matrix.md](sglang-verification-matrix.md)）。
