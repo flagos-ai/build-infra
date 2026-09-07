@@ -1,4 +1,4 @@
-# sglang 0.5.18 — Cambricon neuware4.7.2 验证记录
+# sglang 0.5.18 — Cambricon neuware4.7.2 / neuware4.4.3 验证记录
 
 > **验证通过（T 路径，冷启动）**。cambricon runtime 无 flagtree 编译器
 > （configs.yaml `flagtree` 为空），F 路径不存在（矩阵标 —），仅 T
@@ -109,3 +109,57 @@ vendor/stock。放 config yaml 而非 patch.py：patch 在 load_plugin 第 5 步
   若不可接受，后续让 torch_mlu fused SDPA 真正 engage。
 - 节点仅 Qwen3-4B（无 0.6B）——验证模型与 metax/ascend 的 0.6B 不同。
 - 验证容器已拆，节点净。
+
+## 7. neuware4.4.3（同 PR #90 增补头 0b9d98a78）
+
+与 neuware4.7.2 同 PR #90，但插件分支头推进（31528294e → 0b9d98a78）：4.4.3 的
+torch_mlu 1.29.2 只暴露部分 CUDA 迁移 facade，sglang 库存路径在 vendor 补丁可跑
+前就断——为该后端增补三样（facade shim / flag_gems 黑名单 15→223 / SDPA GQA
+视图替换），对 4.7.2 均无行为影响（4.7.2 复核见下）。工具链差异：
+
+| 项 | neuware4.4.3 | neuware4.7.2 |
+|---|---|---|
+| SDK | cntoolkit 4.4.3（cnmon 6.2.15 / cncl 1.29.4 / cnnl 2.1.829）| cntoolkit 4.7.2（cnmon 6.5.48 / cncl 1.30.8 / cnnl 2.2.14）|
+| Python | 3.10 | 3.12 |
+| torch / torch-mlu | 2.7.1+cpu / 1.29.2+torch2.7.1 | 2.11.0+cpu / 1.33.1+torch2.11.0 |
+| torchvision / torchaudio | 0.22.1+cpu / 2.7.1+cpu | 0.26.0+cpu / 2.11.0+cpu |
+| vendor triton | 3.2.0+mlu1.7.2（T 路径）| 3.4.0+mlu2.1.1（T 路径）|
+| flagtree | 无 | 无 |
+| flag_gems | 5.3.5 | 5.3.5 |
+| deps_app sglang0.5.18 | compressed-tensors==0.17.0+flagos | compressed-tensors==0.17.0+flagos |
+
+三样增补的根因与修法（全落在 4.4.3 生效，4.7.2 不受影响）：
+
+1. **activation 期 facade shim**（`vendor/cambricon/shim.py`，activate_platform
+   最早 per-process 钩子 + load_plugin 兜底）：torch_mlu 1.29.2 缺
+   `torch.cuda.memory` mempool 符号——pynccl_allocator import
+   `_cuda_beginAllocateCurrentThreadToPool` / `_cuda_endAllocateToPool` 在
+   sglang import 即 ImportError；且 `torch.Stream` 是包装器非类，
+   breakable_cuda_graph 的 isinstance 检查失败。
+2. **flag_gems 黑名单 15 → 223 个已注册 impl fn**（config/cambricon.yaml 头部
+   注释记收敛过程）：4.4.3 的 triton 3.2.0+mlu1.7.2 与 4.7.2 的 3.4.0+mlu 不同
+   代——原 15 个 pointwise 的 in-place/tensor 兄弟、compare、bitwise、
+   index/masked 写与 sampling 链复合族同属一个编译失败类，真实 decode 流量下逐
+   一暴露。两个下划线 impl（`_index_put_impl_` / `_unsafe_masked_index_put_accumulate`
+   ）在 decode 规模把 grid 排到 batch*vocab，超 MLU 65535 grid 上限崩 serve
+   （sampler.py:583 top-k masked setitem；4x16 probe 是小规模假绿），family 前缀
+   扫不到下划线名，须逐名列出。
+3. **SDPA GQA 兜底换纯视图展开**：repeat_interleave 走 flag_gems，随 KV 增长每
+   decode 步重编译形状特化 triton kernel——0.04 tok/s 且 watchdog 中途杀
+   scheduler。改 unsqueeze/expand/reshape + 一次 contiguous copy（形状无关，
+   torch.equal 实证与 repeat_interleave 逐字节一致），decode 平坦 ~1.2 tok/s。
+
+验证记录（app 镜像 `flagos-app/sglang0.5.18-cambricon-neuware4.4.3:2.1.2-0.1.dev1_g0b9d98a78`，
+push digest sha256:15f7aec83d32c2dc7e33954096b2a2c579520e72a653b472fba95687f45adbb8）：
+
+- 重建 app 镜像上 serve gate 4× chat/completions 全过（ct=60、temp 0.3/0.0、
+  sampling_backend=pytorch），中文请求/响应无乱码（cjk_ratio 0.82/0.75、
+  mojibake=[]）。
+- 4.7.2 无回归复核（改后插件头 0b9d98a78）：3/3 过（ct=144、
+  sampling_backend=pytorch）——triton 3.4.0+mlu 编译这 223 个 kernel 均无问
+  题，排除项在其上无行为差异（同类 4x16 probe 与 serve 规模一致）。
+- deps_app 同 4.7.2 pin compressed-tensors==0.17.0+flagos（sglang serve 无条件
+  import quantization 链，同根因 §4 #725）。
+
+遗留同 neuware4.7.2（§6）：decode ~1.1-1.2 tok/s（SDPA math 后端未优化）、
+节点仅 Qwen3-4B（无 0.6B，verify 需 `--model` 覆盖）。
