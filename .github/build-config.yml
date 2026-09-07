@@ -105,7 +105,7 @@ run:
       toolkit: "--network host -e ENFLAME_VISIBLE_DEVICES=all -e TENCENT_VISIBLE_DEVICES=all"
       raw: "--privileged -v /dev:/dev"
     sunrise:
-      raw: "--privileged -v /dev:/dev"
+      raw: "--privileged -v /dev:/dev -e TANG_VISIBLE_DEVICES=all"
 
   # Host prerequisite (container toolkit) for the toolkit tier, per vendor.
   prereq:
