@@ -102,7 +102,8 @@ backends:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/91
   hygon-dtk26.04:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.1.dev1_g440208beb"
     prs:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/98
   iluvatar-corex4.4.0:
