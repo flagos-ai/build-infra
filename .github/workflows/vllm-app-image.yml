@@ -177,6 +177,10 @@ jobs:
         if: ${{ !inputs.record_only }}
         run: |
           set -euo pipefail
+          # App's own build provenance; without it the image only shows the
+          # runtime/base labels and the app layer is untraceable.
+          commit="$(git rev-parse HEAD)"
+          created="$(git show -s --format=%cI HEAD)"
           docker build \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
@@ -185,6 +189,11 @@ jobs:
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
             --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
+            --label "org.opencontainers.image.version=${{ matrix.version }}" \
+            --label "org.opencontainers.image.revision=${commit}" \
+            --label "org.opencontainers.image.created=${created}" \
+            --label "last-updated=${created}" \
+            --label "flagos.plugin=${{ inputs.plugin_fl_version }}" \
             -t "${APP_TAG}" \
             -f app/vllm/Containerfile .
           echo "Built: ${APP_TAG}"

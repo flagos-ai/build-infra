@@ -192,6 +192,9 @@ jobs:
           # replicates the verified build verbatim.
           no_cache_arg=""
           [[ "${{ inputs.push }}" != "true" ]] && no_cache_arg="--no-cache"
+          # App's own build provenance (see vllm-app-image.yml).
+          commit="$(git rev-parse HEAD)"
+          created="$(git show -s --format=%cI HEAD)"
           docker build \
             ${no_cache_arg} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
@@ -200,6 +203,11 @@ jobs:
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
             --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
+            --label "org.opencontainers.image.version=${{ matrix.version }}" \
+            --label "org.opencontainers.image.revision=${commit}" \
+            --label "org.opencontainers.image.created=${created}" \
+            --label "last-updated=${created}" \
+            --label "flagos.app=${{ inputs.app }}" \
             -t "${app_tag}" \
             -f "${containerfile}" .
           echo "Built: ${app_tag}"
