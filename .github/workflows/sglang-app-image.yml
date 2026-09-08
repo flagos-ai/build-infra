@@ -183,6 +183,9 @@ jobs:
           set -euo pipefail
           # APP_TAG was computed by the Compute step (which runs in every
           # mode, so record_only derives the original push's tag).
+          # App's own build provenance (see vllm-app-image.yml).
+          commit="$(git rev-parse HEAD)"
+          created="$(git show -s --format=%cI HEAD)"
           docker build \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "SGLANG_VERSION=${{ inputs.sglang_version }}" \
@@ -191,6 +194,11 @@ jobs:
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
             --build-arg "APP_DEPS=${{ matrix.app_deps }}" \
+            --label "org.opencontainers.image.version=${{ matrix.version }}" \
+            --label "org.opencontainers.image.revision=${commit}" \
+            --label "org.opencontainers.image.created=${created}" \
+            --label "last-updated=${created}" \
+            --label "flagos.plugin=${{ inputs.plugin_fl_version }}" \
             -t "${APP_TAG}" \
             -f app/sglang/Containerfile .
           echo "Built: ${APP_TAG}"
