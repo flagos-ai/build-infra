@@ -309,6 +309,17 @@ if [[ -n "$DEVICE" ]]; then
     esac
 fi
 
+# Hygon DTK 26.04 gates its HCU attention backend on a controlled serve
+# config — page size 64 + radix cache off (the --disable-* flags below in the
+# Step 7 command are the rest). launch_server refuses the HCU path otherwise
+# ("Strict HCU attention requires the controlled Qwen server configuration",
+# backends/hygon.md §4). Empty for every other backend so the Step 7 command
+# stays byte-identical for them.
+SERVE_CONTROLLED_ARGS=""
+if [[ "${VENDOR}" == "hygon" ]]; then
+    SERVE_CONTROLLED_ARGS="--page-size 64 --disable-radix-cache"
+fi
+
 # ── Print header ────────────────────────────────────────────────────────
 
 echo "========================================"
@@ -716,6 +727,7 @@ except (KeyError, TypeError):
             --trust-remote-code \
             --disable-cuda-graph \
             --disable-piecewise-cuda-graph \
+            ${SERVE_CONTROLLED_ARGS} \
             > /tmp/sglang-serve.log 2>&1 &
 
         SERVE_PID=\$!
