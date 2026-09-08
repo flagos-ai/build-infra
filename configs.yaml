@@ -508,7 +508,7 @@ vendors:
       driver: "6.3.30-V1.4.1a"
       python: "3.10"
       triton: triton==3.5.1+das.opt1.dtk2604.torch290
-      flagtree: flagtree==0.6.1+hcu3.6
+      flagtree: flagtree==0.6.2a1+hcu3.6
       deps:
         - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
