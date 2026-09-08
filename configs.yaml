@@ -520,7 +520,11 @@ vendors:
         megatron_rl:
           - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
         vllm0.24.0: []
-        sglang0.5.18: []
+        # sglang serve 硬依赖 compressed_tensors（F verify 实证：quantization
+        # 链顶层 import，缺失则 serve 崩，与其它后端同因）。+flagos repack 的
+        # Requires-Dist 无 torch，不会顶 runtime 的 vendor torch。
+        sglang0.5.18:
+          - compressed-tensors==0.17.0+flagos
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
