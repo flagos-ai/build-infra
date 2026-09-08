@@ -513,16 +513,14 @@ vendors:
         - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
         - torch==2.9.0+das.opt1.dtk2604
-        # torch built against the numpy 1.x C ABI
-        # opencv-python-headless declares numpy>=2, but that is a pkg declaration only.
-        # Its wheel is runtime backward-compatible with numpy>=1.19
+        - torchvision==0.24.0+das.opt1.dtk2604.torch290
         - numpy==1.26.4
       deps_app:
         megatron_training: []
-        # RL 训练 forward 强制 TE（hygon E2E §5.4）；vendor 条件包。
         megatron_rl:
           - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
         vllm0.24.0: []
+        sglang0.5.18: []
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
