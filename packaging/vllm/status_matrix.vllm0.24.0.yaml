@@ -159,4 +159,4 @@ backends:
     launch_docs: true
     image_tag: "2.1.2-0.3.0rc0_gbd010ce.d20260831"
     prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/421
+      - https://github.com/flagos-ai/vllm-plugin-FL/pull/460
