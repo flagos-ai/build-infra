@@ -96,7 +96,6 @@ backends:
   hygon-dtk26.04:
     deps_app: true
     launch_docs: false
-    note: "app 镜像已解锁（2026-09-09）：runtime 2.1.2 烘 numpy==1.26.4，torch↔numpy ABI 阻塞解除；+flagos/plugin wheel 落 flagos-pypi-hygon，镜像构建中"
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: true
