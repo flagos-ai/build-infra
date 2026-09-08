@@ -47,6 +47,12 @@ completion_tokens>0 + sampling_backend=pytorch（经 /server_info 确认）。
 同一正式 wheel（0.1.dev1+g440208beb）上 T 先验、F 复验、T 再复验（冻结证据
 log）均 3/3 全过。验证容器 `sglang-verify-hygon-dtk26.04` 保留。
 
+app 镜像闭环：`sglang0.5.18-hygon-dtk26.04:2.1.2-0.1.dev1_g440208beb` 由
+sglang-app-image workflow 在正式 wheel 上构建 + on-node verify（app 容器内
+Step 7 serve E2E 3/3 全过）+ push（2026-09-08）；image_tag 由 record 步骤落库
+（PR #794）。on-node verify 的 serve 受控参数由 #793 固化进
+`verify-sglang-backend.sh`（hygon 分支自动带参，Step 7 无需再手动补）。
+
 ## 4. 坑清单
 
 | # | 坑 | 处置 |
@@ -75,13 +81,9 @@ flag_gems SQL ConfigCache 跨编译器共享（#3）：F/T 共用同 db
 
 ## 5. 遗留
 
-- verify 脚本 `verify-sglang-backend.sh` Step 7 的 serve 命令未固化受控配置（缺
-  `--page-size 64` / `--disable-radix-cache`），脚本级根治待做；本轮以 stdin 脚本按受控参数起
-  serve，参数集与脚本不一致是后续误跑的隐患。
 - 插件修复 PR #98（exp/0.5.18-hygon → exp/0.5.18）已开，与其他后端插件 PR
   （#84/#86/#90/#91/#92）对齐跟踪分支头（正式 wheel 由 sglang-plugin-wheel
   workflow 产出）。
-- sglang app 镜像（hygon）本轮未构建/发布，验证直接在 runtime 镜像上进行。
 - flagtree hygon wheel 由 flagtree 项目发布（版本已更新，runtime 内
   0.6.2a1+hcu3.6），非从 build-infra 重建；其上 0.5.18 F 路径实证全绿，本线无
   packaging/flagtree/hygon 重建待办（此前 status_matrix note 以该重建阻塞 F
