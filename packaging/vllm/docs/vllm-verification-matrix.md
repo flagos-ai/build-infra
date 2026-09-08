@@ -114,7 +114,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
-| DTK 26.04 | ⬜ | ⬜ | ⬜ | F 路径 ✅；app 镜像未发布：镜像侧 torch↔numpy ABI 不匹配（阻塞） |
+| DTK 26.04 | ✅ | ⬜ | ⬜ | app 镜像已解锁（2026-09-09）：runtime 2.1.2 烘 numpy==1.26.4，torch↔numpy ABI 阻塞解除；+flagos/plugin wheel 落 flagos-pypi-hygon，镜像构建中 |
 | COREX 4.4.0 | ✅ | ✅ | ✅ | — |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |

@@ -94,9 +94,9 @@ backends:
     launch_docs: true
     image_tag: "2.1.2-0.2.1_gc2e496d.d20260905"
   hygon-dtk26.04:
-    deps_app: false
+    deps_app: true
     launch_docs: false
-    note: "F 路径 ✅；app 镜像未发布：镜像侧 torch↔numpy ABI 不匹配（阻塞）"
+    note: "app 镜像已解锁（2026-09-09）：runtime 2.1.2 烘 numpy==1.26.4，torch↔numpy ABI 阻塞解除；+flagos/plugin wheel 落 flagos-pypi-hygon，镜像构建中"
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: true
