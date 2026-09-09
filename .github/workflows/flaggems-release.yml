@@ -48,7 +48,7 @@ jobs:
     # Only accounts listed in .github/builders.txt may trigger this workflow
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   # ── pure-Python wheel, all vendor PyPIs ──────────────────────────────
@@ -61,7 +61,7 @@ jobs:
       FLAGGEMS_REF: ${{ inputs.flaggems_ref }}
       NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Setup Python deps
@@ -86,7 +86,7 @@ jobs:
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
@@ -108,7 +108,7 @@ jobs:
       BACKEND: ${{ matrix.name }}
       NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Setup Python deps
@@ -149,7 +149,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Install PyYAML
