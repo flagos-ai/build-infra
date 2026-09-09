@@ -33,8 +33,8 @@ registry:
 runners:
   default: [self-hosted, h20]
   overrides:
-    ascend-cann8.5.0: [self-hosted, cann850]
-    ascend-cann9.0.0: [self-hosted, cann900]
+    ascend-cann8.5.0: [self-hosted, cann850, 910b]
+    ascend-cann9.0.0: [self-hosted, cann900, 910b]
     ascend-cann8.5.0-910c: [self-hosted, cann850, 910c]
     ascend-cann9.0.0-910c: [self-hosted, cann900, 910c]
     cambricon-neuware4.4.3: [self-hosted, cambricon]
