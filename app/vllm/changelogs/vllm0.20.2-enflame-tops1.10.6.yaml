@@ -1,0 +1,39 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+image: vllm0.20.2-enflame-tops1.10.6
+tags:
+- tag: 2.1.2-0.2.1_gc2e496d.d20260905
+  entries:
+  - date: '2026-09-05T12:54:19Z'
+    reason: Initial 0.20.2 deliverable on GCU300 (tops1.10.6). vllm-plugin-FL rotary-guard-ordering (c2e496d)
+      guards the rotary flash_attn import in the gcu patches so engine start no longer hard-depends on
+      triton_gcu; repacked vllm wheel pins xgrammar==0.2.3+flagos (an earlier loose pin pulled triton
+      3.8.0 over the runtime's). F/T both serve correctly (Paris anchor).
+    upstream_prs: []
