@@ -41,12 +41,12 @@ title: "megatron_training-mthreads-musa4.3.6"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1_14_g6f61e9c5b`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.3.0_rc0.post1_3.g6e8d7ffc7`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.2.1_14_g6f61e9c5b
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.3.0_rc0.post1_3.g6e8d7ffc7
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
