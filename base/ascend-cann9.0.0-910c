@@ -19,6 +19,7 @@
 # - 20260615: Initial version
 # - 20260715: Bump base OS 22.04 -> 24.04 (newer libstdc++ for flagtree); #110
 # - 20260909: 910C variant — swap the ops package to the A3 token (PRODUCT=A3)
+# - 20260910: pass the runner's squid proxy into build containers (proxy build-args)
 
 FROM ubuntu:24.04 AS Builder
 
@@ -31,6 +32,12 @@ ARG ARCH=aarch64
 # 910B files use 910b; this 910C variant uses A3 (the ops package is the only chip-specific
 # piece — toolkit and NNAL below are shared with the 910B line).
 ARG PRODUCT=A3
+
+# Proxy relayed as --build-arg by scripts/build_base.py (these nodes have no
+# direct egress). ARG, not ENV — keeps the value out of the pushed image.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
 
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/ascend
 ENV CANN_PACKAGE=Ascend-cann_9.0.0_linux-aarch64.run
