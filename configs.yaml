@@ -253,6 +253,33 @@ vendors:
         - CANN 910B Ops 8.5.0 (aarch64)    # Ascend-cann-910b-ops_8.5.0_linux-aarch64.run
         - CANN NNAL 8.5.0 (aarch64)        # Ascend-cann-nnal_8.5.0_linux-aarch64.run
 
+    # 910C twin of cann8.5.0. The ops package is the only chip-split piece
+    # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run); toolkit/NNAL/deps/toolchain
+    # are identical to the 910B line. Phase 1 ships base+runtime only, so
+    # deps_app and env.app.* keys are intentionally absent (their presence would
+    # pull 910C into the app build matrices).
+    cann8.5.0-910c:
+      extras: ascend-cann850-910c
+      hardware: ["Ascend 910C"]
+      driver: "25.5.0"
+      python: "3.11"
+      cmake_backend: NPU
+      triton: triton-ascend==3.2.0
+      flagtree: flagtree==0.6.0+ascend3.2
+      deps:
+        - torch==2.9.0+cpu
+        - torch-npu==2.9.0
+        - torchvision==0.24.0
+        - torchaudio==2.9.0
+        - numpy==1.26.4
+        - attrs==24.2.0
+        - decorator==5.1.1
+        - psutil==6.0.0
+      sdk:
+        - CANN Toolkit 8.5.0 (aarch64)     # Ascend-cann-toolkit_8.5.0_linux-aarch64.run
+        - CANN 910C Ops 8.5.0 (aarch64)    # Ascend-cann-A3-ops_8.5.0_linux-aarch64.run
+        - CANN NNAL 8.5.0 (aarch64)        # Ascend-cann-nnal_8.5.0_linux-aarch64.run
+
     cann9.0.0:
       extras: ascend-cann900
       hardware: ["Ascend 910B"]   # TODO: confirm 910C
@@ -298,6 +325,32 @@ vendors:
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910B Ops 9.0.0 (aarch64) # Ascend-cann-910b-ops_9.0.0_linux-aarch64.run
+        - CANN NNAL 9.0.0 (aarch64)     # Ascend-cann-nnal_9.0.0_linux-aarch64.run
+
+    # 910C twin of cann9.0.0. The ops package is the only chip-split piece
+    # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run); toolkit/NNAL/deps/toolchain
+    # are identical to the 910B line. Phase 1 ships base+runtime only, so
+    # deps_app and env.app.* keys are intentionally absent (their presence would
+    # pull 910C into the app build matrices).
+    cann9.0.0-910c:
+      extras: ascend-cann900-910c
+      hardware: ["Ascend 910C"]
+      driver: "26.0.rc1"
+      python: "3.11"
+      cmake_backend: NPU
+      triton: triton==3.5.0
+      flagtree: flagtree==0.6.1+ascend3.5
+      triton_post_install:
+        - triton_ascend==3.2.1
+      deps:
+        - torch==2.10.0+cpu
+        - torch-npu==2.10.0
+        - torchvision==0.25.0+cpu
+        - torchaudio==2.10.0+cpu
+        - numpy==1.26.4
+      sdk:
+        - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
+        - CANN 910C Ops 9.0.0 (aarch64) # Ascend-cann-A3-ops_9.0.0_linux-aarch64.run
         - CANN NNAL 9.0.0 (aarch64)     # Ascend-cann-nnal_9.0.0_linux-aarch64.run
 
   cambricon:

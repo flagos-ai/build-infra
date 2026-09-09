@@ -164,7 +164,7 @@ if [[ -z "$VENDOR_BACKEND" ]]; then
     echo "Error: vendor-backend argument required" >&2
     exit 1
 fi
-VENDOR="${VENDOR_BACKEND%-*}"
+VENDOR="${VENDOR_BACKEND%%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
 
 # --compiler accepts both long and one-letter forms (F/T from the status

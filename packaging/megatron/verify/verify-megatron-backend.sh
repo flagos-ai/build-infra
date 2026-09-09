@@ -106,7 +106,7 @@ if [[ -z "$VENDOR_BACKEND" ]]; then
     echo "Error: vendor-backend argument required" >&2
     exit 1
 fi
-VENDOR="${VENDOR_BACKEND%-*}"
+VENDOR="${VENDOR_BACKEND%%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
 
 if [[ -n "$COMPILER" && "$COMPILER" != "flagtree" && "$COMPILER" != "triton" ]]; then
