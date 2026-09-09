@@ -105,7 +105,7 @@ if [[ -z "$VENDOR_BACKEND" ]]; then
 fi
 
 # Parse vendor and backend
-VENDOR="${VENDOR_BACKEND%-*}"
+VENDOR="${VENDOR_BACKEND%%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
 
 if [[ -n "$COMPILER" && "$COMPILER" != "flagtree" && "$COMPILER" != "triton" ]]; then

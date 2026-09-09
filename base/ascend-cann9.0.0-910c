@@ -1,0 +1,125 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# Base image for Ascend CANN 9.0.0 (910C) on Ubuntu 24.04
+# =========================================================
+# History:
+# - 20260615: Initial version
+# - 20260715: Bump base OS 22.04 -> 24.04 (newer libstdc++ for flagtree); #110
+# - 20260909: 910C variant — swap the ops package to the A3 token (PRODUCT=A3)
+
+FROM ubuntu:24.04 AS Builder
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+# ── Build arguments ────────────────────────────────────────────
+ARG PYTHON_VERSION=3.11
+ARG ARCH=aarch64
+# PRODUCT is the ops-package chip token in Ascend-cann-${PRODUCT}-ops_<ver>_linux-aarch64.run:
+# 910B files use 910b; this 910C variant uses A3 (the ops package is the only chip-specific
+# piece — toolkit and NNAL below are shared with the 910B line).
+ARG PRODUCT=A3
+
+ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/ascend
+ENV CANN_PACKAGE=Ascend-cann_9.0.0_linux-aarch64.run
+ENV OPS_PACKAGE=Ascend-cann-${PRODUCT}-ops_9.0.0_linux-aarch64.run
+ENV NNAL_PACKAGE=Ascend-cann-nnal_9.0.0_linux-aarch64.run
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+# python${PYTHON_VERSION} is version-locked to MATCH the runtime venv (3.11):
+# the CANN installer writes python-version-specific artifacts that the runtime
+# imports (set_env.sh puts them on PYTHONPATH), so the base python must equal the
+# runtime python. noble ships 3.12 and doesn't package 3.11, so add deadsnakes to
+# force-install 3.11 alongside the system 3.12 (two copies is fine — CANN uses
+# 3.11). libelf1 and libpython3-dev are required by the runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git vim ca-certificates software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        curl unzip net-tools pciutils \
+        gcc g++ build-essential make cmake \
+        python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python3-pip \
+        libelf1 \
+        libpython3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Install CANN toolkit ──────────────────────────────────────
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /cann.run ${FILE_STORE}/${CANN_PACKAGE} \
+    && chmod +x /cann.run \
+    && /cann.run --full --quiet --nox11 --install-for-all \
+    && rm /cann.run
+
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /ops.run ${FILE_STORE}/${OPS_PACKAGE} \
+    && chmod +x /ops.run \
+    && /ops.run --install --quiet --nox11 --install-for-all \
+    && rm /ops.run
+
+RUN bash -c "source /usr/local/Ascend/cann/set_env.sh && \
+    curl --retry 5 --retry-delay 5 --retry-all-errors -o /nnal.run ${FILE_STORE}/${NNAL_PACKAGE} \
+    && chmod +x /nnal.run \
+    && /nnal.run --install --quiet --nox11 --install-for-all \
+    && rm /nnal.run"
+
+ENV ASCEND_HOME=/usr/local/Ascend/ascend-toolkit/latest
+ENV PATH="${ASCEND_HOME}/bin:${ASCEND_HOME}/compiler/ccec_compiler/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${ASCEND_HOME}/lib64:/usr/local/Ascend/driver/lib64:${ASCEND_HOME}/lib64/plugin/opskernel"
+
+# ── Capture vendor SDK env into profile.d ──────────────────────
+# Users and downstream Dockerfiles no longer need to source set_env.sh —
+# the vendor env loads automatically in login, non-login interactive,
+# and non-interactive shells (via runtime's profile.d plumbing).
+# We source the CANN toolkit env first, then the NNAL/ATB env (which
+# builds on it) so ATB_HOME_PATH and the ATB lib path are captured too —
+# without them libatb.so fails to load and ATB ops (_npu_reshape_and_cache,
+# _npu_rotary_embedding) crash at inference. The top-level atb/set_env.sh
+# selects the cxx11-ABI (cxx_abi_1) variant, matching torch's ABI.
+# NOTE: the sourcing runs inside `bash -c`, not the RUN's /bin/sh (dash on
+# ubuntu:24.04). The vendor set_env.sh scripts are bash scripts; sourcing them
+# under dash can hit a code path that calls `exit` (killing the RUN before
+# `|| true` can catch it — a silent non-zero exit). Isolating the source in a
+# bash child contains any such exit and matches step 15's `bash -c source`.
+# LC_ALL=C pins collation so the two sorts and `comm` agree; a locale-shifted
+# `comm` otherwise aborts (exit 2) claiming the input is "not in sorted order".
+# CANN's set_env.sh exports bash functions; `env` renders each as a multi-line
+# block. Filtering only `^BASH_` drops the `BASH_FUNC_x%%=() {` header but lets
+# the body lines leak, and LC_ALL=C sorts those space-leading fragments to the
+# top where they become bogus `export ...(...)` lines — the syntax error that
+# broke sourcing at runtime. Anchoring on a valid var-name start drops the
+# leaked bodies (and the `%%` header), and single-quoting each value keeps any
+# embedded ) " $ ` literal.
+RUN env | LC_ALL=C sort > /tmp/_v_before && \
+    bash -c 'set -a; \
+      . /usr/local/Ascend/cann/set_env.sh > /dev/null 2>&1 || true; \
+      [ -f /usr/local/Ascend/nnal/atb/set_env.sh ] && . /usr/local/Ascend/nnal/atb/set_env.sh > /dev/null 2>&1 || true; \
+      set +a; env' \
+      | LC_ALL=C sort > /tmp/_v_after && \
+    { LC_ALL=C comm -13 /tmp/_v_before /tmp/_v_after || true; } \
+      | { grep -Ev '^(_|PWD|SHLVL|OLDPWD)=' || true; } \
+      | { grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true; } \
+      | while IFS='=' read -r var val; do \
+          esc=$(printf '%s' "$val" | sed "s/'/'\\\\''/g"); \
+          printf "export %s='%s'\n" "$var" "$esc"; \
+        done \
+      > /etc/profile.d/vendor.sh && \
+    rm -f /tmp/_v_before /tmp/_v_after && \
+    echo "vendor.sh: captured $(wc -l < /etc/profile.d/vendor.sh) env vars"
+
+# ── Bash plumbing — make profile.d/*.sh available everywhere ─────
+RUN printf 'for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done\n' \
+    > /etc/bash_env.sh; \
+    printf '. /etc/bash_env.sh\n%s' "$(cat /etc/bash.bashrc)" > /etc/bash.bashrc
+ENV BASH_ENV=/etc/bash_env.sh
