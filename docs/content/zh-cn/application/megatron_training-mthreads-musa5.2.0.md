@@ -41,12 +41,12 @@ title: "megatron_training-mthreads-musa5.2.0"
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa5.2.0:2.1.2-0.2.1_14_g6f61e9c5b`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa5.2.0:2.1.2-0.3.0_rc0.post1_3.g6e8d7ffc7`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa5.2.0:2.1.2-0.2.1_14_g6f61e9c5b
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa5.2.0:2.1.2-0.3.0_rc0.post1_3.g6e8d7ffc7
 ```
 
 以下两种方式任选其一：
