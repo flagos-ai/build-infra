@@ -155,7 +155,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
-| DTK 26.04 | ✅ | ✅ | ⬜ | app 镜像暂不做（2026-08-20 决策）：F 路径等待 FlagTree 发布修复版本（flagtree hygon wheel 重建） |
+| DTK 26.04 | ✅ | ✅ | ✅ | — |
 | COREX 4.4.0 | ✅ | ✅ | ✅ | T（vendor corex triton 3.1.0）路径不可交付：厂商编译器有不可修复缺陷（2026-09-04 实测，参见 Iluvatar 报告） |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
@@ -266,9 +266,14 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   （[build-infra #411](https://github.com/flagos-ai/build-infra/pull/411)）："T 路径不可用"注记作废 ——
   裸 `compiler`（status）探测 `_compiler_import_triton` prepend 不清除已在
   PYTHONPATH 的 side dir 导致 entry-point 混叠，切换路径本身干净。
-- **hygon flagtree wheel 待建**（[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入后重建 `packaging/flagtree/hygon`，
-  替换容器内临时 sed）；**hygon app 镜像暂不做**（2026-08-20 决策，见
-  [0.24.0 §14](vllm-0.24.0/index.md)）。
+- **hygon flagtree 修复发布线**：`cluster_dims` 修复 = [FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020)
+  （已合入），以 flagtree 项目发布的 `0.6.2a1+hcu3.6` 落地，configs.yaml 钉版本
+  （[build-infra #785](https://github.com/flagos-ai/build-infra/pull/785)，2026-09-08）—— 未走
+  `packaging/flagtree/hygon` 本地构建（该路径弃用）；runtime 2.1.2 重建后，2026-08-20
+  验证用的容器内临时 sed 随之退役。
+- **hygon app 镜像**：2026-08-20 "暂不做"决策已作废 —— vllm0.24.0 app 镜像
+  `2.1.2-0.2.1_g13eb9be.d20260908` 已构建/验证/发布（记录 PR #796，2026-09-09），
+  记录见 [0.24.0 §12](vllm-0.24.0/backends/hygon.md)。
 
 ## 已知问题 / 阻塞
 
