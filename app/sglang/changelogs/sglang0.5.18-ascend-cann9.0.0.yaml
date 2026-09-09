@@ -1,0 +1,39 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+
+image: sglang0.5.18-ascend-cann9.0.0
+tags:
+- tag: 2.1.2-0.1.dev1_g2e568482e
+  entries:
+  - date: 2026-09-03T14:08:15Z
+    reason: >-
+      sglang 0.5.18 on Ascend cann9.0.0 (PR 84 zero-kernel stand-ins).
+    upstream_prs:
+    - https://github.com/flagos-ai/sglang-plugin-FL/pull/84

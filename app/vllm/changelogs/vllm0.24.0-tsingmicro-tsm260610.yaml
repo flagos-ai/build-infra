@@ -1,0 +1,44 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+image: vllm0.24.0-tsingmicro-tsm260610
+tags:
+- tag: 2.1.2-0.3.0rc0_g2f034ee.d20260908
+  entries:
+  - date: '2026-09-08T12:22:01Z'
+    reason: 'Enable vllm 0.24.0 on tsingmicro via vllm-plugin-FL PR 460 (tsingmicro-enable-main). The
+      PR 447 txda skeleton is not independently serveable (init nccl crash, warmup generator crash, wrong
+      attention/norms routing); this build adds the minimal enablement: txda->tccl dist backend, cpu torch.Generator,
+      tsingmicro.yaml (norms reference-first, attention->vendor/TxdaSDPA), TxdaSDPAAttentionBackend. F/T
+      both serve 5/5 correct. Supersedes the PR 421-based deliverable (bd010ce), whose KV-write-gate and
+      SDPA-attention work is carried forward.'
+    upstream_prs:
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/460
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/447
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/421

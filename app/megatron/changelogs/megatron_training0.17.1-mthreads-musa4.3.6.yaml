@@ -1,0 +1,45 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+
+image: megatron_training0.17.1-mthreads-musa4.3.6
+tags:
+- tag: 2.1.2-0.2.1_14_g6f61e9c5b
+  entries:
+  - date: 2026-08-27T01:02:40Z
+    reason: >-
+      megatron-core wheel (0.17.1+fl) app image on this backend. Built on the MLF wheel-full-scope line
+      (PR 107) with backend enablement carried by the listed MLF/vendor PRs. Single-step wheel install
+      over the runtime.
+    upstream_prs:
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/127
