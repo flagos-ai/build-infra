@@ -47,9 +47,13 @@ iluvatar overlay 都用 `(1,1,1)` 兜底。修复 = 一行
   for backends that omit it`，分支 fix/cluster-dims-default，
   2026-08-20 提交）
 - 临时绕过：就地 sed 到 `/opt/flagtree/triton/compiler/compiler.py`
-  （437 行 `setdefault`）解锁验证 —— 显式临时、不可复现；可复现修复
-  = PR 合入后重建 flagtree hygon wheel（`packaging/flagtree/hygon`，
-  待建，同 [sunrise §11.5](sunrise.md) 模式）
+  （437 行 `setdefault`）解锁验证 —— 显式临时、不可复现（sed 只存在于
+  验证容器内，从未进镜像）
+- 修复最终以 flagtree 项目发布形式落地：[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020)
+  合入后发布 `0.6.2a1+hcu3.6`，configs.yaml 钉版本（[build-infra #785](https://github.com/flagos-ai/build-infra/pull/785)，
+  2026-09-08），runtime 2.1.2 重建即含修复 —— 未走 `packaging/flagtree/hygon`
+  本地构建。F 路径在重建后 runtime 上的可用性另经 sglang 0.5.18 hygon
+  双编译器 E2E 佐证（[build-infra #792](https://github.com/flagos-ai/build-infra/pull/792)）
 
 ### 12.2 T 路径（vendor triton 3.5.1）
 

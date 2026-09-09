@@ -50,7 +50,7 @@
 | mthreads musa5.2.0 / musa4.3.6 | [mthreads.md](backends/mthreads.md) | §8–§9 |
 | ascend cann9.0.0 / cann8.5.0 | [ascend.md](backends/ascend.md) | §10；CANN 双栈双编译器 + app 镜像 |
 | sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | §11；cp310 + CUSTOM 移植；FlagTree 挂死已修复 |
-| hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器；flagtree wheel 待建 |
+| hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器 + app 镜像（flagtree 0.6.2a1+hcu3.6） |
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | §13；cp310 + [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) + app 镜像 serve |
 | iluvatar corex4.5.0 | [iluvatar.md](backends/iluvatar.md) | §14；cp312 empty wheel；F/T 双编译器 app 镜像 |
 | tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §15；cp310；KV 写路径修复 [VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)；F/T 双编译器 |
@@ -153,13 +153,12 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
       Qwen3-Next/GDN 模型验证前置（[§13.4](backends/kunlunxin.md)）
 - [ ] kunlunxin 否定指令型 prompt 标点循环 —— 已证与 alpha 无关（prompt
       内容特性，[§13.6](backends/kunlunxin.md)），留待 Qwen3-Next 验证时观察
-- [ ] hygon flagtree hygon wheel 重建（[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入后固化到
-      `packaging/flagtree/hygon`，替换容器内临时 sed）
-- [ ] hygon app 镜像 —— **暂不做**（2026-08-20 决策）：F 路径默认
-      编译器被 [FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入 + `packaging/flagtree/hygon` wheel 重建
-      发布卡死（无新 flagtree release 前 runtime 镜像无法刷新）；T
-      路径（vendor triton 3.5.1 已在 runtime，同 [sunrise §11.6](backends/sunrise.md)
-      烘焙 `compiler triton` 先例）技术上今天可做，但同轮交付意义不大。
-      [FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020) 合入、wheel 重建后可重估。
+- [x] hygon flagtree 修复发布 —— 2026-09-08：[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020)
+      已合入，修复以 flagtree 项目发布的 `0.6.2a1+hcu3.6` 落地，configs.yaml 钉版本
+      （[build-infra #785](https://github.com/flagos-ai/build-infra/pull/785)）；未走
+      `packaging/flagtree/hygon` 本地构建，容器内临时 sed 随 runtime 2.1.2 重建退役。
+- [x] hygon app 镜像 —— 2026-09-09：vllm0.24.0 app 镜像
+      `2.1.2-0.2.1_g13eb9be.d20260908` 已构建/验证/发布（记录 PR #796），
+      "暂不做"（2026-08-20 决策）作废。
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （[§10.2](backends/ascend.md)，非致命）—— 上游 flag_gems 侧修复后复验
