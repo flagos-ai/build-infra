@@ -87,7 +87,7 @@ jobs:
     # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   set-matrix:
@@ -98,7 +98,7 @@ jobs:
       harbor_host: ${{ steps.harbor-host.outputs.host }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install PyYAML
         run: python3 -m pip install --user pyyaml
@@ -130,7 +130,7 @@ jobs:
     runs-on: ${{ fromJSON(matrix.runson) }}
     steps:
       - name: Checkout build-infra
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Harbor login (push only)
         if: ${{ inputs.push && !inputs.record_only }}

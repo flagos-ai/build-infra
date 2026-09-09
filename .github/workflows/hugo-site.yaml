@@ -47,7 +47,7 @@ jobs:
     # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   build-and-deploy:
@@ -57,7 +57,7 @@ jobs:
       HUGO_VERSION: 0.157.0
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Theme + Bootstrap come from Hugo Modules (see docs/go.mod), not a
           # submodule, so submodule checkout is no longer required.
@@ -66,7 +66,7 @@ jobs:
       - name: Install Go
         # Hugo Modules are Go modules under the hood; Hugo shells out to `go`
         # to download the theme and Bootstrap SCSS during the build.
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: 'stable'
 
@@ -89,7 +89,7 @@ jobs:
           hugo build --gc --minify
 
       - name: Deploy to flagos-ai/release-info
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           # FLAGOS_RELEASE_INFO is an SSH deploy key for flagos-ai/release-info.
           # If it is a PAT instead, replace `deploy_key` with `personal_token`.

@@ -91,7 +91,7 @@ jobs:
     # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   set-matrix:
@@ -100,7 +100,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
@@ -132,7 +132,7 @@ jobs:
       EXTRA_PYPI: ${{ matrix.extra_pypi }}
     steps:
       - name: Checkout build-infra
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Resolve the requested ref to its exact commit and derive the wheel
       # version from it — the version is NEVER hand-typed. The derived version

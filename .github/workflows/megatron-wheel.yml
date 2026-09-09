@@ -80,7 +80,7 @@ jobs:
     # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   set-matrix:
@@ -89,7 +89,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
@@ -116,7 +116,7 @@ jobs:
       IMAGE: megatron-wheel-${{ matrix.name }}:${{ github.run_id }}
     steps:
       - name: Checkout build-infra
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Build the wheel image
         working-directory: packaging/megatron/builder

@@ -61,7 +61,7 @@ jobs:
     # the workspace, so the repo must exist before the action step runs.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   set-matrix:
@@ -70,7 +70,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
@@ -97,7 +97,7 @@ jobs:
       SGLANG_VERSION: ${{ inputs.sglang_version }}
     steps:
       - name: Checkout build-infra
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Wraps build-and-repack.sh; the -build image must already exist on the
       # runner (pulled by the script, `|| true`). Wheels land in
@@ -202,14 +202,14 @@ jobs:
     if: ${{ inputs.upload && fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
 
       - name: Checkout the shim source (sglang-plugin-FL addon)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: flagos-ai/sglang-plugin-FL
           ref: exp/0.5.18
