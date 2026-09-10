@@ -1,1 +1,200 @@
-[]
+- app: vllm0.20.2
+  backend: ascend-cann8.5.0-910c
+  compiler: F
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.20.2 --plugin-fl-version 0.2.0+g2b6b635.d20260824
+  failure:
+    step: '[STEP] Step 3: Installing repacked vllm'
+    exit_code: 1
+    error_head: "flagtree (active) - 3.2.0\n--- Python ---\nPython 3.11.15\n\n---\
+      \ Torch ---\ntorch: 2.9.0+cpu\n\n--- NumPy ---\nnumpy: 1.26.4\n\n--- Triton\
+      \ ---\ntriton: 3.2.0\n\n--- FlagGems ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488: UserWarning:\
+      \ torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"torch.npu.get_device_capability\
+      \ isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn("
+    error_tail: "flag_gems: 5.3.5\n\n--- Device availability ---\n\e[0;34m[STEP]\e\
+      [0m Step 3: Installing repacked vllm\nLooking in indexes: https://resource.flagos.net/repository/flagos-pypi-ascend/simple,\
+      \ https://mirrors.aliyun.com/pypi/simple\nWARNING: Retrying (Retry(total=4,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net', port=443):\
+      \ Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING: Retrying\
+      \ (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after\
+      \ connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com',\
+      \ port=443): Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=3,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com', port=443):\
+      \ Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=2, connect=None,\
+      \ read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError(\"\
+      HTTPSConnection(host='mirrors.aliyun.com', port=443): Failed to resolve 'mirrors.aliyun.com'\
+      \ ([Errno -3] Temporary failure in name resolution)\")': /pypi/simple/vllm/\n\
+      WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com',\
+      \ port=443): Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=0,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com', port=443):\
+      \ Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /pypi/simple/vllm/\nERROR: Could not find a version that\
+      \ satisfies the requirement vllm==0.20.2+flagos (from versions: none)\nERROR:\
+      \ No matching distribution found for vllm==0.20.2+flagos\n\n\e[0;32m[INFO]\e\
+      [0m Cleaning up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.24.0
+  backend: ascend-cann8.5.0-910c
+  compiler: F
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 3: Installing repacked vllm'
+    exit_code: 1
+    error_head: "flagtree (active) - 3.2.0\n--- Python ---\nPython 3.11.15\n\n---\
+      \ Torch ---\ntorch: 2.9.0+cpu\n\n--- NumPy ---\nnumpy: 1.26.4\n\n--- Triton\
+      \ ---\ntriton: 3.2.0\n\n--- FlagGems ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488: UserWarning:\
+      \ torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"torch.npu.get_device_capability\
+      \ isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn("
+    error_tail: "flag_gems: 5.3.5\n\n--- Device availability ---\n\e[0;34m[STEP]\e\
+      [0m Step 3: Installing repacked vllm\nLooking in indexes: https://resource.flagos.net/repository/flagos-pypi-ascend/simple,\
+      \ https://mirrors.aliyun.com/pypi/simple\nWARNING: Retrying (Retry(total=4,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net', port=443):\
+      \ Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING: Retrying\
+      \ (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after\
+      \ connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com',\
+      \ port=443): Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=3,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com', port=443):\
+      \ Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=2, connect=None,\
+      \ read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError(\"\
+      HTTPSConnection(host='mirrors.aliyun.com', port=443): Failed to resolve 'mirrors.aliyun.com'\
+      \ ([Errno -3] Temporary failure in name resolution)\")': /pypi/simple/vllm/\n\
+      WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com',\
+      \ port=443): Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=0,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com', port=443):\
+      \ Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /pypi/simple/vllm/\nERROR: Could not find a version that\
+      \ satisfies the requirement vllm==0.24.0+flagos (from versions: none)\nERROR:\
+      \ No matching distribution found for vllm==0.24.0+flagos\n\n\e[0;32m[INFO]\e\
+      [0m Cleaning up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.24.0
+  backend: ascend-cann8.5.0-910c
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 3: Installing repacked vllm'
+    exit_code: 1
+    error_head: "--- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.9.0+cpu\n\
+      \n--- NumPy ---\nnumpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n--- FlagGems\
+      \ ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488: UserWarning:\
+      \ torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"torch.npu.get_device_capability\
+      \ isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\n[Note] No specialized\
+      \ common operators were found for the ascend, generic common operators will\
+      \ be used by default."
+    error_tail: "flag_gems: 5.3.5\n\n--- Device availability ---\n\e[0;34m[STEP]\e\
+      [0m Step 3: Installing repacked vllm\nLooking in indexes: https://resource.flagos.net/repository/flagos-pypi-ascend/simple,\
+      \ https://mirrors.aliyun.com/pypi/simple\nWARNING: Retrying (Retry(total=4,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net', port=443):\
+      \ Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING: Retrying\
+      \ (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after\
+      \ connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='resource.flagos.net',\
+      \ port=443): Failed to resolve 'resource.flagos.net' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /repository/flagos-pypi-ascend/simple/vllm/\nWARNING:\
+      \ Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com',\
+      \ port=443): Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=3,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com', port=443):\
+      \ Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=2, connect=None,\
+      \ read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError(\"\
+      HTTPSConnection(host='mirrors.aliyun.com', port=443): Failed to resolve 'mirrors.aliyun.com'\
+      \ ([Errno -3] Temporary failure in name resolution)\")': /pypi/simple/vllm/\n\
+      WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None))\
+      \ after connection broken by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com',\
+      \ port=443): Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure\
+      \ in name resolution)\")': /pypi/simple/vllm/\nWARNING: Retrying (Retry(total=0,\
+      \ connect=None, read=None, redirect=None, status=None)) after connection broken\
+      \ by 'NameResolutionError(\"HTTPSConnection(host='mirrors.aliyun.com', port=443):\
+      \ Failed to resolve 'mirrors.aliyun.com' ([Errno -3] Temporary failure in name\
+      \ resolution)\")': /pypi/simple/vllm/\nERROR: Could not find a version that\
+      \ satisfies the requirement vllm==0.24.0+flagos (from versions: none)\nERROR:\
+      \ No matching distribution found for vllm==0.24.0+flagos\n\n\e[0;32m[INFO]\e\
+      [0m Cleaning up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
