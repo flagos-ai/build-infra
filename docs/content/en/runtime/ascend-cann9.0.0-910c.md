@@ -1,0 +1,84 @@
+---
+title: "ascend-cann9.0.0-910c"
+---
+
+<!--
+ Copyright 2026 FlagOS Contributors
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+## Prerequisites
+
+- **Architecture:** aarch64
+- **Chip models:** Ascend 910C
+- **Host driver:** 26.0.rc1
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: Ascend-docker-runtime >= 6.0.RC3
+
+## Image contents
+
+### Built on
+
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.1.2</code> <a href="../../base/ascend-cann9.0.0-910c/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+
+### Python
+
+3.11
+
+### Major Python packages
+
+- `flag_gems==5.3.5`
+- `flagtree==0.6.1+ascend3.5`
+- `numpy==1.26.4`
+- `torch-npu==2.10.0`
+- `torch==2.10.0+cpu`
+- `torchaudio==2.10.0+cpu`
+- `torchvision==0.25.0+cpu`
+- <span class="muted"><code class="plain">triton==3.5.0 (+ triton_ascend==3.2.1)</code></span>
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+## Launch
+
+**With the container toolkit** *(optional)*:
+
+```bash
+docker run --rm -it \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it \
+  --device /dev/davinci0 \
+  --device /dev/davinci1 \
+  --device /dev/davinci_manager \
+  --device /dev/devmm_svm \
+  --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+  -v /usr/local/dcmi:/usr/local/dcmi \
+  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+npu-smi info
+```
