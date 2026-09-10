@@ -1,0 +1,323 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# FlagCX-owned packaging facts, one entry per build-infra backend key.
+#
+# Only what build-infra cannot tell us lives here. `base_image`, `runson`,
+# `version` and `image_tag` come from `scripts/generate_matrix.py --runtime` at
+# build time and must NOT be duplicated (see deb-config.py).
+#
+# Field meanings:
+#   vendor        FlagCX adaptor family — matches makefiles/<vendor>.mk and the
+#                 ADAPTOR_TO_MAKE_FLAG key in plugin/torch/_build_config.py.
+#                 Drives `Provides: libflagcx-<vendor>`. NOT necessarily the
+#                 build-infra vendor name: hygon builds through du.mk, so its
+#                 adaptor is `du`.
+#   make_flag     USE_* flag handed to `make` (the adaptor's make flag).
+#   arch          `Architecture:` in the generated control. The matrix carries
+#                 no arch field at all, so this is the only source.
+#   glibc_floor   `Depends: libc6 (>= ...)`, cross-checked by deb-config.py
+#                 --check against the base image's Ubuntu release. It is a
+#                 packaging decision (the oldest runtime libc the binary links
+#                 against), which is why it lives here and not in the matrix.
+#   apt           packages installed on top of the base image before the build.
+#   make_env      environment forced onto `make`. The FlagCX Makefile's
+#                 `DEVICE_HOME ?=` / `CCL_HOME ?=` ladders pre-assign these
+#                 before the vendor `.mk` is included, so a vendor `.mk`'s own
+#                 `?=` default is unreachable and an unset variable yields a
+#                 *defined-but-empty* value that silently becomes /lib64 or
+#                 /include. Anything env-derived in the ladder is therefore
+#                 pinned here rather than inherited (cambricon's NEUWARE_HOME).
+#   vendor_libs   the vendor libraries the package links but does not ship.
+#                 They are supplied by the site runtime, never by Ubuntu, so
+#                 dh_shlibdeps must not look for a distribution package that
+#                 provides them. Also the expected `ldd` "not found" set when
+#                 the package is installed into a plain ubuntu container.
+#   assert        absolute paths that must exist before the build starts. This
+#                 is the tripwire for nvidia.mk's silent failure mode: a
+#                 missing header or compiler there produces a collector-less
+#                 .so without erroring.
+#   probe         what one in-container `make` + `ldd` must answer before this
+#                 backend can be enabled. Present only while `enabled: false`.
+#   deb.enabled   false = entry documents the backend but produces no package.
+#   deb.default_for_vendor
+#                 the one variant per vendor that carries
+#                 `Provides: libflagcx-<vendor>`.
+
+# ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
+
+nvidia-cuda12.8:
+  vendor: nvidia
+  make_flag: USE_NVIDIA
+  arch: amd64
+  glibc_floor: "2.39"
+  # Base is nvcr.io/nvidia/cuda:12.8.0-runtime — no nvcc and no NCCL, and
+  # build-infra provisions NCCL for no vendor. COMPILE_KERNEL=0 means no device
+  # compiler is needed, but nvidia.mk resolves CCL_INCLUDE at make-parse time.
+  # CCL_HOME overrides the .mk's /usr/local/nccl/build (a build-tree path) —
+  # libnccl-dev installs its header under /usr/include.
+  apt: [cuda-nvcc-12-8, libnccl-dev]
+  make_env: {DEVICE_HOME: /usr/local/cuda, CCL_HOME: /usr}
+  vendor_libs: [cuda, cudart, nccl]
+  assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
+  deb: {enabled: true, default_for_vendor: true}
+
+nvidia-cuda13.3:
+  vendor: nvidia
+  make_flag: USE_NVIDIA
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: [cuda-nvcc-13-3, libnccl-dev]
+  make_env: {DEVICE_HOME: /usr/local/cuda, CCL_HOME: /usr}
+  vendor_libs: [cuda, cudart, nccl]
+  assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+metax-maca3.7.2.1:
+  vendor: metax
+  make_flag: USE_METAX
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [mcruntime, mccompiler, mccl]
+  assert: [/opt/maca/include/mccl/mccl.h, /opt/maca/include/mcr/mcr_runtime.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+metax-maca3.8.1.3:
+  vendor: metax
+  make_flag: USE_METAX
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [mcruntime, mccompiler, mccl]
+  assert: [/opt/maca/include/mccl/mccl.h, /opt/maca/include/mcr/mcr_runtime.h]
+  deb: {enabled: true, default_for_vendor: true}
+
+cambricon-neuware4.4.3:
+  vendor: cambricon
+  make_flag: USE_CAMBRICON
+  arch: amd64
+  glibc_floor: "2.35"
+  apt: []
+  # cambricon.mk defaults DEVICE_HOME/CCL_HOME to $(NEUWARE_HOME) — env-derived,
+  # so pinned here rather than inherited.
+  make_env: {DEVICE_HOME: /usr/local/neuware, CCL_HOME: /usr/local/neuware}
+  vendor_libs: [cnrt, cncl]
+  assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+cambricon-neuware4.7.2:
+  vendor: cambricon
+  make_flag: USE_CAMBRICON
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {DEVICE_HOME: /usr/local/neuware, CCL_HOME: /usr/local/neuware}
+  vendor_libs: [cnrt, cncl]
+  assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
+  deb: {enabled: true, default_for_vendor: true}
+
+enflame-tops1.9.10:
+  vendor: enflame
+  make_flag: USE_ENFLAME
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [topsrt, eccl]
+  assert: [/opt/tops/include/topsrt.h]
+  deb: {enabled: true, default_for_vendor: false}
+  probe: >-
+    ECCL header path. enflame.mk resolves CCL_INCLUDE to /usr/include (CCL_HOME
+    = /usr) and the base installs eccl_<ver>_amd64.deb, so the header is under
+    /usr/include — confirm whether it is eccl.h or eccl/eccl.h before adding it
+    to `assert`.
+
+enflame-tops1.10.6:
+  vendor: enflame
+  make_flag: USE_ENFLAME
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [topsrt, eccl]
+  assert: [/opt/tops/include/topsrt.h]
+  deb: {enabled: true, default_for_vendor: true}
+  probe: >-
+    ECCL header path — same as enflame-tops1.9.10.
+
+ascend-cann8.5.0:
+  vendor: ascend
+  make_flag: USE_ASCEND
+  arch: arm64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [ascendcl, hccl]
+  assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+ascend-cann8.5.0-910c:
+  vendor: ascend
+  make_flag: USE_ASCEND
+  arch: arm64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [ascendcl, hccl]
+  assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+ascend-cann9.0.0:
+  vendor: ascend
+  make_flag: USE_ASCEND
+  arch: arm64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [ascendcl, hccl]
+  assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+ascend-cann9.0.0-910c:
+  vendor: ascend
+  make_flag: USE_ASCEND
+  arch: arm64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [ascendcl, hccl]
+  assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
+  deb: {enabled: true, default_for_vendor: false}
+
+# ── probe-pending: one in-container `make` + `ldd` each, then enable ────────
+
+hygon-dtk26.04:
+  vendor: du
+  make_flag: USE_DU
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [cudart, nccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: true}
+  probe: >-
+    DTK's CUDA_PATH is captured into /etc/profile.d/vendor.sh and re-exported
+    through BASH_ENV, so the Makefile's own DEVICE_HOME/CCL_HOME defaults (both
+    ${CUDA_PATH}) do resolve under a Dockerfile RUN. Confirm DTK ships nccl.h +
+    libnccl.so there, and pin DEVICE_HOME and CCL_HOME together — setting
+    CCL_HOME alone leaves DEVICE_LIB=/lib64 for the -lcudart link.
+
+iluvatar-corex4.4.0:
+  vendor: iluvatar_corex
+  make_flag: USE_ILUVATAR_COREX
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [cudart, nccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: false}
+  probe: >-
+    corex lib dir on the link path. COREX_ROOT=/usr/local/corex is exported in
+    the base; confirm where libcudart.so and libnccl.so land relative to
+    iluvatar_corex.mk's DEVICE_LIB/CCL_LIB.
+
+iluvatar-corex4.5.0:
+  vendor: iluvatar_corex
+  make_flag: USE_ILUVATAR_COREX
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [cudart, nccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: true}
+  probe: >-
+    Same as iluvatar-corex4.4.0.
+
+kunlunxin-xre5.37.1:
+  vendor: klx
+  make_flag: USE_KUNLUNXIN
+  arch: amd64
+  glibc_floor: "2.35"
+  apt: []
+  make_env: {}
+  vendor_libs: [cudart, xccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: true}
+  probe: >-
+    kunlunxin.mk sets DEVICE_LIB=/usr/local/xpu/lib but -lcudart lives in
+    /usr/local/xcudart/lib (both are on the base image's LD_LIBRARY_PATH).
+    Settle whether the link needs an extra -L or a separate CCL_HOME.
+
+mthreads-musa4.3.6:
+  vendor: musa
+  make_flag: USE_MUSA
+  arch: amd64
+  glibc_floor: "2.35"
+  apt: []
+  make_env: {}
+  vendor_libs: [musart, mccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: false}
+  probe: >-
+    mccl layout under /usr/local/musa (MUSA_HOME is exported in the base).
+    Confirm musa.mk's CCL_INCLUDE/CCL_LIB against where mccl.h / libmccl.so sit.
+
+mthreads-musa5.2.0:
+  vendor: musa
+  make_flag: USE_MUSA
+  arch: amd64
+  glibc_floor: "2.35"
+  apt: []
+  make_env: {}
+  vendor_libs: [musart, mccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: true}
+  probe: >-
+    Same as mthreads-musa4.3.6.
+
+sunrise-tangrt1.2.0:
+  vendor: sunrise
+  make_flag: USE_SUNRISE
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [tangrt, pccl]
+  assert: []
+  deb: {enabled: false, default_for_vendor: true}
+  probe: >-
+    sunrise.mk defaults CCL_HOME=/usr/local/pccl while the base installs
+    tangrt's own tree under TANGRT_ROOT=/usr/local/tangrt. Find the real pccl
+    location, or pin CCL_HOME to it.
+
+tsingmicro-tsm260610:
+  vendor: tsm
+  make_flag: USE_TSM
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [tccl, hpgr]
+  assert: []
+  deb: {enabled: false, default_for_vendor: true}
+  probe: >-
+    -ltccl / -lhpgr under KUIPER_PATH=/usr/local/kuiper. tsm.mk's /usr/local/kuiper
+    default corresponds to KUIPER_PATH, which the base already exports — confirm
+    the lib and include subdirs.

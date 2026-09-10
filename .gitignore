@@ -11,3 +11,6 @@ scripts/verify-nodes.local.yaml
 # packaging/ build artifacts and working files
 packaging/**/*.whl
 packaging/*/WORKING-CONTEXT.md
+# rendered from debian/control.in by deb-config.py at build time
+packaging/flagcx/debian/control
+packaging/flagcx/dist/

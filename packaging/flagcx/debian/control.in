@@ -1,0 +1,36 @@
+Source: libflagcx-@BACKEND@
+Section: libs
+Priority: optional
+Maintainer: FlagOS Contributors <flagos@baai.ac.cn>
+Build-Depends: debhelper-compat (= 13), patchelf
+Standards-Version: 4.6.2
+Homepage: https://github.com/flagos-ai/FlagCX
+X-FlagCX-Backend: @BACKEND@
+X-FlagCX-Build-Image: @BUILD_IMAGE@
+X-FlagCX-Build-Infra-Version: @BUILD_INFRA_VERSION@
+
+Package: libflagcx-@BACKEND@
+Section: libs
+Architecture: @ARCH@
+Depends: ${shlibs:Depends}, ${misc:Depends}, libc6 (>= @GLIBC_FLOOR@)
+@PROVIDES@
+@CONFLICTS@
+@REPLACES@
+Description: FlagCX collective communications library for @BACKEND@
+ FlagCX is a unified collective communication library: one API, one set of
+ collectives, with a per-vendor adaptor underneath.
+ .
+ This package is the @VENDOR@ adaptor built against the SDK shipped in the
+ FlagOS @BACKEND@ base image. The vendor libraries it links (@VENDOR_LIBS@)
+ are supplied by the site's driver and SDK installation, so they are
+ deliberately not dependencies of this package.
+
+Package: libflagcx-@BACKEND@-dev
+Section: libdevel
+Architecture: @ARCH@
+Depends: ${misc:Depends}, libflagcx-@BACKEND@ (= ${binary:Version})
+@CONFLICTS_DEV@
+@REPLACES_DEV@
+Description: FlagCX development files for @BACKEND@
+ Public headers and the unversioned linker name for the FlagCX collective
+ communications library, @VENDOR@ backend.
