@@ -32,10 +32,11 @@ image: vllm0.24.0-ascend-cann9.0.0-910c
 tags:
 - tag: 2.1.2-0.2.0_gcf8998c.d20260818
   entries:
-  - date: ""
+  - date: "2026-09-10T11:35:34.873Z"
     reason: >-
       Initial vllm 0.24.0 deliverable on Ascend 910C / CANN 9.0.0 (ascend-cann9.0.0-910c).
-      Same repacked vllm +flagos wheel and vllm-plugin-FL ascend 0.24.0 port as the 910B4 line;
+      Same repacked vllm +flagos wheel and vllm-plugin-FL ascend 0.24.0 port as the
+      910B4 line;
       only the base chip-split ops package differs (CANN 910C Ops). Single-step install
       matrix-inert; F/T dual-compiler E2E verified.
     upstream_prs:
