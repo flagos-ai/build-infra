@@ -181,6 +181,24 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 COMPILER_GUARD=""
 [[ -n "$COMPILER" ]] && COMPILER_GUARD="compiler ${COMPILER} || exit 1"
 
+# Outbound access on some runner nodes is proxy-only: the runner exports
+# HTTP(S)_PROXY and *nothing* resolves without them (pip dies on
+# NameResolutionError for both the vendor index and Aliyun). A container does
+# not inherit the client environment, so relay the proxies into the execs that
+# reach the package indexes. Passed by NAME, never by value — the credential
+# must not appear on a command line. no_proxy is pinned to loopback because
+# the serve health check talks to 127.0.0.1 and would otherwise go proxy-ward.
+PROXY_ENV_ARGS=()
+for _v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
+    if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
+done
+if [[ ${#PROXY_ENV_ARGS[@]} -gt 0 ]]; then
+    PROXY_ENV_ARGS+=(-e "no_proxy=localhost,127.0.0.1,::1" -e "NO_PROXY=localhost,127.0.0.1,::1")
+    PROXY_RELAY_DESC="relayed into install steps (no_proxy=loopback)"
+else
+    PROXY_RELAY_DESC="none in the runner env"
+fi
+
 # ── Print header ────────────────────────────────────────────────────────
 
 echo "========================================"
@@ -192,6 +210,7 @@ echo "Stack Version:    ${STACK_VERSION} (${STACK_VERSION_SOURCE})"
 echo "vLLM Version:     ${VLLM_VERSION}+flagos"
 echo "Compiler:         ${COMPILER:-<runtime default>}"
 echo "Model Path:       ${MODEL_PATH}"
+echo "Proxy relay:      ${PROXY_RELAY_DESC}"
 echo ""
 
 # ── Cleanup function ────────────────────────────────────────────────────
@@ -387,7 +406,7 @@ log_step "Step 3: Installing repacked vllm"
 # resolves from Aliyun.  opencv's numpy declaration is stripped in the
 # repacked wheel, so a single-step install with a pinned numpy no longer
 # hits ResolutionImpossible.
-docker exec "${CONTAINER}" bash -c "
+docker exec "${PROXY_ENV_ARGS[@]}" "${CONTAINER}" bash -c "
     pip install \
         --index-url '${VENDOR_PYPI}' \
         --extra-index-url '${ALIYUN_PYPI}' \
@@ -456,7 +475,7 @@ else
     # vllm. The wheel's Requires-Dist is audited to be empty of the runtime's
     # critical packages (packaging/script/audit-deps.py), so pip has no reason
     # to touch the baked torch/triton/flag_gems matrix.
-    docker exec "${CONTAINER}" bash -c "
+    docker exec "${PROXY_ENV_ARGS[@]}" "${CONTAINER}" bash -c "
         pip install \
             --index-url '${VENDOR_PYPI}' \
             --extra-index-url '${ALIYUN_PYPI}' \
