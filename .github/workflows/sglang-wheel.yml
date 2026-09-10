@@ -224,8 +224,17 @@ jobs:
 
       - name: Build the shim wheels
         run: |
+          set -euo pipefail
           bash sglang-plugin-FL/addon/sgl-kernel-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
-          bash sglang-plugin-FL/addon/flashinfer-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
+          # The flashinfer stub is vendor-scoped and ships with the branch that
+          # ports the backend needing it, so a ref without that addon must still
+          # produce the sgl-kernel shim rather than fail — it did fail, for every
+          # backend, until the port merged into the shared ref.
+          if [[ -f sglang-plugin-FL/addon/flashinfer-shim/build.sh ]]; then
+            bash sglang-plugin-FL/addon/flashinfer-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
+          else
+            echo "::notice::flashinfer addon absent on this ref — building only sgl-kernel-shim"
+          fi
 
       # The shim must stay zero-dep: a Requires-Dist on the baked matrix would
       # give pip a reason to drift it on a single-step install.
@@ -274,10 +283,14 @@ jobs:
               --non-interactive \
               "${GITHUB_WORKSPACE}/wheels/sgl_kernel_shim"*.whl
           done
-          for repo in "${fi_targets[@]}"; do
-            echo ">>> uploading flashinfer shim to ${repo}"
-            python3 -m twine upload \
-              --repository-url "https://resource.flagos.net/repository/${repo}/" \
-              --non-interactive \
-              "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl
-          done
+          if ! compgen -G "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl > /dev/null; then
+            echo "no flashinfer shim wheel on this ref — nothing to upload"
+          else
+            for repo in "${fi_targets[@]}"; do
+              echo ">>> uploading flashinfer shim to ${repo}"
+              python3 -m twine upload \
+                --repository-url "https://resource.flagos.net/repository/${repo}/" \
+                --non-interactive \
+                "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl
+            done
+          fi
