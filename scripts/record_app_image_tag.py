@@ -114,6 +114,27 @@ def _gh_api(method: str, path: str, body: dict | None = None) -> dict:
         return json.loads(resp.read())
 
 
+HARBOR_API = "https://harbor.baai.ac.cn/api/v2.0"
+
+
+def _harbor_push_time(image_ref: str) -> str | None:
+    """Registry push_time (RFC3339) for a full image ref, or None if unreadable.
+
+    Anonymous read works on this Harbor; no token needed.
+    """
+    path, _, tag = image_ref.rpartition(":")
+    parts = path.split("/")
+    if len(parts) < 2 or not tag:
+        return None
+    project, repo = parts[-2], parts[-1]
+    url = f"{HARBOR_API}/projects/{project}/repositories/{repo}/artifacts/{tag}"
+    try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            return json.load(resp).get("push_time")
+    except Exception:
+        return None
+
+
 # The image tag's plugin suffix is the wheel version with '+' mapped to '_'
 # (image-tag-safe): <version>_g<sha7>.d<date>. The sha7 after '_g' is the
 # plugin commit the image was built from — it must match what the backend's
@@ -298,6 +319,11 @@ def main() -> None:
     parser.add_argument("--matrix", required=True, help="status matrix YAML path, relative to repo root")
     parser.add_argument("--backend", required=True, help="backend key in the matrix")
     parser.add_argument("--tag", required=True, help="full pushed image ref (tag taken after the last ':')")
+    parser.add_argument(
+        "--changelog",
+        help="app changelog YAML (repo-relative); its pending entry's date is "
+        "backfilled with the registry push_time and committed with the record",
+    )
     args = parser.parse_args()
 
     matrix_rel = args.matrix
@@ -305,6 +331,25 @@ def main() -> None:
     if not matrix_path.is_file():
         sys.exit(f"Error: matrix file not found: {matrix_rel}")
     tag = args.tag.rsplit(":", 1)[-1]
+
+    # The changelog entry's date is the registry push_time — authoritative and
+    # never hand-typed. Backfill it here, where the pushed ref is known, so the
+    # same PR carries the matrix record and the dated changelog entry (the gate
+    # reads the empty date as "pending", so it must be filled after the push).
+    if args.changelog:
+        cl_path = REPO_ROOT / args.changelog
+        if not cl_path.is_file():
+            sys.exit(f"Error: changelog not found: {args.changelog}")
+        push_time = _harbor_push_time(args.tag)
+        if not push_time:
+            sys.exit(f"Error: cannot read push_time for {args.tag} from the registry")
+        _run_py(
+            REPO_ROOT / "scripts" / "backfill_changelog_date.py",
+            str(cl_path), tag, push_time,
+        )
+    cl_changed = bool(args.changelog) and _git(
+        "diff", "--quiet", args.changelog, check=False
+    ).returncode != 0
 
     # A stale "未推送" note contradicts image_tag by construction — clear it
     # before the idempotency check so already-recorded backends self-heal.
@@ -314,9 +359,10 @@ def main() -> None:
     backend_cfg = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(args.backend, {})
     if (backend_cfg.get("image_tag", "") == tag and backend_cfg.get("launch_docs", False)
             and backend_cfg.get("deps_app", False)):
-        if not changed:
-            print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
-        return
+        if not cl_changed:
+            if not changed:
+                print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
+            return
 
     # Do not record an image whose plugin pin has drifted off a tracked OPEN
     # upstream PR head — rebuild from the PR head first (2026-09-03 incident).
@@ -329,7 +375,7 @@ def main() -> None:
     changed = update_image_tag(matrix_path, args.backend, tag) or changed
     changed = update_launch_docs(matrix_path, args.backend) or changed
     changed = update_deps_app(matrix_path, args.backend) or changed
-    if not changed:
+    if not (changed or cl_changed):
         return
 
     comp = component_of(matrix_rel)
@@ -341,8 +387,11 @@ def main() -> None:
     _run_py(REPO_ROOT / "docs" / "gen_descriptions.py", "--app-only")
 
     # Stage only the artifacts this record touches.
-    for pattern in (matrix_rel, "packaging/*/docs/*-verification-matrix.md",
-                    "docs/content/en/application/*.md", "docs/content/zh-cn/application/*.md"):
+    patterns = [matrix_rel, "packaging/*/docs/*-verification-matrix.md",
+                "docs/content/en/application/*.md", "docs/content/zh-cn/application/*.md"]
+    if args.changelog:
+        patterns.append(args.changelog)
+    for pattern in patterns:
         _git("add", pattern, check=False)
     if _git("diff", "--cached", "--quiet", check=False).returncode == 0:
         print("No doc changes after recording tag — nothing to PR.")

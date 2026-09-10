@@ -52,7 +52,10 @@ def main() -> None:
                     y.dump(data, f)
                 print(f"backfilled {path}: tag {tag} date -> {push_time}")
                 return
-        sys.exit(f"error: tag {tag} exists but no entry has an empty date to backfill")
+        # No pending entry: already backfilled (idempotent re-run) — not an
+        # error, so the record step can call this unconditionally.
+        print(f"{path}: tag {tag} has no empty-date entry — nothing to backfill")
+        return
     sys.exit(f"error: tag {tag} not found in {path}")
 
 

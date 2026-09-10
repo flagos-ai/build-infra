@@ -192,6 +192,13 @@ jobs:
           # replicates the verified build verbatim.
           no_cache_arg=""
           [[ "${{ inputs.push }}" != "true" ]] && no_cache_arg="--no-cache"
+          # Changelog gate: a push must be authorized by a pending changelog
+          # entry for this tag (see vllm-app-image.yml). Debug builds skip it.
+          if [[ "${{ inputs.push }}" == "true" ]]; then
+            python3 scripts/changelog_gate.py \
+              "app/megatron/changelogs/${app_name}${{ inputs.megatron_version }}-${{ matrix.name }}.yaml" \
+              "${app_tag##*:}"
+          fi
           # App's own build provenance (see vllm-app-image.yml).
           commit="$(git rev-parse HEAD)"
           created="$(git show -s --format=%cI HEAD)"
@@ -244,7 +251,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # changelog backfill needs ruamel.yaml (round-trip, preserves the
+          # file's comments and block style).
+          python3 -m pip install --quiet --user --break-system-packages 'ruamel.yaml>=0.18' 2>/dev/null \
+            || python3 -m pip install --quiet --user 'ruamel.yaml>=0.18' 2>/dev/null || true
           python3 scripts/record_app_image_tag.py \
             --matrix "packaging/megatron/status_matrix.${{ inputs.app }}.yaml" \
             --backend "${{ matrix.name }}" \
+            --changelog "app/megatron/changelogs/${{ inputs.app }}${{ inputs.megatron_version }}-${{ matrix.name }}.yaml" \
             --tag "${APP_TAG}"

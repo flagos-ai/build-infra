@@ -173,6 +173,17 @@ jobs:
           fi
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
 
+      # Changelog gate: a push must be authorized by a pending changelog entry
+      # (reason, empty date) for this tag — "an image is not rebuilt without a
+      # documented reason". Debug builds (push=false) skip it.
+      - name: Changelog gate
+        if: ${{ inputs.push && !inputs.record_only }}
+        run: |
+          set -euo pipefail
+          python3 scripts/changelog_gate.py \
+            "app/vllm/changelogs/vllm${{ inputs.vllm_version }}-${{ matrix.name }}.yaml" \
+            "${APP_TAG##*:}"
+
       - name: Build vllm app image
         if: ${{ !inputs.record_only }}
         run: |
@@ -256,7 +267,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # changelog backfill needs ruamel.yaml (round-trip, preserves the
+          # file's comments and block style).
+          python3 -m pip install --quiet --user --break-system-packages 'ruamel.yaml>=0.18' 2>/dev/null \
+            || python3 -m pip install --quiet --user 'ruamel.yaml>=0.18' 2>/dev/null || true
           python3 scripts/record_app_image_tag.py \
             --matrix "packaging/vllm/status_matrix.vllm${{ inputs.vllm_version }}.yaml" \
             --backend "${{ matrix.name }}" \
+            --changelog "app/vllm/changelogs/vllm${{ inputs.vllm_version }}-${{ matrix.name }}.yaml" \
             --tag "${APP_TAG}"
