@@ -227,6 +227,12 @@ swallows every dependency error. `--ignore-missing-info` and not `-X<lib>`: `-X`
 dependencies, while `--ignore-missing-info` keeps every check the package should satisfy
 (`libc6`, `libstdc++6`, `libgcc-s1`) and forgives only the ones no dpkg database can resolve.
 
+`dh_dwz` is overridden to a no-op. It deduplicates DWARF across a package's binaries, and it is
+the one step whose output is not shipped — `dh_strip` runs immediately after it. The Metax
+linker interleaves allocatable and non-allocatable sections, which `dwz` refuses with
+`Allocatable section ... after non-allocatable ones`, so on that toolchain the step can only
+lose the build.
+
 The registry's `make_flag` / `make_env` reach `make` as **command-line variables**
 (`MAKE_ARGS := ... $(DEB_MAKE_ENV) $(DEB_MAKE_FLAG)=1`), which is what lets them outrank the
 Makefile's own `ifeq` ladder. The ladder pre-assigns `DEVICE_HOME` / `CCL_HOME` *before*
