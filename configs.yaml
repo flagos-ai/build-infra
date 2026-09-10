@@ -621,6 +621,16 @@ vendors:
           COREX_ROOT: /usr/local/corex
           PATH: /usr/local/corex/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/corex/lib
+        app:
+          sglang:
+            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image>` behaves like the verified configuration.
+            # corex torch is CUDA-alias, so sglang's CUDA paths are selected;
+            # SGLANG_IS_FLASHINFER_AVAILABLE=false keeps it off flashinfer
+            # (there is no corex build) and keeps sampling_backend=pytorch.
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - torch==2.10.0+corex.4.5.0.20260804
         - torchaudio==2.10.0+corex.4.5.0.20260804
@@ -637,6 +647,19 @@ vendors:
           # does not ship it and the post-#697 +flagos wheel no longer declares
           # it (decisions §5.7). Same pin as the other sglang backends.
           - compressed-tensors==0.17.0+flagos
+          # flagtree's iluvatar overlay reaches a test-support module on a
+          # production path: triton/spec/iluvatar/triton/testing.py::nvsmi does
+          # `from triton._internal_testing import is_corex`, and that module
+          # imports pytest at module level. nvsmi is called from
+          # triton/ops/matmul_perf_model.py::get_clock_rate_in_khz, which the
+          # flag_gems iluvatar GEMM tuned configs invoke through their
+          # `perf_model` during autotune pruning — so serving dies with
+          # ModuleNotFoundError unless pytest is importable. Unpinned: pytest
+          # only has to satisfy that import, nothing in the matrix depends on
+          # its version. Reported upstream
+          # (https://github.com/flagos-ai/FlagTree/issues/1142); drop this once
+          # it stops reaching for a test module at runtime.
+          - pytest
       sdk:
         - Corex Runtime 4.5.0      # corex-installer-linux64-4.5.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
