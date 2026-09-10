@@ -1,7 +1,7 @@
 ## Prerequisites
 
 - **Architecture:** aarch64
-- **Chip models:** Ascend 910B
+- **Chip models:** Ascend 910C
 - **Host driver:** 26.0.rc1
 - **Container toolkit** *(optional)*: Ascend-docker-runtime >= 6.0.RC3
 
@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.2`
+`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.1.2`
 
 ### Python
 
@@ -19,7 +19,7 @@
 
 - `flag_gems==5.3.5`
 - `flagtree==0.6.1+ascend3.5`
-- `numpy==2.3.5`
+- `numpy==1.26.4`
 - `torch-npu==2.10.0`
 - `torch==2.10.0+cpu`
 - `torchaudio==2.10.0+cpu`
@@ -37,7 +37,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -52,7 +52,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2 bash
 ```
 
 ## Verify

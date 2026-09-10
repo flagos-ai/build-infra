@@ -1,5 +1,5 @@
 ---
-title: "ascend-cann9.0.0-910c"
+title: "ascend-cann8.5.0-910c"
 ---
 
 <!--
@@ -22,43 +22,36 @@ title: "ascend-cann9.0.0-910c"
 
 - **架构:** aarch64
 - **芯片型号:** Ascend 910C
-- **宿主机驱动:** 26.0.rc1
+- **宿主机驱动:** 25.5.0
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: Ascend-docker-runtime >= 6.0.RC3
 
 ## 镜像内容
 
-### 基础镜像
+### 基于
 
-`ubuntu:24.04`
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0-910c:2.1.2</code> <a href="../../base/ascend-cann8.5.0-910c/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
-### 系统软件包
+### Python
 
-显式安装；此处版本即为该镜像中实际打包的版本：
+3.11
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `libelf1`
-- `libpython3-dev` — 3.12.3
-- `make` — 4.3
-- `net-tools` — 2.10
-- `pciutils` — 3.10.0
-- `python3-pip` — 24.0+dfsg
-- `python3.11` — 3.11.15
-- `python3.11-dev` — 3.11.15
-- `software-properties-common` — 0.99.49.4
-- `unzip` — 6.0
-- `vim` — 9.1.0016
+### 主要 Python 软件包
 
-### SDK 组件
+- `attrs==24.2.0`
+- `decorator==5.1.1`
+- `flag_gems==5.3.5`
+- `flagtree==0.6.0+ascend3.2`
+- `numpy==1.26.4`
+- `psutil==6.0.0`
+- `torch-npu==2.9.0`
+- `torch==2.9.0+cpu`
+- `torchaudio==2.9.0`
+- `torchvision==0.24.0`
+- <span class="muted"><code class="plain">triton-ascend==3.2.0</code></span>
 
-- CANN Toolkit 9.0.0 (aarch64)
-- CANN 910C Ops 9.0.0 (aarch64)
-- CANN NNAL 9.0.0 (aarch64)
+### 切换编译器
+
+本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
 
 ## 启动
 
@@ -67,7 +60,7 @@ title: "ascend-cann9.0.0-910c"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -82,7 +75,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2 bash
 ```
 
 ## 验证
@@ -92,5 +85,3 @@ docker run --rm -it \
 ```bash
 npu-smi info
 ```
-
-*更新时间: 2026-09-10 11:00:46 · `b79dcc694322`*

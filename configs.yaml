@@ -255,9 +255,10 @@ vendors:
 
     # 910C twin of cann8.5.0. The ops package is the only chip-split piece
     # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run); toolkit/NNAL/deps/toolchain
-    # are identical to the 910B line. Phase 1 ships base+runtime only, so
-    # deps_app and env.app.* keys are intentionally absent (their presence would
-    # pull 910C into the app build matrices).
+    # are identical to the 910B line. deps_app carries only the apps actually
+    # verified on 910C (key presence = verified): the vllm line as of the app
+    # layer opening; megatron_training/sglang0.5.18 stay absent on purpose — a
+    # key here would pull 910C into their build matrices.
     cann8.5.0-910c:
       extras: ascend-cann850-910c
       hardware: ["Ascend 910C"]
@@ -275,6 +276,9 @@ vendors:
         - attrs==24.2.0
         - decorator==5.1.1
         - psutil==6.0.0
+      deps_app:
+        vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - CANN Toolkit 8.5.0 (aarch64)     # Ascend-cann-toolkit_8.5.0_linux-aarch64.run
         - CANN 910C Ops 8.5.0 (aarch64)    # Ascend-cann-A3-ops_8.5.0_linux-aarch64.run
@@ -329,9 +333,10 @@ vendors:
 
     # 910C twin of cann9.0.0. The ops package is the only chip-split piece
     # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run); toolkit/NNAL/deps/toolchain
-    # are identical to the 910B line. Phase 1 ships base+runtime only, so
-    # deps_app and env.app.* keys are intentionally absent (their presence would
-    # pull 910C into the app build matrices).
+    # are identical to the 910B line. deps_app carries only the apps actually
+    # verified on 910C (key presence = verified): the vllm line as of the app
+    # layer opening; megatron_training/sglang0.5.18 stay absent on purpose — a
+    # key here would pull 910C into their build matrices.
     cann9.0.0-910c:
       extras: ascend-cann900-910c
       hardware: ["Ascend 910C"]
@@ -348,6 +353,9 @@ vendors:
         - torchvision==0.25.0+cpu
         - torchaudio==2.10.0+cpu
         - numpy==1.26.4
+      deps_app:
+        vllm0.20.2: []
+        vllm0.24.0: []
       sdk:
         - CANN Toolkit 9.0.0 (aarch64)  # Ascend-cann_9.0.0_linux-aarch64.run
         - CANN 910C Ops 9.0.0 (aarch64) # Ascend-cann-A3-ops_9.0.0_linux-aarch64.run

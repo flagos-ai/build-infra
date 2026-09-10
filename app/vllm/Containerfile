@@ -33,6 +33,10 @@
 #                KEY=value never reaches the exec'd server — kunlunxin decode
 #                dropped to ~0.1 tok/s without the VLLM_FL_* vars); default CMD
 #                model path corrected to /data/models/Qwen3-4B.
+#   2026-09-10   http_proxy/https_proxy/no_proxy build ARGs: the Ascend 910C
+#                nodes have no direct egress, so both wheel-index installs
+#                must go through the runner proxy relayed by the workflow
+#                (same relay the runtime image took in #811).
 # TODO
 #   - Publish-time verification (torch version, vllm import).
 # ============================================================
@@ -60,6 +64,13 @@ ARG PLUGIN_FL_VERSION=""
 # after the plugin. Some backends need a package in the app layer that is not
 # in the runtime matrix.
 ARG APP_DEPS=""
+
+# Proxy relayed as --build-arg by vllm-app-image.yml (the Ascend 910C nodes
+# have no direct egress). ARG, not ENV — keeps the credential out of the
+# pushed image; no_proxy stays loopback-only, as on the base/runtime side.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
 
 # --- Install vllm (repacked wheel) ----------------------------
 

@@ -56,7 +56,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2 bash
 ```
 
@@ -65,6 +65,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \

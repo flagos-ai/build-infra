@@ -20,8 +20,8 @@ name: FlagGems Release Wheels
 # — Build cpp operator wheels inside runtime:v1 (local, from step 4).
 # — Write flaggems: into configs.yaml, commit, open a PR.
 #
-# Prerequisites: runtime:v1 images (built with --no-flaggems)
-# must be present on each vendor's self-hosted runner.
+# Prerequisites: runtime:v1 images (built with --no-flaggems, tagged
+# {version}-build) must be present on each vendor's self-hosted runner.
 
 on:
   workflow_dispatch:
@@ -121,20 +121,17 @@ jobs:
 
       - name: Pull runtime:v1 image
         run: |
+          # Tag derives from configs.yaml version: + the -build suffix of the
+          # NO_FLAGGEMS platform image — never hardcode either.
+          version=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
           reg=$(python3 -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
-          vendor=$(echo "$BACKEND" | cut -d- -f1)
-          bk=$(echo "$BACKEND" | cut -d- -f2-)
-          image="${reg}/flagos-runtime-${vendor}-${bk}:2.1.1"
-          docker pull "$image"
+          echo "RUNTIME_IMAGE=${reg}/flagos-runtime-${BACKEND}:${version}-build" >> "$GITHUB_ENV"
+          docker pull "$RUNTIME_IMAGE"
 
       - name: Build cpp wheel inside runtime:v1
         run: |
-          vendor=$(echo "$BACKEND" | cut -d- -f1)
-          bk=$(echo "$BACKEND" | cut -d- -f2-)
-          reg=$(python3 -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
-          image="${reg}/flagos-runtime-${vendor}-${bk}:2.1.1"
           python3 scripts/release_flaggems.py build-cpp "$BACKEND" \
-            --ref "$FLAGGEMS_REF" --runtime-image "$image" --outdir wheels-cpp
+            --ref "$FLAGGEMS_REF" --runtime-image "$RUNTIME_IMAGE" --outdir wheels-cpp
 
       - name: Upload cpp wheel to vendor PyPI
         run: |
