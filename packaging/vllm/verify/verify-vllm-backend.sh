@@ -183,14 +183,23 @@ COMPILER_GUARD=""
 
 # Outbound access on some runner nodes is proxy-only: the runner exports
 # HTTP(S)_PROXY and *nothing* resolves without them (pip dies on
-# NameResolutionError for both the vendor index and Aliyun).
+# NameResolutionError for both the vendor index and Aliyun). The internal hosts
+# must be excluded, or pip fetches them through the tunnel and gets
+# "Tunnel connection failed: 500"; a node's own no_proxy is merged in.
 PROXY_ENV_ARGS=()
+_internal_noproxy="localhost,127.0.0.1,::1,flagos.net,baai.ac.cn,aliyun.com,edu.cn"
 for _v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
     if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
 done
 if [[ ${#PROXY_ENV_ARGS[@]} -gt 0 ]]; then
-    PROXY_ENV_ARGS+=(-e "no_proxy=localhost,127.0.0.1,::1" -e "NO_PROXY=localhost,127.0.0.1,::1")
-    PROXY_RELAY_DESC="relayed into install steps (no_proxy=loopback)"
+    for _v in no_proxy NO_PROXY; do
+        if [[ -n "${!_v:-}" ]]; then
+            PROXY_ENV_ARGS+=(-e "${_v}=${!_v},${_internal_noproxy}")
+        else
+            PROXY_ENV_ARGS+=(-e "${_v}=${_internal_noproxy}")
+        fi
+    done
+    PROXY_RELAY_DESC="relayed into install steps (internal hosts excluded)"
 else
     PROXY_RELAY_DESC="none in the runner env"
 fi

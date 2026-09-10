@@ -91,10 +91,28 @@ MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-0.6B}"
 SGLANG_VERSION="${SGLANG_VERSION:-0.5.18}"
 PLUGIN_REF="${PLUGIN_REF:-exp/0.5.18}"
 PLUGIN_REPO="https://github.com/flagos-ai/sglang-plugin-FL"
+# Relay the runner proxy for the Step 4 plugin clone (docker exec inherits
+# nothing). The internal hosts must be excluded, or pip fetches the vendor
+# index and Aliyun through the tunnel and gets "Tunnel connection failed: 500".
+# A node's own no_proxy is merged in, never replaced.
 PROXY_ENV_ARGS=()
-for _v in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
-    if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
+_internal_noproxy="localhost,127.0.0.1,::1,flagos.net,baai.ac.cn,aliyun.com,edu.cn"
+_proxy_seen=""
+for _v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
+    if [[ -n "${!_v:-}" ]]; then
+        PROXY_ENV_ARGS+=(-e "${_v}")
+        _proxy_seen=1
+    fi
 done
+if [[ -n "${_proxy_seen}" ]]; then
+    for _v in no_proxy NO_PROXY; do
+        if [[ -n "${!_v:-}" ]]; then
+            PROXY_ENV_ARGS+=(-e "${_v}=${!_v},${_internal_noproxy}")
+        else
+            PROXY_ENV_ARGS+=(-e "${_v}=${_internal_noproxy}")
+        fi
+    done
+fi
 # sgl_kernel shim version — derived below from SGLANG_VERSION once the args are parsed
 SHIM_VERSION="${SHIM_VERSION:-}"
 SKIP_SERVE=false
