@@ -377,7 +377,7 @@ docker exec "${CONTAINER}" bash -c "
             # does not look like one: the driver warns on stderr, device_count
             # collapses to 0, and serve dies much later with an EngineCore
             # traceback that names nothing. Report both here, where an empty
-            # count reads unambiguously as "not ours to use".
+            # count reads unambiguously as \"not ours to use\".
             npu-smi info 2>&1 | head -20 || true
             python3 -c 'import torch, torch_npu; print(f\"torch.npu device_count: {torch.npu.device_count()}\")' 2>&1 | tail -3 || true
             ;;
