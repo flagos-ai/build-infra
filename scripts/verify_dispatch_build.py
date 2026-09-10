@@ -28,6 +28,11 @@ Mapping:
   megatron_training -> megatron-app-image.yml  (app=megatron_training)
   megatron_rl       -> megatron-app-image.yml  (app=megatron_rl)
 
+For vllm the cell's own ``--plugin-fl-version`` is forwarded as the build's
+``plugin_fl_version`` input (see ``_plugin_fl_version``): without it the build
+derives a tag with no plugin suffix, which no changelog block matches, so the
+changelog gate refuses every dispatch.
+
 Never dispatches a cell whose verify failed. Requires GITHUB_TOKEN/GITHUB_REPOSITORY.
 
 Usage:
@@ -40,6 +45,7 @@ import argparse
 import glob
 import json
 import os
+import shlex
 import sys
 import urllib.request
 from pathlib import Path
@@ -78,6 +84,24 @@ def dispatch(repo: str, workflow: str, backend: str, inputs: dict) -> None:
     })
 
 
+def _plugin_fl_version(verify_args: str) -> str | None:
+    """Recover the vllm-plugin-fl pin the verify cell used.
+
+    Taken from the cell's own args rather than re-derived from the status
+    matrix: the wheel the cell verified against is exactly the wheel the app
+    image must bake, and the app-image tag carries it as a suffix. Dispatching
+    without it makes vllm-app-image.yml fall back to the bare stack version,
+    which no changelog block matches — the gate then refuses the push.
+    """
+    parts = shlex.split(verify_args or "")
+    for i, tok in enumerate(parts):
+        if tok == "--plugin-fl-version" and i + 1 < len(parts):
+            return parts[i + 1]
+        if tok.startswith("--plugin-fl-version="):
+            return tok.split("=", 1)[1]
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-dir", required=True, help="dir holding merged result-*.json")
@@ -100,6 +124,14 @@ def main() -> None:
             continue
         seen.add(key)
         workflow, extra = APP_WORKFLOW[r["app"]]
+        if workflow == "vllm-app-image.yml":
+            plugin = _plugin_fl_version(r.get("verify_args"))
+            if plugin:
+                extra = {**extra, "plugin_fl_version": plugin}
+            else:
+                print(f"warning: {r['backend']} verified without --plugin-fl-version; "
+                      f"the build will tag without a plugin suffix and the "
+                      f"changelog gate will refuse it")
         dispatch(repo, workflow, r["backend"], extra)
         dispatched += 1
         print(f"dispatched {workflow} backend={r['backend']} {extra}")
