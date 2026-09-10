@@ -34,6 +34,7 @@ Examples:
 """
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -337,6 +338,18 @@ def main():
     for key, value in labels.items():
         if value:
             cmd += ["--label", f"{key}={value}"]
+    # Classic builder does not forward the runner proxy into builds — relay it
+    # as --build-arg (ARG-only: never reaches image config; no_proxy
+    # loopback-only keeps the FILE_STORE curls on the proxy).
+    proxy_env = {
+        scheme: os.environ.get(f"{scheme}_proxy") or os.environ.get(f"{scheme}_proxy".upper())
+        for scheme in ("http", "https")
+    }
+    proxy_env = {s: v for s, v in proxy_env.items() if v}
+    for scheme, value in proxy_env.items():
+        cmd += ["--build-arg", f"{scheme}_proxy={value}"]
+    if proxy_env:
+        cmd += ["--build-arg", "no_proxy=localhost,127.0.0.1,::1"]
     # Wheel-based install: the image installs FlagGems from PyPI, so the build
     # context no longer needs the FlagGems source tree (no COPY). Use runtime/
     # as a trivial context. --flaggems-dir is kept only to derive the version.
