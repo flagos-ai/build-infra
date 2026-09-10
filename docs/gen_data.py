@@ -214,14 +214,25 @@ def runtime_packages(spec: dict, flaggems_version: str = "") -> list:
 # embed the app version with no dash; the tag carries the stack version plus,
 # for megatron, the MLF fork version (mlf_version '+' -> '_').
 #
-# vllm is split per repacked version: deps_app keys are 'vllm<version>'
-# (configs.yaml), and the version segment — not this default — drives the
-# repo name / tag / package string. The bare 'vllm' entry here only supplies
-# the workflow_dispatch default version and the shared launcher / CMD data.
+# vllm and sglang are split per repacked version: deps_app keys are
+# 'vllm<version>' / 'sglang<version>' (configs.yaml), and the version segment —
+# not this default — drives the repo name / tag / package string. The bare
+# entries here only supply the workflow_dispatch default version and the shared
+# launcher / CMD data.
 APP_IMAGE_DEFAULTS = {
     "megatron_training": {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
     "megatron_rl":       {"app_version": "0.17.1", "fork_version": "0.2.1", "package": "megatron-core"},
     "vllm":              {"app_version": "0.24.0", "fork_version": "", "package": "vllm"},
+    "sglang":            {"app_version": "0.5.18", "fork_version": "", "package": "sglang"},
+}
+
+# Apps that ship an OOT plugin wheel inside the same image, and the
+# distribution name it is pinned by. The version is not discoverable inside the
+# container at build time, so a published combo's page back-derives it from the
+# exact Harbor tag (see app_image_data).
+APP_PLUGIN_PACKAGES = {
+    "vllm": "vllm-plugin-fl",
+    "sglang": "sglang-fl",
 }
 
 # Launcher-with-args examples for the docs pages, verbatim from the app
@@ -231,6 +242,7 @@ APP_LAUNCH_EXAMPLES = {
     "megatron_training": ["megatron-train", "--model-type", "GPT"],
     "megatron_rl": [],
     "vllm": ["vllm-serve", "--model", "<path>", "--port", "9000"],
+    "sglang": ["sglang-serve", "--model-path", "<path>", "--port", "9000"],
 }
 
 # Per-app launcher + default CMD, verbatim from the app Containerfiles.
@@ -240,6 +252,7 @@ APP_LAUNCHERS = {
     "megatron_training": "megatron-train",
     "megatron_rl": "",
     "vllm": "vllm-serve",
+    "sglang": "sglang-serve",
 }
 APP_CMD_DEFAULTS = {
     "megatron_training": ["megatron-train"],
@@ -249,7 +262,26 @@ APP_CMD_DEFAULTS = {
         "--gpu-memory-utilization", "0.6", "--enforce-eager", "--trust-remote-code",
         "--max-model-len", "2048", "--dtype", "bfloat16",
     ],
+    "sglang": [
+        "sglang-serve", "--model-path", "/data/models/Qwen/Qwen3-0.6B", "--port", "8032",
+        "--mem-fraction-static", "0.6", "--trust-remote-code",
+        "--disable-cuda-graph", "--disable-piecewise-cuda-graph",
+    ],
 }
+
+
+def split_app(app: str) -> tuple[str, str]:
+    """Split a deps_app key into its bare app name and its version segment.
+
+    Versioned keys carry the packaged version as a suffix ('vllm0.24.0' ->
+    ('vllm', '0.24.0'), 'sglang0.5.18' -> ('sglang', '0.5.18')); unversioned
+    ones ('megatron_training') return an empty version. Same trailing-version
+    strip as scripts/generate_matrix.py uses to resolve env.app keys, so the
+    two never disagree about what a key's bare app name is.
+    """
+    base = re.sub(r"\d[\d.]*$", "", app) or app
+    return base, app[len(base):]
+
 
 def status_matrix_path(app: str) -> Path | None:
     """Status matrix YAML for an app key, or None when no matrix exists.
@@ -317,42 +349,46 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     get the workflow-default derivation), the published status, and the
     launcher / default CMD for the docs page.
 
-    App keys are 'megatron_training' / 'megatron_rl' / 'vllm<version>' — vllm
-    is split per repacked version (configs.yaml deps_app.vllm<version>), and
-    the key's version segment drives the vllm repo name / tag / package string.
-    megatron repos are named {app}{app_version}-{vendor}-{backend} (app name +
-    version, no separator) and tagged {stack}-{fork_version}; vllm repos are
-    named vllm{vllm_version}-{vendor}-{backend} and tagged {stack} (a non-empty
-    plugin_fl_version input would append -{fork} to the tag).
+    App keys are 'megatron_training' / 'megatron_rl' / 'vllm<version>' /
+    'sglang<version>' — vllm and sglang are split per repacked version
+    (configs.yaml deps_app.<app><version>), and the key's version segment drives
+    the repo name / tag / package string. megatron repos are named
+    {app}{app_version}-{vendor}-{backend} (app name + version, no separator) and
+    tagged {stack}-{fork_version}; vllm and sglang repos are named
+    {app}{version}-{vendor}-{backend} and tagged {stack} (a non-empty plugin
+    version input appends -{plugin} to the tag).
     """
-    base_app = "vllm" if app.startswith("vllm") else app
+    base_app, key_version = split_app(app)
     d = APP_IMAGE_DEFAULTS[base_app]
-    # vllm versions come from the deps_app key (vllm0.20.2 -> 0.20.2), not the
-    # workflow default in APP_IMAGE_DEFAULTS.
-    app_version = app.removeprefix("vllm") if app.startswith("vllm") else d["app_version"]
+    # Versioned apps take the version from the deps_app key (vllm0.20.2 ->
+    # 0.20.2, sglang0.5.18 -> 0.5.18), not the workflow default in
+    # APP_IMAGE_DEFAULTS.
+    app_version = key_version or d["app_version"]
     if app.startswith("megatron"):
         repo = f"{app}{app_version}-{name}"
         tag = f"{stack_version}-{d['fork_version']}"
     else:
-        repo = f"vllm{app_version}-{name}"
+        repo = f"{base_app}{app_version}-{name}"
         tag = stack_version
     published_tag = app_published_tag(app, name)
     base = f"{app_prefix}/{repo}" if app_prefix else repo
     # Install spec, verbatim from the app Containerfiles: megatron apps select
-    # the [training]/[rl] extra of megatron-core; vllm pins the +flagos wheel
-    # (a bare version would pull torch over the pinned vendor torch).
+    # the [training]/[rl] extra of megatron-core; vllm and sglang pin the
+    # +flagos wheel (a bare version would pull torch over the pinned vendor
+    # torch).
     if app.startswith("megatron"):
         package = f"megatron-core[{app.split('_', 1)[1]}]=={app_version}"
     else:
-        package = f"vllm=={app_version}+flagos"
-    # vllm-plugin-FL rides in the same image as vllm itself. Its version is the
-    # tag's plugin segment (the workflow input plugin_fl_version, '+' -> '_'),
+        package = f"{base_app}=={app_version}+flagos"
+    # The OOT plugin rides in the same image as the app itself. Its version is
+    # the tag's plugin segment (the workflow input plugin version, '+' -> '_'),
     # and is not discoverable inside the container at build time — so published
     # combos carry it here, back-derived from the exact Harbor tag. Unpublished
-    # combos get an empty spec and the page shows only the vllm wheel.
+    # combos get an empty spec and the page shows only the app wheel.
+    plugin_pkg = APP_PLUGIN_PACKAGES.get(base_app, "")
     plugin_package = (
-        f"vllm-plugin-fl=={published_tag.split('-', 1)[1].replace('_', '+')}"
-        if app.startswith("vllm") and published_tag and "-" in published_tag
+        f"{plugin_pkg}=={published_tag.split('-', 1)[1].replace('_', '+')}"
+        if plugin_pkg and published_tag and "-" in published_tag
         else ""
     )
     return {
@@ -485,7 +521,10 @@ def main():
                         "images": {
                             a: app_image_data(app_prefix, a, name, configs["version"])
                             for a in spec.get("deps_app") or {}
-                            if (a in APP_IMAGE_DEFAULTS or a.startswith("vllm"))
+                            # Only deps_app keys that name a documented app
+                            # image (split_app leaves an unknown key as its own
+                            # bare name, which is not in the table).
+                            if split_app(a)[0] in APP_IMAGE_DEFAULTS
                             and app_launch_docs(a, name)
                         },
                     },
