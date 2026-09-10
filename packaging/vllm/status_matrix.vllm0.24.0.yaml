@@ -69,6 +69,7 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.0_gcf8998c.d20260818"
+    note: "T（vendor triton 3.2.0）不可交付：默认派发下每次冷启动都退化，kernel 级原因已排除（详见 vllm-0.24.0 ascend 报告 §10.7）"
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true

@@ -276,3 +276,69 @@ editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
   benchmarker/数值问题。
 
 ---
+
+### 10.7 app 镜像 serve E2E（910C 双后端，2026-09-11）
+
+910C 是独立后端：`ascend-cann8.5.0-910c`（hw114）与 `ascend-cann9.0.0-910c`（hw115）。
+两者 image tag 与各自非 910C 后端只差 `-910c` 后缀，但彼此的 CANN / flagtree / torch
+均不同（见下表），**且结论与非 910C 后端也不同，三节不得互相套用**。同版本 app 的
+910C 双后端实测：
+
+| 后端 | F（flagtree） | T（vendor triton 3.2.0） |
+|---|---|---|
+| cann9.0.0-910c | 连贯 ✅ | 连贯 ✅ |
+| cann8.5.0-910c | 连贯 ✅ | **退化 ❌** |
+
+镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-{backend}:2.1.2-0.2.0_gcf8998c.d20260818`
+（两端同 tag，指纹不同）：
+
+| 后端 | vllm-plugin-fl | torch / torch_npu | flagtree | flag_gems |
+|---|---|---|---|---|
+| cann8.5.0-910c | `0.2.0+gcf8998c.d20260818` | 2.9.0+cpu / 2.9.0 | 0.6.0+ascend3.2 | 5.3.5 |
+| cann9.0.0-910c | `0.2.0+gcf8998c.d20260818` | 2.10.0+cpu / 2.10.0 | 0.6.1+ascend3.5 | 5.3.5 |
+
+（§10.6 的非 910C cann8.5.0 线为 flag_gems 5.3.4，与本节的 5.3.5 是两条线的真实差异。）
+`/opt/flagtree` 与 `/opt/triton` 的 `triton.__version__` **均自报 3.2.0**，故每轮须按编译器
+分设 `TRITON_CACHE_DIR`，否则缓存串台。
+
+serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1、端口 8031、
+`VLLM_PLUGINS=fl`、`VLLM_FL_DISPATCH_DEBUG=1`、`--enforce-eager --trust-remote-code
+--max-model-len 2048 --gpu-memory-utilization 0.6`。
+
+**cann8.5.0-910c / T 的症状**：每次冷启动都把 `!` 重复填充到 `max_tokens`（HTTP 200、
+`finish_reason='length'`、temperature=0）。CI verify 一次命中即此症状：
+`completion failed semantic check: expected 'Paris' in text '!!!!!!!!!!!!!!!!'`
+（同轮 `serve ready after ~130s`、`triton (active) - 3.2.0`）。5 次**完整冷启动**
+（每次新容器 / 新设备 / 新 serve 进程，与 CI 同构）**5/5 FAIL**，输出逐次一致
+→ **确定性失败，非间歇**。
+
+**已排除项（均为本机一手实测）**
+
+1. **不是 dispatch 路由差异。** 四份 serve 日志的路由表两两比对：F 与 T **逐字节一致**
+   —— `attention_backend` / `rms_norm` / `rotary_embedding` → `vendor.ascend`，
+   `silu_and_mul` → `default.flagos`。同一张表下 F 连贯、T 退化。
+2. **不是 flag_gems `silu_and_mul` kernel 算错。** 摘掉 vllm 直接调
+   `flag_gems.silu_and_mul`（同镜像，F/T 各一次）：bf16 与 fp16 × `d ∈ {64, 9728}`
+   × 连续/跨步视图，两编译器输出**逐字节相同**且与 CPU 参考一致（bf16 `d=9728`
+   最大绝对差 `0.0291`，即 bf16 舍入量级）。
+3. **两条黑名单杠杆均不成立**，不作为缓释手段：
+   - yaml 键 `flagos_blacklist` 加 `silu_and_mul`：配置确被加载（日志
+     `Using custom config from .../dispatch/config/ascend.yaml`），但路由表与基线
+     **完全一致** —— 未生效。
+   - 环境变量 `VLLM_FL_FLAGOS_BLACKLIST=silu_and_mul`（`vllm_fl/utils.py:119`，与 yaml
+     键是**两条不同代码路径**）：serve 起不来，崩在**另一族** kernel ——
+     `ConvertTritonIRToLinalgIR` → `strides must not be zero` → `triton-adapter-opt`
+     SIGABRT，与 silu 无关。
+
+**唯一实测为绿的 T 配置 = `VLLM_FL_PREFER=vendor`（3/3 次冷启动全绿）。** 它是 dispatch
+偏好、**不是关掉 flag_gems**：只把 `silu_and_mul` 由 `default.flagos` 换成
+`vendor.ascend`，其余三个算子本来就是 `vendor.ascend`。该偏好可落到持久配置复现，
+不需改镜像。
+
+**根因：未定位。** 现有事实只有「唯一被改变的算子是 `silu_and_mul`」与「改了它就恢复」
+两条；而该 kernel 单独跑完全正确，说明缺陷不在它的算术，而在真实调用形态下的更下游
+环节。无实证不写结论。
+
+**处置**：cann9.0.0-910c 交付路径 = F/T 均可；cann8.5.0-910c 的 T 路径**按默认派发不可
+交付**（矩阵该格记 ❌，`status_matrix.vllm0.24.0.yaml` 该后端已加 `note:`），F 路径为
+交付路径；需用 T 时以 `VLLM_FL_PREFER=vendor` 为临时缓释。
