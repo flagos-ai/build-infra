@@ -177,9 +177,16 @@ package, headers and the unversioned linker symlink in `-dev`.
 `HTTPS_PROXY` is an `ARG` with an empty default, exported inside the clone `RUN` only —
 never an image `ENV`, because a baked proxy is a leaked proxy.
 
+The build runs with **`--network host`**. The clone is the only thing in it that needs the
+network, and the default bridge on the runners intermittently cannot open a TCP connection to
+github.com while the host can: measured on metax124, 1 of 2 bridge clones died at connect after
+130 s and 2 of 2 host clones finished in 12 s. Container isolation buys nothing for a build that
+has to reach GitHub anyway, and it costs an 8-attempt retry loop that can spend 17 minutes
+failing.
+
 Pinned-ref discipline: `FLAGCX_REF` defaults to a **tag**, not `main`, so an artifact is
 reproducible. `FLAGCX_REPO` is an `ARG` so a filestore tarball can replace the clone later if
-github.com proves slow from the runners — the same escape hatch `packaging/vllm/` uses.
+github.com proves unreachable from the runners — the same escape hatch `packaging/vllm/` uses.
 
 ### 5. `debian/` overlay
 

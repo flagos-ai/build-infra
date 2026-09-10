@@ -133,8 +133,14 @@ for key in "${BACKENDS[@]}"; do
         echo ">>> $key: $DEB_PACKAGE ($DEB_ARCH, glibc >= $DEB_GLIBC_FLOOR) from $FLAGCX_REF"
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
+        # --network host: the build's only network use is the clone, and the
+        # default bridge on the runners intermittently cannot open a TCP
+        # connection to github.com while the host can (measured on metax124:
+        # 1 of 2 bridge clones failed at connect after 130s, 2 of 2 host clones
+        # succeeded in 12s). Isolation buys nothing here and costs the rebuild.
         docker build \
             "${cache_arg[@]}" \
+            --network host \
             --build-arg "BASE_IMAGE=$DEB_BASE_IMAGE" \
             --build-arg "FLAGCX_REPO=$OPT_REPO" \
             --build-arg "FLAGCX_REF=$FLAGCX_REF" \
