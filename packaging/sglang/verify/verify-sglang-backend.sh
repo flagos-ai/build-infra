@@ -85,6 +85,15 @@ MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-0.6B}"
 SGLANG_VERSION="${SGLANG_VERSION:-0.5.18}"
 PLUGIN_REF="${PLUGIN_REF:-exp/0.5.18}"
 PLUGIN_REPO="https://github.com/flagos-ai/sglang-plugin-FL"
+# Some nodes have no direct egress to github.com and reach it only through the
+# node's proxy (work rule 22 — the same requirement build-sdist.sh documents).
+# `docker exec` inherits nothing, so the proxy has to be relayed explicitly for
+# the one host that needs it (Step 4's plugin clone). Values are passed with -e
+# and never echoed: not baked into any image, not written to a log.
+PROXY_ENV_ARGS=()
+for _v in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+    if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
+done
 # sgl_kernel shim version — derived below from SGLANG_VERSION once the args
 # are parsed (the shim tracks the sglang version).
 SHIM_VERSION="${SHIM_VERSION:-}"
@@ -578,7 +587,7 @@ log_step "Step 4: Building + installing sglang_fl plugin (sglang-plugin-FL @ ${P
 # the node. `pip wheel` with PEP 517 isolation pulls the build backend from
 # the vendor index + aliyun extra — never pypi.org directly. The result is a
 # py3-none-any wheel (pure Python): no compiled ext, no build toolchain.
-docker exec "${CONTAINER}" bash -c "
+docker exec "${PROXY_ENV_ARGS[@]}" "${CONTAINER}" bash -c "
     set -e
     ${SGLANG_SWITCHES}
     rm -rf /tmp/sglang-plugin-FL /tmp/sglang-fl-wheels
