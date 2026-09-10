@@ -134,9 +134,9 @@ version logic and no build logic.
 
 | Job | Shape |
 |---|---|
-| `matrix` | `generate_matrix.py --runtime` → `deb-config.py --merge` → `fromJSON` matrix |
+| `set-matrix` | `generate_matrix.py --runtime` → `deb-config.py --merge` → `fromJSON` matrix; each row carries the `ubuntu` field the verify job needs for `--floor-image` |
 | `build` | `runs-on: ${{ fromJSON(matrix.runson) }}`; `build-flagcx-deb.sh --backend <key>`; uploads the `.deb` files as artifacts |
-| `verify` | same base image, fresh container: install the `.deb`, run `verify/verify-flagcx-deb.sh` |
+| `verify` | `verify/verify-flagcx-deb.sh --backend <key> --floor-image ubuntu:<ubuntu>` on the downloaded `.deb` files |
 
 `verify/verify-flagcx-deb.sh` installs the package and runs `smoke-load.c` (~15 lines:
 `dlopen("libflagcx.so.0", RTLD_NOW)` — `RTLD_NOW` forces vendor-symbol resolution at load —
@@ -338,14 +338,16 @@ PR to another repo is opened.
 ```bash
 # matrix resolves and agrees with build-infra
 python3 scripts/generate_matrix.py --runtime > /tmp/all.json
-python3 packaging/flagcx/deb-config.py --merge /tmp/all.json   # 20 entries
+python3 packaging/flagcx/deb-config.py --merge /tmp/all.json   # one entry per enabled backend
 python3 packaging/flagcx/deb-config.py --check                 # no drift
 
 # metax first (known-good upstream), then nvidia
-packaging/flagcx/build-flagcx-deb.sh --backend metax-maca3.8.1.3
+packaging/flagcx/build-flagcx-deb.sh --backend metax-maca3.8.1.3 \
+    --ref "$FLAGCX_REF" --out debian-packages/metax-maca3.8.1.3
 dpkg-deb -I debian-packages/metax-maca3.8.1.3/*.deb    # Depends / Provides / Conflicts / Architecture
 dpkg-deb -c debian-packages/metax-maca3.8.1.3/*.deb    # SONAME symlink chain
-packaging/flagcx/verify/verify-flagcx-deb.sh debian-packages/metax-maca3.8.1.3/*.deb
+packaging/flagcx/verify/verify-flagcx-deb.sh --backend metax-maca3.8.1.3 \
+    --floor-image "ubuntu:${UBUNTU}" debian-packages/metax-maca3.8.1.3/*.deb
 ```
 
 Then the two tests that prove the package is genuinely self-describing:
