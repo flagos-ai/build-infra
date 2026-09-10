@@ -50,12 +50,18 @@
 # both invocations pass (F = flagtree, the runtime default, T = vendor triton).
 #
 # Usage:
-#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] [--watchdog-timeout <sec>] [--warmup-timeout <sec>] [--ready-timeout <sec>] [--skip-serve] [--stack-version <ver>]
+#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] \
+#      [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] \
+#      [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] \
+#      [--watchdog-timeout <sec>] [--warmup-timeout <sec>] [--ready-timeout <sec>] \
+#      [--skip-serve] [--stack-version <ver>]
 #
 # Examples:
 #   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler F
-#   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler T --device 1 --model /data/models/Qwen/Qwen3-0.6B
-#   ./verify-sglang-backend.sh metax-maca3.8.1.3 --app-image harbor.baai.ac.cn/flagos-app/sglang0.5.18-metax-maca3.8.1.3:2.1.2
+#   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler T \
+#      --device 1 --model /data/models/Qwen/Qwen3-0.6B
+#   ./verify-sglang-backend.sh metax-maca3.8.1.3 \
+#      --app-image harbor.baai.ac.cn/flagos-app/sglang0.5.18-metax-maca3.8.1.3:2.1.2
 #
 # Prerequisites:
 #   - Running on the target node with hardware access
@@ -85,8 +91,11 @@ MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-0.6B}"
 SGLANG_VERSION="${SGLANG_VERSION:-0.5.18}"
 PLUGIN_REF="${PLUGIN_REF:-exp/0.5.18}"
 PLUGIN_REPO="https://github.com/flagos-ai/sglang-plugin-FL"
-# sgl_kernel shim version — derived below from SGLANG_VERSION once the args
-# are parsed (the shim tracks the sglang version).
+PROXY_ENV_ARGS=()
+for _v in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+    if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
+done
+# sgl_kernel shim version — derived below from SGLANG_VERSION once the args are parsed
 SHIM_VERSION="${SHIM_VERSION:-}"
 SKIP_SERVE=false
 # Serve-test time budget in seconds, shared by the readiness poll window and
@@ -578,7 +587,7 @@ log_step "Step 4: Building + installing sglang_fl plugin (sglang-plugin-FL @ ${P
 # the node. `pip wheel` with PEP 517 isolation pulls the build backend from
 # the vendor index + aliyun extra — never pypi.org directly. The result is a
 # py3-none-any wheel (pure Python): no compiled ext, no build toolchain.
-docker exec "${CONTAINER}" bash -c "
+docker exec "${PROXY_ENV_ARGS[@]}" "${CONTAINER}" bash -c "
     set -e
     ${SGLANG_SWITCHES}
     rm -rf /tmp/sglang-plugin-FL /tmp/sglang-fl-wheels

@@ -48,6 +48,13 @@ on:
         description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
         type: string
         default: ''
+      plugin_ref:
+        description: >-
+          sglang-plugin-FL ref the shim wheels are built from (the addons live
+          in that repo). Default exp/0.5.18; set a per-backend branch when the
+          shim or its stub trees only exist there.
+        type: string
+        default: exp/0.5.18
 
 defaults:
   run:
@@ -212,11 +219,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: flagos-ai/sglang-plugin-FL
-          ref: exp/0.5.18
+          ref: ${{ inputs.plugin_ref }}
           path: sglang-plugin-FL
 
-      - name: Build the shim wheel
-        run: bash sglang-plugin-FL/addon/sgl-kernel-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
+      - name: Build the shim wheels
+        run: |
+          bash sglang-plugin-FL/addon/sgl-kernel-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
+          bash sglang-plugin-FL/addon/flashinfer-shim/build.sh "${GITHUB_WORKSPACE}/wheels"
 
       # The shim must stay zero-dep: a Requires-Dist on the baked matrix would
       # give pip a reason to drift it on a single-step install.
@@ -225,7 +234,7 @@ jobs:
           python3 packaging/script/audit-deps.py \
             --watch torch --watch triton --watch flag-gems \
             --watch 'flashinfer*' \
-            "${GITHUB_WORKSPACE}/wheels/"*.whl
+            "${GITHUB_WORKSPACE}/wheels/sgl_kernel_shim"*.whl
 
       - name: Upload to vendor PyPI
         env:
@@ -245,17 +254,30 @@ jobs:
             python3 -m pip install --quiet pyyaml
             python3 scripts/generate_matrix.py --app "sglang${{ inputs.sglang_version }}" > app-matrix.json
             mapfile -t targets < <(jq -r '.include[].name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
+            # The flashinfer stub is vendor-scoped: a stub flashinfer must
+            # never shadow a real one, so it goes only where a backend's
+            # deps_app asks for it (the stub is inert elsewhere, but its
+            # presence on a real-flashinfer backend's index is a loaded gun).
+            mapfile -t fi_targets < <(jq -r '.include[] | select((.app_deps // "") | contains("flashinfer-shim")) | .name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
           else
             vendor="${backend%%-*}"
             targets=("${pypi_repo:-flagos-pypi-${vendor}}")
+            fi_targets=("${targets[@]}")
           fi
           python3 -m pip install --quiet twine
           export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
           export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
           for repo in "${targets[@]}"; do
-            echo ">>> uploading shim to ${repo}"
+            echo ">>> uploading sgl-kernel shim to ${repo}"
             python3 -m twine upload \
               --repository-url "https://resource.flagos.net/repository/${repo}/" \
               --non-interactive \
-              "${GITHUB_WORKSPACE}/wheels/"*.whl
+              "${GITHUB_WORKSPACE}/wheels/sgl_kernel_shim"*.whl
+          done
+          for repo in "${fi_targets[@]}"; do
+            echo ">>> uploading flashinfer shim to ${repo}"
+            python3 -m twine upload \
+              --repository-url "https://resource.flagos.net/repository/${repo}/" \
+              --non-interactive \
+              "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl
           done
