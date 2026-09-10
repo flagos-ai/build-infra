@@ -183,11 +183,7 @@ COMPILER_GUARD=""
 
 # Outbound access on some runner nodes is proxy-only: the runner exports
 # HTTP(S)_PROXY and *nothing* resolves without them (pip dies on
-# NameResolutionError for both the vendor index and Aliyun). A container does
-# not inherit the client environment, so relay the proxies into the execs that
-# reach the package indexes. Passed by NAME, never by value — the credential
-# must not appear on a command line. no_proxy is pinned to loopback because
-# the serve health check talks to 127.0.0.1 and would otherwise go proxy-ward.
+# NameResolutionError for both the vendor index and Aliyun).
 PROXY_ENV_ARGS=()
 for _v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
     if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
