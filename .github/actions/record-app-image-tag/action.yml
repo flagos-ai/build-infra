@@ -1,0 +1,105 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Record app image tag
+description: |-
+  Run scripts/record_app_image_tag.py on a self-hosted runner, picking a
+  runner interpreter that can actually import ruamel.yaml (the changelog
+  backfill needs its round-trip YAML), and failing loudly when none can.
+
+  Why this is not just `python3 -m pip install`: the app-image workflows used
+  to assume the runner host has a `python3` with pip, and swallowed the
+  install failure behind `|| true`. On ix23 (iluvatar) `/usr/bin/python3` is
+  3.10 with no pip at all, so the install did nothing, the step carried on,
+  and the record died later and less legibly inside the script:
+
+      File "scripts/backfill_changelog_date.py", line 31
+        from ruamel.yaml import YAML
+      ModuleNotFoundError: No module named 'ruamel'
+
+  — after the image had already been pushed, leaving a tag in the registry
+  that the status matrix does not know about. Selecting the interpreter here
+  and checking the import keeps that from being silent.
+
+  Shared by the vllm / sglang / megatron app-image workflows: they differ only
+  in the matrix and changelog paths, and three copies of this logic is how the
+  drift started.
+
+inputs:
+  matrix:
+    description: 'Path to the app status-matrix YAML (e.g. packaging/sglang/status_matrix.sglang0.5.18.yaml)'
+    required: true
+  changelog:
+    description: 'Path to the per-image changelog YAML (e.g. app/sglang/changelogs/sglang0.5.18-<backend>.yaml)'
+    required: true
+  backend:
+    description: 'Backend name (matrix key), e.g. iluvatar-corex4.5.0'
+    required: true
+  tag:
+    description: 'Image tag to record, e.g. 2.1.2-0.1.dev1_g201484665'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Record app image tag
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        # Candidates in preference order: whatever `python3` is, then the
+        # versioned names a distro may expose separately.
+        candidates="python3 python3.13 python3.12 python3.11 python3.10"
+
+        py=""
+        # 1. An interpreter that already imports ruamel needs nothing installed.
+        for cand in ${candidates}; do
+          command -v "${cand}" >/dev/null 2>&1 || continue
+          if "${cand}" -c "import ruamel.yaml" >/dev/null 2>&1; then
+            py="${cand}"
+            break
+          fi
+        done
+
+        # 2. Otherwise one that has pip and can install it. --break-system-packages
+        #    only exists on newer pip; the plain --user form is the fallback.
+        if [ -z "${py}" ]; then
+          for cand in ${candidates}; do
+            command -v "${cand}" >/dev/null 2>&1 || continue
+            "${cand}" -m pip --version >/dev/null 2>&1 || continue
+            if ! "${cand}" -m pip install --quiet --user 'ruamel.yaml>=0.18' >/dev/null 2>&1; then
+              "${cand}" -m pip install --quiet --user --break-system-packages \
+                'ruamel.yaml>=0.18' >/dev/null 2>&1 || continue
+            fi
+            if "${cand}" -c "import ruamel.yaml" >/dev/null 2>&1; then
+              py="${cand}"
+              break
+            fi
+          done
+        fi
+
+        if [ -z "${py}" ]; then
+          echo "::error::no runner interpreter can provide ruamel.yaml (tried: ${candidates})." \
+               "The changelog backfill needs it; install pip for one of them on this runner."
+          exit 1
+        fi
+
+        echo ">>> recording ${{ inputs.tag }} with ${py} ($(${py} -V 2>&1))"
+        "${py}" scripts/record_app_image_tag.py \
+          --matrix "${{ inputs.matrix }}" \
+          --backend "${{ inputs.backend }}" \
+          --changelog "${{ inputs.changelog }}" \
+          --tag "${{ inputs.tag }}"
