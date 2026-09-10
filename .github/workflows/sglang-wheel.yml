@@ -48,6 +48,13 @@ on:
         description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
         type: string
         default: ''
+      plugin_ref:
+        description: >-
+          sglang-plugin-FL ref the shim wheels are built from (the addons live
+          in that repo). Default exp/0.5.18; set a per-backend branch when the
+          shim or its stub trees only exist there.
+        type: string
+        default: exp/0.5.18
 
 defaults:
   run:
@@ -212,7 +219,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: flagos-ai/sglang-plugin-FL
-          ref: exp/0.5.18
+          ref: ${{ inputs.plugin_ref }}
           path: sglang-plugin-FL
 
       - name: Build the shim wheels
