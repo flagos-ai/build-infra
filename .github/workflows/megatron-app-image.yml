@@ -248,15 +248,9 @@ jobs:
       # record_app_image_tag.py). Idempotent: same tag → no-op.
       - name: Record app image tag
         if: ${{ success() && inputs.push }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # changelog backfill needs ruamel.yaml (round-trip, preserves the
-          # file's comments and block style).
-          python3 -m pip install --quiet --user --break-system-packages 'ruamel.yaml>=0.18' 2>/dev/null \
-            || python3 -m pip install --quiet --user 'ruamel.yaml>=0.18' 2>/dev/null || true
-          python3 scripts/record_app_image_tag.py \
-            --matrix "packaging/megatron/status_matrix.${{ inputs.app }}.yaml" \
-            --backend "${{ matrix.name }}" \
-            --changelog "app/megatron/changelogs/${{ inputs.app }}${{ inputs.megatron_version }}-${{ matrix.name }}.yaml" \
-            --tag "${APP_TAG}"
+        uses: ./.github/actions/record-app-image-tag
+        with:
+          matrix: "packaging/megatron/status_matrix.${{ inputs.app }}.yaml"
+          backend: "${{ matrix.name }}"
+          changelog: "app/megatron/changelogs/${{ inputs.app }}${{ inputs.megatron_version }}-${{ matrix.name }}.yaml"
+          tag: "${APP_TAG}"

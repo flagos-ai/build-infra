@@ -275,15 +275,9 @@ jobs:
       # Also runs in record_only — that mode exists to re-run this step.
       - name: Record app image tag
         if: ${{ success() && (inputs.record_only || inputs.push) }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # changelog backfill needs ruamel.yaml (round-trip, preserves the
-          # file's comments and block style).
-          python3 -m pip install --quiet --user --break-system-packages 'ruamel.yaml>=0.18' 2>/dev/null \
-            || python3 -m pip install --quiet --user 'ruamel.yaml>=0.18' 2>/dev/null || true
-          python3 scripts/record_app_image_tag.py \
-            --matrix "packaging/vllm/status_matrix.vllm${{ inputs.vllm_version }}.yaml" \
-            --backend "${{ matrix.name }}" \
-            --changelog "app/vllm/changelogs/vllm${{ inputs.vllm_version }}-${{ matrix.name }}.yaml" \
-            --tag "${APP_TAG}"
+        uses: ./.github/actions/record-app-image-tag
+        with:
+          matrix: "packaging/vllm/status_matrix.vllm${{ inputs.vllm_version }}.yaml"
+          backend: "${{ matrix.name }}"
+          changelog: "app/vllm/changelogs/vllm${{ inputs.vllm_version }}-${{ matrix.name }}.yaml"
+          tag: "${APP_TAG}"
