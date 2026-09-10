@@ -1,1 +1,292 @@
-[]
+- app: vllm0.20.2
+  backend: ascend-cann8.5.0-910c
+  compiler: F
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.20.2 --plugin-fl-version 0.2.0+g2b6b635.d20260824
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "========================================\nVendor-Backend:   ascend-cann8.5.0-910c\n\
+      Runtime Image:    harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2\n\
+      Stack Version:    2.1.2 (/home/secure/actions-runner/_work/build-infra/build-infra/configs.yaml\
+      \ (discovered))\nvLLM Version:     0.20.2+flagos\nCompiler:         flagtree\n\
+      Model Path:       /data/models/Qwen/Qwen3-4B\nProxy relay:      relayed into\
+      \ install steps (no_proxy=loopback)\n\n\e[0;34m[STEP]\e[0m Step 1: Starting\
+      \ runtime container\n971cffeaebd3575047f8c9dddc34050adb388ec032030cf4c5704f3a2efdf123\n\
+      \e[0;32m[INFO]\e[0m Container started: vllm-verify-ascend-cann8.5.0-910c\n\e\
+      [0;34m[STEP]\e[0m Step 2: Verifying runtime environment\nflagtree (active) -\
+      \ 3.2.0\n--- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.9.0+cpu\n"
+    error_tail: "--- NumPy ---\nnumpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n\
+      --- FlagGems ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488: UserWarning:\
+      \ torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"torch.npu.get_device_capability\
+      \ isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\nflag_gems: 5.3.5\n\
+      \n--- Device availability ---\nours: -c: line 49: syntax error: unexpected end\
+      \ of file\n\n\e[0;32m[INFO]\e[0m Cleaning up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.20.2
+  backend: ascend-cann8.5.0-910c
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.20.2 --plugin-fl-version 0.2.0+g2b6b635.d20260824
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "Vendor-Backend:   ascend-cann8.5.0-910c\nRuntime Image:    harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2\n\
+      Stack Version:    2.1.2 (/home/secure/actions-runner/_work/build-infra/build-infra/configs.yaml\
+      \ (discovered))\nvLLM Version:     0.20.2+flagos\nCompiler:         triton\n\
+      Model Path:       /data/models/Qwen/Qwen3-4B\nProxy relay:      relayed into\
+      \ install steps (no_proxy=loopback)\n\n\e[0;34m[STEP]\e[0m Step 1: Starting\
+      \ runtime container\n1bd439bec4e2c2be04fcba7fb66f65e0977ed6779ee97e19fc5beab0a2bb1f1c\n\
+      \e[0;32m[INFO]\e[0m Container started: vllm-verify-ascend-cann8.5.0-910c\n\e\
+      [0;34m[STEP]\e[0m Step 2: Verifying runtime environment\ntriton (active) - 3.2.0\n\
+      --- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.9.0+cpu\n\n--- NumPy\
+      \ ---"
+    error_tail: "numpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n--- FlagGems ---\n\
+      /flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411: RuntimeWarning:\
+      \ active Triton backend does not provide a replay benchmarker; falling back\
+      \ to event timing\n  resolved_benchmark = resolve_benchmarker(\n/flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488:\
+      \ UserWarning: torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"\
+      torch.npu.get_device_capability isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\n[Note] No specialized\
+      \ common operators were found for the ascend, generic common operators will\
+      \ be used by default.\nflag_gems: 5.3.5\n\n--- Device availability ---\nours:\
+      \ -c: line 49: syntax error: unexpected end of file\n\n\e[0;32m[INFO]\e[0m Cleaning\
+      \ up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.20.2
+  backend: ascend-cann9.0.0-910c
+  compiler: F
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.20.2 --plugin-fl-version 0.2.0+g2b6b635.d20260824
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "    from .autotuner import (Autotuner, Config, Heuristics, autotune,\
+      \ heuristics)\n  File \"/opt/flagtree/triton/spec/ascend/runtime/autotuner.py\"\
+      , line 13, in <module>\n    from .jit import KernelInterface, JITFunction\n\
+      \  File \"/opt/flagtree/triton/spec/ascend/runtime/jit.py\", line 18, in <module>\n\
+      \    from .driver import driver\n  File \"/opt/flagtree/triton/spec/ascend/runtime/driver.py\"\
+      , line 3, in <module>\n    from ..backends import backends, DriverBase\n  File\
+      \ \"/opt/flagtree/triton/backends/__init__.py\", line 47, in <module>\n    backends:\
+      \ dict[str, Backend] = _discover_backends()\n                              \
+      \     ^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/flagtree/triton/backends/__init__.py\"\
+      , line 40, in _discover_backends\n    compiler = importlib.import_module(f\"\
+      {ep.value}.compiler\")\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+      \  File \"/root/.local/share/uv/python/cpython-3.11.15-linux-aarch64-gnu/lib/python3.11/importlib/__init__.py\"\
+      , line 126, in import_module\n    return _bootstrap._gcd_import(name[level:],\
+      \ package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+      \  File \"/opt/flagtree/triton/backends/ascend/__init__.py\", line 24, in <module>\n\
+      \    from .testing import do_bench_npu\n  File \"/opt/flagtree/triton/backends/ascend/testing.py\"\
+      , line 27, in <module>\n    import torch"
+    error_tail: "  File \"/flagos/lib/python3.11/site-packages/torch/__init__.py\"\
+      , line 2980, in <module>\n    _import_device_backends()\n  File \"/flagos/lib/python3.11/site-packages/torch/__init__.py\"\
+      , line 2939, in _import_device_backends\n    raise RuntimeError(\nRuntimeError:\
+      \ Failed to load the backend extension: torch_npu. You can disable extension\
+      \ auto-loading with TORCH_DEVICE_BACKEND_AUTOLOAD=0.\n\n--- FlagGems ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:539: UserWarning:\
+      \ You can set the device capability via the environment variable TORCH_NPU_DEVICE_CAPABILITY.\
+      \ The return value of get_device_capability is only for compatibility with PyTorch\
+      \ and does not represent the actual capability of the NPU device.\n  warnings.warn(f\"\
+      You can set the device capability via the environment variable TORCH_NPU_DEVICE_CAPABILITY.\
+      \ {warning_str}\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\nflag_gems: 5.3.5\n\
+      \n--- Device availability ---\nours: -c: line 49: syntax error: unexpected end\
+      \ of file\n\n\e[0;32m[INFO]\e[0m Cleaning up containers...\nvllm-verify-ascend-cann9.0.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.20.2
+  backend: ascend-cann9.0.0-910c
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.20.2 --plugin-fl-version 0.2.0+g2b6b635.d20260824
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "Vendor-Backend:   ascend-cann9.0.0-910c\nRuntime Image:    harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2\n\
+      Stack Version:    2.1.2 (/home/secure/actions-runner/_work/build-infra/build-infra/configs.yaml\
+      \ (discovered))\nvLLM Version:     0.20.2+flagos\nCompiler:         triton\n\
+      Model Path:       /data/models/Qwen/Qwen3-4B\nProxy relay:      relayed into\
+      \ install steps (no_proxy=loopback)\n\n\e[0;34m[STEP]\e[0m Step 1: Starting\
+      \ runtime container\n5ccfe0d0da09863a97a821c1d30206ffe1a3c6f901244e8c1fae1ea7ec0e6527\n\
+      \e[0;32m[INFO]\e[0m Container started: vllm-verify-ascend-cann9.0.0-910c\n\e\
+      [0;34m[STEP]\e[0m Step 2: Verifying runtime environment\ntriton (active) - 3.2.0\n\
+      --- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.10.0+cpu\n\n--- NumPy\
+      \ ---"
+    error_tail: "numpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n--- FlagGems ---\n\
+      /flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411: RuntimeWarning:\
+      \ active Triton backend does not provide a replay benchmarker; falling back\
+      \ to event timing\n  resolved_benchmark = resolve_benchmarker(\n/flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:539:\
+      \ UserWarning: You can set the device capability via the environment variable\
+      \ TORCH_NPU_DEVICE_CAPABILITY. The return value of get_device_capability is\
+      \ only for compatibility with PyTorch and does not represent the actual capability\
+      \ of the NPU device.\n  warnings.warn(f\"You can set the device capability via\
+      \ the environment variable TORCH_NPU_DEVICE_CAPABILITY. {warning_str}\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\n[Note] No specialized\
+      \ common operators were found for the ascend, generic common operators will\
+      \ be used by default.\nflag_gems: 5.3.5\n\n--- Device availability ---\nours:\
+      \ -c: line 49: syntax error: unexpected end of file\n\n\e[0;32m[INFO]\e[0m Cleaning\
+      \ up containers...\nvllm-verify-ascend-cann9.0.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.24.0
+  backend: ascend-cann8.5.0-910c
+  compiler: F
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "========================================\nVendor-Backend:   ascend-cann8.5.0-910c\n\
+      Runtime Image:    harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2\n\
+      Stack Version:    2.1.2 (/home/secure/actions-runner/_work/build-infra/build-infra/configs.yaml\
+      \ (discovered))\nvLLM Version:     0.24.0+flagos\nCompiler:         flagtree\n\
+      Model Path:       /data/models/Qwen/Qwen3-4B\nProxy relay:      relayed into\
+      \ install steps (no_proxy=loopback)\n\n\e[0;34m[STEP]\e[0m Step 1: Starting\
+      \ runtime container\n4bd00a6734a8c4c1dec0a58b1459136c9b673204bd1e5a801b03f6e11b9a42b4\n\
+      \e[0;32m[INFO]\e[0m Container started: vllm-verify-ascend-cann8.5.0-910c\n\e\
+      [0;34m[STEP]\e[0m Step 2: Verifying runtime environment\nflagtree (active) -\
+      \ 3.2.0\n--- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.9.0+cpu\n"
+    error_tail: "--- NumPy ---\nnumpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n\
+      --- FlagGems ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488: UserWarning:\
+      \ torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"torch.npu.get_device_capability\
+      \ isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\nflag_gems: 5.3.5\n\
+      \n--- Device availability ---\nours: -c: line 49: syntax error: unexpected end\
+      \ of file\n\n\e[0;32m[INFO]\e[0m Cleaning up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.24.0
+  backend: ascend-cann8.5.0-910c
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "Vendor-Backend:   ascend-cann8.5.0-910c\nRuntime Image:    harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2\n\
+      Stack Version:    2.1.2 (/home/secure/actions-runner/_work/build-infra/build-infra/configs.yaml\
+      \ (discovered))\nvLLM Version:     0.24.0+flagos\nCompiler:         triton\n\
+      Model Path:       /data/models/Qwen/Qwen3-4B\nProxy relay:      relayed into\
+      \ install steps (no_proxy=loopback)\n\n\e[0;34m[STEP]\e[0m Step 1: Starting\
+      \ runtime container\n35d404aae5255eb953bdba9c29eae484622d8644bce59b31f81e16bde1f4279b\n\
+      \e[0;32m[INFO]\e[0m Container started: vllm-verify-ascend-cann8.5.0-910c\n\e\
+      [0;34m[STEP]\e[0m Step 2: Verifying runtime environment\ntriton (active) - 3.2.0\n\
+      --- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.9.0+cpu\n\n--- NumPy\
+      \ ---"
+    error_tail: "numpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n--- FlagGems ---\n\
+      /flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411: RuntimeWarning:\
+      \ active Triton backend does not provide a replay benchmarker; falling back\
+      \ to event timing\n  resolved_benchmark = resolve_benchmarker(\n/flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:488:\
+      \ UserWarning: torch.npu.get_device_capability isn't implemented!\n  warnings.warn(\"\
+      torch.npu.get_device_capability isn't implemented!\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\n[Note] No specialized\
+      \ common operators were found for the ascend, generic common operators will\
+      \ be used by default.\nflag_gems: 5.3.5\n\n--- Device availability ---\nours:\
+      \ -c: line 49: syntax error: unexpected end of file\n\n\e[0;32m[INFO]\e[0m Cleaning\
+      \ up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.24.0
+  backend: ascend-cann9.0.0-910c
+  compiler: F
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "    from .autotuner import (Autotuner, Config, Heuristics, autotune,\
+      \ heuristics)\n  File \"/opt/flagtree/triton/spec/ascend/runtime/autotuner.py\"\
+      , line 13, in <module>\n    from .jit import KernelInterface, JITFunction\n\
+      \  File \"/opt/flagtree/triton/spec/ascend/runtime/jit.py\", line 18, in <module>\n\
+      \    from .driver import driver\n  File \"/opt/flagtree/triton/spec/ascend/runtime/driver.py\"\
+      , line 3, in <module>\n    from ..backends import backends, DriverBase\n  File\
+      \ \"/opt/flagtree/triton/backends/__init__.py\", line 47, in <module>\n    backends:\
+      \ dict[str, Backend] = _discover_backends()\n                              \
+      \     ^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/flagtree/triton/backends/__init__.py\"\
+      , line 40, in _discover_backends\n    compiler = importlib.import_module(f\"\
+      {ep.value}.compiler\")\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+      \  File \"/root/.local/share/uv/python/cpython-3.11.15-linux-aarch64-gnu/lib/python3.11/importlib/__init__.py\"\
+      , line 126, in import_module\n    return _bootstrap._gcd_import(name[level:],\
+      \ package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+      \  File \"/opt/flagtree/triton/backends/ascend/__init__.py\", line 24, in <module>\n\
+      \    from .testing import do_bench_npu\n  File \"/opt/flagtree/triton/backends/ascend/testing.py\"\
+      , line 27, in <module>\n    import torch"
+    error_tail: "  File \"/flagos/lib/python3.11/site-packages/torch/__init__.py\"\
+      , line 2980, in <module>\n    _import_device_backends()\n  File \"/flagos/lib/python3.11/site-packages/torch/__init__.py\"\
+      , line 2939, in _import_device_backends\n    raise RuntimeError(\nRuntimeError:\
+      \ Failed to load the backend extension: torch_npu. You can disable extension\
+      \ auto-loading with TORCH_DEVICE_BACKEND_AUTOLOAD=0.\n\n--- FlagGems ---\n/flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411:\
+      \ RuntimeWarning: active Triton backend does not provide a replay benchmarker;\
+      \ falling back to event timing\n  resolved_benchmark = resolve_benchmarker(\n\
+      /flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:539: UserWarning:\
+      \ You can set the device capability via the environment variable TORCH_NPU_DEVICE_CAPABILITY.\
+      \ The return value of get_device_capability is only for compatibility with PyTorch\
+      \ and does not represent the actual capability of the NPU device.\n  warnings.warn(f\"\
+      You can set the device capability via the environment variable TORCH_NPU_DEVICE_CAPABILITY.\
+      \ {warning_str}\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\nflag_gems: 5.3.5\n\
+      \n--- Device availability ---\nours: -c: line 49: syntax error: unexpected end\
+      \ of file\n\n\e[0;32m[INFO]\e[0m Cleaning up containers...\nvllm-verify-ascend-cann9.0.0-910c"
+    log_path: /tmp/verify.log
+- app: vllm0.24.0
+  backend: ascend-cann9.0.0-910c
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 2: Verifying runtime environment'
+    exit_code: 2
+    error_head: "Vendor-Backend:   ascend-cann9.0.0-910c\nRuntime Image:    harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.1.2\n\
+      Stack Version:    2.1.2 (/home/secure/actions-runner/_work/build-infra/build-infra/configs.yaml\
+      \ (discovered))\nvLLM Version:     0.24.0+flagos\nCompiler:         triton\n\
+      Model Path:       /data/models/Qwen/Qwen3-4B\nProxy relay:      relayed into\
+      \ install steps (no_proxy=loopback)\n\n\e[0;34m[STEP]\e[0m Step 1: Starting\
+      \ runtime container\ncc9edb47fb562dadcf3297961e52ad115cf89cd25c910100b809fc12ce5853ab\n\
+      \e[0;32m[INFO]\e[0m Container started: vllm-verify-ascend-cann9.0.0-910c\n\e\
+      [0;34m[STEP]\e[0m Step 2: Verifying runtime environment\ntriton (active) - 3.2.0\n\
+      --- Python ---\nPython 3.11.15\n\n--- Torch ---\ntorch: 2.10.0+cpu\n\n--- NumPy\
+      \ ---"
+    error_tail: "numpy: 1.26.4\n\n--- Triton ---\ntriton: 3.2.0\n\n--- FlagGems ---\n\
+      /flagos/lib/python3.11/site-packages/flag_gems/utils/libentry.py:411: RuntimeWarning:\
+      \ active Triton backend does not provide a replay benchmarker; falling back\
+      \ to event timing\n  resolved_benchmark = resolve_benchmarker(\n/flagos/lib/python3.11/site-packages/torch_npu/npu/__init__.py:539:\
+      \ UserWarning: You can set the device capability via the environment variable\
+      \ TORCH_NPU_DEVICE_CAPABILITY. The return value of get_device_capability is\
+      \ only for compatibility with PyTorch and does not represent the actual capability\
+      \ of the NPU device.\n  warnings.warn(f\"You can set the device capability via\
+      \ the environment variable TORCH_NPU_DEVICE_CAPABILITY. {warning_str}\")\n/flagos/lib/python3.11/site-packages/flag_gems/utils/device_info.py:58:\
+      \ UserWarning: [device_info] torch_device_fn.get_device_capability returned\
+      \ None for device_id=0, fallback to (0, 0).\n  warnings.warn(\n[Note] No specialized\
+      \ common operators were found for the ascend, generic common operators will\
+      \ be used by default.\nflag_gems: 5.3.5\n\n--- Device availability ---\nours:\
+      \ -c: line 49: syntax error: unexpected end of file\n\n\e[0;32m[INFO]\e[0m Cleaning\
+      \ up containers...\nvllm-verify-ascend-cann9.0.0-910c"
+    log_path: /tmp/verify.log
