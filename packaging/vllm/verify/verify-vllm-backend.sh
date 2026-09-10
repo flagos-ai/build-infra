@@ -357,6 +357,15 @@ docker exec "${CONTAINER}" bash -c "
         tsingmicro)
             tsm_smi 2>/dev/null || echo 'tsm_smi not available'
             ;;
+        ascend)
+            # A die held by another container is the one ascend failure that
+            # does not look like one: the driver warns on stderr, device_count
+            # collapses to 0, and serve dies much later with an EngineCore
+            # traceback that names nothing. Report both here, where an empty
+            # count reads unambiguously as "not ours to use".
+            npu-smi info 2>&1 | head -20 || true
+            python3 -c 'import torch, torch_npu; print(f\"torch.npu device_count: {torch.npu.device_count()}\")' 2>&1 | tail -3 || true
+            ;;
     esac
 "
 
@@ -526,8 +535,20 @@ else
             sleep 5
         done
         if [ \"\$ready\" != \"1\" ]; then
-            echo 'serve did not become ready in time; last 40 lines of log:'
-            tail -40 /tmp/vllm-serve.log 2>/dev/null || true
+            # The APIServer prefixes every line it writes with its own pid and
+            # emits its summary last, so a plain tail shows only
+            # '(APIServer pid=N) Engine core initialization failed. See root
+            # cause above.' — which names nothing. The root cause belongs to
+            # the EngineCore child and sits earlier in the log. Dump the error
+            # boundary and the child's own lines, then a tail wide enough to
+            # have contained them anyway.
+            echo 'serve did not become ready in time.'
+            echo '--- first error boundary (line numbers) ---'
+            grep -nE 'Traceback|Error|ERROR|assert|Failed|failed|RuntimeError|Engine core' /tmp/vllm-serve.log 2>/dev/null | head -30 || true
+            echo '--- EngineCore child output ---'
+            grep -E 'EngineCore' /tmp/vllm-serve.log 2>/dev/null | tail -60 || true
+            echo '--- last 120 lines ---'
+            tail -120 /tmp/vllm-serve.log 2>/dev/null || true
             kill \${SERVE_PID} 2>/dev/null || true
             exit 1
         fi
