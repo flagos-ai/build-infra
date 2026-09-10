@@ -49,11 +49,8 @@ on:
         default: 0.24.0
       plugin_fl_version:
         description: >-
-          vllm-plugin-fl wheel version to install (commit-precise pin, e.g.
-          0.2.1+gcf8998c.d20260815). Take the version the vllm-plugin-wheel
-          workflow DERIVED (base+g<sha7>.d<date> from the built ref) — never
-          type one by hand. Empty = skip the plugin install. The build then
-          asserts the installed version equals this pin.
+          vllm-plugin-fl wheel version to install (commit-precise pin, base+g<sha7>.d<date>
+          from the built ref). Empty = skip the plugin install.
         type: string
         default: ''
       push:
@@ -174,8 +171,7 @@ jobs:
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
 
       # Changelog gate: a push must be authorized by a pending changelog entry
-      # (reason, empty date) for this tag — "an image is not rebuilt without a
-      # documented reason". Debug builds (push=false) skip it.
+      # (reason, empty date) for this tag. Debug builds (push=false) skip it.
       - name: Changelog gate
         if: ${{ inputs.push && !inputs.record_only }}
         run: |
@@ -193,12 +189,6 @@ jobs:
           commit="$(git rev-parse HEAD)"
           created="$(git show -s --format=%cI HEAD)"
 
-          # Classic builder does not forward the runner proxy into the build.
-          # The Ascend 910C nodes have no direct egress, so without this relay
-          # the wheel-index steps die on DNS resolution (as they did on the
-          # runtime side until #811). Relay it as --build-arg (ARG-only: never
-          # reaches the image config; no_proxy stays loopback-only so the
-          # flagos index keeps going through the proxy).
           proxy_args=""
           http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
           https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
