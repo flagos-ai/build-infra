@@ -1,0 +1,46 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+
+image: sglang0.5.18-metax-maca3.8.1.3
+
+image: sglang0.5.18-iluvatar-corex4.5.0
+tags:
+- tag: 2.1.2-0.1.dev1_g201484665
+  entries:
+  - date: ''
+    reason: >-
+      sglang 0.5.18 on iluvatar CoreX 4.5.0. corex torch is CUDA-alias, so sglang's
+      is_cuda() is true while the platform has neither an NVIDIA device nor the
+      NVIDIA-only packages its CUDA paths expect: the plugin branch closes the four
+      resulting gaps (flashinfer import face via an on-disk stub package, the sm75
+      dtype floor, the nvcc-JIT clamp_position, and vendor triton 3.2 missing the PDL
+      intrinsics). F/T dual-compiler E2E verified on Qwen3-4B.
+    upstream_prs:
+    - https://github.com/flagos-ai/sglang-plugin-FL/pull/102
