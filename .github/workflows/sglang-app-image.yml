@@ -177,6 +177,16 @@ jobs:
           fi
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
 
+      # Changelog gate: a push must be authorized by a pending changelog entry
+      # for this tag (see vllm-app-image.yml). Debug builds skip it.
+      - name: Changelog gate
+        if: ${{ inputs.push && !inputs.record_only }}
+        run: |
+          set -euo pipefail
+          python3 scripts/changelog_gate.py \
+            "app/sglang/changelogs/sglang${{ inputs.sglang_version }}-${{ matrix.name }}.yaml" \
+            "${APP_TAG##*:}"
+
       - name: Build sglang app image
         if: ${{ !inputs.record_only }}
         run: |
@@ -258,7 +268,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # changelog backfill needs ruamel.yaml (round-trip, preserves the
+          # file's comments and block style).
+          python3 -m pip install --quiet --user --break-system-packages 'ruamel.yaml>=0.18' 2>/dev/null \
+            || python3 -m pip install --quiet --user 'ruamel.yaml>=0.18' 2>/dev/null || true
           python3 scripts/record_app_image_tag.py \
             --matrix "packaging/sglang/status_matrix.sglang${{ inputs.sglang_version }}.yaml" \
             --backend "${{ matrix.name }}" \
+            --changelog "app/sglang/changelogs/sglang${{ inputs.sglang_version }}-${{ matrix.name }}.yaml" \
             --tag "${APP_TAG}"
