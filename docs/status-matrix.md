@@ -62,8 +62,12 @@ marker 块缺失时渲染器报错退出（防止手删块后静默丢失）。
 ### scenarios
 
 `scenarios.<sid>` 的 `label` 为矩阵列名；`verification` 每 key 为
-`{vendor}-{backend}`（19 个，与 configs.yaml 后端一致），值为 {T, F} 两键
-必填的单元格符号映射。
+`{vendor}-{backend}`（key 须是 `scripts/render_status_matrix.py` 的 `BACKENDS`
+成员，渲染顺序也由它固定），值为 {T, F} 两键必填的单元格符号映射。
+
+矩阵行 = 该组件各 app 声明过的后端（`backends` ∪ `verification` 的并集）：
+app 线未开到的后端**无行**，不留一整行 `—`（`—` 的含义是"该后端无此编译器"，
+不是"该 app 不在这个后端上做"）。加后端 = 在 YAML 里声明它。
 
 场景 sid（顺序固定）：megatron = `training` / `rl` / `post_training` /
 `inference`；vllm = `inference`。
