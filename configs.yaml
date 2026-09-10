@@ -660,6 +660,13 @@ vendors:
           # (https://github.com/flagos-ai/FlagTree/issues/1142); drop this once
           # it stops reaching for a test module at runtime.
           - pytest
+          # Import-face flashinfer stub (sglang-plugin-FL addon/flashinfer-shim).
+          # corex torch is CUDA-alias, so sglang's is_cuda() is true and three
+          # module-level flashinfer imports fire — the first of them from a
+          # *spawned* scheduler worker, before any plugin can load, so the name
+          # has to resolve from disk. Vendor-scoped on purpose: never publish
+          # or install this where a real flashinfer exists.
+          - flashinfer-shim==0.1.0
       sdk:
         - Corex Runtime 4.5.0      # corex-installer-linux64-4.5.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
