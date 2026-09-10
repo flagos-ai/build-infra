@@ -181,9 +181,26 @@ jobs:
             --label flagos.base=${{ matrix.base_image }}"
           [[ "${{ inputs.flaggems }}" != "none" ]] && label_args="${label_args} --label flagos.flaggems=${flaggems_ver}"
 
+          # Classic builder does not forward the runner proxy into the build —
+          # relay it as --build-arg (ARG-only: never reaches image config;
+          # no_proxy loopback-only keeps the FILE_STORE curls on the proxy).
+          proxy_args=""
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          if [ -n "$http_proxy_val" ] || [ -n "$https_proxy_val" ]; then
+            if [ -n "$http_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg http_proxy=${http_proxy_val} "
+            fi
+            if [ -n "$https_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg https_proxy=${https_proxy_val} "
+            fi
+            proxy_args="${proxy_args}--build-arg no_proxy=localhost,127.0.0.1,::1"
+          fi
+
           docker build \
             ${no_cache_arg} \
             ${label_args} \
+            ${proxy_args} \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
             --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \

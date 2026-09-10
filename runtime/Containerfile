@@ -54,6 +54,12 @@ ARG NO_FLAGGEMS=""
 # as "KEY=value\nKEY2=value2". Written to /etc/profile.d/runtime_env.sh in
 # the runtime stage so they are active in every shell.
 ARG RUNTIME_ENV=""
+# Proxy relayed as --build-arg by build_runtime.py / runtime-image.yaml (these
+# nodes have no direct egress). ARG, not ENV — keeps the value out of the
+# pushed image; no_proxy stays loopback-only, as on the base side.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
 
 
 # ════════════════════════════════════════════════════════════════
@@ -74,6 +80,9 @@ ARG TRITON_EXTRA_PKGS
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
 ARG NO_FLAGGEMS
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ── Install uv (arch-aware, from internal filestore) ──────────
