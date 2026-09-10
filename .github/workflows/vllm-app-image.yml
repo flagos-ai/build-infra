@@ -49,11 +49,8 @@ on:
         default: 0.24.0
       plugin_fl_version:
         description: >-
-          vllm-plugin-fl wheel version to install (commit-precise pin, e.g.
-          0.2.1+gcf8998c.d20260815). Take the version the vllm-plugin-wheel
-          workflow DERIVED (base+g<sha7>.d<date> from the built ref) — never
-          type one by hand. Empty = skip the plugin install. The build then
-          asserts the installed version equals this pin.
+          vllm-plugin-fl wheel version to install (commit-precise pin, base+g<sha7>.d<date>
+          from the built ref). Empty = skip the plugin install.
         type: string
         default: ''
       push:
@@ -174,8 +171,7 @@ jobs:
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
 
       # Changelog gate: a push must be authorized by a pending changelog entry
-      # (reason, empty date) for this tag — "an image is not rebuilt without a
-      # documented reason". Debug builds (push=false) skip it.
+      # (reason, empty date) for this tag. Debug builds (push=false) skip it.
       - name: Changelog gate
         if: ${{ inputs.push && !inputs.record_only }}
         run: |
@@ -192,7 +188,22 @@ jobs:
           # runtime/base labels and the app layer is untraceable.
           commit="$(git rev-parse HEAD)"
           created="$(git show -s --format=%cI HEAD)"
+
+          proxy_args=""
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          if [ -n "$http_proxy_val" ] || [ -n "$https_proxy_val" ]; then
+            if [ -n "$http_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg http_proxy=${http_proxy_val} "
+            fi
+            if [ -n "$https_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg https_proxy=${https_proxy_val} "
+            fi
+            proxy_args="${proxy_args}--build-arg no_proxy=localhost,127.0.0.1,::1"
+          fi
+
           docker build \
+            ${proxy_args} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
             --build-arg "PLUGIN_FL_VERSION=${{ inputs.plugin_fl_version }}" \

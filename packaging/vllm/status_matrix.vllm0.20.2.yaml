@@ -27,7 +27,9 @@ scenarios:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
+      ascend-cann8.5.0-910c: {T: "⬜", F: "⬜"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
+      ascend-cann9.0.0-910c: {T: "⬜", F: "⬜"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}
       cambricon-neuware4.7.2: {T: "✅", F: "—"}
       enflame-tops1.9.10:    {T: "✅", F: "❌"}
@@ -64,6 +66,9 @@ backends:
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/361
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/402
+  ascend-cann8.5.0-910c:
+    deps_app: true
+    launch_docs: false
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
@@ -71,6 +76,9 @@ backends:
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/361
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/402
+  ascend-cann9.0.0-910c:
+    deps_app: true
+    launch_docs: false
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: true

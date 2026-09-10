@@ -77,7 +77,9 @@ BACKENDS = [
     "nvidia-cuda12.8",
     "nvidia-cuda13.3",
     "ascend-cann8.5.0",
+    "ascend-cann8.5.0-910c",
     "ascend-cann9.0.0",
+    "ascend-cann9.0.0-910c",
     "cambricon-neuware4.4.3",
     "cambricon-neuware4.7.2",
     "enflame-tops1.9.10",
@@ -327,9 +329,20 @@ def matrix_header(cols: list[tuple[dict, str]]) -> list[str]:
 
 
 def matrix_rows(cols: list[tuple[dict, str]]) -> list[list[str]]:
-    """Verification-matrix rows, one per canonical backend."""
+    """Verification-matrix rows: the backends the component's app lines have
+    been opened on, in canonical display order. BACKENDS fixes the order
+    only — a backend no app line declares gets no row at all rather than an
+    all-"—" one (an app line not opened on 910C is not "backend has no such
+    compiler")."""
+    declared = set()
+    for app, _ in cols:
+        declared |= set(app["backends"])
+        for sc in app["scenarios"].values():
+            declared |= set(sc.get("verification") or {})
     rows = []
     for bkey in BACKENDS:
+        if bkey not in declared:
+            continue
         vendor, _ = backend_parts(bkey)
         row = [vendor_display(vendor), backend_display(bkey)]
         for app, scid in cols:
