@@ -192,7 +192,28 @@ jobs:
           # runtime/base labels and the app layer is untraceable.
           commit="$(git rev-parse HEAD)"
           created="$(git show -s --format=%cI HEAD)"
+
+          # Classic builder does not forward the runner proxy into the build.
+          # The Ascend 910C nodes have no direct egress, so without this relay
+          # the wheel-index steps die on DNS resolution (as they did on the
+          # runtime side until #811). Relay it as --build-arg (ARG-only: never
+          # reaches the image config; no_proxy stays loopback-only so the
+          # flagos index keeps going through the proxy).
+          proxy_args=""
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          if [ -n "$http_proxy_val" ] || [ -n "$https_proxy_val" ]; then
+            if [ -n "$http_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg http_proxy=${http_proxy_val} "
+            fi
+            if [ -n "$https_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg https_proxy=${https_proxy_val} "
+            fi
+            proxy_args="${proxy_args}--build-arg no_proxy=localhost,127.0.0.1,::1"
+          fi
+
           docker build \
+            ${proxy_args} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
             --build-arg "PLUGIN_FL_VERSION=${{ inputs.plugin_fl_version }}" \
