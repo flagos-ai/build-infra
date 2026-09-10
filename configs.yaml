@@ -80,9 +80,9 @@
 #                        generated (docs/gen_data.py) and which backends enter
 #                        the app build matrix (scripts/generate_matrix.py --app).
 #   "hardware:"        — chip models the image targets (rendered as a prerequisite).
-#   "driver:"          — host driver version installed on the node — a prerequisite,
-#                        distinct from the in-container SDK. Probed from the vendor's
-#                        smi tool (nvidia-smi, npu-smi, ...).
+#   "driver:"          — minimum host driver version required on the node — a
+#                        prerequisite distinct from the in-container SDK. Probed
+#                        from the vendor's smi tool (nvidia-smi, npu-smi, ...).
 
 # FlagOS software stack version — the single anchor for the whole release.
 # This version seeds all base image tags and the runtime Containerfile OCI labels.
