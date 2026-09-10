@@ -50,12 +50,18 @@
 # both invocations pass (F = flagtree, the runtime default, T = vendor triton).
 #
 # Usage:
-#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] [--watchdog-timeout <sec>] [--warmup-timeout <sec>] [--ready-timeout <sec>] [--skip-serve] [--stack-version <ver>]
+#   ./verify-sglang-backend.sh <vendor-backend> [--compiler <flagtree|triton|F|T>] \
+#      [--device <n>] [--model <dir>] [--sglang-version <ver>] [--plugin-ref <ref>] \
+#      [--shim-version <ver>] [--app-image <image>] [--serve-timeout <sec>] \
+#      [--watchdog-timeout <sec>] [--warmup-timeout <sec>] [--ready-timeout <sec>] \
+#      [--skip-serve] [--stack-version <ver>]
 #
 # Examples:
 #   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler F
-#   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler T --device 1 --model /data/models/Qwen/Qwen3-0.6B
-#   ./verify-sglang-backend.sh metax-maca3.8.1.3 --app-image harbor.baai.ac.cn/flagos-app/sglang0.5.18-metax-maca3.8.1.3:2.1.2
+#   ./verify-sglang-backend.sh metax-maca3.7.2.1 --compiler T \
+#      --device 1 --model /data/models/Qwen/Qwen3-0.6B
+#   ./verify-sglang-backend.sh metax-maca3.8.1.3 \
+#      --app-image harbor.baai.ac.cn/flagos-app/sglang0.5.18-metax-maca3.8.1.3:2.1.2
 #
 # Prerequisites:
 #   - Running on the target node with hardware access
