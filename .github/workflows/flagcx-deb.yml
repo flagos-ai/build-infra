@@ -84,6 +84,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/generate_matrix.py --runtime > matrix.json
+          # --merge only emits schedulable rows, so drift between backends.yaml
+          # and the runtime matrix would be filtered away silently here; --check
+          # is what turns it into a named failure.
+          python3 packaging/flagcx/deb-config.py --check
           python3 packaging/flagcx/deb-config.py --merge matrix.json > deb-matrix.json
           if [[ "${{ inputs.backend }}" != all ]]; then
             jq -c --arg key "${{ inputs.backend }}" \

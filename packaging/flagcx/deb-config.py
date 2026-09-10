@@ -170,17 +170,17 @@ def build_input_var(field: str) -> str:
 
 
 def merge(registry: dict, matrix: list[dict]) -> list[dict]:
-    by_key = {entry["name"]: entry for entry in matrix}
     joined = []
     # Iterate the matrix, not the registry: the matrix carries the fields CI
     # needs to schedule a runner, and an enabled backend absent from it has no
-    # base image to build in.
-    for key, spec in registry.items():
-        deb = spec.get("deb") or {}
-        if not deb.get("enabled"):
+    # base image to build in. Emitting such a row would reach the build job as
+    # an empty `runs-on` instead; --check is what names the drift.
+    for row in matrix:
+        key = row["name"]
+        spec = registry.get(key)
+        if not spec or not (spec.get("deb") or {}).get("enabled"):
             continue
-        entry = dict(by_key.get(key, {}))
-        entry["name"] = key
+        entry = dict(row)
         for field in LIST_FIELDS:
             entry[field] = " ".join(spec.get(field) or [])
         entry["make_env"] = " ".join(
@@ -204,7 +204,7 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
         # marked default_for_vendor answers to the unqualified name, and only it
         # may absorb the legacy package of that name — which is why Provides and
         # Replaces are gated on the same flag.
-        default = bool(deb.get("default_for_vendor"))
+        default = bool((spec.get("deb") or {}).get("default_for_vendor"))
         legacy = f"libflagcx-{spec['vendor']}"
         entry["deb_provides"] = legacy if default else ""
         entry["deb_replaces"] = f"{legacy} (<< ${{binary:Version}})" if default else ""
