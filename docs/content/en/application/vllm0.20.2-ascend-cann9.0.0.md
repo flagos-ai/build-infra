@@ -60,7 +60,7 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
 
@@ -68,7 +68,7 @@ Start the app with its default settings:
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
 
@@ -76,7 +76,7 @@ Pass arguments to the launcher:
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG vllm-serve --model <path> --port 9000
 ```
 
@@ -87,6 +87,7 @@ Start an interactive shell:
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
@@ -101,6 +102,7 @@ Start the app with its default settings:
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
@@ -115,6 +117,7 @@ Pass arguments to the launcher:
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
