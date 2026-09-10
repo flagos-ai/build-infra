@@ -53,8 +53,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 # runtime python. noble ships 3.12 and doesn't package 3.11, so add deadsnakes to
 # force-install 3.11 alongside the system 3.12 (two copies is fine — CANN uses
 # 3.11). libelf1 and libpython3-dev are required by the runtime.
-RUN apt-get update \
+# The 910C build nodes' docker 20.10.8 seccomp profile blocks clone3, so apt's
+# Post-Invoke hooks fail the build spawning a child. Drop them — the PackageKit
+# hook arrives with software-properties-common, hence the second rm below.
+RUN rm -f /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update \
     && apt-get install -y --no-install-recommends git vim ca-certificates software-properties-common \
+    && rm -f /etc/apt/apt.conf.d/docker-clean /etc/apt/apt.conf.d/*packagekit* \
     && add-apt-repository -y ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y --no-install-recommends \
         curl unzip net-tools pciutils \
