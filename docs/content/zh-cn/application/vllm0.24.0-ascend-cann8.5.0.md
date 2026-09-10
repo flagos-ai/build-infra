@@ -60,7 +60,7 @@ IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0:2.1.2-0.2.0_gcf8998
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
 
@@ -68,7 +68,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
 
@@ -76,7 +76,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG vllm-serve --model <path> --port 9000
 ```
 
@@ -87,6 +87,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
@@ -101,6 +102,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
@@ -115,6 +117,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \

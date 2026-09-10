@@ -57,7 +57,7 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann8.5.0:2.1.2-
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
 
@@ -65,7 +65,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
 
@@ -73,7 +73,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  -e ASCEND_VISIBLE_DEVICES=0 \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG megatron-train --model-type GPT
 ```
 
@@ -84,6 +84,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
@@ -98,6 +99,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
@@ -112,6 +114,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/davinci0 \
+  --device /dev/davinci1 \
   --device /dev/davinci_manager \
   --device /dev/devmm_svm \
   --device /dev/hisi_hdc \
