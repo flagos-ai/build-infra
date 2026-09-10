@@ -66,6 +66,7 @@ title: "sunrise-tangrt1.2.0"
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
+  -e TANG_VISIBLE_DEVICES=all \
   harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.2 bash
 ```
 
