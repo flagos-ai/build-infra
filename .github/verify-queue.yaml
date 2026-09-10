@@ -1,1 +1,84 @@
-[]
+- app: vllm0.24.0
+  backend: ascend-cann8.5.0-910c
+  compiler: T
+  scenario: inference
+  image: harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.1.2
+  verify_script: packaging/vllm/verify/verify-vllm-backend.sh
+  verify_args: --vllm-version 0.24.0 --plugin-fl-version 0.2.0+gcf8998c.d20260818
+  failure:
+    step: '[STEP] Step 6: Testing vllm serve (real completion required)'
+    exit_code: 1
+    error_head: "  Downloading pycparser-3.0-py3-none-any.whl (48 kB)\nInstalling\
+      \ collected packages: supervisor, py-cpuinfo, websockets, uvloop, urllib3, typing-inspection,\
+      \ truststore, tqdm, sniffio, shellingham, setproctitle, sentencepiece, safetensors,\
+      \ rpds-py, rignore, regex, pyzmq, python-multipart, python-json-logger, python-dotenv,\
+      \ pyjwt, pygments, pydantic-core, pycparser, pycountry, pybase64, protobuf,\
+      \ propcache, prometheus_client, partial-json-parser, outlines_core, opentelemetry-api,\
+      \ opencv-python-headless, multidict, msgspec, mdurl, loguru, llguidance, lark,\
+      \ jmespath, jiter, interegular, ijson, idna, httptools, hf-xet, h11, grpcio,\
+      \ frozenlist, fastar, einops, docstring-parser, dnspython, diskcache, dill,\
+      \ detect-installer, cloudpickle, click, charset_normalizer, certifi, cbor2,\
+      \ cachetools, blake3, astor, apache-tvm-ffi, annotated-types, annotated-doc,\
+      \ aiohappyeyeballs, agent-detector, yarl, uvicorn, sentry-sdk, requests, referencing,\
+      \ pydantic, opentelemetry-semantic-conventions, opentelemetry-proto, markdown-it-py,\
+      \ httpcore2, httpcore, googleapis-common-protos, email-validator, depyf, cffi,\
+      \ anyio, aiosignal, watchfiles, tiktoken, starlette, rich, pydantic-settings,\
+      \ pydantic-extra-types, opentelemetry-sdk, opentelemetry-exporter-otlp-proto-common,\
+      \ openai-harmony, mcp-types, lm-format-enforcer, jsonschema-specifications,\
+      \ httpx2, httpx, cryptography, aiohttp, typer, sse-starlette, rich-toolkit,\
+      \ prometheus-fastapi-instrumentator, opentelemetry-semantic-conventions-ai,\
+      \ opentelemetry-exporter-otlp-proto-http, opentelemetry-exporter-otlp-proto-grpc,\
+      \ openai, jsonschema, huggingface-hub, fastapi, anthropic, tokenizers, opentelemetry-exporter-otlp,\
+      \ model-hosting-container-standards, mistral_common, mcp, fastapi-cloud-cli,\
+      \ fastapi-cli, transformers, xgrammar, compressed-tensors, vllm\n\nERROR: pip's\
+      \ dependency resolver does not currently take into account all the packages\
+      \ that are installed. This behaviour is the source of the following dependency\
+      \ conflicts.\nte 0.4.0 requires ml-dtypes, which is not installed.\nte 0.4.0\
+      \ requires scipy, which is not installed.\nte 0.4.0 requires tornado, which\
+      \ is not installed.\nSuccessfully installed agent-detector-2.0.0 aiohappyeyeballs-2.7.1\
+      \ aiohttp-3.14.3 aiosignal-1.4.0 annotated-doc-0.0.5 annotated-types-0.8.0 anthropic-1.4.0\
+      \ anyio-4.15.1 apache-tvm-ffi-0.1.13.post3 astor-0.8.1 blake3-1.0.9 cachetools-7.1.8\
+      \ cbor2-6.1.4 certifi-2026.7.22 cffi-2.1.1 charset_normalizer-3.5.1 click-8.5.0\
+      \ cloudpickle-3.1.2 compressed-tensors-0.17.0+flagos cryptography-50.0.1 depyf-0.20.0\
+      \ detect-installer-0.2.1 dill-0.4.1 diskcache-5.6.3 dnspython-2.8.0 docstring-parser-0.18.0\
+      \ einops-0.8.2 email-validator-2.3.0 fastapi-0.136.3 fastapi-cli-0.0.32 fastapi-cloud-cli-0.25.0\
+      \ fastar-0.12.0 frozenlist-1.8.0 googleapis-common-protos-1.75.3 grpcio-1.83.1\
+      \ h11-0.16.0 hf-xet-1.6.0 httpcore-1.0.9 httpcore2-2.12.0 httptools-0.8.0 httpx-0.28.1\
+      \ httpx2-2.12.0 huggingface-hub-1.30.0 idna-3.19 ijson-3.5.1 interegular-0.3.3\
+      \ jiter-0.16.0 jmespath-1.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1\
+      \ lark-1.2.2 llguidance-1.7.6 lm-format-enforcer-0.11.3 loguru-0.7.3 markdown-it-py-4.2.0\
+      \ mcp-2.2.0 mcp-types-2.2.0 mdurl-0.1.2 mistral_common-1.11.7 model-hosting-container-standards-0.1.16\
+      \ msgspec-0.21.1 multidict-6.8.0 openai-3.11.0 openai-harmony-0.0.8 opencv-python-headless-5.0.0.93+flagos\
+      \ opentelemetry-api-1.44.0 opentelemetry-exporter-otlp-1.44.0 opentelemetry-exporter-otlp-proto-common-1.44.0\
+      \ opentelemetry-exporter-otlp-proto-grpc-1.44.0 opentelemetry-exporter-otlp-proto-http-1.44.0\
+      \ opentelemetry-proto-1.44.0 opentelemetry-sdk-1.44.0 opentelemetry-semantic-conventions-0.65b0\
+      \ opentelemetry-semantic-conventions-ai-0.5.1 outlines_core-0.2.14 partial-json-parser-0.2.1.1.post7\
+      \ prometheus-fastapi-instrumentator-8.1.0 prometheus_client-0.26.0 propcache-0.5.2\
+      \ protobuf-7.36.1 py-cpuinfo-9.0.0 pybase64-1.5.0 pycountry-26.2.16 pycparser-3.0\
+      \ pydantic-2.13.5 pydantic-core-2.46.5 pydantic-extra-types-2.11.1 pydantic-settings-2.15.0\
+      \ pygments-2.21.0 pyjwt-2.13.0 python-dotenv-1.2.3 python-json-logger-4.2.0\
+      \ python-multipart-0.0.32 pyzmq-27.2.0 referencing-0.37.0 regex-2026.9.3 requests-2.34.2\
+      \ rich-15.0.0 rich-toolkit-0.20.5 rignore-0.8.1 rpds-py-2026.6.3 safetensors-0.8.0\
+      \ sentencepiece-0.2.2 sentry-sdk-2.69.1 setproctitle-1.3.7 shellingham-1.5.4\
+      \ sniffio-1.3.1 sse-starlette-3.4.11 starlette-1.6.0 supervisor-4.3.0 tiktoken-0.14.0\
+      \ tokenizers-0.23.2 tqdm-4.70.0 transformers-5.17.0 truststore-0.10.4 typer-0.27.2\
+      \ typing-inspection-0.4.4 urllib3-2.7.0 uvicorn-0.52.4 uvloop-0.22.1 vllm-0.24.0+flagos\
+      \ watchfiles-1.2.0 websockets-17.1 xgrammar-0.2.3+flagos yarl-1.24.5\n\e[0;32m[INFO]\e\
+      [0m vllm installed:\nName: vllm\nVersion: 0.24.0+flagos\nLocation: /flagos/lib/python3.11/site-packages\n\
+      \e[0;34m[STEP]\e[0m Step 4: Verifying torch version\nTorch version: 2.9.0+cpu\n\
+      ⚠️  Manual verification needed for vendor: ascend\n\e[0;34m[STEP]\e[0m Step\
+      \ 5: Installing vllm-plugin-FL\nLooking in indexes: https://resource.flagos.net/repository/flagos-pypi-ascend/simple,\
+      \ https://mirrors.aliyun.com/pypi/simple\nCollecting vllm-plugin-fl==0.2.0+gcf8998c.d20260818\n\
+      \  Downloading vllm_plugin_fl-0.2.0%2Bgcf8998c.d20260818-py3-none-any.whl (436\
+      \ kB)\nRequirement already satisfied: pyyaml in /flagos/lib/python3.11/site-packages\
+      \ (from vllm-plugin-fl==0.2.0+gcf8998c.d20260818) (6.0.1)"
+    error_tail: "Installing collected packages: vllm-plugin-fl\nSuccessfully installed\
+      \ vllm-plugin-fl-0.2.0+gcf8998c.d20260818\n\nPlugin installed:\nName: vllm-plugin-fl\n\
+      Version: 0.2.0+gcf8998c.d20260818\nLocation: /flagos/lib/python3.11/site-packages\n\
+      \e[0;34m[STEP]\e[0m Step 6: Testing vllm serve (real completion required)\n\e\
+      [0;32m[INFO]\e[0m Starting vllm serve on vllm-verify-ascend-cann8.5.0-910c (this\
+      \ may take several minutes)...\ntriton (active) - 3.2.0\n\nStarting serve...\n\
+      Waiting for serve to become ready...\nserve ready after ~130s\n\nSending test\
+      \ request...\ncompletion failed semantic check: expected 'Paris' in text '!!!!!!!!!!!!!!!!'\n\
+      \n\e[0;32m[INFO]\e[0m Cleaning up containers...\nvllm-verify-ascend-cann8.5.0-910c"
+    log_path: /tmp/verify.log
