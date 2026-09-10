@@ -32,13 +32,14 @@ image: sglang0.5.18-iluvatar-corex4.5.0
 tags:
 - tag: 2.1.2-0.1.dev1_g201484665
   entries:
-  - date: ''
+  - date: '2026-09-10T11:59:36.635Z'
     reason: >-
       sglang 0.5.18 on iluvatar CoreX 4.5.0. corex torch is CUDA-alias, so sglang's
       is_cuda() is true while the platform has neither an NVIDIA device nor the
       NVIDIA-only packages its CUDA paths expect: the plugin branch closes the four
       resulting gaps (flashinfer import face via an on-disk stub package, the sm75
-      dtype floor, the nvcc-JIT clamp_position, and vendor triton 3.2 missing the PDL
+      dtype floor, the nvcc-JIT clamp_position, and vendor triton 3.2 missing the
+      PDL
       intrinsics). F/T dual-compiler E2E verified on Qwen3-4B.
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/102
