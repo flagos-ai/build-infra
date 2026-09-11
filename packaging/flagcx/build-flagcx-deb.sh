@@ -143,9 +143,9 @@ for key in "${BACKENDS[@]}"; do
         # emitted lowercase because that is the casing apt reads and the one the
         # runners export.
         #
-        # no_proxy rides along because it is what keeps the mirror off the proxy:
-        # relayed without it, apt sends mirrors.aliyun.com through a proxy that
-        # answers 502 — measured on enflame, where the same fetch is 200 direct.
+        # no_proxy rides along verbatim: which hosts must not be proxied is a
+        # fact about the node's network, and the Containerfile no longer carries
+        # a second opinion that can silently win.
         #
         # A bare --build-arg NAME takes its value from this script's environment
         # and never from the command line: the node's process table is readable

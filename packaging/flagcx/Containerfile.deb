@@ -65,11 +65,16 @@ ARG HTTPS_PROXY=
 # git accepts either casing, apt only the lowercase one, and the runners export
 # the lowercase pair — so the same fact is declared under both names rather than
 # asking the call site for two spellings. The clone below reads the uppercase
-# name, hence its fallback. NO_PROXY below still covers the mirrors.
+# name, hence its fallback.
 ARG http_proxy=
 ARG https_proxy=
 
-ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
+# Not baked here: which hosts must not be proxied is a fact about the node's
+# network, and a second copy in this file silently overrode the node's own
+# (measured on the 910c nodes, where the node's value is what took effect and
+# the mirror went through the proxy anyway). The call site relays the node's
+# value, and that is the only source.
+ARG no_proxy=
 
 # The base images keep Ubuntu's own archive, which the runners reach only
 # through a proxy that answers it 502 — measured on enflame, where that same
