@@ -138,7 +138,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 ### vllm0.24.0
 
-> 数据截止：2026-09-04
+> 数据截止：2026-09-11
 
 **App 级设施（全后端共享）**
 
@@ -154,7 +154,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 12.8 | ✅ | ✅ | ✅ | — |
 | CUDA 13.3 | ✅ | ✅ | ✅ | — |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | — |
-| CANN 8.5.0-910c | ✅ | ✅ | ✅ | T（vendor triton 3.2.0）不可交付：默认派发下每次冷启动都退化，kernel 级原因已排除（详见 vllm-0.24.0 ascend 报告 §10.7） |
+| CANN 8.5.0-910c | ✅ | ✅ | ✅ | F（flagtree）路径实测连贯，为当前交付路径；T（vendor triton 3.2.0）未通过：该组合下 flag_gems 的 generic index_select 算错，结果被 ATB rotary 吞下并污染 attention。修复（黑名单加 index_select）已推到 vllm-plugin-FL #387 的分支 head `f31b199`，本 tag 的插件 wheel（`cf8998c`）不含该提交；从该 head 打 wheel、上传 flagos-pypi-ascend、重建镜像复验即可让 T 转 ✅（不依赖上游合并，详见 vllm-0.24.0 ascend 报告 §10.7） |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
