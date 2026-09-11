@@ -43,6 +43,24 @@ default is unreachable and an unset variable silently becomes an empty path) and
 `vendor_lib_dirs` (a vendor soname the loader cannot see at all is a hard `dpkg-shlibdeps`
 error, and nothing else in the build knows where it lives). `DESIGN.md` has the details.
 
+## Verified
+
+A row means both tests in `DESIGN.md` §Verification passed on the vendor's own node: the
+`.deb` installs into its matching base image and its soname resolves with the vendor symbols
+bound (`smoke-load` under `RTLD_NOW`), **and** `apt-get install` exits 0 in a plain Ubuntu at
+the package's libc6 floor.
+
+| Backend | Where | Result |
+|---|---|---|
+| `nvidia-cuda12.8` | h20 | full + floor pass, `smoke-load` under `RTLD_NOW` passes |
+| `nvidia-cuda12.8` negative test | h20 | dropping `libnccl-dev` aborts at the `assert` instead of shipping a collector-less `.so` |
+| `ascend-cann9.0.0-910c` | hw115 (aarch64) | build + verify pass — exercises the arm64 stanza |
+| `enflame-tops1.9.10`, `enflame-tops1.10.6` | enflame node | build + verify pass at `v0.14.0-rc1.post2` |
+
+The enflame rows are pinned to `v0.14.0-rc1.post2` because it is the first tag carrying the
+`topsDeviceProp_t` fix ([FlagCX #580](https://github.com/flagos-ai/FlagCX/pull/580)); an
+enflame build from an earlier ref fails to compile, so there is no honest earlier row to record.
+
 ## Layout
 
 | Path | What |
