@@ -189,9 +189,13 @@ jobs:
           commit="$(git rev-parse HEAD)"
           created="$(git show -s --format=%cI HEAD)"
 
+          # Relay the runner proxy for the build; no_proxy goes verbatim — the
+          # host knows which endpoints are internal, and a value invented here
+          # overrides that (see runtime-image.yaml).
           proxy_args=""
           http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
           https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
           if [ -n "$http_proxy_val" ] || [ -n "$https_proxy_val" ]; then
             if [ -n "$http_proxy_val" ]; then
               proxy_args="${proxy_args}--build-arg http_proxy=${http_proxy_val} "
@@ -199,7 +203,9 @@ jobs:
             if [ -n "$https_proxy_val" ]; then
               proxy_args="${proxy_args}--build-arg https_proxy=${https_proxy_val} "
             fi
-            proxy_args="${proxy_args}--build-arg no_proxy=localhost,127.0.0.1,::1"
+            if [ -n "$no_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg no_proxy=${no_proxy_val}"
+            fi
           fi
 
           docker build \
