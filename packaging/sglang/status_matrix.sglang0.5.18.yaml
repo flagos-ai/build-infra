@@ -148,7 +148,8 @@ backends:
     note: "无基础镜像，排除"
   sunrise-tangrt1.2.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.1.dev1_g3b94dae1f"
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false

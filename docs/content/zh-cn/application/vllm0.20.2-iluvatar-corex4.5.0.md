@@ -90,6 +90,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG bash
 ```
 
@@ -98,6 +99,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG
 ```
 
@@ -106,5 +108,6 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
