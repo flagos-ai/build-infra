@@ -18,12 +18,18 @@
 # Usage:
 #   verify-flagcx-deb.sh --backend metax-maca3.8.1.3 dist/*.deb
 #   verify-flagcx-deb.sh --backend nvidia-cuda12.8 --floor-image ubuntu:24.04 dist/*.deb
+#   verify-flagcx-deb.sh --backend nvidia-cuda12.8 --floor-image ubuntu:24.04 \
+#       --apt-url URL --apt-key key.asc --apt-only dist/*.deb
 #
 # Options:
 #   --backend KEY      backend from backends.yaml; names the base image to
 #                      verify in and the vendor whose run flags it needs
 #   --floor-image REF  also install into this plain Ubuntu, which must be the
 #                      release matching the package's libc6 floor
+#   --apt-url URL      repository a user adds; the install then comes from its
+#                      index by name, and its signature is checked
+#   --apt-key PATH     armored public key the repository is signed with
+#   --apt-only         run only that phase (the post-upload check)
 #   --keep             leave the container behind for inspection
 #   -h, --help         this text
 #
@@ -41,10 +47,13 @@ REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 
 OPT_BACKEND=""
 OPT_FLOOR_IMAGE=""
+OPT_APT_URL=""
+OPT_APT_KEY=""
+APT_ONLY=0
 KEEP=0
 DEBS=()
 
-usage() { sed -n '16,34p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '16,36p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 fail() {
     echo "verify-flagcx-deb.sh: $*" >&2
@@ -55,6 +64,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --backend)     OPT_BACKEND="${2:?--backend needs a key}"; shift 2 ;;
         --floor-image) OPT_FLOOR_IMAGE="${2:?--floor-image needs an image ref}"; shift 2 ;;
+        --apt-url)     OPT_APT_URL="${2:?--apt-url needs a URL}"; shift 2 ;;
+        --apt-key)     OPT_APT_KEY="${2:?--apt-key needs a path}"; shift 2 ;;
+        --apt-only)    APT_ONLY=1; shift ;;
         --keep)        KEEP=1; shift ;;
         -h|--help)     usage; exit 0 ;;
         -*)            echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -63,6 +75,14 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$OPT_BACKEND" ]] || { echo "--backend is required" >&2; exit 2; }
 [[ ${#DEBS[@]} -gt 0 ]] || { echo "no .deb given" >&2; exit 2; }
+# A base image would answer from its own SDK, so this phase only means anything
+# in a plain Ubuntu at the package's libc6 floor.
+if [[ -n "$OPT_APT_URL" ]]; then
+    [[ -n "$OPT_APT_KEY" ]] || fail "--apt-url needs --apt-key: the index is signature-checked"
+    [[ -f "$OPT_APT_KEY" ]] || fail "--apt-key $OPT_APT_KEY is not a file"
+    [[ -n "$OPT_FLOOR_IMAGE" ]] || fail "--apt-url needs --floor-image: the repo is read as a plain Ubuntu user"
+fi
+[[ $APT_ONLY -eq 0 || -n "$OPT_APT_URL" ]] || fail "--apt-only needs --apt-url"
 
 cd "$REPO_ROOT"
 # Captured into a variable rather than inlined: `set -e` does not see a failure
@@ -72,6 +92,12 @@ INPUTS="$(python3 packaging/flagcx/deb-config.py --build-inputs "$OPT_BACKEND")"
 set -a
 eval "$INPUTS"
 set +a
+
+# An empty suite would ask apt for dists//Release and report that as a repository
+# problem, which is a different failure than the one that happened.
+if [[ -n "$OPT_APT_URL" && -z "$DEB_CODENAME" ]]; then
+    fail "$OPT_BACKEND: no Ubuntu codename for its base image, so no suite to read the repo under"
+fi
 
 # The layout is asserted from the file, before anything is installed: the two
 # packages split the same three names between them, and a name on the wrong side
@@ -154,6 +180,8 @@ trap cleanup EXIT
 # mode=full  the base image: everything must resolve and load
 # mode=floor a plain Ubuntu: only the install is asserted, because the vendor
 #            libraries are deliberately not dependencies of the package
+# mode=repo  a plain Ubuntu plus the published repository: the install has to
+#            come from the index, not from the file
 verify_in() {
     local image="$1" mode="$2" run_flags="$3"
 
@@ -165,10 +193,54 @@ verify_in() {
         docker cp "$deb" "$CONTAINER:/tmp/debs/"
     done
     docker cp "$HERE/smoke-load.c" "$CONTAINER:/tmp/smoke-load.c"
+    if [[ -n "$OPT_APT_KEY" ]]; then
+        docker cp "$OPT_APT_KEY" "$CONTAINER:/tmp/flagos-apt.asc"
+    fi
 
     docker exec -i -e MODE="$mode" -e PKG="$DEB_PACKAGE" \
+        -e APT_URL="$OPT_APT_URL" -e SUITE="$DEB_CODENAME" \
+        -e WANT_VERSION="$(dpkg-deb -f "$RUNTIME_DEB" Version)" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 export DEBIAN_FRONTEND=noninteractive
+
+if [ "$MODE" = repo ]; then
+    : "${APT_URL:?}" "${SUITE:?}" "${WANT_VERSION:?}"
+    # A plain Ubuntu carries no CA bundle, and without one the update below
+    # fails as a TLS error that reads like a repository problem. Before the
+    # flagos list exists, so this reaches only the distribution archive.
+    case "$APT_URL" in
+        https://*)
+            if [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
+                apt-get update -qq || {
+                    echo "repo: cannot reach the Ubuntu archive to install ca-certificates, which $APT_URL needs" >&2
+                    exit 1
+                }
+                apt-get install -y --no-install-recommends ca-certificates
+            fi
+            ;;
+    esac
+    install -D -m 0644 /tmp/flagos-apt.asc /usr/share/keyrings/flagos-apt.asc
+    echo "deb [signed-by=/usr/share/keyrings/flagos-apt.asc] $APT_URL $SUITE main" \
+        > /etc/apt/sources.list.d/flagos.list
+    # Only the flagos repo: the distribution archive may need a proxy this
+    # runner does not have. InRelease is signature-checked either way.
+    apt-get update -qq \
+        -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/flagos.list \
+        -o Dir::Etc::sourceparts=- \
+        -o APT::Get::List-Cleanup=0
+    # By name, not by file: that is what asks the index. -dev too, so a repo
+    # holding only half the pair fails here.
+    apt-get install -y --no-install-recommends "$PKG" "$PKG-dev"
+    installed="$(dpkg-query -W -f='${Version}' "$PKG")"
+    # An older release in the repo would install and exit 0, reading as a pass.
+    [ "$installed" = "$WANT_VERSION" ] \
+        || { echo "$PKG: repo offers $installed, this build is $WANT_VERSION" >&2; exit 1; }
+    dpkg -L "$PKG" | grep -qE '^/usr/lib/libflagcx\.so\.[0-9]+(\.[0-9]+)+$' \
+        || { echo "$PKG: nothing installed in /usr/lib" >&2; exit 1; }
+    echo ">>> repo: $PKG $installed installs from $APT_URL $SUITE"
+    exit 0
+fi
+
 # The lists may be absent from the image and the vendor apt sources may need a
 # proxy the runner does not have. The install only needs libc6/libstdc++6/
 # libgcc-s1, which every Ubuntu ships, so a failed update is a note: if a
@@ -200,9 +272,16 @@ echo ">>> full: $PKG installs, $soname resolves, flagcxGetVersion returns flagcx
 IN_CONTAINER
 }
 
-verify_in "$DEB_BASE_IMAGE" full "$RUN_FLAGS"
-if [[ -n "$OPT_FLOOR_IMAGE" ]]; then
-    verify_in "$OPT_FLOOR_IMAGE" floor "--network host"
+if (( APT_ONLY == 0 )); then
+    verify_in "$DEB_BASE_IMAGE" full "$RUN_FLAGS"
+    if [[ -n "$OPT_FLOOR_IMAGE" ]]; then
+        verify_in "$OPT_FLOOR_IMAGE" floor "--network host"
+    fi
+fi
+# On its own container, last: the state it reads must be one no earlier phase
+# created.
+if [[ -n "$OPT_APT_URL" ]]; then
+    verify_in "$OPT_FLOOR_IMAGE" repo "--network host"
 fi
 
 echo ">>> ok: $DEB_PACKAGE ($DEB_ARCH, glibc >= $DEB_GLIBC_FLOOR)"

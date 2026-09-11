@@ -23,7 +23,25 @@ builds one backend per runner and then verifies before uploading. With `publish:
 therefore `verify: true`) the verified `.deb` is pushed to the apt repo named for the Ubuntu
 release its base image was built on — `flagos-apt-ubuntu24.04` or `flagos-apt-ubuntu22.04` —
 so a user adds the repo matching their distro and never has to know a glibc floor exists.
-Both repos are Nexus-side prerequisites; until they exist the publish path is unexercised.
+A last step then reads that repository back the way a user does, installing by package name and
+checking the version that lands: a `curl` returning 0 says the artifact was accepted, not that
+the index a client reads is right.
+
+Adding the repo is therefore all a user does — the key the repository is signed with goes to
+`/usr/share/keyrings/`, and the suite is the distro's own codename:
+
+```bash
+# <backend> is the vendor/backend the package was built for, e.g. nvidia-cuda12.8
+sudo install -D -m 0644 flagos-apt.asc /usr/share/keyrings/flagos-apt.asc
+echo "deb [signed-by=/usr/share/keyrings/flagos-apt.asc] \
+https://resource.flagos.net/repository/flagos-apt-ubuntu24.04 noble main" \
+  | sudo tee /etc/apt/sources.list.d/flagos.list
+sudo apt-get update && sudo apt-get install libflagcx-<backend>
+```
+
+On 22.04 the repo is `flagos-apt-ubuntu22.04` and the suite is `jammy`. The suite is not a free
+choice: apt takes it as a literal path (`dists/<suite>/Release`), and a repo serving `noble`
+does not answer a client asking for `Noble`.
 
 Every build needs a Docker host that can reach the registry and pull the backend's base image.
 The build itself takes the base image as-is and adds only `debhelper`/`fakeroot`/`devscripts`
@@ -48,10 +66,11 @@ error, and nothing else in the build knows where it lives). `DESIGN.md` has the 
 
 ## Verified
 
-A row means both tests in `DESIGN.md` §Verification passed on the vendor's own node: the
-`.deb` installs into its matching base image and its soname resolves with the vendor symbols
-bound (`smoke-load` under `RTLD_NOW`), **and** `apt-get install` exits 0 in a plain Ubuntu at
-the package's libc6 floor.
+A row means the applicable tests in `DESIGN.md` §Verification passed on the vendor's own node:
+the `.deb` installs into its matching base image and its soname resolves with the vendor symbols
+bound (`smoke-load` under `RTLD_NOW`), **and** `apt-get install` exits 0 in a plain Ubuntu at the
+package's libc6 floor. The third test — installing from the published repository — applies only
+once a package has been published, which no row here has been yet.
 
 | Backend | Where | Result |
 |---|---|---|
