@@ -1,0 +1,49 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+
+image: sglang0.5.18-sunrise-tangrt1.2.0
+tags:
+- tag: 2.1.2-0.1.dev1_g3b94dae1f
+  entries:
+  - date: ''
+    reason: >-
+      sglang 0.5.18 on sunrise TANGRT 1.2.0. First image for this backend: the plugin
+      gains a vendor layer for a platform whose torch is a +cpu build carrying the PTPU
+      device, so the core never short-circuits to its CUDA paths and reaches two
+      fallbacks that only a non-CUDA-alias platform can hit (the device string and the
+      pccl distributed backend). Two flag_gems operators are blacklisted in the app env
+      because the vendor override does not implement them compatibly here: the SDPA math
+      kernel rejects enable_gqa (breaks every GQA model at the first prefill) and the pow
+      fallback fails on scalar**tensor — both are accepted indefinitely, so they are part
+      of the delivered configuration rather than pending follow-ups. The runtime
+      additionally moves to flag_gems 5.3.6 for the asin fallback and the sunrise cumsum
+      guard. F/T dual-compiler serve verified on Qwen3-4B.
+    upstream_prs:
+    - https://github.com/flagos-ai/sglang-plugin-FL/pull/103
