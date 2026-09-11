@@ -19,8 +19,11 @@ tag `DIR`'s HEAD sits on and warns when it has to fall back to a branch — a `.
 artifact, so an unreproducible one is worth saying out loud.
 
 In CI the same recipe runs through `.github/workflows/flagcx-deb.yml` (manual dispatch), which
-builds one backend per runner and then verifies before uploading. Nothing publishes to the
-Nexus apt repo yet; artifacts stop at the workflow.
+builds one backend per runner and then verifies before uploading. With `publish: true` (and
+therefore `verify: true`) the verified `.deb` is pushed to the apt repo named for the Ubuntu
+release its base image was built on — `flagos-apt-ubuntu24.04` or `flagos-apt-ubuntu22.04` —
+so a user adds the repo matching their distro and never has to know a glibc floor exists.
+Both repos are Nexus-side prerequisites; until they exist the publish path is unexercised.
 
 Every build needs a Docker host that can reach the registry and pull the backend's base image.
 The build itself takes the base image as-is and adds only `debhelper`/`fakeroot`/`devscripts`
