@@ -33,11 +33,11 @@ top. Only the deb format is in scope; RPM is deferred and the FlagCX repo's own
 | Scope | All 20 buildable backends, including `nvidia` and `metax` |
 | Format | **deb only this round.** RPM deferred and untouched |
 | Build environment | build-infra **base** images (runtime `/ -build` images only if a base proves insufficient) |
-| Existing FlagCX deb flow | Superseded by this path. Retiring `build-deb.yml` / `upload-nexus.yml` is a **later, separate FlagCX PR** — both producers coexist harmlessly this round because nothing is published |
+| Existing FlagCX deb flow | Superseded by this path. Retiring `build-deb.yml` / `upload-nexus.yml` is a **later, separate FlagCX PR** — both producers coexist harmlessly because this path publishes only on an explicit `publish` dispatch, and to a repo of its own |
 | Package naming | Per-backend `libflagcx-<backend-key>` + `-dev`, with `Provides: libflagcx-<vendor>` on the one `default_for_vendor` variant |
 | Version scheme | Fix now: derive from the git tag, mapping `-rcN` → `~rcN` so pre-releases sort **below** the release |
 | CI verification | Per-backend build + **in-container install + dlopen**. No hardware smoke test |
-| Publication | Deferred — the apt repository is not chosen yet |
+| Publication | Opt-in per dispatch, to a repo named for the base image's Ubuntu release (`flagos-apt-ubuntu24.04` / `-22.04`). A step of the verify job, not a separate workflow |
 
 ### Two latent defects this path removes
 
@@ -51,12 +51,12 @@ Both found reading the current flow:
 
 ### Two facts that shape the design
 
-- **The publisher already exists and is reusable.** `.github/workflows/upload-nexus.yml`
-  is `workflow_call` (input `run_id`, secret `NEXUS_TOKEN`) and posts to
-  `NEXUS_APT_URL=https://resource.flagos.net/repository/flagos-apt-hosted`. It downloads
-  artifacts from a sibling workflow **hardcoded to the name `build-deb.yml`** and lands them
-  in `packages/`. So when publication is switched on later, the build workflow needs to be
-  named `build-deb.yml` (or the publisher generalized) — the only real work left.
+- **The existing publisher cannot be reused as-is.** `.github/workflows/upload-nexus.yml`
+  is `workflow_call`, but it hardcodes `workflow: build-deb.yml` in the artifact download
+  and a single `NEXUS_APT_URL=https://resource.flagos.net/repository/flagos-apt-hosted`.
+  It therefore only publishes artifacts a workflow *named* `build-deb.yml` produced, into
+  one fixed repo. Generalizing it (a `workflow` input, a repo input) is a change to a
+  workflow other lines call; the publish step here is one `curl` to Nexus instead.
 - **Reuse `scripts/generate_matrix.py`, do not write a new generator.** Its `--runtime`
   output already carries everything a deb build needs per backend: `name`, `runson`,
   `version`, `base_image`. build-infra's own convention (`scripts/README.md`) is that a
@@ -134,23 +134,35 @@ version logic and no build logic.
 
 `workflow_dispatch` only, with the standard `authorize` first job
 (`./.github/actions/check-trigger-author`), action SHAs pinned with `# vN` comments, inputs
-`backend` (default `all`), `flagcx_ref`, `verify` (default `true`). Jobs:
+`backend` (default `all`), `flagcx_ref`, `verify` (default `true`), `publish` (default `false`,
+rejected unless `verify` is also true). Jobs:
 
 | Job | Shape |
 |---|---|
 | `set-matrix` | `generate_matrix.py --runtime` → `deb-config.py --merge` → `fromJSON` matrix; each row carries the `ubuntu` field the verify job needs for `--floor-image` |
 | `build` | `runs-on: ${{ fromJSON(matrix.runson) }}`; `build-flagcx-deb.sh --backend <key>`; uploads the `.deb` files as artifacts |
-| `verify` | `verify/verify-flagcx-deb.sh --backend <key> --floor-image ubuntu:<ubuntu>` on the downloaded `.deb` files |
+| `verify` | `verify/verify-flagcx-deb.sh --backend <key> --floor-image ubuntu:<ubuntu>` on the downloaded `.deb` files; when `publish` is set, a final step posts them to `flagos-apt-ubuntu<ubuntu>` |
 
 `verify/verify-flagcx-deb.sh` installs the package and runs `smoke-load.c` (~15 lines:
 `dlopen("libflagcx.so.0", RTLD_NOW)` — `RTLD_NOW` forces vendor-symbol resolution at load —
 then `dlsym` + call `flagcxGetVersion` and `dlsym("flagcxCommInitRank")`), then `ldd` on the
 installed `libflagcx.so.0`.
 
-**Publication hook (deferred).** `upload-nexus.yml` waits on `build-deb.yml`; when a
-repository is chosen, the mechanical options are (a) rename this workflow to `build-deb.yml`,
-or (b) give the reusable publisher a `workflow` input. Nothing in the line's design blocks
-either — the artifact is already a plain `.deb` set.
+**Publication is a step of `verify`, addressed by distro.** A `.deb` built on Ubuntu 24.04
+and one built on 22.04 are not interchangeable — the floor test exists precisely because the
+24.04 package will not install on a 22.04 host — so the base image's release is the address,
+not a field the user has to match: `flagos-apt-ubuntu24.04`, `flagos-apt-ubuntu22.04`. Arch is
+not part of the address; an apt repo separates `binary-amd64` from `binary-arm64` itself.
+
+It sits inside `verify` rather than in a later job because the repository *is* the user's
+`apt-get install` path: anything that reaches it is what customers get. A separate publisher
+job would re-download the artifact, so what shipped would not be provably the file that was
+verified. `publish: true` without `verify: true` is refused in `set-matrix` — otherwise the
+dispatch would report success and publish nothing.
+
+`upload-nexus.yml` is deliberately not used (see "Two facts that shape the design"): it
+publishes only what a workflow named `build-deb.yml` produced, into one fixed repo. The step
+here is the `curl` from that file, minus the artifact plumbing.
 
 ### 4. `Containerfile.deb`
 
@@ -342,9 +354,9 @@ PR to another repo is opened.
    images, some of which are air-gapped vendor SDK images. Each image already does
    `apt-get install` at build time, so this should hold — but it is unverified for the
    `-910c`/vendor-only images and is the likeliest first failure.
-3. Two glibc floors (2.39 / 2.35) and two arches land in one eventual APT repo. Mitigation:
-   per-stanza `Architecture:` + `Depends: libc6 (>= floor)`, and verify in the same base image
-   the package was built in.
+3. Two glibc floors (2.39 / 2.35) and two arches. Mitigation: the split repo per Ubuntu
+   release keeps 2.35 out of the 24.04 users' index entirely, `Architecture:` is set by dpkg,
+   and verify installs the package in the same base image it was built in.
 4. build-infra base tags are **mutable** and nothing is pinned by digest anywhere in the repo.
    Record the base image ref plus the resolved digest in `X-FlagCX-Build-Image` so a package is
    traceable to the image that produced it.
@@ -404,7 +416,7 @@ end.
 - RPM (deferred; `packaging/rpm/` and its spec untouched).
 - Any change to the FlagCX repository, including retiring its `build-deb.yml` /
   `upload-nexus.yml` — that is a small follow-up PR once this path is verified.
-- Publishing to a repository. When it is wanted,
-  `https://resource.flagos.net/repository/flagos-apt-hosted` already exists and build-infra's
-  reusable `upload-nexus.yml` already targets it.
+- Creating the Nexus apt hosted repos (`flagos-apt-ubuntu24.04`, `flagos-apt-ubuntu22.04`)
+  with their signing keys and distribution names — an ops prerequisite, not a code change.
+  Until they exist the publish step is written but unexercised.
 - On-node / hardware verification and a status matrix.

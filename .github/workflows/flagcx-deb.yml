@@ -25,13 +25,19 @@ name: flagcx deb package
 # the FlagCX packaging fields (make flag, apt packages, glibc floor), and the
 # runtime matrix alone lacks every input the build consumes.
 #
-# The artifacts are uploaded, not published. Publication to the Nexus apt repo
-# is a separate decision -- it starts shipping to customers, and the existing
-# `upload-nexus.yml` publisher expects a workflow to consume from.
+# Publication is opt-in per dispatch (`publish`, default false) and addressed by
+# the base image's Ubuntu release: flagos-apt-ubuntu24.04, flagos-apt-ubuntu22.04.
+# A 22.04 package and a 24.04 package are not interchangeable -- handing a 22.04
+# user the 24.04 one is exactly what the floor test refuses -- so the release the
+# package was built on is the address, not a check the user has to remember.
 #
 # `verify` is a job and not a step of the build because it has to install the
 # .deb into a container in the state a user gets, from the file alone: the build
 # tree proves nothing about whether the package's own Depends are satisfiable.
+# Publishing is a step of `verify` for the same reason: the repository is the only
+# path to a user's `apt-get install`, so an unverified package must not reach it.
+# `verify: false` therefore publishes nothing, and set-matrix refuses that
+# combination rather than letting it read as a successful dispatch.
 
 on:
   workflow_dispatch:
@@ -48,6 +54,10 @@ on:
         description: 'install the .deb in its base image and in a plain Ubuntu before uploading'
         type: boolean
         default: true
+      publish:
+        description: 'push the verified .deb to the distro apt repo (requires verify)'
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -83,6 +93,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Publishing is a step of the verify job, so asking for both at once
+          # would publish nothing while looking like it did.
+          if [[ "${{ inputs.publish }}" == "true" && "${{ inputs.verify }}" != "true" ]]; then
+            echo "::error::publish=true requires verify -- publication is a step of the verify job"
+            exit 1
+          fi
           python3 scripts/generate_matrix.py --runtime > matrix.json
           # --merge only emits schedulable rows, so drift between backends.yaml
           # and the runtime matrix would be filtered away silently here; --check
@@ -190,3 +206,32 @@ jobs:
             --backend "$MATRIX_NAME" \
             --floor-image "ubuntu:${MATRIX_UBUNTU}" \
             packaging/flagcx/dist/*.deb
+      - name: Publish the .deb
+        if: ${{ inputs.publish }}
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          MATRIX_UBUNTU: ${{ matrix.ubuntu }}
+          FLAGCX_REF: ${{ inputs.flagcx_ref }}
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          # changelog.sh derives the version from the clone's tags, not from the
+          # content of the ref that was built, so a branch build would ship main
+          # under a released version number.
+          if [[ ! "$FLAGCX_REF" =~ ^v[0-9] ]]; then
+            echo "::error::refusing to publish $FLAGCX_REF -- not a release tag, so the version does not describe the content"
+            exit 1
+          fi
+          : "${MATRIX_UBUNTU:?base/$MATRIX_NAME names no single Ubuntu release}"
+          repo="flagos-apt-ubuntu${MATRIX_UBUNTU}"
+          for deb in packaging/flagcx/dist/*.deb; do
+            echo ">>> ${repo}: $(basename "$deb")"
+            curl -f -u "${NEXUS_TOKEN}" \
+              -H 'Content-Type: multipart/form-data' \
+              --data-binary "@${deb}" \
+              "https://resource.flagos.net/repository/${repo}/"
+          done
