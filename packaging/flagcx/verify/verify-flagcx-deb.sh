@@ -37,7 +37,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$HERE/../.." && pwd)"
+REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 
 OPT_BACKEND=""
 OPT_FLOOR_IMAGE=""
@@ -65,8 +65,12 @@ done
 [[ ${#DEBS[@]} -gt 0 ]] || { echo "no .deb given" >&2; exit 2; }
 
 cd "$REPO_ROOT"
+# Captured into a variable rather than inlined: `set -e` does not see a failure
+# inside eval's command substitution, so an inline one would let the script run
+# on to the layout checks with every DEB_* empty.
+INPUTS="$(python3 packaging/flagcx/deb-config.py --build-inputs "$OPT_BACKEND")"
 set -a
-eval "$(python3 packaging/flagcx/deb-config.py --build-inputs "$OPT_BACKEND")"
+eval "$INPUTS"
 set +a
 
 # The layout is asserted from the file, before anything is installed: the two

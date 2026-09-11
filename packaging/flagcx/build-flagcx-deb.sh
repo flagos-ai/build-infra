@@ -120,11 +120,14 @@ for key in "${BACKENDS[@]}"; do
     # two containers the same tree.
     (
         set -a
-        # eval, not `. <(...)`: sourcing a process substitution is a bash-4
-        # construct, and on bash 3.2 it sources nothing at all — the build args
-        # would be empty rather than wrong. deb-config.py shell-quotes every
-        # value, so there is nothing here for eval to reinterpret.
-        eval "$(python3 "$HERE/deb-config.py" --build-inputs "$key")"
+        # Captured first, then eval'd, rather than `eval "$(python3 ...)"`: a
+        # command substitution inside eval fails invisibly to `set -e`, and the
+        # build would then proceed with every DEB_* empty. eval and not
+        # `. <(...)`, which is bash-4 and sources nothing at all on bash 3.2;
+        # deb-config.py shell-quotes every value, so there is nothing here for
+        # eval to reinterpret.
+        INPUTS="$(python3 "$HERE/deb-config.py" --build-inputs "$key")"
+        eval "$INPUTS"
         set +a
 
         python3 "$HERE/deb-config.py" --render-control "$HERE/debian/control"
