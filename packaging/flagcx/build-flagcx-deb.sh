@@ -142,8 +142,12 @@ for key in "${BACKENDS[@]}"; do
         # cannot reach the archive. Same relay as scripts/build_runtime.py,
         # emitted lowercase because that is the casing apt reads and the one the
         # runners export.
+        #
+        # no_proxy rides along because it is what keeps the mirror off the proxy:
+        # relayed without it, apt sends mirrors.aliyun.com through a proxy that
+        # answers 502 — measured on enflame, where the same fetch is 200 direct.
         proxy_arg=()
-        for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY; do
+        for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY no_proxy:NO_PROXY; do
             lower="${pair%%:*}"; upper="${pair##*:}"
             value="$(printenv "$lower" || true)"
             [ -n "$value" ] || value="$(printenv "$upper" || true)"
