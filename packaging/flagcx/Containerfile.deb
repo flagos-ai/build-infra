@@ -115,9 +115,13 @@ RUN set -eux; \
 # is not optional: the Makefile defaults JSON_INCLUDE_DIR to
 # third-party/json/single_include (Makefile:245) and no base image ships
 # nlohmann-json3-dev, so the submodule is the only source of that header.
+# The low-speed abort is left nearly off: egress here is slow enough to trip
+# curl's defaults on a healthy transfer (measured on hw115, whose apt mirror
+# runs at 120 kB/s), and a slow clone is not a dead one. It still fires on a
+# transfer that has genuinely stopped.
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 \
-           GIT_HTTP_LOW_SPEED_LIMIT=1000 \
-           GIT_HTTP_LOW_SPEED_TIME=30 && \
+           GIT_HTTP_LOW_SPEED_LIMIT=1 \
+           GIT_HTTP_LOW_SPEED_TIME=300 && \
     export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}" && \
     git config --global http.version HTTP/1.1 && \
     for i in 1 2 3 4 5 6 7 8; do \
