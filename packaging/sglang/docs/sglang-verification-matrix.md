@@ -46,7 +46,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — |
-| 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ |
+| 曦望 | TANGRT 1.2.0 | ✅ | ✅ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — |
 | 清微智能 | TSM 260610 | ⬜ | ⬜ |
 
@@ -66,6 +66,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 沐曦 | MACA 3.8.1.3 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/86 | OPEN |
 | 摩尔线程 | MUSA 4.3.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
 | 摩尔线程 | MUSA 5.2.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
+| 曦望 | TANGRT 1.2.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/103 | OPEN |
 
 <!-- /status-matrix:verification -->
 
@@ -75,7 +76,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 ### sglang0.5.18
 
-> 数据截止：2026-09-10
+> 数据截止：2026-09-11
 
 **App 级设施（全后端共享）**
 
