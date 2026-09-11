@@ -39,6 +39,15 @@
 #                 *defined-but-empty* value that silently becomes /lib64 or
 #                 /include. Anything env-derived in the ladder is therefore
 #                 pinned here rather than inherited (cambricon's NEUWARE_HOME).
+#                 It is also the way past a `:=` in the vendor `.mk`, since these
+#                 reach make as command-line values. cambricon needs that for
+#                 PLATFORM_EXTRA_SRCS: the Makefile globs flagcx/adaptor/*.cc, so
+#                 flagcx_device.cc — a hard reference to devApiBackend — is always
+#                 compiled, while flagcx/adaptor/device_api/ is never globbed, so
+#                 the definition has to come from the `.mk` and cambricon.mk still
+#                 leaves it empty (upstream fixed MUSA alone, #576). An unresolved
+#                 symbol is legal in a shared-object link: the build passes and
+#                 only the loader's dlopen(RTLD_NOW) reports it.
 #   vendor_libs   the vendor libraries the package links but does not ship.
 #                 They are supplied by the site runtime, never by Ubuntu, so
 #                 dh_shlibdeps must not look for a distribution package that
@@ -144,7 +153,10 @@ cambricon-neuware4.4.3:
   apt: []
   # cambricon.mk defaults DEVICE_HOME/CCL_HOME to $(NEUWARE_HOME) — env-derived,
   # so pinned here rather than inherited.
-  make_env: {DEVICE_HOME: /usr/local/neuware, CCL_HOME: /usr/local/neuware}
+  make_env:
+    DEVICE_HOME: /usr/local/neuware
+    CCL_HOME: /usr/local/neuware
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [cnrt, cncl]
   assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
   deb: {enabled: true, default_for_vendor: false}
@@ -155,7 +167,10 @@ cambricon-neuware4.7.2:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {DEVICE_HOME: /usr/local/neuware, CCL_HOME: /usr/local/neuware}
+  make_env:
+    DEVICE_HOME: /usr/local/neuware
+    CCL_HOME: /usr/local/neuware
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [cnrt, cncl]
   assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
   deb: {enabled: true, default_for_vendor: true}
