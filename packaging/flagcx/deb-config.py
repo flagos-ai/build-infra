@@ -46,7 +46,7 @@ MATRIX_SCRIPT = REPO / "scripts" / "generate_matrix.py"
 
 # Fields that are lists in the registry and strings in the CI matrix — a build
 # arg can only be a string, and the workflow passes every field through as one.
-LIST_FIELDS = ("apt", "vendor_libs", "assert")
+LIST_FIELDS = ("apt", "vendor_libs", "vendor_lib_dirs", "assert")
 REQUIRED_ENABLED = ("vendor", "make_flag", "arch", "glibc_floor", "deb")
 VALID_ARCH = ("amd64", "arm64")
 
@@ -57,7 +57,7 @@ VALID_ARCH = ("amd64", "arm64")
 # collide with anything the base image already exports.
 BUILD_INPUT_FIELDS = (
     "name", "version", "base_image", "arch", "glibc_floor", "vendor",
-    "make_flag", "make_env", "apt", "vendor_libs", "assert",
+    "make_flag", "make_env", "apt", "vendor_libs", "vendor_lib_dirs", "assert",
     "build_infra_version", "deb_package", "deb_provides", "deb_conflicts",
     "deb_replaces", "deb_conflicts_dev", "deb_replaces_dev",
 )

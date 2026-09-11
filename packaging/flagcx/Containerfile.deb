@@ -53,6 +53,8 @@ ARG DEB_APT
 ARG DEB_ASSERT
 ARG DEB_MAKE_FLAG
 ARG DEB_MAKE_ENV
+ARG DEB_VENDOR_LIBS
+ARG DEB_VENDOR_LIB_DIRS
 
 # Scoped to the clone below and never set as image ENV: the proxy is a build-time
 # fact of one RUN, and an image that remembers it is an image that leaks it.
@@ -116,12 +118,14 @@ RUN set -eux; \
     bash debian/changelog.sh "libflagcx-${BACKEND}"
 
 # The ARGs are re-passed as environment: build args are not environment
-# variables, and debian/rules reads these two out of the environment. They reach
+# variables, and debian/rules reads all four out of the environment. They reach
 # make as command-line-equivalent variables, which is what lets them outrank the
 # Makefile's own ifeq ladder (see debian/rules).
 RUN set -eux; \
     DEB_MAKE_FLAG="${DEB_MAKE_FLAG}" \
     DEB_MAKE_ENV="${DEB_MAKE_ENV}" \
+    DEB_VENDOR_LIBS="${DEB_VENDOR_LIBS}" \
+    DEB_VENDOR_LIB_DIRS="${DEB_VENDOR_LIB_DIRS}" \
     dpkg-buildpackage -us -uc -b
 
 # Both packages, or neither: the globs are the assertion, since a missing one

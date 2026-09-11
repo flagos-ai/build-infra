@@ -152,6 +152,8 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "DEB_ASSERT=$DEB_ASSERT" \
             --build-arg "DEB_MAKE_FLAG=$DEB_MAKE_FLAG" \
             --build-arg "DEB_MAKE_ENV=$DEB_MAKE_ENV" \
+            --build-arg "DEB_VENDOR_LIBS=$DEB_VENDOR_LIBS" \
+            --build-arg "DEB_VENDOR_LIB_DIRS=$DEB_VENDOR_LIB_DIRS" \
             -t "$tag" \
             -f "$HERE/Containerfile.deb" \
             "$REPO_ROOT"

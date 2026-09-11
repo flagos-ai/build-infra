@@ -44,6 +44,12 @@
 #                 dh_shlibdeps must not look for a distribution package that
 #                 provides them. Also the expected `ldd` "not found" set when
 #                 the package is installed into a plain ubuntu container.
+#   vendor_lib_dirs
+#                 extra directories dpkg-shlibdeps must search to find those
+#                 libs. A soname the loader already resolves needs no entry. One
+#                 the loader cannot see at all is a hard error until it is on the
+#                 search path, and nothing else in the build knows the path:
+#                 nvidia's libcuda.so.1 ships only under the driver's compat/.
 #   assert        absolute paths that must exist before the build starts. This
 #                 is the tripwire for nvidia.mk's silent failure mode: a
 #                 missing header or compiler there produces a collector-less
@@ -62,14 +68,30 @@ nvidia-cuda12.8:
   make_flag: USE_NVIDIA
   arch: amd64
   glibc_floor: "2.39"
-  # Base is nvcr.io/nvidia/cuda:12.8.0-runtime — no nvcc and no NCCL, and
-  # build-infra provisions NCCL for no vendor. COMPILE_KERNEL=0 means no device
-  # compiler is needed, but nvidia.mk resolves CCL_INCLUDE at make-parse time.
-  # CCL_HOME overrides the .mk's /usr/local/nccl/build (a build-tree path) —
-  # libnccl-dev installs its header under /usr/include.
-  apt: [cuda-nvcc-12-8, libnccl-dev]
-  make_env: {DEVICE_HOME: /usr/local/cuda, CCL_HOME: /usr}
+  # Base is nvcr.io/nvidia/cuda:12.8.0-runtime — no nvcc, and a libnccl2 that
+  # the NGC image `apt-mark hold`s so a stray upgrade cannot move it off the
+  # 12.8 track. The hold is what makes the -dev pin necessary rather than
+  # tidy: unpinned, libnccl-dev resolves to the newest in the CUDA repo (a
+  # +cuda13.4 build) whose `libnccl2 (= version)` apt can only satisfy by
+  # changing a held package, so it refuses the install outright. Pinning is
+  # also the point — the package must link the NCCL this base carries.
+  # COMPILE_KERNEL=0 means no device compiler is needed, but nvidia.mk resolves
+  # CCL_INCLUDE at make-parse time. CCL_HOME overrides the .mk's
+  # /usr/local/nccl/build (a build-tree path) — libnccl-dev installs its header
+  # under /usr/include.
+  # DEVICE_LINK is `-lcudart -lcuda`: -lcuda is the driver, whose stub ships in
+  # lib64/stubs and is on no -L the Makefile passes — cuda-nvcc brings the file
+  # but not the path, so LIBRARY_PATH is what puts it there.
+  apt: [cuda-nvcc-12-8, libnccl-dev=2.25.1-1+cuda12.8]
+  make_env:
+    DEVICE_HOME: /usr/local/cuda
+    CCL_HOME: /usr
+    LIBRARY_PATH: /usr/local/cuda/lib64/stubs
   vendor_libs: [cuda, cudart, nccl]
+  # -lcuda links the stub, but the *runtime* dependency is unresolved: the base
+  # image's only libcuda.so.1 lives in the driver's compat/ dir (the real file is
+  # libcuda.so.570.86.10), which is on no loader, dpkg or ldconfig path.
+  vendor_lib_dirs: [/usr/local/cuda/compat]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: true}
 
@@ -78,9 +100,17 @@ nvidia-cuda13.3:
   make_flag: USE_NVIDIA
   arch: amd64
   glibc_floor: "2.39"
-  apt: [cuda-nvcc-13-3, libnccl-dev]
-  make_env: {DEVICE_HOME: /usr/local/cuda, CCL_HOME: /usr}
+  # Nothing here carries NCCL at all, so the pin is the only thing keeping apt
+  # off the newest +cuda13.4 build, which is not this base's CUDA track. -dev's
+  # Depends names an exact libnccl2, and at equal priority apt would pick the
+  # +cuda13.4 one, so libnccl2 is pinned alongside it to make the pair satisfy.
+  apt: [cuda-nvcc-13-3, libnccl-dev=2.31.2-1+cuda13.3, libnccl2=2.31.2-1+cuda13.3]
+  make_env:
+    DEVICE_HOME: /usr/local/cuda
+    CCL_HOME: /usr
+    LIBRARY_PATH: /usr/local/cuda/lib64/stubs
   vendor_libs: [cuda, cudart, nccl]
+  vendor_lib_dirs: [/usr/local/cuda/compat]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: false}
 
