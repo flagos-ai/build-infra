@@ -50,6 +50,12 @@
   iluvatar、hygon（torch 编于 numpy 1.x，镜像 numpy 2.x → `Numpy is not
   available`）。构建镜像时校验 `torch + tensor.numpy()` 能跑通；厂商 torch
   应与 configs.yaml 的 numpy pin 对齐
+- **同版本号 wheel 重传后 docker 层缓存静默复用旧层** —— 严重度：中。层的 key
+  只含 RUN 命令串、不含该命令拉取的 wheel 内容，`pip install vllm==X+flagos`
+  那层一旦 CACHED，重打后的 wheel 就装不进去，旧 wheel 曾经拉进的依赖（xgrammar
+  松 pin 带来的 triton 3.8.0）随镜像发布。enflame 两栈 app 构建两次失败即此因
+  （wheel 已修而层未失效，日志里该层显示 CACHED）。缓解：改 wheel 内容后
+  `--no-cache` 重建；根治为 app 镜像 workflow 加 cache-bust 机制（**未落**）。
 
 **痛点：**
 
