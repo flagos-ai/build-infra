@@ -388,15 +388,23 @@ serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1�
   `cell-isT2`）。关键处在于**路由表与红基线逐字节一致**（仍是 `silu_and_mul` →
   `default.flagos`，rotary 仍是 `vendor.ascend`）而输出恢复连贯 —— 反向印证缺陷在
   **表外的 aten 层**，而非路由表能表达的任何一个算子。改 yaml 即可，不需改镜像。
+  该条目**已作为上游提交落地**（见下「处置」）；补做的挂载级 E2E 进一步证明镜像内
+  `dispatch/config/ascend.yaml` 确实被消费：只把 patched yaml bind-mount 覆盖到已发
+  镜像的同名路径，冷启动 120s 到 `Application startup complete`，两条语义请求分别返回
+  「 Paris. The capital of Germany is Berlin…」「 56.」。
 - **`VLLM_FL_PREFER=vendor`（3/3 冷启动全绿）**：`use_flaggems()`
   （`vllm_fl/utils.py:84-93`）在 `VLLM_FL_PREFER` 非空且不等于 `flagos` 时**直接返回
   False**，`worker.py:252` 的 `fl_envs.USE_FLAGGEMS` 门随之关闭，`flag_gems.enable()`
   **根本不会被调用** —— 是**整体关掉 flag_gems**（含 aten 层接管），不是「只把
   `silu_and_mul` 换成 `vendor.ascend`」。粒度粗，仅作临时手段。
 
-**处置**：cann9.0.0-910c 交付路径 = F/T 均可；cann8.5.0-910c 的 T 路径**按默认派发不可
-交付**（`status_matrix.vllm0.24.0.yaml` 该后端 T 格已记 ❌、`note:` 记录根因），F 路径
-为交付路径；需用 T 时以黑名单加 `index_select` 为缓释。
+**处置**：cann9.0.0-910c 交付路径 = F/T 均可。cann8.5.0-910c 的 F 路径为交付路径；T 路径
+的修复**已落地上游** —— vllm-plugin-FL PR #387 分支 `feat/ascend-v024` 的 commit
+`f31b199` 把 `index_select` 加入 `dispatch/config/ascend.yaml` 黑名单（11 行 diff，含
+机理注释；`config_filter()` 按 impl 函数名匹配，故裸算子名 `index_select` 即为正确写法，
+与既有 `linear` 条目同形）。**但已发的镜像 tag `2.1.2-0.2.0_gcf8998c.d20260818` 烘焙的是
+`cf8998c` 的插件 wheel，不含该提交**，故 `status_matrix.vllm0.24.0.yaml` 该后端 T 格维持
+❌ —— 待该 PR 合并、插件按新 commit 重打、镜像重建并复验后才转 ✅。
 
 **上游归属**：坏的是 flag_gems 的 generic `index_select` kernel 在 triton-ascend 3.2.0
 下的 codegen（或该 kernel 本身）；黑名单条目归属 vllm-plugin-FL 的

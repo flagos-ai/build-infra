@@ -213,4 +213,6 @@ attention）。
 的黑名单**不含 `repeat_interleave_*`**，vendor rope 首次 decode 即抛 `strides must not be zero`
 的 `MLIRCompilationError`，`CachedOp` 静默标记失败并回退到 `default.flagos` rope —— 绕过了受
 污染的 vendor rope，属于巧合而非设计。两条线的插件 wheel（`cf8998c` vs `2b6b635`）与 flag_gems
-版本均不同，**结论仍不得互推**；但共用的这条上游缺陷应一并 hand-off（归属同 §10.7）。
+版本均不同，**结论仍不得互推**；但共用的这条上游缺陷应一并 hand-off（归属同 §10.7）。该缺陷
+的修复（黑名单加 `index_select`）已落地上游 vllm-plugin-FL #387 的 commit `f31b199`，本线
+未受影响、无需跟改。
