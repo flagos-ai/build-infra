@@ -330,15 +330,76 @@ serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1�
      `ConvertTritonIRToLinalgIR` → `strides must not be zero` → `triton-adapter-opt`
      SIGABRT，与 silu 无关。
 
-**唯一实测为绿的 T 配置 = `VLLM_FL_PREFER=vendor`（3/3 次冷启动全绿）。** 它是 dispatch
-偏好、**不是关掉 flag_gems**：只把 `silu_and_mul` 由 `default.flagos` 换成
-`vendor.ascend`，其余三个算子本来就是 `vendor.ascend`。该偏好可落到持久配置复现，
-不需改镜像。
+4. **路由表不足以定位此缺陷**：它只反映 vllm_fl **插件层**派发，flag_gems 的
+   **aten 层接管不在表内**。已排除项 1 的「F 与 T 路由表逐字节一致」与本根因不矛盾
+   —— 被污染的是表里根本不出现的算子（见下第 2 条）。
 
-**根因：未定位。** 现有事实只有「唯一被改变的算子是 `silu_and_mul`」与「改了它就恢复」
-两条；而该 kernel 单独跑完全正确，说明缺陷不在它的算术，而在真实调用形态下的更下游
-环节。无实证不写结论。
+**根因（2026-09-11 定位，含跨后端硬对照）**
+
+链条：cann8.5.0 + triton-ascend 3.2.0 下 generic `index_select` 算错 → ATB rotary
+组合算子内部吞下这份错误结果 → 0.24.0 的黑名单恰好堵住了本该触发回退的崩溃 →
+污染的 q/k 直达 attention → 每次冷启动确定性复读 `!`。
+
+1. **`_ascend.ops` 整包 import 失败，flag_gems 退化为 generic 算子集。** vendor triton
+   3.2.0 无 `triton.experimental`（`importlib.util.find_spec("triton.experimental")`：
+   F `True` / T `False`）；`_ascend/ops/__init__.py` 逐模块 import，其中
+   `cholesky_solve.py:20` 在模块顶层 `import triton.experimental.tle.language`，抛
+   `ModuleNotFoundError` 后**整包**失败（一个可选子模块缺失拖垮整个后端算子集）。
+   flag_gems 自己的判词：`[Note] No specialized common operators were found for the
+   ascend, generic common operators will be used by default.` 结果：`index_select` 在 F
+   注册为 `_ascend.ops.index_select`，在 T **不在注册表内**，落到 generic
+   `flag_gems/ops/index_select.py`。
+
+2. **generic `index_select` 在 cann8.5.0 + triton-ascend 3.2.0 上算错，且非确定。**
+   生产形状 `inp=(40960,128) dim=0 idx=(5,)` 实测 `bad=174~400 / 640`；同一输入三次得
+   `[340, 220, 174]`（另几轮 355 / 375 / 392 / 400）→ 被掩码未写的 lane 保留了
+   `torch.empty` 的复用显存。关掉 flag_gems 的 native 路径 `bad=0/640`；**同一探针在 F
+   （走 `_ascend` 版）三次全 `bad=0/640`**。形状扫描（rows=40960）：`dim=0` 在 n=4…128
+   **全部出错**，`dim=1` 在 n≥16 精确 → 不是 2 的幂 / tile 边界效应，且只打中 `dim=0`，
+   正是 ATB rotary 的用法。
+
+3. **ATB rotary 吞下这份错误结果。** `torch_npu._npu_rotary_embedding`
+   （`vllm_fl/ops/rotary_embedding.py:49` → `vendor/ascend/impl/rotary.py:62`）内部走
+   `torch.ops.atb.*`，其中对 cos/sin cache 做
+   `aten::index_select(inp=(40960,128), dim=0, idx=(5,))` —— 形状与第 2 条完全一致，
+   400 次/decode。被污染的 cos/sin 进入每个 attention head 的 q/k。
+
+4. **两份 shipped `ascend.yaml` 的黑名单差异决定「吃不吃到污染」。** 0.24.0 是 0.20.2
+   的严格超集，关键增量除 `linear` / `cumsum` / `pow_tensor_*` 外，是**三个
+   `repeat_interleave_*`** —— 0.24.0 的 yaml 自带注释已写明：ATB rotary 路径内部用
+   repeat_interleave 扩展 GQA 的 cos/sin，被 flag_gems 接管后 rank-3 的 pointwise copy
+   在 triton_ascend 3.2.0 上编译失败（`ConvertTritonIRToLinalgIR` →
+   `strides must not be zero`）。于是：
+   - **0.20.2/T**：vendor rope 首次 decode 即抛 `MLIRCompilationError`（本轮实测复现，
+     SIGABRT 于 `triton-adapter-opt`，栈 `repeat_interleave.py:75` →
+     `copy_func_kernel_rank_3`），`CachedOp` 静默标记 `vendor.ascend` 失败并回退到
+     `default.flagos` rope —— **因祸得福，绕过污染，绿**。同一缺陷在 0.20.2/T 上同样实测
+     到（`bad=267~343/640`），只是被上游回退掩盖。
+   - **0.24.0/T**：黑名单堵住了这次崩溃，vendor rope 跑完，把污染的 q/k 交给 attention
+     —— **红**。
+
+5. **cann9.0.0-910c 是硬对照。** 同 tag 的 0.24.0 镜像、同 T 路径、同探针：`bad=0/640`，
+   rope 输出与 native **逐位相同**（`q=b391f204ee6e k=9e8aadea8226`）。缺陷是
+   cann8.5.0 + triton-ascend 3.2.0 组合特有，与 910C 平台、镜像、插件均无关。
+
+**两条实测为绿的 T 配置**，机理不同，此前记录的 `VLLM_FL_PREFER=vendor` 说明有误、在此更正：
+
+- **精确方案：把 `index_select` 加入黑名单**（本轮 A/B：2/2 冷启动连贯，`cell-isT` /
+  `cell-isT2`）。关键处在于**路由表与红基线逐字节一致**（仍是 `silu_and_mul` →
+  `default.flagos`，rotary 仍是 `vendor.ascend`）而输出恢复连贯 —— 反向印证缺陷在
+  **表外的 aten 层**，而非路由表能表达的任何一个算子。改 yaml 即可，不需改镜像。
+- **`VLLM_FL_PREFER=vendor`（3/3 冷启动全绿）**：`use_flaggems()`
+  （`vllm_fl/utils.py:84-93`）在 `VLLM_FL_PREFER` 非空且不等于 `flagos` 时**直接返回
+  False**，`worker.py:252` 的 `fl_envs.USE_FLAGGEMS` 门随之关闭，`flag_gems.enable()`
+  **根本不会被调用** —— 是**整体关掉 flag_gems**（含 aten 层接管），不是「只把
+  `silu_and_mul` 换成 `vendor.ascend`」。粒度粗，仅作临时手段。
 
 **处置**：cann9.0.0-910c 交付路径 = F/T 均可；cann8.5.0-910c 的 T 路径**按默认派发不可
-交付**（矩阵该格记 ❌，`status_matrix.vllm0.24.0.yaml` 该后端已加 `note:`），F 路径为
-交付路径；需用 T 时以 `VLLM_FL_PREFER=vendor` 为临时缓释。
+交付**（`status_matrix.vllm0.24.0.yaml` 该后端 T 格已记 ❌、`note:` 记录根因），F 路径
+为交付路径；需用 T 时以黑名单加 `index_select` 为缓释。
+
+**上游归属**：坏的是 flag_gems 的 generic `index_select` kernel 在 triton-ascend 3.2.0
+下的 codegen（或该 kernel 本身）；黑名单条目归属 vllm-plugin-FL 的
+`dispatch/config/ascend.yaml`；「一个可选子模块缺失拖垮 `_ascend.ops` 整包注册」是
+flag_gems 的脆弱点，也是本轮退化为 generic 的直接扳机。三项均不在 build-infra，属对外
+hand-off。

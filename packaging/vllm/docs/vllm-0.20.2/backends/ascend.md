@@ -204,6 +204,13 @@ merge + 重建后即删。**每后端跑通时：上游 PR 进 `prs:`（永久�
 
 **与 0.24.0 线的差异（同后端对、不同结论）**：`ascend-cann8.5.0-910c` 上 0.24.0 的 T 路径
 按默认派发**确定性退化**（每次冷启动把 `!` 填充到 `max_tokens`），本节 0.20.2 同后端 T 路径
-的 verify 格为 ✅、未观察到此现象。[vllm-0.24.0 ascend §10.7](../../vllm-0.24.0/backends/ascend.md) 已排除
-该退化的 dispatch 路由与 `silu_and_mul` kernel 两条假设，**根因未定位**；两条线的插件 wheel
-（`cf8998c` vs `2b6b635`）与 flag_gems 版本均不同，**不得据此互推原因或结论**。
+的 verify 格为 ✅、未观察到此现象。[vllm-0.24.0 ascend §10.7](../../vllm-0.24.0/backends/ascend.md)
+已定位其根因（该组合下 flag_gems 的 generic `index_select` 算错，被 ATB rotary 吞下后直达
+attention）。
+
+**本节 0.20.2/T 的 ✅ 不是「不受该缺陷影响」，而是被回退掩盖**：同一缺陷在本节后端同样实测
+到（`index_select` `inp=(40960,128) dim=0` 出 267~343/640 错），但本节 shipped `ascend.yaml`
+的黑名单**不含 `repeat_interleave_*`**，vendor rope 首次 decode 即抛 `strides must not be zero`
+的 `MLIRCompilationError`，`CachedOp` 静默标记失败并回退到 `default.flagos` rope —— 绕过了受
+污染的 vendor rope，属于巧合而非设计。两条线的插件 wheel（`cf8998c` vs `2b6b635`）与 flag_gems
+版本均不同，**结论仍不得互推**；但共用的这条上游缺陷应一并 hand-off（归属同 §10.7）。
