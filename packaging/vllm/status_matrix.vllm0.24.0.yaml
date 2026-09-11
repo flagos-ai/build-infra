@@ -68,7 +68,7 @@ backends:
   ascend-cann8.5.0-910c:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.0_gcf8998c.d20260818"
+    image_tag: "2.1.2-0.2.0_gf31b199.d20260911"
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true

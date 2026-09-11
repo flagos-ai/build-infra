@@ -32,7 +32,7 @@ image: vllm0.24.0-ascend-cann8.5.0-910c
 tags:
 - tag: 2.1.2-0.2.0_gf31b199.d20260911
   entries:
-  - date: ""
+  - date: "2026-09-11T10:54:44.964Z"
     reason: >-
       Rebuild pinning vllm-plugin-FL to the index_select blacklist fix
       (vllm-plugin-FL #387 head f31b199, replacing cf8998c). Without it this
