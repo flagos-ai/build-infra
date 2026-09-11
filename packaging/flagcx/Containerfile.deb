@@ -64,7 +64,8 @@ ARG HTTPS_PROXY=
 
 # git accepts either casing, apt only the lowercase one, and the runners export
 # the lowercase pair — so the same fact is declared under both names rather than
-# asking the call site for two spellings. NO_PROXY below still covers the mirrors.
+# asking the call site for two spellings. The clone below reads the uppercase
+# name, hence its fallback. NO_PROXY below still covers the mirrors.
 ARG http_proxy=
 ARG https_proxy=
 
@@ -102,7 +103,7 @@ RUN set -eux; \
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 \
            GIT_HTTP_LOW_SPEED_LIMIT=1000 \
            GIT_HTTP_LOW_SPEED_TIME=30 && \
-    export HTTPS_PROXY="${HTTPS_PROXY:-}" && \
+    export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}" && \
     git config --global http.version HTTP/1.1 && \
     for i in 1 2 3 4 5 6 7 8; do \
         git clone --branch "${FLAGCX_REF}" --recurse-submodules \
