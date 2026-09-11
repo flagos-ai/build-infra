@@ -1,7 +1,9 @@
 # FlagCX deb packages — design
 
-Status: **design of record, not yet implemented.** The operator-facing `README.md` for this
-line (how to run the build, `backends.yaml` field meanings) is written alongside the code.
+Status: **implemented.** `README.md` is the operator-facing companion (how to run the build,
+what each `backends.yaml` field is for); this file stays the design of record — why, not what.
+`build-flagcx-deb.sh --list` is the live answer to which backends are ready and which are still
+probe-pending.
 
 Goal: make FlagCX installable as a `.deb` on **every backend build-infra can build an image
 for**, instead of the two it ships today.
@@ -107,12 +109,14 @@ nvidia-cuda12.8:
   apt: [cuda-nvcc-12-8, libnccl-dev]   # on top of the base image
   make_env: {DEVICE_HOME: /usr/local/cuda, CCL_HOME: /usr}
   vendor_libs: [cuda, cudart, nccl]    # the vendor libs dh_shlibdeps must not try to resolve
+  vendor_lib_dirs: [/usr/local/cuda/compat]  # where dpkg-shlibdeps has to go to *find* them
   assert: [/usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: true}
 ```
 
-`apt`, `make_env`, `assert` and `vendor_libs` are exactly the fields the in-container path
-probes below will fill in. Two facts already checked while grounding this design: every base
+`apt`, `make_env`, `assert`, `vendor_libs` and `vendor_lib_dirs` are exactly the fields the
+in-container path probes below will fill in. Two facts already checked while grounding this
+design: every base
 image carries `build-essential` (so `gcc`, `g++`, `make` and `dpkg-dev` are present), and
 **none** carries `debhelper`, `fakeroot`, `devscripts` or `patchelf` — those are added by the
 container, in one place.
@@ -220,12 +224,27 @@ twice goes stale silently.
 **`rules`** — ~30 lines with no vendor ladder, and **no `Build-Profiles` machinery at all**:
 one container builds one backend, so the generated `control` holds exactly one stanza set.
 This deletes the 19-term negated profile lists (O(n²)) outright rather than inverting them.
-It calls `make` with the registry's build inputs and overrides `dh_shlibdeps` to
-`dh_shlibdeps -- --ignore-missing-info`, dropping today's `dh_shlibdeps ... || true`, which
-swallows every dependency error. `--ignore-missing-info` and not `-X<lib>`: `-X` excludes by
-*package* name, so it would also stop checking the vendor libs' own correctly-resolvable
-dependencies, while `--ignore-missing-info` keeps every check the package should satisfy
-(`libc6`, `libstdc++6`, `libgcc-s1`) and forgives only the ones no dpkg database can resolve.
+It calls `make` with the registry's build inputs and overrides `dh_shlibdeps` entirely,
+dropping today's `dh_shlibdeps ... || true`, which swallows every dependency error.
+
+`--ignore-missing-info` alone is not enough, and neither is `-X<lib>`. Measured in the 12.8
+base image: `--ignore-missing-info` forgives a soname with no shlibs entry but **not** one
+whose file it cannot locate at all, and `libcuda.so.1` — the one lib the package links that no
+loader path resolves (`ldconfig -p` lists none; the file exists only as the driver's
+`compat/libcuda.so.570.86.10`) — is exactly that, so `dpkg-shlibdeps` exits 2. Putting the
+backend's `vendor_lib_dirs` on the search path with `-l` fixes the lookup, but then the libs
+resolve against the *base image's* packages (`cuda-compat-12-8`, `libnccl2`), which no plain
+Ubuntu box can install. What collapses `shlibs:Depends` down to just the libc6 floor is
+`-l<dirs>` together with `-L<override>`, an override shlibs file whose entries carry an empty
+dependency template. `-X<lib>` reaches the same output, but it excludes by *package* name and
+so would also stop checking the other sonames of that provider; the override names sonames
+instead.
+
+The override is generated and not a checked-in template: `rules` builds it from the built
+library's own `NEEDED` entries intersected with `DEB_VENDOR_LIBS`, so the major version comes
+from the soname rather than a hard-coded table, and a lib the Makefile stops linking drops out
+by itself instead of lingering as a stale allowance. `--ignore-missing-info` stays, for the
+vendor libs `DEB_VENDOR_LIBS` does not name.
 
 `dh_dwz` is overridden to a no-op. It deduplicates DWARF across a package's binaries, and it is
 the one step whose output is not shipped — `dh_strip` runs immediately after it. The Metax
