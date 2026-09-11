@@ -27,7 +27,7 @@ scenarios:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
-      ascend-cann8.5.0-910c: {T: "❌", F: "✅"}
+      ascend-cann8.5.0-910c: {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0-910c: {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}
@@ -68,8 +68,7 @@ backends:
   ascend-cann8.5.0-910c:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.0_gcf8998c.d20260818"
-    note: "T（vendor triton 3.2.0）路径不可交付：该组合下 flag_gems 的 generic index_select 算错且结果非确定，被 ATB rotary 吞下并污染 attention。修复（黑名单加 index_select）已推到 vllm-plugin-FL #387 的分支 head `f31b199`，本 tag 的插件 wheel（`cf8998c`）不含该提交；从该 head 打 wheel、上传 flagos-pypi-ascend、重建镜像复验即可让 T 转 ✅（不依赖上游合并，详见 vllm-0.24.0 ascend 报告 §10.7）"
+    image_tag: "2.1.2-0.2.0_gf31b199.d20260911"
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
