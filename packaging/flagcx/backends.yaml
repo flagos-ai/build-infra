@@ -168,13 +168,8 @@ enflame-tops1.9.10:
   apt: []
   make_env: {}
   vendor_libs: [topsrt, eccl]
-  assert: [/opt/tops/include/topsrt.h]
+  assert: [/opt/tops/include/tops_runtime.h, /usr/include/eccl.h]
   deb: {enabled: true, default_for_vendor: false}
-  probe: >-
-    ECCL header path. enflame.mk resolves CCL_INCLUDE to /usr/include (CCL_HOME
-    = /usr) and the base installs eccl_<ver>_amd64.deb, so the header is under
-    /usr/include — confirm whether it is eccl.h or eccl/eccl.h before adding it
-    to `assert`.
 
 enflame-tops1.10.6:
   vendor: enflame
@@ -184,10 +179,8 @@ enflame-tops1.10.6:
   apt: []
   make_env: {}
   vendor_libs: [topsrt, eccl]
-  assert: [/opt/tops/include/topsrt.h]
+  assert: [/opt/tops/include/tops_runtime.h, /usr/include/eccl.h]
   deb: {enabled: true, default_for_vendor: true}
-  probe: >-
-    ECCL header path — same as enflame-tops1.9.10.
 
 ascend-cann8.5.0:
   vendor: ascend
