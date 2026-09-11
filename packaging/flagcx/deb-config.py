@@ -56,7 +56,7 @@ VALID_ARCH = ("amd64", "arm64")
 # Every name is emitted DEB_-prefixed so the container's build args cannot
 # collide with anything the base image already exports.
 BUILD_INPUT_FIELDS = (
-    "name", "version", "base_image", "arch", "glibc_floor", "vendor",
+    "name", "version", "base_image", "arch", "glibc_floor", "vendor", "codename",
     "make_flag", "make_env", "apt", "vendor_libs", "vendor_lib_dirs", "assert",
     "build_infra_version", "deb_package", "deb_provides", "deb_conflicts",
     "deb_replaces", "deb_conflicts_dev", "deb_replaces_dev",
@@ -101,6 +101,11 @@ PLACEHOLDER_RE = re.compile(r"@([A-Z0-9_]+)@")
 # that would otherwise ship a package that cannot install on its own runtime.
 GLIBC_BY_UBUNTU = {"22.04": "2.35", "24.04": "2.39"}
 UBUNTU_RE = re.compile(r"ubuntu[-:]?(\d{2}\.\d{2})", re.I)
+
+# Ubuntu release -> the apt suite its repository is served under. Derived from the
+# same release that names the repo, so the two cannot disagree. Lowercase because
+# apt resolves the suite as a literal path, with no case folding.
+CODENAME_BY_UBUNTU = {"22.04": "jammy", "24.04": "noble"}
 
 
 def load_registry() -> dict:
@@ -153,6 +158,11 @@ def base_image_glibc(key: str) -> str | None:
     return GLIBC_BY_UBUNTU.get(release) if release else None
 
 
+def base_image_codename(key: str) -> str | None:
+    release = base_image_ubuntu(key)
+    return CODENAME_BY_UBUNTU.get(release) if release else None
+
+
 def deb_name(key: str) -> str:
     return f"libflagcx-{key}"
 
@@ -194,6 +204,8 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
         # job can name the plain ubuntu:<release> the floor asserts against
         # without keeping a second copy of the floor table.
         entry["ubuntu"] = base_image_ubuntu(key) or ""
+        # The suite the repository for that release is read back under.
+        entry["codename"] = base_image_codename(key) or ""
         # The packaging is part of the stack release, so it carries the stack
         # release version. Reading it off the matrix rather than a field here is
         # the point: a version written into backends.yaml goes stale silently,

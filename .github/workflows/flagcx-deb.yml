@@ -228,6 +228,9 @@ jobs:
           fi
           : "${MATRIX_UBUNTU:?base/$MATRIX_NAME names no single Ubuntu release}"
           repo="flagos-apt-ubuntu${MATRIX_UBUNTU}"
+          # So the read-back step checks the repository this step posted to, not
+          # a second spelling of it.
+          echo "APT_URL=https://resource.flagos.net/repository/${repo}" >> "$GITHUB_ENV"
           for deb in packaging/flagcx/dist/*.deb; do
             echo ">>> ${repo}: $(basename "$deb")"
             curl -f -u "${NEXUS_TOKEN}" \
@@ -235,3 +238,30 @@ jobs:
               --data-binary "@${deb}" \
               "https://resource.flagos.net/repository/${repo}/"
           done
+      - name: Verify the .deb installs from the repository
+        if: ${{ inputs.publish }}
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          MATRIX_UBUNTU: ${{ matrix.ubuntu }}
+          APT_KEY: ${{ secrets.APT_KEY }}
+        run: |
+          set -euo pipefail
+          # A 2xx only says the upload was accepted; only apt-get says the index
+          # a client reads is right.
+          : "${APT_URL:?the publish step recorded no repository URL}"
+          : "${MATRIX_UBUNTU:?base/$MATRIX_NAME names no single Ubuntu release}"
+          if [ -z "${APT_KEY:-}" ]; then
+            echo "::error::APT_KEY secret is empty or unset"
+            exit 1
+          fi
+          # Not the workspace: a key there is one `git add -A` from a commit.
+          key="$RUNNER_TEMP/flagos-apt.asc"
+          umask 077
+          printf '%s\n' "$APT_KEY" > "$key"
+          packaging/flagcx/verify/verify-flagcx-deb.sh \
+            --backend "$MATRIX_NAME" \
+            --floor-image "ubuntu:${MATRIX_UBUNTU}" \
+            --apt-url "$APT_URL" \
+            --apt-key "$key" \
+            --apt-only \
+            packaging/flagcx/dist/*.deb

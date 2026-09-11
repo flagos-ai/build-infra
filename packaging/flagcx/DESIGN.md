@@ -139,9 +139,9 @@ rejected unless `verify` is also true). Jobs:
 
 | Job | Shape |
 |---|---|
-| `set-matrix` | `generate_matrix.py --runtime` → `deb-config.py --merge` → `fromJSON` matrix; each row carries the `ubuntu` field the verify job needs for `--floor-image` |
+| `set-matrix` | `generate_matrix.py --runtime` → `deb-config.py --merge` → `fromJSON` matrix; each row carries the `ubuntu` field the verify job needs for `--floor-image` and the `codename` naming the suite its repo serves |
 | `build` | `runs-on: ${{ fromJSON(matrix.runson) }}`; `build-flagcx-deb.sh --backend <key>`; uploads the `.deb` files as artifacts |
-| `verify` | `verify/verify-flagcx-deb.sh --backend <key> --floor-image ubuntu:<ubuntu>` on the downloaded `.deb` files; when `publish` is set, a final step posts them to `flagos-apt-ubuntu<ubuntu>` |
+| `verify` | `verify/verify-flagcx-deb.sh --backend <key> --floor-image ubuntu:<ubuntu>` on the downloaded `.deb` files; when `publish` is set, a step posts them to `flagos-apt-ubuntu<ubuntu>` and a last step reads that repository back |
 
 `verify/verify-flagcx-deb.sh` installs the package and runs `smoke-load.c` (~15 lines:
 `dlopen("libflagcx.so.0", RTLD_NOW)` — `RTLD_NOW` forces vendor-symbol resolution at load —
@@ -159,6 +159,13 @@ It sits inside `verify` rather than in a later job because the repository *is* t
 job would re-download the artifact, so what shipped would not be provably the file that was
 verified. `publish: true` without `verify: true` is refused in `set-matrix` — otherwise the
 dispatch would report success and publish nothing.
+
+The upload returning 0 is not the assertion. A last step of `verify` adds the repository to a
+plain Ubuntu the way a user does and installs **by package name**, which is the only check that
+reads the index a client reads: a repo with no index, an unsigned one, a distribution name it
+does not serve, or one still holding the older release all fail there and nowhere else. The
+repository URL is recorded by the publish step into `$GITHUB_ENV` and consumed by this one, so
+the repo that was written to is the repo that is read back.
 
 `upload-nexus.yml` is deliberately not used (see "Two facts that shape the design"): it
 publishes only what a workflow named `build-deb.yml` produced, into one fixed repo. The step
@@ -394,9 +401,15 @@ dpkg-deb -I debian-packages/metax-maca3.8.1.3/*.deb    # Depends / Provides / Co
 dpkg-deb -c debian-packages/metax-maca3.8.1.3/*.deb    # SONAME symlink chain
 packaging/flagcx/verify/verify-flagcx-deb.sh --backend metax-maca3.8.1.3 \
     --floor-image "ubuntu:${UBUNTU}" debian-packages/metax-maca3.8.1.3/*.deb
+
+# after publishing: read the repository back the way a user does
+packaging/flagcx/verify/verify-flagcx-deb.sh --backend metax-maca3.8.1.3 \
+    --floor-image "ubuntu:${UBUNTU}" --apt-only \
+    --apt-url "https://resource.flagos.net/repository/flagos-apt-ubuntu${UBUNTU}" \
+    --apt-key /tmp/flagos-apt.asc debian-packages/metax-maca3.8.1.3/*.deb
 ```
 
-Then the two tests that prove the package is genuinely self-describing:
+Then the three tests that prove the package is genuinely self-describing:
 
 1. **In the matching base image** — install, then `ldd /usr/lib/.../libflagcx.so.0` must resolve
    cleanly and `smoke-load` must pass under `RTLD_NOW`.
@@ -405,6 +418,17 @@ Then the two tests that prove the package is genuinely self-describing:
    of the dependency set. Note deliberately: `ldd` in this container *will* report the vendor
    libraries as `not found`, and that is correct — they are supplied by the site runtime, not by
    Ubuntu. Only the non-vendor dependencies must resolve here.
+3. **Against the published repository** (`--apt-url` + `--apt-key`; `--apt-only` runs this phase
+   alone, for the check that has to happen *after* an upload) — the same plain Ubuntu adds the
+   repo and installs **by package name** rather than from the file, then asserts `dpkg-query -W`
+   reports exactly the version this build produced. Whether an upload landed is not something the
+   upload itself can answer: a repository with no index, an unsigned one, or one serving a
+   different distribution name all fail here — and a repo still holding an older release would
+   otherwise install that one and exit 0, reading as a pass. Only the flagos list is read, since
+   a runner without the distribution archive's proxy would fail there for an unrelated reason;
+   the `InRelease` signature is checked either way. A plain Ubuntu carries no CA bundle, so the
+   phase installs `ca-certificates` (from the archive, before the flagos list exists) when the
+   repository is HTTPS — without it the failure would present as a repository error.
 
 Then a **negative test** on nvidia: drop `libnccl-dev` from `backends.yaml`'s `apt` list and
 confirm the `assert` aborts the build instead of silently producing a collector-less `.so`.
@@ -418,5 +442,7 @@ end.
   `upload-nexus.yml` — that is a small follow-up PR once this path is verified.
 - Creating the Nexus apt hosted repos (`flagos-apt-ubuntu24.04`, `flagos-apt-ubuntu22.04`)
   with their signing keys and distribution names — an ops prerequisite, not a code change.
-  Until they exist the publish step is written but unexercised.
+  Both now exist (distribution names `noble` / `jammy`, lowercase, since apt resolves the suite
+  as a literal path) and the signing public key is held as the org secret `APT_KEY`; the publish
+  step is written and the read-back under §Verification is what exercises it.
 - On-node / hardware verification and a status matrix.
