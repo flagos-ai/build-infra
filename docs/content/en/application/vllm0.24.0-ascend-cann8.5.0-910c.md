@@ -40,16 +40,16 @@ title: "vllm0.24.0-ascend-cann8.5.0-910c"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.2.0+gcf8998c.d20260818`
+`vllm-plugin-fl==0.2.0+gf31b199.d20260911`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gcf8998c.d20260818`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gf31b199.d20260911`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gcf8998c.d20260818
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gf31b199.d20260911
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

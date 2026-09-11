@@ -40,16 +40,16 @@ title: "vllm0.24.0-ascend-cann8.5.0-910c"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.2.0+gcf8998c.d20260818`
+`vllm-plugin-fl==0.2.0+gf31b199.d20260911`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gcf8998c.d20260818`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gf31b199.d20260911`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gcf8998c.d20260818
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann8.5.0-910c:2.1.2-0.2.0_gf31b199.d20260911
 ```
 
 以下两种方式任选其一：
