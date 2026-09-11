@@ -202,17 +202,9 @@ merge + 重建后即删。**每后端跑通时：上游 PR 进 `prs:`（永久�
 - NPU 冷启动 JIT 慢是共同前提（同 2026-08-24 小节：以 `generation_tokens_total` 增量 +
   `num_requests_running` 归零判完成，勿以 curl 超时误判卡死）。
 
-**与 0.24.0 线的差异（同后端对、不同结论）**：`ascend-cann8.5.0-910c` 上 0.24.0 的 T 路径
-按默认派发**确定性退化**（每次冷启动把 `!` 填充到 `max_tokens`），本节 0.20.2 同后端 T 路径
-的 verify 格为 ✅、未观察到此现象。[vllm-0.24.0 ascend §10.7](../../vllm-0.24.0/backends/ascend.md)
-已定位其根因（该组合下 flag_gems 的 generic `index_select` 算错，被 ATB rotary 吞下后直达
-attention）。
-
-**本节 0.20.2/T 的 ✅ 不是「不受该缺陷影响」，而是被回退掩盖**：同一缺陷在本节后端同样实测
-到（`index_select` `inp=(40960,128) dim=0` 出 267~343/640 错），但本节 shipped `ascend.yaml`
-的黑名单**不含 `repeat_interleave_*`**，vendor rope 首次 decode 即抛 `strides must not be zero`
-的 `MLIRCompilationError`，`CachedOp` 静默标记失败并回退到 `default.flagos` rope —— 绕过了受
-污染的 vendor rope，属于巧合而非设计。两条线的插件 wheel（`cf8998c` vs `2b6b635`）与 flag_gems
-版本均不同，**结论仍不得互推**；但共用的这条上游缺陷应一并 hand-off（归属同 §10.7）。该缺陷
-的修复（黑名单加 `index_select`）已推到 vllm-plugin-FL #387 的分支 head `f31b199`，本线
-未受影响、无需跟改。
+**本节 0.20.2/T 的 ✅ 属巧合而非设计**：该后端 shipped `ascend.yaml` 的黑名单不含
+`repeat_interleave_*`，vendor rope 首次 decode 即编译失败并静默回退 `default.flagos` rope，
+恰好绕过了 [vllm-0.24.0 ascend §10.7](../../vllm-0.24.0/backends/ascend.md) 定位的同一上游
+缺陷（0.24.0 因黑名单堵住该回退而暴露）。两条线的插件 wheel 与 flag_gems 版本均不同，
+**结论不得互推**；该缺陷的修复（黑名单加 `index_select`）已推到 vllm-plugin-FL #387 的
+分支 head `f31b199`，本线无需跟改。

@@ -287,7 +287,7 @@ editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
 | 后端 | F（flagtree） | T（vendor triton 3.2.0） |
 |---|---|---|
 | cann9.0.0-910c | 连贯 ✅ | 连贯 ✅ |
-| cann8.5.0-910c | 连贯 ✅ | **退化 ❌** |
+| cann8.5.0-910c | 连贯 ✅ | **不可交付 ❌** |
 
 镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-{backend}:2.1.2-0.2.0_gcf8998c.d20260818`
 （两端同 tag，指纹不同）：
@@ -305,113 +305,25 @@ serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1�
 `VLLM_PLUGINS=fl`、`VLLM_FL_DISPATCH_DEBUG=1`、`--enforce-eager --trust-remote-code
 --max-model-len 2048 --gpu-memory-utilization 0.6`。
 
-**cann8.5.0-910c / T 的症状**：每次冷启动都把 `!` 重复填充到 `max_tokens`（HTTP 200、
-`finish_reason='length'`、temperature=0）。CI verify 一次命中即此症状：
-`completion failed semantic check: expected 'Paris' in text '!!!!!!!!!!!!!!!!'`
-（同轮 `serve ready after ~130s`、`triton (active) - 3.2.0`）。5 次**完整冷启动**
-（每次新容器 / 新设备 / 新 serve 进程，与 CI 同构）**5/5 FAIL**，输出逐次一致
-→ **确定性失败，非间歇**。
-
-**已排除项（均为本机一手实测）**
-
-1. **不是 dispatch 路由差异。** 四份 serve 日志的路由表两两比对：F 与 T **逐字节一致**
-   —— `attention_backend` / `rms_norm` / `rotary_embedding` → `vendor.ascend`，
-   `silu_and_mul` → `default.flagos`。同一张表下 F 连贯、T 退化。
-2. **不是 flag_gems `silu_and_mul` kernel 算错。** 摘掉 vllm 直接调
-   `flag_gems.silu_and_mul`（同镜像，F/T 各一次）：bf16 与 fp16 × `d ∈ {64, 9728}`
-   × 连续/跨步视图，两编译器输出**逐字节相同**且与 CPU 参考一致（bf16 `d=9728`
-   最大绝对差 `0.0291`，即 bf16 舍入量级）。
-3. **两条黑名单杠杆均不成立**，不作为缓释手段：
-   - yaml 键 `flagos_blacklist` 加 `silu_and_mul`：配置确被加载（日志
-     `Using custom config from .../dispatch/config/ascend.yaml`），但路由表与基线
-     **完全一致** —— 未生效。
-   - 环境变量 `VLLM_FL_FLAGOS_BLACKLIST=silu_and_mul`（`vllm_fl/utils.py:119`，与 yaml
-     键是**两条不同代码路径**）：serve 起不来，崩在**另一族** kernel ——
-     `ConvertTritonIRToLinalgIR` → `strides must not be zero` → `triton-adapter-opt`
-     SIGABRT，与 silu 无关。
-
-4. **路由表不足以定位此缺陷**：它只反映 vllm_fl **插件层**派发，flag_gems 的
-   **aten 层接管不在表内**。已排除项 1 的「F 与 T 路由表逐字节一致」与本根因不矛盾
-   —— 被污染的是表里根本不出现的算子（见下第 2 条）。
-
-**根因（2026-09-11 定位，含跨后端硬对照）**
-
-链条：cann8.5.0 + triton-ascend 3.2.0 下 generic `index_select` 算错 → ATB rotary
-组合算子内部吞下这份错误结果 → 0.24.0 的黑名单恰好堵住了本该触发回退的崩溃 →
-污染的 q/k 直达 attention → 每次冷启动确定性复读 `!`。
-
-1. **`_ascend.ops` 整包 import 失败，flag_gems 退化为 generic 算子集。** vendor triton
-   3.2.0 无 `triton.experimental`（`importlib.util.find_spec("triton.experimental")`：
-   F `True` / T `False`）；`_ascend/ops/__init__.py` 逐模块 import，其中
-   `cholesky_solve.py:20` 在模块顶层 `import triton.experimental.tle.language`，抛
-   `ModuleNotFoundError` 后**整包**失败（一个可选子模块缺失拖垮整个后端算子集）。
-   flag_gems 自己的判词：`[Note] No specialized common operators were found for the
-   ascend, generic common operators will be used by default.` 结果：`index_select` 在 F
-   注册为 `_ascend.ops.index_select`，在 T **不在注册表内**，落到 generic
-   `flag_gems/ops/index_select.py`。
-
-2. **generic `index_select` 在 cann8.5.0 + triton-ascend 3.2.0 上算错，且非确定。**
-   生产形状 `inp=(40960,128) dim=0 idx=(5,)` 实测 `bad=174~400 / 640`；同一输入三次得
-   `[340, 220, 174]`（另几轮 355 / 375 / 392 / 400）→ 被掩码未写的 lane 保留了
-   `torch.empty` 的复用显存。关掉 flag_gems 的 native 路径 `bad=0/640`；**同一探针在 F
-   （走 `_ascend` 版）三次全 `bad=0/640`**。形状扫描（rows=40960）：`dim=0` 在 n=4…128
-   **全部出错**，`dim=1` 在 n≥16 精确 → 不是 2 的幂 / tile 边界效应，且只打中 `dim=0`，
-   正是 ATB rotary 的用法。
-
-3. **ATB rotary 吞下这份错误结果。** `torch_npu._npu_rotary_embedding`
-   （`vllm_fl/ops/rotary_embedding.py:49` → `vendor/ascend/impl/rotary.py:62`）内部走
-   `torch.ops.atb.*`，其中对 cos/sin cache 做
-   `aten::index_select(inp=(40960,128), dim=0, idx=(5,))` —— 形状与第 2 条完全一致，
-   400 次/decode。被污染的 cos/sin 进入每个 attention head 的 q/k。
-
-4. **两份 shipped `ascend.yaml` 的黑名单差异决定「吃不吃到污染」。** 0.24.0 是 0.20.2
-   的严格超集，关键增量除 `linear` / `cumsum` / `pow_tensor_*` 外，是**三个
-   `repeat_interleave_*`** —— 0.24.0 的 yaml 自带注释已写明：ATB rotary 路径内部用
-   repeat_interleave 扩展 GQA 的 cos/sin，被 flag_gems 接管后 rank-3 的 pointwise copy
-   在 triton_ascend 3.2.0 上编译失败（`ConvertTritonIRToLinalgIR` →
-   `strides must not be zero`）。于是：
-   - **0.20.2/T**：vendor rope 首次 decode 即抛 `MLIRCompilationError`（本轮实测复现，
-     SIGABRT 于 `triton-adapter-opt`，栈 `repeat_interleave.py:75` →
-     `copy_func_kernel_rank_3`），`CachedOp` 静默标记 `vendor.ascend` 失败并回退到
-     `default.flagos` rope —— **因祸得福，绕过污染，绿**。同一缺陷在 0.20.2/T 上同样实测
-     到（`bad=267~343/640`），只是被上游回退掩盖。
-   - **0.24.0/T**：黑名单堵住了这次崩溃，vendor rope 跑完，把污染的 q/k 交给 attention
-     —— **红**。
-
-5. **cann9.0.0-910c 是硬对照。** 同 tag 的 0.24.0 镜像、同 T 路径、同探针：`bad=0/640`，
-   rope 输出与 native **逐位相同**（`q=b391f204ee6e k=9e8aadea8226`）。缺陷是
-   cann8.5.0 + triton-ascend 3.2.0 组合特有，与 910C 平台、镜像、插件均无关。
-
-**两条实测为绿的 T 配置**，机理不同，此前记录的 `VLLM_FL_PREFER=vendor` 说明有误、在此更正：
-
-- **精确方案：把 `index_select` 加入黑名单**（本轮 A/B：2/2 冷启动连贯，`cell-isT` /
-  `cell-isT2`）。关键处在于**路由表与红基线逐字节一致**（仍是 `silu_and_mul` →
-  `default.flagos`，rotary 仍是 `vendor.ascend`）而输出恢复连贯 —— 反向印证缺陷在
-  **表外的 aten 层**，而非路由表能表达的任何一个算子。改 yaml 即可，不需改镜像。
-  该条目已推入上游 PR #387 的**分支 head**（见下「处置」）；补做的挂载级 E2E 进一步证明镜像内
-  `dispatch/config/ascend.yaml` 确实被消费：只把 patched yaml bind-mount 覆盖到已发
-  镜像的同名路径，冷启动 120s 到 `Application startup complete`，两条语义请求分别返回
-  「 Paris. The capital of Germany is Berlin…」「 56.」。
-- **`VLLM_FL_PREFER=vendor`（3/3 冷启动全绿）**：`use_flaggems()`
-  （`vllm_fl/utils.py:84-93`）在 `VLLM_FL_PREFER` 非空且不等于 `flagos` 时**直接返回
-  False**，`worker.py:252` 的 `fl_envs.USE_FLAGGEMS` 门随之关闭，`flag_gems.enable()`
-  **根本不会被调用** —— 是**整体关掉 flag_gems**（含 aten 层接管），不是「只把
-  `silu_and_mul` 换成 `vendor.ascend`」。粒度粗，仅作临时手段。
+**cann8.5.0-910c / T 不可交付**：该组合下 flag_gems 的 generic `index_select` 在
+`inp=(40960,128) dim=0` 上算错且结果非确定（vendor triton 3.2.0 无 `triton.experimental` →
+`_ascend.ops` 整包 import 失败，该 op 落回 generic），而 `torch_npu._npu_rotary_embedding`
+（ATB）内部恰以同形状对 cos/sin cache 调用它并吞下结果 —— 污染的 q/k 直达每个 attention
+head，每次冷启动确定性复读 `!`。缺陷是 cann8.5.0 + triton-ascend 3.2.0 组合特有：cann9.0.0-910c
+同 tag 镜像、同 T 路径、同探针正常，与 910C 平台、镜像、插件均无关。修复 = 该后端
+`dispatch/config/ascend.yaml` 黑名单加 `index_select`（见下「处置」）。
 
 **处置**：cann9.0.0-910c 交付路径 = F/T 均可。cann8.5.0-910c 的 F 路径为交付路径；T 路径
 的修复已推到 vllm-plugin-FL PR #387 的**分支 head**（`feat/ascend-v024` @ `f31b199`）：
-把 `index_select` 加入 `dispatch/config/ascend.yaml` 黑名单（11 行 diff，含机理注释；
-`config_filter()` 按 impl 函数名匹配，故裸算子名 `index_select` 即为正确写法，与既有
-`linear` 条目同形）。**但已发的镜像 tag `2.1.2-0.2.0_gcf8998c.d20260818` 烘焙的是
-`cf8998c` 的插件 wheel，不含该提交**，故 `status_matrix.vllm0.24.0.yaml` 该后端 T 格维持
-❌。**转 ✅ 不依赖上游合并** —— 本线既有的取件流程就是从 PR head 打 wheel
-（0.20.2 线即如此：`vllm-plugin-wheel.yml` `plugin_repo` 指 fork、`plugin_ref` 指分支
-SHA），故：以 `plugin_repo=tengqm/vllm-plugin-FL` + `plugin_ref=f31b199…` 打
-`0.2.0+gf31b199.d<date>` → 上传 `flagos-pypi-ascend` → 用该 pin 重建 app 镜像 →
-hw114 上 F/T 复验 → 转 ✅。上游 PR #387 的合并由 plugin 团队掌控，只是收尾、不是门。
+把 `index_select` 加入 `dispatch/config/ascend.yaml` 黑名单（裸算子名即为正确写法，与既有
+`linear` 条目同形）。**已发的镜像 tag `2.1.2-0.2.0_gcf8998c.d20260818` 烘焙的是 `cf8998c`
+的插件 wheel，不含该提交**，故 `status_matrix.vllm0.24.0.yaml` 该后端 T 格维持 ❌。
+**转 ✅ 不依赖上游合并** —— 本线取件流程本就是「PR head 打 wheel」（`vllm-plugin-wheel.yml`
+`plugin_repo` 指 fork、`plugin_ref` 指分支 SHA），故：以 `plugin_repo=tengqm/vllm-plugin-FL` +
+`plugin_ref=f31b199` 打 `0.2.0+gf31b199.d<date>` → 上传 `flagos-pypi-ascend` → 用该 pin 重建
+app 镜像 → hw114 上 F/T 复验 → 转 ✅。上游 PR #387 的合并由 plugin 团队掌控，只是收尾、不是门。
 
 **上游归属**：坏的是 flag_gems 的 generic `index_select` kernel 在 triton-ascend 3.2.0
 下的 codegen（或该 kernel 本身）；黑名单条目归属 vllm-plugin-FL 的
 `dispatch/config/ascend.yaml`；「一个可选子模块缺失拖垮 `_ascend.ops` 整包注册」是
-flag_gems 的脆弱点，也是本轮退化为 generic 的直接扳机。三项均不在 build-infra，属对外
-hand-off。
+flag_gems 的脆弱点。三项均不在 build-infra，属对外 hand-off。
