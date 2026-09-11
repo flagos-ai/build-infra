@@ -80,6 +80,16 @@ override_dh_auto_install:
 	mkdir -p $(CURDIR)/debian/$(PKG)-dev/usr/include
 	mv $(INSTALL)/usr/include/flagcx $(CURDIR)/debian/$(PKG)-dev/usr/include/
 	rmdir $(INSTALL)/usr/include
+
+# patch-soname.sh rewrites the library with patchelf, and dh_strip runs debugedit
+# over it: on a patchelf-rewritten ELF, debugedit 5.0 zeroes the section-header
+# string table and still exits 0, so the objcopy after it reports "corrupt string
+# table index" and the build dies with nothing pointing back at debugedit.
+# patchelf therefore has to be the last writer, which is here and not in
+# override_dh_auto_install. The reordering is free: dh_makeshlibs and
+# dh_shlibdeps, the only steps that need the soname, both run after dh_strip.
+override_dh_strip:
+	dh_strip
 	bash debian/patch-soname.sh "$(INSTALL)/usr/lib/libflagcx.so" "$(LIBVER)" \
 		"$(CURDIR)/debian/$(PKG)-dev"
 
