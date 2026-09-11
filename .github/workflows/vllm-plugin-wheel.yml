@@ -170,8 +170,9 @@ jobs:
           echo ">>> wheel version ${PLUGIN_VERSION_BASE}+g${sha:0:7}.d$(date -u +%Y%m%d)"
 
       # Build the wheel inside the runtime image: same python/ABI as delivery.
-      # The git clone goes through the proxy — github.com is not on the
-      # runtime image's baked NO_PROXY.
+      # Everything (git clone, pip) egresses the way the host does — the
+      # runner's proxy, and the host's own no_proxy if it has one, are relayed
+      # by name. This workflow invents no proxy values of its own.
       - name: Build the wheel in the runtime image
         run: |
           set -euo pipefail
@@ -185,12 +186,13 @@ jobs:
           # as the fallback for runners that relay none.
           proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
           proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
-          # The runtime image bakes no NO_PROXY, so without it every pip
-          # request (aliyun/flagos) tunnels through the proxy and dies with
-          # "Tunnel connection failed: 500". Mirror the megatron builder's
-          # baked NO_PROXY (packaging/megatron/builder/Containerfile):
-          # vendor-adjacent traffic bypasses the tunnel, github.com (not on
-          # the list) keeps using the proxy for the clone.
+          # No NO_PROXY of this workflow's making. A hard-coded carve-out makes
+          # the container bypass the tunnel for those hosts and then die on its
+          # own resolver, which is not the host's: measured on the cann850 nodes
+          # 2026-09-11, aliyun fails in 3ms with the list and returns 200
+          # without it, and those hosts set no no_proxy at all — the proxy is
+          # their only way out. Relay whatever the host has (usually nothing),
+          # never invent a value.
           docker run --rm \
             -e VLLM_VENDOR \
             -e PLUGIN_SHA \
@@ -199,8 +201,8 @@ jobs:
             -e EXTRA_PYPI \
             -e HTTPS_PROXY="${proxy_url}" \
             -e HTTP_PROXY="${proxy_url}" \
-            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
-            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e no_proxy="${no_proxy:-}" \
+            -e NO_PROXY="${NO_PROXY:-}" \
             -v "${WORK}/src:/work/src" \
             -v "${WORK}/out:/work/out" \
             "${BASE_IMAGE}" \
@@ -288,15 +290,21 @@ jobs:
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${pypi_repo}"
-          # Same proxy bypass as the build step: no baked NO_PROXY in the
-          # runtime image, so aliyun (twine/pkginfo install) and
-          # resource.flagos.net (upload) must bypass the tunnel.
+          # Same egress rule as the build step: relay the runner's proxy, and
+          # relay the host's no_proxy verbatim (usually unset) instead of
+          # carving out hosts ourselves. Without any proxy this container
+          # cannot resolve mirrors.aliyun.com (twine/pkginfo install) or reach
+          # resource.flagos.net (the upload).
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
           docker run --rm \
             -e NEXUS_TOKEN \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
-            -e NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn" \
-            -e no_proxy=".aliyun.com,.flagos.net,.baai.ac.cn" \
+            -e HTTPS_PROXY="${proxy_url}" \
+            -e HTTP_PROXY="${proxy_url}" \
+            -e no_proxy="${no_proxy:-}" \
+            -e NO_PROXY="${NO_PROXY:-}" \
             -v "${WORK}/out:/wheels" \
             "${BASE_IMAGE}" \
             bash -euo pipefail -c '
