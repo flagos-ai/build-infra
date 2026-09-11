@@ -146,12 +146,20 @@ for key in "${BACKENDS[@]}"; do
         # no_proxy rides along because it is what keeps the mirror off the proxy:
         # relayed without it, apt sends mirrors.aliyun.com through a proxy that
         # answers 502 — measured on enflame, where the same fetch is 200 direct.
+        #
+        # A bare --build-arg NAME takes its value from this script's environment
+        # and never from the command line: the node's process table is readable
+        # by every user on it, and NAME=value there puts the credential in it.
+        # The uppercase twin is folded into the lowercase name to make that work.
         proxy_arg=()
         for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY no_proxy:NO_PROXY; do
             lower="${pair%%:*}"; upper="${pair##*:}"
             value="$(printenv "$lower" || true)"
             [ -n "$value" ] || value="$(printenv "$upper" || true)"
-            if [ -n "$value" ]; then proxy_arg+=(--build-arg "${lower}=${value}"); fi
+            if [ -n "$value" ]; then
+                export "${lower}=${value}"
+                proxy_arg+=(--build-arg "$lower")
+            fi
         done
 
         # --network host: the build's only network use is the clone, and the
