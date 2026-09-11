@@ -665,6 +665,16 @@ vendors:
           PATH: /usr/local/xpu/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/xpu/lib:/usr/local/xcudart/lib
         app:
+          sglang:
+            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image>` behaves like the verified configuration.
+            # torch is CUDA-alias, so sglang's is_cuda() paths are taken and
+            # its guarded flashinfer imports fire; none of them can work here
+            # (the vendor ships no flashinfer), and `is_flashinfer_available()`
+            # gates on this switch before it even looks for the module.
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
           vllm:
             # Kunlunxin P800 dispatch recipe, verified on both compiler.
             # XPU_EVENT_KL3_ENABLE deliberately NOT set: it is the P1 fake-hang trigger
@@ -694,6 +704,18 @@ vendors:
       deps_app:
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18:
+          # Serve hard-dep: sglang 0.5.18 imports compressed_tensors
+          # unconditionally from the quantization package, which ServerArgs
+          # reaches via model_config before any model loads; the runtime does
+          # not ship it (decisions §5.7). Same pin as the other sglang backends.
+          - compressed-tensors==0.17.0+flagos
+          # Import-face flashinfer stub. kunlunxin's torch is CUDA-alias
+          # (2.9.0+cu129, cuda.is_available() true), so sglang's is_cuda() paths
+          # are taken and three module-level flashinfer imports fire — the first
+          # from a spawned scheduler worker, before any plugin can load, so the
+          # name must resolve from disk. The vendor ships no flashinfer.
+          - flashinfer-shim==0.1.0
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.37.1.0       # xre-Linux-x86_64-cuda12-5.37.1.0.run
