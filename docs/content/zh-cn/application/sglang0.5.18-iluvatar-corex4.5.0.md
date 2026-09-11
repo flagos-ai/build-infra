@@ -96,6 +96,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG bash
 ```
 
@@ -104,6 +105,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG
 ```
 
@@ -112,5 +114,6 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```

@@ -96,6 +96,7 @@ Start an interactive shell:
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG bash
 ```
 
@@ -104,6 +105,7 @@ Start the app with its default settings:
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG
 ```
 
@@ -112,5 +114,6 @@ Pass arguments to the launcher:
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
