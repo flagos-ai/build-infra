@@ -17,7 +17,7 @@ type: sglang
 app: sglang0.5.18
 description: sglang 0.5.18 app — srt_empty 基座 +flagos wheel + sglang-plugin-FL
   单步安装于 vendor runtime（exp/0.5.18 分支插件）。
-last_updated: "2026-09-10"
+last_updated: "2026-09-11"
 
 # App-level facility (shared across all backends of this app).
 # containerfile/workflow flipped true by the phase-5 landing (app/sglang/
@@ -49,7 +49,7 @@ scenarios:
       mthreads-musa4.3.6:    {T: "✅", F: "✅"}
       mthreads-musa5.2.0:    {T: "✅", F: "✅"}
       spacemit-spacemit:     {T: "⬜", F: "—"}
-      sunrise-tangrt1.2.0:   {T: "⬜", F: "⬜"}
+      sunrise-tangrt1.2.0:   {T: "✅", F: "✅"}
       thead-ppu2.0.0:        {T: "⬜", F: "—"}
       tsingmicro-tsm260610:  {T: "⬜", F: "⬜"}
 
@@ -150,6 +150,8 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.1.dev1_g3b94dae1f"
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/103
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
