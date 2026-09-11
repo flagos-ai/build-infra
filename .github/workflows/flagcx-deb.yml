@@ -43,7 +43,7 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose base image builds the package (e.g. metax-maca3.8.1.3, or "all")'
+        description: 'Backend(s) whose base image builds the package: a space-separated list, or "all"'
         type: string
         default: all
       flagcx_ref:
@@ -99,22 +99,20 @@ jobs:
             echo "::error::publish=true requires verify -- publication is a step of the verify job"
             exit 1
           fi
-          python3 scripts/generate_matrix.py --runtime > matrix.json
+          if [[ "${{ inputs.backend }}" == all ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
           # --merge only emits schedulable rows, so drift between backends.yaml
           # and the runtime matrix would be filtered away silently here; --check
           # is what turns it into a named failure.
           python3 packaging/flagcx/deb-config.py --check
           python3 packaging/flagcx/deb-config.py --merge matrix.json > deb-matrix.json
-          if [[ "${{ inputs.backend }}" != all ]]; then
-            jq -c --arg key "${{ inputs.backend }}" \
-              '{include: [.include[] | select(.name == $key)]}' \
-              deb-matrix.json > selected.json
-            mv selected.json deb-matrix.json
-          fi
           # An empty include list would skip both jobs silently, which reads as a
           # successful run of a backend that does not exist.
           if [[ "$(jq '.include | length' deb-matrix.json)" == 0 ]]; then
-            echo "::error::${{ inputs.backend }} is not a backend with a package; see packaging/flagcx/build-flagcx-deb.sh --list"
+            echo "::error::${{ inputs.backend }} names no backend with a package; see packaging/flagcx/deb-config.py --list"
             exit 1
           fi
           cat deb-matrix.json
