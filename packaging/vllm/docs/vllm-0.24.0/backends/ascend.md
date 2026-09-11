@@ -388,7 +388,7 @@ serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1�
   `cell-isT2`）。关键处在于**路由表与红基线逐字节一致**（仍是 `silu_and_mul` →
   `default.flagos`，rotary 仍是 `vendor.ascend`）而输出恢复连贯 —— 反向印证缺陷在
   **表外的 aten 层**，而非路由表能表达的任何一个算子。改 yaml 即可，不需改镜像。
-  该条目**已作为上游提交落地**（见下「处置」）；补做的挂载级 E2E 进一步证明镜像内
+  该条目已推入上游 PR #387 的**分支 head**（见下「处置」）；补做的挂载级 E2E 进一步证明镜像内
   `dispatch/config/ascend.yaml` 确实被消费：只把 patched yaml bind-mount 覆盖到已发
   镜像的同名路径，冷启动 120s 到 `Application startup complete`，两条语义请求分别返回
   「 Paris. The capital of Germany is Berlin…」「 56.」。
@@ -399,12 +399,16 @@ serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1�
   `silu_and_mul` 换成 `vendor.ascend`」。粒度粗，仅作临时手段。
 
 **处置**：cann9.0.0-910c 交付路径 = F/T 均可。cann8.5.0-910c 的 F 路径为交付路径；T 路径
-的修复**已落地上游** —— vllm-plugin-FL PR #387 分支 `feat/ascend-v024` 的 commit
-`f31b199` 把 `index_select` 加入 `dispatch/config/ascend.yaml` 黑名单（11 行 diff，含
-机理注释；`config_filter()` 按 impl 函数名匹配，故裸算子名 `index_select` 即为正确写法，
-与既有 `linear` 条目同形）。**但已发的镜像 tag `2.1.2-0.2.0_gcf8998c.d20260818` 烘焙的是
+的修复已推到 vllm-plugin-FL PR #387 的**分支 head**（`feat/ascend-v024` @ `f31b199`）：
+把 `index_select` 加入 `dispatch/config/ascend.yaml` 黑名单（11 行 diff，含机理注释；
+`config_filter()` 按 impl 函数名匹配，故裸算子名 `index_select` 即为正确写法，与既有
+`linear` 条目同形）。**但已发的镜像 tag `2.1.2-0.2.0_gcf8998c.d20260818` 烘焙的是
 `cf8998c` 的插件 wheel，不含该提交**，故 `status_matrix.vllm0.24.0.yaml` 该后端 T 格维持
-❌ —— 待该 PR 合并、插件按新 commit 重打、镜像重建并复验后才转 ✅。
+❌。**转 ✅ 不依赖上游合并** —— 本线既有的取件流程就是从 PR head 打 wheel
+（0.20.2 线即如此：`vllm-plugin-wheel.yml` `plugin_repo` 指 fork、`plugin_ref` 指分支
+SHA），故：以 `plugin_repo=tengqm/vllm-plugin-FL` + `plugin_ref=f31b199…` 打
+`0.2.0+gf31b199.d<date>` → 上传 `flagos-pypi-ascend` → 用该 pin 重建 app 镜像 →
+hw114 上 F/T 复验 → 转 ✅。上游 PR #387 的合并由 plugin 团队掌控，只是收尾、不是门。
 
 **上游归属**：坏的是 flag_gems 的 generic `index_select` kernel 在 triton-ascend 3.2.0
 下的 codegen（或该 kernel 本身）；黑名单条目归属 vllm-plugin-FL 的
