@@ -109,10 +109,9 @@ nvidia-cuda13.3:
   make_flag: USE_NVIDIA
   arch: amd64
   glibc_floor: "2.39"
-  # Nothing here carries NCCL at all, so the pin is the only thing keeping apt
-  # off the newest +cuda13.4 build, which is not this base's CUDA track. -dev's
-  # Depends names an exact libnccl2, and at equal priority apt would pick the
-  # +cuda13.4 one, so libnccl2 is pinned alongside it to make the pair satisfy.
+  # The base preinstalls and holds libnccl2 (the 13.x NGC runtime tag ships no
+  # NCCL). Both are pinned: -dev's Depends names an exact libnccl2, and the
+  # pinned +cuda13.3 sits at equal priority with the newest +cuda13.4 build.
   apt: [cuda-nvcc-13-3, libnccl-dev=2.31.2-1+cuda13.3, libnccl2=2.31.2-1+cuda13.3]
   make_env:
     DEVICE_HOME: /usr/local/cuda

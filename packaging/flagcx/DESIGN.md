@@ -301,8 +301,10 @@ header location. None is hard-blocked: `COMPILE_KERNEL=0` is already the default
 device compiler is involved. Each probe is a `make` + `ldd` inside the base image.
 
 **nvidia is the one under-provisioned build.** Its base is
-`nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04` — no nvcc, no NCCL, and build-infra provisions
-NCCL for no vendor. `COMPILE_KERNEL=0` means no device compiler is needed, but `nvidia.mk`
+`nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04` — no nvcc. NCCL comes from the NGC tag
+itself — 12.8 preinstalls a held `libnccl2`, and 13.3 ships none at all, so
+`base/nvidia-cuda13.3` installs and holds it — never from a `Depends`, because it is a
+vendor lib. `COMPILE_KERNEL=0` means no device compiler is needed, but `nvidia.mk`
 resolves `CCL_INCLUDE` at make-parse time, so the headers must be there.
 `apt: [cuda-nvcc-12-8, libnccl-dev]` first; if the CUDA apt repo is unreachable in the base,
 fall back to the pip route already used by `packaging/rpm/dockerfiles/Dockerfile.rpm.nvidia`

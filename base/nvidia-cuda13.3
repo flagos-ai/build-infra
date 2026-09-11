@@ -19,6 +19,7 @@
 # - The image has builtin python 3.12
 # History:
 # - 20260708: Initial version
+# - 20260911: preinstall libnccl2 — the 13.x -runtime NGC tag no longer ships it
 
 FROM nvcr.io/nvidia/cuda:13.3.0-runtime-ubuntu24.04
 
@@ -28,9 +29,14 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # base dependencies
+# The 12.8.0-runtime NGC image preinstalls a held libnccl2; the 13.3.0 one ships
+# no NCCL at all, so the runtime library FlagCX links against is supplied here.
+# Held, so an unpinned install downstream cannot move it onto the +cuda13.4 track.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       curl unzip git vim ca-certificates libnuma1 libelf1 \
       gcc g++ cmake make build-essential libpython3-dev \
+      libnccl2=2.31.2-1+cuda13.3 \
+    && apt-mark hold libnccl2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
