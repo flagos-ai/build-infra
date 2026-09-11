@@ -62,6 +62,12 @@ ARG DEB_VENDOR_LIB_DIRS
 # fact of one RUN, and an image that remembers it is an image that leaks it.
 ARG HTTPS_PROXY=
 
+# git accepts either casing, apt only the lowercase one, and the runners export
+# the lowercase pair — so the same fact is declared under both names rather than
+# asking the call site for two spellings. NO_PROXY below still covers the mirrors.
+ARG http_proxy=
+ARG https_proxy=
+
 ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
 
 # The packaging toolchain is the one thing every .deb build needs and no vendor

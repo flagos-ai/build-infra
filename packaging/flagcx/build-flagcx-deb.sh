@@ -136,6 +136,20 @@ for key in "${BACKENDS[@]}"; do
         echo ">>> $key: $DEB_PACKAGE ($DEB_ARCH, glibc >= $DEB_GLIBC_FLOOR) from $FLAGCX_REF"
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
+
+        # The runner's proxy is not forwarded into builds, and the aarch64 nodes
+        # have no direct egress at all — without this the toolchain apt layer
+        # cannot reach the archive. Same relay as scripts/build_runtime.py,
+        # emitted lowercase because that is the casing apt reads and the one the
+        # runners export.
+        proxy_arg=()
+        for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY; do
+            lower="${pair%%:*}"; upper="${pair##*:}"
+            value="$(printenv "$lower" || true)"
+            [ -n "$value" ] || value="$(printenv "$upper" || true)"
+            if [ -n "$value" ]; then proxy_arg+=(--build-arg "${lower}=${value}"); fi
+        done
+
         # --network host: the build's only network use is the clone, and the
         # default bridge on the runners intermittently cannot open a TCP
         # connection to github.com while the host can (measured on metax124:
@@ -143,6 +157,7 @@ for key in "${BACKENDS[@]}"; do
         # succeeded in 12s). Isolation buys nothing here and costs the rebuild.
         docker build \
             "${cache_arg[@]}" \
+            "${proxy_arg[@]}" \
             --network host \
             --build-arg "BASE_IMAGE=$DEB_BASE_IMAGE" \
             --build-arg "FLAGCX_REPO=$OPT_REPO" \
