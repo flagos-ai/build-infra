@@ -1,6 +1,7 @@
 # vllm 0.20.2 — ascend cann9.0.0
 
-> 本文对应原报告第 2 部分 §2.8（含 2026-08-24 双后端 F/T 全通后续）。
+> 本文对应原报告第 2 部分 §2.8（含 2026-08-24 双后端 F/T 全通后续、
+> 2026-09-11 910C 双后端 app 镜像 E2E 后续）。
 > 标准流程见 [`playbook.md`](../playbook.md)，决策见 [`decisions.md`](../decisions.md)。
 
 ## 2.8 ascend-cann9.0.0（Ascend 910B4 aarch64：✅ E2E 通过，2026-08-10）
@@ -165,3 +166,45 @@ committer/date/parent 而不同）。wheel 版本串 `0.2.0+g2b6b635.d20260824` 
 `backends.<name>.prs:` 字段（结构化，已被 enflame/kunlunxin/sunrise 使用，记录「该后端 image 依赖的
 上游 PR URL」），merge 后仍保留；临时源 = 本表这类 fork-SHA → PR 映射，仅在 PR 未 merge 期间存在、
 merge + 重建后即删。**每后端跑通时：上游 PR 进 `prs:`（永久）、fork 合成分支映射进 report「后续」（临时）。**
+
+### 后续（2026-09-11）：910C 双后端 app 镜像 E2E，F/T 全 ✅
+
+上面的 2026-08-24 小节是 **910B4 的非 910C 后端对**；本节是 **910C 后端对**：
+`ascend-cann8.5.0-910c`（hw114）与 `ascend-cann9.0.0-910c`（hw115）。两者 image tag 与各自
+非 910C 后端只差 `-910c` 后缀，但 CANN / flagtree / torch 均不同，**结论亦不可互相套用**
+（见 [vllm-0.24.0 ascend §10.7](../../vllm-0.24.0/backends/ascend.md) 的同类警示）。
+
+- 镜像：`harbor.baai.ac.cn/flagos-app/vllm0.20.2-{backend}:2.1.2-0.2.0_g2b6b635.d20260824`
+  （两端同 tag，指纹不同）
+- 插件：`0.2.0+g2b6b635.d20260824`（即上文 fork 合成分支 `2b6b635` 打出的 wheel，四条黑名单齐备）
+
+| 后端 | vllm-plugin-fl | torch / torch_npu | flagtree | flag_gems |
+|---|---|---|---|---|
+| cann8.5.0-910c | `0.2.0+g2b6b635.d20260824` | 2.9.0+cpu / 2.9.0 | 0.6.0+ascend3.2 | 5.3.5 |
+| cann9.0.0-910c | `0.2.0+g2b6b635.d20260824` | 2.10.0+cpu / 2.10.0 | 0.6.1+ascend3.5 | 5.3.5 |
+
+（910C 线为 flag_gems 5.3.5，与 2026-08-24 小节的 5.3.4 是两条线的真实差异。）
+与非 910C 后端相同：`/opt/flagtree` 与 `/opt/triton` 的 `triton.__version__` **均自报 3.2.0**，
+每轮须按编译器分设 `TRITON_CACHE_DIR`，否则缓存串台。
+
+**四格全 ✅**（`verify-vllm-backend.sh` 在 910C runtime 镜像上跑 app 安装线，Step 6 真实 serve）：
+
+| 后端 | F（flagtree） | T（vendor triton 3.2.0） |
+|---|---|---|
+| cann9.0.0-910c | ✅ | ✅ |
+| cann8.5.0-910c | ✅ | ✅ |
+
+- 证据：verify-driver run `34475812644` 四个 0.20.2 910C 格全 `status: passed`。该格装的是
+  app 镜像烘焙的同一对 wheel（`vllm==0.20.2+flagos` + `vllm-plugin-fl==0.2.0+g2b6b635.d20260824`），
+  Step 6 在容器内真实起 serve 并做语义检查（期望输出含 `Paris`），非 import-only。
+- serve 参数：Qwen3-4B bf16、TP1、`VLLM_PLUGINS=fl`、`--enforce-eager --trust-remote-code
+  --max-model-len 2048 --gpu-memory-utilization 0.6`。
+- NPU 冷启动 JIT 慢是共同前提（同 2026-08-24 小节：以 `generation_tokens_total` 增量 +
+  `num_requests_running` 归零判完成，勿以 curl 超时误判卡死）。
+
+**本节 0.20.2/T 的 ✅ 属巧合而非设计**：该后端 shipped `ascend.yaml` 的黑名单不含
+`repeat_interleave_*`，vendor rope 首次 decode 即编译失败并静默回退 `default.flagos` rope，
+恰好绕过了 [vllm-0.24.0 ascend §10.7](../../vllm-0.24.0/backends/ascend.md) 定位的同一上游
+缺陷（0.24.0 因黑名单堵住该回退而暴露）。两条线的插件 wheel 与 flag_gems 版本均不同，
+**结论不得互推**；该缺陷的修复（黑名单加 `index_select`）已推到 vllm-plugin-FL #387 的
+分支 head `f31b199`，本线无需跟改。

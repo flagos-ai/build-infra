@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.24.0
 description: vLLM 0.24.0 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-09-04"
+last_updated: "2026-09-11"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -27,7 +27,7 @@ scenarios:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
-      ascend-cann8.5.0-910c: {T: "❌", F: "✅"}
+      ascend-cann8.5.0-910c: {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0-910c: {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}

@@ -276,3 +276,47 @@ editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
   benchmarker/数值问题。
 
 ---
+
+### 10.7 app 镜像 serve E2E（910C 双后端，2026-09-11）
+
+910C 是独立后端：`ascend-cann8.5.0-910c`（hw114）与 `ascend-cann9.0.0-910c`（hw115）。
+两者 image tag 与各自非 910C 后端只差 `-910c` 后缀，但彼此的 CANN / flagtree / torch
+均不同（见下表），**且结论与非 910C 后端也不同，三节不得互相套用**。同版本 app 的
+910C 双后端实测：
+
+| 后端 | F（flagtree） | T（vendor triton 3.2.0） |
+|---|---|---|
+| cann9.0.0-910c | 连贯 ✅ | 连贯 ✅ |
+| cann8.5.0-910c | 连贯 ✅ | 连贯 ✅ |
+
+镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-{backend}:{tag}`。两端 tag 不同（插件 ref
+不同，见下）：cann9.0.0-910c 为 `2.1.2-0.2.0_gcf8998c.d20260818`，cann8.5.0-910c 为
+`2.1.2-0.2.0_gf31b199.d20260911`：
+
+| 后端 | vllm-plugin-fl | torch / torch_npu | flagtree | flag_gems |
+|---|---|---|---|---|
+| cann8.5.0-910c | `0.2.0+gf31b199.d20260911` | 2.9.0+cpu / 2.9.0 | 0.6.0+ascend3.2 | 5.3.5 |
+| cann9.0.0-910c | `0.2.0+gcf8998c.d20260818` | 2.10.0+cpu / 2.10.0 | 0.6.1+ascend3.5 | 5.3.5 |
+
+（§10.6 的非 910C cann8.5.0 线为 flag_gems 5.3.4，与本节的 5.3.5 是两条线的真实差异。）
+`/opt/flagtree` 与 `/opt/triton` 的 `triton.__version__` **均自报 3.2.0**，故每轮须按编译器
+分设 `TRITON_CACHE_DIR`，否则缓存串台。
+
+serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1、端口 8031、
+`VLLM_PLUGINS=fl`、`VLLM_FL_DISPATCH_DEBUG=1`、`--enforce-eager --trust-remote-code
+--max-model-len 2048 --gpu-memory-utilization 0.6`。
+
+**cann8.5.0-910c / T 需要插件侧 `index_select` 黑名单（`f31b199`）**：该组合下 vendor
+triton 3.2.0 不带 `triton.experimental`，`_ascend.ops` 整包 import 失败，flag_gems 的
+generic `index_select` 在 `inp=(40960,128) dim=0` 上算错且结果非确定；而
+`torch_npu._npu_rotary_embedding`（ATB）内部恰以同形状对 cos/sin cache 调用它并吞下
+结果，污染的 q/k 直达每个 attention head（表症为冷启动复读 `!`）。缺陷是 cann8.5.0 +
+triton-ascend 3.2.0 组合特有 —— cann9.0.0-910c 同 T 路径、同探针 `bad=0/640` —— 与 910C
+平台、镜像、插件均无关。黑名单条目写裸算子名（与既有 `linear` 条目同形），由
+vllm-plugin-FL #387 分支 head（`feat/ascend-v024` @ `f31b199`）携带；cann8.5.0-910c 的
+交付镜像即按该 ref 打出的 `0.2.0+gf31b199.d20260911` 构建，**不依赖 #387 合并**。
+
+**上游归属**：坏的是 flag_gems 的 generic `index_select` kernel 在 triton-ascend 3.2.0
+下的 codegen（或该 kernel 本身）；黑名单条目归属 vllm-plugin-FL 的
+`dispatch/config/ascend.yaml`；「一个可选子模块缺失拖垮 `_ascend.ops` 整包注册」是
+flag_gems 的脆弱点。三项均不在 build-infra，属对外 hand-off。
