@@ -14,6 +14,10 @@ It builds four layers for 13+ GPU/NPU vendors:
 | **Wheels** | FlagTree (C++ compiler) + FlagGems (pure Python) + Megatron-LM-FL (pybind11 ext) | `packaging/flagtree/`, `packaging/flaggems/`, `packaging/megatron/builder/` |
 | **App images** | Runtime + megatron-core installed single-step from the vendor PyPI wheel (no repack), one Containerfile per app | `app/megatron/Containerfile.megatron-training` / `app/megatron/Containerfile.rl` (mirrors `packaging/vllm/` + `app/vllm/`) |
 
+`packaging/flagcx/` sits beside these layers rather than in them: it builds `.deb` packages
+(not images) out of a **base** image, one per backend, from a FlagCX git ref. Design and the
+`backends.yaml` field contract live in `packaging/flagcx/DESIGN.md`.
+
 ## Agent 协作纪律
 
 agent 写作/记录的唯一权威规则见 `docs/agent-protocol.md`。开箱即知：
@@ -147,6 +151,15 @@ switchable via the `compiler` shell function.
   Publication to Harbor (`pubdoc-runtime.yaml`) happens when that PR lands on `main` (push to `runtime/*.md`).
 - **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`,
   `configs.yaml`, or `base/**` changes).
+
+- **`flagcx-deb.yml`** — FlagCX `.deb` build (manual, x86_64 + aarch64 runners).
+  Matrix comes from `deb-config.py --merge` over `generate_matrix.py --runtime`, which is what
+  joins the runtime matrix with the FlagCX packaging fields in `packaging/flagcx/backends.yaml`;
+  `--check` runs first so drift is a named failure rather than a silently filtered row.
+  Builds one backend per runner (`packaging/flagcx/build-flagcx-deb.sh`), then `verify` installs
+  the `.deb` from the artifact alone — into its base image (`full`) and into a plain Ubuntu
+  (`floor`) — before upload. Artifacts are uploaded, not published: shipping to the Nexus apt
+  repo is a separate decision.
 
 ### Runners
 
