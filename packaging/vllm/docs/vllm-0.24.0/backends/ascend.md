@@ -289,9 +289,9 @@ editable 插件，本节为 wheel 单步安装线 + `vllm-serve` launcher，即
 | cann9.0.0-910c | 连贯 ✅ | 连贯 ✅ |
 | cann8.5.0-910c | 连贯 ✅ | 连贯 ✅ |
 
-镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-{backend}:{tag}`。两端 tag 已不同：
-cann9.0.0-910c 为 `2.1.2-0.2.0_gcf8998c.d20260818`，cann8.5.0-910c 因 T 路径修复
-重建过一次，为 `2.1.2-0.2.0_gf31b199.d20260911`：
+镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-{backend}:{tag}`。两端 tag 不同（插件 ref
+不同，见下）：cann9.0.0-910c 为 `2.1.2-0.2.0_gcf8998c.d20260818`，cann8.5.0-910c 为
+`2.1.2-0.2.0_gf31b199.d20260911`：
 
 | 后端 | vllm-plugin-fl | torch / torch_npu | flagtree | flag_gems |
 |---|---|---|---|---|
@@ -306,23 +306,15 @@ serve 参数（两后端一致）：Qwen3-4B bf16（`--dtype` 取 auto）、TP1�
 `VLLM_PLUGINS=fl`、`VLLM_FL_DISPATCH_DEBUG=1`、`--enforce-eager --trust-remote-code
 --max-model-len 2048 --gpu-memory-utilization 0.6`。
 
-**cann8.5.0-910c / T 曾确定性失败，已由插件黑名单修复（`f31b199`）**：初版镜像
-（插件 wheel `cf8998c`）在该组合下 flag_gems 的 generic `index_select` 在
-`inp=(40960,128) dim=0` 上算错且结果非确定（vendor triton 3.2.0 无 `triton.experimental` →
-`_ascend.ops` 整包 import 失败，该 op 落回 generic），而 `torch_npu._npu_rotary_embedding`
-（ATB）内部恰以同形状对 cos/sin cache 调用它并吞下结果 —— 污染的 q/k 直达每个 attention
-head，每次冷启动确定性复读 `!`。缺陷是 cann8.5.0 + triton-ascend 3.2.0 组合特有：cann9.0.0-910c
-同 T 路径、同探针正常，与 910C 平台、镜像、插件均无关。修复 = 该后端
-`dispatch/config/ascend.yaml` 黑名单加 `index_select`（裸算子名即为正确写法，与既有
-`linear` 条目同形），由 vllm-plugin-FL PR #387 的**分支 head**（`feat/ascend-v024` @ `f31b199`）
-携带。
-
-**处置（已交付）**：两端交付路径均为 F/T 均可。cann8.5.0-910c 的 T 修复走本线既有的
-「PR head 打 wheel」流程落地：`vllm-plugin-wheel.yml` 以 `plugin_repo=tengqm/vllm-plugin-FL`
-+ `plugin_ref=f31b199` 打出 `0.2.0+gf31b199.d20260911` → 上传 `flagos-pypi-ascend` → 用该 pin
-重建 app 镜像（构建 run 34591078987，九步全绿，CI verify 为 flagtree 路径）→ hw114 上
-F/T 双路径人工复验均连贯 → `status_matrix.vllm0.24.0.yaml` 该后端 T 格转 ✅。
-**转 ✅ 不依赖上游合并** —— 上游 PR #387 的合并由 plugin 团队掌控，只是收尾、不是门。
+**cann8.5.0-910c / T 需要插件侧 `index_select` 黑名单（`f31b199`）**：该组合下 vendor
+triton 3.2.0 不带 `triton.experimental`，`_ascend.ops` 整包 import 失败，flag_gems 的
+generic `index_select` 在 `inp=(40960,128) dim=0` 上算错且结果非确定；而
+`torch_npu._npu_rotary_embedding`（ATB）内部恰以同形状对 cos/sin cache 调用它并吞下
+结果，污染的 q/k 直达每个 attention head（表症为冷启动复读 `!`）。缺陷是 cann8.5.0 +
+triton-ascend 3.2.0 组合特有 —— cann9.0.0-910c 同 T 路径、同探针 `bad=0/640` —— 与 910C
+平台、镜像、插件均无关。黑名单条目写裸算子名（与既有 `linear` 条目同形），由
+vllm-plugin-FL #387 分支 head（`feat/ascend-v024` @ `f31b199`）携带；cann8.5.0-910c 的
+交付镜像即按该 ref 打出的 `0.2.0+gf31b199.d20260911` 构建，**不依赖 #387 合并**。
 
 **上游归属**：坏的是 flag_gems 的 generic `index_select` kernel 在 triton-ascend 3.2.0
 下的 codegen（或该 kernel 本身）；黑名单条目归属 vllm-plugin-FL 的
