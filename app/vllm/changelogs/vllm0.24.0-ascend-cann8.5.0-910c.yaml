@@ -30,6 +30,19 @@
 
 image: vllm0.24.0-ascend-cann8.5.0-910c
 tags:
+- tag: 2.1.2-0.2.0_gf31b199.d20260911
+  entries:
+  - date: ""
+    reason: >-
+      Rebuild pinning vllm-plugin-FL to the index_select blacklist fix
+      (vllm-plugin-FL #387 head f31b199, replacing cf8998c). Without it this
+      backend's vendor triton 3.2.0 path degrades deterministically: triton
+      3.2.0 ships no triton.experimental, the generic flag_gems index_select
+      is wrong at the shape torch_npu._npu_rotary_embedding uses internally
+      (inp 40960x128, dim 0, idx size 5), and the corrupted cos/sin reach
+      every attention head. Blacklisting the op routes it back to aten.
+    upstream_prs:
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/387
 - tag: 2.1.2-0.2.0_gcf8998c.d20260818
   entries:
   - date: "2026-09-10T10:57:00.437Z"
