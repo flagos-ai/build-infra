@@ -36,6 +36,10 @@ sglang0.5.18 resolves to the bare name vllm / sglang) serialized as
 key are included (key presence = verified in the app's matrix).
 """
 
+# The annotations below use PEP 604 (`str | None`), a runtime error before 3.10,
+# and the self-hosted runners build with whatever python3 they ship.
+from __future__ import annotations
+
 import argparse
 import json
 import re
