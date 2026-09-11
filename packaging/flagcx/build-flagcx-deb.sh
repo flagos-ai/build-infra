@@ -159,6 +159,10 @@ for key in "${BACKENDS[@]}"; do
         # connection to github.com while the host can (measured on metax124:
         # 1 of 2 bridge clones failed at connect after 130s, 2 of 2 host clones
         # succeeded in 12s). Isolation buys nothing here and costs the rebuild.
+        #
+        # A failing step makes BuildKit echo the resolved RUN command, so the
+        # relayed proxy's userinfo would land in whatever captures this stdout.
+        # Redacted in the pipe; pipefail still carries docker's own status.
         docker build \
             "${cache_arg[@]}" \
             "${proxy_arg[@]}" \
@@ -175,7 +179,8 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "DEB_VENDOR_LIB_DIRS=$DEB_VENDOR_LIB_DIRS" \
             -t "$tag" \
             -f "$HERE/Containerfile.deb" \
-            "$REPO_ROOT"
+            "$REPO_ROOT" 2>&1 \
+            | awk '{gsub(/:\/\/[^@\/ ]+:[^@\/ ]+@/, "://[redacted]@"); print; fflush()}'
 
         # Same extraction idiom as packaging/flagtree and packaging/megatron:
         # a single-stage build, so the artifacts are read out of the image.
