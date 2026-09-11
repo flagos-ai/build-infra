@@ -1,0 +1,192 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: flagcx deb package
+
+# Build the FlagCX .deb packages, one backend per runner.
+#
+# Dispatch-only: a .deb is a release artifact and nothing here is worth running
+# on a push. The trigger a push would need is a tag, and tags are handled by
+# whoever cuts the release deciding which backends to ship.
+#
+# The matrix comes from `deb-config.py --merge` rather than from
+# `generate_matrix.py` directly: the merge is what joins the runtime matrix with
+# the FlagCX packaging fields (make flag, apt packages, glibc floor), and the
+# runtime matrix alone lacks every input the build consumes.
+#
+# The artifacts are uploaded, not published. Publication to the Nexus apt repo
+# is a separate decision -- it starts shipping to customers, and the existing
+# `upload-nexus.yml` publisher expects a workflow to consume from.
+#
+# `verify` is a job and not a step of the build because it has to install the
+# .deb into a container in the state a user gets, from the file alone: the build
+# tree proves nothing about whether the package's own Depends are satisfiable.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend whose base image builds the package (e.g. metax-maca3.8.1.3, or "all")'
+        type: string
+        default: all
+      flagcx_ref:
+        description: 'FlagCX git ref to build (tag for a release, branch otherwise)'
+        type: string
+        default: main
+      verify:
+        description: 'install the .deb in its base image and in a plain Ubuntu before uploading'
+        type: boolean
+        default: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: set-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/generate_matrix.py --runtime > matrix.json
+          # --merge only emits schedulable rows, so drift between backends.yaml
+          # and the runtime matrix would be filtered away silently here; --check
+          # is what turns it into a named failure.
+          python3 packaging/flagcx/deb-config.py --check
+          python3 packaging/flagcx/deb-config.py --merge matrix.json > deb-matrix.json
+          if [[ "${{ inputs.backend }}" != all ]]; then
+            jq -c --arg key "${{ inputs.backend }}" \
+              '{include: [.include[] | select(.name == $key)]}' \
+              deb-matrix.json > selected.json
+            mv selected.json deb-matrix.json
+          fi
+          # An empty include list would skip both jobs silently, which reads as a
+          # successful run of a backend that does not exist.
+          if [[ "$(jq '.include | length' deb-matrix.json)" == 0 ]]; then
+            echo "::error::${{ inputs.backend }} is not a backend with a package; see packaging/flagcx/build-flagcx-deb.sh --list"
+            exit 1
+          fi
+          cat deb-matrix.json
+          echo "matrix=$(jq -c . deb-matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check disk space
+        shell: bash
+        run: |
+          # Check free space on the working-directory filesystem — this is where
+          # the checkout, docker build context, and layer cache live.  We avoid
+          # /var/lib/docker because some runners don't have it or use a different
+          # data-root; checking . is universal.
+          FREE_KB=$(df -P . | awk 'NR==2{print $4}')
+          FREE_GB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk space: ${FREE_GB}G"
+          if [ "$FREE_GB" -lt 10 ]; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < 10G). Docker needs cleanup."
+            df -h .
+            exit 1
+          fi
+      - name: Pull the base image
+        run: |
+          docker pull "${{ matrix.base_image }}" \
+            || { echo "::error::Failed to pull ${{ matrix.base_image }}"; exit 1; }
+      - name: Build the .deb
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          FLAGCX_REF: ${{ inputs.flagcx_ref }}
+        run: |
+          set -euo pipefail
+          # The default ref is a branch, which is fine for a smoke build and not
+          # for a release; the warning is the only thing that says so.
+          if [[ ! "$FLAGCX_REF" =~ ^v[0-9] ]]; then
+            echo "::warning::$FLAGCX_REF is not a release tag, so this package is not reproducible"
+          fi
+          packaging/flagcx/build-flagcx-deb.sh \
+            --backend "$MATRIX_NAME" \
+            --ref "$FLAGCX_REF" \
+            --out packaging/flagcx/dist
+      - name: Upload the .deb
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: flagcx-deb-${{ matrix.name }}
+          path: packaging/flagcx/dist/*.deb
+          if-no-files-found: error
+      - name: Remove the build image
+        if: ${{ always() }}
+        run: docker rmi "flagcx-deb:${{ matrix.name }}" 2>/dev/null || true
+
+  verify:
+    needs: [set-matrix, build]
+    if: ${{ inputs.verify }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download the .deb
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flagcx-deb-${{ matrix.name }}
+          path: packaging/flagcx/dist
+      - name: Pull the base image
+        run: |
+          docker pull "${{ matrix.base_image }}" \
+            || { echo "::error::Failed to pull ${{ matrix.base_image }}"; exit 1; }
+      - name: Verify the .deb
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          MATRIX_UBUNTU: ${{ matrix.ubuntu }}
+        run: |
+          set -euo pipefail
+          # The floor test needs the plain Ubuntu release the base image was
+          # built on; a base with no single FROM line would silently lose it.
+          : "${MATRIX_UBUNTU:?base/$MATRIX_NAME names no single Ubuntu release}"
+          packaging/flagcx/verify/verify-flagcx-deb.sh \
+            --backend "$MATRIX_NAME" \
+            --floor-image "ubuntu:${MATRIX_UBUNTU}" \
+            packaging/flagcx/dist/*.deb

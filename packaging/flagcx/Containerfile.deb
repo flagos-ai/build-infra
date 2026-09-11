@@ -1,0 +1,183 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX .deb packages for one backend. One container, one backend.
+#
+# The build context is the repository root, not this directory:
+#
+#   key=metax-maca3.8.1.3
+#   eval "$(python3 packaging/flagcx/deb-config.py --build-inputs "$key")"
+#   python3 packaging/flagcx/deb-config.py --render-control packaging/flagcx/debian/control
+#   docker build \
+#       --build-arg "BASE_IMAGE=$DEB_BASE_IMAGE" \
+#       --build-arg "FLAGCX_REPO=https://github.com/flagos-ai/FlagCX.git" \
+#       --build-arg "FLAGCX_REF=$FLAGCX_REF" \
+#       --build-arg "BACKEND=$key" \
+#       --build-arg "DEB_APT=$DEB_APT" \
+#       --build-arg "DEB_ASSERT=$DEB_ASSERT" \
+#       --build-arg "DEB_MAKE_FLAG=$DEB_MAKE_FLAG" \
+#       --build-arg "DEB_MAKE_ENV=$DEB_MAKE_ENV" \
+#       --build-arg "DEB_VENDOR_LIBS=$DEB_VENDOR_LIBS" \
+#       --build-arg "DEB_VENDOR_LIB_DIRS=$DEB_VENDOR_LIB_DIRS" \
+#       -f packaging/flagcx/Containerfile.deb -t "flagcx-deb:$key" .
+#
+# packaging/flagcx/build-flagcx-deb.sh is that recipe with the bookkeeping
+# around it; it is written out here because it has to be reproducible by hand.
+#
+# The build is a single stage — the artifacts are read out of the image rather
+# than copied to a later stage — so extraction is:
+#
+#   cid=$(docker create "flagcx-deb:$key")
+#   docker cp "$cid:/output/." ./dist/
+#   docker rm "$cid"
+#
+# debian/control is rendered on the host, where the runtime matrix is available,
+# and arrives with the overlay COPY below. Nothing in here reads backends.yaml.
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG FLAGCX_REPO
+ARG FLAGCX_REF
+ARG BACKEND
+ARG DEB_APT
+ARG DEB_ASSERT
+ARG DEB_MAKE_FLAG
+ARG DEB_MAKE_ENV
+ARG DEB_VENDOR_LIBS
+ARG DEB_VENDOR_LIB_DIRS
+
+# Scoped to the clone below and never set as image ENV: the proxy is a build-time
+# fact of one RUN, and an image that remembers it is an image that leaks it.
+ARG HTTPS_PROXY=
+
+# git accepts either casing, apt only the lowercase one, and the runners export
+# the lowercase pair — so the same fact is declared under both names rather than
+# asking the call site for two spellings. The clone below reads the uppercase
+# name, hence its fallback. NO_PROXY below still covers the mirrors.
+ARG http_proxy=
+ARG https_proxy=
+
+ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
+
+# The base images keep Ubuntu's own archive, which the runners reach only
+# through a proxy that answers it 502 — measured on enflame, where that same
+# proxy serves the mirror fine. The mirror is also what every other layer in
+# this repo installs from, so it is the one source known to work on the nodes.
+# Rewritten rather than overridden by a build arg: a base image carrying its own
+# vendor repo keeps it, and only the Ubuntu hosts move.
+#
+# The packaging toolchain is the one thing every .deb build needs and no vendor
+# base image ships. Unconditional: a conditional install is how a backend ends up
+# with a build that works only on the machine it was debugged on.
+RUN set -eux; \
+    for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
+             /etc/apt/sources.list.d/*.list; do \
+        [ -f "$f" ] || continue; \
+        sed -i -e 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' \
+               -e 's|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' \
+               -e 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubuntu-ports|g' \
+               "$f"; \
+    done; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential debhelper fakeroot devscripts patchelf git ca-certificates; \
+    rm -rf /var/lib/apt/lists/*
+
+# DEB_APT is what the adaptor needs on top of the base image (the vendor's nvcc,
+# the vendor's CCL headers). DEB_ASSERT is the list of files that proves the SDK
+# is the one we think it is — checked here, in three seconds, rather than
+# surfacing as an unresolved symbol after the build.
+RUN set -eux; \
+    if [ -n "${DEB_APT}" ]; then \
+        apt-get update; \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${DEB_APT}; \
+        rm -rf /var/lib/apt/lists/*; \
+    fi; \
+    for path in ${DEB_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# No --depth 1 on the main repository: debian/changelog.sh builds the changelog
+# from the clone's own tags, and a shallow clone has none. The submodules are
+# shallow instead — their history is nobody's business here, and they are not
+# optional: the Makefile defaults JSON_INCLUDE_DIR to
+# third-party/json/single_include (Makefile:245) and no base image ships
+# nlohmann-json3-dev, so the submodule is the only source of that header.
+#
+# The submodules are fetched by their own loop rather than by
+# --recurse-submodules, whose transfer runs in a child git the abort settings
+# below do not reach: on hw115 a nlohmann/json fetch sat 12 minutes past its
+# low-speed deadline with the log frozen, where a timeout makes it retryable.
+#
+# The main clone's low-speed abort is left nearly off: egress here is slow enough
+# to trip curl's defaults on a healthy transfer (measured on hw115, whose apt
+# mirror runs at 120 kB/s), and a slow clone is not a dead one. It still fires on
+# a transfer that has genuinely stopped.
+RUN export GIT_HTTP_CONNECT_TIMEOUT=15 \
+           GIT_HTTP_LOW_SPEED_LIMIT=1 \
+           GIT_HTTP_LOW_SPEED_TIME=300 && \
+    export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}" && \
+    git config --global http.version HTTP/1.1 && \
+    for i in 1 2 3 4 5 6 7 8; do \
+        git clone --branch "${FLAGCX_REF}" "${FLAGCX_REPO}" /flagcx && break; \
+        echo ">>> flagcx clone attempt $i failed, retrying in 5s..."; \
+        rm -rf /flagcx; sleep 5; \
+    done && \
+    test -d /flagcx/.git && \
+    cd /flagcx && \
+    for i in 1 2 3 4 5; do \
+        timeout 300 git submodule update --init --recursive --depth 1 && break; \
+        echo ">>> submodule fetch attempt $i failed, retrying in 5s..."; \
+        sleep 5; \
+    done && \
+    test -f /flagcx/third-party/json/single_include/nlohmann/json.hpp
+
+# Copied in last, and with its mtimes flattened: the host's timestamps say
+# nothing about this tree, and debhelper compares them against the build
+# directory it is about to create.
+COPY packaging/flagcx/debian/ /flagcx/debian/
+RUN find /flagcx/debian -exec touch -t 197001010000.00 {} +
+
+WORKDIR /flagcx
+
+# The package name is spelled the same way control.in spells it, so the
+# changelog and the Source field the rest of debian/ reads cannot disagree.
+RUN set -eux; \
+    bash debian/changelog.sh "libflagcx-${BACKEND}"
+
+# The ARGs are re-passed as environment: build args are not environment
+# variables, and debian/rules reads all four out of the environment. They reach
+# make as command-line-equivalent variables, which is what lets them outrank the
+# Makefile's own ifeq ladder (see debian/rules).
+RUN set -eux; \
+    DEB_MAKE_FLAG="${DEB_MAKE_FLAG}" \
+    DEB_MAKE_ENV="${DEB_MAKE_ENV}" \
+    DEB_VENDOR_LIBS="${DEB_VENDOR_LIBS}" \
+    DEB_VENDOR_LIB_DIRS="${DEB_VENDOR_LIB_DIRS}" \
+    dpkg-buildpackage -us -uc -b
+
+# Both packages, or neither: the globs are the assertion, since a missing one
+# makes mv fail rather than quietly shipping a half-built set.
+RUN set -eux; \
+    mkdir -p /output; \
+    mv /libflagcx-"${BACKEND}"_*.deb /libflagcx-"${BACKEND}"-dev_*.deb /output/; \
+    lf="$(dpkg-deb -c /output/libflagcx-"${BACKEND}"_*.deb)"; \
+    dev="$(dpkg-deb -c /output/libflagcx-"${BACKEND}"-dev_*.deb)"; \
+    case "$lf" in *usr/lib/libflagcx.so.*) ;; \
+        *) echo "runtime package carries no versioned libflagcx.so" >&2; exit 1 ;; esac; \
+    case "$dev" in *usr/include/flagcx/*) ;; \
+        *) echo "dev package carries no headers" >&2; exit 1 ;; esac; \
+    case "$dev" in *usr/lib/libflagcx.so\ -\>\ *) ;; \
+        *) echo "dev package carries no linker-name symlink" >&2; exit 1 ;; esac

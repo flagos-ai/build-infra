@@ -1,0 +1,124 @@
+#!/usr/bin/make -f
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# One container builds one backend, so debian/control holds exactly one stanza
+# pair and there is no vendor ladder here — the vendor is selected entirely by
+# DEB_MAKE_FLAG, which build-flagcx-deb.sh exports from backends.yaml.
+#
+# Every path the FlagCX Makefile needs is either a knob it already has
+# (BUILDDIR, DESTDIR, INC_DESTDIR, COMPILE_KERNEL) or lives in backends.yaml.
+# Nothing about a vendor is decided in this file.
+
+export DH_VERBOSE = 1
+
+PKG := $(shell dpkg-parsechangelog -SSource)
+
+# The library filename carries the upstream release, not the Debian version:
+# the pre-release suffix and the revision are ordering concerns, and a `~` has
+# no business in a shared object's name. 0.14.0~rc1.post1-1 -> 0.14.0.
+LIBVER := $(shell dpkg-parsechangelog -SVersion | sed -e 's/-[^-]*$$//' -e 's/~.*//')
+
+BUILDDIR := $(CURDIR)/build
+LIBDIR   := $(BUILDDIR)/lib
+INSTALL  := $(CURDIR)/debian/$(PKG)
+
+# DEB_MAKE_FLAG / DEB_MAKE_ENV come from `deb-config.py --build-inputs`.
+# They are passed as make *command-line* variables rather than environment, so
+# they outrank the `?=` in makefiles/*.mk and beat the Makefile's own ifeq
+# ladder, which pre-assigns DEVICE_HOME/CCL_HOME before including the vendor
+# .mk (that is why an unset var there becomes /lib64 instead of the default).
+ifeq ($(strip $(DEB_MAKE_FLAG)),)
+$(error DEB_MAKE_FLAG is unset: the vendor flag did not survive dpkg-buildpackage -- unrecognized DEB_* names are within its remit to sanitize, and losing this one would expand to a bare `=1` that make rejects without naming it)
+endif
+
+MAKE_ARGS := BUILDDIR=$(BUILDDIR) COMPILE_KERNEL=0 $(DEB_MAKE_ENV) $(DEB_MAKE_FLAG)=1
+
+%:
+	dh $@
+
+# The FlagCX tree has a setup.py, so dh's auto-detection would otherwise run
+# `python3 setup.py build` and package a Python project instead of the library.
+override_dh_auto_configure:
+	@:
+
+override_dh_auto_build:
+	$(MAKE) $(MAKE_ARGS) all
+
+override_dh_auto_test:
+	@:
+
+# dwz deduplicates DWARF across a package's binaries to shrink debug info, and
+# it is the one step whose output is not shipped: dh_strip runs right after it.
+# The Metax linker interleaves allocatable and non-allocatable sections, which
+# dwz refuses outright, so the step can only lose the build.
+override_dh_dwz:
+	@:
+
+override_dh_auto_clean:
+	# `clean:` dereferences DESTDIR (Makefile:371), so it must be passed here
+	# too — with an unset one it would try to remove /libflagcx.so.
+	$(MAKE) $(MAKE_ARGS) DESTDIR=$(INSTALL)/usr/lib clean
+
+override_dh_auto_install:
+	$(MAKE) $(MAKE_ARGS) install \
+		PREFIX=/usr DESTDIR=$(INSTALL)/usr/lib INC_DESTDIR=$(INSTALL)/usr/include/flagcx
+	# `install:` is a flat `cp`, so the headers land un-namespaced under
+	# .../usr/include/flagcx already; they belong to -dev, not to the runtime
+	# package.
+	mkdir -p $(CURDIR)/debian/$(PKG)-dev/usr/include
+	mv $(INSTALL)/usr/include/flagcx $(CURDIR)/debian/$(PKG)-dev/usr/include/
+	rmdir $(INSTALL)/usr/include
+
+# patch-soname.sh rewrites the library with patchelf, and dh_strip runs debugedit
+# over it: on a patchelf-rewritten ELF, debugedit 5.0 zeroes the section-header
+# string table and still exits 0, so the objcopy after it reports "corrupt string
+# table index" and the build dies with nothing pointing back at debugedit.
+# patchelf therefore has to be the last writer, which is here and not in
+# override_dh_auto_install. The reordering is free: dh_makeshlibs and
+# dh_shlibdeps, the only steps that need the soname, both run after dh_strip.
+override_dh_strip:
+	dh_strip
+	bash debian/patch-soname.sh "$(INSTALL)/usr/lib/libflagcx.so" "$(LIBVER)" \
+		"$(CURDIR)/debian/$(PKG)-dev"
+
+# The vendor libraries are supplied by the site's driver and SDK, not by Ubuntu,
+# so dpkg-shlibdeps finds no shlibs entry for them — and one whose file it cannot
+# locate at all is a hard error that --ignore-missing-info does not forgive
+# (libcuda.so.1 sits in the base image's compat/ dir, off every path the loader
+# and dpkg search). So -l puts the backend's vendor directories on the search
+# path, and -L reads an override shlibs file whose entries carry an empty
+# dependency template, so the libs we name resolve to no Depends at all; without
+# that they resolve to the *base image's* packages (cuda-compat-12-8, libnccl2),
+# which no plain Ubuntu box can install. --ignore-missing-info stays, for the
+# vendor libs not named here.
+#
+# The override is generated by matching the sonames the library really links
+# against, so a lib the Makefile stops linking drops out of it by itself instead
+# of lingering as a stale allowance. That is also why DEB_VENDOR_LIBS names libs
+# rather than sonames: `cudart` covers libcudart.so.12 and whatever major follows.
+SHLIBS_LOCAL := $(BUILDDIR)/shlibs.local
+
+override_dh_shlibdeps:
+	mkdir -p $(BUILDDIR) && : > $(SHLIBS_LOCAL)
+	for so in $$(objdump -p $(INSTALL)/usr/lib/libflagcx.so.$(LIBVER) \
+	        | awk '/NEEDED/ {print $$2}'); do \
+	    for lib in $(DEB_VENDOR_LIBS); do \
+	        case "$$so" in \
+	        lib$$lib.so.*) \
+	            echo "$${so%%.so.*} $${so##*.so.} " >> $(SHLIBS_LOCAL) ;; \
+	        esac; \
+	    done; \
+	done
+	dh_shlibdeps -- -L$(SHLIBS_LOCAL) $(DEB_VENDOR_LIB_DIRS:%=-l%) --ignore-missing-info
