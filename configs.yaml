@@ -877,6 +877,27 @@ vendors:
           TANGRT_ROOT: /usr/local/tangrt
           LIBRARY_PATH: /usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64
           LD_LIBRARY_PATH: /usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64
+        app:
+          sglang:
+            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image>` behaves like the verified configuration.
+            # torch is a +cpu build with the PTPU device, so is_cuda() is
+            # false: there is no flashinfer and no sgl-kernel to reach for.
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
+            # Operators flag_gems replaces but does not implement compatibly on
+            # this platform; the blacklist routes them back to the vendor
+            # kernel. Both are filed upstream and this list is the delivery
+            # mechanism until they are fixed:
+            #   _scaled_dot_product_attention_math  - rejects enable_gqa, which
+            #     sglang's native attention passes unconditionally; every GQA
+            #     model dies on the first prefill (FlagGems #6172).
+            #   pow_*  - the scalar-tensor pointwise entry reaches
+            #     _fallback_pow, which fails on `scalar ** tensor` here
+            #     (FlagGems #6173).
+            SGLANG_FL_FLAGOS_BLACKLIST: >-
+              _scaled_dot_product_attention_math,pow_scalar,pow_tensor_scalar,pow_tensor_tensor
       deps:
         - torch==2.11.0+cpu
         - torchaudio==2.11.0+cpu
@@ -886,6 +907,18 @@ vendors:
       deps_app:
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18:
+          # Serve hard-dep: sglang 0.5.18 imports compressed_tensors
+          # unconditionally from the quantization package, which ServerArgs
+          # reaches via model_config before any model loads — the runtime does
+          # not ship it and the post-#697 +flagos wheel no longer declares it
+          # (decisions §5.7). Same pin as the other sglang backends.
+          - compressed-tensors==0.17.0+flagos
+          # flagtree's sunrise overlay reaches a test-support module on a
+          # production path: the vendor triton fork's testing shim imports
+          # pytest at module level through the perf_model autotune path.
+          # Reported upstream as FlagTree #1142; drop this once it is fixed.
+          - pytest
       sdk:
         - Tang Toolkit 1.2.0   # tangtk-v1.2.0-linux-x86_64.run
         - PCCL 1.2.0           # pccl-v1.2.0-linux_x86_64.run
