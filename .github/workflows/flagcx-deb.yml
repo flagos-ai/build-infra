@@ -176,7 +176,9 @@ jobs:
 
   verify:
     needs: [set-matrix, build]
-    if: ${{ inputs.verify }}
+    # A failed build in one row must not cancel verification of the rows that
+    # built; `always()` on the job, and the download below decides per row.
+    if: ${{ !cancelled() && inputs.verify && needs.set-matrix.result == 'success' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
@@ -184,16 +186,25 @@ jobs:
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # A row whose build failed has no artifact, and that is the only signal
+      # this job gets about which rows built. The failure stays on the build job.
       - name: Download the .deb
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: flagcx-deb-${{ matrix.name }}
           path: packaging/flagcx/dist
+      - if: steps.download.outcome == 'failure'
+        run: |
+          echo "::warning::${{ matrix.name }} built no .deb, so there is nothing to verify"
       - name: Pull the base image
+        if: steps.download.outcome == 'success'
         run: |
           docker pull "${{ matrix.base_image }}" \
             || { echo "::error::Failed to pull ${{ matrix.base_image }}"; exit 1; }
       - name: Verify the .deb
+        if: steps.download.outcome == 'success'
         env:
           MATRIX_NAME: ${{ matrix.name }}
           MATRIX_UBUNTU: ${{ matrix.ubuntu }}
@@ -207,7 +218,7 @@ jobs:
             --floor-image "ubuntu:${MATRIX_UBUNTU}" \
             packaging/flagcx/dist/*.deb
       - name: Publish the .deb
-        if: ${{ inputs.publish }}
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
         env:
           MATRIX_NAME: ${{ matrix.name }}
           MATRIX_UBUNTU: ${{ matrix.ubuntu }}
@@ -239,7 +250,7 @@ jobs:
               "https://resource.flagos.net/repository/${repo}/"
           done
       - name: Verify the .deb installs from the repository
-        if: ${{ inputs.publish }}
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
         env:
           MATRIX_NAME: ${{ matrix.name }}
           MATRIX_UBUNTU: ${{ matrix.ubuntu }}
