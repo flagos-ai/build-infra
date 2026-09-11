@@ -71,10 +71,25 @@ ARG https_proxy=
 
 ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
 
+# The base images keep Ubuntu's own archive, which the runners reach only
+# through a proxy that answers it 502 — measured on enflame, where that same
+# proxy serves the mirror fine. The mirror is also what every other layer in
+# this repo installs from, so it is the one source known to work on the nodes.
+# Rewritten rather than overridden by a build arg: a base image carrying its own
+# vendor repo keeps it, and only the Ubuntu hosts move.
+#
 # The packaging toolchain is the one thing every .deb build needs and no vendor
 # base image ships. Unconditional: a conditional install is how a backend ends up
 # with a build that works only on the machine it was debugged on.
 RUN set -eux; \
+    for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
+             /etc/apt/sources.list.d/*.list; do \
+        [ -f "$f" ] || continue; \
+        sed -i -e 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' \
+               -e 's|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' \
+               -e 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubuntu-ports|g' \
+               "$f"; \
+    done; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential debhelper fakeroot devscripts patchelf git ca-certificates; \
