@@ -99,14 +99,29 @@ if [[ -n "$OPT_APT_URL" && -z "$DEB_CODENAME" ]]; then
     fail "$OPT_BACKEND: no Ubuntu codename for its base image, so no suite to read the repo under"
 fi
 
+# The runner's own dpkg-deb is not the arbiter. hw114/hw115 run openEuler 22.03
+# with dpkg 1.18, which predates zstd, while the archive dh_builddeb produces on
+# this Ubuntu release is zstd — so a host-side read calls a sound package broken
+# (and on metax124 the same call dies on /tmp permissions instead). Read it with
+# the toolchain that built it: the base image is the image the .deb came out of
+# and the release it targets.
+docker image inspect "$DEB_BASE_IMAGE" >/dev/null 2>&1 || docker pull "$DEB_BASE_IMAGE"
+debq() {
+    local deb="$1" op="$2"; shift 2
+    local dir
+    dir="$(cd "$(dirname "$deb")" && pwd)"
+    docker run --rm --entrypoint dpkg-deb -v "$dir:/deb:ro" \
+        "$DEB_BASE_IMAGE" "$op" "/deb/$(basename "$deb")" "$@"
+}
+
 # The layout is asserted from the file, before anything is installed: the two
 # packages split the same three names between them, and a name on the wrong side
 # is a dpkg "trying to overwrite" failure at install time, not a cosmetic one.
 RUNTIME_DEB=""
 DEV_DEB=""
 for deb in "${DEBS[@]}"; do
-    pkg="$(dpkg-deb -f "$deb" Package)"
-    arch="$(dpkg-deb -f "$deb" Architecture)"
+    pkg="$(debq "$deb" -f Package)"
+    arch="$(debq "$deb" -f Architecture)"
     [[ "$arch" == "$DEB_ARCH" ]] \
         || fail "$deb: Architecture is $arch, expected $DEB_ARCH"
     case "$pkg" in
@@ -118,7 +133,7 @@ done
 [[ -n "$RUNTIME_DEB" && -n "$DEV_DEB" ]] \
     || fail "need both $DEB_PACKAGE and $DEB_PACKAGE-dev among the given .deb files"
 
-listing="$(dpkg-deb -c "$RUNTIME_DEB")"
+listing="$(debq "$RUNTIME_DEB" -c)"
 VER_LIB="$(awk '$1 ~ /^-/ && $NF ~ /^\.\/usr\/lib\/libflagcx\.so\.[0-9]+(\.[0-9]+)+$/ {print $NF}' <<<"$listing")"
 SONAME_LINK="$(awk '$1 ~ /^l/ && $(NF-2) ~ /^\.\/usr\/lib\/libflagcx\.so\.[0-9]+$/ {print $(NF-2), $NF}' <<<"$listing")"
 [[ -n "$VER_LIB" ]] || fail "$RUNTIME_DEB: no real libflagcx.so.<version> in /usr/lib"
@@ -134,7 +149,7 @@ if awk '$1 ~ /^l/ { p = $(NF-2) } $1 ~ /^-/ { p = $NF } p == "./usr/lib/libflagc
     fail "$RUNTIME_DEB: ships the unversioned libflagcx.so, which belongs to -dev"
 fi
 
-listing="$(dpkg-deb -c "$DEV_DEB")"
+listing="$(debq "$DEV_DEB" -c)"
 if awk '$1 ~ /^-/ && $NF ~ /^\.\/usr\/lib\/libflagcx\.so\.[0-9]+(\.[0-9]+)*$/ { found = 1 } END { exit !found }' <<<"$listing"; then
     fail "$DEV_DEB: ships the library itself, which belongs to the runtime package"
 fi
@@ -199,7 +214,7 @@ verify_in() {
 
     docker exec -i -e MODE="$mode" -e PKG="$DEB_PACKAGE" \
         -e APT_URL="$OPT_APT_URL" -e SUITE="$DEB_CODENAME" \
-        -e WANT_VERSION="$(dpkg-deb -f "$RUNTIME_DEB" Version)" \
+        -e WANT_VERSION="$(debq "$RUNTIME_DEB" -f Version)" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 export DEBIAN_FRONTEND=noninteractive
 
