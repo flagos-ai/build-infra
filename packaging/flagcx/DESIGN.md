@@ -306,19 +306,17 @@ Makefile has no `-soname` flag and stays untouched.
 
 ### 6. Backend triage
 
-**18 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
-iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1): their `makefiles/*.mk` defaults and the
+**19 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
+du ×1, iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1): their `makefiles/*.mk` defaults and the
 base-image SDK layout agree. Every probe that was owed is answered in `backends.yaml` as
 `assert` + `vendor_lib_dirs`, which is where the answer stays actionable — the triage below
 only names what is still unresolved.
 
-**2 still need one in-container path probe each** before `apt`/`make_env`/`assert` can be
-written: `hygon-dtk26.04` (does DTK ship `nccl.h` + `libnccl.so`, and can `DEVICE_HOME` and
-`CCL_HOME` be pinned together so `DEVICE_LIB` follows?) and `kunlunxin-xre5.37.1`
-(`kunlunxin.mk`'s `DEVICE_LIB` is `/usr/local/xpu/lib` but `-lcudart` lives in
-`/usr/local/xcudart/lib`, and the CCL library the adaptor links is absent from the base image).
-None is hard-blocked: `COMPILE_KERNEL=0` is already the default, so no vendor device compiler
-is involved. Each probe is a `make` + `ldd` inside the base image.
+**1 still needs one in-container path probe** before `apt`/`make_env`/`assert` can be
+written: `kunlunxin-xre5.37.1` (`kunlunxin.mk`'s `DEVICE_LIB` is `/usr/local/xpu/lib` but
+`-lcudart` lives in `/usr/local/xcudart/lib`, and the CCL library the adaptor links is absent
+from the base image). It is not hard-blocked: `COMPILE_KERNEL=0` is already the default, so no
+vendor device compiler is involved. The probe is a `make` + `ldd` inside the base image.
 
 **nvidia is the one under-provisioned build.** Its base is
 `nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04` — no nvcc. NCCL comes from the NGC tag

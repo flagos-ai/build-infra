@@ -248,16 +248,24 @@ hygon-dtk26.04:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
-  vendor_libs: [cudart, nccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
-  probe: >-
-    DTK's CUDA_PATH is captured into /etc/profile.d/vendor.sh and re-exported
-    through BASH_ENV, so the Makefile's own DEVICE_HOME/CCL_HOME defaults (both
-    ${CUDA_PATH}) do resolve under a Dockerfile RUN. Confirm DTK ships nccl.h +
-    libnccl.so there, and pin DEVICE_HOME and CCL_HOME together — setting
-    CCL_HOME alone leaves DEVICE_LIB=/lib64 for the -lcudart link.
+  make_env:
+    # du.mk defaults both to ${CUDA_PATH}, which DTK never exports — only the
+    # ROCm/HIP set reaches the environment. They are pinned together because
+    # one root serves both: its `include` and `lib64` are symlinks into
+    # targets/x86_64-linux.
+    DEVICE_HOME: /opt/dtk/cuda/cuda-12
+    CCL_HOME: /opt/dtk/cuda/cuda-12
+  # DTK's libnccl.so is a symlink to librccl.so.1.0, so -lnccl leaves
+  # librccl.so.1 in NEEDED, never libnccl.so.*.
+  vendor_libs: [cuda, cudart, rccl]
+  assert:
+    - /opt/dtk/cuda/cuda-12/include/nccl.h
+    - /opt/dtk/cuda/cuda-12/include/cuda_runtime.h
+    - /opt/dtk/lib/librccl.so.1
+  # DTK registers nothing with ldconfig and hands out LD_LIBRARY_PATH from a
+  # bash-only profile script: an unadorned `sh` resolves none of them.
+  vendor_lib_dirs: [/opt/dtk/cuda/cuda-12/lib64, /opt/dtk/lib, /opt/hyhal/lib]
+  deb: {enabled: true, default_for_vendor: true}
 
 iluvatar-corex4.4.0:
   vendor: iluvatar_corex
