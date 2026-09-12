@@ -4,7 +4,7 @@
 
 | 文档 | 内容 |
 |---|---|
-| [zero-sgl-kernel-feasibility-20260828.md](zero-sgl-kernel-feasibility-20260828.md) | 零 sgl-kernel 可行性定案：flagos 默认路径已零依赖（6 op 全走 flag_gems），迁移面=vendor backend 约 2/3 op 有覆盖，缺口 enflame 2 op + kunlunxin klx_* |
+| [zero-sgl-kernel-feasibility-20260828.md](zero-sgl-kernel-feasibility-20260828.md) | 零 sgl-kernel 可行性定案：flagos 默认路径已零依赖（6 op 全走 flag_gems），迁移面=vendor backend 约 2/3 op 有覆盖，缺口 enflame 2 op + kunlunxin klx_*（**klx_attention_* 已由 2026-09-12 实证推翻：走 torch_native + SDPA 黑名单绕开，不必移植**）|
 | [zero-sgl-kernel-arch-20260828.html](zero-sgl-kernel-arch-20260828.html) | 零 sgl-kernel 方案架构图（本地 HTML，仅参考）|
 | [sglang-0.5.18/backends/metax-0.5.12.md](sglang-0.5.18/backends/metax-0.5.12.md) | 0.5.12 零 sgl-kernel 参考记录（0.5.18 方案的前身实证：flag_gems ConfigCache 跨编译器污染根因链）|
 | [sglang-0.5.18/](sglang-0.5.18/) | **0.5.18 per-vendor wheel + app 镜像验证报告**（index / playbook / decisions / backends / verification-matrix）|
@@ -23,6 +23,10 @@
   （[backends/metax.md](sglang-0.5.18/backends/metax.md)、
   [backends/ascend.md](sglang-0.5.18/backends/ascend.md)、
   [sglang-verification-matrix.md](sglang-verification-matrix.md)）。
+- **已验证（未发布镜像）**：kunlunxin-xre5.37.1 的 runtime + 单步安装路径 F/T 双
+  路径 E2E 全过（2026-09-12，[backends/kunlunxin.md](sglang-0.5.18/backends/kunlunxin.md)），
+  插件 PR [#104](https://github.com/flagos-ai/sglang-plugin-FL/pull/104) 待合入；
+  app 镜像与启动文档尚未做。
 - **残存约束**：sglang↔runtime torch 版本匹配（torch 由 runtime 矩阵提供，
   wheel 不强制）；每新增后端需走 verify（F/T 双路径 E2E）gate；性能未优化
   （零 sgl-kernel ~4-7 tok/s vs sgl-kernel 基线 ~40）。

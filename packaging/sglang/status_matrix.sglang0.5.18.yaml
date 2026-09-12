@@ -17,7 +17,7 @@ type: sglang
 app: sglang0.5.18
 description: sglang 0.5.18 app — srt_empty 基座 +flagos wheel + sglang-plugin-FL
   单步安装于 vendor runtime（exp/0.5.18 分支插件）。
-last_updated: "2026-09-11"
+last_updated: "2026-09-12"
 
 # App-level facility (shared across all backends of this app).
 # containerfile/workflow flipped true by the phase-5 landing (app/sglang/
@@ -43,7 +43,7 @@ scenarios:
       hygon-dtk26.04:        {T: "✅", F: "✅"}
       iluvatar-corex4.4.0:   {T: "⬜", F: "⬜"}
       iluvatar-corex4.5.0:   {T: "✅", F: "✅"}
-      kunlunxin-xre5.37.1:   {T: "⬜", F: "⬜"}
+      kunlunxin-xre5.37.1:   {T: "✅", F: "✅"}
       metax-maca3.7.2.1:     {T: "✅", F: "✅"}
       metax-maca3.8.1.3:     {T: "✅", F: "✅"}
       mthreads-musa4.3.6:    {T: "✅", F: "✅"}
@@ -118,6 +118,8 @@ backends:
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: false
+    prs:
+      - https://github.com/flagos-ai/sglang-plugin-FL/pull/104
   metax-maca3.7.2.1:
     deps_app: true
     launch_docs: true
