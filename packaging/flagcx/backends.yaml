@@ -267,8 +267,9 @@ iluvatar-corex4.4.0:
   apt: []
   make_env: {}
   vendor_libs: [cudart, nccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: false}
+  assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
+  vendor_lib_dirs: [/usr/local/corex/lib]
+  deb: {enabled: true, default_for_vendor: false}
   probe: >-
     corex lib dir on the link path. COREX_ROOT=/usr/local/corex is exported in
     the base; confirm where libcudart.so and libnccl.so land relative to
@@ -282,8 +283,9 @@ iluvatar-corex4.5.0:
   apt: []
   make_env: {}
   vendor_libs: [cudart, nccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
+  assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
+  vendor_lib_dirs: [/usr/local/corex/lib]
+  deb: {enabled: true, default_for_vendor: true}
   probe: >-
     Same as iluvatar-corex4.4.0.
 
@@ -310,8 +312,9 @@ mthreads-musa4.3.6:
   apt: []
   make_env: {}
   vendor_libs: [musart, mccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: false}
+  assert: [/usr/local/musa/include/musa_runtime.h, /usr/local/musa/include/mccl.h]
+  vendor_lib_dirs: [/usr/local/musa/lib]
+  deb: {enabled: true, default_for_vendor: false}
   probe: >-
     mccl layout under /usr/local/musa (MUSA_HOME is exported in the base).
     Confirm musa.mk's CCL_INCLUDE/CCL_LIB against where mccl.h / libmccl.so sit.
@@ -324,8 +327,9 @@ mthreads-musa5.2.0:
   apt: []
   make_env: {}
   vendor_libs: [musart, mccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
+  assert: [/usr/local/musa/include/musa_runtime.h, /usr/local/musa/include/mccl.h]
+  vendor_lib_dirs: [/usr/local/musa/lib]
+  deb: {enabled: true, default_for_vendor: true}
   probe: >-
     Same as mthreads-musa4.3.6.
 
@@ -337,8 +341,9 @@ sunrise-tangrt1.2.0:
   apt: []
   make_env: {}
   vendor_libs: [tangrt, pccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
+  assert: [/usr/local/tangrt/include/tang_runtime.h, /usr/local/pccl/include/pccl.h]
+  vendor_lib_dirs: [/usr/local/tangrt/targets/linux-x86_64/lib, /usr/local/pccl/lib/linux-x86_64]
+  deb: {enabled: true, default_for_vendor: true}
   probe: >-
     sunrise.mk defaults CCL_HOME=/usr/local/pccl while the base installs
     tangrt's own tree under TANGRT_ROOT=/usr/local/tangrt. Find the real pccl
@@ -352,8 +357,9 @@ tsingmicro-tsm260610:
   apt: []
   make_env: {}
   vendor_libs: [tccl, hpgr]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
+  assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
+  vendor_lib_dirs: [/usr/local/kuiper/lib]
+  deb: {enabled: true, default_for_vendor: true}
   probe: >-
     -ltccl / -lhpgr under KUIPER_PATH=/usr/local/kuiper. tsm.mk's /usr/local/kuiper
     default corresponds to KUIPER_PATH, which the base already exports — confirm
