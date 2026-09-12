@@ -161,15 +161,27 @@ echo ">>> layout: libflagcx.so.$LIBVER, soname libflagcx.so.$SONAME, -dev links 
 
 # The vendor's device passthrough, from build-config.yml: RTLD_NOW resolves
 # against the host's driver, so this container needs the flags a runtime
-# container gets. metax is why the chain ends at run.default -- its entry
-# carries toolkit_cmd (a wrapper binary CI does not have) and raw, no toolkit.
-RUN_FLAGS="$(VENDOR="$DEB_VENDOR" python3 - <<'PY'
+# container gets. Keyed on the backend key's prefix, not DEB_VENDOR: that is the
+# FlagCX adaptor family, which is not the build-infra vendor wherever the
+# adaptor carries its own name (iluvatar_corex, musa, tsm), and a miss fell back
+# to run.default — leaving the device out of the container with no line in the
+# log saying so. metax is why the chain ends at run.default -- its entry carries
+# toolkit_cmd (a wrapper binary CI does not have) and raw, no toolkit.
+RUN_FLAGS="$(BACKEND="$DEB_NAME" python3 - <<'PY'
 import os
 import yaml
 with open(".github/build-config.yml") as fh:
     run = yaml.safe_load(fh).get("run") or {}
-vendor = (run.get("vendors") or {}).get(os.environ["VENDOR"], {})
-print(vendor.get("toolkit") or vendor.get("raw") or run.get("default", ""))
+# base/<name> names a backend {vendor}-{backend}, so the prefix is the
+# build-infra vendor name. There is no second copy to keep in step.
+key = os.environ["BACKEND"]
+entry = (run.get("vendors") or {}).get(key.split("-", 1)[0])
+if entry is None:
+    raise SystemExit(
+        f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
+        f"to verify without the device flags its backend needs"
+    )
+print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
 PY
 )"
 # Adding it twice makes docker abort with "network host is specified multiple
