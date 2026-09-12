@@ -309,14 +309,32 @@ Makefile has no `-soname` flag and stays untouched.
 **19 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
 du ×1, iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1): their `makefiles/*.mk` defaults and the
 base-image SDK layout agree. Every probe that was owed is answered in `backends.yaml` as
-`assert` + `vendor_lib_dirs`, which is where the answer stays actionable — the triage below
-only names what is still unresolved.
+`assert` + `vendor_lib_dirs`, which is where the answer stays actionable — the note below only
+names what cannot be delivered.
 
-**1 still needs one in-container path probe** before `apt`/`make_env`/`assert` can be
-written: `kunlunxin-xre5.37.1` (`kunlunxin.mk`'s `DEVICE_LIB` is `/usr/local/xpu/lib` but
-`-lcudart` lives in `/usr/local/xcudart/lib`, and the CCL library the adaptor links is absent
-from the base image). It is not hard-blocked: `COMPILE_KERNEL=0` is already the default, so no
-vendor device compiler is involved. The probe is a `make` + `ldd` inside the base image.
+**1 backend cannot be delivered from its base image: `kunlunxin-xre5.37.1`.** Its entry stays
+`deb: {enabled: false}`, on two grounds, both measured in-container:
+
+1. **The CCL library is not in the image the `.deb` builds in.** `base/kunlunxin-xre5.37.1`
+   installs no CCL package; the XRE 5.37.1.0 installer payload (495 entries) carries only
+   `so/libxpurt.so*` and `so/libcudart.so*`; the vendor file store holds five assets and none of
+   them is a CCL package. The only `libbkcl.so` in the stack is a *runtime*-image artifact
+   inside the vendor torch wheel (`site-packages/torch_xmlir/`), headers under
+   `torch_xmlir/xccl/include/`. `/usr/local/xccl` — the value `kunlunxin.mk` gives `CCL_HOME` —
+   does not exist in the base image at all. `kunlunxin.mk`'s `DEVICE_LIB` is also worth
+   correcting in passing: it resolves to `/usr/local/xpu/so`, not the `/usr/local/xpu/lib` this
+   section used to say, and `libcudart.so` is in it.
+2. **Its API does not bind even once located.** None of the four xccl headers declares
+   `extern "C"`; `bkcl.h` is a C++ header including `<functional>`/`<tuple>`/`<vector>`. The
+   wheel's `libbkcl.so` (7.6 MB) shows 1444 symbols under `nm -D --defined-only`, 1344 of them
+   `_Z`-mangled, and no plain-C `bkcl_*` entry point; no sibling `.so` in the wheel supplies one
+   either, so FlagCX's plain-C `bkcl_init_rank` / `bkcl_destroy_context` / `bkcl_comm_count` /
+   `bkcl_get_unique_id` cannot resolve. This ground is independent of ground 1.
+
+The one-sided path is not what blocks it: `kunlunxin.mk` gates the whole xshmem route on
+`USE_SHMEM=1`, which the `.deb` build does not set, so `xshmem_adaptor.cc` is never compiled and
+the build takes the `default_dev_api_backend.cc` branch. `COMPILE_KERNEL=0` is likewise already
+the default, so no vendor device compiler is involved either way.
 
 **nvidia is the one under-provisioned build.** Its base is
 `nvcr.io/nvidia/cuda:12.8.0-runtime-ubuntu24.04` — no nvcc. NCCL comes from the NGC tag
