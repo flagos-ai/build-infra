@@ -136,6 +136,23 @@ C 级待办上。
 > `platform.py` / `kunlunxin.yaml` 比 PR 头旧，serve 本身还因 `qknorm.cuh:173`
 > 崩过一次。本轮的 ✅ 才是对 PR 头、干净容器的验证。
 
+### 3.1 app 镜像（走正式链路）
+
+插件 PR 分支先**压成单 commit** `7fb22a0c`（树与被验证的 `596820d` 逐字节相同），
+wheel 由 `sglang-plugin-wheel` workflow 从该 commit 在 kunlunxin runtime 镜像内构建
+并上传 `flagos-pypi-kunlunxin`（`sglang_fl-0.1.dev1+g7fb22a0c2-py3-none-any.whl`），
+再走 changelog 门禁 → app 镜像构建 → **镜像内 serve E2E** → push：
+
+```
+harbor.baai.ac.cn/flagos-app/sglang0.5.18-kunlunxin-xre5.37.1:2.1.2-0.1.dev1_g7fb22a0c2
+digest sha256:f3b2eddcc539341aca404af8068b86acc7cf1a8a102c0794c33cbf03b784e7c9
+```
+
+镜像内验证（`--app-image` 模式）：torch/triton/flag_gems/numpy 矩阵与 runtime 一致
+（单步安装惰性成立）、`sglang + sgl_kernel + sglang_fl` 可导入、serve ready ~145s、
+3/3 ct=144。镜像标签 `flagos.plugin=0.1.dev1+g7fb22a0c2`，pull 回来的 digest 与
+push 记录一致。
+
 ## 4. 交付配置
 
 `deps_app.sglang0.5.18`（`configs.yaml`，PR #857 已并）：
@@ -164,12 +181,10 @@ C 级待办上。
 
 ## 6. 遗留
 
-- 插件 PR #104 待合入 `exp/0.5.18`；正式 wheel 由 `sglang-plugin-wheel` workflow
-  从该分支产出后才能进 app 镜像。
+- 插件 PR #104 **待上游合入 `exp/0.5.18`**（我们无合入权，需等）。当前轮次用的
+  wheel 由 `plugin_ref=<sha>` 从该分支现构，合入后应从 `exp/0.5.18` 重建一次并对
+  同一批镜像复验。
 - `causal_conv1d` 补丁的目标路径在 0.5.18 已不存在（符号迁走），需要重指或删除；
   本轮靠隔离兜底、以 Qwen3（无 mamba）未触达为由未修。任何 mamba/GDN 模型
   （Qwen3-Next 等）在 kunlunxin 上会先撞这里。
-- app 镜像未构建：`flagos-app/sglang0.5.18-{vendor}-{backend}` 的构建 + 镜像内
-  serve E2E + tag 记录尚未做（本记录只覆盖 runtime + 单步安装路径）。
-- 启动文档未生成（状态矩阵 `launch_docs: false`）。
 - 性能未优化（torch_native 注意力）。
