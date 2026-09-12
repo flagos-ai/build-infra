@@ -76,8 +76,9 @@ serve 参数：`--gpu-memory-utilization 0.4 --enforce-eager --trust-remote-code
 
 ### 2.14.4 待办
 
-1. **插件改动落到 upstream `release/0.2`** —— 内容已就绪（tsingmicro 后端接入 +
-   上述修复），待开 PR。
+1. **插件改动落到 upstream `release/0.2`** ——
+   [vllm-plugin-FL #489](https://github.com/flagos-ai/vllm-plugin-FL/pull/489)
+   （OPEN；本轮验证所用 wheel `0.2.1+g90ffdf0.d20260912` 即该 PR head 构建）。
 2. **app 镜像未构建、未发布** —— 本轮只做 runtime 侧 E2E，矩阵的 `deps_app` /
    `launch_docs` / `image_tag` 均未置位。
 3. **两条路径的首请求都会打穿 300 s 客户端超时** —— 编译器 JIT 所致（warm 后
