@@ -178,6 +178,24 @@ if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
     RUN_FLAGS="${RUN_FLAGS} --network host"
 fi
 
+# The node's proxy, relayed the way the build relays it. These nodes have no
+# direct egress and a container inherits none of the runner's environment, which
+# is why the read-back could not resolve ports.ubuntu.com while the build's own
+# apt-get update, on the same node minutes earlier, fetched from it.
+#
+# A bare -e NAME takes the value from this script's environment and never from
+# the command line: the node's process table is readable by every user on it.
+PROXY_ENV=()
+for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY no_proxy:NO_PROXY; do
+    lower="${pair%%:*}"; upper="${pair##*:}"
+    value="$(printenv "$lower" || true)"
+    [ -n "$value" ] || value="$(printenv "$upper" || true)"
+    if [ -n "$value" ]; then
+        export "${lower}=${value}"
+        PROXY_ENV+=(-e "$lower")
+    fi
+done
+
 CONTAINER="flagcx-deb-verify-$$"
 cleanup() {
     local rc=$?
@@ -202,7 +220,7 @@ verify_in() {
 
     echo ">>> $mode: $image $run_flags"
     docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-    docker run -d --name "$CONTAINER" $run_flags "$image" sleep infinity >/dev/null
+    docker run -d --name "$CONTAINER" $run_flags "${PROXY_ENV[@]}" "$image" sleep infinity >/dev/null
     docker exec "$CONTAINER" mkdir -p /tmp/debs
     for deb in "${DEBS[@]}"; do
         docker cp "$deb" "$CONTAINER:/tmp/debs/"
@@ -237,8 +255,8 @@ if [ "$MODE" = repo ]; then
     install -D -m 0644 /tmp/flagos-apt.asc /usr/share/keyrings/flagos-apt.asc
     echo "deb [signed-by=/usr/share/keyrings/flagos-apt.asc] $APT_URL $SUITE main" \
         > /etc/apt/sources.list.d/flagos.list
-    # Only the flagos repo: the distribution archive may need a proxy this
-    # runner does not have. InRelease is signature-checked either way.
+    # Only the flagos repo: the image's own sources may point at a mirror this
+    # node cannot reach. InRelease is signature-checked either way.
     apt-get update -qq \
         -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/flagos.list \
         -o Dir::Etc::sourceparts=- \
@@ -256,8 +274,8 @@ if [ "$MODE" = repo ]; then
     exit 0
 fi
 
-# The lists may be absent from the image and the vendor apt sources may need a
-# proxy the runner does not have. The install only needs libc6/libstdc++6/
+# The lists may be absent from the image and the vendor apt sources may point at
+# a mirror this node cannot reach. The install only needs libc6/libstdc++6/
 # libgcc-s1, which every Ubuntu ships, so a failed update is a note: if a
 # dependency really is unsatisfied the install below still fails.
 apt-get update -qq || echo "note: apt-get update failed; local files only" >&2
