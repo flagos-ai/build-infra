@@ -48,7 +48,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 进迭时空 | SPACEMIT | ⬜ | — | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | ✅ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⬜ | — |
-| 清微智能 | TSM 260610 | ⬜ | ⬜ | ✅ | ✅ |
+| 清微智能 | TSM 260610 | ✅ | ✅ | ✅ | ✅ |
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
@@ -81,6 +81,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
 | 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
 | 曦望 | TANGRT 1.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
+| 清微智能 | TSM 260610 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/489 | OPEN |
 | 清微智能 | TSM 260610 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/460 | OPEN |
 
 <!-- /status-matrix:verification -->
@@ -95,7 +96,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 ### vllm0.20.2
 
-> 数据截止：2026-08-29
+> 数据截止：2026-09-12
 
 **App 级设施（全后端共享）**
 

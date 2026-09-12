@@ -54,3 +54,4 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 | sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | FlagTree decode 挂死 → 已修复（[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)）|
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | P800 XPU；解码乱码 [VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400) + 假死 KL3 |
 | cambricon neuware4.4.3 | [cambricon.md](backends/cambricon.md) | §2.11，T-only 兼容 shim ×5 |
+| tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §2.14，TX8110 F/T 双路径 E2E |
