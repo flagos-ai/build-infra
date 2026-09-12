@@ -307,6 +307,13 @@ fi
 # fails to load for a reason that is the site's, not the package's. Appended
 # rather than assigned: the image's list may already locate the vendor runtime
 # the package also links.
+#
+# That append only reaches the loader with the startup hook below off: bash
+# sources BASH_ENV at the start of every non-interactive shell, this image's hook
+# re-exports LD_LIBRARY_PATH from /etc/profile.d, and ldd is a bash script. The
+# trace would then run against the image's own list and call a soname that is
+# right there missing. The image's value is already exported into this shell.
+unset BASH_ENV
 if [ -n "${VENDOR_LIB_DIRS:-}" ]; then
     export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}${VENDOR_LIB_DIRS// /:}"
 fi
