@@ -32,7 +32,7 @@ image: sglang0.5.18-iluvatar-corex4.4.0
 tags:
 - tag: 2.1.2-0.1.dev1_g4d44a24cd
   entries:
-  - date: ''
+  - date: '2026-09-12T11:17:47.215Z'
     reason: >-
       sglang 0.5.18 on Iluvatar CoreX 4.4.0. First image for this backend, whose
       SDK pins torch 2.7.1 — below what sglang 0.5.18 assumes. Two torch surfaces
