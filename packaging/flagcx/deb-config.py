@@ -49,6 +49,11 @@ MATRIX_SCRIPT = REPO / "scripts" / "generate_matrix.py"
 LIST_FIELDS = ("apt", "vendor_libs", "vendor_lib_dirs", "assert")
 REQUIRED_ENABLED = ("vendor", "make_flag", "arch", "glibc_floor", "deb")
 VALID_ARCH = ("amd64", "arm64")
+# Debian's package-name grammar, which is stricter than anything the registry
+# enforces: no uppercase, no underscore. dpkg-gencontrol applies it deep inside
+# the build and names the field rather than the offending character, so a name
+# this far from legal is worth catching at the gate.
+DEB_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
 
 # What `--build-inputs` hands the build script. Everything else in a matrix row
 # describes the runtime image (deps, pypi indexes, compilers) and a deb build
@@ -167,6 +172,57 @@ def deb_name(key: str) -> str:
     return f"libflagcx-{key}"
 
 
+def legacy_name(vendor: str) -> str:
+    """The pre-rename package name for a vendor's adaptor family.
+
+    The adaptor family name is FlagCX's, so it is not bound by Debian's
+    package-name grammar — iluvatar_corex carries an underscore, which
+    dpkg-gencontrol rejects outright in Provides/Replaces. Sanitized here rather
+    than in backends.yaml, because `vendor` has to stay the string the makefiles
+    and _build_config.py use.
+    """
+    return "libflagcx-" + vendor.replace("_", "-")
+
+
+def relationship_fields(key: str, spec: dict, registry: dict) -> dict[str, str]:
+    """The control relationship fields derived for one backend.
+
+    Shared by --merge and --check so the gate validates exactly the strings the
+    build would emit: a second derivation for the gate is the drift the gate
+    exists to catch.
+    """
+    # Not every variant of a vendor is the vendor's package. Only the one marked
+    # default_for_vendor answers to the unqualified name, and only it may absorb
+    # the legacy package of that name — which is why Provides and Replaces are
+    # gated on the same flag.
+    legacy = legacy_name(spec["vendor"])
+    if (spec.get("deb") or {}).get("default_for_vendor"):
+        provides = legacy
+        replaces = f"{legacy} (<< ${{binary:Version}})"
+        replaces_dev = f"{legacy}-dev (<< ${{binary:Version}})"
+    else:
+        provides = replaces = replaces_dev = ""
+    # Every enabled backend of an architecture installs the same soname and the
+    # same headers, so dpkg has to be told they cannot coexist rather than left
+    # to fail on "trying to overwrite" at install time.
+    siblings = [
+        other
+        for other, other_spec in registry.items()
+        if other != key
+        and (other_spec.get("deb") or {}).get("enabled")
+        and other_spec["arch"] == spec["arch"]
+    ]
+    return {
+        "deb_provides": provides,
+        "deb_replaces": replaces,
+        "deb_replaces_dev": replaces_dev,
+        "deb_conflicts": ", ".join(deb_name(other) for other in siblings),
+        "deb_conflicts_dev": ", ".join(
+            f"{deb_name(other)}-dev" for other in siblings
+        ),
+    }
+
+
 def build_input_var(field: str) -> str:
     """Registry field name -> the variable `--build-inputs` emits.
 
@@ -212,33 +268,7 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
         # and the label exists to say which stack a .deb came out of.
         entry["build_infra_version"] = entry.get("version", "")
         entry["deb_package"] = deb_name(key)
-        # Not every variant of a vendor is the vendor's package. Only the one
-        # marked default_for_vendor answers to the unqualified name, and only it
-        # may absorb the legacy package of that name — which is why Provides and
-        # Replaces are gated on the same flag.
-        default = bool((spec.get("deb") or {}).get("default_for_vendor"))
-        # The adaptor family name is FlagCX's, so it is not bound by Debian's
-        # package-name grammar — iluvatar_corex carries an underscore, which
-        # dpkg-gencontrol rejects outright in Provides/Replaces. Sanitized here
-        # rather than in backends.yaml, because `vendor` has to stay the string
-        # the makefiles and _build_config.py use.
-        legacy = "libflagcx-" + spec["vendor"].replace("_", "-")
-        entry["deb_provides"] = legacy if default else ""
-        entry["deb_replaces"] = f"{legacy} (<< ${{binary:Version}})" if default else ""
-        entry["deb_replaces_dev"] = (
-            f"{legacy}-dev (<< ${{binary:Version}})" if default else ""
-        )
-        siblings = [
-            other
-            for other, other_spec in registry.items()
-            if other != key
-            and (other_spec.get("deb") or {}).get("enabled")
-            and other_spec["arch"] == spec["arch"]
-        ]
-        entry["deb_conflicts"] = ", ".join(deb_name(other) for other in siblings)
-        entry["deb_conflicts_dev"] = ", ".join(
-            f"{deb_name(other)}-dev" for other in siblings
-        )
+        entry.update(relationship_fields(key, spec, registry))
         joined.append(entry)
     return joined
 
@@ -308,6 +338,26 @@ def check(registry: dict, matrix: list[dict]) -> list[str]:
             if deb.get("default_for_vendor"):
                 defaults.setdefault(spec["vendor"], []).append(key)
             flags.setdefault(spec["vendor"], {})[key] = spec["make_flag"]
+
+    # The package name and the relationship fields are derived, not read, so no
+    # check above has seen them as strings. Debian's name grammar is stricter
+    # than anything the registry enforces, dpkg-gencontrol applies it deep inside
+    # the build, and it names the field rather than the character that broke it —
+    # which is how an adaptor family name carrying an underscore
+    # (iluvatar_corex) reached the link and only died there.
+    for entry in merge(registry, matrix):
+        key = entry["name"]
+        for field in ("deb_package", "deb_provides", "deb_replaces",
+                      "deb_replaces_dev", "deb_conflicts", "deb_conflicts_dev"):
+            for clause in (entry.get(field) or "").split(","):
+                # `pkg (<< ${binary:Version})` is one relationship, not three
+                # tokens, and no legal package name contains a parenthesis.
+                name = clause.split("(")[0].strip()
+                if name and not DEB_NAME_RE.match(name):
+                    problems.append(
+                        f"{key}: {field} carries {name!r}, which is not a legal "
+                        f"Debian package name"
+                    )
 
     for vendor, keys in sorted(defaults.items()):
         if len(keys) > 1:
