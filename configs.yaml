@@ -591,6 +591,13 @@ vendors:
           COREX_ROOT: /usr/local/corex
           PATH: /usr/local/corex/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/corex/lib
+        app:
+          sglang:
+            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image>` behaves like the verified configuration.
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
       deps:
         - torch==2.7.1+corex.4.4.0
         - torchaudio==2.7.1+corex.4.4.0
@@ -600,6 +607,18 @@ vendors:
         megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18:
+          # Serve hard-dep: sglang 0.5.18 imports compressed_tensors unconditionally
+          - compressed-tensors==0.17.0+flagos
+          # flagtree's iluvatar overlay reaches a test-support module on a
+          # production path: triton/spec/iluvatar/triton/testing.py::nvsmi does
+          # `from triton._internal_testing import is_corex`, and that module
+          # imports pytest at module level. Reported upstream
+          # (https://github.com/flagos-ai/FlagTree/issues/1142); drop this once
+          # it stops reaching for a test module at runtime.
+          - pytest
+          # Import-face flashinfer stub (sglang-plugin-FL addon/flashinfer-shim).
+          - flashinfer-shim==0.1.0
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
