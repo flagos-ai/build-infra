@@ -1,9 +1,10 @@
-# sglang 0.5.18 — Iluvatar CoreX 4.5.0 验证记录
+# sglang 0.5.18 — Iluvatar CoreX 验证记录
 
-> **2026-09-10 验证通过（F/T 双路径）**。corex 的 torch 是 CUDA-alias 构建
+> **两个变体都已验证（F/T 双路径）**：4.5.0（§1–§5，2026-09-10）与
+> 4.4.0（§6，2026-09-12）。corex 的 torch 是 CUDA-alias 构建
 > （`torch.version.cuda` 有值），sglang 的 `is_cuda()` 因此为真、走 CUDA 分支，
-> 但该平台既无 NVIDIA 设备、也没有那些分支期望的 NVIDIA 专属包。本轮阻塞全部
-> 来自这一错位，修复落在 sglang-plugin-FL 分支 `exp/0.5.18-iluvatar`。
+> 但该平台既无 NVIDIA 设备、也没有那些分支期望的 NVIDIA 专属包。4.5.0 的阻塞
+> 全部来自这一错位；4.4.0 另有一层 torch 版本落差，见 §6。
 
 ## 1. 环境
 
@@ -145,9 +146,102 @@ MISSING 属正常）。
 | 3 | 堡垒机对 `10.31.28.2x` 各挂两个同名资产（`n23`/`tianshu-n23`），非交互 exec 被拒；只有 2 号资产网络可达 | 运维侧注意；本轮用应答菜单的 expect 助手绕过 |
 | 4 | ix23 只能经节点代理出网，`docker exec` 不继承环境 | verify 脚本按需中继 `http_proxy`/`https_proxy`/`no_proxy`（#2）|
 
-## 5. 遗留
+## 5. 遗留（4.5.0）
 
 - 插件分支 `exp/0.5.18-iluvatar` 待合入 `exp/0.5.18`；正式 wheel 由
   `sglang-plugin-wheel` workflow 从该分支产出。
 - FlagTree #1142 修复后，从 `deps_app` 移除 `pytest`。
-- 4.4.0 未验证（torch 2.7.1，工具链更旧；vllm 线在该栈上是负结果）。
+
+## 6. CoreX 4.4.0 详细记录（2026-09-12）
+
+> **验证通过（F/T 双路径）**。4.5.0 的六个阻塞在这里以同样方式成立，另加两个
+> 4.4.0 独有的落差：SDK 钉死的 torch 是 **2.7.1**，低于 sglang 0.5.18 实际要求
+> 的 2.8；vendor triton 是 **3.1.0**，比 4.5.0 的 3.2 更旧。修复落在插件分支
+> `exp/0.5.18-iluvatar-corex440`（PR #105）。
+
+### 6.1 环境
+
+| 项 | 值 |
+|---|---|
+| 节点 | ix15（Iluvatar BI-V150，corex 4.4.0）|
+| 镜像 | `flagos-runtime-iluvatar-corex4.4.0:2.1.2` |
+| Python / torch | 3.12 / **2.7.1+corex.4.4.0** |
+| flagtree | 0.6.1+iluvatar3.6（F 路径，内 triton 3.6.0）|
+| vendor triton | **3.1.0+corex.4.4.0**（T 路径）|
+| flag_gems | 5.3.5（双路径共享）|
+| sglang / 插件 | 0.5.18+flagos / `exp/0.5.18-iluvatar-corex440` @ `4d44a24cd` |
+| 模型 | Qwen3-4B |
+
+设备 capability 答 **(7, 1)**，与 4.5.0 同（corex 的 CUDA 兼容标识）。
+
+### 6.2 4.4.0 独有的两个阻塞
+
+**#7 torch 2.7 缺 sglang 0.5.18 假定存在的两处 torch 表面。** 两处都在 Qwen3
+启动路径上、都是模块级 import、都在 2.8 才有：
+
+| 缺口 | 调用点 | torch 2.7 有 |
+|---|---|---|
+| `torch.cuda.memory._cuda_beginAllocateCurrentThreadToPool` / `_cuda_endAllocateToPool` | `pynccl_allocator` | 同两个操作的旧拼写 `_cuda_beginAllocateToPool` / `_cuda_endAllocateCurrentStreamToPool` |
+| `torch.distributed._symmetric_memory`（import 直接失败：无 `_C._distributed_c10d._SymmetricMemory`）| `logits_processor` → `triton_symm_mem_ag` | 无 —— 它是 NVLink 多播 all-gather |
+
+第一处是 **torch 的改名而非不同操作**：`pynccl_allocator` 自己就按
+`after_2_8_0` 在两种拼写之间选（`torch._C._cuda_endAllocateToPool` vs
+`_cuda_endAllocateCurrentStreamToPool`）。第二处本平台永不执行 —— sglang 自己的
+`is_symmetric_memory_enabled()` 读 `comm.enable_symm_mem`，这里恒为 False。
+
+**为什么是 on-disk 包而不是插件补丁**：scheduler 跑在 **spawn 子进程**里，该进程
+在 module-import 阶段就 `import sglang.srt.managers.scheduler`（连带这两处），
+**早于任何插件加载** —— 与 §2.1 flashinfer 同一判断。实测：装上插件后裸跑
+`python3 -c "import sglang.srt.managers.scheduler"` 依然 ImportError。
+
+新增插件 addon `addon/torch-compat/`，以 **`sitecustomize`** 分发（`site` 在解释器
+启动时导入，子进程同样生效）。它的 hook 只包住 `sglang` 包的 import，因此不 import
+sglang 的解释器零成本；两个补丁在 torch ≥ 2.8 上都是 no-op。
+`torch-compat-shim==0.1.0` 经 `deps_app.sglang0.5.18` 只装到 4.4.0。
+
+**#8 vendor triton 3.1.0 对 PDL no-op 断言。** §2.4 给 vendor triton 注入的 PDL
+no-op 在 3.2 上够用，在 3.1.0 上被 triton 自己的依赖扫描断言拦住：
+
+```
+AssertionError: Function "_noop" is being called from a Triton function but is
+not a Triton function itself. Decorate it with @triton.jit to fix this
+```
+
+`visit_Call` 的判据是 `func.__module__.startswith("triton")`；3.2 跑同一个判据但
+**只测不断言**，所以这个 4.5.0 从未暴露、只在 T 路径上出问题的缺陷直到 4.4.0 才
+显形。修复 = 注入的 no-op 声明自己属于它被装进的那个命名空间。
+
+### 6.3 E2E 验证
+
+判据同 §3；F 与 T 同一份配置，唯一变量是编译器，两路径都在插件头 `4d44a24cd`。
+
+| 路径 | 编译器 | 结果 |
+|---|---|---|
+| F | flagtree 0.6.1+iluvatar3.6（triton 3.6.0）| ✅ ready ~105s，3/3，ct=144 |
+| T | vendor triton 3.1.0+corex.4.4.0 | ✅ ready ~265s，3/3，ct=144 |
+
+安装后依赖矩阵（torch 2.7.1+corex.4.4.0 / flag_gems 5.3.5 / numpy 1.26.4）逐项
+不变；`sampling_backend=pytorch` 两侧一致。
+
+### 6.4 与 vllm 线结论的关系
+
+vllm 线在 4.4.0 上判 **T 不可交付**（vendor corex triton 3.1.0 存在不可修复缺陷，
+[vllm §14.4](../../../vllm/docs/vllm-0.24.0/backends/iluvatar.md)）。sglang 这边
+T 路径**通过** —— 差别在于本轮 T 的失败点不在厂商工具链，而在我们自己注入的
+no-op 上（#8）。这不推翻 vllm 的结论（那是 vllm 侧算子路径的实证），但说明
+"4.4.0 的 triton 一律不可用"不是可以外推的前提：**同一个 SDK 上，sglang 的 T
+路径是可交付的。**
+
+### 6.5 坑清单补充（4.4.0）
+
+| # | 坑 | 处置 |
+|---|---|---|
+| 5 | 4.4.0 的 JIT qknorm / kvcache 内核在 corex 的 nvcc 10.2 下编译失败（`cannot find cuda_0.o`），走谓词的 except 分支回落 native | 与 kunlunxin 恰好相反：那里 nvcc 编得出来、启动才崩；这里编不出来反而是安全的。两者都说明 `can_use_*` 谓词不能当作能力真相 |
+| 6 | 插件 wheel 与 addon 的分工：`torch-compat-shim` 是**独立 addon**，不并入 flashinfer-shim —— 前者是 torch 版本落差，后者是缺失的包，坏在一起会让"谁在为哪件事负责"重新变模糊 | 各自独立打包、独立 `deps_app` 计入 |
+
+### 6.6 遗留（4.4.0）
+
+- 插件 PR #105 待合入 `exp/0.5.18`。
+- `torch-compat-shim` 只为 torch < 2.8 的平台存在；4.4.0 SDK 若升 torch，应从
+  `deps_app` 移除（补丁本身届时自动 no-op，但包不该继续装）。
+- app 镜像未构建（本记录覆盖 runtime + 单步安装路径）。
