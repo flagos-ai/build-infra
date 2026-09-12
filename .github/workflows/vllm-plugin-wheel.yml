@@ -143,21 +143,32 @@ jobs:
         run: |
           set -euo pipefail
           sha=""
+          # Read the remote refs once into a variable and match against that
+          # text, instead of piping ls-remote into an early-exiting reader.
+          # `grep -q` and `head -1` close the pipe the moment they match, git
+          # keeps writing and dies of SIGPIPE, and `set -o pipefail` reports
+          # the resulting 141 as a pipeline failure. On 2026-09-12 that turned
+          # a valid branch-tip SHA into "not the tip of any branch or tag"
+          # (run 34671377268): the same check exits 0 without pipefail and 141
+          # with it, on a 522-ref repo. Materialising the list first leaves
+          # nothing to close early; awk reads every line in both branches.
+          refs=$(git ls-remote "${PLUGIN_REPO}")
           if [[ "${PLUGIN_REF}" =~ ^[0-9a-f]{40}$ ]]; then
             sha="${PLUGIN_REF,,}"
             # A bare SHA only exists on some branch/tag tip (or main); GitHub
             # refuses to serve unadvertised objects. Require it to be reachable
             # as a head or tag so the shallow fetch below can actually get it.
-            if ! git ls-remote "${PLUGIN_REPO}" | awk '{print $1}' | grep -qx "${sha}"; then
+            if ! awk -v want="${sha}" '$1 == want { found = 1 } END { exit !found }' <<<"${refs}"; then
               echo "ERROR: ${sha} is not the tip of any branch or tag in ${PLUGIN_REPO} —" >&2
               echo "      pass a branch/tag name, or push the commit to a branch first." >&2
               exit 1
             fi
           else
-            # Branch or tag name: resolve it to its current tip (branch wins).
-            sha=$(git ls-remote "${PLUGIN_REPO}" \
-                "refs/heads/${PLUGIN_REF}" "refs/tags/${PLUGIN_REF}" \
-              | head -1 | awk '{print $1}' || true)
+            # Branch or tag name: resolve it to its current tip (branch wins —
+            # ls-remote lists refs/heads/* before refs/tags/*, so the first
+            # match is the same one the old `head -1` picked).
+            sha=$(awk -v head="refs/heads/${PLUGIN_REF}" -v tag="refs/tags/${PLUGIN_REF}" \
+                '$2 == head || $2 == tag { print $1; exit }' <<<"${refs}")
             if [ -z "${sha}" ]; then
               echo "ERROR: ref '${PLUGIN_REF}' not found as a branch or tag in ${PLUGIN_REPO}" >&2
               exit 1
