@@ -178,13 +178,7 @@ if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
     RUN_FLAGS="${RUN_FLAGS} --network host"
 fi
 
-# The node's proxy, relayed the way the build relays it. These nodes have no
-# direct egress and a container inherits none of the runner's environment, which
-# is why the read-back could not resolve ports.ubuntu.com while the build's own
-# apt-get update, on the same node minutes earlier, fetched from it.
-#
-# A bare -e NAME takes the value from this script's environment and never from
-# the command line: the node's process table is readable by every user on it.
+# The node's proxy, relayed the way the build relays it. 
 PROXY_ENV=()
 for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY no_proxy:NO_PROXY; do
     lower="${pair%%:*}"; upper="${pair##*:}"
