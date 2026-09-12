@@ -306,9 +306,10 @@ kunlunxin-xre5.37.1:
   assert: []
   deb: {enabled: false, default_for_vendor: true}
   probe: >-
-    kunlunxin.mk sets DEVICE_LIB=/usr/local/xpu/lib but -lcudart lives in
-    /usr/local/xcudart/lib (both are on the base image's LD_LIBRARY_PATH).
-    Settle whether the link needs an extra -L or a separate CCL_HOME.
+    Closed, not pending: this backend cannot be delivered from its base image. The base
+    Containerfile installs no CCL package and XRE 5.37.1.0 ships no xccl/bkcl, so CCL_HOME's
+    /usr/local/xccl is absent; the only libbkcl.so is a runtime-image artifact inside the
+    vendor torch wheel, and it exports no plain-C bkcl_* entry point. See DESIGN.md section 6.
 
 mthreads-musa4.3.6:
   vendor: musa
