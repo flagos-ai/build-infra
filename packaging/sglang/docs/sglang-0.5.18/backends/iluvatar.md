@@ -223,6 +223,23 @@ not a Triton function itself. Decorate it with @triton.jit to fix this
 安装后依赖矩阵（torch 2.7.1+corex.4.4.0 / flag_gems 5.3.5 / numpy 1.26.4）逐项
 不变；`sampling_backend=pytorch` 两侧一致。
 
+### 6.3a app 镜像（走正式链路）
+
+插件分支的 wheel 由 `sglang-plugin-wheel` workflow 在**本后端自己的 runtime 镜像**
+内从该分支构建，上传 `flagos-pypi-iluvatar`
+（`sglang_fl-0.1.dev1+g4d44a24cd-py3-none-any.whl`；同一次运行也发布本后端
+`deps_app` 点名的 `torch-compat-shim`），再走 changelog 门禁 → app 镜像构建 →
+**镜像内 serve E2E** → push：
+
+```
+harbor.baai.ac.cn/flagos-app/sglang0.5.18-iluvatar-corex4.4.0:2.1.2-0.1.dev1_g4d44a24cd
+digest sha256:f3d95abf5f6ebad1c110a6b61f256d61f8c028db6730bf0e29b602ead2e9886c
+```
+
+镜像内验证（`--app-image` 模式）：关键包矩阵与 runtime 一致、`sglang + sgl_kernel +
+sglang_fl` 可导入、serve ready ~100s、3/3 ct=144。镜像标签
+`flagos.plugin=0.1.dev1+g4d44a24cd`，pull 回来的 digest 与 push 记录一致。
+
 ### 6.4 与 vllm 线结论的关系
 
 vllm 线在 4.4.0 上判 **T 不可交付**（vendor corex triton 3.1.0 存在不可修复缺陷，
@@ -241,7 +258,7 @@ no-op 上（#8）。这不推翻 vllm 的结论（那是 vllm 侧算子路径的
 
 ### 6.6 遗留（4.4.0）
 
-- 插件 PR #105 待合入 `exp/0.5.18`。
+- 插件 PR #105 待合入 `exp/0.5.18`（它是 #102 的堆叠 PR，base 指向
+  `exp/0.5.18-iluvatar`；#102 合入后需把 base 改回 `exp/0.5.18`）。
 - `torch-compat-shim` 只为 torch < 2.8 的平台存在；4.4.0 SDK 若升 torch，应从
   `deps_app` 移除（补丁本身届时自动 no-op，但包不该继续装）。
-- app 镜像未构建（本记录覆盖 runtime + 单步安装路径）。
