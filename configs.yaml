@@ -619,6 +619,13 @@ vendors:
           - pytest
           # Import-face flashinfer stub (sglang-plugin-FL addon/flashinfer-shim).
           - flashinfer-shim==0.1.0
+          # This SDK pins torch 2.7.1, and sglang 0.5.18 imports two torch
+          # surfaces that exist only from 2.8: the renamed
+          # torch.cuda.memory allocator entry points, and
+          # torch.distributed._symmetric_memory. The shim supplies both at
+          # interpreter start — the scheduler worker imports them before any
+          # sglang plugin loads, so a plugin-side patch cannot reach them.
+          - torch-compat-shim==0.1.0
       sdk:
         - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip

@@ -25,6 +25,9 @@ name: sglang wheel
 # (playbook §5.2), so app images install this zero-dep stub from the same
 # index. The shim is backend-agnostic, source is the sglang-plugin-FL addon
 # (exp/0.5.18), not build-infra. Pure Python, so it builds on ubuntu-latest.
+# The same job carries the two vendor-scoped addons — flashinfer-shim and
+# torch-compat-shim — published only to the indexes whose backends ask for
+# them in deps_app.
 #
 # Uploads are manual (no schedule); target defaults to flagos-pypi-<vendor>.
 # The source tarball must already be on the filestore (build-sdist.sh).
@@ -235,6 +238,13 @@ jobs:
           else
             echo "::notice::flashinfer addon absent on this ref — building only sgl-kernel-shim"
           fi
+          # Same shape for the torch<2.8 compat shim: the backends whose SDK
+          # pins an older torch carry the addon on their branch.
+          if [[ -f sglang-plugin-FL/addon/torch-compat/build.sh ]]; then
+            bash sglang-plugin-FL/addon/torch-compat/build.sh "${GITHUB_WORKSPACE}/wheels"
+          else
+            echo "::notice::torch-compat addon absent on this ref — building only the other shims"
+          fi
 
       # The shim must stay zero-dep: a Requires-Dist on the baked matrix would
       # give pip a reason to drift it on a single-step install.
@@ -268,10 +278,14 @@ jobs:
             # deps_app asks for it (the stub is inert elsewhere, but its
             # presence on a real-flashinfer backend's index is a loaded gun).
             mapfile -t fi_targets < <(jq -r '.include[] | select((.app_deps // "") | contains("flashinfer-shim")) | .name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
+            # The torch<2.8 compat shim is vendor-scoped for the same reason:
+            # it only exists for platforms whose SDK pins an older torch.
+            mapfile -t tc_targets < <(jq -r '.include[] | select((.app_deps // "") | contains("torch-compat-shim")) | .name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
           else
             vendor="${backend%%-*}"
             targets=("${pypi_repo:-flagos-pypi-${vendor}}")
             fi_targets=("${targets[@]}")
+            tc_targets=("${targets[@]}")
           fi
           python3 -m pip install --quiet twine
           export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
@@ -292,5 +306,16 @@ jobs:
                 --repository-url "https://resource.flagos.net/repository/${repo}/" \
                 --non-interactive \
                 "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl
+            done
+          fi
+          if ! compgen -G "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl > /dev/null; then
+            echo "no torch-compat shim wheel on this ref — nothing to upload"
+          else
+            for repo in "${tc_targets[@]}"; do
+              echo ">>> uploading torch-compat shim to ${repo}"
+              python3 -m twine upload \
+                --repository-url "https://resource.flagos.net/repository/${repo}/" \
+                --non-interactive \
+                "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl
             done
           fi
