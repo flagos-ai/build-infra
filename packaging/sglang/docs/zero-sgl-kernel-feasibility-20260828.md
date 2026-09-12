@@ -173,6 +173,17 @@ _tsingmicro / _spacemit / _aipu / _amd。**flag_gems 设计上就是按厂商分
 
 **结论**：
 
+> **2026-09-12 修订**：kunlunxin 的 `klx_attention_extend` /
+> `klx_attention_decode` **不必移植进 flag_gems** —— 0.5.18 的 E2E 实证走的是
+> **绕开**：注意力改 `torch_native`，并把 SDPA 家族（4 条）加进 `kunlunxin.yaml`
+> 黑名单，让 flag_gems 不去劫持 `aten::_scaled_dot_product_*`（否则同样撞上 XPU
+> 编译器的 flash-attention 失败）。代价是性能未优化。C 级因此只剩
+> `klx_fused_experts` / `klx_gated_delta_net` 两项，且**未被 Qwen3 触达、尚未
+> 验证**。详见 [sglang-0.5.18/backends/kunlunxin.md](sglang-0.5.18/backends/kunlunxin.md) §2.4。
+>
+> 下段为 2026-08-28 的原始结论，其"klx_attention_* 不可绕开"已被上式推翻，
+> 保留供对照。
+
 - 迁移面主力 = kunlunxin klx_* 三类。klx_attention_* 不可绕开上游 triton paged
   attention——P800 XPU 上 triton attention kernel 编译失败（FlagTree 0.6.1+xpu3.6 /
   vendor triton 3.0.0，见 vllm 线记录），正是 klx_* 存在的根因。C 级缺口只能自写 /
