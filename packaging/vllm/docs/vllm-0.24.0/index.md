@@ -135,19 +135,9 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
 - [ ] `setuptools 84.0.0` 不满足 pyproject 中 `<81` 要求 —— 非致命问题，先不动，留意。
 - [x] **插件 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)（torchvision guard）合入 v0.3.0-dev** —— 2026-08-17
       已合入（5b592be）；ascend 验证即基于该基线（[§10](backends/ascend.md)）。
-- [ ] 0.24.0 其余后端（iluvatar、enflame、cambricon 等）
-      的验证 —— nvidia ✅（[§6](backends/nvidia.md)）；metax ✅
-      （[§4/§5](backends/metax.md)）；mthreads ✅（[§8/§9](backends/mthreads.md)）；
-      ascend ✅（[§10](backends/ascend.md)，CANN 9.0.0 + cann8.5.0 双编译器）；
-      sunrise ✅（[§11](backends/sunrise.md)，T 路径 triton；F 路径 rebuilt
-      flagtree ✅ [§11.5](backends/sunrise.md) —— 旧
-      [0.20.2 §2.9](../vllm-0.20.2/backends/sunrise.md) 解码挂死已由
-      [FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978) 修复）；hygon ✅（[§12](backends/hygon.md)，F/T 双编译器，2026-08-20）；
-      **kunlunxin ✅（[§13](backends/kunlunxin.md)，flagtree + triton 双编译器，
-      2026-08-23）**；**iluvatar ✅（[§14](backends/iluvatar.md)，cp312 empty
-      wheel + F/T 双编译器 app 镜像 serve E2E，2026-08-30）**；
-      **tsingmicro ✅（[§15](backends/tsingmicro.md)，KV 写路径修复
-      [VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)，F/T 双路径 E2E，2026-08-31）**
+- [x] 0.24.0 后端验证 —— 除 spacemit / thead（未开线，无 base 镜像与 deps_app）
+      外全部有结论。后端级结论与根因见 [验证矩阵](../vllm-verification-matrix.md)
+      「已验证 / 已知事实」；本地报告见本节各 `§`。
 - [ ] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
       flash_linear_attention` → `vllm.model_executor.layers.fla.ops`）——
       Qwen3-Next/GDN 模型验证前置（[§13.4](backends/kunlunxin.md)）

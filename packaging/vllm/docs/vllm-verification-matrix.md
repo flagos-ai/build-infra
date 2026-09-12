@@ -177,20 +177,21 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 <!-- /status-matrix:facility:vllm0.24.0 -->
 
-## 编译器覆盖现状（configs.yaml 2026-08-15）
+## 编译器覆盖现状（configs.yaml 2026-09-12）
 
-- **双编译器**（15 backend）：nvidia×2, ascend×2, enflame×2, hygon, iluvatar,
+- **双编译器**（18 backend）：nvidia×2, ascend×4, enflame×2, hygon, iluvatar×2,
   kunlunxin, metax×2, mthreads×2, sunrise, tsingmicro。默认 flagtree，`compiler` 函数切换。
 - **仅 triton**（4 backend）：cambricon×2, spacemit, thead。
 
-## 后端 Python 版本（configs.yaml 2026-08-15）
+## 后端 Python 版本（configs.yaml 2026-09-12）
 
 0.24.0 empty wheel 绑定 CPython 小版本（`cp312-cp312`），
-3.10/3.11 后端在 0.24.0 验证前须先按各自 Python 构建 wheel，不能复用 cp312 产物。
+3.10/3.11 后端须按各自 Python 构建 wheel，不能复用 cp312 产物。
 
-- **3.12**（10 backend）：nvidia×2, cambricon-neuware4.7.2, enflame×2, iluvatar,
+- **3.12**（11 backend）：nvidia×2, cambricon-neuware4.7.2, enflame×2, iluvatar×2,
   metax×2, spacemit, thead
-- **3.11**（2 backend）：ascend-cann8.5.0, ascend-cann9.0.0
+- **3.11**（4 backend）：ascend-cann8.5.0, ascend-cann8.5.0-910c,
+  ascend-cann9.0.0, ascend-cann9.0.0-910c
 - **3.10**（7 backend）：cambricon-neuware4.4.3, hygon, kunlunxin, mthreads×2,
   sunrise, tsingmicro
 
@@ -229,7 +230,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   假死（`XPU_EVENT_KL3_ENABLE=1` 配方去掉）已闭环 ——
   [0.20.2 §2.10](vllm-0.20.2/backends/kunlunxin.md)。
 
-**0.24.0（截至 2026-08-23）**
+**0.24.0（截至 2026-09-11）**
 
 - **nvidia-cuda12.8 / cuda13.3**：✅✅（2026-08-16，空模式双编译器，指纹
   `vllm-0.24.0-423da8ca`；cp312 empty wheel 跨 CUDA 复用实测 ✅）——
@@ -254,7 +255,22 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 - **kunlunxin-xre5.37.1**：✅（2026-08-23，cp310 empty wheel + 插件 [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401)
   移植 + app 镜像 serve E2E，flagtree + triton 双编译器）——
   [0.24.0 §13](vllm-0.24.0/backends/kunlunxin.md)。
-- **0.24.0 其余后端待验证**：iluvatar、enflame、cambricon。
+- **iluvatar-corex4.5.0 / corex4.4.0**：corex4.5.0 ✅✅（2026-08-30，cp312
+  empty wheel + app 镜像 serve E2E，无补丁一次通过）；corex4.4.0 **F ✅ / T ❌**
+  （vendor corex triton 3.1.0 编译器缺陷，2026-09-04 定案，T 路径不交付）——
+  [0.24.0 §14](vllm-0.24.0/backends/iluvatar.md)。
+- **tsingmicro-tsm260610**：✅✅（2026-08-31，cp310）。0.24.0 暴露跨平台根因：
+  `forward_includes_kv_cache_update` 未覆盖 → KV 缓存永不写入；TX8110 上
+  flag_gems attention 内核静默算错，改用 torch SDPA + plain indexing 写缓存
+  （[VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)）——
+  [0.24.0 §15](vllm-0.24.0/backends/tsingmicro.md)。
+- **enflame-tops1.9.10 / tops1.10.6**：✅✅（2026-09-04，F/T 双路径，app 镜像
+  已发布）—— [0.20.2 §2.6](vllm-0.20.2/backends/enflame.md)。
+- **cambricon-neuware4.4.3 / neuware4.7.2**：✅（仅 triton，两后端均无 F 列）
+  （2026-09-04，app 镜像 E2E 于插件 [VPF #431](https://github.com/flagos-ai/vllm-plugin-FL/pull/431)
+  head gea38c86）—— [0.20.2 §2.7 / §2.11](vllm-0.20.2/backends/cambricon.md)。
+- **ascend-cann9.0.0-910c / cann8.5.0-910c**：✅✅（2026-09-11，910C 双栈
+  app 镜像 serve E2E）—— [0.24.0 §10.7](vllm-0.24.0/backends/ascend.md)。
 
 **跨版本事实**
 
@@ -285,15 +301,18 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 - **sunrise**：flagtree flash-attn decode 挂死（已交 FlagTree 团队，[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)
   修复，2026-08-19 起 F 路径 ✅）；交付固定走官方 Triton。
-- **iluvatar**：推理乱码根因在厂商工具链过旧（torch 2.7.1），非编译器层问题。
+- **iluvatar-corex4.4.0**：0.20.2 线推理乱码根因在厂商工具链过旧（torch 2.7.1），
+  非编译器层问题；0.24.0 线 **F ✅ / T ❌**，T（vendor corex triton 3.1.0）路径
+  不可交付 —— [0.24.0 §14.4](vllm-0.24.0/backends/iluvatar.md)。
 - **enflame**：交付路径 = vendor triton + native FLASH_ATTN（见 [0.20.2 §2.6](vllm-0.20.2/backends/enflame.md)）。
 
-## 验证顺序建议
+## 剩余工作
 
-1. **0.24.0 nvidia-cuda12.8 先行**（参考实现）：确认 0.24.0 在 flagtree 下的基线行为。
-2. **3.10 / 3.11 后端先补构建**：0.24.0 empty wheel 与 CPython 绑定，
-   验证前需按后端 Python 版本构建对应 wheel。
-3. **双编译器后端逐一对两编译器验证**：metax、mthreads、sunrise、hygon、
-   kunlunxin 已全通；enflame 按风险排序推进。
-4. **单编译器后端**（cambricon、spacemit、thead）：只需验证可用的一列。
-5. **iluvatar**：等待上游修复后再列入验证队列。
+0.24.0 线除 spacemit / thead 外均有结论；剩余：
+
+1. **spacemit / thead 开线**：两后端无 `base/` 镜像、configs.yaml 无 `deps_app`，
+   前置 = 补 base 镜像与后端依赖。二者均为仅 triton 后端，可参照 cambricon
+   的既有路径（只需验证可用的一列）。
+2. **iluvatar 插件 wheel 收敛**：corex4.5.0 / corex4.4.0 现各钉一个 wheel，须
+   收敛到统一 head（≥ [VPF #434](https://github.com/flagos-ai/vllm-plugin-FL/pull/434)）
+   后退役旧 wheel —— 见 [0.24.0 §14](vllm-0.24.0/backends/iluvatar.md)。
