@@ -265,7 +265,10 @@ iluvatar-corex4.4.0:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  # Same reason as cambricon: iluvatar_corex.mk leaves PLATFORM_EXTRA_SRCS
+  # empty, so devApiBackend is undefined. -shared tolerates that, dlopen does not.
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [cudart, nccl]
   assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
   vendor_lib_dirs: [/usr/local/corex/lib]
@@ -281,7 +284,8 @@ iluvatar-corex4.5.0:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [cudart, nccl]
   assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
   vendor_lib_dirs: [/usr/local/corex/lib]
@@ -339,7 +343,8 @@ sunrise-tangrt1.2.0:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [tangrt, pccl]
   assert: [/usr/local/tangrt/include/tang_runtime.h, /usr/local/pccl/include/pccl.h]
   vendor_lib_dirs: [/usr/local/tangrt/targets/linux-x86_64/lib, /usr/local/pccl/lib/linux-x86_64]
@@ -355,7 +360,8 @@ tsingmicro-tsm260610:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [tccl, hpgr]
   assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
   vendor_lib_dirs: [/usr/local/kuiper/lib]

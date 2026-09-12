@@ -217,7 +217,12 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
         # may absorb the legacy package of that name — which is why Provides and
         # Replaces are gated on the same flag.
         default = bool((spec.get("deb") or {}).get("default_for_vendor"))
-        legacy = f"libflagcx-{spec['vendor']}"
+        # The adaptor family name is FlagCX's, so it is not bound by Debian's
+        # package-name grammar — iluvatar_corex carries an underscore, which
+        # dpkg-gencontrol rejects outright in Provides/Replaces. Sanitized here
+        # rather than in backends.yaml, because `vendor` has to stay the string
+        # the makefiles and _build_config.py use.
+        legacy = "libflagcx-" + spec["vendor"].replace("_", "-")
         entry["deb_provides"] = legacy if default else ""
         entry["deb_replaces"] = f"{legacy} (<< ${{binary:Version}})" if default else ""
         entry["deb_replaces_dev"] = (
