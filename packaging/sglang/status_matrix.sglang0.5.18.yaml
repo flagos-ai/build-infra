@@ -117,7 +117,8 @@ backends:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/102
   kunlunxin-xre5.37.1:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.1.dev1_g7fb22a0c2"
     prs:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/104
   metax-maca3.7.2.1:
