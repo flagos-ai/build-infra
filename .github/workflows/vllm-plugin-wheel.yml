@@ -143,21 +143,23 @@ jobs:
         run: |
           set -euo pipefail
           sha=""
+          # Read the remote refs once into a variable and match against that text,
+          refs=$(git ls-remote "${PLUGIN_REPO}")
           if [[ "${PLUGIN_REF}" =~ ^[0-9a-f]{40}$ ]]; then
             sha="${PLUGIN_REF,,}"
-            # A bare SHA only exists on some branch/tag tip (or main); GitHub
-            # refuses to serve unadvertised objects. Require it to be reachable
-            # as a head or tag so the shallow fetch below can actually get it.
-            if ! git ls-remote "${PLUGIN_REPO}" | awk '{print $1}' | grep -qx "${sha}"; then
+            # A bare SHA only exists on some branch/tag tip (or main);
+            # GitHub refuses to serve unadvertised objects.
+            if ! awk -v want="${sha}" '$1 == want { found = 1 } END { exit !found }' <<<"${refs}"; then
               echo "ERROR: ${sha} is not the tip of any branch or tag in ${PLUGIN_REPO} —" >&2
               echo "      pass a branch/tag name, or push the commit to a branch first." >&2
               exit 1
             fi
           else
-            # Branch or tag name: resolve it to its current tip (branch wins).
-            sha=$(git ls-remote "${PLUGIN_REPO}" \
-                "refs/heads/${PLUGIN_REF}" "refs/tags/${PLUGIN_REF}" \
-              | head -1 | awk '{print $1}' || true)
+            # Branch or tag name: resolve it to its current tip (branch wins —
+            # ls-remote lists refs/heads/* before refs/tags/*, so the first
+            # match is the same one the old `head -1` picked).
+            sha=$(awk -v head="refs/heads/${PLUGIN_REF}" -v tag="refs/tags/${PLUGIN_REF}" \
+                '$2 == head || $2 == tag { print $1; exit }' <<<"${refs}")
             if [ -z "${sha}" ]; then
               echo "ERROR: ref '${PLUGIN_REF}' not found as a branch or tag in ${PLUGIN_REPO}" >&2
               exit 1
@@ -178,21 +180,10 @@ jobs:
           set -euo pipefail
           docker pull "${BASE_IMAGE}"
           mkdir -p "${WORK}/src" "${WORK}/out"
-          # Prefer the proxy the runner relays into this step (lowercase wins,
-          # as in runtime-image.yaml): the HTTP_PROXY secret is a different hop
-          # that not every node group can reach — the cann850 nodes egress
-          # through their own squid, where the secret's proxy is unreachable
-          # and the clone dies after a 130s connect timeout. The secret stays
-          # as the fallback for runners that relay none.
+          # Prefer the proxy the runner relays into this step (lowercase wins)
           proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
           proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
-          # No NO_PROXY of this workflow's making. A hard-coded carve-out makes
-          # the container bypass the tunnel for those hosts and then die on its
-          # own resolver, which is not the host's: measured on the cann850 nodes
-          # 2026-09-11, aliyun fails in 3ms with the list and returns 200
-          # without it, and those hosts set no no_proxy at all — the proxy is
-          # their only way out. Relay whatever the host has (usually nothing),
-          # never invent a value.
+          # No NO_PROXY of this workflow's making.
           docker run --rm \
             -e VLLM_VENDOR \
             -e PLUGIN_SHA \
@@ -213,11 +204,8 @@ jobs:
               git config --global --add safe.directory "*"
               git clone --depth 1 "${PLUGIN_REPO}" /work/src
               cd /work/src
-              # Fetch the resolved commit. A bare SHA that is a branch/tag tip
-              # is not served by GitHub''s shallow protocol unless every head is
-              # advertised, so fetch all branch/tag tips shallow first, then
-              # check out the exact SHA. This makes branch-tip and tag builds
-              # deterministic without a full history clone.
+              
+              # Fetch the resolved commit.
               git fetch --depth 1 origin \
                 "+refs/heads/*:refs/remotes/origin/*" \
                 "+refs/tags/*:refs/tags/*"
@@ -228,9 +216,7 @@ jobs:
                 exit 1
               fi
               git rev-parse HEAD > /work/out/commit.txt
-              # --no-build-isolation: build against the runtime venv (same
-              # python/ABI as delivery). The derived PLUGIN_VERSION forces the
-              # setuptools-scm version deterministically.
+
               export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
@@ -265,11 +251,7 @@ jobs:
             --watch numpy==1.26.4 --watch vllm \
             "${WORK}"/out/*.whl
 
-      # Upload only when explicitly requested (default false so a manual build
-      # from a branch is safe). Upload runs from inside the runtime image —
-      # no host python needed (the node runner's /usr/bin/python3 may lack
-      # pip). The secret travels via `-e NEXUS_TOKEN` so it never appears in
-      # a process list or image layer.
+      # Upload only when explicitly requested (default false).
       - name: Upload to vendor PyPI
         if: ${{ inputs.upload }}
         env:
