@@ -108,7 +108,8 @@ backends:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/98
   iluvatar-corex4.4.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.1.2-0.1.dev1_g4d44a24cd"
     prs:
       - https://github.com/flagos-ai/sglang-plugin-FL/pull/105
   iluvatar-corex4.5.0:
