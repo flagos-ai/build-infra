@@ -32,7 +32,7 @@ image: sglang0.5.18-kunlunxin-xre5.37.1
 tags:
 - tag: 2.1.2-0.1.dev1_g7fb22a0c2
   entries:
-  - date: ''
+  - date: '2026-09-12T05:11:04.035Z'
     reason: >-
       sglang 0.5.18 on Kunlunxin P800 (XRE 5.37.1). First image for this backend.
       The plugin stops deriving the vendor from torch attributes, which labelled
