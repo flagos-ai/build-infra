@@ -227,6 +227,7 @@ verify_in() {
     docker exec -i -e MODE="$mode" -e PKG="$DEB_PACKAGE" \
         -e APT_URL="$OPT_APT_URL" -e SUITE="$DEB_CODENAME" \
         -e WANT_VERSION="$(debq "$RUNTIME_DEB" -f Version)" \
+        -e VENDOR_LIB_DIRS="$DEB_VENDOR_LIB_DIRS" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 export DEBIAN_FRONTEND=noninteractive
 
@@ -286,6 +287,16 @@ soname="$(basename "$(dpkg -L "$PKG" | grep -E '^/usr/lib/libflagcx\.so\.[0-9]+$
 if [ "$MODE" = floor ]; then
     echo ">>> floor: $PKG installs here; vendor libraries stay unresolved by design"
     exit 0
+fi
+
+# The vendor libraries are the site runtime's to supply, and where that runtime
+# keeps them is not always a directory the loader was told about — sunrise's PCCL
+# sits off the base image's own LD_LIBRARY_PATH, so the package installs and then
+# fails to load for a reason that is the site's, not the package's. Appended
+# rather than assigned: the image's list may already locate the vendor runtime
+# the package also links.
+if [ -n "${VENDOR_LIB_DIRS:-}" ]; then
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}${VENDOR_LIB_DIRS// /:}"
 fi
 
 if ldd "$lib" | grep -q 'not found'; then
