@@ -665,8 +665,13 @@ vendors:
           PATH: /usr/local/xpu/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/xpu/lib:/usr/local/xcudart/lib
         app:
+          sglang:
+            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
+            # `docker run <image>` behaves like the verified configuration.
+            TORCHINDUCTOR_COMPILE_THREADS: "1"
+            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
+            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
           vllm:
-            # Kunlunxin P800 dispatch recipe, verified on both compiler.
             # XPU_EVENT_KL3_ENABLE deliberately NOT set: it is the P1 fake-hang trigger
             # (device timeout) on this XRE stack — default env is clean, keep it so.
             VLLM_FL_PLATFORM: kunlunxin
@@ -694,6 +699,10 @@ vendors:
       deps_app:
         vllm0.20.2: []
         vllm0.24.0: []
+        sglang0.5.18:
+          # Serve hard-dep: sglang 0.5.18 imports compressed_tensors unconditionally
+          - compressed-tensors==0.17.0+flagos
+          - flashinfer-shim==0.1.0
       sdk:
         - CUDA 12.9.0_575.51.03     # cuda_12.9.0_575.51.03_linux.run
         - XRE-CUDA12 5.37.1.0       # xre-Linux-x86_64-cuda12-5.37.1.0.run
