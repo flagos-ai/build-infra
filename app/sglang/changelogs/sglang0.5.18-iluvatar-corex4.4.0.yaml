@@ -1,0 +1,50 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
+#                  incorporated by this build. build-infra PRs are the
+#                  delivery action itself and are NOT listed here.
+
+
+image: sglang0.5.18-iluvatar-corex4.4.0
+tags:
+- tag: 2.1.2-0.1.dev1_g4d44a24cd
+  entries:
+  - date: ''
+    reason: >-
+      sglang 0.5.18 on Iluvatar CoreX 4.4.0. First image for this backend, whose
+      SDK pins torch 2.7.1 — below what sglang 0.5.18 assumes. Two torch surfaces
+      it imports at startup exist only from 2.8 and neither is reachable from a
+      plugin, because the scheduler worker imports them before any plugin loads:
+      the torch.cuda.memory allocator entry points torch renamed (the caller
+      itself switches between the two spellings by version), and
+      torch.distributed._symmetric_memory, an NVLink multicast all-gather this
+      platform never runs. The torch-compat-shim addon supplies both from
+      interpreter start. Separately, the PDL no-op the plugin injects for the
+      vendor triton had to answer triton 3.1.0's own call check, which asserts
+      where 3.2 only tests — a defect on our side that the newer SDK never
+      exposed. F/T dual-compiler serve verified on Qwen3-4B.
+    upstream_prs:
+    - https://github.com/flagos-ai/sglang-plugin-FL/pull/105
