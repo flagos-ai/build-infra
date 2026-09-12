@@ -240,7 +240,7 @@ ascend-cann9.0.0-910c:
   assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
   deb: {enabled: true, default_for_vendor: false}
 
-# ── probe-pending: one in-container `make` + `ldd` each, then enable ────────
+# ── probed in-container: enabled, or still owing one probe ─────────────────
 
 hygon-dtk26.04:
   vendor: du
@@ -265,14 +265,14 @@ iluvatar-corex4.4.0:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  # Same reason as cambricon: iluvatar_corex.mk leaves PLATFORM_EXTRA_SRCS
+  # empty, so devApiBackend is undefined. -shared tolerates that, dlopen does not.
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [cudart, nccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: false}
-  probe: >-
-    corex lib dir on the link path. COREX_ROOT=/usr/local/corex is exported in
-    the base; confirm where libcudart.so and libnccl.so land relative to
-    iluvatar_corex.mk's DEVICE_LIB/CCL_LIB.
+  assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
+  vendor_lib_dirs: [/usr/local/corex/lib]
+  deb: {enabled: true, default_for_vendor: false}
 
 iluvatar-corex4.5.0:
   vendor: iluvatar_corex
@@ -280,12 +280,12 @@ iluvatar-corex4.5.0:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [cudart, nccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
-  probe: >-
-    Same as iluvatar-corex4.4.0.
+  assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
+  vendor_lib_dirs: [/usr/local/corex/lib]
+  deb: {enabled: true, default_for_vendor: true}
 
 kunlunxin-xre5.37.1:
   vendor: klx
@@ -310,11 +310,9 @@ mthreads-musa4.3.6:
   apt: []
   make_env: {}
   vendor_libs: [musart, mccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: false}
-  probe: >-
-    mccl layout under /usr/local/musa (MUSA_HOME is exported in the base).
-    Confirm musa.mk's CCL_INCLUDE/CCL_LIB against where mccl.h / libmccl.so sit.
+  assert: [/usr/local/musa/include/musa_runtime.h, /usr/local/musa/include/mccl.h]
+  vendor_lib_dirs: [/usr/local/musa/lib]
+  deb: {enabled: true, default_for_vendor: false}
 
 mthreads-musa5.2.0:
   vendor: musa
@@ -324,10 +322,9 @@ mthreads-musa5.2.0:
   apt: []
   make_env: {}
   vendor_libs: [musart, mccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
-  probe: >-
-    Same as mthreads-musa4.3.6.
+  assert: [/usr/local/musa/include/musa_runtime.h, /usr/local/musa/include/mccl.h]
+  vendor_lib_dirs: [/usr/local/musa/lib]
+  deb: {enabled: true, default_for_vendor: true}
 
 sunrise-tangrt1.2.0:
   vendor: sunrise
@@ -335,14 +332,12 @@ sunrise-tangrt1.2.0:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [tangrt, pccl]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
-  probe: >-
-    sunrise.mk defaults CCL_HOME=/usr/local/pccl while the base installs
-    tangrt's own tree under TANGRT_ROOT=/usr/local/tangrt. Find the real pccl
-    location, or pin CCL_HOME to it.
+  assert: [/usr/local/tangrt/include/tang_runtime.h, /usr/local/pccl/include/pccl.h]
+  vendor_lib_dirs: [/usr/local/tangrt/targets/linux-x86_64/lib, /usr/local/pccl/lib/linux-x86_64]
+  deb: {enabled: true, default_for_vendor: true}
 
 tsingmicro-tsm260610:
   vendor: tsm
@@ -350,11 +345,9 @@ tsingmicro-tsm260610:
   arch: amd64
   glibc_floor: "2.39"
   apt: []
-  make_env: {}
+  make_env:
+    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
   vendor_libs: [tccl, hpgr]
-  assert: []
-  deb: {enabled: false, default_for_vendor: true}
-  probe: >-
-    -ltccl / -lhpgr under KUIPER_PATH=/usr/local/kuiper. tsm.mk's /usr/local/kuiper
-    default corresponds to KUIPER_PATH, which the base already exports — confirm
-    the lib and include subdirs.
+  assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
+  vendor_lib_dirs: [/usr/local/kuiper/lib]
+  deb: {enabled: true, default_for_vendor: true}

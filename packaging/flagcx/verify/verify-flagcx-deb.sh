@@ -161,15 +161,27 @@ echo ">>> layout: libflagcx.so.$LIBVER, soname libflagcx.so.$SONAME, -dev links 
 
 # The vendor's device passthrough, from build-config.yml: RTLD_NOW resolves
 # against the host's driver, so this container needs the flags a runtime
-# container gets. metax is why the chain ends at run.default -- its entry
-# carries toolkit_cmd (a wrapper binary CI does not have) and raw, no toolkit.
-RUN_FLAGS="$(VENDOR="$DEB_VENDOR" python3 - <<'PY'
+# container gets. Keyed on the backend key's prefix, not DEB_VENDOR: that is the
+# FlagCX adaptor family, which is not the build-infra vendor wherever the
+# adaptor carries its own name (iluvatar_corex, musa, tsm), and a miss fell back
+# to run.default — leaving the device out of the container with no line in the
+# log saying so. metax is why the chain ends at run.default -- its entry carries
+# toolkit_cmd (a wrapper binary CI does not have) and raw, no toolkit.
+RUN_FLAGS="$(BACKEND="$DEB_NAME" python3 - <<'PY'
 import os
 import yaml
 with open(".github/build-config.yml") as fh:
     run = yaml.safe_load(fh).get("run") or {}
-vendor = (run.get("vendors") or {}).get(os.environ["VENDOR"], {})
-print(vendor.get("toolkit") or vendor.get("raw") or run.get("default", ""))
+# base/<name> names a backend {vendor}-{backend}, so the prefix is the
+# build-infra vendor name. There is no second copy to keep in step.
+key = os.environ["BACKEND"]
+entry = (run.get("vendors") or {}).get(key.split("-", 1)[0])
+if entry is None:
+    raise SystemExit(
+        f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
+        f"to verify without the device flags its backend needs"
+    )
+print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
 PY
 )"
 # Adding it twice makes docker abort with "network host is specified multiple
@@ -227,6 +239,7 @@ verify_in() {
     docker exec -i -e MODE="$mode" -e PKG="$DEB_PACKAGE" \
         -e APT_URL="$OPT_APT_URL" -e SUITE="$DEB_CODENAME" \
         -e WANT_VERSION="$(debq "$RUNTIME_DEB" -f Version)" \
+        -e VENDOR_LIB_DIRS="$DEB_VENDOR_LIB_DIRS" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 export DEBIAN_FRONTEND=noninteractive
 
@@ -286,6 +299,16 @@ soname="$(basename "$(dpkg -L "$PKG" | grep -E '^/usr/lib/libflagcx\.so\.[0-9]+$
 if [ "$MODE" = floor ]; then
     echo ">>> floor: $PKG installs here; vendor libraries stay unresolved by design"
     exit 0
+fi
+
+# The vendor libraries are the site runtime's to supply, and where that runtime
+# keeps them is not always a directory the loader was told about — sunrise's PCCL
+# sits off the base image's own LD_LIBRARY_PATH, so the package installs and then
+# fails to load for a reason that is the site's, not the package's. Appended
+# rather than assigned: the image's list may already locate the vendor runtime
+# the package also links.
+if [ -n "${VENDOR_LIB_DIRS:-}" ]; then
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}${VENDOR_LIB_DIRS// /:}"
 fi
 
 if ldd "$lib" | grep -q 'not found'; then
