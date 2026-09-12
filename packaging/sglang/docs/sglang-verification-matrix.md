@@ -38,7 +38,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.9.10 | ✅ | ✅ |
 | 燧原 | TOPS 1.10.6 | ✅ | ✅ |
 | 海光 | DTK 26.04 | ✅ | ✅ |
-| 天数智芯 | COREX 4.4.0 | ⬜ | ⬜ |
+| 天数智芯 | COREX 4.4.0 | ✅ | ✅ |
 | 天数智芯 | COREX 4.5.0 | ✅ | ✅ |
 | 昆仑芯 | XRE 5.37.1 | ✅ | ✅ |
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ |
@@ -61,6 +61,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.9.10 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 燧原 | TOPS 1.10.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 海光 | DTK 26.04 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/98 | OPEN |
+| 天数智芯 | COREX 4.4.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/105 | OPEN |
 | 天数智芯 | COREX 4.5.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/102 | OPEN |
 | 昆仑芯 | XRE 5.37.1 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/104 | OPEN |
 | 沐曦 | MACA 3.7.2.1 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/86 | OPEN |
