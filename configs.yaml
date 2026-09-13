@@ -1006,6 +1006,7 @@ vendors:
         - txops==0.1.0+20260716.e94d9509
         - numpy==1.26.4
       deps_app:
+        vllm0.20.2: []
         vllm0.24.0: []
       sdk:
         - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
