@@ -31,7 +31,7 @@ image: vllm0.20.2-tsingmicro-tsm260610
 tags:
 - tag: 2.1.2-0.2.1_g90ffdf0.d20260912
   entries:
-  - date: ""
+  - date: "2026-09-13T07:07:04.279Z"
     reason: >-
       Initial vllm 0.20.2 deliverable on tsingmicro TSM 260610 (Tsingmicro
       TX8110). TX8110 computes the flag_gems attention, rms_norm and
