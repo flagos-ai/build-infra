@@ -151,7 +151,8 @@ backends:
     deps_app: false
     launch_docs: false
   tsingmicro-tsm260610:
-    deps_app: false
-    launch_docs: false
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.1.2-0.2.1_g90ffdf0.d20260912"
     prs:
       - https://github.com/flagos-ai/vllm-plugin-FL/pull/489
