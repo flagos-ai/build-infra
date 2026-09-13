@@ -69,7 +69,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.9.10 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/432 | OPEN |
 | 燧原 | TOPS 1.10.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/432 | OPEN |
 | 海光 | DTK 26.04 | vllm0.24.0 | https://github.com/flagos-ai/FlagTree/pull/1020 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/434 | 已关闭 |
+| 天数智芯 | COREX 4.4.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/491 | OPEN |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/268 | 已合并 |
 | 昆仑芯 | XRE 5.37.1 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/400 | OPEN |
 | 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 | OPEN |
@@ -258,7 +258,8 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   [0.24.0 §13](vllm-0.24.0/backends/kunlunxin.md)。
 - **iluvatar-corex4.5.0 / corex4.4.0**：corex4.5.0 ✅✅（2026-08-30，cp312
   empty wheel + app 镜像 serve E2E，无补丁一次通过）；corex4.4.0 **F ✅ / T ❌**
-  （vendor corex triton 3.1.0 编译器缺陷，2026-09-04 定案，T 路径不交付）——
+  （vendor corex triton 3.1.0 编译器缺陷，2026-09-04 定案，T 路径不交付）。两变体
+  2026-09-13 收敛到统一插件 wheel（[VPF #491](https://github.com/flagos-ai/vllm-plugin-FL/pull/491)）——
   [0.24.0 §14](vllm-0.24.0/backends/iluvatar.md)。
 - **tsingmicro-tsm260610**：✅✅（2026-08-31，cp310）。0.24.0 暴露跨平台根因：
   `forward_includes_kv_cache_update` 未覆盖 → KV 缓存永不写入；TX8110 上
@@ -314,6 +315,3 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 1. **spacemit / thead 开线**：两后端无 `base/` 镜像、configs.yaml 无 `deps_app`，
    前置 = 补 base 镜像与后端依赖。二者均为仅 triton 后端，可参照 cambricon
    的既有路径（只需验证可用的一列）。
-2. **iluvatar 插件 wheel 收敛**：corex4.5.0 / corex4.4.0 现各钉一个 wheel，须
-   收敛到统一 head（≥ [VPF #434](https://github.com/flagos-ai/vllm-plugin-FL/pull/434)）
-   后退役旧 wheel —— 见 [0.24.0 §14](vllm-0.24.0/backends/iluvatar.md)。

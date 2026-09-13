@@ -2,16 +2,10 @@
 
 > 本文对应 0.20.2 线 [§2.5 / §2.12](../vllm-0.20.2/backends/iluvatar.md) 的 0.24.0 延续。
 > 0.24.0 已验证 corex4.5.0（§14，F/T 双路径）与 corex4.4.0（**F ✅ / T ❌**，见
-> [§14.4](#144-corex440-t-路径负结果2026-09-04)；guard #434，wheel `0.2.1+g84a4ca2.d20260902`，
-> 记录随 build-infra #688）；0.20.2 线 corex4.4.0 仍为负结果（工具链过旧，见
-> 0.20.2 [§2.5](../vllm-0.20.2/backends/iluvatar.md)）。
+> [§14.4](#144-corex440-t-路径负结果2026-09-04)）；两 corex 变体现统一到同一插件
+> wheel `0.2.1+gc9e2573.d20260913`（§14.5）。0.20.2 线 corex4.4.0 仍为负结果
+>（工具链过旧，见 0.20.2 [§2.5](../vllm-0.20.2/backends/iluvatar.md)）。
 > 标准流程见 [`playbook.md`](../playbook.md)，决策见 [`decisions.md`](../decisions.md)。
-> **TODO（iluvatar 插件 wheel 必须收敛，2026-09-02）：** 本线两 corex 变体现各钉一个 wheel ——
-> corex4.5.0 = `0.2.1+g07063fd.d20260828`、corex4.4.0 = `0.2.1+g84a4ca2.d20260902`；
-> 0.20.2 线若日后启用 corex4.4.0 还会再涨一个。两 wheel 的代码差仅是 #434
-> `_symmetric_memory` guard（torch≥2.8 时为 no-op），后验 head 是超集 → **必须收敛**：
-> 以统一 head（≥ #434）重验 corex4.5.0（§14 流程），matrix 两行 `image_tag` 指向同一
-> vllm_fl 版本后退役旧 wheel（g07063fd）。禁止「vllm 线 × corex 变体」逐格涨 wheel。
 
 ## 14. iluvatar（COREX 4.5.0）详细记录（2026-08-30）
 
@@ -99,6 +93,16 @@ F ✅ 记录于 2026-09-02 / build-infra #688）。
 F/T 执行的是**同一批 flag_gems Triton 内核**（`@triton.jit`），仅编译前端不同：F 编译 → 数值对，
 T 编译 → 数值错。故乱码必然落在 **vendor corex triton 3.1 编译器本身**（前端解析/代码生成缺陷），
 不在 torch、不在 flag_gems、不在插件、不在镜像。0.20.2 §2.5 trap D 在 0.24.0 复证。
+
+### 14.5 两变体收敛到统一插件 wheel（2026-09-13）
+
+**结论：** corex4.5.0 与 corex4.4.0 不再各钉一个一次性 wheel，统一到
+`0.2.1+gc9e2573.d20260913`（[VPF #491](https://github.com/flagos-ai/vllm-plugin-FL/pull/491)
+= upstream/main + `symm_mem` stub）。stub 因 corex4.4.0 的 torch 2.7.1 无
+`torch.distributed.symm_mem` 而需要，在 torch ≥ 2.8（corex4.5.0 的 2.10）上是 no-op，
+故对已验证的 4.5.0 路径无行为影响。两 app 镜像均以该 head 重建并重新验证，镜像 tag 同为
+`2.1.2-0.2.1_gc9e2573.d20260913`；被取代的 `g07063fd` / `g84a4ca2` 一次性 wheel 已退役
+（历史记录见各镜像 changelog）。
 
 **修复边界（为何「不可修复」）：** 插件层能做的只有换内核或绕 Triton——层 1 换 pytorch
 sampler、层 2 换 flag_gems attention 均可达 serve，但换到 flag_gems attention 后乱码依旧
