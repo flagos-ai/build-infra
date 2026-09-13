@@ -12,9 +12,6 @@
 > `_symmetric_memory` guard（torch≥2.8 时为 no-op），后验 head 是超集 → **必须收敛**：
 > 以统一 head（≥ #434）重验 corex4.5.0（§14 流程），matrix 两行 `image_tag` 指向同一
 > vllm_fl 版本后退役旧 wheel（g07063fd）。禁止「vllm 线 × corex 变体」逐格涨 wheel。
-> **corex4.4.0 的 T 路径修复（2026-09-04，[§14.4](#144-corex440-t-路径负结果2026-09-04)）随本次
-> 统一 wheel 一并做**：插件在 iluvatar 后端模块作用域强制 `topk_topp_sampler.HAS_TRITON=False`
-> （EngineCore 为 spawn 子进程，父进程 patch 不生效，必须模块导入期 patch）。
 
 ## 14. iluvatar（COREX 4.5.0）详细记录（2026-08-30）
 
@@ -110,6 +107,4 @@ attention 在 vLLM 0.24 无全模型开关、且 BI-V150 上性能数量级不�
 corex4.4.0 SDK 工具链（torch 2.7.1 + corex triton 3.1，镜像内不可动；corex4.5.0 的 triton
 3.2 + torch 2.10 无此问题，T ✅ 已验证）。**探针 patch（模块作用域 `HAS_TRITON=False`、
 stub `__name__`）已实测能让 T 路径 serve 起来但无交付价值，故未合入 vllm-plugin-FL**（避免
-改动共享 iluvatar 后端、波及已验证的 F 路径与 corex4.5.0 T 路径）；若厂商升级工具链，二者是
-现成恢复路径，届时随 [build-infra #691](https://github.com/flagos-ai/build-infra/pull/691)
-统一 wheel 一并评估。
+改动共享 iluvatar 后端、波及已验证的 F 路径与 corex4.5.0 T 路径）。

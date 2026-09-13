@@ -30,6 +30,16 @@
 
 image: vllm0.24.0-iluvatar-corex4.4.0
 tags:
+- tag: 2.1.2-0.2.1_gc9e2573.d20260913
+  entries:
+  - date: ""
+    reason: >-
+      Rebuild on the unified vllm-plugin-FL head that carries the symm_mem
+      stub, superseding the one-off wheel pinned to VPF #434. F path
+      deliverable; T path not deliverable (vendor corex triton 3.1 defect, see
+      the iluvatar backend doc).
+    upstream_prs:
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/491
 - tag: 2.1.2-0.2.1_g84a4ca2.d20260902
   entries:
   - date: 2026-09-02T12:14:27Z
