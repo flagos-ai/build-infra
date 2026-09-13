@@ -30,6 +30,15 @@
 
 image: vllm0.24.0-iluvatar-corex4.5.0
 tags:
+- tag: 2.1.2-0.2.1_gc9e2573.d20260913
+  entries:
+  - date: ""
+    reason: >-
+      Rebuild on the unified vllm-plugin-FL head (symm_mem stub, a no-op on
+      torch >= 2.8), converging both iluvatar corex variants onto one wheel.
+      F/T dual-compiler verified.
+    upstream_prs:
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/491
 - tag: 2.1.2-0.2.1_g07063fd.d20260828
   entries:
   - date: 2026-08-30T05:30:47Z
