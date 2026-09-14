@@ -40,16 +40,16 @@ title: "vllm0.24.0-hygon-dtk26.04"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g13eb9be.d20260908`
+`vllm-plugin-fl==0.3.0rc2.post1+gc9bbcf0.d20260914`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.2.1_g13eb9be.d20260908`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.2.1_g13eb9be.d20260908
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

@@ -106,7 +106,7 @@ backends:
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_g13eb9be.d20260908"
+    image_tag: "2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914"
     prs:
       - https://github.com/flagos-ai/FlagTree/pull/1020
   iluvatar-corex4.4.0:

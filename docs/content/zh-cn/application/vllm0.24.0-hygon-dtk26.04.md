@@ -40,16 +40,16 @@ title: "vllm0.24.0-hygon-dtk26.04"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g13eb9be.d20260908`
+`vllm-plugin-fl==0.3.0rc2.post1+gc9bbcf0.d20260914`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.2.1_g13eb9be.d20260908`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.2.1_g13eb9be.d20260908
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914
 ```
 
 以下两种方式任选其一：
