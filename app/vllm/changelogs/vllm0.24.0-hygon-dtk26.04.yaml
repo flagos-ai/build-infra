@@ -30,6 +30,16 @@
 
 image: vllm0.24.0-hygon-dtk26.04
 tags:
+- tag: 2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914
+  entries:
+  - date: ""
+    reason: >-
+      Rebuild on the vllm-plugin-FL v0.3.0-rc2.post1 tag (main head c9bbcf0) to
+      validate the tag on Hygon. The wheel version base follows the tag's own
+      version (0.3.0rc2.post1) rather than the 0.2.1 line every earlier app image
+      carried.
+    upstream_prs:
+    - https://github.com/flagos-ai/vllm-plugin-FL/pull/436
 - tag: 2.1.2-0.2.1_g13eb9be.d20260908
   entries:
   - date: 2026-09-08T23:50:00Z
