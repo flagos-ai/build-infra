@@ -31,8 +31,10 @@ gate refuses the push when it is absent. Debug builds (`push=false`) are exempt.
 - `entries`：每次实质构建一条，按时间**倒序**。
   - `date`：registry 的 `push_time`，由工作流在 push 后回填，**不手写**。
   - `reason`：本次重建的理由（对该镜像有意义的变更）。人写。
-  - `upstream_prs`：本次构建引入的**其他仓库** PR（vllm-plugin-FL /
-    FlagGems / FlagTree …）。build-infra 自己的 PR 是交付动作本身，不列。
+  - `upstream_prs`：本次构建**等待中的其他仓库** PR（vllm-plugin-FL /
+    FlagGems / FlagTree …），仅为跟踪而记。**已合并的 PR 不写**——它的改动
+    已经在所构建的 tag 里，tag 本身就是记录。build-infra 自己的 PR 是交付
+    动作本身，不列。
 
 One YAML per image under `app/<app>/changelogs/<image>.yaml` (base/runtime
 follow the same idea; placement TBD). See each file's header for the schema:
@@ -45,8 +47,11 @@ follow the same idea; placement TBD). See each file's header for the schema:
     push — never hand-typed.
   - `reason`: why this rebuild happened (the change that matters for this
     image). Human-written.
-  - `upstream_prs`: PRs in **other** repos incorporated by this build.
-    build-infra PRs are the delivery action itself and are not listed.
+  - `upstream_prs`: PENDING PRs in **other** repos (vllm-plugin-FL / FlagGems /
+    FlagTree …) that this build is waiting on — a tracking list. A merged PR is
+    **not** listed: its change is already in the tag being built, so the tag is
+    the record. build-infra PRs are the delivery action itself and are not
+    listed.
 
 ## 流程 / Flow
 

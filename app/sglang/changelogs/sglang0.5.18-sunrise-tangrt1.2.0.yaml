@@ -23,9 +23,11 @@
 #                  Empty while a build is pending review/gate.
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written.
-#     upstream_prs: PRs in OTHER repos (vllm-plugin-FL / FlagGems / ...)
-#                  incorporated by this build. build-infra PRs are the
-#                  delivery action itself and are NOT listed here.
+#     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
+#                  ...) that this build is waiting on — a tracking list, so a
+#                  merged PR does not belong here (its change is already in
+#                  the tag being built). build-infra PRs are the delivery
+#                  action itself and are NOT listed here.
 
 
 image: sglang0.5.18-sunrise-tangrt1.2.0
