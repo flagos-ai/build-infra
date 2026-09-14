@@ -1,7 +1,8 @@
 # vllm 0.24.0 — hygon dtk26.04
 
 > 本文对应原报告 §12。标准流程见 [`playbook.md`](../playbook.md)，
-> 决策见 [`decisions.md`](../decisions.md)。
+> 决策见 [`decisions.md`](../decisions.md)。§12.3 为 app 镜像上线后的新 tag 复验，
+> 不在原报告内。
 
 ## 12. hygon（DTK 26.04）详细记录（2026-08-20）
 
@@ -62,3 +63,34 @@ iluvatar overlay 都用 `(1,1,1)` 兜底。修复 = 一行
 "Paris" ✅、math "42" ✅。算子路由与 F 路径一致（全 `default.flagos`）；
 OpManager 10 ops/20 implementations；GPU KV cache 50,320 tokens；
 崩溃标记 0。指纹同 F 路径 `vllm-0.24.0-tp2-5c23ce1f`。
+
+### 12.3 vllm-plugin-FL v0.3.0-rc2.post1 tag 验证（2026-09-14）
+
+插件发布 `v0.3.0-rc2.post1`（main head `c9bbcf0`，即其 PR 的 merge commit）后
+在新 tag 上重建 app 镜像并双路径复验。此轮起 wheel 版本基跟随 **tag 自身版本**
+（`0.3.0rc2.post1`），不再走此前所有 app 镜像共用的 0.2.1 线；重建理由见
+`app/vllm/changelogs/vllm0.24.0-hygon-dtk26.04.yaml`。
+
+- 镜像 `harbor.baai.ac.cn/flagos-app/vllm0.24.0-hygon-dtk26.04:2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914`
+- 指纹：vllm `0.24.0+flagos` / vllm-plugin-fl `0.3.0rc2.post1+gc9bbcf0.d20260914`
+  / torch `2.9.0+das.opt1.dtk2604` / flagtree `0.6.2a1+hcu3.6`（§12.1 的
+  `cluster_dims` 修复即在其中）/ flag_gems 5.3.5 / numpy 1.26.4
+- 模型 `/data/models/Qwen/Qwen3-4B`，单卡；serve `--gpu-memory-utilization 0.6
+  --enforce-eager --trust-remote-code --max-model-len 2048 --port 8031`
+
+| 路径 | 编译器 | 就绪 | 首请求 | 稳态请求 |
+|---|---|---|---|---|
+| F | flagtree（triton 3.6.0，`/opt/flagtree`）| 100 s | 24.2 s | 4.0 s |
+| T | vendor triton 3.5.1（`/opt/triton`）| 100 s | 28.7 s | 3.8 s |
+
+两条路径均 serve 到 `Application startup complete`，多次补全锚点 "Paris" 稳定
+（T 路径另经 5 次重复确认）。**编译器切换不放任推断**：从 `/proc/<pid>/environ`
+读回 serve 进程的 `PYTHONPATH`（F `/opt/flagtree`，T `/opt/triton`）作为生效
+证据——`compiler` 函数只改当前 shell，用另一 shell 探针会读到默认的 flagtree。
+分发（`VLLM_FL_DISPATCH_DEBUG=1`）与 §12.1/§12.2 同形：11 个算子全部
+`selected=default.flagos`，`vendor.cuda` 一致被拒，策略取自
+`vllm_fl/dispatch/config/hygon.yaml`。
+
+> 单卡固定：`DCU_VISIBLE_DEVICES` **不**收窄设备视图（torch 仍报 8 张卡），
+> 需用 `-e HIP_VISIBLE_DEVICES=<n>`（torch 报 `count 1`）。节点为共享机，验证
+> 用 HCU1/2，避开他人 CI 占用的 HCU0。
