@@ -32,7 +32,7 @@ image: vllm0.24.0-hygon-dtk26.04
 tags:
 - tag: 2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914
   entries:
-  - date: ""
+  - date: "2026-09-14T03:48:46.111Z"
     reason: >-
       Rebuild on the vllm-plugin-FL v0.3.0-rc2.post1 tag (main head c9bbcf0) to
       validate the tag on Hygon. The wheel version base follows the tag's own
@@ -44,7 +44,8 @@ tags:
   entries:
   - date: 2026-09-08T23:50:00Z
     reason: >-
-      vllm 0.24.0 on Hygon DTK 26.04 (CUDA-alias runtime). Carries the flagtree hygon wheel rebuild
+      vllm 0.24.0 on Hygon DTK 26.04 (CUDA-alias runtime). Carries the flagtree hygon
+      wheel rebuild
       (FlagTree PR 1020). F/T verified.
     upstream_prs:
     - https://github.com/flagos-ai/FlagTree/pull/1020
