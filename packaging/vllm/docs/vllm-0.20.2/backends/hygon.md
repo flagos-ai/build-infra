@@ -1,6 +1,7 @@
 # vllm 0.20.2 — hygon dtk26.04
 
-> 本文对应原报告第 2 部分 §2.4。标准流程见 [`playbook.md`](../playbook.md)，
+> 本文对应原报告第 2 部分 §2.4（2.1.1 线手装 wheel）与 §2.15（2.1.2 线 app
+> 镜像）。标准流程见 [`playbook.md`](../playbook.md)，
 > 决策见 [`decisions.md`](../decisions.md)。
 
 ## 2.4 hygon-dtk26.04（跨后端通用性验证）
@@ -155,3 +156,55 @@ Inference:    ✅ 成功                  Ministral-8B, 32 tokens
 
 **相关提交：** 无新增代码；复用 [§2.3](mthreads.md) mthreads 的 repack 产物
 （[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)）。
+
+## 2.15 hygon-dtk26.04 app 镜像（vllm-plugin-FL v0.2.2-rc2.post1 tag 验证，2026-09-14）
+
+**平台：** Hygon BW1000 (8× HCU)　**DTK：** 26.04　**runtime：** 2.1.2
+
+**目标：** 插件发布 `v0.2.2-rc2.post1`（release/0.2 head `52949b6`，即其 PR 的
+merge commit）后，在新 tag 上重建 app 镜像并双路径复验。此轮起 wheel 版本基跟随
+**tag 自身版本**（`0.2.2rc2.post1`），不再走此前所有 app 镜像共用的 0.2.1 线；
+重建理由见 `app/vllm/changelogs/vllm0.20.2-hygon-dtk26.04.yaml`。
+
+本节是 2.1.2 线上的记录，取代 [§2.4](#24-hygon-dtk2604跨后端通用性验证) 的
+2.1.1 + 手装 wheel（那一轮的 numpy ABI 结论已由镜像侧 pin 1.26.4 落地）。
+
+### 环境指纹
+
+| 组件 | 版本 |
+|---|---|
+| vLLM | 0.20.2+flagos |
+| vllm-plugin-fl | 0.2.2rc2.post1+g52949b6.d20260914 |
+| torch | 2.9.0+das.opt1.dtk2604 |
+| FlagTree | 0.6.2a1+hcu3.6（`/opt/flagtree`，运行时 `triton.__version__` 3.6.0）|
+| vendor triton | 3.5.1（`/opt/triton`，无 dist-info，`importlib.metadata` 查不到）|
+| flag_gems / numpy | 5.3.5 / 1.26.4 |
+| 模型 | `/data/models/Qwen/Qwen3-4B` |
+
+镜像 `harbor.baai.ac.cn/flagos-app/vllm0.20.2-hygon-dtk26.04:2.1.2-0.2.2rc2.post1_g52949b6.d20260914`；
+serve `--gpu-memory-utilization 0.6 --enforce-eager --trust-remote-code
+--max-model-len 2048 --port 8031`，单卡。
+
+### 双路径结果
+
+| 路径 | 编译器 | 就绪 | 首请求 | 稳态请求 |
+|---|---|---|---|---|
+| F | flagtree（triton 3.6.0，`/opt/flagtree`）| 150 s | 24.0 s | 4.0 s |
+| T | vendor triton 3.5.1（`/opt/triton`）| 130 s | 29.3 s | 3.7 s |
+
+两条路径均 serve 到 `Application startup complete`，补全锚点 "Paris" 稳定
+（T 路径另经 5 次重复确认）；**本线此前无 T 路径记录，本轮建立**。
+**编译器切换不放任推断**：从 `/proc/<pid>/environ` 读回 serve 进程的
+`PYTHONPATH`（F `/opt/flagtree`，T `/opt/triton`）作为生效证据——`compiler`
+函数只改当前 shell，用另一 shell 探针会读到默认的 flagtree。分发
+（`VLLM_FL_DISPATCH_DEBUG=1`）:11 个算子全部 `selected=default.flagos`，
+`vendor.cuda` 一致被拒，策略取自 `vllm_fl/dispatch/config/hygon.yaml`。
+
+> 单卡固定：`DCU_VISIBLE_DEVICES` **不**收窄设备视图（torch 仍报 8 张卡），
+> 需用 `-e HIP_VISIBLE_DEVICES=<n>`（torch 报 `count 1`）。节点为共享机，
+> 验证用 HCU1/2，避开他人 CI 占用的 HCU0。
+
+### 待办
+
+1. **更大模型 / TP>1 / yarn rope** —— ⬜：本轮仍是 Qwen3-4B + eager + 单卡
+   （[§2.4](#24-hygon-dtk2604跨后端通用性验证) 遗留项，未变）

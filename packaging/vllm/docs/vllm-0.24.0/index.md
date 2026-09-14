@@ -50,7 +50,7 @@
 | mthreads musa5.2.0 / musa4.3.6 | [mthreads.md](backends/mthreads.md) | §8–§9 |
 | ascend cann9.0.0 / cann8.5.0 | [ascend.md](backends/ascend.md) | §10；CANN 双栈双编译器 + app 镜像 |
 | sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | §11；cp310 + CUSTOM 移植；FlagTree 挂死已修复 |
-| hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器 + app 镜像（flagtree 0.6.2a1+hcu3.6） |
+| hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器 + app 镜像（flagtree 0.6.2a1+hcu3.6）；§12.3 新 tag 复验 |
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | §13；cp310 + [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) + app 镜像 serve |
 | iluvatar corex4.5.0 | [iluvatar.md](backends/iluvatar.md) | §14；cp312 empty wheel；F/T 双编译器 app 镜像 |
 | tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §15；cp310；KV 写路径修复 [VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)；F/T 双编译器 |
@@ -150,5 +150,8 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
 - [x] hygon app 镜像 —— 2026-09-09：vllm0.24.0 app 镜像
       `2.1.2-0.2.1_g13eb9be.d20260908` 已构建/验证/发布（记录 PR #796），
       "暂不做"（2026-08-20 决策）作废。
+- [x] hygon 新 tag 复验 —— 2026-09-14：在 vllm-plugin-FL `v0.3.0-rc2.post1`
+      （main head c9bbcf0）上重建 `2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914`
+      并 F/T 双路径通过（[§12.3](backends/hygon.md)）。
 - [ ] ascend flag_gems 5.3.4 `index_select.py:45` 逻辑 and/or 弃用警告
       （[§10.2](backends/ascend.md)，非致命）—— 上游 flag_gems 侧修复后复验

@@ -13,7 +13,7 @@ type: vllm
 app: vllm0.24.0
 description: vLLM 0.24.0 app image — repacked vllm +flagos wheel installed
   single-step on the vendor runtime.
-last_updated: "2026-09-11"
+last_updated: "2026-09-14"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -107,8 +107,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914"
-    prs:
-      - https://github.com/flagos-ai/FlagTree/pull/1020
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: true
