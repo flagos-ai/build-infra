@@ -34,7 +34,7 @@ image: vllm0.20.2-metax-maca3.7.2.1
 tags:
 - tag: 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
   entries:
-  - date: ""
+  - date: "2026-09-15T10:39:50.037Z"
     reason: >-
       Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head db28502 — the tag
       v0.2.2-rc2.post1 plus two merged commits. The one that matters here is
@@ -46,6 +46,8 @@ tags:
   entries:
   - date: 2026-08-25T02:40:02Z
     reason: >-
-      Initial 0.20.2 deliverable on MetaX (MACA). Empty-mode repacked wheel single-step install; F/T serve
-      verified. Earlier g825c1cd publish was a shared metax/nvidia plugin pin superseded by this
+      Initial 0.20.2 deliverable on MetaX (MACA). Empty-mode repacked wheel single-step
+      install; F/T serve
+      verified. Earlier g825c1cd publish was a shared metax/nvidia plugin pin superseded
+      by this
       backend-specific build.
