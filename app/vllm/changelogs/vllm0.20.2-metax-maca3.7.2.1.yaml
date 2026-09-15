@@ -32,6 +32,16 @@
 
 image: vllm0.20.2-metax-maca3.7.2.1
 tags:
+- tag: 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
+  entries:
+  - date: ""
+    reason: >-
+      Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head db28502 — the tag
+      v0.2.2-rc2.post1 plus two merged commits. The one that matters here is
+      metax PR 333: reshape_and_cache_flash is routed through the flag_gems
+      dispatch instead of the vLLM-native op. The wheel version base follows the
+      branch's own version (0.2.2rc2.post1) rather than the 0.2.1 line the
+      earlier app images carry.
 - tag: 2.1.2-0.2.1_g3bc66eb.d20260825
   entries:
   - date: 2026-08-25T02:40:02Z
