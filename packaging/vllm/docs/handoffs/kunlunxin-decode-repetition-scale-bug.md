@@ -90,3 +90,14 @@ Qwen3-4B，请求 `temperature=0.0`（greedy），`max_tokens=12`：
   `patch_decode_attention` 中 `alpha = scale * sqrt(head_size)`。0.20.2 双编译器
   路径验证记录（FlagTree 7/7 + triton 3.6.0 3/3）已补进 PR body。
 - **Qwen3.6-27B 回归**仍未执行（见 §5），PR 合入后须补验。
+
+## 更新（2026-09-15）：「按模型几何取 flag」已定案并修进插件
+
+0.24.0 上重做配对（见 [0.24.0 后端记录 §13.8](../vllm-0.24.0/backends/kunlunxin.md)）：
+**dense 与 hybrid 需要相反的 flag 取值** —— 本文件的「移除 flag」只对 dense
+（Qwen3-4B）成立，含 GDN 的 Qwen3.6-27B / 35B-A3B 恰恰需要 flag ON，否则
+解码逐 step 全 NaN。故该变量**不能**作为全局默认值。
+
+插件已改为按 `model_config.is_hybrid` 解析写内核口径，env 降为显式覆盖；
+3 几何 × 2 编译器在无 env 下全部通过。修复位于插件仓 `feat/kunlunxin-v024`
+（`d5a3700` 之上），待上游合并后重建镜像生效。

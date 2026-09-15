@@ -205,7 +205,8 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
   - Qwen3-8B：服务可启动，但推理输出乱码（当时 flag 已设置）
   - **厂商后续澄清**：`USE_RESHAPE_AND_CACHE_FLASH=1` 可解决
     Qwen3-4B（本任务验证模型）的乱码问题——该结论晚于 7/30 文档，
-    文档本身仅记录三模型失败状态
+    文档本身仅记录三模型失败状态（**该澄清已于 2026-09-15 证伪，
+    见文末更新**）
 - **验证环境差异（厂商 vs 我们）**：厂商 = XTDK **llvm22** + driver
   5.0.21.43 + FlagGems 5.0.0 + flagtree 0.6.1a1 + sdnn-objects
   v0.3.6.2.0；我们 = **llvm19** + driver 5.37.1 + FlagGems 5.3.4。
@@ -221,12 +222,30 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
   仅指 vLLM 自带 backends。
 - 若 kunlunxin 目标是推理可用性，以 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)
   为准（厂商立场：修补无问题），
-  Qwen3-4B 乱码按厂商说明设 `USE_RESHAPE_AND_CACHE_FLASH=1` 解决；若仍要
+  Qwen3-4B 乱码按厂商说明设 `USE_RESHAPE_AND_CACHE_FLASH=1` 解决 ——
+  **该结论已证伪，见下方 2026-09-15 更新**；若仍要
   修复 Triton 编译本身（FlagTree SDNN pass 链与基础 lowering 对循环携带
   PtrState 的支持），前文请求与复现要点不变。
 - **待办**：本任务尚未跑 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)
   路径（缺含 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268) 的
   插件、xtorch_ops、FlagCX），乱码修复结论需在该路径上以 Qwen3-4B 复验。
+
+---
+
+## 2026-09-15 更新：乱码的成因与「设 flag=1」的补救被证伪
+
+上节末的待办已在 0.24.0 栈上执行完毕，结论与原判断相反：
+
+- **`USE_RESHAPE_AND_CACHE_FLASH=1` 不是 Qwen3-4B 乱码的解，而是它的成因之一。**
+  同镜像同卡配对（[0.24.0 后端记录 §13.8.4](../vllm-0.24.0/backends/kunlunxin.md)）：
+  dense Qwen3-4B 在 flag **OFF** 下 `......` 干净，flag **ON** 下 `..XXX.`；
+  含 GDN 的 Qwen3.6-27B / 35B-A3B 恰好相反，flag ON 才干净。
+- 即该变量是**两种互斥 KV 写入口径的全局开关**，取值必须随模型几何走，
+  不存在满足全部模型的单一取值。插件已改为按 `model_config.is_hybrid`
+  解析，env 降为显式覆盖（3 几何 × 2 编译器在无 env 下全部通过，
+  见 §13.8.6）。
+- 上节表内「Qwen3-8B：服务可启动，但推理输出乱码（当时 flag 已设置）」一行
+  由此得到解释：该次乱码很可能正是 flag ON 造成的，而非插件能力不足。
 
 ---
 
