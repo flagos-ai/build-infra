@@ -89,6 +89,15 @@
 #                 the matrix already carries. `vendor` above is the FlagCX
 #                 adaptor family (hygon's is `du`) — the other, independent axis,
 #                 and one field cannot play both roles.
+#   wheel.cuda_path
+#                 CUDA_PATH for the wheel build only; defaults to the row's
+#                 make_env.DEVICE_HOME. It exists because the two are the same
+#                 root on most rows and not on all: the vendor torch reads
+#                 CUDA_PATH at import to pick its compiler driver, while
+#                 make_env.DEVICE_HOME is what the vendor `.mk` uses for its
+#                 compiler, headers and link line. MACA is the row where those
+#                 are two different directories, so pointing DEVICE_HOME at the
+#                 one torch wants would move the other three.
 
 # ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
 
@@ -152,7 +161,10 @@ metax-maca3.7.2.1:
   vendor_libs: [mcruntime, mccompiler, mccl]
   assert: [/opt/maca/include/mccl.h, /opt/maca/include/mcr/mc_runtime.h]
   deb: {enabled: true, default_for_vendor: false}
-  wheel: {enabled: true, torch_backend: vendor}
+  # MACA keeps its CUDA-compat toolchain (the `gnu` driver wrapper) beside the
+  # device root, not inside it, and the vendor torch imports CUDA_PATH to set
+  # CXX from it before anything is compiled — see wheel.cuda_path above.
+  wheel: {enabled: true, torch_backend: vendor, cuda_path: /opt/maca/tools/cu-bridge}
 
 metax-maca3.8.1.3:
   vendor: metax
@@ -164,7 +176,7 @@ metax-maca3.8.1.3:
   vendor_libs: [mcruntime, mccompiler, mccl]
   assert: [/opt/maca/include/mccl.h, /opt/maca/include/mcr/mc_runtime.h]
   deb: {enabled: true, default_for_vendor: true}
-  wheel: {enabled: true, torch_backend: vendor}
+  wheel: {enabled: true, torch_backend: vendor, cuda_path: /opt/maca/tools/cu-bridge}
 
 cambricon-neuware4.4.3:
   vendor: cambricon
