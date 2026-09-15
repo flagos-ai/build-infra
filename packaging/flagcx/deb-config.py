@@ -24,6 +24,16 @@ the drift alarm between the two — no version logic, no build logic.
   --build-inputs <key>    KEY=value lines the build script sources
   --render-control <out>  render debian/control from control.in (values from DEB_*)
   --list                  one line per backend, ready or probe-pending
+  --check-version-label <key>
+                          print the local version label the row publishes, and
+                          name it when that differs from the matrix suffix
+                          a PEP 440 round trip rewrote
+
+--channel {deb,wheel} (default deb) picks the product: which rows are enabled
+(`deb.enabled` / `wheel.enabled`) and which fields the joined entry carries —
+the .deb channel derives deb_package and the control relationships, the wheel
+channel the wheel_* identity fields. The joining and the drift alarm are the
+same in both.
 """
 
 from __future__ import annotations
@@ -48,6 +58,17 @@ MATRIX_SCRIPT = REPO / "scripts" / "generate_matrix.py"
 # arg can only be a string, and the workflow passes every field through as one.
 LIST_FIELDS = ("apt", "vendor_libs", "vendor_lib_dirs", "assert")
 REQUIRED_ENABLED = ("vendor", "make_flag", "arch", "glibc_floor", "deb")
+# The wheel channel's own list, deliberately smaller and deliberately separate.
+# glibc_floor and deb are absent because a wheel embodies neither: its platform
+# tag is linux_x86_64, which claims more than any floor states (an open item,
+# see WHEEL-DESIGN.md), and it has no control stanza. `make_flag` stays because
+# a row that names an adaptor has to name its USE_* flag too — the two are one
+# choice spelled twice, and the deb channel is not the only reader of it.
+REQUIRED_WHEEL_ENABLED = ("vendor", "make_flag", "arch")
+# _build_config.py rejects `flagos` for the du/metax adaptors outright, so a row
+# carrying it can only ever build a wheel that fails on import. Widening this is
+# a per-adaptor decision, not a default.
+VALID_WHEEL_TORCH_BACKENDS = ("vendor",)
 VALID_ARCH = ("amd64", "arm64")
 # Debian's package-name grammar, which is stricter than anything the registry
 # enforces: no uppercase, no underscore. dpkg-gencontrol applies it deep inside
@@ -65,6 +86,18 @@ BUILD_INPUT_FIELDS = (
     "make_flag", "make_env", "apt", "vendor_libs", "vendor_lib_dirs", "assert",
     "build_infra_version", "deb_package", "deb_provides", "deb_conflicts",
     "deb_replaces", "deb_conflicts_dev", "deb_replaces_dev",
+)
+
+# The wheel channel's own set, not a superset: a wheel is built in the *runtime*
+# image (image_tag) rather than the base one, has no control stanza, and stamps
+# its identity from the wheel_* names instead of a package name. Emitting the
+# relationship fields here would suggest they reach a package that does not
+# exist on this channel.
+WHEEL_BUILD_INPUT_FIELDS = (
+    "name", "version", "image_tag", "arch", "python_version",
+    "wheel_version_suffix", "wheel_local_version", "wheel_python_tag",
+    "wheel_torch_backend", "wheel_adaptor", "wheel_make_env", "wheel_cuda_path",
+    "wheel_index_url", "wheel_assert",
 )
 
 # control.in placeholder -> the DEB_* variable that fills it verbatim.
@@ -172,6 +205,102 @@ def deb_name(key: str) -> str:
     return f"libflagcx-{key}"
 
 
+def version_label(key: str) -> str:
+    """The local version label a backend's wheel carries.
+
+    Derived from the backend key and not from a field, because the whole point
+    of the label is that it is the matrix name's second segment: two rows of one
+    commit get two versions only if the label is a property of the row. `vendor`
+    cannot stand in for it — that is the FlagCX adaptor family, and hygon's
+    adaptor is `du`, which names no vendor at all.
+    """
+    return key.split("-", 1)[1] if "-" in key else key
+
+
+def label_problem(key: str) -> str | None:
+    """Why a backend's local label cannot be published at all, or None if it can.
+
+    The check is a parse through `packaging` rather than a hand-written grammar
+    because normalisation is its rule, not a syntax question: a `-` inside a
+    local segment is a segment separator, and uppercase is lowercased. A label
+    that parses but reads back spelled differently is not a problem — it is
+    published under the spelling `wheel_label()` returns, and nothing downstream
+    ever sees the raw one. Only a label `packaging` refuses outright is fatal,
+    because setuptools would refuse the version and there would be no artifact
+    to pin.
+
+    The string checked is the published one and not the suffix, because the
+    published one is what setuptools is handed; a row published under a
+    spelled-out label has to clear the gate in that spelling.
+    """
+    published = wheel_label(key)
+    try:
+        label_round_trip(published)
+    except ImportError:
+        # Only the wheel channel has a set-matrix step that installs `packaging`;
+        # the deb channel has never needed it and does not get it here.
+        return "python3-packaging is not installed, so the label cannot be checked"
+    except ValueError as exc:
+        return f"label {published!r} is not a legal version local part: {exc}"
+    return None
+
+
+def label_round_trip(label: str) -> str:
+    """The label as PEP 440 reads it back (`dtk26.04` -> `dtk26.4`).
+
+    A numeric local segment loses its leading zero. That is a write-through, not
+    a display quirk: a wheel asked for `+dtk26.04` is written as `+dtk26.4`.
+    No enabled row asks for that spelling — wheel_label() answers the one row it
+    would apply to first — so today this rule is what the labels are checked
+    against, not what produces them.
+    """
+    from packaging.version import Version
+
+    return str(Version("0+" + label))[2:]
+
+
+# The one row whose published label is not what PEP 440 makes of its suffix.
+# DTK's release is spelled `26.04` — the runtime image is
+# `flagos-runtime-hygon-dtk26.04:2.1.2` — and PEP 440 cannot carry that spelling:
+# a numeric local segment loses its leading zero, so `+dtk26.04` is written as
+# `+dtk26.4`. Publishing the normalised form would rename the vendor SDK in the
+# one place a reader goes to read its name. Spelled out here rather than derived
+# by a rule: no other row has a vendor version whose leading zero is part of its
+# name, and a general rewriting rule would respell a suffix nobody has seen yet.
+DTK_KEY = "hygon-dtk26.04"
+DTK_PUBLISHED_LABEL = "dtk2604"
+
+
+def wheel_label(key: str) -> str:
+    """The label as it is actually published: the matrix suffix, normalised.
+
+    setuptools writes the version it is given through `packaging`, so a suffix
+    lands spelled as that reading of it. `maca3.7.2.1` survives untouched;
+    `dtk26.04` does not, and a real `pip wheel` asked for it comes back
+    `flagcx-0.14.0.dev14+dtk26.4.20260915.g08ab373-py3-none-any.whl`. Both the
+    exported FLAGCX_VERSION_SUFFIX and the asserted local label have to be the
+    spelling the artifact carries: a row asserting a suffix no artifact has would
+    name a version that does not exist, and the host-side filename assertion in
+    build-flagcx-wheel.sh — deliberately plain string work, because the hygon
+    runner's python has no pip and no `packaging` — could not match the file
+    without reimplementing PEP 440's rules.
+
+    The DTK row is answered before `packaging` is consulted (see DTK_KEY): its
+    label is decided here and not read off the suffix, so a runner that cannot
+    normalise still exports the spelling the index will carry.
+
+    Falls back to the raw suffix when `packaging` is missing: that is
+    `--check --channel wheel`'s failure to report, not a merge's to abort on.
+    """
+    if key == DTK_KEY:
+        return DTK_PUBLISHED_LABEL
+    label = version_label(key)
+    try:
+        return label_round_trip(label)
+    except (ImportError, ValueError):
+        return label
+
+
 def legacy_name(vendor: str) -> str:
     """The pre-rename package name for a vendor's adaptor family.
 
@@ -235,7 +364,8 @@ def build_input_var(field: str) -> str:
     return "DEB_" + field.removeprefix("deb_").upper()
 
 
-def merge(registry: dict, matrix: list[dict]) -> list[dict]:
+def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict]:
+    wheel = channel == "wheel"
     joined = []
     # Iterate the matrix, not the registry: the matrix carries the fields CI
     # needs to schedule a runner, and an enabled backend absent from it has no
@@ -244,7 +374,7 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
     for row in matrix:
         key = row["name"]
         spec = registry.get(key)
-        if not spec or not (spec.get("deb") or {}).get("enabled"):
+        if not spec or not (spec.get(channel) or {}).get("enabled"):
             continue
         entry = dict(row)
         for field in LIST_FIELDS:
@@ -255,7 +385,7 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
         entry["make_flag"] = spec["make_flag"]
         entry["vendor"] = spec["vendor"]
         entry["arch"] = spec["arch"]
-        entry["glibc_floor"] = str(spec["glibc_floor"])
+        entry["glibc_floor"] = str(spec.get("glibc_floor", ""))
         # Not a deb_ field: it is the base image's release, carried so the verify
         # job can name the plain ubuntu:<release> the floor asserts against
         # without keeping a second copy of the floor table.
@@ -267,13 +397,43 @@ def merge(registry: dict, matrix: list[dict]) -> list[dict]:
         # the point: a version written into backends.yaml goes stale silently,
         # and the label exists to say which stack a .deb came out of.
         entry["build_infra_version"] = entry.get("version", "")
-        entry["deb_package"] = deb_name(key)
-        entry.update(relationship_fields(key, spec, registry))
+        if wheel:
+            # FLAGCX_VERSION_SUFFIX and the asserted local label are the same
+            # string on purpose: what the build is told to stamp and what is
+            # checked to have been stamped must not be two derivations. Both are
+            # the published spelling rather than the matrix suffix — FlagCX
+            # appends the suffix verbatim into a local part, and setuptools then
+            # normalises what it writes (see wheel_label).
+            label = wheel_label(key)
+            entry["wheel_version_suffix"] = label
+            entry["wheel_local_version"] = label
+            entry["wheel_python_tag"] = "cp3" + entry["python_version"].split(".", 1)[1]
+            entry["wheel_torch_backend"] = (spec.get("wheel") or {}).get(
+                "torch_backend", "vendor"
+            )
+            # The adaptor family, not the index vendor — _build_config.py keys
+            # off this name to pick the make flag and the adaptor sources.
+            entry["wheel_adaptor"] = spec["vendor"]
+            entry["wheel_make_env"] = entry["make_env"]
+            # _build_config.py's du branch reads CUDA_PATH/CUDA_HOME and never
+            # DEVICE_HOME, falling back to /usr/local/cuda, which DTK does not
+            # have. Same registry value the make env already carries, surfaced
+            # under the name that branch actually reads.
+            entry["wheel_cuda_path"] = (spec.get("make_env") or {}).get(
+                "DEVICE_HOME", ""
+            )
+            entry["wheel_index_url"] = entry.get("flagos_pypi", "")
+            entry["wheel_assert"] = " ".join(spec.get("assert") or [])
+        else:
+            entry["deb_package"] = deb_name(key)
+            entry.update(relationship_fields(key, spec, registry))
         joined.append(entry)
     return joined
 
 
-def check(registry: dict, matrix: list[dict]) -> list[str]:
+def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]:
+    wheel = channel == "wheel"
+    required = REQUIRED_WHEEL_ENABLED if wheel else REQUIRED_ENABLED
     problems: list[str] = []
     matrix_keys = {entry["name"] for entry in matrix}
 
@@ -285,7 +445,7 @@ def check(registry: dict, matrix: list[dict]) -> list[str]:
     for key in sorted(set(registry) - matrix_keys):
         # generate_matrix.py prints its own note for these (no base/ file);
         # only an *enabled* one is drift, since it could never be built.
-        if (registry[key].get("deb") or {}).get("enabled"):
+        if (registry[key].get(channel) or {}).get("enabled"):
             problems.append(
                 f"{key}: enabled in backends.yaml but not in the runtime matrix "
                 f"— no base image to build in"
@@ -304,40 +464,57 @@ def check(registry: dict, matrix: list[dict]) -> list[str]:
     defaults: dict[str, list[str]] = {}
     flags: dict[str, dict[str, str]] = {}
     for key, spec in registry.items():
-        deb = spec.get("deb") or {}
-        enabled = bool(deb.get("enabled"))
+        chan = spec.get(channel) or {}
+        enabled = bool(chan.get("enabled"))
         where = f"{key}: "
 
-        missing = [f for f in REQUIRED_ENABLED if f not in spec]
+        missing = [f for f in required if f not in spec]
         if missing:
             problems.append(where + f"missing field(s) {', '.join(missing)}")
             continue
-        if not isinstance(deb.get("default_for_vendor"), bool):
+        if wheel:
+            # pip resolves a pin by name and has no Provides:, so deb's
+            # one-default-per-vendor idea has nothing to say on this channel —
+            # a row carrying it reads as if it did something.
+            if "default_for_vendor" in chan:
+                problems.append(
+                    where + "wheel.default_for_vendor has no meaning (pip has "
+                    "no Provides:) — it belongs to the deb block"
+                )
+        elif not isinstance(chan.get("default_for_vendor"), bool):
             problems.append(where + "deb.default_for_vendor must be a boolean")
         if spec["arch"] not in VALID_ARCH:
             problems.append(where + f"arch {spec['arch']!r} not in {VALID_ARCH}")
 
-        implied = base_image_glibc(key)
-        if implied is None:
-            problems.append(
-                where + "could not read a single Ubuntu release from base/" + key
-                + " — glibc_floor cannot be cross-checked"
-            )
-        elif str(spec["glibc_floor"]) != implied:
-            problems.append(
-                where + f"glibc_floor {spec['glibc_floor']} disagrees with the "
-                f"base image's Ubuntu release (implies {implied})"
-            )
-
-        if enabled:
-            if not spec.get("assert"):
+        # glibc_floor is a deb requirement (see REQUIRED_ENABLED) and a wheel
+        # makes no such claim — its platform tag is linux_x86_64, which says
+        # both more and less. A wheel row that states one anyway is
+        # cross-checked here like any other.
+        if "glibc_floor" in spec:
+            implied = base_image_glibc(key)
+            if implied is None:
                 problems.append(
-                    where + "assert is empty — the build would fail silently "
-                    "rather than at the assert gate"
+                    where + "could not read a single Ubuntu release from base/" + key
+                    + " — glibc_floor cannot be cross-checked"
                 )
-            if deb.get("default_for_vendor"):
-                defaults.setdefault(spec["vendor"], []).append(key)
-            flags.setdefault(spec["vendor"], {})[key] = spec["make_flag"]
+            elif str(spec["glibc_floor"]) != implied:
+                problems.append(
+                    where + f"glibc_floor {spec['glibc_floor']} disagrees with the "
+                    f"base image's Ubuntu release (implies {implied})"
+                )
+
+        if not enabled:
+            continue
+        if not spec.get("assert"):
+            problems.append(
+                where + "assert is empty — the build would fail silently "
+                "rather than at the assert gate"
+            )
+        if wheel:
+            continue
+        if chan.get("default_for_vendor"):
+            defaults.setdefault(spec["vendor"], []).append(key)
+        flags.setdefault(spec["vendor"], {})[key] = spec["make_flag"]
 
     # The package name and the relationship fields are derived, not read, so no
     # check above has seen them as strings. Debian's name grammar is stricter
@@ -345,19 +522,48 @@ def check(registry: dict, matrix: list[dict]) -> list[str]:
     # the build, and it names the field rather than the character that broke it —
     # which is how an adaptor family name carrying an underscore
     # (iluvatar_corex) reached the link and only died there.
-    for entry in merge(registry, matrix):
-        key = entry["name"]
-        for field in ("deb_package", "deb_provides", "deb_replaces",
-                      "deb_replaces_dev", "deb_conflicts", "deb_conflicts_dev"):
-            for clause in (entry.get(field) or "").split(","):
-                # `pkg (<< ${binary:Version})` is one relationship, not three
-                # tokens, and no legal package name contains a parenthesis.
-                name = clause.split("(")[0].strip()
-                if name and not DEB_NAME_RE.match(name):
-                    problems.append(
-                        f"{key}: {field} carries {name!r}, which is not a legal "
-                        f"Debian package name"
-                    )
+    if not wheel:
+        for entry in merge(registry, matrix, channel):
+            key = entry["name"]
+            for field in ("deb_package", "deb_provides", "deb_replaces",
+                          "deb_replaces_dev", "deb_conflicts", "deb_conflicts_dev"):
+                for clause in (entry.get(field) or "").split(","):
+                    # `pkg (<< ${binary:Version})` is one relationship, not three
+                    # tokens, and no legal package name contains a parenthesis.
+                    name = clause.split("(")[0].strip()
+                    if name and not DEB_NAME_RE.match(name):
+                        problems.append(
+                            f"{key}: {field} carries {name!r}, which is not a legal "
+                            f"Debian package name"
+                        )
+
+    if wheel:
+        # One identity per row, or one pin for two artifacts. pip's `==` ignores
+        # the local part, so two rows sharing (label, python tag, torch backend)
+        # are two different builds answering to one pin — and the second upload
+        # would report success while replacing the first. The deb channel's
+        # counterpart rule is the one-default-per-vendor check below.
+        identities: dict[tuple[str, str, str], list[str]] = {}
+        for entry in merge(registry, matrix, channel):
+            key = entry["name"]
+            problem = label_problem(key)
+            if problem:
+                problems.append(f"{key}: {problem}")
+            identities.setdefault(
+                (
+                    entry["wheel_local_version"],
+                    entry["wheel_python_tag"],
+                    entry["wheel_torch_backend"],
+                ),
+                [],
+            ).append(entry["name"])
+        for identity, keys in sorted(identities.items()):
+            if len(keys) > 1:
+                problems.append(
+                    f"wheel {identity[0]} ({identity[1]}, {identity[2]}): "
+                    f"{len(keys)} backends share it ({', '.join(keys)}) — "
+                    f"one pin, two artifacts"
+                )
 
     for vendor, keys in sorted(defaults.items()):
         if len(keys) > 1:
@@ -366,17 +572,20 @@ def check(registry: dict, matrix: list[dict]) -> list[str]:
                 f"default_for_vendor ({', '.join(keys)}) — Provides: "
                 f"libflagcx-{vendor} would have two providers"
             )
-    enabled_vendors = {
-        spec["vendor"]
-        for spec in registry.values()
-        if (spec.get("deb") or {}).get("enabled")
-    }
-    for vendor in sorted(enabled_vendors - set(defaults)):
-        print(
-            f"note: vendor {vendor} has no default_for_vendor variant, so no "
-            f"package Provides: libflagcx-{vendor}",
-            file=sys.stderr,
-        )
+    # Nothing to note on the wheel channel: a wheel has no Provides: to be
+    # missing, and the note would name every wheel row.
+    if not wheel:
+        enabled_vendors = {
+            spec["vendor"]
+            for spec in registry.values()
+            if (spec.get("deb") or {}).get("enabled")
+        }
+        for vendor in sorted(enabled_vendors - set(defaults)):
+            print(
+                f"note: vendor {vendor} has no default_for_vendor variant, so no "
+                f"package Provides: libflagcx-{vendor}",
+                file=sys.stderr,
+            )
     for vendor, per_key in sorted(flags.items()):
         if len(set(per_key.values())) > 1:
             problems.append(
@@ -452,8 +661,16 @@ def main() -> int:
     g.add_argument("--merge", metavar="MATRIX_JSON", type=Path)
     g.add_argument("--check", action="store_true")
     g.add_argument("--build-inputs", metavar="KEY")
+    g.add_argument("--check-version-label", metavar="KEY")
     g.add_argument("--render-control", metavar="OUT", type=Path)
     g.add_argument("--list", action="store_true")
+    ap.add_argument(
+        "--channel",
+        choices=("deb", "wheel"),
+        default="deb",
+        help="which product to describe; the row set and the derived fields "
+             "differ, the join and the drift alarm do not (default: deb)",
+    )
     args = ap.parse_args()
 
     registry = load_registry()
@@ -463,41 +680,98 @@ def main() -> int:
 
     if args.list:
         for key, spec in registry.items():
-            deb = spec.get("deb") or {}
-            state = "ready" if deb.get("enabled") else "probe"
-            default = " (default)" if deb.get("default_for_vendor") else ""
+            chan = spec.get(args.channel) or {}
+            state = "ready" if chan.get("enabled") else "probe"
+            default = " (default)" if chan.get("default_for_vendor") else ""
             print(f"{state:5}  {key}{default}")
         return 0
 
     if args.check:
-        problems = check(registry, load_matrix(None))
+        problems = check(registry, load_matrix(None), args.channel)
         for problem in problems:
             print(f"error: {problem}", file=sys.stderr)
         if problems:
             return 1
         enabled = sum(
-            1 for s in registry.values() if (s.get("deb") or {}).get("enabled")
+            1
+            for s in registry.values()
+            if (s.get(args.channel) or {}).get("enabled")
         )
-        print(f"ok: {enabled} enabled, {len(registry) - enabled} probe-pending")
+        pending = len(registry) - enabled
+        if args.channel == "wheel":
+            # "probe-pending" is the deb channel's word for a row whose in-
+            # container probe has not run yet. Most rows are simply not on this
+            # channel, and saying otherwise would read as owed work.
+            print(f"ok: {enabled} wheel-enabled, {pending} off this channel")
+        else:
+            print(f"ok: {enabled} enabled, {pending} probe-pending")
+        return 0
+
+    if args.check_version_label:
+        key = args.check_version_label
+        if key not in registry:
+            print(f"error: {key}: not in backends.yaml", file=sys.stderr)
+            return 2
+        problem = label_problem(key)
+        if problem:
+            print(f"error: {key}: {problem}", file=sys.stderr)
+            return 1
+        suffix = version_label(key)
+        published = wheel_label(key)
+        # A rewrite is not a failure: the published spelling is derived by
+        # wheel_label() and every consumer gets the derived one, so nothing in
+        # the pipeline can be holding the suffix. It is worth naming anyway —
+        # it is the spelling a pin must carry, and the suffix is what a reader
+        # finds in backends.yaml. Two different things cause it, and saying
+        # which one is the difference between a reader trusting the note and
+        # going to look for a normalisation bug that is not there.
+        if published != suffix:
+            cause = (
+                "the published label is spelled out on purpose (see DTK_KEY)"
+                if key == DTK_KEY
+                else "PEP 440 normalises the local part"
+            )
+            print(
+                f"note: {key}: suffix {suffix} is published as {published} — "
+                f"{cause}, so pins must say {published}"
+            )
+        print(f"ok: {key}: label {published}")
         return 0
 
     if args.build_inputs:
-        entries = {e["name"]: e for e in merge(registry, load_matrix(None))}
+        entries = {
+            e["name"]: e
+            for e in merge(registry, load_matrix(None), args.channel)
+        }
         if args.build_inputs not in entries:
             sys.exit(
                 f"{args.build_inputs}: not an enabled backend "
                 f"(see --list)"
             )
         entry = entries[args.build_inputs]
+        fields = (
+            WHEEL_BUILD_INPUT_FIELDS
+            if args.channel == "wheel"
+            else BUILD_INPUT_FIELDS
+        )
         # Quoted: several values carry spaces, so an unquoted KEY=a b line would
         # assign `a` and then try to *run* `b` when the script sources it.
-        for name in BUILD_INPUT_FIELDS:
+        for name in fields:
             print(
                 f"{build_input_var(name)}={shlex.quote(str(entry.get(name, '')))}"
             )
         return 0
 
-    print(json.dumps({"include": merge(registry, load_matrix(args.merge))}, indent=2))
+    print(
+        json.dumps(
+            {
+                "include": merge(
+                    registry, load_matrix(args.merge), args.channel
+                )
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

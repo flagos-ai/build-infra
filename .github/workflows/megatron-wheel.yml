@@ -177,7 +177,12 @@ jobs:
           # Blank input -> per-vendor flagos-pypi-{vendor}: the app image
           # installs from the same vendor index. Explicit value wins.
           if [ -z "${pypi_repo}" ]; then
-            vendor="${matrix.name%%-*}"
+            # `${{ matrix.name }}` cannot be substituted inside a bash
+            # parameter-expansion expression — ${matrix.name%%-*} reaches bash
+            # unexpanded and dies with "bad substitution". Expand into a local
+            # var first (same fix as sglang-wheel.yml:133-135).
+            matrix_name="${{ matrix.name }}"
+            vendor="${matrix_name%%-*}"
             if [ -n "${vendor}" ]; then
               pypi_repo="flagos-pypi-${vendor}"
             else

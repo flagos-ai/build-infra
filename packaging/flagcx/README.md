@@ -4,6 +4,9 @@ Builds `libflagcx-<backend>` / `libflagcx-<backend>-dev` `.deb` pairs out of a F
 one backend per container. **`DESIGN.md` is the design of record** — why the packages look the
 way they do, and what each `backends.yaml` field is for. This file is only how to run it.
 
+`WHEEL-DESIGN.md` is the design of record for the **wheel** line beside this one: same library,
+packaged as Python artifacts instead of `.deb`s. Decision-only, not yet implemented.
+
 ## Quickstart
 
 ```bash
@@ -88,6 +91,7 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | Path | What |
 |---|---|
 | `DESIGN.md` | design of record — rationale, `dpkg-shlibdeps` mechanism, ADRs |
+| `WHEEL-DESIGN.md` | design of record for the wheel line — identity, version label, pin |
 | `backends.yaml` | per-backend packaging facts: the one input build-infra cannot derive |
 | `deb-config.py` | joins `backends.yaml` with `generate_matrix.py --runtime` |
 | `Containerfile.deb` | the build, on top of the backend's base image |
