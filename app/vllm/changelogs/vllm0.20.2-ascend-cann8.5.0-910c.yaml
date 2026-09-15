@@ -34,7 +34,7 @@ image: vllm0.20.2-ascend-cann8.5.0-910c
 tags:
 - tag: 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
   entries:
-  - date: ""
+  - date: "2026-09-15T10:50:17.737Z"
     reason: >-
       Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head db28502, which
       replaces the fork-synthesized source (2b6b635 = release-0.2 plus three
