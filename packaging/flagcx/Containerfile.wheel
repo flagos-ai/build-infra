@@ -70,6 +70,13 @@ ARG DEB_WHEEL_PYTHON_TAG
 ARG DEB_WHEEL_MAKE_ENV
 ARG DEB_WHEEL_CUDA_PATH
 
+# Width of the commit node in the local version label, and of the node in the
+# describe record the host checks that label against. One value, because the
+# host asserts the two agree — setuptools_scm's own default is --abbrev=40
+# (setuptools_scm/git.py DEFAULT_DESCRIBE), which puts a full SHA into the wheel
+# name and into every pin written from it.
+ARG FLAGCX_SCM_ABBREV=7
+
 # Scoped to the clone below and never set as image ENV: the proxy is a build-time
 # fact of one RUN, and an image that remembers it is an image that leaks it.
 ARG HTTPS_PROXY=
@@ -238,7 +245,7 @@ RUN set -eux; \
         || { echo "assert: the clone carries no v* tag, so the version cannot be derived" >&2; exit 1; }; \
     mkdir -p /output; \
     git rev-parse HEAD > /output/commit.txt; \
-    git describe --tags --always > /output/scm-describe.txt
+    git describe --tags --always --abbrev="${FLAGCX_SCM_ABBREV}" > /output/scm-describe.txt
 
 WORKDIR /flagcx
 
@@ -253,15 +260,19 @@ WORKDIR /flagcx
 # registry row, not of the container's PATH, and _build_config.py's fallback also
 # scans USE_* variables that this build does not set.
 #
-# CUDA_PATH is read by the du adaptor at build-config time and is not a second
-# spelling of anything make sees: du.mk's `DEVICE_HOME ?= $(CUDA_PATH)` ladder
-# (du.mk:4,14) is unreachable for hygon — backends.yaml pins both names — while
+# CUDA_PATH is read by the vendored torch, not by make, and it is not a second
+# spelling of anything the make env carries: du.mk's `DEVICE_HOME ?= $(CUDA_PATH)`
+# ladder (du.mk:4,14) is unreachable here — backends.yaml pins both names — while
 # _build_config.py:284 consults no ladder at all, reading CUDA_PATH or CUDA_HOME
-# and then falling back to /usr/local/cuda, which DTK does not have. It is
-# derived from the row's DEVICE_HOME, so it is the same fact, not a new one.
-# Rows whose adaptor reads a literal path (metax: /opt/maca) derive nothing, and
-# an empty CUDA_PATH is inert for them: it is absent from metax.mk and falsy to
-# _build_config.py's `or`.
+# and falling back to /usr/local/cuda, which neither DTK nor MACA has. For hygon
+# it is the row's DEVICE_HOME because the two roots coincide; MACA is the row
+# that carries it as its own field (backends.yaml wheel.cuda_path), because its
+# device root and its CUDA-compat toolchain are different directories. It is NOT
+# inert where the make env is empty: the metax torch calls set_wcuda_gnu_path()
+# at import (cpp_extension.py:287), which sets CXX from $CUDA_PATH/bin/gnu and,
+# finding none, prints "No cu-bridge gnu is found!" and compiles with whatever
+# CXX it inherited — a warning, not a failure, which is why it is passed rather
+# than left for the build to trip over.
 #
 # --no-build-isolation: pyproject.toml requires torch, so isolation would go to
 # an index for it. --no-deps: setup.py declares no install_requires and
@@ -276,7 +287,8 @@ WORKDIR /flagcx
 RUN set -eux; \
     if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
     unset SETUPTOOLS_SCM_PRETEND_VERSION SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAGCX; \
-    export FLAGCX_ADAPTOR="${DEB_WHEEL_ADAPTOR}" \
+    export SETUPTOOLS_SCM_OVERRIDES_FOR_FLAGCX='{scm.git.describe_command="git describe --dirty --tags --long --abbrev='"${FLAGCX_SCM_ABBREV}"' --match *[0-9]*"}' \
+           FLAGCX_ADAPTOR="${DEB_WHEEL_ADAPTOR}" \
            FLAGCX_TORCH_BACKEND="${DEB_WHEEL_TORCH_BACKEND}" \
            FLAGCX_VERSION_SUFFIX="${DEB_WHEEL_VERSION_SUFFIX}" \
            CUDA_PATH="${DEB_WHEEL_CUDA_PATH}" \

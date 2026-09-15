@@ -415,13 +415,18 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # off this name to pick the make flag and the adaptor sources.
             entry["wheel_adaptor"] = spec["vendor"]
             entry["wheel_make_env"] = entry["make_env"]
-            # _build_config.py's du branch reads CUDA_PATH/CUDA_HOME and never
-            # DEVICE_HOME, falling back to /usr/local/cuda, which DTK does not
-            # have. Same registry value the make env already carries, surfaced
-            # under the name that branch actually reads.
-            entry["wheel_cuda_path"] = (spec.get("make_env") or {}).get(
-                "DEVICE_HOME", ""
-            )
+            # The build reads CUDA_PATH/CUDA_HOME and never DEVICE_HOME, falling
+            # back to /usr/local/cuda — which neither DTK nor MACA has — so the
+            # value has to be surfaced under the name that is actually read.
+            # For du that is the same root the make env already carries; MACA is
+            # the row where the two diverge: its device root (/opt/maca, which
+            # metax.mk needs for DEVICE_COMPILER and DEVICE_INCLUDE) is not where
+            # its CUDA-compat toolchain lives, and setting DEVICE_HOME to the
+            # cu-bridge root to reach the latter would move the former. Hence the
+            # wheel-only override, which no make invocation ever sees.
+            entry["wheel_cuda_path"] = (spec.get("wheel") or {}).get(
+                "cuda_path"
+            ) or (spec.get("make_env") or {}).get("DEVICE_HOME", "")
             entry["wheel_index_url"] = entry.get("flagos_pypi", "")
             entry["wheel_assert"] = " ".join(spec.get("assert") or [])
         else:
