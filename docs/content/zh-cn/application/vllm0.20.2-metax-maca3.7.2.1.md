@@ -40,16 +40,16 @@ title: "vllm0.20.2-metax-maca3.7.2.1"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g3bc66eb.d20260825`
+`vllm-plugin-fl==0.2.2rc2.post1+gdb28502.d20260915`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-metax-maca3.7.2.1:2.1.2-0.2.1_g3bc66eb.d20260825`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-metax-maca3.7.2.1:2.1.2-0.2.2rc2.post1_gdb28502.d20260915`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-metax-maca3.7.2.1:2.1.2-0.2.1_g3bc66eb.d20260825
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-metax-maca3.7.2.1:2.1.2-0.2.2rc2.post1_gdb28502.d20260915
 ```
 
 以下两种方式任选其一：
