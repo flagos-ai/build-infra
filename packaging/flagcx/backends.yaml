@@ -91,13 +91,9 @@
 #                 and one field cannot play both roles.
 #   wheel.cuda_path
 #                 CUDA_PATH for the wheel build only; defaults to the row's
-#                 make_env.DEVICE_HOME. It exists because the two are the same
-#                 root on most rows and not on all: the vendor torch reads
-#                 CUDA_PATH at import to pick its compiler driver, while
-#                 make_env.DEVICE_HOME is what the vendor `.mk` uses for its
-#                 compiler, headers and link line. MACA is the row where those
-#                 are two different directories, so pointing DEVICE_HOME at the
-#                 one torch wants would move the other three.
+#                 make_env.DEVICE_HOME. Separate because on MACA the vendor
+#                 torch's compiler driver lives outside the device root that
+#                 make_env.DEVICE_HOME hands the `.mk`.
 
 # ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
 
@@ -161,9 +157,8 @@ metax-maca3.7.2.1:
   vendor_libs: [mcruntime, mccompiler, mccl]
   assert: [/opt/maca/include/mccl.h, /opt/maca/include/mcr/mc_runtime.h]
   deb: {enabled: true, default_for_vendor: false}
-  # MACA keeps its CUDA-compat toolchain (the `gnu` driver wrapper) beside the
-  # device root, not inside it, and the vendor torch imports CUDA_PATH to set
-  # CXX from it before anything is compiled — see wheel.cuda_path above.
+  # MACA's cu-bridge toolchain sits beside the device root, not inside it —
+  # see wheel.cuda_path above.
   wheel: {enabled: true, torch_backend: vendor, cuda_path: /opt/maca/tools/cu-bridge}
 
 metax-maca3.8.1.3:
