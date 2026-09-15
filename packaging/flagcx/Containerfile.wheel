@@ -98,6 +98,36 @@ RUN set -eux; \
         test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
     done
 
+# torch's installed headers cannot be consumed without a gflags header, and no
+# runtime image ships one: torch/headeronly/macros/cmake_macros.h:9 defines
+# C10_USE_GFLAGS outright, so c10/util/Flags.h includes <gflags/gflags.h> for
+# every consumer. Measured in flagos-runtime-hygon-dtk26.04:2.1.2 — no
+# /usr/include/gflags, no gflags package in dpkg.
+#
+# This is the first step in the wheel line that compiles against those headers.
+# The Makefile's default target builds libflagcx.so and the public headers only,
+# and setup.py's CppExtension is the sole compiler of
+# plugin/torch/flagcx/src/backend_flagcx.cpp — the file that reaches Flags.h.
+# Containerfile.deb runs no `pip wheel` at all, so nothing in the deb line's
+# history says anything about this gap.
+#
+# Build-only, and deliberately not in the base or runtime image: the header is
+# read by the compiler and by nothing at runtime. torch's own runtime need is
+# already met inside the image — libc10.so, libtorch_cpu.so and libtorch.so all
+# carry NEEDED on torch.libs/libgflags-8aee0f6c.so.2.1.2 and resolve it there,
+# a vendoring rename a system libgflags.so.2.2 could not satisfy anyway. The
+# underlying gap in the runtime image is filed on build-infra; when that image
+# carries the header, this RUN goes away.
+#
+# Above the clone so a new FLAGCX_REF does not re-run it. Whether apt can reach
+# the archive from inside `docker build` is not measured — `apt-cache policy`
+# reads the local /var/lib/apt/lists only.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libgflags-dev; \
+    rm -rf /var/lib/apt/lists/*
+
 # The venv's interpreter is not the base image's: uv installs its own CPython
 # and seeds a relocatable venv from it (runtime/Containerfile), so an apt
 # libpython3-dev of some neighbouring version is not what this python compiles
