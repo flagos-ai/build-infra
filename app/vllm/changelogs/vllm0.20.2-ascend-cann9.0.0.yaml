@@ -32,6 +32,18 @@
 
 image: vllm0.20.2-ascend-cann9.0.0
 tags:
+- tag: 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
+  entries:
+  - date: ""
+    reason: >-
+      Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head db28502, which
+      replaces the fork-synthesized source (2b6b635 = release-0.2 plus three
+      cherry-picks) this image was originally built from. The ascend changes it
+      carried are merged upstream and present at this head: PR 361 lift_fresh /
+      _to_copy blacklist (coreDim=0 on scalar tensor init) and PR 402 pow_scalar,
+      so the wheel is built from the plain upstream repo again. The wheel version
+      base follows the branch's own version (0.2.2rc2.post1) rather than the
+      0.2.0 line this image carries.
 - tag: 2.1.2-0.2.0_g2b6b635.d20260824
   entries:
   - date: 2026-08-24T01:04:59Z
@@ -39,6 +51,3 @@ tags:
       Initial 0.20.2 deliverable on Ascend 910B4. vllm-plugin-FL ascend 0.20.2 enablement (PR 361 line)
       plus the four dispatch fixes needed on both cann stacks (pow_scalar blacklist, PR 402). Repacked
       vllm empty wheel, single-step install matrix-inert; F/T dual-compiler E2E verified.
-    upstream_prs:
-    - https://github.com/flagos-ai/vllm-plugin-FL/pull/361
-    - https://github.com/flagos-ai/vllm-plugin-FL/pull/402
