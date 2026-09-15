@@ -138,9 +138,14 @@ MetaX 两个后端的基础软件包和编译器版本不同，行为可能不�
 - [x] 0.24.0 后端验证 —— 除 spacemit / thead（未开线，无 base 镜像与 deps_app）
       外全部有结论。后端级结论与根因见 [验证矩阵](../vllm-verification-matrix.md)
       「已验证 / 已知事实」；本地报告见本节各 `§`。
-- [ ] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
+- [x] kunlunxin patch.py 三个 FLA 目标重指（`vllm.third_party.
       flash_linear_attention` → `vllm.model_executor.layers.fla.ops`）——
-      Qwen3-Next/GDN 模型验证前置（[§13.4](backends/kunlunxin.md)）
+      2026-09-15：已在插件分支 `feat/kunlunxin-v024` 实现，含 GDN 的
+      Qwen3.6-27B / 35B-A3B 端到端通过，镜像原生插件在混合模型上 engine
+      init 即失败（[§13.8.1](backends/kunlunxin.md)）
+- [ ] kunlunxin app 镜像内置插件更新 —— 待 `feat/kunlunxin-v024` 合并上游后
+      重建；该分支另含 paged-KV 写入口径改由模型几何解析的修复。在此之前
+      不设 env 时混合模型仍乱码（[§13.8.6](backends/kunlunxin.md)）
 - [ ] kunlunxin 否定指令型 prompt 标点循环 —— 已证与 alpha 无关（prompt
       内容特性，[§13.6](backends/kunlunxin.md)），留待 Qwen3-Next 验证时观察
 - [x] hygon flagtree 修复发布 —— 2026-09-08：[FlagTree #1020](https://github.com/flagos-ai/FlagTree/pull/1020)
