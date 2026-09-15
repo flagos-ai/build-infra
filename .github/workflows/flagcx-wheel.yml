@@ -321,10 +321,13 @@ jobs:
           : "${WHEEL_VERSION:?publish=true requires the wheel_version input}"
           # The index is derived from the matrix row, never from an input: no
           # input can reach another vendor's index, and the read-back step reads
-          # the same row's flagos_pypi. `${{ }}` cannot be substituted inside a
-          # bash parameter expansion -- ${matrix.name%%-*} reaches bash
-          # unexpanded and dies with "bad substitution" (megatron-wheel.yml had
-          # exactly that). Expand into a local var first.
+          # the same row's flagos_pypi. The matrix placeholder cannot be
+          # substituted inside a bash parameter expansion: a bare
+          # "${matrix.name%%-*}" reaches bash unexpanded and dies with "bad
+          # substitution" (megatron-wheel.yml had exactly that). Expand into a
+          # local var first. (Spelled without the placeholder syntax here on
+          # purpose: a run block is a YAML block scalar, so this line is
+          # content, and the expression scanner reads it.)
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           case "$vendor" in
