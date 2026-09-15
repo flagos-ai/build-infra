@@ -53,6 +53,14 @@ on:
           from the built ref). Empty = skip the plugin install.
         type: string
         default: ''
+      flagcx_version:
+        description: >-
+          flagcx wheel version to install ("<public>+<local>", e.g.
+          0.14.0.dev14+dtk2604.20260915.g08ab373). Empty = skip the flagcx
+          install. The local label is required, not decoration: PEP 440
+          ignores it in a bare "==<public>" comparison.
+        type: string
+        default: ''
       push:
         description: 'Push image(s) to the registry'
         type: boolean
@@ -213,6 +221,7 @@ jobs:
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
             --build-arg "PLUGIN_FL_VERSION=${{ inputs.plugin_fl_version }}" \
+            --build-arg "FLAGCX_VERSION=${{ inputs.flagcx_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
@@ -222,6 +231,7 @@ jobs:
             --label "org.opencontainers.image.created=${created}" \
             --label "last-updated=${created}" \
             --label "flagos.plugin=${{ inputs.plugin_fl_version }}" \
+            --label "flagos.flagcx=${{ inputs.flagcx_version }}" \
             -t "${APP_TAG}" \
             -f app/vllm/Containerfile .
           echo "Built: ${APP_TAG}"
@@ -242,6 +252,7 @@ jobs:
             "${{ matrix.name }}" \
             --vllm-version "${{ inputs.vllm_version }}" \
             --plugin-fl-version "${{ inputs.plugin_fl_version }}" \
+            --flagcx-version "${{ inputs.flagcx_version }}" \
             --app-image "${APP_TAG}"
 
       # Content gate: the tag's plugin suffix must name what is actually
