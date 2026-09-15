@@ -98,6 +98,18 @@ RUN set -eux; \
         test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
     done
 
+# torch's installed headers need two build-only headers that no runtime image
+# ships: c10/util/Flags.h includes <gflags/gflags.h> (C10_USE_GFLAGS is defined
+# outright in torch/headeronly/macros/cmake_macros.h:9) and c10/util/Logging.h
+# reaches <glog/stl_logging.h>. Build-only — the compiler reads them and nothing
+# at runtime does — so they belong here, not in the base or runtime image.
+# Above the clone so a new FLAGCX_REF does not re-run it.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libgflags-dev libgoogle-glog-dev; \
+    rm -rf /var/lib/apt/lists/*
+
 # The venv's interpreter is not the base image's: uv installs its own CPython
 # and seeds a relocatable venv from it (runtime/Containerfile), so an apt
 # libpython3-dev of some neighbouring version is not what this python compiles
