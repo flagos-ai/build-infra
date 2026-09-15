@@ -34,7 +34,7 @@ image: vllm0.20.2-ascend-cann9.0.0
 tags:
 - tag: 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
   entries:
-  - date: ""
+  - date: "2026-09-15T11:56:48.546Z"
     reason: >-
       Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head db28502, which
       replaces the fork-synthesized source (2b6b635 = release-0.2 plus three
@@ -48,6 +48,8 @@ tags:
   entries:
   - date: 2026-08-24T01:04:59Z
     reason: >-
-      Initial 0.20.2 deliverable on Ascend 910B4. vllm-plugin-FL ascend 0.20.2 enablement (PR 361 line)
-      plus the four dispatch fixes needed on both cann stacks (pow_scalar blacklist, PR 402). Repacked
+      Initial 0.20.2 deliverable on Ascend 910B4. vllm-plugin-FL ascend 0.20.2 enablement
+      (PR 361 line)
+      plus the four dispatch fixes needed on both cann stacks (pow_scalar blacklist,
+      PR 402). Repacked
       vllm empty wheel, single-step install matrix-inert; F/T dual-compiler E2E verified.
