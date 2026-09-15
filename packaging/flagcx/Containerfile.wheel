@@ -109,31 +109,59 @@ RUN set -eux; \
 # it is NOT in configs.yaml runtime_prereqs. If this trips, the one-line fix is
 # a runtime_prereqs entry in configs.yaml, not a change here.
 #
+# `torch.utils.cpp_extension` is asserted because that is the import the build
+# actually dies on when the vendor environment is missing, and _build_config.py
+# catches it as a bare ImportError: it warns, returns (None, None), and the build
+# goes on to write a py3-none-any wheel with no extension in it. The failure the
+# probe exists to prevent is silent, so the probe has to name it.
+#
+# The vendor environment is sourced first. DTK ships it in /etc/profile.d, which
+# a login shell reads and `docker build` does not, so `import torch` fails on
+# libgalaxyhip.so.5 with an empty LD_LIBRARY_PATH — measured in this image, and
+# the reason the first hygon build produced a pure-Python wheel. The file guard
+# is for backends whose runtime image has none.
+#
 # TORCH_DEVICE_BACKEND_AUTOLOAD=0 is what setup.py sets for itself before it
 # imports anything: the probe must not do more than the build it stands in for.
-RUN TORCH_DEVICE_BACKEND_AUTOLOAD=0 DEB_WHEEL_PYTHON_TAG="${DEB_WHEEL_PYTHON_TAG}" \
-    /flagos/bin/python - <<'PY'
-import importlib
-import os
-import sys
-import sysconfig
-
-for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging"):
-    importlib.import_module(name)
-
-header = os.path.join(sysconfig.get_paths()["include"], "Python.h")
-assert os.path.exists(header), \
-    "%s is missing: this interpreter ships no headers, so nothing can build here" % header
-
-tag = "cp3%d" % sys.version_info.minor
-want = os.environ["DEB_WHEEL_PYTHON_TAG"]
-assert tag == want, "the venv is %s, the registry row says %s" % (tag, want)
-
-import torch
-import setuptools_scm
-print(">>> build env: %s, %s, torch %s, setuptools_scm %s"
-      % (sys.executable, tag, torch.__version__, setuptools_scm.__version__))
-PY
+#
+# The probe reaches the interpreter on stdin rather than as a here-doc body: a
+# Dockerfile here-doc is a BuildKit feature, and the classic builder — which the
+# hygon runner falls back to, having no buildx — drops the body and commits a RUN
+# that exits 0 having executed nothing. Measured there: a two-line probe printed
+# nothing while the next step printed normally. The piped form behaves the same
+# under either builder.
+#
+# The version is read through importlib.metadata, not `setuptools_scm.__version__`:
+# runtime_prereqs pins setuptools-scm>=8, which has no module-level __version__, so
+# reading one is an AttributeError that kills the probe before it says anything —
+# the metax rows' first build ended exactly there.
+RUN set -eu; \
+    if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'msg = "%s is missing: this interpreter ships no headers, so nothing can build here"' \
+      'assert os.path.exists(header), msg % header' \
+      '' \
+      'tag = "cp3%d" % sys.version_info.minor' \
+      'want = os.environ["DEB_WHEEL_PYTHON_TAG"]' \
+      'assert tag == want, "the venv is %s, the registry row says %s" % (tag, want)' \
+      '' \
+      'import torch' \
+      'print(">>> build env: %s, %s, torch %s, setuptools_scm %s"' \
+      '      % (sys.executable, tag, torch.__version__,' \
+      '         importlib.metadata.version("setuptools_scm")))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 DEB_WHEEL_PYTHON_TAG="${DEB_WHEEL_PYTHON_TAG}" \
+      /flagos/bin/python -
 
 # No --depth 1 on the main repository: setuptools_scm derives the public version
 # from the clone's tags and the distance to the nearest one, and a shallow clone
@@ -227,7 +255,14 @@ WORKDIR /flagcx
 # an index for it. --no-deps: setup.py declares no install_requires and
 # pyproject.toml no dependencies, so this turns "nothing was pulled in" into a
 # failure instead of a silent extra dependency inside the wheel.
+#
+# The vendor environment is sourced for the same reason the probe sources it:
+# setup.py imports torch through _build_config.py, and make needs the SDK's
+# compiler, headers and libraries on PATH/LD_LIBRARY_PATH. Both live in
+# /etc/profile.d, which a login shell reads and this one does not. Sourcing comes
+# first so that the CUDA_PATH exported below wins over anything the file sets.
 RUN set -eux; \
+    if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
     unset SETUPTOOLS_SCM_PRETEND_VERSION SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAGCX; \
     export FLAGCX_ADAPTOR="${DEB_WHEEL_ADAPTOR}" \
            FLAGCX_TORCH_BACKEND="${DEB_WHEEL_TORCH_BACKEND}" \
