@@ -42,9 +42,12 @@
 #   (built by the
 #   vllm-app-image workflow): the critical-package matrix
 #   (torch/torch_npu/triton/flag_gems/numpy) must be identical to the runtime
-#   image's, and vllm + vllm_fl must import. No installs run; the serve test
-#   (Step 6) still runs against the app image — a cell only earns ✅ by
-#   returning a real completion.
+#   image's, and vllm + vllm_fl + flagcx.api must import. The flagcx check runs
+#   only when --flagcx-version is given: flagcx is the one package the app image
+#   adds on top of the runtime, and only the backends whose vendor index carries
+#   a wheel add it. No installs run;
+#   the serve test (Step 6) still runs against the app image — a cell only
+#   earns ✅ by returning a real completion.
 
 set -euo pipefail
 
@@ -54,6 +57,11 @@ VENDOR_BACKEND="${1:-}"
 MODEL_PATH="${MODEL_PATH:-/data/models/Qwen/Qwen3-4B}"
 VLLM_VERSION="${VLLM_VERSION:-0.20.2}"
 PLUGIN_FL_VERSION="${PLUGIN_FL_VERSION:-}"
+# flagcx wheel version baked into an app image. Empty = the image carries no
+# flagcx distribution, which is the ordinary state of a backend with no wheel
+# on its vendor index — so an empty value skips the check rather than failing
+# it here.
+FLAGCX_VERSION="${FLAGCX_VERSION:-}"
 SKIP_SERVE=false
 # Serve-test time budget in seconds, shared by the readiness poll window and
 # the completion request. 1800s default because first-compile cold starts
@@ -62,6 +70,10 @@ SKIP_SERVE=false
 SERVE_TIMEOUT=1800
 APP_IMAGE=""
 COMPILER=""
+# Tensor-parallel size for the serve test. Empty = today's behaviour: the flag
+# is not passed to `vllm serve` at all, so vLLM keeps its own default (TP1 for
+# the matrix models) instead of being pinned to a value this script picked.
+TP_SIZE=""
 # Stack version driving the runtime image tag. Empty = read from the repo's
 # own configs.yaml (REPO_ROOT below); explicit --stack-version = use exactly
 # this version, for when the checkout is stale and you don't want to refresh.
@@ -73,10 +85,12 @@ while [[ $# -gt 0 ]]; do
         --model) MODEL_PATH="$2"; shift 2 ;;
         --vllm-version) VLLM_VERSION="$2"; shift 2 ;;
         --plugin-fl-version) PLUGIN_FL_VERSION="$2"; shift 2 ;;
+        --flagcx-version) FLAGCX_VERSION="$2"; shift 2 ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
         --serve-timeout) SERVE_TIMEOUT="$2"; shift 2 ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
         --compiler) COMPILER="$2"; shift 2 ;;
+        --tensor-parallel-size) TP_SIZE="$2"; shift 2 ;;
         --stack-version) STACK_VERSION="$2"; shift 2 ;;
         --help)
             echo "Usage: $0 <vendor-backend> [options]"
@@ -88,10 +102,12 @@ while [[ $# -gt 0 ]]; do
             echo "  --model <path>       Path to model for serve test"
             echo "  --vllm-version <ver> vLLM version to install (default: 0.20.2)"
             echo "  --plugin-fl-version <ver> vllm-plugin-FL wheel version (default: skip plugin)"
+            echo "  --flagcx-version <ver> flagcx wheel version baked into the image (default: skip flagcx)"
             echo "  --skip-serve          Skip serve test, only install and verify imports"
             echo "  --serve-timeout <sec> Time budget for serve readiness + completion (default: 1800)"
             echo "  --app-image <image>   Verify a prebuilt vllm app image (matrix + import)"
             echo "  --compiler <c>        Compiler path to verify: flagtree | triton (default: runtime default)"
+            echo "  --tensor-parallel-size <n> Tensor-parallel size for the serve test (default: vLLM's own, TP1)"
             echo "  --stack-version <ver> Stack version for the runtime image tag; default: read from the discovered configs.yaml"
             exit 0
             ;;
@@ -115,6 +131,11 @@ fi
 
 if ! [[ "$SERVE_TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$SERVE_TIMEOUT" -lt 60 ]]; then
     echo "Error: --serve-timeout must be an integer ≥ 60 (got '$SERVE_TIMEOUT')" >&2
+    exit 1
+fi
+
+if [[ -n "$TP_SIZE" ]] && { ! [[ "$TP_SIZE" =~ ^[0-9]+$ ]] || [[ "$TP_SIZE" -lt 1 ]]; }; then
+    echo "Error: --tensor-parallel-size must be an integer ≥ 1 (got '$TP_SIZE')" >&2
     exit 1
 fi
 
@@ -281,9 +302,15 @@ if [[ -n "${APP_IMAGE}" ]]; then
     docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
 
     WATCH_PKGS="torch torch_npu triton flag_gems numpy"
+    # flagcx is watched too but never diffed: it is the one package the app
+    # image exists to *add*, so the runtime image has nothing to compare
+    # against and the comparison would always report a change. It is asserted
+    # on its own below instead.
+    ADDED_PKGS="flagcx"
     snapshot() {
         local cid="$1" pkg ver
-        for pkg in ${WATCH_PKGS}; do
+        shift
+        for pkg in "$@"; do
             ver=$(docker exec "${cid}" python3 -c \
                 "import importlib.metadata as m; print(m.version('${pkg}'))" \
                 2>/dev/null || echo "NOT_INSTALLED")
@@ -292,7 +319,7 @@ if [[ -n "${APP_IMAGE}" ]]; then
     }
 
     log_step "BEFORE snapshot (runtime image)"
-    snapshot "${CONTAINER}" | tee "${WORK_DIR}/before.txt"
+    snapshot "${CONTAINER}" ${WATCH_PKGS} | tee "${WORK_DIR}/before.txt"
 
     docker run -d --name "${APP_CONTAINER}" \
         ${RUN_FLAGS} \
@@ -302,7 +329,9 @@ if [[ -n "${APP_IMAGE}" ]]; then
     log_info "App container started: ${APP_CONTAINER}"
 
     log_step "AFTER snapshot (app image)"
-    snapshot "${APP_CONTAINER}" | tee "${WORK_DIR}/after.txt"
+    snapshot "${APP_CONTAINER}" ${WATCH_PKGS} | tee "${WORK_DIR}/after.txt"
+    # Recorded for the log, never diffed — see ADDED_PKGS above.
+    snapshot "${APP_CONTAINER}" ${ADDED_PKGS}
 
     log_step "Comparing critical-package matrix"
     if diff -u "${WORK_DIR}/before.txt" "${WORK_DIR}/after.txt"; then
@@ -321,6 +350,27 @@ if [[ -n "${APP_IMAGE}" ]]; then
         log_error "❌ import failed"
         docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
         exit 1
+    fi
+
+    log_step "Import check (flagcx)"
+    # flagcx.api, not the package root: the symbols the plugin needs live in
+    # the api submodule, and version() must resolve too — a bare `.so`, or a
+    # src-tree symlink on the path, satisfies the import while leaving no
+    # distribution metadata behind.
+    # Gated on --flagcx-version: most backends' vendor index carries no flagcx
+    # wheel, so the app image legitimately has no flagcx distribution and an
+    # unconditional check would fail every one of them.
+    if [[ -n "${FLAGCX_VERSION}" ]]; then
+        if docker exec "${APP_CONTAINER}" bash -c \
+            'python3 -c "import importlib.metadata as m, flagcx.api; print(\"flagcx\", m.version(\"flagcx\"), \"| api ok\")"'; then
+            log_info "✅ flagcx distribution present, flagcx.api imports OK"
+        else
+            log_error "❌ flagcx import/metadata failed"
+            docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+            exit 1
+        fi
+    else
+        log_info "No --flagcx-version given; skipping the flagcx import check"
     fi
 
     log_info "App-image import check PASSED — proceeding to serve test (Step 6)"
@@ -512,6 +562,12 @@ else
         *Qwen3-4B*) EXPECT_ANCHOR="Paris" ;;
     esac
 
+    # Empty TP_SIZE must leave the serve command line untouched rather than
+    # expand to a `--tensor-parallel-size 1` this script invented: the meaning
+    # of a TP>1 run is that it differs from the default run in this flag alone.
+    TP_ARG=""
+    [[ -n "$TP_SIZE" ]] && TP_ARG="--tensor-parallel-size ${TP_SIZE}"
+
     docker exec "${SERVE_CONTAINER}" bash -c "
         ${COMPILER_GUARD}
         export VLLM_PLUGINS=fl
@@ -526,6 +582,7 @@ else
             --enforce-eager \
             --trust-remote-code \
             --max-model-len 2048 \
+            ${TP_ARG} \
             > /tmp/vllm-serve.log 2>&1 &
 
         SERVE_PID=\$!

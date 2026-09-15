@@ -69,6 +69,26 @@
 #   deb.default_for_vendor
 #                 the one variant per vendor that carries
 #                 `Provides: libflagcx-<vendor>`.
+#   wheel.enabled true = this row also produces a wheel for the vendor PyPI.
+#                 Absent is not drift: a row that ships a .deb and no wheel is
+#                 the ordinary state of a backend nobody has asked to publish.
+#   wheel.torch_backend
+#                 FLAGCX_TORCH_BACKEND for the wheel build. `vendor` is the
+#                 only value accepted today — _build_config.py rejects
+#                 `flagos` for the du/metax adaptors outright, so a row
+#                 carrying it could only ever build a wheel that fails on
+#                 import.
+#                 Nothing here names the local version label: it is derived
+#                 from the matrix name (`hygon-dtk26.04` -> `+dtk2604`), the
+#                 same way the PyPI index is named after that name's first
+#                 segment. A label is normally just the suffix read back through
+#                 PEP 440, which leaves `maca3.7.2.1` alone; DTK is the one row
+#                 where that reading would respell the vendor's own `26.04`, so
+#                 deb-config.py's wheel_label() names that exception in code
+#                 rather than letting a field here become a third copy of a fact
+#                 the matrix already carries. `vendor` above is the FlagCX
+#                 adaptor family (hygon's is `du`) — the other, independent axis,
+#                 and one field cannot play both roles.
 
 # ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
 
@@ -132,6 +152,7 @@ metax-maca3.7.2.1:
   vendor_libs: [mcruntime, mccompiler, mccl]
   assert: [/opt/maca/include/mccl.h, /opt/maca/include/mcr/mc_runtime.h]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true, torch_backend: vendor}
 
 metax-maca3.8.1.3:
   vendor: metax
@@ -143,6 +164,7 @@ metax-maca3.8.1.3:
   vendor_libs: [mcruntime, mccompiler, mccl]
   assert: [/opt/maca/include/mccl.h, /opt/maca/include/mcr/mc_runtime.h]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true, torch_backend: vendor}
 
 cambricon-neuware4.4.3:
   vendor: cambricon
@@ -266,6 +288,10 @@ hygon-dtk26.04:
   # bash-only profile script: an unadorned `sh` resolves none of them.
   vendor_lib_dirs: [/opt/dtk/cuda/cuda-12/lib64, /opt/dtk/lib, /opt/hyhal/lib]
   deb: {enabled: true, default_for_vendor: true}
+  # The wheel channel reads DEVICE_HOME a third time, as CUDA_PATH: that is what
+  # the du adaptor's build consults, and it falls back to /usr/local/cuda, which
+  # DTK does not have.
+  wheel: {enabled: true, torch_backend: vendor}
 
 iluvatar-corex4.4.0:
   vendor: iluvatar_corex

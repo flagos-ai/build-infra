@@ -1,0 +1,403 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: flagcx wheel
+
+# Build FlagCX wheels in the backend's runtime image, and (optionally) publish
+# them to that vendor's PyPI.
+#
+# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
+# flagos-runtime-{vendor}-{backend}:{version} (from generate_matrix --runtime),
+# exactly the vllm-plugin-wheel.yml model and NOT flagcx-deb.yml's make route.
+# The FlagCX build imports torch while it configures itself (_build_config.py's
+# detect_torch_flag() and get_ext_classes()), so one environment has to carry
+# torch, setuptools_scm and Python.h at once — only the runtime image's /flagos
+# does. Build env == delivery env also means the wheel is built against the same
+# python/ABI the app image will run.
+#
+# The matrix comes from `deb-config.py --merge --channel wheel` rather than from
+# `generate_matrix.py` directly: the merge is what joins the runtime matrix with
+# the FlagCX wheel fields (version suffix, python tag, adaptor, make env), and
+# the runtime matrix alone lacks every input the build consumes.
+#
+# THE DEFAULT REF IS A COMMIT, not the `main` branch flagcx-deb.yml defaults to,
+# and the difference is deliberate. Until FlagCX PR #598 merges, the setup.py on
+# main derives its version from tags and produces the same 0.13.0 for every
+# commit; with two backends built from it the second upload either collides with
+# or silently overwrites the first, and the index stops answering "which vendor
+# is this wheel for". For the same reason this line does NOT refuse a non-tag ref
+# the way the deb line does ("refusing to publish X -- not a release tag"): a
+# build that is not a tag is what this line exists to publish. What it refuses
+# instead is publishing without a version a human wrote down (`wheel_version`) —
+# the honest substitute for that gate, since the version here is asserted
+# against the artifact rather than derived from a tag.
+#
+# `pypi_repo` is derived from the matrix row and is deliberately NOT an input
+# (megatron-wheel.yml, sglang-wheel.yml and vllm-plugin-wheel.yml all expose
+# one): expanding the row's name into a vendor is the only thing that names an
+# index here, so no input can reach another vendor's index, and the read-back
+# step reads the same row's `flagos_pypi` — the build row and the read-back
+# index cannot diverge.
+#
+# `verify` is a job and not a step of the build because the wheel has to install
+# from the file alone, into a container in the state a user gets: the build tree
+# proves nothing about the artifact being self-contained. Publishing is a step
+# of `verify` for the same reason flagcx-deb.yml puts it there — the index is the
+# only path to a user's `pip install`, so an unverified wheel must not reach it.
+# `verify: false` therefore publishes nothing, and set-matrix refuses that
+# combination rather than letting it read as a successful dispatch. The read-back
+# step after the upload proves the index serves the same bytes (sha256) and not
+# merely the same file name.
+#
+# There is no `twine check`: nothing in this repo uses it, and the version
+# assertions the build script makes on the host are strictly stronger — they run
+# before the upload, on the file, against the registry row.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend(s) whose runtime image builds the wheel: a space-separated list, or "all"'
+        type: string
+        default: all
+      flagcx_ref:
+        description: 'FlagCX git ref to build (PR #598 head; a branch/tag name resolves to its tip at dispatch time)'
+        type: string
+        default: 08ab37330fa72403e989023d6e4e779d09cbca88
+      wheel_version:
+        description: 'Exact version to publish as flagcx==<this>, e.g. 0.14.0.dev14+dtk2604.20260915.g08ab373 (required when publish=true; never typed for a build-only run — the build prints it)'
+        type: string
+        default: ''
+      verify:
+        description: 'install the wheel from the file into its runtime image before publishing'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified wheel to the vendor PyPI (requires verify and wheel_version)'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install PyYAML and packaging
+        run: |
+          # deb-config.py imports yaml and packaging.version; ubuntu-latest's
+          # python ships neither.
+          python3 -c "import yaml, packaging" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml packaging
+      - id: set-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Publishing is a step of the verify job, so asking for both at once
+          # would publish nothing while looking like it did.
+          if [[ "${{ inputs.publish }}" == "true" && "${{ inputs.verify }}" != "true" ]]; then
+            echo "::error::publish=true requires verify -- publication is a step of the verify job"
+            exit 1
+          fi
+          # The wheel line refuses this instead of refusing a non-tag ref (see
+          # the header): a version nobody wrote down cannot name what landed in
+          # the index, and the build step cannot supply it — it is what the
+          # build reports.
+          if [[ "${{ inputs.publish }}" == "true" && -z "${{ inputs.wheel_version }}" ]]; then
+            echo "::error::publish=true requires wheel_version -- a non-tag build is named by its version, not by a tag"
+            exit 1
+          fi
+          if [[ "${{ inputs.backend }}" == all ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
+          # --merge only emits schedulable rows, so drift between backends.yaml
+          # and the runtime matrix would be filtered away silently here; --check
+          # is what turns it into a named failure.
+          python3 packaging/flagcx/deb-config.py --check --channel wheel
+          python3 packaging/flagcx/deb-config.py --merge matrix.json --channel wheel > wheel-matrix.json
+          # An empty include list would skip both jobs silently, which reads as a
+          # successful run of a backend that does not exist.
+          if [[ "$(jq '.include | length' wheel-matrix.json)" == 0 ]]; then
+            echo "::error::${{ inputs.backend }} names no backend with a wheel; see packaging/flagcx/deb-config.py --list --channel wheel"
+            exit 1
+          fi
+          cat wheel-matrix.json
+          echo "matrix=$(jq -c . wheel-matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check disk space
+        shell: bash
+        run: |
+          # Check free space on the working-directory filesystem — this is where
+          # the checkout, docker build context, and layer cache live.  We avoid
+          # /var/lib/docker because some runners don't have it or use a different
+          # data-root; checking . is universal.
+          FREE_KB=$(df -P . | awk 'NR==2{print $4}')
+          FREE_GB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk space: ${FREE_GB}G"
+          if [ "$FREE_GB" -lt 10 ]; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < 10G). Docker needs cleanup."
+            df -h .
+            exit 1
+          fi
+      - name: Pull the runtime image
+        run: |
+          docker pull "${{ matrix.image_tag }}" \
+            || { echo "::error::Failed to pull ${{ matrix.image_tag }}"; exit 1; }
+      # Resolve the requested ref to its exact commit on the host, so the build,
+      # the container's own `git rev-parse HEAD` check and the commit.txt it
+      # writes all describe one commit instead of three readings of a moving ref.
+      # Same shape as the vllm-plugin-wheel.yml resolve step; a name that is both
+      # a branch and a tag is not a case this line has to arbitrate — its default
+      # is already a commit.
+      - name: Resolve the FlagCX commit
+        env:
+          FLAGCX_REF: ${{ inputs.flagcx_ref }}
+        run: |
+          set -euo pipefail
+          # The URL build-flagcx-wheel.sh defaults to. This workflow exposes no
+          # repo input, so there is nothing here that can disagree with it.
+          repo="https://github.com/flagos-ai/FlagCX.git"
+          refs="$(git ls-remote "${repo}")"
+          if [[ "${FLAGCX_REF}" =~ ^[0-9a-f]{40}$ ]]; then
+            sha="${FLAGCX_REF,,}"
+            # GitHub refuses to serve an object it does not advertise, and the
+            # clone would report that late and obliquely. Ask the remote first.
+            if ! awk -v want="${sha}" '$1 == want { found = 1 } END { exit !found }' <<<"${refs}"; then
+              echo "::error::${sha} is not the tip of any branch or tag in ${repo} -- push the commit to a branch, or pass a branch/tag name"
+              exit 1
+            fi
+          else
+            sha="$(awk -v head="refs/heads/${FLAGCX_REF}" -v tag="refs/tags/${FLAGCX_REF}" \
+              '$2 == head || $2 == tag { print $1; exit }' <<<"${refs}")"
+            if [ -z "${sha}" ]; then
+              echo "::error::'${FLAGCX_REF}' is not a branch or tag in ${repo}"
+              exit 1
+            fi
+          fi
+          echo "FLAGCX_SHA=${sha}" >> "$GITHUB_ENV"
+          echo ">>> ${FLAGCX_REF} -> ${sha}"
+      - name: Build the wheel
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          # Nothing here re-asserts the sha against the checkout: the container
+          # does its own `git rev-parse HEAD` comparison and the host-side script
+          # compares the commit.txt it copies back, so a second opinion on the
+          # host would only be a third place that can disagree.
+          packaging/flagcx/build-flagcx-wheel.sh \
+            --backend "$MATRIX_NAME" \
+            --ref "$FLAGCX_SHA" \
+            --out packaging/flagcx/dist
+      - name: Upload the wheel
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: flagcx-wheel-${{ matrix.name }}
+          path: packaging/flagcx/dist/*.whl
+          if-no-files-found: error
+      - name: Remove the build image
+        if: ${{ always() }}
+        # Same tag scheme the deb line's script uses (flagcx-deb:<key>). `|| true`
+        # so a differently-named tag cannot turn a finished build into a failure.
+        run: docker rmi "flagcx-wheel:${{ matrix.name }}" 2>/dev/null || true
+
+  verify:
+    needs: [set-matrix, build]
+    # A failed build in one row must not cancel verification of the rows that
+    # built; `always()` on the job, and the download below decides per row.
+    if: ${{ !cancelled() && inputs.verify && needs.set-matrix.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # A row whose build failed has no artifact, and that is the only signal
+      # this job gets about which rows built. The failure stays on the build job.
+      - name: Download the wheel
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flagcx-wheel-${{ matrix.name }}
+          path: packaging/flagcx/dist
+      - if: steps.download.outcome == 'failure'
+        run: |
+          echo "::warning::${{ matrix.name }} built no wheel, so there is nothing to verify"
+      - name: Pull the runtime image
+        if: steps.download.outcome == 'success'
+        run: |
+          docker pull "${{ matrix.image_tag }}" \
+            || { echo "::error::Failed to pull ${{ matrix.image_tag }}"; exit 1; }
+      # Not gated on `publish`: the point of this step is to refuse an artifact
+      # that does not stand on its own, and that is worth knowing whether or not
+      # anyone intends to publish it. Installing from the FILE (no index) is what
+      # makes it the wheel-line counterpart of flagcx-deb.yml's `full` mode.
+      - name: Verify the wheel from the file
+        if: steps.download.outcome == 'success'
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          # The plan's call site carries no image flag, so the image travels in
+          # the environment. Both names the repo already uses for this value are
+          # exported — MATRIX_<field> after flagcx-deb.yml's MATRIX_UBUNTU,
+          # BASE_IMAGE after the wheel/plugin lines — because the script is
+          # written against the same plan and one of them is the name it reads.
+          MATRIX_IMAGE_TAG: ${{ matrix.image_tag }}
+          BASE_IMAGE: ${{ matrix.image_tag }}
+        run: |
+          set -euo pipefail
+          packaging/flagcx/verify/verify-flagcx-wheel.sh \
+            --wheel packaging/flagcx/dist/*.whl
+      # The same critical list vllm-plugin-wheel.yml audits: these images bake a
+      # pinned matrix and the app installs single-step. A flagcx wheel declares
+      # no Requires-Dist at all, so a clean run here is nearly vacuous — which is
+      # the fact being asserted. The event worth a failure is the day one appears.
+      - name: Audit the wheel dependencies
+        if: steps.download.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 packaging/script/audit-deps.py \
+            --watch torch --watch torch_npu --watch torchvision \
+            --watch torchaudio --watch triton --watch flag_gems \
+            --watch numpy==1.26.4 \
+            packaging/flagcx/dist/*.whl
+      - name: Publish to the vendor PyPI
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          WHEEL_VERSION: ${{ inputs.wheel_version }}
+          EXTRA_PYPI: ${{ matrix.extra_pypi }}
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          : "${WHEEL_VERSION:?publish=true requires the wheel_version input}"
+          # The index is derived from the matrix row, never from an input: no
+          # input can reach another vendor's index, and the read-back step reads
+          # the same row's flagos_pypi. The matrix placeholder cannot be
+          # substituted inside a bash parameter expansion: a bare
+          # "${matrix.name%%-*}" reaches bash unexpanded and dies with "bad
+          # substitution" (megatron-wheel.yml had exactly that). Expand into a
+          # local var first. (Spelled without the placeholder syntax here on
+          # purpose: a run block is a YAML block scalar, so this line is
+          # content, and the expression scanner reads it.)
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          case "$vendor" in
+            hygon|metax) ;;
+            *)
+              echo "::error::no vendor PyPI for '${vendor}' (the build-infra vendor of ${matrix_name})"
+              exit 1
+              ;;
+          esac
+          pypi_repo="flagos-pypi-${vendor}"
+          wheel=(packaging/flagcx/dist/*.whl)
+          if [ "${#wheel[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one wheel, found ${#wheel[@]}"
+            exit 1
+          fi
+          # The pin is read off the artifact, not constructed from the inputs, so
+          # a mismatch means the built wheel is not the version that was asked
+          # for -- and the version is the whole of what names a non-tag build.
+          pin="$(packaging/flagcx/build-flagcx-wheel.sh --print-pin "${wheel[@]}")"
+          if [ "$pin" != "flagcx==${WHEEL_VERSION}" ]; then
+            echo "::error::artifact is $pin, wheel_version is $WHEEL_VERSION"
+            exit 1
+          fi
+          # The sha256 of exactly the file about to be uploaded, recorded for the
+          # read-back step: same name + same bytes is the only thing that says the
+          # index serves *this* artifact.
+          sha="$(sha256sum "${wheel[@]}")"
+          echo "WHEEL_PIN=${pin}" >> "$GITHUB_ENV"
+          echo "WHEEL_SHA256=${sha%% *}" >> "$GITHUB_ENV"
+          echo ">>> ${pypi_repo}: $(basename "${wheel[0]}")"
+          # Upload FROM INSIDE the runtime image, not the runner host: the hygon
+          # runner's /usr/bin/python3 has no pip (run 31795636072). The secret
+          # travels via `-e NEXUS_TOKEN` (inherits the step env) so it never
+          # appears in a process list or an image layer. Read-only mount: this
+          # container writes nothing into the workspace.
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -v "$PWD/packaging/flagcx/dist:/wheels:ro" \
+            "${{ matrix.image_tag }}" \
+            bash -euo pipefail -c '
+              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
+              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
+              # parse -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              # No /simple: that suffix is the path pip reads, not the one twine
+              # posts to.
+              /flagos/bin/twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
+      # The upload's 2xx only says it was accepted. This reads the index the way a
+      # user's pip does: download by pin, compare bytes, install, import.
+      - name: Verify the wheel installs from the index
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+          MATRIX_IMAGE_TAG: ${{ matrix.image_tag }}
+          BASE_IMAGE: ${{ matrix.image_tag }}
+          # The row's own index, not a second spelling of it.
+          FLAGOS_PYPI: ${{ matrix.flagos_pypi }}
+        run: |
+          set -euo pipefail
+          : "${WHEEL_PIN:?the publish step recorded no pin}"
+          : "${WHEEL_SHA256:?the publish step recorded no sha256}"
+          packaging/flagcx/verify/verify-flagcx-wheel.sh \
+            --index-url "${FLAGOS_PYPI}" \
+            --pin "${WHEEL_PIN}" \
+            --expect-sha256 "${WHEEL_SHA256}"

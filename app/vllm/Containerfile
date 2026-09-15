@@ -37,6 +37,10 @@
 #                nodes have no direct egress, so both wheel-index installs
 #                must go through the runner proxy relayed by the workflow
 #                (same relay the runtime image took in #811).
+#   2026-09-15   flagcx wheel (ARG FLAGCX_VERSION, empty = skip) installed from
+#                the same vendor PyPI as vllm and the plugin. Built by the
+#                flagcx-wheel workflow in a base image, so only the backends
+#                whose index carries one set the arg.
 # TODO
 #   - Publish-time verification (torch version, vllm import).
 # ============================================================
@@ -59,6 +63,13 @@ ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
 # by the vllm-plugin-wheel workflow in the same runtime image and published
 # to the vendor PyPI; nothing is built from source here.
 ARG PLUGIN_FL_VERSION=""
+
+# flagcx wheel version ("<public>+<local>", e.g.
+# "0.13.1.dev1+dtk2604.20260914.g08ab373") — built by the flagcx-wheel workflow
+# from a FlagCX ref in the backend's base image. The local label is load-bearing:
+# PEP 440 ignores it in a bare "==<public>" comparison, so dropping it from the
+# pin would match every vendor's build of the same commit.
+ARG FLAGCX_VERSION=""
 
 # Vendor-conditional app-level deps (configs.yaml deps_app.vllm), installed
 # after the plugin. Some backends need a package in the app layer that is not
@@ -96,6 +107,20 @@ RUN if [ -n "${PLUGIN_FL_VERSION}" ]; then \
       --index-url "${FLAGOS_PYPI}" \
       --extra-index-url "${EXTRA_PYPI}" \
       "vllm-plugin-fl==${PLUGIN_FL_VERSION}" ; \
+  fi
+
+# --- Install FlagCX (wheel) -----------------------------------
+
+# Same index pair again: the flagcx wheel is built per backend and lands on
+# that backend's vendor index, which FLAGOS_PYPI already names. The full
+# version pin is required, not stylistic — PEP 440 ignores the local label in
+# a bare "==<public>" comparison, so a shortened pin would match another
+# vendor's build of the same FlagCX commit.
+RUN if [ -n "${FLAGCX_VERSION}" ]; then \
+    pip install \
+      --index-url "${FLAGOS_PYPI}" \
+      --extra-index-url "${EXTRA_PYPI}" \
+      "flagcx==${FLAGCX_VERSION}" ; \
   fi
 
 # --- App env ---------------------------------------------------
