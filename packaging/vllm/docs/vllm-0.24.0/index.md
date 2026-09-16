@@ -21,7 +21,8 @@
 > - mthreads 见 [§8–§9](backends/mthreads.md)、ascend 见 [§10](backends/ascend.md)、
 >   sunrise 见 [§11](backends/sunrise.md)、hygon 见 [§12](backends/hygon.md)、
 >   kunlunxin 见 [§13](backends/kunlunxin.md)、iluvatar 见
->   [§14](backends/iluvatar.md)、tsingmicro 见 [§15](backends/tsingmicro.md)。
+>   [§14](backends/iluvatar.md)、tsingmicro 见 [§15](backends/tsingmicro.md)、
+>   enflame 见 [§17](backends/enflame.md)。
 >
 > 类似的工作也在 0.20.2 版本的 vLLM 上开展，相关记录见
 > [vllm-0.20.2/index.md](../vllm-0.20.2/index.md)。
@@ -36,7 +37,7 @@
 |---|---|
 | [`playbook.md`](playbook.md) | §2 · 0.24.0 相比 0.20.2 的变化（只列影响打包的部分）+ 附录 · 验证命令 |
 | [`decisions.md`](decisions.md) | §7 · 版本推进协作问题 |
-| `backends/` | §4–§15 · 后端验证记录（worked examples）|
+| `backends/` | §4–§17 · 后端验证记录（worked examples）|
 
 后端记录按 [§2](playbook.md) 的差异点组织：**环境 → 阻塞点 → 验证 → Stack → 待办**。完整标准流程
 （empty 构建 + `+flagos` + 单步安装）见 [vllm-0.20.2/playbook.md](../vllm-0.20.2/playbook.md)。
@@ -54,6 +55,7 @@
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | §13；cp310 + [VPF #401](https://github.com/flagos-ai/vllm-plugin-FL/pull/401) + app 镜像 serve |
 | iluvatar corex4.5.0 | [iluvatar.md](backends/iluvatar.md) | §14；cp312 empty wheel；F/T 双编译器 app 镜像 |
 | tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §15；cp310；KV 写路径修复 [VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)；F/T 双编译器 |
+| enflame tops1.10.6 / tops1.9.10 | [enflame.md](backends/enflame.md) | §17；cp312 empty wheel；GCU300 使能包移植 [VPF #432](https://github.com/flagos-ai/vllm-plugin-FL/pull/432) + app 镜像；F/T 双编译器 |
 
 ---
 
@@ -83,6 +85,9 @@ Ascend（CANN 9.0.0）验证通过（插件 [VPF #387](https://github.com/flagos
   empty wheel + app 镜像 serve E2E，Qwen3-4B，[§14](backends/iluvatar.md)）
 - Tsingmicro（TSM 260610）× FlagTree / Triton：✅ 通过（2026-08-31，cp310
   empty wheel，F/T 双路径 E2E，Qwen3-4B，[§15](backends/tsingmicro.md)）
+- Enflame（GCU300 / tops1.10.6）× FlagTree / Triton：✅ 通过（2026-09-03，cp312
+  empty wheel + 插件 [VPF #432](https://github.com/flagos-ai/vllm-plugin-FL/pull/432) 移植 + app 镜像，
+  F/T 双路径 eager E2E，Qwen3-4B，[§17](backends/enflame.md)）
 
 "通过" 意味着：1） vLLM 服务可以正常启动；2）使用 Qwen3-4B 模型可以执行正常推理服务；
 
