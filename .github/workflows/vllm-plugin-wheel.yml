@@ -50,6 +50,11 @@ name: vllm-plugin wheel
 # Upload target defaults to flagos-pypi-<vendor> so the wheel lands next to
 # that backend's vllm+flagos / torch / flag_gems. There is no schedule:
 # uploads are manual.
+#
+# The wheel is also kept as a run artifact on every build, publish or not:
+# the cleanup step deletes the work dir, so a manual build (upload=false —
+# the default) would otherwise leave nothing retrievable for the E2E run it
+# was dispatched for.
 
 on:
   workflow_dispatch:
@@ -250,6 +255,17 @@ jobs:
             --watch torchaudio --watch triton --watch flag_gems \
             --watch numpy==1.26.4 --watch vllm \
             "${WORK}"/out/*.whl
+
+      # Keep the built wheel as a run artifact. Without this the cleanup below
+      # deletes it along with the work dir, and a build-only dispatch
+      # (upload=false) yields nothing that can be installed for an E2E run.
+      - name: Upload the wheel as a run artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vllm-plugin-wheel-${{ matrix.name }}
+          path: ${{ env.WORK }}/out/*.whl
+          if-no-files-found: error
+          retention-days: 14
 
       # Upload only when explicitly requested (default false).
       - name: Upload to vendor PyPI
