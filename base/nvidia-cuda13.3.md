@@ -71,4 +71,4 @@ Inside the container, confirm the accelerator is visible:
 nvidia-smi
 ```
 
-*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
+*Last updated: 2026-09-11 13:45:11 · `fdb3c09acea5`*
