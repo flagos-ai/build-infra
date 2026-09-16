@@ -31,6 +31,21 @@
 
 image: vllm0.20.2-enflame-tops1.9.10
 tags:
+- tag: 2.1.2-0.2.2rc2.post1_gdcc8966.d20260916
+  entries:
+  - date: ''
+    reason: >-
+      Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head dcc8966 — PR 357, the
+      first time the GCU300 work is on the release line. GCU attention moves off
+      the plugin's standalone AttentionGCUBackend onto vLLM's native
+      FlashAttentionBackend, reached through Enflame's flash_attn package (new
+      impl/flash_attn_backend.py and impl/slot_mapping.py), and enflame.yaml's
+      flagos_blacklist grows the int64-IR ops the GCU300 PassManager rejects plus
+      the sampling sort/top-k path and argmax, which go back to torch_gcu. The
+      images were previously built from the pre-merge enflame branch (c2e496d),
+      whose commits never reached this line. The wheel version base follows the
+      branch's own version (0.2.2rc2.post1), as the metax 0.20.2 images do.
+    upstream_prs: []
 - tag: 2.1.2-0.2.1_gc2e496d.d20260905
   entries:
   - date: '2026-09-05T13:04:34Z'
