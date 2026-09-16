@@ -34,7 +34,7 @@ image: vllm0.24.0-metax-maca3.7.2.1
 tags:
 - tag: 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
   entries:
-  - date: ''
+  - date: '2026-09-16T10:30:23.009Z'
     reason: >-
       Rebuild on the vllm-plugin-FL 0.3.0-rc2 branch head 990a8f7 — PR 377, the
       metax 0.24.0 enablement this image was waiting on, now on the release line.
@@ -62,6 +62,7 @@ tags:
   entries:
   - date: 2026-09-03T01:24:31Z
     reason: >-
-      vllm 0.24.0 on metax via vllm-plugin-FL PR 377 (metax 0.24 enablement). F/T verified.
+      vllm 0.24.0 on metax via vllm-plugin-FL PR 377 (metax 0.24 enablement). F/T
+      verified.
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/377
