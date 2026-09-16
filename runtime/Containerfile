@@ -56,7 +56,7 @@ ARG NO_FLAGGEMS=""
 ARG RUNTIME_ENV=""
 # Proxy relayed as --build-arg by build_runtime.py / runtime-image.yaml (these
 # nodes have no direct egress). ARG, not ENV — keeps the value out of the
-# pushed image; no_proxy stays loopback-only, as on the base side.
+# pushed image. no_proxy is the runner's own value, relayed verbatim.
 ARG http_proxy=
 ARG https_proxy=
 ARG no_proxy=

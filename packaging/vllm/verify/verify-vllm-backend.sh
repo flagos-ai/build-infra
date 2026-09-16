@@ -210,8 +210,13 @@ for _v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY; do
     if [[ -n "${!_v:-}" ]]; then PROXY_ENV_ARGS+=(-e "${_v}"); fi
 done
 if [[ ${#PROXY_ENV_ARGS[@]} -gt 0 ]]; then
-    PROXY_ENV_ARGS+=(-e "no_proxy=localhost,127.0.0.1,::1" -e "NO_PROXY=localhost,127.0.0.1,::1")
-    PROXY_RELAY_DESC="relayed into install steps (no_proxy=loopback)"
+    # no_proxy goes verbatim: only the runner knows which endpoints are
+    # internal, and the vendor index (flagos.net) is on its host NO_PROXY.
+    # Substituting loopback sent that index through the tunnel, whose CONNECT
+    # got answered 500.
+    _np="${no_proxy:-${NO_PROXY:-}}"
+    if [[ -n "$_np" ]]; then PROXY_ENV_ARGS+=(-e "no_proxy=${_np}" -e "NO_PROXY=${_np}"); fi
+    PROXY_RELAY_DESC="relayed into install steps (no_proxy=${_np:-unset})"
 else
     PROXY_RELAY_DESC="none in the runner env"
 fi

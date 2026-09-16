@@ -339,8 +339,10 @@ def main():
         if value:
             cmd += ["--label", f"{key}={value}"]
     # Classic builder does not forward the runner proxy into builds — relay it
-    # as --build-arg (ARG-only: never reaches image config; no_proxy
-    # loopback-only keeps the FILE_STORE curls on the proxy).
+    # as --build-arg (ARG-only: never reaches image config). no_proxy goes
+    # verbatim: only the runner knows which endpoints are internal, and a value
+    # invented here overrides that. Sending loopback instead put FILE_STORE
+    # (flagos.net) inside the tunnel, where the proxy answered CONNECT 500.
     proxy_env = {
         scheme: os.environ.get(f"{scheme}_proxy") or os.environ.get(f"{scheme}_proxy".upper())
         for scheme in ("http", "https")
@@ -349,7 +351,9 @@ def main():
     for scheme, value in proxy_env.items():
         cmd += ["--build-arg", f"{scheme}_proxy={value}"]
     if proxy_env:
-        cmd += ["--build-arg", "no_proxy=localhost,127.0.0.1,::1"]
+        no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
+        if no_proxy:
+            cmd += ["--build-arg", f"no_proxy={no_proxy}"]
     # Wheel-based install: the image installs FlagGems from PyPI, so the build
     # context no longer needs the FlagGems source tree (no COPY). Use runtime/
     # as a trivial context. --flaggems-dir is kept only to derive the version.

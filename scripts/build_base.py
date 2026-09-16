@@ -170,8 +170,10 @@ def main():
         if v:
             cmd += ["--label", f"{k}={v}"]
     # Classic builder does not forward the runner proxy into builds — relay it
-    # as --build-arg (ARG-only: never reaches image config; no_proxy
-    # loopback-only keeps the FILE_STORE curl on the proxy).
+    # as --build-arg (ARG-only: never reaches image config). no_proxy goes
+    # verbatim: only the runner knows which endpoints are internal, and a value
+    # invented here overrides that. Sending loopback instead put FILE_STORE
+    # (flagos.net) inside the tunnel, where the proxy answered CONNECT 500.
     proxy_env = {
         scheme: os.environ.get(f"{scheme}_proxy") or os.environ.get(f"{scheme}_proxy".upper())
         for scheme in ("http", "https")
@@ -180,7 +182,9 @@ def main():
     for scheme, value in proxy_env.items():
         cmd += ["--build-arg", f"{scheme}_proxy={value}"]
     if proxy_env:
-        cmd += ["--build-arg", "no_proxy=localhost,127.0.0.1,::1"]
+        no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
+        if no_proxy:
+            cmd += ["--build-arg", f"no_proxy={no_proxy}"]
     cmd += ["-t", tag, str(repo_root)]
 
     if args.dry_run:
