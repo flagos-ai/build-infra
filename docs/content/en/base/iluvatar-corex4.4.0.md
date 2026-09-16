@@ -72,6 +72,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --device /dev/iluvatar0 \
+  --device /dev/itrctl \
   harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.1.2 bash
 ```
 
@@ -83,4 +84,4 @@ Inside the container, confirm the accelerator is visible:
 ixsmi
 ```
 
-*Last updated: 2026-08-14 22:53:01 · `11f43d78be1d`*
+*Last updated: 2026-09-16 17:23:28 · `d5d4f0e8b8ef`*
