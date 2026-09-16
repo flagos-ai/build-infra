@@ -78,7 +78,7 @@ ARG APP_DEPS=""
 
 # Proxy relayed as --build-arg by vllm-app-image.yml (the Ascend 910C nodes
 # have no direct egress). ARG, not ENV — keeps the credential out of the
-# pushed image; no_proxy stays loopback-only, as on the base/runtime side.
+# pushed image. no_proxy is the runner's own value, relayed verbatim.
 ARG http_proxy=
 ARG https_proxy=
 ARG no_proxy=
