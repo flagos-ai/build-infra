@@ -34,7 +34,7 @@ image: vllm0.24.0-metax-maca3.8.1.3
 tags:
 - tag: 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
   entries:
-  - date: ''
+  - date: '2026-09-16T11:03:01.890Z'
     reason: >-
       Rebuild on the vllm-plugin-FL 0.3.0-rc2 branch head 990a8f7 — PR 377, the
       metax 0.24.0 enablement this image was waiting on, now on the release line.
