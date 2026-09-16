@@ -40,16 +40,16 @@ title: "vllm0.20.2-enflame-tops1.10.6"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+gc2e496d.d20260905`
+`vllm-plugin-fl==0.2.2rc2.post1+gdcc8966.d20260916`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.10.6:2.1.2-0.2.1_gc2e496d.d20260905`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.10.6:2.1.2-0.2.2rc2.post1_gdcc8966.d20260916`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.10.6:2.1.2-0.2.1_gc2e496d.d20260905
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.10.6:2.1.2-0.2.2rc2.post1_gdcc8966.d20260916
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

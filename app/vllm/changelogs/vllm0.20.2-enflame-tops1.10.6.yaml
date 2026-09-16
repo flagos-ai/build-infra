@@ -33,7 +33,7 @@ image: vllm0.20.2-enflame-tops1.10.6
 tags:
 - tag: 2.1.2-0.2.2rc2.post1_gdcc8966.d20260916
   entries:
-  - date: ''
+  - date: '2026-09-16T10:34:57.174Z'
     reason: >-
       Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head dcc8966 — PR 357, the
       first time the GCU300 work is on the release line. GCU attention moves off
@@ -49,8 +49,9 @@ tags:
 - tag: 2.1.2-0.2.1_gc2e496d.d20260905
   entries:
   - date: '2026-09-05T12:54:19Z'
-    reason: Initial 0.20.2 deliverable on GCU300 (tops1.10.6). vllm-plugin-FL rotary-guard-ordering (c2e496d)
-      guards the rotary flash_attn import in the gcu patches so engine start no longer hard-depends on
-      triton_gcu; repacked vllm wheel pins xgrammar==0.2.3+flagos (an earlier loose pin pulled triton
+    reason: Initial 0.20.2 deliverable on GCU300 (tops1.10.6). vllm-plugin-FL 
+      rotary-guard-ordering (c2e496d) guards the rotary flash_attn import in the
+      gcu patches so engine start no longer hard-depends on triton_gcu; repacked
+      vllm wheel pins xgrammar==0.2.3+flagos (an earlier loose pin pulled triton
       3.8.0 over the runtime's). F/T both serve correctly (Paris anchor).
     upstream_prs: []
