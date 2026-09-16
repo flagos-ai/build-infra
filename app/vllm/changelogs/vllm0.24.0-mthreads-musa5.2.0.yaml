@@ -34,7 +34,7 @@ image: vllm0.24.0-mthreads-musa5.2.0
 tags:
 - tag: 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
   entries:
-  - date: ''
+  - date: '2026-09-16T14:34:33.404Z'
     reason: >-
       Rebuild on the vllm-plugin-FL 0.3.0-rc2 branch head 990a8f7 — the
       previous image pinned 5b592be, the pre-merge branch commit of PR 386, which

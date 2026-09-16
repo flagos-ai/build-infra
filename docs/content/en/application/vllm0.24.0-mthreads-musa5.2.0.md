@@ -40,16 +40,16 @@ title: "vllm0.24.0-mthreads-musa5.2.0"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.3.0rc0+g5b592be.d20260817`
+`vllm-plugin-fl==0.3.0rc2.post1+g990a8f7.d20260916`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2-0.3.0rc0_g5b592be.d20260817`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2-0.3.0rc2.post1_g990a8f7.d20260916`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2-0.3.0rc0_g5b592be.d20260817
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa5.2.0:2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
