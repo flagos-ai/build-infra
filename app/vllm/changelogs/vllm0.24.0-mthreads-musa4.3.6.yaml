@@ -34,7 +34,7 @@ image: vllm0.24.0-mthreads-musa4.3.6
 tags:
 - tag: 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
   entries:
-  - date: ''
+  - date: '2026-09-16T14:07:50.039Z'
     reason: >-
       Rebuild on the vllm-plugin-FL 0.3.0-rc2 branch head 990a8f7 — the
       previous image pinned 5b592be, the pre-merge branch commit of PR 386, which
@@ -52,7 +52,8 @@ tags:
   entries:
   - date: 2026-09-01T14:14:03Z
     reason: >-
-      vllm 0.24.0 on mthreads (PR 386 enablement + FlagGems 5130 mul device-gate fix). F/T verified.
+      vllm 0.24.0 on mthreads (PR 386 enablement + FlagGems 5130 mul device-gate fix).
+      F/T verified.
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/386
     - https://github.com/flagos-ai/FlagGems/pull/5130
