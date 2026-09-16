@@ -32,6 +32,22 @@
 
 image: vllm0.24.0-mthreads-musa4.3.6
 tags:
+- tag: 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
+  entries:
+  - date: ''
+    reason: >-
+      Rebuild on the vllm-plugin-FL 0.3.0-rc2 branch head 990a8f7 — the
+      previous image pinned 5b592be, the pre-merge branch commit of PR 386, which
+      is not the tip of any branch or tag upstream, so no named plugin ref can
+      rebuild it. The image now sits on the release line and carries its
+      dispatch/worker changes as a set: reference fallbacks stay registered when
+      a backend is unavailable (PR 440), FlagGems blacklist entries can be
+      appended per deployment (PR 439), the OOT graph path takes the
+      BreakableCUDAGraphWrapper (PR 342), and the packed-decode GDN beta stays
+      fp32 (PR 385). Rebuilt because PR 386 and FlagGems 5130 — the two upstream
+      dependencies this image was tracking — are merged, so nothing is pending on
+      either.
+    upstream_prs: []
 - tag: 2.1.2-0.3.0rc0_g5b592be.d20260817
   entries:
   - date: 2026-09-01T14:14:03Z
