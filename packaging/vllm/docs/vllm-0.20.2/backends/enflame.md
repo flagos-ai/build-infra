@@ -3,7 +3,7 @@
 > 本文对应原报告第 2 部分 §2.6。标准流程见 [`playbook.md`](../playbook.md)，
 > 决策见 [`decisions.md`](../decisions.md)。
 
-## 2.6 enflame（GCU300：✅ E2E 通过，vLLM 原生 FLASH_ATTN，跨栈收敛）
+## 2.6 enflame（GCU300：✅ eager E2E 通过 / ⚠️ graph 被厂商编译器阻塞，vLLM 原生 FLASH_ATTN，跨栈收敛）
 
 **方案:** vLLM 原生 FLASH_ATTN + 五处修复（plugin A/B/C/E [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) + flag_gems D [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345)）。
 
@@ -131,7 +131,7 @@ GCU 0 显存，`docker rm -f` 解决），非代码缺口。
 `BLOCK_N` 循环）+ 偶数行奇偶性（B=8 行 0/2/4/6 错、1/3/5/7 对），错值是最后一个 tile 的被
 mask lane。**根因：GCU300 triton_gcu 跨 tile 归约累加的 codegen 误编译（偶数 lane 奇偶性）。**
 `and`-on-tensor 反模式确实广泛存在（~50 处 / ~20 个 gcu300 算子）但修它不改 argmax 行为，两
-件事分开。已生成面向厂商的中文根因报告（`flaggems-gcu300-argmax-bug.md`，**待移交** docs 目录）。
+件事分开。面向厂商 triton_gcu 团队的根因报告**待写**（原拟名 `flaggems-gcu300-argmax-bug.md`，文件不存在）。
 已验证的生产修复仍是黑名单（argmax → torch_gcu，已在 [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)）。
 
 #### 待办 / 落库
@@ -141,9 +141,63 @@ mask lane。**根因：GCU300 triton_gcu 跨 tile 归约累加的 codegen 误编
 - **已落库**：五处修复 + 采样黑名单已提 PR（均直推 flagos-ai）：
   - **plugin（A/B/C/E + 采样黑名单）→ [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)**：分支 `enflame-gcu300-native-flash-attn` → `main`。走 vLLM 原生 FLASH_ATTN。**注：** slot_mapping / fa_utils 绑定耦合 vLLM v1 worker/attention 布局，须对齐 vLLM 0.24.0 迁移后重新推导。
   - **flag_gems（D）→ [FlagGems #5345](https://github.com/flagos-ai/FlagGems/pull/5345)**：分支 `enflame-gcu300-reshape-cache-int32` → `master`。vendor+dtype gated 的 slot_mapping int32 降位，与 vLLM 版本解耦。
-- **flag_gems gcu300 argmax codegen bug** → 中文厂商报告（`flaggems-gcu300-argmax-bug.md`，**待移交** docs 目录），待发厂商 triton_gcu 团队；修复后可从 [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) 黑名单移除 `argmax`。
-- 仅测单轮 64 token 生成；多轮 / 长上下文未验。
+- **flag_gems gcu300 argmax codegen bug** → 厂商 triton_gcu 团队根因报告待写（见结论 3）；修复后可从
+  [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) 黑名单移除 `argmax`。
+- **graph 模式三项厂商阻塞**（详见 §2.6.3）→ 与上条 argmax bug 合并成一份报告发厂商 `torch_gcu` /
+  `triton_gcu` 团队；三项修掉之前 graph 用例无法作为出货门禁。
+- §2.6.1 / §2.6.2 的 E2E 仅测单轮 64 token 生成；§2.6.3 已把 eager 用例面扩到 2 模型 × 5 场景
+  （含图像 / 混合 / 并发 8），多轮 / 长上下文仍未验。
 - 加密采样（`exponential_(generator=)`）未测。
 - E 的 CP>1 交织分支已实现但未测（本配置 cp_world=1）。
 - 运维备忘：teardown 需一并 `pkill -9 -f "EngineCore"`——spawn worker 不匹配
   `[v]llm serve`，残留会占住 GCU 显存致下次启动 OOM；已完结的验证容器也需 `docker rm -f`。
+
+### 2.6.3 适配门禁用例复验（⚠️ 10/20 通过，2026-09-16）—— eager 全绿，graph 被厂商编译器阻塞
+
+**日期:** 2026-09-16　**平台:** Enflame GCU300（S60 48G ×8）
+
+**用例:** `tools/adaptation-gate-cases/`（2 模型 × 5 eager + 5 graph = 20 场景）
+
+**stack:** 同 §2.6.1（torch_gcu 2.11 / tops1.10.6），代码 = [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357) 分支
+`enflame-gcu300-native-flash-attn` `7218ee2`
+
+| leg | 端口 | 设备 | 结果 |
+|---|---|---|---|
+| Qwen3.6-27B eager | 8004 | 0,1 | ✅ 5/5 场景，26/26 请求 |
+| Qwen3.6-35B-A3B eager | 8007 | 4,5 | ✅ 5/5 场景，26/26 请求 |
+| Qwen3.6-27B graph | 8005 | 2,3 | ⚠️ engine init 失败（阻塞 3） |
+| Qwen3.6-35B-A3B graph | 8008 | 6,7 | ⚠️ 同上，未跑完 |
+
+五个场景 = 文本单发 / 文本并发 8 / 图像单发 / 图像并发 8 / 文本+图像混合并发 8。
+
+两条 eager leg 的 serve 日志都带 dispatch 层选中原生 FLASH_ATTN 后端的记录——[P1] 质疑直接可查，非推断。
+graph 失败发生在 A/B/C/D/E 五处修复**全部生效之后**，与五处修复无关；本节结论加强 §2.6.1 / §2.6.2 而非改写。
+
+#### 本轮 review 的两个修正
+
+- **[P1] 原生后端确实未被选中** —— `attention_backend` 首位一直是 `vendor:gcu`，而 `GCUBackend.attention_backend()`
+  当时返回自定义的 `AttentionGCUBackend`，新修的原生路径根本没被走到。修法在**实现侧**（`a409323`）：`gcu.py`
+  改为返回 `AttentionBackendEnum.FLASH_ATTN.get_path()`，`vendor:gcu` 仍排首位但胜出实现返回原生后端路径。
+- **[P2] 补丁未按平台收口** —— 两个 FA patch 入口原先只看 `torch_gcu` 是否安装（rotary 那个无条件执行），
+  现均以 `__init__.py:60` 的 `_is_gcu_active()` 为门。该门读 `DeviceInfo` 而非 `current_platform`——注册期后者
+  还是 `UnspecifiedPlatform`，拿它做门会**静默失效**；且 GCU 上 `vendor_name` 是 `enflame`、`device_type` 才是
+  `gcu`，故门接受两种拼写，单侧改名不会悄悄关掉补丁。
+
+#### graph 侧的三个厂商阻塞（均非本 PR 引入，可复现于已安装源码）
+
+1. **codegen wrapper 打在错的类上** —— `backend_register.py:2100-2104` 把 GCU wrapper 打在 `TritonKernel.codegen_kernel`
+   上，而 `ComboKernel` 派生自 `Kernel` 并自带 `codegen_kernel`（`triton_combo_kernel.py:882`）→ 子 kernel 头部
+   按平铺形式生成、外层绑定的 `xloop` 从未发射 → `NameError('xloop' is not defined')`。
+   **绕法：** `--compilation-config '{"inductor_compile_config": {"combo_kernels": false}}'`。代价：少一次横向融合。
+2. **`persistent_reduction_configs` 签名漂移** —— `backend_register.py:2077` 把 3 参数的 GCU 实现
+   （`backend_register.py:900`）装到 torch 2.11.0 的 4 参数调用点（`triton_heuristics.py:3548`）→ persistent-reduction
+   kernel 在 engine init 期全部报 `takes from 2 to 4 positional arguments but 5 were given`。
+   **绕法：** `TORCHINDUCTOR_PERSISTENT_REDUCTIONS=0`。代价：少 persistent-reduction 这一 pass。
+3. **GCU300 64 位校验器无法从 serve 关闭（graph 全灭的根因）** —— `parse_options` 里 `enable_i64` 走 `elif` 分支，
+   只有调用方**显式传 `enable_i64=False`** 时才会去读 `ENABLE_I64_CHECK`；inductor 的 options 全部来自自身配置
+   （`triton_heuristics.py:864-872`）、从不传该键 → serve 路径下 `ENABLE_I64_CHECK=0` **不生效**。
+   触发条件是 `24*ks0` 这类带 `i64` 参数的地址运算，报错 `64-bit data type not supported on GCU300`。
+   **无绕法**，故 graph 用例当前不可作为出货门禁。
+
+三项均属厂商侧（`torch_gcu` / `triton_gcu`），与 §2.6.2 结论 3 的 argmax codegen bug 合并成一份报告待发给厂商。
+
