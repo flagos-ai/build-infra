@@ -32,13 +32,13 @@
 
 image: vllm0.24.0-kunlunxin-xre5.37.1
 tags:
-- tag: 2.1.2-0.2.0_g344ea82.d20260915
+- tag: 2.1.2-0.3.0rc2.post1_g1e3a3a5.d20260916
   entries:
   - date: ''
     reason: >-
-      Rebuild from the vllm-plugin-FL PR 401 head (344ea82) so the review fixes
-      and the adaptation-gate verification requested in review run against the
-      current plugin code rather than the 2026-08-23 build.
+      Rebuild on the vllm-plugin-FL 0.3.0-rc2 line (PR 401 head 1e3a3a5) so the
+      review fixes and the adaptation-gate verification requested in review run
+      against the current plugin code rather than the 2026-08-23 build.
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/401
 - tag: 2.1.2-0.2.0_gf780db1.d20260823
