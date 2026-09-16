@@ -40,16 +40,16 @@ title: "vllm0.20.2-enflame-tops1.9.10"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+gc2e496d.d20260905`
+`vllm-plugin-fl==0.2.2rc2.post1+gdcc8966.d20260916`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.9.10:2.1.2-0.2.1_gc2e496d.d20260905`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.9.10:2.1.2-0.2.2rc2.post1_gdcc8966.d20260916`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.9.10:2.1.2-0.2.1_gc2e496d.d20260905
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-enflame-tops1.9.10:2.1.2-0.2.2rc2.post1_gdcc8966.d20260916
 ```
 
 以下两种方式任选其一：
