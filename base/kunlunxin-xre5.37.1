@@ -27,6 +27,8 @@ ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ARG CUDA_PACKAGE=cuda_12.9.0_575.51.03_linux.run
 ARG XRE_PACKAGE=xre-Linux-x86_64-cuda12-5.37.1.0.run
 ARG XCUDART_PACKAGE=xcudart-5.13.0_amd64.deb
+ARG MPI_PACKAGE=mpich-3.3.2.tar.gz
+ARG XCCL_PACKAGE=xccl_Linux_x86_64_cuda12.tar.gz
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -53,5 +55,17 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
     && dpkg -i --instdir /usr/local /xcudart.deb \
     && rm /xcudart.deb
 
-ENV LD_LIBRARY_PATH="/usr/local/xpu/lib:/usr/local/xcudart/lib"
-ENV PATH="/usr/local/xpu/bin:$PATH"
+# ── Install MPI ────────────────────────────────────────────────
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mpi.tgz ${FILE_STORE}/kunlunxin/${MPI_PACKAGE} \
+    && tar xvf -C /usr/local /mpi.tgz \
+    && ln -s /usr/local/mpich-3.3.2/lib/libmpi.so /usr/local/mpich-3.3.2/lib/libmpi.so.0 \
+    && rm /mpi.tgz
+
+# ── Install xCCL ────────────────────────────────────────────────
+RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xccl.tgz ${FILE_STORE}/kunlunxin/${XCCL_PACKAGE} \
+    && tar xvf -C /usr/local /xccl.tgz \
+    && rm /xccl.tgz
+
+
+ENV LD_LIBRARY_PATH="/usr/local/xccl_Linux_x86_64/so:/usr/local/mpich-3.3.2/lib:/usr/local/xpu/so:/usr/local/xpu/lib:/usr/local/xcudart/lib"
+ENV PATH="/usr/local/mpich-3.3.2/bin:/usr/local/xpu/bin:$PATH"
