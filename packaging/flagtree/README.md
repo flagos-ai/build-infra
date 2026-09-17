@@ -21,17 +21,18 @@ wheel is self-owned and reproducible — and an A/B baseline against the vendor'
 
 The `nvidia-cuda` / `metax` / `sunrise` builders start from a plain Ubuntu 22.04
 (old glibc: the resulting `libtriton.so` must load on 22.04 nodes) and pre-stage
-the backend's prebuilt deps into FlagTree's offline cache. The `ascend3.5` /
-`ascend3.2` pair instead builds **inside the backend's runtime image**, because
-FlagTree's Ascend build needs CANN on the build machine — see the section below.
+the backend's prebuilt deps into FlagTree's offline cache. The
+`ascend-cann9.0.0` / `ascend-cann8.5.0` pair instead builds **inside the
+backend's runtime image**, because FlagTree's Ascend build needs CANN on the
+build machine — see the section below.
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA| Ubuntu 22.04 (glibc 2.35)   |
 | `metax`      | FlagTree for MetaX (MACA) | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU) | Ubuntu 22.04 + clang/lld 14 |
-| `ascend3.5`  | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
-| `ascend3.2`  | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
+| `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
+| `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
 
 The `metax` builder exists because MetaX's own wheel (`flagtree==0.6.1+metax3.6`)
 is built on Ubuntu 24.04 and links `libtriton.so` against `GLIBC_2.38` +
@@ -55,10 +56,13 @@ CI smoke test (`import triton`) runs on a GPU-less box and cannot catch this, so
 the gate additionally **asserts libtriton's pybind11 internals are v11**
 (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
 
-## Ascend builders (`ascend3.5` / `ascend3.2`)
+## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
 
 The Ascend pair differs from the builders above in one structural way: **the build
-environment is the backend's own runtime image**, not a plain Ubuntu.
+environment is the backend's own runtime image**, not a plain Ubuntu. It is also
+named after that backend rather than the FlagTree line it builds, so the
+Containerfile name, `flagtree-wheel.yml`'s `target` and `generate_matrix.py`'s
+backend name are one string.
 
 FlagTree's Ascend build reads the CANN version *on the build machine* and uses it
 to select the AscendNPU-IR branch/commit (`python/setup_tools/utils/ascend.py`,
@@ -70,13 +74,17 @@ complete toolchain for the build (python 3.11 venv with pip/ninja/pybind11,
 gcc/make/cmake/binutils, git/curl/tar, torch + torch_npu), so no apt step is
 needed. Same rule as the Megatron wheel builder: build env == delivery env.
 
-| | `ascend3.5` | `ascend3.2` |
+| | `ascend-cann9.0.0` | `ascend-cann8.5.0` |
 |---|---|---|
 | Base image | `flagos-runtime-ascend-cann9.0.0:{version}` | `flagos-runtime-ascend-cann8.5.0:{version}` |
 | FlagTree branch (default) | `0.7.0-rc2-triton3.5` (build dir = repo root) | `triton_v3.2.x` (build dir = `python/`) |
 | Prebuilt LLVM | `llvm-7d5de303-…-compat_v0.6.0` | `llvm-a66376b0-…-compat_v0.3.0` |
 | triton build deps | `build-deps-triton_3.5.x-linux-aarch64` | `build-deps-triton_3.2.x-linux-aarch64` |
 | Wheel version | `0.7.0rc2+ascend3.5.<UTC date>` | `0.6.0+ascend3.2.<UTC date>` |
+
+The wheel's version label keeps the vendor's `+ascend3.5` / `+ascend3.2` spelling
+— that is what the `configs.yaml` pins and the backend docs reference — while the
+file is named after the backend.
 
 Notes that apply only here:
 
@@ -127,8 +135,8 @@ Notes that apply only here:
   while it is reachable directly.
 - Both builders share `verify_ascend_wheel.py`, COPYed into the build rather than
   a heredoc: the CANN nodes still run Docker's legacy builder.
-- Build cost on the CANN nodes: ~26 min for `ascend3.5` and ~14 min for `ascend3.2`,
-  most of it compiling AscendNPU-IR and triton at `MAX_JOBS=32`.
+- Build cost on the CANN nodes: ~26 min for `ascend-cann9.0.0` and ~14 min for
+  `ascend-cann8.5.0`, most of it compiling AscendNPU-IR and triton at `MAX_JOBS=32`.
 - Not yet exercised: `upload=true` on a CANN node. The upload step uses the
   runner's own `python3`; if the aarch64 CANN runners have no pip, it needs the
   Megatron wheel workflow's approach (run twine inside the build image).
@@ -148,7 +156,7 @@ podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_p
 # (pulled from the registry if absent). The build itself clones github.com, so
 # the proxy args matter here too; --build-arg no_proxy=... is relayed verbatim
 # and never invented inside the Containerfile.
-docker build -t flagtree-ascend3.5:0.7.0rc2 -f ascend3.5 .
+docker build -t flagtree-ascend-cann9.0.0:0.7.0rc2 -f ascend-cann9.0.0 .
 ```
 
 Useful build args (see the Containerfile for the full list):

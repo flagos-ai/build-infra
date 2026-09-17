@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# FlagTree ascend3.5 wheel (Triton 3.5 / CANN 9.0.0 / aarch64 / cp311), from source
-# -> /wheels.
+# FlagTree wheel for the ascend-cann9.0.0 backend (Triton 3.5 / aarch64 / cp311),
+# from source -> /wheels. Named after the backend, not the FlagTree line, so the
+# file, the workflow target and generate_matrix.py's backend name are all one word.
 #
 # Base is the backend's runtime image, not a bare ubuntu like the other builders:
 # the ascend build pins AscendNPU-IR by the CANN found here and compiles it in, and

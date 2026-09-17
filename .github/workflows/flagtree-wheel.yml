@@ -16,10 +16,11 @@ name: FlagTree wheel
 
 # Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
 # vendor PyPI. Two target families: self-contained Containerfiles (metax /
-# nvidia-cuda / sunrise), and ascend3.5 / ascend3.2, which build INSIDE their
-# backend's runtime image — `prepare` resolves what that difference implies.
-# The Containerfile's gates fail `docker build` on an unusable wheel, so a bad
-# wheel never reaches extract/upload.
+# nvidia-cuda / sunrise), and the ascend pair, which builds INSIDE its backend's
+# runtime image and is therefore named after that backend — the Containerfile, this
+# workflow's target and generate_matrix.py's backend name are the same string.
+# `prepare` resolves what that difference implies. The Containerfile's gates fail
+# `docker build` on an unusable wheel, so a bad wheel never reaches extract/upload.
 
 on:
   workflow_dispatch:
@@ -31,8 +32,8 @@ on:
           - metax
           - nvidia-cuda
           - sunrise
-          - ascend3.5
-          - ascend3.2
+          - ascend-cann9.0.0
+          - ascend-cann8.5.0
         default: metax
       flagtree_version:
         description: 'FlagTree tag/branch/sha to build (blank = Containerfile default)'
@@ -89,10 +90,11 @@ jobs:
           BASE_IMAGE_OVERRIDE: ${{ inputs.base_image }}
         run: |
           set -euo pipefail
+          # The ascend targets ARE the backend names, so there is no mapping to keep
+          # in sync with configs.yaml.
           case "$TARGET" in
-            ascend3.5) backend=ascend-cann9.0.0 ;;
-            ascend3.2) backend=ascend-cann8.5.0 ;;
-            *)         backend="" ;;
+            ascend-cann*) backend="$TARGET" ;;
+            *)            backend="" ;;
           esac
           if [ -z "$backend" ]; then
             echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
@@ -108,7 +110,8 @@ jobs:
           # then the build takes another tag of the same CANN line (e.g. -build).
           echo "base_image=${BASE_IMAGE_OVERRIDE:-$(jq -r '.include[0].image_tag' matrix.json)}" >> "$GITHUB_OUTPUT"
           echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
-          # From the matrix's vendor index: "${TARGET%%-*}" would derive "ascend3.5".
+          # Off the matrix's vendor index, not the target name: it is the field the
+          # runtime images are built from.
           flagos_pypi=$(jq -r '.include[0].flagos_pypi' matrix.json)
           echo "pypi_repo=$(basename "$(dirname "$flagos_pypi")")" >> "$GITHUB_OUTPUT"
 
@@ -186,8 +189,8 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
             exit 1
           fi
-          # vendor = first segment of the target (nvidia-cuda -> nvidia); ascend comes
-          # from `prepare`, its CANN version being part of the name.
+          # vendor = first segment of the target (nvidia-cuda -> nvidia); the ascend
+          # targets get their repo from `prepare` instead.
           vendor="${TARGET%%-*}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-${{ needs.prepare.outputs.pypi_repo }}}"

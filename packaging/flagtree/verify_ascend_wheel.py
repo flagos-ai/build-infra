@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Build gates for the ascend FlagTree wheels (ascend3.5, ascend3.2): fail the
-build on a wheel the ascend backends cannot use.
+"""Build gates for the ascend FlagTree wheels (ascend-cann9.0.0, ascend-cann8.5.0):
+fail the build on a wheel the ascend backends cannot use.
 
 A file rather than a Dockerfile heredoc: the CANN build nodes still run Docker's
 legacy builder, which has no heredoc support.

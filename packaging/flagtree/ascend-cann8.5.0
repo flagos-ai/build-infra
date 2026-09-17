@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# FlagTree ascend3.2 wheel (Triton 3.2 / CANN 8.5.0 / aarch64 / cp311), from source
-# -> /wheels. Twin of ascend3.5, which explains the runtime-image base; the two
-# differ in the line facts below.
+# FlagTree wheel for the ascend-cann8.5.0 backend (Triton 3.2 / aarch64 / cp311),
+# from source -> /wheels. Twin of ascend-cann9.0.0, which explains the runtime-image
+# base; the two differ in the line facts below.
 #
 # Why it exists: the cann8.5.0 backends pin flagtree==0.6.0+ascend3.2, and that
 # vendor wheel has a codegen defect — with flag_gems ON, generation drops to ~0.05
