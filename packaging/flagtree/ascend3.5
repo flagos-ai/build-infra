@@ -122,11 +122,17 @@ SHELL ["/bin/bash", "-c"]
 # toolkits -> ~/.triton (the non-interactive equivalent of upstream's
 # `sh python/scripts/unpack_triton_build_deps.sh`, which ends in "press any key").
 # Retry the large downloads: the runners' link to the bucket is flaky.
+#
+# --noproxy: the CANN runners' proxy does not forward this bucket — it answers
+# HTTP 500 (measured on cann900 2026-09-17) — while the bucket is reachable
+# directly from both CANN nodes (200). The proxy stays in the environment
+# nonetheless, because the github.com clone below needs it on cann850; only this
+# step opts out. Every URL fetched here is DEPS_BASE, so the bypass is whole-step.
 RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
          for i in 1 2 3 4 5; do \
-           curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 \
+           curl -fsSL --noproxy '*' --retry 3 --retry-delay 5 --connect-timeout 30 \
              "${DEPS_BASE}/${f}" -o "${f}" && break; \
            echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
          done; \
