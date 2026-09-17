@@ -69,7 +69,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -79,7 +79,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.2.0 bash
 ```
 
 ## Verify
@@ -90,4 +90,4 @@ Inside the container, confirm the accelerator is visible:
 mx-smi
 ```
 
-*Last updated: 2026-08-14 22:45:40 · `304f6c65f2a9`*
+*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

@@ -47,7 +47,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -62,7 +62,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0:2.2.0 bash
 ```
 
 ## Verify
@@ -73,4 +73,4 @@ Inside the container, confirm the accelerator is visible:
 npu-smi info
 ```
 
-*Last updated: 2026-08-11 01:04:24 · `3eca2bf66bfc`*
+*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

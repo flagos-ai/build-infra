@@ -67,7 +67,7 @@ title: "ascend-cann8.5.0-910c"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0-910c:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0-910c:2.2.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -82,7 +82,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0-910c:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0-910c:2.2.0 bash
 ```
 
 ## 验证
@@ -93,4 +93,4 @@ docker run --rm -it \
 npu-smi info
 ```
 
-*更新时间: 2026-09-10 11:00:46 · `b79dcc694322`*
+*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

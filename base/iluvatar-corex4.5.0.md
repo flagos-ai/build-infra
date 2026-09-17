@@ -45,7 +45,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -54,7 +54,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   --device /dev/itrctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.2.0 bash
 ```
 
 ## Verify
@@ -65,4 +65,4 @@ Inside the container, confirm the accelerator is visible:
 ixsmi
 ```
 
-*Last updated: 2026-09-16 17:23:28 · `d5d4f0e8b8ef`*
+*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

@@ -54,7 +54,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.2.0 bash
 ```
 
 ## Verify
@@ -65,4 +65,4 @@ Inside the container, confirm the accelerator is visible:
 cnmon
 ```
 
-*Last updated: 2026-08-05 16:20:57 · `fbafbf2e5d9b`*
+*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

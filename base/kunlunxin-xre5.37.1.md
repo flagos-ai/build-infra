@@ -46,7 +46,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -55,7 +55,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.2.0 bash
 ```
 
 ## Verify
@@ -66,4 +66,4 @@ Inside the container, confirm the accelerator is visible:
 xpu-smi
 ```
 
-*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
+*Last updated: 2026-09-17 10:25:11 · `65c46623bf47`*
