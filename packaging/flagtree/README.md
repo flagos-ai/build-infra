@@ -137,9 +137,12 @@ Notes that apply only here:
   a heredoc: the CANN nodes still run Docker's legacy builder.
 - Build cost on the CANN nodes: ~26 min for `ascend-cann9.0.0` and ~14 min for
   `ascend-cann8.5.0`, most of it compiling AscendNPU-IR and triton at `MAX_JOBS=32`.
-- Not yet exercised: `upload=true` on a CANN node. The upload step uses the
-  runner's own `python3`; if the aarch64 CANN runners have no pip, it needs the
-  Megatron wheel workflow's approach (run twine inside the build image).
+  The github clone is the variable part — when it retries, the run is that much
+  longer, whatever the proxy probe said.
+- `upload=true` works from the CANN nodes (exercised 2026-09-17: both wheels are in
+  `flagos-pypi-ascend`, beside the vendor's). Those runners run pip 22.0.2, which
+  has no `--break-system-packages`, so the plain `pip install --upgrade twine
+  pkginfo` fallback is the branch that actually runs there.
 
 ## Build
 
