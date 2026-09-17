@@ -12,88 +12,60 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build a FlagTree ascend3.2 wheel (Triton 3.2 / CANN 8.5.0 / aarch64 / cp311)
-# from source. Output wheel -> /wheels. Twin of `ascend3.5`, which explains the
-# runtime-image base and the LLVM / triton-deps staging; the two differ only in
-# the line facts below.
+# FlagTree ascend3.2 wheel (Triton 3.2 / CANN 8.5.0 / aarch64 / cp311), from source
+# -> /wheels. Twin of ascend3.5, which explains the runtime-image base; the two
+# differ in the line facts below.
 #
-# Why this builder exists: the cann8.5.0 backends pin flagtree==0.6.0+ascend3.2,
-# and that vendor wheel has a codegen defect — with flag_gems ON, generation drops
-# to ~0.05 tok/s (configs.yaml, sglang env comment). Only a rebuild can test a fix
-# for it, and the rebuild doubles as our A/B baseline.
+# Why it exists: the cann8.5.0 backends pin flagtree==0.6.0+ascend3.2, and that
+# vendor wheel has a codegen defect — with flag_gems ON, generation drops to ~0.05
+# tok/s (configs.yaml, sglang env comment). Only a rebuild can test a fix for it.
 #
-# Line facts vs ascend3.5:
 #  - Branch triton_v3.2.x; setup.py lives in python/, so the build runs there.
 #  - No FlagPrism (it arrives with the 3.5 line).
-#  - Upstream's 3.2 delivery leaves the LLVM bin dir off PATH, which is not
-#    reproducible here: the runtime image ships gcc only and triton's CMakeLists
-#    asks for `clang` by name, so cmake dies at `project()` without it (run
-#    35196666585). The staged LLVM is the only clang in the image.
-#
-# Build:
-#   docker build -t flagtree-ascend3.2:0.6.0 -f ascend3.2 .
-#   # when github needs a proxy (the build clones flir / AscendNPU-IR):
-#   docker build --build-arg PROXY_URL=$https_proxy \
-#                -t flagtree-ascend3.2:0.6.0 -f ascend3.2 .
-#   # via CI: dispatch flagtree-wheel.yml with target=ascend3.2
-#
-# Extract the wheel:
-#   id=$(docker create flagtree-ascend3.2:0.6.0); docker cp $id:/wheels ./wheels; docker rm $id
+#  - The LLVM bin dir goes on PATH although upstream's 3.2 delivery does not: the
+#    image ships gcc only and triton's CMakeLists asks for `clang` by name, so cmake
+#    dies at project() without it (run 35196666585).
 
-# CI passes the full ref, registry host included, from configs.yaml; the default
-# suits a manual local build.
+# CI passes the full ref, registry host included, from configs.yaml.
 ARG BASE_IMAGE=flagos-runtime-ascend-cann8.5.0:2.2.0
 FROM ${BASE_IMAGE}
 
-# Relayed by flagtree-wheel.yml as a FALLBACK for github traffic, applied only
-# after a direct call fails; see ascend3.5. PROXY_NO_PROXY goes through verbatim —
-# a NO_PROXY invented here would bypass the tunnel for hosts the container cannot
-# resolve on its own.
+# Fallback for github traffic, applied only after a direct call fails: direct
+# access from the CANN nodes is not stable. PROXY_NO_PROXY is relayed verbatim.
 ARG PROXY_URL=
 ARG PROXY_NO_PROXY=
 
-# FlagTree git ref to build: branch, tag or commit sha. Pin a sha for a release.
+# FlagTree ref to build: branch, tag or sha. Pin a sha for a release.
 ARG FLAGTREE_VERSION=triton_v3.2.x
-# Wheel version prefix: OUR label for the FlagTree line, not the vendor's release
-# label; see ascend3.5 for the full reasoning.
+# OUR label for the FlagTree line, not the vendor's. .git is removed before
+# `pip wheel` (setup.py would stamp "+git<sha>"), the UTC date marks a rebuild.
 ARG FLAGTREE_BASE_VERSION=0.6.0+ascend3.2
-# Explicit wheel version; blank = "<FLAGTREE_BASE_VERSION>.<UTC date>".
+# blank = "<FLAGTREE_BASE_VERSION>.<UTC date>"
 ARG FLAGTREE_WHEEL_VERSION=
-# The CANN version the base image must provide. A gate, not decoration: the
-# AscendNPU-IR pin follows the CANN on the build machine, so a wrong BASE_IMAGE
-# would silently build against the wrong bishengir.
+# A wrong BASE_IMAGE must fail here, not pair the wheel with another bishengir.
 ARG CANN_VERSION=8.5.0
-# Prebuilt deps by URL, same bucket as the metax / sunrise builders.
-#  - llvm-a66376b0: its bin/ carries the clang this build compiles with.
-#  - build-deps-triton: triton origin toolkits (nvcc/cudart + json/gtest).
+# Prebuilt deps, same bucket as metax / sunrise: the build's clang and the toolkits.
 ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
 ARG LLVM_TARBALL=llvm-a66376b0-ubuntu-aarch64-python311-compat_v0.3.0.tar.gz
 ARG LLVM_DIR=llvm-a66376b0-ubuntu-aarch64-python311-compat
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.2.x-linux-aarch64.tar.gz
-# An ABI contract, not just a dependency: the runtime venv ships pybind11 3.0.3
-# (internals v11) and an unpinned build pulls 3.1.x (v12), which imports fine but
-# breaks at kernel-compile time on real hardware. Named _VERSION, not the _SPEC of
-# the other builders: ARG splits on the first '=', so "ARG X==3.0.3" would hand
-# pip "pybind11=3.0.3".
+# ABI contract with the runtime (3.0.3 = internals v11): unpinned pulls 3.1.x, which
+# imports fine and breaks at kernel-compile time. _VERSION, since ARG splits on '='.
 ARG PYBIND11_VERSION=3.0.3
-# A contract with the prebuilt LLVM, not the runtime: its MLIRDetectPythonEnv.cmake
-# asks for 2.4, and this branch's requirements.txt lists nanobind unpinned, so the
-# install above pulls 3.x — which that request rejects, killing the build in cmake
-# (run 35204686186). Build-time only.
+# Contract with the prebuilt LLVM instead: it asks for nanobind 2.4, rejects 3.x —
+# and this branch's requirements.txt leaves nanobind unpinned, so 3.x is what lands.
 ARG NANOBIND_VERSION=2.4.0
-# Public index for the build requirements (pypi.org is unreachable from the runners).
+# pypi.org is unreachable from the runners.
 ARG EXTRA_PYPI=https://mirrors.aliyun.com/pypi/simple
-# AscendNPU-IR (a whole MLIR project) plus triton; upstream's delivery uses 32.
+# AscendNPU-IR is a whole MLIR project; upstream's delivery uses 32.
 ARG MAX_JOBS=32
 
-# bash, not the image's /bin/sh (dash): the CANN environment reaches
-# non-interactive shells only through BASH_ENV + bash.
+# bash, not the image's dash: the CANN environment reaches non-interactive shells
+# only through BASH_ENV + bash.
 SHELL ["/bin/bash", "-c"]
 
-# Stage the prebuilt deps into FlagTree's offline caches so the build wires them
-# itself (the non-interactive equivalent of upstream's unpack_triton_build_deps.sh).
-# Retries: the runners' link to the bucket is flaky. --noproxy: the proxy answers
-# HTTP 500 for this bucket while the bucket is reachable directly.
+# Stage the prebuilt deps into FlagTree's own offline caches (upstream's
+# unpack_triton_build_deps.sh, non-interactively). --noproxy: the proxy 500s here.
 RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
@@ -109,10 +81,7 @@ RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && test -x "/root/.flagtree/ascend/${LLVM_DIR}/bin/clang" \
     && ls -la /root/.triton
 
-# --branch cannot take a sha, so fetch + checkout FETCH_HEAD handles branch, tag
-# and sha alike. HTTP/1.1 and the timeouts bound a hung github connection instead
-# of stalling the build. Cloned to /opt/flagtree-src: /opt/flagtree is the vendor
-# wheel inside the runtime image and must stay untouched.
+# FETCH_HEAD takes branch/tag/sha alike. /opt/flagtree-src, never the vendor /opt/flagtree.
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
     && git config --global http.version HTTP/1.1 \
     && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
@@ -136,22 +105,12 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
     && test -d /opt/flagtree-src/.git \
     && git -C /opt/flagtree-src --no-pager log -1 --format='>>> flagtree source: %H %s'
 
-# Build the wheel from source, in python/ (this branch's setup.py lives there).
-#  - PYTHONPATH is dropped: /etc/profile.d/zz-compiler.sh puts the VENDOR flagtree
-#    (/opt/flagtree) on it in every bash shell, so the build and the smoke test
-#    would import that wheel instead of the tree being built.
-#  - --no-build-isolation: build against the venv's pins above.
-#  - TRITON_APPEND_CMAKE_ARGS disables -Wdangling-assignment-gsl: this bundle's
-#    clang is 21.0.0git, whose new warning fires on the bundle's OWN
-#    mlir/IR/OperationSupport.h, failing every unit that includes it (run
-#    35205978277). The header is prebuilt and the -Werror promoting it is
-#    flagtree's own (CMakeLists.txt:196), so the diagnostic is disabled ahead of
-#    that append. setup.py shlex-splits the variable onto cmake's command line,
-#    hence the -D wrapper: a bare -W flag there is a cmake error (run
-#    35208551871).
-#  - .git is removed before `pip wheel`: see ascend3.5.
-#  - The proxy probe is repeated here: this step fetches flir / AscendNPU-IR
-#    through FlagTree's own tooling, which inherits this shell.
+# PYTHONPATH is dropped: zz-compiler.sh puts the VENDOR flagtree on it in every bash.
+# TRITON_APPEND_CMAKE_ARGS disables -Wdangling-assignment-gsl, which this bundle's
+# clang 21 raises on the bundle's OWN MLIR headers (35205978277); the -Werror that
+# promotes it is flagtree's own (CMakeLists.txt:196), and setup.py passes the value on
+# cmake's command line, where a bare -W flag is an error (35208551871). The proxy probe
+# repeats here: this step fetches flir / AscendNPU-IR.
 RUN unset PYTHONPATH \
     && cd /opt/flagtree-src/python \
     && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
@@ -179,17 +138,12 @@ RUN unset PYTHONPATH \
        done \
     && ls -la /wheels/*.whl
 
-# Fail the build, and therefore the publish, on a wheel the ascend backends cannot
-# use. A COPYed script rather than a heredoc: the CANN nodes run Docker's legacy
-# builder, which has no heredoc support.
+# A COPYed gate, not a heredoc: the CANN nodes run Docker's legacy builder.
 COPY verify_ascend_wheel.py /tmp/
 RUN CANN_VERSION="${CANN_VERSION}" python3 /tmp/verify_ascend_wheel.py
 
-# Install the fresh wheel into a directory of its own and import it: PYTHONPATH
-# keeps the import off the vendor flagtree, and the assertions prove what got
-# imported is this wheel. No NPU device is needed. The version is read off the
-# file name (longest match: the tag is "-cp311-cp311-linux_aarch64", and the
-# shortest match would stop after the first cp311).
+# Import from a directory of its own, so a passing import cannot be the vendor's.
+# Version from the file name, longest match: the tag is "-cp311-cp311-linux_aarch64".
 RUN whl="$(basename /wheels/*.whl)" \
     && ver="${whl#flagtree-}" && ver="${ver%%-cp311-*}" \
     && rm -rf /opt/wheel-test \
