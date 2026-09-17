@@ -67,7 +67,7 @@ docker run --rm -it \
   --privileged \
   -v /dev:/dev \
   -e TANG_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.2.0 bash
 ```
 
 ## 验证
@@ -78,4 +78,4 @@ docker run --rm -it \
 pt_smi
 ```
 
-*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*
+*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

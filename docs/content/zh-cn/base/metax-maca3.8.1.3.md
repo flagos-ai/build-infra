@@ -69,7 +69,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.2.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -79,7 +79,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.2.0 bash
 ```
 
 ## 验证
@@ -90,4 +90,4 @@ docker run --rm -it \
 mx-smi
 ```
 
-*更新时间: 2026-08-14 22:45:40 · `304f6c65f2a9`*
+*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

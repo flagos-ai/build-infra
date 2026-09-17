@@ -47,7 +47,7 @@ docker run --rm -it \
   --privileged \
   -v /dev:/dev \
   -e TANG_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.2.0 bash
 ```
 
 ## Verify
@@ -58,4 +58,4 @@ Inside the container, confirm the accelerator is visible:
 pt_smi
 ```
 
-*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
+*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

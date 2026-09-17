@@ -71,7 +71,7 @@ Explicitly installed; the version is the one baked into this image:
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -81,7 +81,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.2.0 bash
 ```
 
 ## Verify
@@ -92,4 +92,4 @@ Inside the container, confirm the accelerator is visible:
 mthreads-gmi
 ```
 
-*Last updated: 2026-08-14 21:51:46 · `521f2968843d`*
+*Last updated: 2026-09-17 10:25:11 · `65c46623bf47`*

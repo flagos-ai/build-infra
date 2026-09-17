@@ -71,7 +71,7 @@ title: "mthreads-musa4.3.6"
 docker run --rm -it \
   --runtime mthreads \
   --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.2.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -81,7 +81,7 @@ docker run --rm -it \
   --device /dev/mtgpu.0 \
   --device /dev/dri \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa4.3.6:2.2.0 bash
 ```
 
 ## 验证
@@ -92,4 +92,4 @@ docker run --rm -it \
 mthreads-gmi
 ```
 
-*更新时间: 2026-08-14 21:51:46 · `521f2968843d`*
+*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*

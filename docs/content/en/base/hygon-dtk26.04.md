@@ -64,7 +64,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -77,7 +77,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.2 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.2.0 bash
 ```
 
 ## Verify
@@ -88,4 +88,4 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-08-16 11:18:33 · `f332a6b51cfc`*
+*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*
