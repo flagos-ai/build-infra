@@ -58,6 +58,10 @@ on:
         description: 'upload the wheel to the vendor PyPI'
         type: boolean
         default: false
+      base_image:
+        description: 'base image override for the ascend targets (blank = the backend runtime image from configs.yaml)'
+        type: string
+        default: ''
       pypi_repo:
         description: 'Nexus PyPI repo (blank = flagos-pypi-<vendor> derived from target)'
         type: string
@@ -98,6 +102,7 @@ jobs:
       - id: resolve
         env:
           TARGET: ${{ inputs.target }}
+          BASE_IMAGE_OVERRIDE: ${{ inputs.base_image }}
         run: |
           set -euo pipefail
           case "$TARGET" in
@@ -115,7 +120,12 @@ jobs:
           python3 scripts/generate_matrix.py --runtime "$backend" > matrix.json
           cat matrix.json
           echo "runson=$(jq -c '.include[0].runson | fromjson' matrix.json)" >> "$GITHUB_OUTPUT"
-          echo "base_image=$(jq -r '.include[0].image_tag' matrix.json)" >> "$GITHUB_OUTPUT"
+          # BASE_IMAGE_OVERRIDE exists because a version bump reaches the runtime
+          # images later than configs.yaml: until the backend's runtime image is
+          # published at the stack version, the wheel can still be built (and the
+          # Containerfile validated) against another tag of the same CANN line,
+          # e.g. the -build (NO_FLAGGEMS) variant. Leave it blank for a real build.
+          echo "base_image=${BASE_IMAGE_OVERRIDE:-$(jq -r '.include[0].image_tag' matrix.json)}" >> "$GITHUB_OUTPUT"
           echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
           # The upload repo comes from the matrix's vendor index, not from the
           # target name: "${TARGET%%-*}" would derive "ascend3.5" for these

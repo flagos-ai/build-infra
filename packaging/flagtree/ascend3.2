@@ -167,100 +167,25 @@ RUN unset PYTHONPATH \
     && ls -la /wheels/*.whl
 
 # Gates: fail the build (and therefore the publish) on a wheel that is not what
-# the ascend backends need.
-RUN CANN_VERSION="${CANN_VERSION}" python3 - <<'PY'
-import glob, os, platform, re, sys, tempfile, zipfile
-from pathlib import Path
-
-expected_cann = os.environ["CANN_VERSION"]
-whl = glob.glob("/wheels/*.whl")[0]
-base = os.path.basename(whl)
-ver = base.split("-")[1]
-
-# Version gate: a clean version (FlagTree's dirty "<ver>.git<sha>" fallback means
-# the .git removal did not take), tagged for the interpreter and arch the ascend
-# runtime images run (cp311 / aarch64 -- a wrong arch here means a wrong runner).
-if "git" in ver:
-    print(f"FAIL: dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
-    sys.exit(1)
-if "-cp311-" not in base or "linux_aarch64" not in base:
-    print(f"FAIL: wheel '{base}' not tagged cp311/linux_aarch64")
-    sys.exit(1)
-print(f"OK: clean wheel version '{ver}', cp311/aarch64")
-
-# CANN pairing gate: mirrors python/setup_tools/utils/ascend.py:get_cann_version,
-# which is what selects the AscendNPU-IR pin. A mismatch means the base image is
-# not the CANN this wheel was meant to pair with.
-arch = platform.machine()
-roots = [Path(os.environ["ASCEND_HOME_PATH"])] if os.environ.get("ASCEND_HOME_PATH") else []
-roots.append(Path("/usr/local/Ascend/ascend-toolkit/latest"))
-found = ""
-for root in roots:
-    try:
-        for line in (root / f"{arch}-linux" / "ascend_toolkit_install.info").read_text().splitlines():
-            if line.startswith("version="):
-                found = line.split("=", 1)[1].strip()
-                break
-    except OSError:
-        continue
-    if found:
-        break
-if found != expected_cann:
-    print(f"FAIL: build machine CANN '{found or '<not found>'}' != expected '{expected_cann}' "
-          "(wrong BASE_IMAGE: the AscendNPU-IR pin would follow the wrong CANN)")
-    sys.exit(1)
-print(f"OK: CANN {found} matches the AscendNPU-IR pin selected for it")
-
-d = tempfile.mkdtemp()
-zipfile.ZipFile(whl).extractall(d)
-# Package-content gate: the ascend install hooks ship these trees
-# (get_extra_install_packages); a missing one means the hook did not run.
-missing = [p for p in ("triton/language/extra/cann", "triton/language/extra/kernels",
-                       "triton/extension", "triton/experimental/tle/language/dsa/ascend")
-           if not os.path.exists(os.path.join(d, p))]
-if missing:
-    print(f"FAIL: wheel missing {missing}")
-    sys.exit(1)
-print("OK: wheel ships the ascend extra trees (cann / kernels / extension / tle-dsa)")
-
-# pybind11 ABI gate: the pin above holds internals at v11 (pybind11 3.0.3, what
-# the runtime venv provides). Assert it here so a future drift fails the build
-# instead of shipping a wheel that only breaks on hardware.
-def internals(path):
-    with open(path, "rb") as f:
-        return sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", f.read())))
-
-so = next(p for p in glob.glob(d + "/**/libtriton.so", recursive=True))
-got = internals(so)
-if got != [b"11"]:
-    print(f"FAIL: libtriton.so pybind11 internals {got} (expected [b'11']; adjust PYBIND11_SPEC)")
-    sys.exit(1)
-others = {tuple(v) for p in glob.glob(d + "/**/*.so", recursive=True)
-          if p != so and (v := internals(p))}
-if others - {(b"11",)}:
-    print(f"FAIL: shipped .so files expose other pybind11 internals {others}")
-    sys.exit(1)
-print("OK: libtriton.so pybind11 internals v11 (matches the runtime venv's pybind11 3.0.3)")
-PY
+# the ascend backends need. The script is COPYed rather than inlined because the
+# CANN nodes still run Docker's legacy builder, which has no heredoc support.
+COPY verify_ascend_wheel.py /tmp/
+RUN CANN_VERSION="${CANN_VERSION}" python3 /tmp/verify_ascend_wheel.py
 
 # Smoke test: install the fresh wheel into a directory of its own and import it.
 # PYTHONPATH points at that directory so the import can never fall back to the
-# vendor flagtree in /opt/flagtree, and the assertions below verify that what got
+# vendor flagtree in /opt/flagtree, and the assertions verify that what got
 # imported really is this wheel (path + distribution version). No NPU device is
 # needed for the import.
 RUN whl="$(basename /wheels/*.whl)" \
     && ver="${whl#flagtree-}" && ver="${ver%-cp311-*}" \
     && rm -rf /opt/wheel-test \
     && pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
-    && PYTHONPATH=/opt/wheel-test WHEEL_VER="${ver}" python3 - <<'PY'
-import importlib.metadata as md
-import os
-import triton
-from triton.backends import backends
-
-ver = os.environ["WHEEL_VER"]
-assert triton.__file__.startswith("/opt/wheel-test"), triton.__file__
-assert "ascend" in backends, sorted(backends)
-assert md.version("flagtree") == ver, (md.version("flagtree"), ver)
-print("OK flagtree", md.version("flagtree"), "triton", triton.__version__, "backends", sorted(backends))
-PY
+    && PYTHONPATH=/opt/wheel-test WHEEL_VER="${ver}" python3 -c "\
+import importlib.metadata as md, os, triton;\
+from triton.backends import backends;\
+ver = os.environ['WHEEL_VER'];\
+assert triton.__file__.startswith('/opt/wheel-test'), triton.__file__;\
+assert 'ascend' in backends, sorted(backends);\
+assert md.version('flagtree') == ver, (md.version('flagtree'), ver);\
+print('OK flagtree', md.version('flagtree'), 'triton', triton.__version__, 'backends', sorted(backends))"
