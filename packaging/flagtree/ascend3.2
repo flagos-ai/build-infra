@@ -1,0 +1,266 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build a FlagTree ascend3.2 wheel (Triton 3.2 / CANN 8.5.0 / aarch64 / cp311)
+# from source. Output wheel -> /wheels. Twin of `ascend3.5`; see that file for
+# the reasoning behind the runtime-image base and the LLVM / triton-deps staging
+# (both are identical here). The two differ only in the line facts below.
+#
+# Why this builder exists: the cann8.5.0 backends pin flagtree==0.6.0+ascend3.2,
+# and that vendor wheel has a codegen efficiency defect — with flag_gems ON,
+# generation drops to ~0.05 tok/s (recorded in configs.yaml, sglang env comment).
+# A self-built wheel from the branch head is what makes testing a fix possible at
+# all; it is also our A/B baseline against the vendor's.
+#
+# Line facts for ascend3.2 (vs ascend3.5):
+#  - Source branch triton_v3.2.x; setup.py lives in python/, so the build runs
+#    there (upstream's 3.2 delivery does `cd python`).
+#  - No FlagPrism in the dependency set (it arrives with the 3.5 line).
+#  - Upstream's 3.2 delivery does NOT put the LLVM bin dir on PATH (the 3.5 one
+#    does); the build discovers the staged LLVM itself. The PATH export is
+#    therefore absent here by design — if a build ever fails to find clang, this
+#    is the line to add, not a missing dependency.
+#
+# Build:
+#   docker build -t flagtree-ascend3.2:0.6.0 -f ascend3.2 .
+#   # behind a proxy (the build clones github.com for flir/AscendNPU-IR):
+#   docker build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+#                -t flagtree-ascend3.2:0.6.0 -f ascend3.2 .
+#   # via CI: dispatch flagtree-wheel.yml with target=ascend3.2
+#
+# Extract the wheel:
+#   id=$(docker create flagtree-ascend3.2:0.6.0); docker cp $id:/wheels ./wheels; docker rm $id
+
+# The backend's runtime image (aarch64 / CANN 8.5.0 / python 3.11). CI passes the
+# full ref including the registry host, derived from configs.yaml by the workflow;
+# the default matches the current stack version for a manual local build.
+ARG BASE_IMAGE=flagos-runtime-ascend-cann8.5.0:2.2.0
+FROM ${BASE_IMAGE}
+
+# Proxy relayed as --build-arg by flagtree-wheel.yml. ARG, not ENV: this build
+# clones github.com (flagtree + its flir / AscendNPU-IR submodules) and the
+# ascend runners egress through their own proxy. no_proxy / NO_PROXY are the
+# runner's own values relayed verbatim — deliberately no carve-out of this file's
+# making: on the cann850 nodes a hardcoded NO_PROXY makes the container bypass the
+# tunnel for those hosts and die on its own resolver, which is not the host's,
+# while the proxy is their only way out (see sglang-plugin-wheel.yml).
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+ARG NO_PROXY=
+
+# FlagTree git ref to build: branch, tag or commit sha. Default is the branch the
+# CANN 8.5.0 line is cut from; pin a sha for a reproducible release build.
+ARG FLAGTREE_VERSION=triton_v3.2.x
+# Wheel version prefix — see ascend3.5 for the full reasoning. It is OUR label
+# (which FlagTree line this wheel came from), not the vendor's release label, and
+# the build makes it come out exactly as set by removing .git before `pip wheel`
+# (FlagTree's setup.py would otherwise stamp "+git<sha>"). The default appends the
+# UTC build date below so a rebuild is distinguishable from the vendor's wheel.
+ARG FLAGTREE_BASE_VERSION=0.6.0+ascend3.2
+# Explicit wheel version; blank = "<FLAGTREE_BASE_VERSION>.<UTC date>".
+ARG FLAGTREE_WHEEL_VERSION=
+# CANN version the base image must provide. This is a pairing gate, not
+# decoration: the AscendNPU-IR pin is selected by the CANN version found on the
+# build machine, so a wrong BASE_IMAGE would silently build the wheel against the
+# wrong bishengir. The gate below fails the build instead.
+ARG CANN_VERSION=8.5.0
+# Prebuilt deps, pinned by URL (same bucket as the metax / sunrise builders):
+#  - llvm-a66376b0: prebuilt LLVM for aarch64/py311; the build discovers it under
+#    ~/.flagtree/ascend (this line does not export its bin dir to PATH).
+#  - build-deps-triton: the triton origin toolkits (nvcc/cudart + json/gtest).
+ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+ARG LLVM_TARBALL=llvm-a66376b0-ubuntu-aarch64-python311-compat_v0.3.0.tar.gz
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.2.x-linux-aarch64.tar.gz
+# pybind11 pin: an ABI contract, not just a dependency. The runtime venv ships
+# pybind11 3.0.3 (configs.yaml runtime_prereqs), whose internals version is v11;
+# this branch's python/requirements.txt lists pybind11 unpinned, so an unpinned
+# build pulls 3.1.x — which bumped internals to v12. Installing the runtime's
+# exact version keeps the wheel binary-compatible with the runtime image's
+# pybind11; the gate below asserts v11.
+ARG PYBIND11_SPEC==3.0.3
+# Public index for the build-time requirements (pypi.org is unreachable from the
+# runners); mirrors configs.yaml `mirror:`.
+ARG EXTRA_PYPI=https://mirrors.aliyun.com/pypi/simple
+# This build compiles AscendNPU-IR (a whole MLIR project) plus triton; upstream's
+# delivery uses 32.
+ARG MAX_JOBS=32
+
+# bash, not the image's /bin/sh (dash): the CANN environment is captured into
+# /etc/profile.d/vendor.sh and reaches non-interactive shells only through
+# BASH_ENV + bash. Under dash the build would run without CANN on PATH.
+SHELL ["/bin/bash", "-c"]
+
+# Pre-stage the prebuilt deps into FlagTree's offline caches so the build wires
+# them itself: LLVM -> ~/.flagtree/ascend, triton toolkits -> ~/.triton (the
+# non-interactive equivalent of upstream's `sh python/scripts/unpack_triton_build_deps.sh`,
+# which ends in "press any key"). Retry the large downloads: the runners' link to
+# the bucket is flaky.
+RUN mkdir -p /root/.flagtree/ascend /root/.triton \
+    && cd /tmp \
+    && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+         for i in 1 2 3 4 5; do \
+           curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 \
+             "${DEPS_BASE}/${f}" -o "${f}" && break; \
+           echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
+         done; \
+       done \
+    && tar -xzf "${LLVM_TARBALL}" -C /root/.flagtree/ascend \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
+    && rm -f /tmp/*.tar.gz \
+    && ls -d /root/.flagtree/ascend/*/ \
+    && ls -la /root/.triton
+
+# Clone FlagTree. --branch cannot take a sha, so fetch + checkout FETCH_HEAD
+# handles branch, tag and sha alike. HTTP/1.1 plus the timeouts bound a hung
+# github.com connection (CN runners) instead of stalling the whole build.
+# Cloned to /opt/flagtree-src: /opt/flagtree is the vendor wheel inside the
+# runtime image and must stay untouched.
+RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+    && git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         rm -rf /opt/flagtree-src && git init -q /opt/flagtree-src \
+           && git -C /opt/flagtree-src remote add origin https://github.com/flagos-ai/flagtree \
+           && git -C /opt/flagtree-src fetch --depth 1 origin "${FLAGTREE_VERSION}" \
+           && git -C /opt/flagtree-src checkout -q FETCH_HEAD && break; \
+         echo ">>> flagtree fetch attempt $i failed, retrying in 5s..."; \
+         sleep 5; \
+       done \
+    && test -d /opt/flagtree-src/.git \
+    && git -C /opt/flagtree-src --no-pager log -1 --format='>>> flagtree source: %H %s'
+
+# Build the wheel from source, in python/ (this branch's setup.py lives there).
+# Details that matter:
+#  - PYTHONPATH is dropped for the step: the runtime image's
+#    /etc/profile.d/zz-compiler.sh puts the VENDOR flagtree (/opt/flagtree) on
+#    PYTHONPATH in every bash shell. Left in place, both the build and the smoke
+#    test would import that wheel instead of the tree being built.
+#  - --no-build-isolation: build against the venv's pybind11 pin above, so the
+#    wheel's internals version matches the runtime's.
+#  - No TRITON_APPEND_CMAKE_ARGS: upstream's ascend delivery builds in the default
+#    build type too (its -DCMAKE_BUILD_TYPE=Release line is commented out).
+#  - .git is removed before `pip wheel`: see FLAGTREE_BASE_VERSION above.
+#  - FLAGTREE_BACKEND=ascend selects the backend.
+RUN unset PYTHONPATH \
+    && cd /opt/flagtree-src/python \
+    && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir "pybind11${PYBIND11_SPEC}" \
+    && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
+    && echo ">>> wheel version: ${_ver}" \
+    && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
+    && rm -rf /opt/flagtree-src/.git \
+    && for i in 1 2 3; do \
+         MAX_JOBS="${MAX_JOBS}" pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# Gates: fail the build (and therefore the publish) on a wheel that is not what
+# the ascend backends need.
+RUN CANN_VERSION="${CANN_VERSION}" python3 - <<'PY'
+import glob, os, platform, re, sys, tempfile, zipfile
+from pathlib import Path
+
+expected_cann = os.environ["CANN_VERSION"]
+whl = glob.glob("/wheels/*.whl")[0]
+base = os.path.basename(whl)
+ver = base.split("-")[1]
+
+# Version gate: a clean version (FlagTree's dirty "<ver>.git<sha>" fallback means
+# the .git removal did not take), tagged for the interpreter and arch the ascend
+# runtime images run (cp311 / aarch64 -- a wrong arch here means a wrong runner).
+if "git" in ver:
+    print(f"FAIL: dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
+    sys.exit(1)
+if "-cp311-" not in base or "linux_aarch64" not in base:
+    print(f"FAIL: wheel '{base}' not tagged cp311/linux_aarch64")
+    sys.exit(1)
+print(f"OK: clean wheel version '{ver}', cp311/aarch64")
+
+# CANN pairing gate: mirrors python/setup_tools/utils/ascend.py:get_cann_version,
+# which is what selects the AscendNPU-IR pin. A mismatch means the base image is
+# not the CANN this wheel was meant to pair with.
+arch = platform.machine()
+roots = [Path(os.environ["ASCEND_HOME_PATH"])] if os.environ.get("ASCEND_HOME_PATH") else []
+roots.append(Path("/usr/local/Ascend/ascend-toolkit/latest"))
+found = ""
+for root in roots:
+    try:
+        for line in (root / f"{arch}-linux" / "ascend_toolkit_install.info").read_text().splitlines():
+            if line.startswith("version="):
+                found = line.split("=", 1)[1].strip()
+                break
+    except OSError:
+        continue
+    if found:
+        break
+if found != expected_cann:
+    print(f"FAIL: build machine CANN '{found or '<not found>'}' != expected '{expected_cann}' "
+          "(wrong BASE_IMAGE: the AscendNPU-IR pin would follow the wrong CANN)")
+    sys.exit(1)
+print(f"OK: CANN {found} matches the AscendNPU-IR pin selected for it")
+
+d = tempfile.mkdtemp()
+zipfile.ZipFile(whl).extractall(d)
+# Package-content gate: the ascend install hooks ship these trees
+# (get_extra_install_packages); a missing one means the hook did not run.
+missing = [p for p in ("triton/language/extra/cann", "triton/language/extra/kernels",
+                       "triton/extension", "triton/experimental/tle/language/dsa/ascend")
+           if not os.path.exists(os.path.join(d, p))]
+if missing:
+    print(f"FAIL: wheel missing {missing}")
+    sys.exit(1)
+print("OK: wheel ships the ascend extra trees (cann / kernels / extension / tle-dsa)")
+
+# pybind11 ABI gate: the pin above holds internals at v11 (pybind11 3.0.3, what
+# the runtime venv provides). Assert it here so a future drift fails the build
+# instead of shipping a wheel that only breaks on hardware.
+def internals(path):
+    with open(path, "rb") as f:
+        return sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", f.read())))
+
+so = next(p for p in glob.glob(d + "/**/libtriton.so", recursive=True))
+got = internals(so)
+if got != [b"11"]:
+    print(f"FAIL: libtriton.so pybind11 internals {got} (expected [b'11']; adjust PYBIND11_SPEC)")
+    sys.exit(1)
+others = {tuple(v) for p in glob.glob(d + "/**/*.so", recursive=True)
+          if p != so and (v := internals(p))}
+if others - {(b"11",)}:
+    print(f"FAIL: shipped .so files expose other pybind11 internals {others}")
+    sys.exit(1)
+print("OK: libtriton.so pybind11 internals v11 (matches the runtime venv's pybind11 3.0.3)")
+PY
+
+# Smoke test: install the fresh wheel into a directory of its own and import it.
+# PYTHONPATH points at that directory so the import can never fall back to the
+# vendor flagtree in /opt/flagtree, and the assertions below verify that what got
+# imported really is this wheel (path + distribution version). No NPU device is
+# needed for the import.
+RUN whl="$(basename /wheels/*.whl)" \
+    && ver="${whl#flagtree-}" && ver="${ver%-cp311-*}" \
+    && rm -rf /opt/wheel-test \
+    && pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
+    && PYTHONPATH=/opt/wheel-test WHEEL_VER="${ver}" python3 - <<'PY'
+import importlib.metadata as md
+import os
+import triton
+from triton.backends import backends
+
+ver = os.environ["WHEEL_VER"]
+assert triton.__file__.startswith("/opt/wheel-test"), triton.__file__
+assert "ascend" in backends, sorted(backends)
+assert md.version("flagtree") == ver, (md.version("flagtree"), ver)
+print("OK flagtree", md.version("flagtree"), "triton", triton.__version__, "backends", sorted(backends))
+PY

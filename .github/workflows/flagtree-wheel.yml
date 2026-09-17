@@ -14,14 +14,24 @@
 
 name: FlagTree wheel
 
-# Build a FlagTree wheel from a packaging/flagtree/<target> Containerfile on an
-# old-glibc (22.04) base and (optionally) upload it to the vendor's PyPI.
+# Build a FlagTree wheel from a packaging/flagtree/<target> Containerfile and
+# (optionally) upload it to the vendor's PyPI.
 #
 # Unlike the FlagGems wheel (pure Python, a plain script), FlagTree carries a
 # compiled libtriton.so, so this is a container build. The Containerfile's own
-# objdump gate fails `docker build` if the wheel reintroduces a 22.04-incompatible
-# symbol (GLIBC_2.38, GLIBCXX_3.4.31/32, __isoc23_*) or a dirty git version — so a
-# bad wheel never reaches the extract/upload steps.
+# gates fail `docker build` on a wheel that is not what the backends need (a
+# 22.04-incompatible symbol for the 22.04-based targets, a dirty git version, a
+# mismatched pybind11 internals version, ...), so a bad wheel never reaches the
+# extract/upload steps.
+#
+# Two families of target, which is what the `prepare` job resolves:
+#  - self-contained Containerfiles (metax / nvidia-cuda / sunrise): ubuntu base,
+#    default runner, no image arg.
+#  - ascend3.5 / ascend3.2: FlagTree's ascend build is driven by the CANN on the
+#    build machine (it selects the AscendNPU-IR pin and links CANN's BiShengIR),
+#    so the build runs INSIDE that backend's runtime image — runner labels, image
+#    ref and index all come from configs.yaml via generate_matrix.py rather than
+#    being restated here.
 
 on:
   workflow_dispatch:
@@ -33,9 +43,15 @@ on:
           - metax
           - nvidia-cuda
           - sunrise
+          - ascend3.5
+          - ascend3.2
         default: metax
       flagtree_version:
-        description: 'FlagTree tag/ref to build (blank = Containerfile default)'
+        description: 'FlagTree tag/branch/sha to build (blank = Containerfile default)'
+        type: string
+        default: ''
+      flagtree_wheel_version:
+        description: 'wheel version override (blank = Containerfile default = <base>.<UTC date>)'
         type: string
         default: ''
       upload:
@@ -61,9 +77,55 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
-  build:
+  prepare:
+    # Resolves everything that differs between the two target families, from the
+    # single source of truth (configs.yaml -> generate_matrix.py --runtime):
+    # runner labels, the runtime image the ascend builds run in, the public index
+    # for its build requirements, and the vendor PyPI repo to upload to.
     needs: authorize
-    runs-on: [self-hosted, h20]
+    runs-on: ubuntu-latest
+    outputs:
+      runson: ${{ steps.resolve.outputs.runson }}
+      base_image: ${{ steps.resolve.outputs.base_image }}
+      extra_pypi: ${{ steps.resolve.outputs.extra_pypi }}
+      pypi_repo: ${{ steps.resolve.outputs.pypi_repo }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: resolve
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          case "$TARGET" in
+            ascend3.5) backend=ascend-cann9.0.0 ;;
+            ascend3.2) backend=ascend-cann8.5.0 ;;
+            *)         backend="" ;;
+          esac
+          if [ -z "$backend" ]; then
+            echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
+            echo "base_image=" >> "$GITHUB_OUTPUT"
+            echo "extra_pypi=" >> "$GITHUB_OUTPUT"
+            echo "pypi_repo=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/generate_matrix.py --runtime "$backend" > matrix.json
+          cat matrix.json
+          echo "runson=$(jq -c '.include[0].runson | fromjson' matrix.json)" >> "$GITHUB_OUTPUT"
+          echo "base_image=$(jq -r '.include[0].image_tag' matrix.json)" >> "$GITHUB_OUTPUT"
+          echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
+          # The upload repo comes from the matrix's vendor index, not from the
+          # target name: "${TARGET%%-*}" would derive "ascend3.5" for these
+          # targets, since the CANN version is part of the name.
+          flagos_pypi=$(jq -r '.include[0].flagos_pypi' matrix.json)
+          echo "pypi_repo=$(basename "$(dirname "$flagos_pypi")")" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ${{ fromJSON(needs.prepare.outputs.runson) }}
     env:
       TARGET: ${{ inputs.target }}
       IMAGE: flagtree-wheel:${{ inputs.target }}
@@ -75,6 +137,10 @@ jobs:
         working-directory: packaging/flagtree
         env:
           FLAGTREE_VERSION: ${{ inputs.flagtree_version }}
+          FLAGTREE_WHEEL_VERSION: ${{ inputs.flagtree_wheel_version }}
+          BASE_IMAGE: ${{ needs.prepare.outputs.base_image }}
+          EXTRA_PYPI: ${{ needs.prepare.outputs.extra_pypi }}
+          HTTP_PROXY_SECRET: ${{ secrets.HTTP_PROXY }}
         run: |
           set -euo pipefail
           test -f "$TARGET" || { echo "ERROR: packaging/flagtree/$TARGET not found" >&2; exit 1; }
@@ -84,9 +150,36 @@ jobs:
           if [ -n "${FLAGTREE_VERSION:-}" ]; then
             build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_VERSION}")
           fi
-          # The objdump + clean-version gates run inside this build; a failure
-          # here means the wheel is not 22.04-safe and must not be published.
-          docker build "${build_args[@]}" -t "$IMAGE" -f "$TARGET" .
+          if [ -n "${FLAGTREE_WHEEL_VERSION:-}" ]; then
+            build_args+=(--build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}")
+          fi
+          if [ -n "${BASE_IMAGE:-}" ]; then
+            # ascend targets only: the runtime image is the build environment
+            # (CANN is a build input, not just a runtime one) and it is the
+            # image its own backend ships, so wheel and image cannot drift.
+            build_args+=(--build-arg "BASE_IMAGE=${BASE_IMAGE}")
+            build_args+=(--build-arg "EXTRA_PYPI=${EXTRA_PYPI}")
+          fi
+          # Proxy: prefer the runner's own, fall back to the secret. The cann
+          # nodes egress through their own squid, where the secret's proxy is
+          # unreachable (a clone through it dies after a 130s connect timeout,
+          # measured on cann850 2026-09-11 — see sglang-plugin-wheel.yml). No
+          # NO_PROXY of this workflow's making: relay whatever the host has,
+          # verbatim, or the container bypasses the tunnel for hosts it cannot
+          # resolve on its own.
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          proxy_url="${proxy_url:-${HTTP_PROXY_SECRET}}"
+          if [ -n "${proxy_url}" ]; then
+            build_args+=(--build-arg "HTTPS_PROXY=${proxy_url}")
+            build_args+=(--build-arg "HTTP_PROXY=${proxy_url}")
+            build_args+=(--build-arg "no_proxy=${no_proxy:-}")
+            build_args+=(--build-arg "NO_PROXY=${NO_PROXY:-}")
+          fi
+          # --no-cache: the clone layer is keyed on the ref NAME, not its content,
+          # so a moved branch would otherwise rebuild from stale source.
+          # The gates run inside this build; a failure here means the wheel is not
+          # fit to publish.
+          docker build --no-cache "${build_args[@]}" -t "$IMAGE" -f "$TARGET" .
 
       - name: Extract the wheel
         working-directory: packaging/flagtree
@@ -113,9 +206,12 @@ jobs:
             exit 1
           fi
           # vendor = first path segment of the target: nvidia-cuda -> nvidia,
-          # metax -> metax. PyPI repo defaults to that vendor's index.
+          # metax -> metax. PyPI repo defaults to that vendor's index; the ascend
+          # targets have theirs resolved in `prepare` (their CANN version is part
+          # of the target name, so the segment split does not apply).
           vendor="${TARGET%%-*}"
           pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-${{ needs.prepare.outputs.pypi_repo }}}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
           # Self-hosted Python is PEP 668 externally-managed; install to the user
