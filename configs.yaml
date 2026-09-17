@@ -89,8 +89,8 @@
 # Runtime images also pull the corresponding FlagGems wheel version below.
 #
 # At release: bump both fields → git tag v<VERSION> → done.
-version: "2.1.2"
-flaggems: "5.3.5"
+version: "2.2.0"
+flaggems: "5.4.0-rc2.post2"
 
 # Versions of build tools needed to compile the cpp operator wheel inside the
 # runtime:v1 container.  Pinned so a future pip install won't silently pull an
