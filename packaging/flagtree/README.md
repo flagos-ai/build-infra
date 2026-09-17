@@ -127,6 +127,8 @@ Notes that apply only here:
   while it is reachable directly.
 - Both builders share `verify_ascend_wheel.py`, COPYed into the build rather than
   a heredoc: the CANN nodes still run Docker's legacy builder.
+- Build cost on the CANN nodes: ~26 min for `ascend3.5` and ~14 min for `ascend3.2`,
+  most of it compiling AscendNPU-IR and triton at `MAX_JOBS=32`.
 - Not yet exercised: `upload=true` on a CANN node. The upload step uses the
   runner's own `python3`; if the aarch64 CANN runners have no pip, it needs the
   Megatron wheel workflow's approach (run twine inside the build image).
