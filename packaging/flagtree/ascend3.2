@@ -53,10 +53,11 @@ ARG BASE_IMAGE=flagos-runtime-ascend-cann8.5.0:2.2.0
 FROM ${BASE_IMAGE}
 
 # Proxy relayed as --build-arg by flagtree-wheel.yml. ARG, not ENV: nothing here
-# may end up in the image. It is applied to the github traffic only, and only
-# after a direct call fails: this node (cann850) cannot reach github.com without
-# the proxy, while the cann900 node is the other way round, so an unconditional
-# relay breaks one of the two. PROXY_NO_PROXY is the runner's own value relayed
+# may end up in the image. It is a FALLBACK for the github.com traffic, applied
+# only after a direct call fails, and never exported as the standard
+# http_proxy/HTTP_PROXY of the build environment (see ascend3.5 for the
+# measurement: the build containers reach github directly while the proxy stalls
+# or errors on git traffic). PROXY_NO_PROXY is the runner's own value relayed
 # verbatim — deliberately no carve-out of this file's making: a hardcoded NO_PROXY
 # makes the container bypass the tunnel for hosts it then cannot resolve (see
 # sglang-plugin-wheel.yml).
@@ -144,7 +145,7 @@ RUN mkdir -p /root/.flagtree/ascend /root/.triton \
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
     && git config --global http.version HTTP/1.1 \
     && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
-    && if curl -fsS --max-time 20 -o /dev/null https://github.com; then \
+    && if timeout 30 git ls-remote https://github.com/flagos-ai/flagtree HEAD >/dev/null 2>&1; then \
          echo ">>> github reachable directly, no proxy"; \
        elif [ -n "${PROXY_URL}" ]; then \
          export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
@@ -183,7 +184,7 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 RUN unset PYTHONPATH \
     && cd /opt/flagtree-src/python \
     && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
-    && if curl -fsS --max-time 20 -o /dev/null https://github.com; then \
+    && if timeout 30 git ls-remote https://github.com/flagos-ai/flagtree HEAD >/dev/null 2>&1; then \
          echo ">>> github reachable directly, no proxy"; \
        elif [ -n "${PROXY_URL}" ]; then \
          export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
