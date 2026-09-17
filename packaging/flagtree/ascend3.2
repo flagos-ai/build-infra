@@ -27,15 +27,19 @@
 #  - Source branch triton_v3.2.x; setup.py lives in python/, so the build runs
 #    there (upstream's 3.2 delivery does `cd python`).
 #  - No FlagPrism in the dependency set (it arrives with the 3.5 line).
-#  - Upstream's 3.2 delivery does NOT put the LLVM bin dir on PATH (the 3.5 one
-#    does); the build discovers the staged LLVM itself. The PATH export is
-#    therefore absent here by design — if a build ever fails to find clang, this
-#    is the line to add, not a missing dependency.
+#  - Upstream's 3.2 delivery does not put the LLVM bin dir on PATH (the 3.5 one
+#    does). That is not reproducible here: the runtime image ships gcc only, and
+#    triton's CMakeLists asks for `clang`/`clang++` by name, so without the PATH
+#    export cmake dies at `project()` with "The CMAKE_C_COMPILER: clang is not a
+#    full path and was not found in the PATH" (run 35196666585). The staged LLVM
+#    is the only clang in the image, so its bin dir goes on PATH, exactly as in
+#    ascend3.5.
 #
 # Build:
 #   docker build -t flagtree-ascend3.2:0.6.0 -f ascend3.2 .
-#   # behind a proxy (the build clones github.com for flir/AscendNPU-IR):
-#   docker build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+#   # on a node whose github access needs a proxy (the build clones flir /
+#   # AscendNPU-IR); a node with direct access needs no argument:
+#   docker build --build-arg PROXY_URL=$https_proxy \
 #                -t flagtree-ascend3.2:0.6.0 -f ascend3.2 .
 #   # via CI: dispatch flagtree-wheel.yml with target=ascend3.2
 #
@@ -48,17 +52,16 @@
 ARG BASE_IMAGE=flagos-runtime-ascend-cann8.5.0:2.2.0
 FROM ${BASE_IMAGE}
 
-# Proxy relayed as --build-arg by flagtree-wheel.yml. ARG, not ENV: this build
-# clones github.com (flagtree + its flir / AscendNPU-IR submodules) and the
-# ascend runners egress through their own proxy. no_proxy / NO_PROXY are the
-# runner's own values relayed verbatim — deliberately no carve-out of this file's
-# making: on the cann850 nodes a hardcoded NO_PROXY makes the container bypass the
-# tunnel for those hosts and die on its own resolver, which is not the host's,
-# while the proxy is their only way out (see sglang-plugin-wheel.yml).
-ARG http_proxy=
-ARG https_proxy=
-ARG no_proxy=
-ARG NO_PROXY=
+# Proxy relayed as --build-arg by flagtree-wheel.yml. ARG, not ENV: nothing here
+# may end up in the image. It is applied to the github traffic only, and only
+# after a direct call fails: this node (cann850) cannot reach github.com without
+# the proxy, while the cann900 node is the other way round, so an unconditional
+# relay breaks one of the two. PROXY_NO_PROXY is the runner's own value relayed
+# verbatim — deliberately no carve-out of this file's making: a hardcoded NO_PROXY
+# makes the container bypass the tunnel for hosts it then cannot resolve (see
+# sglang-plugin-wheel.yml).
+ARG PROXY_URL=
+ARG PROXY_NO_PROXY=
 
 # FlagTree git ref to build: branch, tag or commit sha. Default is the branch the
 # CANN 8.5.0 line is cut from; pin a sha for a reproducible release build.
@@ -77,11 +80,12 @@ ARG FLAGTREE_WHEEL_VERSION=
 # wrong bishengir. The gate below fails the build instead.
 ARG CANN_VERSION=8.5.0
 # Prebuilt deps, pinned by URL (same bucket as the metax / sunrise builders):
-#  - llvm-a66376b0: prebuilt LLVM for aarch64/py311; the build discovers it under
-#    ~/.flagtree/ascend (this line does not export its bin dir to PATH).
+#  - llvm-a66376b0: prebuilt LLVM for aarch64/py311; unpacked under
+#    ~/.flagtree/ascend and its bin/ put on PATH at build time (see above).
 #  - build-deps-triton: the triton origin toolkits (nvcc/cudart + json/gtest).
 ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
 ARG LLVM_TARBALL=llvm-a66376b0-ubuntu-aarch64-python311-compat_v0.3.0.tar.gz
+ARG LLVM_DIR=llvm-a66376b0-ubuntu-aarch64-python311-compat
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.2.x-linux-aarch64.tar.gz
 # pybind11 pin: an ABI contract, not just a dependency. The runtime venv ships
 # pybind11 3.0.3 (configs.yaml runtime_prereqs), whose internals version is v11;
@@ -113,10 +117,10 @@ SHELL ["/bin/bash", "-c"]
 #
 # --noproxy: the CANN runners' proxy does not forward this bucket — it answers
 # HTTP 500 (measured on cann850 2026-09-17) — while the bucket is reachable
-# directly from both CANN nodes (200). The proxy stays in the environment
-# nonetheless, because the github.com clone below needs it on this node; only
-# this step opts out. Every URL fetched here is DEPS_BASE, so the bypass is
-# whole-step.
+# directly from both CANN nodes (200). No proxy is in the environment at this
+# point anyway (the clone step below decides that for itself); the flag keeps the
+# step direct even when a caller exports one. Every URL fetched here is DEPS_BASE,
+# so the bypass is whole-step.
 RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
@@ -129,7 +133,7 @@ RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && tar -xzf "${LLVM_TARBALL}" -C /root/.flagtree/ascend \
     && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
     && rm -f /tmp/*.tar.gz \
-    && ls -d /root/.flagtree/ascend/*/ \
+    && test -x "/root/.flagtree/ascend/${LLVM_DIR}/bin/clang" \
     && ls -la /root/.triton
 
 # Clone FlagTree. --branch cannot take a sha, so fetch + checkout FETCH_HEAD
@@ -139,6 +143,16 @@ RUN mkdir -p /root/.flagtree/ascend /root/.triton \
 # runtime image and must stay untouched.
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
     && git config --global http.version HTTP/1.1 \
+    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
+    && if curl -fsS --max-time 20 -o /dev/null https://github.com; then \
+         echo ">>> github reachable directly, no proxy"; \
+       elif [ -n "${PROXY_URL}" ]; then \
+         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
+                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
+         echo ">>> github not directly reachable, using the relayed proxy"; \
+       else \
+         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
+       fi \
     && for i in 1 2 3 4 5 6 7 8; do \
          rm -rf /opt/flagtree-src && git init -q /opt/flagtree-src \
            && git -C /opt/flagtree-src remote add origin https://github.com/flagos-ai/flagtree \
@@ -161,14 +175,30 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 #  - No TRITON_APPEND_CMAKE_ARGS: upstream's ascend delivery builds in the default
 #    build type too (its -DCMAKE_BUILD_TYPE=Release line is commented out).
 #  - .git is removed before `pip wheel`: see FLAGTREE_BASE_VERSION above.
-#  - FLAGTREE_BACKEND=ascend selects the backend.
+#  - FLAGTREE_BACKEND=ascend selects the backend; the LLVM bin dir on PATH is what
+#    that backend's build uses as its clang (the image has gcc only).
+#  - The proxy decision is repeated here (same probe as the clone step): this step
+#    fetches flir / AscendNPU-IR from github through FlagTree's own build tooling,
+#    which inherits this shell's environment.
 RUN unset PYTHONPATH \
     && cd /opt/flagtree-src/python \
+    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
+    && if curl -fsS --max-time 20 -o /dev/null https://github.com; then \
+         echo ">>> github reachable directly, no proxy"; \
+       elif [ -n "${PROXY_URL}" ]; then \
+         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
+                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
+         echo ">>> github not directly reachable, using the relayed proxy"; \
+       else \
+         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
+       fi \
     && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
     && echo ">>> wheel version: ${_ver}" \
     && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
+    && export PATH="/root/.flagtree/ascend/${LLVM_DIR}/bin:${PATH}" \
+    && clang --version \
     && rm -rf /opt/flagtree-src/.git \
     && for i in 1 2 3; do \
          MAX_JOBS="${MAX_JOBS}" pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \

@@ -44,8 +44,9 @@
 #
 # Build:
 #   docker build -t flagtree-ascend3.5:0.7.0rc2 -f ascend3.5 .
-#   # behind a proxy (the build clones github.com for flir/FlagPrism/AscendNPU-IR):
-#   docker build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+#   # on a node whose github access needs a proxy (the build clones flir /
+#   # FlagPrism / AscendNPU-IR); a node with direct access needs no argument:
+#   docker build --build-arg PROXY_URL=$https_proxy \
 #                -t flagtree-ascend3.5:0.7.0rc2 -f ascend3.5 .
 #   # via CI: dispatch flagtree-wheel.yml with target=ascend3.5
 #
@@ -58,17 +59,18 @@
 ARG BASE_IMAGE=flagos-runtime-ascend-cann9.0.0:2.2.0
 FROM ${BASE_IMAGE}
 
-# Proxy relayed as --build-arg by flagtree-wheel.yml. ARG, not ENV: this build
-# clones github.com (flagtree + its flir / FlagPrism / AscendNPU-IR submodules)
-# and the ascend runners egress through their own proxy. no_proxy / NO_PROXY are
-# the runner's own values relayed verbatim — deliberately no carve-out of this
-# file's making: on the cann850 nodes a hardcoded NO_PROXY makes the container
-# bypass the tunnel for those hosts and die on its own resolver, which is not the
-# host's, while the proxy is their only way out (see sglang-plugin-wheel.yml).
-ARG http_proxy=
-ARG https_proxy=
-ARG no_proxy=
-ARG NO_PROXY=
+# Proxy relayed as --build-arg by flagtree-wheel.yml. ARG, not ENV: nothing here
+# may end up in the image. It is applied to the github traffic only, and only
+# after a direct call fails, because the CANN nodes differ in how they egress:
+# the cann900 node reaches github.com directly (a 46 MB shallow clone of
+# AscendNPU-IR completes in seconds) while its proxy does not carry the git
+# traffic at all, and the cann850 node is the other way round. Passing the proxy
+# unconditionally is what broke run 35196654446. PROXY_NO_PROXY is the runner's
+# own value relayed verbatim — deliberately no carve-out of this file's making: a
+# hardcoded NO_PROXY makes the container bypass the tunnel for hosts it then
+# cannot resolve (see sglang-plugin-wheel.yml).
+ARG PROXY_URL=
+ARG PROXY_NO_PROXY=
 
 # FlagTree git ref to build: branch, tag or commit sha. The default is the
 # release-candidate branch the CANN 9.0.0 line is cut from; pin a sha for a
@@ -128,9 +130,10 @@ SHELL ["/bin/bash", "-c"]
 #
 # --noproxy: the CANN runners' proxy does not forward this bucket — it answers
 # HTTP 500 (measured on cann900 2026-09-17) — while the bucket is reachable
-# directly from both CANN nodes (200). The proxy stays in the environment
-# nonetheless, because the github.com clone below needs it on cann850; only this
-# step opts out. Every URL fetched here is DEPS_BASE, so the bypass is whole-step.
+# directly from both CANN nodes (200). No proxy is in the environment at this
+# point anyway (the clone step below decides that for itself); the flag keeps the
+# step direct even when a caller exports one. Every URL fetched here is DEPS_BASE,
+# so the bypass is whole-step.
 RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
@@ -153,6 +156,16 @@ RUN mkdir -p /root/.flagtree/ascend /root/.triton \
 # runtime image and must stay untouched.
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
     && git config --global http.version HTTP/1.1 \
+    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
+    && if curl -fsS --max-time 20 -o /dev/null https://github.com; then \
+         echo ">>> github reachable directly, no proxy"; \
+       elif [ -n "${PROXY_URL}" ]; then \
+         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
+                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
+         echo ">>> github not directly reachable, using the relayed proxy"; \
+       else \
+         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
+       fi \
     && for i in 1 2 3 4 5 6 7 8; do \
          rm -rf /opt/flagtree-src && git init -q /opt/flagtree-src \
            && git -C /opt/flagtree-src remote add origin https://github.com/flagos-ai/flagtree \
@@ -176,8 +189,21 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 #  - .git is removed before `pip wheel`: see FLAGTREE_BASE_VERSION above.
 #  - FLAGTREE_BACKEND=ascend selects the backend; the LLVM bin dir on PATH is what
 #    that backend's build uses as its clang.
+#  - The proxy decision is repeated here (same probe as the clone step): this step
+#    fetches flir / FlagPrism / AscendNPU-IR from github through FlagTree's own
+#    build tooling, which inherits this shell's environment.
 RUN unset PYTHONPATH \
     && cd /opt/flagtree-src \
+    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
+    && if curl -fsS --max-time 20 -o /dev/null https://github.com; then \
+         echo ">>> github reachable directly, no proxy"; \
+       elif [ -n "${PROXY_URL}" ]; then \
+         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
+                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
+         echo ">>> github not directly reachable, using the relayed proxy"; \
+       else \
+         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
+       fi \
     && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r python/requirements.txt \
     && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \

@@ -170,16 +170,23 @@ jobs:
             build_args+=(--build-arg "BASE_IMAGE=${BASE_IMAGE}")
             build_args+=(--build-arg "EXTRA_PYPI=${EXTRA_PYPI}")
           fi
-          # Proxy: prefer the runner's own, fall back to the secret. The cann
-          # nodes egress through their own squid, where the secret's proxy is
-          # unreachable (a clone through it dies after a 130s connect timeout,
-          # measured on cann850 2026-09-11 — see sglang-plugin-wheel.yml). No
-          # NO_PROXY of this workflow's making: relay whatever the host has,
-          # verbatim, or the container bypasses the tunnel for hosts it cannot
-          # resolve on its own.
+          # Proxy: prefer the runner's own, fall back to the secret. Relay it and
+          # nothing else — no NO_PROXY of this workflow's making: the host's own
+          # value goes through verbatim, or the container bypasses the tunnel for
+          # hosts it cannot resolve on its own.
           proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
           proxy_url="${proxy_url:-${HTTP_PROXY_SECRET}}"
-          if [ -n "${proxy_url}" ]; then
+          if [ -n "${BASE_IMAGE:-}" ]; then
+            # ascend targets: the proxy is relayed as PROXY_URL, NOT as
+            # http_proxy/HTTP_PROXY, because the CANN nodes disagree about it —
+            # cann900 reaches github.com directly while its proxy does not carry
+            # the git traffic, cann850 is the other way round. The Containerfile
+            # probes and applies PROXY_URL only when a direct call fails, which an
+            # unconditionally exported proxy would defeat (run 35196654446).
+            build_args+=(--build-arg "PROXY_URL=${proxy_url}")
+            build_args+=(--build-arg "PROXY_NO_PROXY=${no_proxy:-${NO_PROXY:-}}")
+          elif [ -n "${proxy_url}" ]; then
+            # the self-contained builders apply the proxy to every RUN.
             build_args+=(--build-arg "HTTPS_PROXY=${proxy_url}")
             build_args+=(--build-arg "HTTP_PROXY=${proxy_url}")
             build_args+=(--build-arg "no_proxy=${no_proxy:-}")

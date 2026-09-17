@@ -115,6 +115,13 @@ Notes that apply only here:
   takes another tag of the same CANN line (e.g. `:2.2.0-build`) so the builder
   can still be validated. Blank = the derived runtime image, which is what a
   real build must use.
+- **The proxy is applied per step, not per build.** The CANN nodes disagree about
+  github: cann900 reaches it directly while its proxy does not carry git traffic,
+  cann850 needs the proxy. `flagtree-wheel.yml` therefore relays it as `PROXY_URL`
+  (never as `http_proxy`, which would be in the environment from the start) and
+  the clone / build steps probe `https://github.com` first, exporting the proxy
+  only when the direct call fails. The prebuilt-deps download never uses it at
+  all: the proxy answers HTTP 500 for that bucket while it is reachable directly.
 - Both builders share `verify_ascend_wheel.py` (the build gates) as a file
   COPYed into the build rather than a heredoc: the CANN nodes still run Docker's
   legacy builder, which has no heredoc support.
