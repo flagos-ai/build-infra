@@ -106,6 +106,18 @@ Notes that apply only here:
 - Not yet exercised: `upload=true` on a CANN node. The upload step uses the
   runner's own `python3`; if the aarch64 CANN runners have no pip, it needs the
   Megatron wheel workflow's approach (run twine inside the build image).
+- The base image is the backend's **runtime** image at the stack version
+  (`configs.yaml version:`), which a version bump reaches later than the base
+  images — until it is published, `flagtree-wheel.yml`'s `base_image` input
+  takes another tag of the same CANN line (e.g. `:2.2.0-build`) so the builder
+  can still be validated. Blank = the derived runtime image, which is what a
+  real build must use.
+- Both builders share `verify_ascend_wheel.py` (the build gates) as a file
+  COPYed into the build rather than a heredoc: the CANN nodes still run Docker's
+  legacy builder, which has no heredoc support.
+- The CANN version gate is what makes a base-image mistake loud: build against
+  the wrong toolkit and the AscendNPU-IR pin follows it silently, so
+  `CANN_VERSION` is compared against the toolkit actually present.
 
 ## Build
 
