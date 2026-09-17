@@ -32,6 +32,18 @@
 
 image: vllm0.20.2-mthreads-musa5.2.0
 tags:
+- tag: 2.2.0-0.2.2rc2.post1_g52949b6.d20260917
+  entries:
+  - date: ''
+    reason: >-
+      Rebuild on the vllm-plugin-FL v0.2.2-rc2.post1 tag (release/0.2 head
+      52949b6) and on the FlagOS 2.2.0 stack. The previous image was a bare
+      2.1.2 tag carrying no plugin — this is the first 0.20.2 build on the
+      release line that installs vllm-plugin-FL, so the image now ships the
+      MUSA enablement the plugin carries (v1 attention backend registry, the
+      use_sparse argument on attention_backend, and the torch.accelerator /
+      torch.cuda shims for MUSA).
+    upstream_prs: []
 - tag: 2.1.2
   entries:
   - date: 2026-08-24T07:02:14Z
