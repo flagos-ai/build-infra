@@ -111,6 +111,17 @@ ARG TRITON_DEPS_TARBALL=build-deps-triton_3.5.x-linux-aarch64.tar.gz
 # the fragment spelling ("ARG X==3.0.3" + "pybind11${X}", as in metax) would hand
 # pip "pybind11=3.0.3", which it rejects as an invalid requirement.
 ARG PYBIND11_VERSION=3.0.3
+# nanobind pin — a contract with the PREBUILT LLVM, not with the runtime. The
+# staged LLVM ships an MLIRDetectPythonEnv.cmake that asks for nanobind 2.4
+# (LLVM 20.x's mlir/python/requirements.txt declares the range ">=2.4, <3.0"),
+# and AscendNPU-IR builds MLIR python bindings against it
+# (third_party/ascend/AscendNPU-IR/CMakeLists.txt:158). An unpinned nanobind
+# resolves to 3.x, whose config rejects that request as a major-version mismatch,
+# so the build dies in cmake before compiling anything (run 35204674917). 2.4.0
+# is the version the LLVM names, and it satisfies find_package(nanobind 2.4)
+# under either the same-major or the exact compatibility policy. Build-time only:
+# the runtime image ships no nanobind and the wheel does not depend on it.
+ARG NANOBIND_VERSION=2.4.0
 # Public index for the build-time requirements (pypi.org is unreachable from the
 # runners); mirrors configs.yaml `mirror:`.
 ARG EXTRA_PYPI=https://mirrors.aliyun.com/pypi/simple
@@ -184,8 +195,9 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 #    /etc/profile.d/zz-compiler.sh puts the VENDOR flagtree (/opt/flagtree) on
 #    PYTHONPATH in every bash shell. Left in place, both the build and the smoke
 #    test would import that wheel instead of the tree being built.
-#  - --no-build-isolation: build against the venv's pybind11 pin above, so the
-#    wheel's internals version matches the runtime's.
+#  - --no-build-isolation: build against the venv's pins above — pybind11 keeps
+#    the wheel's internals version matching the runtime's, nanobind is what the
+#    staged LLVM's MLIRDetectPythonEnv finds.
 #  - No TRITON_APPEND_CMAKE_ARGS: upstream's ascend delivery builds in the default
 #    build type too (its -DCMAKE_BUILD_TYPE=Release line is commented out).
 #  - .git is removed before `pip wheel`: see FLAGTREE_BASE_VERSION above.
@@ -207,7 +219,7 @@ RUN unset PYTHONPATH \
          echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
        fi \
     && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r python/requirements.txt \
-    && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" \
+    && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" "nanobind==${NANOBIND_VERSION}" \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
     && echo ">>> wheel version: ${_ver}" \
     && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \

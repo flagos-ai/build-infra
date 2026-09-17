@@ -96,6 +96,16 @@ Notes that apply only here:
   older builders, because a value carrying its own `==` cannot be written as
   `ARG X==3.0.3` — ARG splits on the first `=`, which leaves pip with
   `pybind11=3.0.3`.
+- **nanobind is pinned to the version the staged LLVM asks for**
+  (`NANOBIND_VERSION`, default `2.4.0`). This one is not a runtime contract — the
+  runtime image ships no nanobind and the wheel does not depend on it — but a
+  contract with the prebuilt LLVM: its `MLIRDetectPythonEnv.cmake` requests
+  nanobind 2.4 (LLVM 20.x declares `>=2.4, <3.0`) and AscendNPU-IR builds MLIR
+  python bindings against it. Unpinned, pip resolves nanobind 3.x, whose config
+  rejects that request as a major-version mismatch and fails the build in cmake
+  before anything compiles. The 3.2 branch's `requirements.txt` lists `nanobind`
+  unpinned (so the explicit install is a downgrade), the 3.5 branch's does not
+  list it at all.
 - **The CANN version is a gate, not decoration**: `CANN_VERSION` is compared
   against the toolkit found in the image, so a wrong `BASE_IMAGE` fails the build
   instead of producing a wheel pinned to the wrong AscendNPU-IR.
