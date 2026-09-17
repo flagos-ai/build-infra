@@ -187,8 +187,14 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 #  - --no-build-isolation: build against the venv's pins above — pybind11 keeps
 #    the wheel's internals version matching the runtime's, nanobind is what the
 #    staged LLVM's MLIRDetectPythonEnv finds.
-#  - No TRITON_APPEND_CMAKE_ARGS: upstream's ascend delivery builds in the default
-#    build type too (its -DCMAKE_BUILD_TYPE=Release line is commented out).
+#  - TRITON_APPEND_CMAKE_ARGS disables -Wdangling-assignment-gsl: this bundle's
+#    clang is 21.0.0git, whose new warning fires on the bundle's OWN
+#    mlir/IR/OperationSupport.h, failing every unit that includes it (run
+#    35205978277). The header is prebuilt and the -Werror promoting it is
+#    flagtree's own (CMakeLists.txt:196), so the diagnostic is disabled ahead of
+#    that append. setup.py shlex-splits the variable onto cmake's command line,
+#    hence the -D wrapper: a bare -W flag there is a cmake error (run
+#    35208551871).
 #  - .git is removed before `pip wheel`: see FLAGTREE_BASE_VERSION above.
 #  - FLAGTREE_BACKEND=ascend selects the backend; the LLVM bin dir on PATH is what
 #    that backend's build uses as its clang (the image has gcc only).
@@ -212,6 +218,7 @@ RUN unset PYTHONPATH \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
     && echo ">>> wheel version: ${_ver}" \
     && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
+    && export TRITON_APPEND_CMAKE_ARGS=-DCMAKE_CXX_FLAGS=-Wno-dangling-assignment-gsl \
     && export PATH="/root/.flagtree/ascend/${LLVM_DIR}/bin:${PATH}" \
     && clang --version \
     && rm -rf /opt/flagtree-src/.git \
@@ -233,7 +240,7 @@ RUN CANN_VERSION="${CANN_VERSION}" python3 /tmp/verify_ascend_wheel.py
 # imported really is this wheel (path + distribution version). No NPU device is
 # needed for the import.
 RUN whl="$(basename /wheels/*.whl)" \
-    && ver="${whl#flagtree-}" && ver="${ver%-cp311-*}" \
+    && ver="${whl#flagtree-}" && ver="${ver%%-cp311-*}" \
     && rm -rf /opt/wheel-test \
     && pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
     && PYTHONPATH=/opt/wheel-test WHEEL_VER="${ver}" python3 -c "\

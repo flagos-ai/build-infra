@@ -47,6 +47,8 @@ EXTRA_TREES = (
 # The runtime images run cp311 on aarch64. A wheel tagged otherwise means the
 # build ran with the wrong interpreter or on the wrong runner.
 ARCH_TAG = "-cp311-cp311-linux_aarch64"
+# The install-info file names CANN ships, in preference order.
+INSTALL_INFO_FILES = ("ascend_toolkit_install.info", "ascend_all_cann_install.info")
 # libtriton and the ascend plugin share pybind11 type registries; the runtime
 # venv ships pybind11 3.0.3, whose internals version is this. A drift is the
 # metax/sunrise failure mode: the wheel imports fine on a GPU-less box and only
@@ -68,13 +70,14 @@ def cann_version():
         roots.append(Path(os.environ["ASCEND_HOME_PATH"]))
     roots.append(Path("/usr/local/Ascend/ascend-toolkit/latest"))
     for root in roots:
-        try:
-            text = (root / f"{arch}-linux" / "ascend_toolkit_install.info").read_text()
-        except OSError:
-            continue
-        for line in text.splitlines():
-            if line.startswith("version="):
-                return line.split("=", 1)[1].strip()
+        for name in INSTALL_INFO_FILES:
+            try:
+                text = (root / f"{arch}-linux" / name).read_text()
+            except OSError:
+                continue
+            for line in text.splitlines():
+                if line.startswith("version="):
+                    return line.split("=", 1)[1].strip()
     return ""
 
 
@@ -105,8 +108,8 @@ def main():
         fail("CANN_VERSION is not set (it is the pairing gate, not decoration)")
     if found != expected:
         fail(f"build machine CANN '{found or '<not found>'}' != expected '{expected}' "
-             "(wrong BASE_IMAGE: the AscendNPU-IR pin would follow the wrong CANN)")
-    print(f"OK: CANN {found} matches the AscendNPU-IR pin selected for it")
+             "(wrong BASE_IMAGE: the wheel is built against the CANN it finds there)")
+    print(f"OK: build machine CANN {found} matches CANN_VERSION")
 
     d = tempfile.mkdtemp()
     zipfile.ZipFile(whl).extractall(d)
@@ -121,7 +124,7 @@ def main():
     got = internals(so)
     if got != [PYBIND11_INTERNALS]:
         fail(f"libtriton.so pybind11 internals {got} (expected "
-             f"[{PYBIND11_INTERNALS!r}]; adjust PYBIND11_SPEC)")
+             f"[{PYBIND11_INTERNALS!r}]; adjust PYBIND11_VERSION)")
     others = {tuple(v) for p in glob.glob(d + "/**/*.so", recursive=True)
               if p != so and (v := internals(p))}
     if others - {(PYBIND11_INTERNALS,)}:

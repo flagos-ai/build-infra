@@ -198,8 +198,11 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 #  - --no-build-isolation: build against the venv's pins above — pybind11 keeps
 #    the wheel's internals version matching the runtime's, nanobind is what the
 #    staged LLVM's MLIRDetectPythonEnv finds.
-#  - No TRITON_APPEND_CMAKE_ARGS: upstream's ascend delivery builds in the default
-#    build type too (its -DCMAKE_BUILD_TYPE=Release line is commented out).
+#  - TRITON_APPEND_CMAKE_ARGS force-includes <cstdint>: FlagPrism's Metric.h uses
+#    uint64_t with only <variant>/<vector>, and FlagPrism is on by default for
+#    this backend, so every one of its translation units fails (run 35205974671).
+#    setup.py shlex-splits it onto cmake's own command line (setup.py:558), so the
+#    value must be a -D argument, not a compiler flag.
 #  - .git is removed before `pip wheel`: see FLAGTREE_BASE_VERSION above.
 #  - FLAGTREE_BACKEND=ascend selects the backend; the LLVM bin dir on PATH is what
 #    that backend's build uses as its clang.
@@ -223,6 +226,7 @@ RUN unset PYTHONPATH \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
     && echo ">>> wheel version: ${_ver}" \
     && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
+    && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_CXX_FLAGS="-include cstdint"' \
     && export PATH="/root/.flagtree/ascend/${LLVM_DIR}/bin:${PATH}" \
     && clang --version \
     && rm -rf /opt/flagtree-src/.git \
@@ -244,7 +248,7 @@ RUN CANN_VERSION="${CANN_VERSION}" python3 /tmp/verify_ascend_wheel.py
 # imported really is this wheel (path + distribution version). No NPU device is
 # needed for the import.
 RUN whl="$(basename /wheels/*.whl)" \
-    && ver="${whl#flagtree-}" && ver="${ver%-cp311-*}" \
+    && ver="${whl#flagtree-}" && ver="${ver%%-cp311-*}" \
     && rm -rf /opt/wheel-test \
     && pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
     && PYTHONPATH=/opt/wheel-test WHEEL_VER="${ver}" python3 -c "\
