@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Build gates for the ascend FlagTree wheels (packaging/flagtree/ascend3.5 and
-ascend3.2). Fails the build on a wheel the ascend backends cannot use.
+"""Build gates for the ascend FlagTree wheels (ascend-cann9.0.0, ascend-cann8.5.0):
+fail the build on a wheel the ascend backends cannot use.
 
-Shared by both targets — they gate the same things. It is a file rather than a
-Dockerfile heredoc because the CANN build nodes still run Docker's legacy
-builder, which has no heredoc support (heredocs work on the h20 runner, which
-has BuildKit, so the non-ascend builders can keep inlining theirs).
+A file rather than a Dockerfile heredoc: the CANN build nodes still run Docker's
+legacy builder, which has no heredoc support.
 
-Requires the environment to carry CANN's variables (the images' BASH_ENV does),
-and CANN_VERSION, the toolkit the wheel must pair with: FlagTree's ascend build
-derives the AscendNPU-IR pin from the CANN found on the build machine, so a
-mismatch here means the wheel was built against the wrong bishengir.
+Requires the environment to carry CANN's variables (the images' BASH_ENV does) and
+CANN_VERSION — the toolkit this wheel must be built against: the 3.5 line derives
+its AscendNPU-IR pin from the CANN on the build machine, and both lines link that
+CANN's BiShengIR dialects.
 """
 
 import glob
@@ -47,6 +45,8 @@ EXTRA_TREES = (
 # The runtime images run cp311 on aarch64. A wheel tagged otherwise means the
 # build ran with the wrong interpreter or on the wrong runner.
 ARCH_TAG = "-cp311-cp311-linux_aarch64"
+# The install-info file names CANN ships, in preference order.
+INSTALL_INFO_FILES = ("ascend_toolkit_install.info", "ascend_all_cann_install.info")
 # libtriton and the ascend plugin share pybind11 type registries; the runtime
 # venv ships pybind11 3.0.3, whose internals version is this. A drift is the
 # metax/sunrise failure mode: the wheel imports fine on a GPU-less box and only
@@ -60,21 +60,28 @@ def fail(msg):
 
 
 def cann_version():
-    """Mirror of FlagTree's python/setup_tools/utils/ascend.py:get_cann_version,
-    which is what selects the AscendNPU-IR pin."""
+    """The CANN version this image provides — flagtree's ascend.py:get_cann_version
+    probes the same two roots for the same version= line.
+
+    Both names: flagtree reads ascend_toolkit_install.info, which a CANN 9.0.0
+    install does not ship (it ships ascend_all_cann_install.info, and flagtree
+    therefore falls back to its default pin), while 8.5.0 ships the toolkit file.
+    The version is the contract here, not the file name.
+    """
     arch = platform.machine()
     roots = []
     if os.environ.get("ASCEND_HOME_PATH"):
         roots.append(Path(os.environ["ASCEND_HOME_PATH"]))
     roots.append(Path("/usr/local/Ascend/ascend-toolkit/latest"))
     for root in roots:
-        try:
-            text = (root / f"{arch}-linux" / "ascend_toolkit_install.info").read_text()
-        except OSError:
-            continue
-        for line in text.splitlines():
-            if line.startswith("version="):
-                return line.split("=", 1)[1].strip()
+        for name in INSTALL_INFO_FILES:
+            try:
+                text = (root / f"{arch}-linux" / name).read_text()
+            except OSError:
+                continue
+            for line in text.splitlines():
+                if line.startswith("version="):
+                    return line.split("=", 1)[1].strip()
     return ""
 
 
@@ -105,8 +112,8 @@ def main():
         fail("CANN_VERSION is not set (it is the pairing gate, not decoration)")
     if found != expected:
         fail(f"build machine CANN '{found or '<not found>'}' != expected '{expected}' "
-             "(wrong BASE_IMAGE: the AscendNPU-IR pin would follow the wrong CANN)")
-    print(f"OK: CANN {found} matches the AscendNPU-IR pin selected for it")
+             "(wrong BASE_IMAGE: the wheel is built against the CANN it finds there)")
+    print(f"OK: build machine CANN {found} matches CANN_VERSION")
 
     d = tempfile.mkdtemp()
     zipfile.ZipFile(whl).extractall(d)
@@ -121,7 +128,7 @@ def main():
     got = internals(so)
     if got != [PYBIND11_INTERNALS]:
         fail(f"libtriton.so pybind11 internals {got} (expected "
-             f"[{PYBIND11_INTERNALS!r}]; adjust PYBIND11_SPEC)")
+             f"[{PYBIND11_INTERNALS!r}]; adjust PYBIND11_VERSION)")
     others = {tuple(v) for p in glob.glob(d + "/**/*.so", recursive=True)
               if p != so and (v := internals(p))}
     if others - {(PYBIND11_INTERNALS,)}:

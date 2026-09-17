@@ -1,0 +1,149 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# FlagTree wheel for the ascend-cann9.0.0 backend (Triton 3.5 / aarch64 / cp311),
+# from source -> /wheels. Named after the backend, not the FlagTree line, so the
+# file, the workflow target and generate_matrix.py's backend name are all one word.
+#
+# Base is the backend's runtime image, not a bare ubuntu like the other builders:
+# the ascend build pins AscendNPU-IR by the CANN found here and compiles it in, and
+# that image is already the toolchain — build env == delivery env.
+
+# CI passes the full ref, registry host included, from configs.yaml.
+ARG BASE_IMAGE=flagos-runtime-ascend-cann9.0.0:2.2.0
+FROM ${BASE_IMAGE}
+
+# Fallback for github traffic, applied only after a direct call fails: direct
+# access from the CANN nodes is not stable. PROXY_NO_PROXY is relayed verbatim.
+ARG PROXY_URL=
+ARG PROXY_NO_PROXY=
+
+# FlagTree ref to build: branch, tag or sha. Pin a sha for a release.
+ARG FLAGTREE_VERSION=0.7.0-rc2-triton3.5
+# OUR label for the FlagTree line, not the vendor's. .git is removed before
+# `pip wheel` (setup.py would stamp "+git<sha>"), the UTC date marks a rebuild.
+ARG FLAGTREE_BASE_VERSION=0.7.0rc2+ascend3.5
+# blank = "<FLAGTREE_BASE_VERSION>.<UTC date>"
+ARG FLAGTREE_WHEEL_VERSION=
+# A wrong BASE_IMAGE must fail here, not pair the wheel with another bishengir.
+ARG CANN_VERSION=9.0.0
+# Prebuilt deps, same bucket as metax / sunrise: the build's clang and the toolkits.
+ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+ARG LLVM_TARBALL=llvm-7d5de303-ubuntu-aarch64-python311-compat_v0.6.0.tar.gz
+ARG LLVM_DIR=llvm-7d5de303-ubuntu-aarch64-python311-compat
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.5.x-linux-aarch64.tar.gz
+# ABI contract with the runtime (3.0.3 = internals v11): unpinned pulls 3.1.x, which
+# imports fine and breaks at kernel-compile time. _VERSION, since ARG splits on '='.
+ARG PYBIND11_VERSION=3.0.3
+# Contract with the prebuilt LLVM instead: it asks for nanobind 2.4, rejects 3.x.
+ARG NANOBIND_VERSION=2.4.0
+# pypi.org is unreachable from the runners.
+ARG EXTRA_PYPI=https://mirrors.aliyun.com/pypi/simple
+# AscendNPU-IR is a whole MLIR project; upstream's delivery uses 32.
+ARG MAX_JOBS=32
+
+# bash, not the image's dash: the CANN environment reaches non-interactive shells
+# only through BASH_ENV + bash.
+SHELL ["/bin/bash", "-c"]
+
+# Stage the prebuilt deps into FlagTree's own offline caches (upstream's
+# unpack_triton_build_deps.sh, non-interactively). --noproxy: the proxy 500s here.
+RUN mkdir -p /root/.flagtree/ascend /root/.triton \
+    && cd /tmp \
+    && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+         for i in 1 2 3 4 5; do \
+           curl -fsSL --noproxy '*' --retry 3 --retry-delay 5 --connect-timeout 30 \
+             "${DEPS_BASE}/${f}" -o "${f}" && break; \
+           echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
+         done; \
+       done \
+    && tar -xzf "${LLVM_TARBALL}" -C /root/.flagtree/ascend \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
+    && rm -f /tmp/*.tar.gz \
+    && test -x "/root/.flagtree/ascend/${LLVM_DIR}/bin/clang" \
+    && ls -la /root/.triton
+
+# FETCH_HEAD takes branch/tag/sha alike. /opt/flagtree-src, never the vendor /opt/flagtree.
+RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+    && git config --global http.version HTTP/1.1 \
+    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
+    && if timeout 30 git ls-remote https://github.com/flagos-ai/flagtree HEAD >/dev/null 2>&1; then \
+         echo ">>> github reachable directly, no proxy"; \
+       elif [ -n "${PROXY_URL}" ]; then \
+         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
+                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
+         echo ">>> github not directly reachable, using the relayed proxy"; \
+       else \
+         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
+       fi \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         rm -rf /opt/flagtree-src && git init -q /opt/flagtree-src \
+           && git -C /opt/flagtree-src remote add origin https://github.com/flagos-ai/flagtree \
+           && git -C /opt/flagtree-src fetch --depth 1 origin "${FLAGTREE_VERSION}" \
+           && git -C /opt/flagtree-src checkout -q FETCH_HEAD && break; \
+         echo ">>> flagtree fetch attempt $i failed, retrying in 5s..."; \
+         sleep 5; \
+       done \
+    && test -d /opt/flagtree-src/.git \
+    && git -C /opt/flagtree-src --no-pager log -1 --format='>>> flagtree source: %H %s'
+
+# PYTHONPATH is dropped: zz-compiler.sh puts the VENDOR flagtree on it in every bash.
+# TRITON_APPEND_CMAKE_ARGS force-includes <cstdint>: FlagPrism (on by default here)
+# uses uint64_t with only <variant>/<vector> in scope, so all of its units fail.
+# The proxy probe repeats here: this step fetches flir / FlagPrism / AscendNPU-IR.
+RUN unset PYTHONPATH \
+    && cd /opt/flagtree-src \
+    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
+    && if timeout 30 git ls-remote https://github.com/flagos-ai/flagtree HEAD >/dev/null 2>&1; then \
+         echo ">>> github reachable directly, no proxy"; \
+       elif [ -n "${PROXY_URL}" ]; then \
+         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
+                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
+         echo ">>> github not directly reachable, using the relayed proxy"; \
+       else \
+         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
+       fi \
+    && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r python/requirements.txt \
+    && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" "nanobind==${NANOBIND_VERSION}" \
+    && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
+    && echo ">>> wheel version: ${_ver}" \
+    && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
+    && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_CXX_FLAGS="-include cstdint"' \
+    && export PATH="/root/.flagtree/ascend/${LLVM_DIR}/bin:${PATH}" \
+    && clang --version \
+    && rm -rf /opt/flagtree-src/.git \
+    && for i in 1 2 3; do \
+         MAX_JOBS="${MAX_JOBS}" pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# A COPYed gate, not a heredoc: the CANN nodes run Docker's legacy builder.
+COPY verify_ascend_wheel.py /tmp/
+RUN CANN_VERSION="${CANN_VERSION}" python3 /tmp/verify_ascend_wheel.py
+
+# Import from a directory of its own, so a passing import cannot be the vendor's.
+# Version from the file name, longest match: the tag is "-cp311-cp311-linux_aarch64".
+RUN whl="$(basename /wheels/*.whl)" \
+    && ver="${whl#flagtree-}" && ver="${ver%%-cp311-*}" \
+    && rm -rf /opt/wheel-test \
+    && pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
+    && PYTHONPATH=/opt/wheel-test WHEEL_VER="${ver}" python3 -c "\
+import importlib.metadata as md, os, triton;\
+from triton.backends import backends;\
+ver = os.environ['WHEEL_VER'];\
+assert triton.__file__.startswith('/opt/wheel-test'), triton.__file__;\
+assert 'ascend' in backends, sorted(backends);\
+assert md.version('flagtree') == ver, (md.version('flagtree'), ver);\
+print('OK flagtree', md.version('flagtree'), 'triton', triton.__version__, 'backends', sorted(backends))"

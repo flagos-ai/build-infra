@@ -14,24 +14,13 @@
 
 name: FlagTree wheel
 
-# Build a FlagTree wheel from a packaging/flagtree/<target> Containerfile and
-# (optionally) upload it to the vendor's PyPI.
-#
-# Unlike the FlagGems wheel (pure Python, a plain script), FlagTree carries a
-# compiled libtriton.so, so this is a container build. The Containerfile's own
-# gates fail `docker build` on a wheel that is not what the backends need (a
-# 22.04-incompatible symbol for the 22.04-based targets, a dirty git version, a
-# mismatched pybind11 internals version, ...), so a bad wheel never reaches the
-# extract/upload steps.
-#
-# Two families of target, which is what the `prepare` job resolves:
-#  - self-contained Containerfiles (metax / nvidia-cuda / sunrise): ubuntu base,
-#    default runner, no image arg.
-#  - ascend3.5 / ascend3.2: FlagTree's ascend build is driven by the CANN on the
-#    build machine (it selects the AscendNPU-IR pin and links CANN's BiShengIR),
-#    so the build runs INSIDE that backend's runtime image — runner labels, image
-#    ref and index all come from configs.yaml via generate_matrix.py rather than
-#    being restated here.
+# Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
+# vendor PyPI. Two target families: self-contained Containerfiles (metax /
+# nvidia-cuda / sunrise), and the ascend pair, which builds INSIDE its backend's
+# runtime image and is therefore named after that backend — the Containerfile, this
+# workflow's target and generate_matrix.py's backend name are the same string.
+# `prepare` resolves what that difference implies. The Containerfile's gates fail
+# `docker build` on an unusable wheel, so a bad wheel never reaches extract/upload.
 
 on:
   workflow_dispatch:
@@ -43,8 +32,8 @@ on:
           - metax
           - nvidia-cuda
           - sunrise
-          - ascend3.5
-          - ascend3.2
+          - ascend-cann9.0.0
+          - ascend-cann8.5.0
         default: metax
       flagtree_version:
         description: 'FlagTree tag/branch/sha to build (blank = Containerfile default)'
@@ -73,19 +62,15 @@ defaults:
 
 jobs:
   authorize:
-    # Only accounts listed in .github/builders.txt may trigger this workflow;
-    # see .github/actions/check-trigger-author. checkout is required so the
-    # local composite action resolves from the workspace.
+    # checkout lets the local composite action resolve from the workspace.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
   prepare:
-    # Resolves everything that differs between the two target families, from the
-    # single source of truth (configs.yaml -> generate_matrix.py --runtime):
-    # runner labels, the runtime image the ascend builds run in, the public index
-    # for its build requirements, and the vendor PyPI repo to upload to.
+    # Runner labels, runtime image, index and upload repo, from the single source
+    # of truth.
     needs: authorize
     runs-on: ubuntu-latest
     outputs:
@@ -105,10 +90,11 @@ jobs:
           BASE_IMAGE_OVERRIDE: ${{ inputs.base_image }}
         run: |
           set -euo pipefail
+          # The ascend targets ARE the backend names, so there is no mapping to keep
+          # in sync with configs.yaml.
           case "$TARGET" in
-            ascend3.5) backend=ascend-cann9.0.0 ;;
-            ascend3.2) backend=ascend-cann8.5.0 ;;
-            *)         backend="" ;;
+            ascend-cann*) backend="$TARGET" ;;
+            *)            backend="" ;;
           esac
           if [ -z "$backend" ]; then
             echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
@@ -120,16 +106,12 @@ jobs:
           python3 scripts/generate_matrix.py --runtime "$backend" > matrix.json
           cat matrix.json
           echo "runson=$(jq -c '.include[0].runson | fromjson' matrix.json)" >> "$GITHUB_OUTPUT"
-          # BASE_IMAGE_OVERRIDE exists because a version bump reaches the runtime
-          # images later than configs.yaml: until the backend's runtime image is
-          # published at the stack version, the wheel can still be built (and the
-          # Containerfile validated) against another tag of the same CANN line,
-          # e.g. the -build (NO_FLAGGEMS) variant. Leave it blank for a real build.
+          # A version bump reaches the runtime images later than configs.yaml: until
+          # then the build takes another tag of the same CANN line (e.g. -build).
           echo "base_image=${BASE_IMAGE_OVERRIDE:-$(jq -r '.include[0].image_tag' matrix.json)}" >> "$GITHUB_OUTPUT"
           echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
-          # The upload repo comes from the matrix's vendor index, not from the
-          # target name: "${TARGET%%-*}" would derive "ascend3.5" for these
-          # targets, since the CANN version is part of the name.
+          # Off the matrix's vendor index, not the target name: it is the field the
+          # runtime images are built from.
           flagos_pypi=$(jq -r '.include[0].flagos_pypi' matrix.json)
           echo "pypi_repo=$(basename "$(dirname "$flagos_pypi")")" >> "$GITHUB_OUTPUT"
 
@@ -154,8 +136,6 @@ jobs:
         run: |
           set -euo pipefail
           test -f "$TARGET" || { echo "ERROR: packaging/flagtree/$TARGET not found" >&2; exit 1; }
-          # FLAGTREE_VERSION is the single version knob (tag/ref + wheel version);
-          # blank means use the Containerfile default for the target.
           build_args=()
           if [ -n "${FLAGTREE_VERSION:-}" ]; then
             build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_VERSION}")
@@ -164,38 +144,27 @@ jobs:
             build_args+=(--build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}")
           fi
           if [ -n "${BASE_IMAGE:-}" ]; then
-            # ascend targets only: the runtime image is the build environment
-            # (CANN is a build input, not just a runtime one) and it is the
-            # image its own backend ships, so wheel and image cannot drift.
             build_args+=(--build-arg "BASE_IMAGE=${BASE_IMAGE}")
             build_args+=(--build-arg "EXTRA_PYPI=${EXTRA_PYPI}")
           fi
-          # Proxy: prefer the runner's own, fall back to the secret. Relay it and
-          # nothing else — no NO_PROXY of this workflow's making: the host's own
-          # value goes through verbatim, or the container bypasses the tunnel for
-          # hosts it cannot resolve on its own.
+          # Proxy: the runner's own, else the secret. Relay the value and nothing
+          # else — a NO_PROXY invented here would bypass the tunnel for hosts the
+          # container cannot resolve on its own.
           proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
           proxy_url="${proxy_url:-${HTTP_PROXY_SECRET}}"
           if [ -n "${BASE_IMAGE:-}" ]; then
-            # ascend targets: the proxy is relayed as PROXY_URL, NOT as
-            # http_proxy/HTTP_PROXY, because the CANN nodes disagree about it —
-            # cann900 reaches github.com directly while its proxy does not carry
-            # the git traffic, cann850 is the other way round. The Containerfile
-            # probes and applies PROXY_URL only when a direct call fails, which an
-            # unconditionally exported proxy would defeat (run 35196654446).
+            # ascend targets: PROXY_URL, NOT http_proxy/HTTP_PROXY — the Containerfile
+            # probes and falls back, which an unconditionally exported proxy defeats
+            # (run 35196654446).
             build_args+=(--build-arg "PROXY_URL=${proxy_url}")
             build_args+=(--build-arg "PROXY_NO_PROXY=${no_proxy:-${NO_PROXY:-}}")
           elif [ -n "${proxy_url}" ]; then
-            # the self-contained builders apply the proxy to every RUN.
             build_args+=(--build-arg "HTTPS_PROXY=${proxy_url}")
             build_args+=(--build-arg "HTTP_PROXY=${proxy_url}")
             build_args+=(--build-arg "no_proxy=${no_proxy:-}")
             build_args+=(--build-arg "NO_PROXY=${NO_PROXY:-}")
           fi
-          # --no-cache: the clone layer is keyed on the ref NAME, not its content,
-          # so a moved branch would otherwise rebuild from stale source.
-          # The gates run inside this build; a failure here means the wheel is not
-          # fit to publish.
+          # --no-cache: the clone layer is keyed on the ref NAME, not its content.
           docker build --no-cache "${build_args[@]}" -t "$IMAGE" -f "$TARGET" .
 
       - name: Extract the wheel
@@ -208,9 +177,7 @@ jobs:
           docker rm "$cid" >/dev/null
           ls -la wheels/*.whl
 
-      # Upload only when explicitly requested (default false so a manual build
-      # from a branch is safe). The wheel is published as-is — the build gates
-      # already vetted it.
+      # Published as-is: the build gates already vetted the wheel.
       - name: Upload to vendor PyPI
         if: ${{ inputs.upload }}
         working-directory: packaging/flagtree
@@ -222,20 +189,17 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
             exit 1
           fi
-          # vendor = first path segment of the target: nvidia-cuda -> nvidia,
-          # metax -> metax. PyPI repo defaults to that vendor's index; the ascend
-          # targets have theirs resolved in `prepare` (their CANN version is part
-          # of the target name, so the segment split does not apply).
+          # vendor = first segment of the target (nvidia-cuda -> nvidia); the ascend
+          # targets get their repo from `prepare` instead.
           vendor="${TARGET%%-*}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-${{ needs.prepare.outputs.pypi_repo }}}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
-          # Self-hosted Python is PEP 668 externally-managed; install to the user
-          # site with the override (matches imagebuild.yml). Upgrade pkginfo too:
-          # setuptools >=77 (PEP 639) stamps Metadata-Version 2.4 into the wheel,
-          # which older pkginfo can't parse ("Metadata is missing required fields:
-          # Name, Version") -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
+          # Upgrade pkginfo with twine: setuptools >=77 (PEP 639) stamps
+          # Metadata-Version 2.4, which older pkginfo can't parse and twine then
+          # aborts before upload (>=1.11 reads it). The plain fallback is for the CANN
+          # runners' pip 22, which has no --break-system-packages.
           python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
             || python3 -m pip install --quiet --upgrade twine pkginfo
           export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
