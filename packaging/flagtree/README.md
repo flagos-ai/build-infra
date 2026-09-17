@@ -88,11 +88,14 @@ Notes that apply only here:
   `/opt/flagtree-src` (never `/opt/flagtree`), the build unsets `PYTHONPATH`, and
   the smoke installs into `/opt/wheel-test` with `PYTHONPATH` pointing there and
   asserts `triton.__file__` plus the distribution version.
-- **pybind11 is pinned to the runtime image's own version** (`PYBIND11_SPEC`,
-  default `==3.0.3` = internals v11, matching `configs.yaml runtime_prereqs`).
-  Neither branch's `requirements.txt` has an upper bound, so an unpinned install
-  pulls pybind11 3.1.x and silently moves the wheel to internals v12; the gate
-  asserts v11.
+- **pybind11 is pinned to the runtime image's own version**
+  (`PYBIND11_VERSION`, default `3.0.3` = internals v11, matching `configs.yaml`
+  runtime_prereqs). Neither branch's requirements.txt has an upper bound, so an
+  unpinned install pulls pybind11 3.1.x and silently moves the wheel to internals
+  v12; the gate asserts v11. The ARG is named `_VERSION`, not the `_SPEC` of the
+  older builders, because a value carrying its own `==` cannot be written as
+  `ARG X==3.0.3` — ARG splits on the first `=`, which leaves pip with
+  `pybind11=3.0.3`.
 - **The CANN version is a gate, not decoration**: `CANN_VERSION` is compared
   against the toolkit found in the image, so a wrong `BASE_IMAGE` fails the build
   instead of producing a wheel pinned to the wrong AscendNPU-IR.

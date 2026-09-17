@@ -88,8 +88,11 @@ ARG TRITON_DEPS_TARBALL=build-deps-triton_3.2.x-linux-aarch64.tar.gz
 # this branch's python/requirements.txt lists pybind11 unpinned, so an unpinned
 # build pulls 3.1.x — which bumped internals to v12. Installing the runtime's
 # exact version keeps the wheel binary-compatible with the runtime image's
-# pybind11; the gate below asserts v11.
-ARG PYBIND11_SPEC==3.0.3
+# pybind11; the gate below asserts v11. Named _VERSION rather than the _SPEC of
+# the other builders because this pin is an exact version and ARG splits on the
+# FIRST '=': the fragment spelling ("ARG X==3.0.3" + "pybind11${X}", as in metax)
+# would hand pip "pybind11=3.0.3", which it rejects as an invalid requirement.
+ARG PYBIND11_VERSION=3.0.3
 # Public index for the build-time requirements (pypi.org is unreachable from the
 # runners); mirrors configs.yaml `mirror:`.
 ARG EXTRA_PYPI=https://mirrors.aliyun.com/pypi/simple
@@ -162,7 +165,7 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 RUN unset PYTHONPATH \
     && cd /opt/flagtree-src/python \
     && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir "pybind11${PYBIND11_SPEC}" \
+    && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
     && echo ">>> wheel version: ${_ver}" \
     && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
