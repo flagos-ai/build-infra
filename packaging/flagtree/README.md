@@ -82,33 +82,31 @@ Notes that apply only here:
 
 - **`PYTHONPATH` must be dropped during the build and the smoke test.** The
   runtime image's `/etc/profile.d/zz-compiler.sh` puts the *vendor* FlagTree
-  (`/opt/flagtree`) on `PYTHONPATH` in every bash shell, so a naive
-  `import triton` imports the vendor wheel and the smoke test would pass against
-  something this build never produced. The source is cloned to
-  `/opt/flagtree-src` (never `/opt/flagtree`), the build unsets `PYTHONPATH`, and
-  the smoke installs into `/opt/wheel-test` with `PYTHONPATH` pointing there and
-  asserts `triton.__file__` plus the distribution version.
-- **pybind11 is pinned to the runtime image's own version**
-  (`PYBIND11_VERSION`, default `3.0.3` = internals v11, matching `configs.yaml`
-  runtime_prereqs). Neither branch's requirements.txt has an upper bound, so an
-  unpinned install pulls pybind11 3.1.x and silently moves the wheel to internals
-  v12; the gate asserts v11. The ARG is named `_VERSION`, not the `_SPEC` of the
-  older builders, because a value carrying its own `==` cannot be written as
-  `ARG X==3.0.3` — ARG splits on the first `=`, which leaves pip with
+  (`/opt/flagtree`) on `PYTHONPATH` in every bash shell, so a naive `import triton`
+  imports the vendor wheel. The source is cloned to `/opt/flagtree-src` (never
+  `/opt/flagtree`), and the smoke installs into `/opt/wheel-test` and asserts
+  `triton.__file__` plus the distribution version.
+- **Two build-time pins, two different contracts.** `PYBIND11_VERSION` (default
+  `3.0.3` = internals v11, matching `configs.yaml` runtime_prereqs) is an ABI
+  contract with the runtime: an unpinned install pulls 3.1.x (v12), which imports
+  fine but breaks at kernel-compile time on hardware. `NANOBIND_VERSION` (default
+  `2.4.0`) is a contract with the prebuilt LLVM instead — its
+  `MLIRDetectPythonEnv.cmake` asks for 2.4, and nanobind 3.x rejects that request,
+  failing the build in cmake. Both are named `_VERSION`, not the `_SPEC` of the
+  older builders: ARG splits on the first `=`, so `ARG X==3.0.3` would hand pip
   `pybind11=3.0.3`.
-- **nanobind is pinned to the version the staged LLVM asks for**
-  (`NANOBIND_VERSION`, default `2.4.0`). This one is not a runtime contract — the
-  runtime image ships no nanobind and the wheel does not depend on it — but a
-  contract with the prebuilt LLVM: its `MLIRDetectPythonEnv.cmake` requests
-  nanobind 2.4 (LLVM 20.x declares `>=2.4, <3.0`) and AscendNPU-IR builds MLIR
-  python bindings against it. Unpinned, pip resolves nanobind 3.x, whose config
-  rejects that request as a major-version mismatch and fails the build in cmake
-  before anything compiles. The 3.2 branch's `requirements.txt` lists `nanobind`
-  unpinned (so the explicit install is a downgrade), the 3.5 branch's does not
-  list it at all.
 - **The CANN version is a gate, not decoration**: `CANN_VERSION` is compared
   against the toolkit found in the image, so a wrong `BASE_IMAGE` fails the build
-  instead of producing a wheel pinned to the wrong AscendNPU-IR.
+  instead of producing a wheel built against the wrong CANN. The gate reads the
+  install-info file the image actually ships — flagtree reads only
+  `ascend_toolkit_install.info`, which CANN 9.0.0 does not ship, so the 3.5 build
+  logs `CANN version not detected` and takes its default pin (the cann9.0.0 line,
+  correct for this image, and the gate is what proves it).
+- **The prebuilt LLVM bundles are newer than the source they compile.** Each
+  builder carries a `TRITON_APPEND_CMAKE_ARGS` workaround for a hard error that
+  comes from the bundle rather than from flagtree: 3.2's clang 21 fires
+  `-Wdangling-assignment-gsl` on the bundle's own MLIR headers, and 3.5's FlagPrism
+  does not compile without `<cstdint>`. See the Containerfiles for the specifics.
 - One wheel serves both 910B and 910C per CANN version: only the ops package
   differs between the chips, and the AscendNPU-IR pin depends on the toolkit
   version alone — matching the vendor, which ships a single `+ascend3.5` /
@@ -116,28 +114,22 @@ Notes that apply only here:
 - The wheel version is **ours**, not the vendor's release label: it says which
   FlagTree line the wheel came from, and the UTC date makes a rebuild
   distinguishable from the vendor's wheel of the same line.
+- The base image is the runtime image at the stack version (`configs.yaml
+  version:`), which a version bump reaches later than the base images. Until it is
+  published, `flagtree-wheel.yml`'s `base_image` input takes another tag of the
+  same CANN line (e.g. `:2.2.0-build`). Blank = the derived runtime image, which is
+  what a real build must use.
+- **The proxy is applied per step, not per build.** Direct github access from the
+  CANN nodes is not stable, so `flagtree-wheel.yml` relays it as `PROXY_URL` (never
+  as `http_proxy`, which would be in the environment from the start) and the clone
+  / build steps probe first, falling back only when the direct call fails. The
+  prebuilt-deps download never uses it: the proxy answers HTTP 500 for that bucket
+  while it is reachable directly.
+- Both builders share `verify_ascend_wheel.py`, COPYed into the build rather than
+  a heredoc: the CANN nodes still run Docker's legacy builder.
 - Not yet exercised: `upload=true` on a CANN node. The upload step uses the
   runner's own `python3`; if the aarch64 CANN runners have no pip, it needs the
   Megatron wheel workflow's approach (run twine inside the build image).
-- The base image is the backend's **runtime** image at the stack version
-  (`configs.yaml version:`), which a version bump reaches later than the base
-  images — until it is published, `flagtree-wheel.yml`'s `base_image` input
-  takes another tag of the same CANN line (e.g. `:2.2.0-build`) so the builder
-  can still be validated. Blank = the derived runtime image, which is what a
-  real build must use.
-- **The proxy is applied per step, not per build.** The CANN nodes disagree about
-  github: cann900 reaches it directly while its proxy does not carry git traffic,
-  cann850 needs the proxy. `flagtree-wheel.yml` therefore relays it as `PROXY_URL`
-  (never as `http_proxy`, which would be in the environment from the start) and
-  the clone / build steps probe `https://github.com` first, exporting the proxy
-  only when the direct call fails. The prebuilt-deps download never uses it at
-  all: the proxy answers HTTP 500 for that bucket while it is reachable directly.
-- Both builders share `verify_ascend_wheel.py` (the build gates) as a file
-  COPYed into the build rather than a heredoc: the CANN nodes still run Docker's
-  legacy builder, which has no heredoc support.
-- The CANN version gate is what makes a base-image mistake loud: build against
-  the wrong toolkit and the AscendNPU-IR pin follows it silently, so
-  `CANN_VERSION` is compared against the toolkit actually present.
 
 ## Build
 

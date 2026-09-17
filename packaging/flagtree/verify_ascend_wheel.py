@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Build gates for the ascend FlagTree wheels (packaging/flagtree/ascend3.5 and
-ascend3.2). Fails the build on a wheel the ascend backends cannot use.
+"""Build gates for the ascend FlagTree wheels (ascend3.5, ascend3.2): fail the
+build on a wheel the ascend backends cannot use.
 
-Shared by both targets — they gate the same things. It is a file rather than a
-Dockerfile heredoc because the CANN build nodes still run Docker's legacy
-builder, which has no heredoc support (heredocs work on the h20 runner, which
-has BuildKit, so the non-ascend builders can keep inlining theirs).
+A file rather than a Dockerfile heredoc: the CANN build nodes still run Docker's
+legacy builder, which has no heredoc support.
 
-Requires the environment to carry CANN's variables (the images' BASH_ENV does),
-and CANN_VERSION, the toolkit the wheel must pair with: FlagTree's ascend build
-derives the AscendNPU-IR pin from the CANN found on the build machine, so a
-mismatch here means the wheel was built against the wrong bishengir.
+Requires the environment to carry CANN's variables (the images' BASH_ENV does) and
+CANN_VERSION — the toolkit this wheel must be built against: the 3.5 line derives
+its AscendNPU-IR pin from the CANN on the build machine, and both lines link that
+CANN's BiShengIR dialects.
 """
 
 import glob
@@ -62,8 +60,14 @@ def fail(msg):
 
 
 def cann_version():
-    """Mirror of FlagTree's python/setup_tools/utils/ascend.py:get_cann_version,
-    which is what selects the AscendNPU-IR pin."""
+    """The CANN version this image provides — flagtree's ascend.py:get_cann_version
+    probes the same two roots for the same version= line.
+
+    Both names: flagtree reads ascend_toolkit_install.info, which a CANN 9.0.0
+    install does not ship (it ships ascend_all_cann_install.info, and flagtree
+    therefore falls back to its default pin), while 8.5.0 ships the toolkit file.
+    The version is the contract here, not the file name.
+    """
     arch = platform.machine()
     roots = []
     if os.environ.get("ASCEND_HOME_PATH"):
