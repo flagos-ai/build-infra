@@ -57,13 +57,13 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
 
 # ── Install MPI ────────────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mpi.tgz ${FILE_STORE}/kunlunxin/${MPI_PACKAGE} \
-    && tar xvf -C /usr/local /mpi.tgz \
+    && tar -xvf /mpi.tgz -C /usr/local \
     && ln -s /usr/local/mpich-3.3.2/lib/libmpi.so /usr/local/mpich-3.3.2/lib/libmpi.so.0 \
     && rm /mpi.tgz
 
 # ── Install xCCL ────────────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xccl.tgz ${FILE_STORE}/kunlunxin/${XCCL_PACKAGE} \
-    && tar xvf -C /usr/local /xccl.tgz \
+    && tar -xvf /xccl.tgz -C /usr/local \
     && rm /xccl.tgz
 
 
