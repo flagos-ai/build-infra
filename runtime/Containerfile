@@ -138,12 +138,16 @@ ENV PIP_RESUME_RETRIES=100
 # compiler() can switch between them cleanly via PYTHONPATH. If FlagTree is
 # present it remains the default; 'compiler triton' toggles to the vendor
 # triton in /opt/triton.
+#
+# Every install below puts the vendor index LAST on purpose: pip merges both
+# indexes into one pool, and at an exact version tie the index listed last
+# wins. Vendor last is what keeps vendor wheels on the LAN (~200x faster).
 RUN mkdir -p /opt/flagtree
 RUN if [ -n "${FLAGTREE_PKG}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
-        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
-           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+        if PIP_INDEX_URL="${EXTRA_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${FLAGOS_PYPI}" \
            pip install --no-cache-dir --target /opt/flagtree \
           ${FLAGTREE_PKG}; then \
           _installed=0; break; \
@@ -170,8 +174,8 @@ RUN mkdir -p /opt/triton
 RUN if [ -n "${TRITON_PKG}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
-        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
-           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+        if PIP_INDEX_URL="${EXTRA_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${FLAGOS_PYPI}" \
            pip install --no-cache-dir --target /opt/triton \
           ${TRITON_PKG}; then \
           _installed=0; break; \
@@ -183,8 +187,8 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
         _installed=1; \
         for i in 1 2 3; do \
           if mkdir -p /tmp/triton-overlay \
-             && PIP_INDEX_URL="${FLAGOS_PYPI}" \
-                PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+             && PIP_INDEX_URL="${EXTRA_PYPI}" \
+                PIP_EXTRA_INDEX_URL="${FLAGOS_PYPI}" \
                 pip download --no-deps --no-cache-dir \
                 -d /tmp/triton-overlay ${TRITON_EXTRA_PKGS} \
              && (cd /opt/triton && unzip -qo /tmp/triton-overlay/*.whl) \
@@ -200,8 +204,7 @@ RUN if [ -n "${TRITON_PKG}" ]; then \
 
 # ── Install vendor dependencies (explicit, no extras) ──────────
 # Dependencies come from configs.yaml deps: — explicit, no resolver ambiguity.
-# Each vendor has exactly one primary index (FLAGOS_PYPI); EXTRA_PYPI serves as
-# fallback for transitive deps (numpy, sympy, etc.) that aren't in vendor indexes.
+# Index order as above: vendor last, so pinned versions resolve to vendor.
 # Compilers are installed ABOVE (before this step) so their side-dir dist-infos
 # exist while DEPS resolves. DEPS packages that declare a bare `triton` (e.g.
 # flash_linear_attention on metax 3.8.1.3) are then satisfied by the pinned
@@ -213,8 +216,8 @@ RUN if [ -n "${DEPS}" ]; then \
       _installed=1; \
       for i in 1 2 3; do \
         if PYTHONPATH="/opt/triton" \
-           PIP_INDEX_URL="${FLAGOS_PYPI}" \
-           PIP_EXTRA_INDEX_URL="${EXTRA_PYPI}" \
+           PIP_INDEX_URL="${EXTRA_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${FLAGOS_PYPI}" \
            pip install --no-cache-dir ${DEPS}; then \
           _installed=0; break; \
         fi; \
