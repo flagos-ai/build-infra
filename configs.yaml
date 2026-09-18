@@ -134,7 +134,7 @@ vendors:
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
-      flagtree: flagtree==0.6.1
+      flagtree: flagtree==0.7.0rc2
       env:
         base:
           # Effective env — inherited verbatim from nvcr 12.8.0-runtime-ubuntu24.04
@@ -175,7 +175,7 @@ vendors:
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
-      flagtree: flagtree==0.6.1
+      flagtree: flagtree==0.7.0rc2
       env:
         base:
           # Effective env — inherited verbatim from nvcr 13.3.0-runtime-ubuntu24.04
@@ -291,7 +291,7 @@ vendors:
       python: "3.11"
       cmake_backend: NPU
       triton: triton==3.5.0
-      flagtree: flagtree==0.6.1+ascend3.5
+      flagtree: flagtree==0.7.2rc2+ascend3.5
       triton_post_install:
         - triton_ascend==3.2.1
       env:
@@ -340,7 +340,7 @@ vendors:
       python: "3.11"
       cmake_backend: NPU
       triton: triton==3.5.0
-      flagtree: flagtree==0.6.1+ascend3.5
+      flagtree: flagtree==0.7.2rc2+ascend3.5
       triton_post_install:
         - triton_ascend==3.2.1
       deps:
@@ -455,7 +455,7 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
-      flagtree: flagtree==0.6.0+enflame3.6
+      flagtree: flagtree==0.7.0rc2+enflame3.6
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
@@ -502,7 +502,7 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260722
-      flagtree: flagtree==0.6.1+enflame3.6
+      flagtree: flagtree==0.7.0rc2+enflame3.6
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
@@ -558,7 +558,7 @@ vendors:
       driver: "6.3.30-V1.4.1a"
       python: "3.10"
       triton: triton==3.5.1+das.opt1.dtk2604.torch290
-      flagtree: flagtree==0.6.2a1+hcu3.6
+      flagtree: flagtree==0.7.0rc2+hcu3.6
       deps:
         - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
@@ -585,7 +585,7 @@ vendors:
       python: "3.12"
       cmake_backend: IX
       triton: triton==3.1.0+corex.4.4.0
-      flagtree: flagtree==0.6.1+iluvatar3.6
+      flagtree: flagtree==0.7.0rc2+iluvatar3.6
       env:
         base:
           COREX_ROOT: /usr/local/corex
@@ -638,7 +638,7 @@ vendors:
       python: "3.12"
       cmake_backend: IX
       triton: triton==3.2.0+corex.4.5.0.20260804
-      flagtree: flagtree==0.6.1+iluvatar3.6
+      flagtree: flagtree==0.7.0rc2+iluvatar3.6
       env:
         base:
           COREX_ROOT: /usr/local/corex
@@ -685,7 +685,7 @@ vendors:
       python: "3.10"
       triton: triton==3.6.0+gitcd2d6c1b
       # triton: triton==3.0.0+a48aedef
-      flagtree: flagtree==0.6.1+xpu3.6
+      flagtree: flagtree==0.7.0rc2+xpu3.6
       env:
         base:
           PATH: /usr/local/xpu/bin:$PATH
@@ -741,7 +741,7 @@ vendors:
       driver: "3.8.30"
       python: "3.12"
       triton: triton==3.0.0+metax3.7.2.0
-      flagtree: flagtree==0.6.1+metax3.6
+      flagtree: flagtree==0.7.0rc2+metax3.6
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -775,7 +775,7 @@ vendors:
       driver: "3.9.6"
       python: "3.12"
       triton: triton==3.6.0+metax3.8.1.0
-      flagtree: flagtree==0.6.1+metax3.6
+      flagtree: flagtree==0.7.0rc2+metax3.6
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -978,7 +978,7 @@ vendors:
       driver: "260610164501.01"
       python: "3.10"
       triton: triton==3.6.0.post2026072919+git8f5b0609
-      flagtree: flagtree==0.6.1+tsingmicro3.3
+      flagtree: flagtree==0.7.0rc2+tsingmicro3.6
       system_dpkg:
         # libfmt8 is a system-level dependency for torch_txda (links
         # libfmt.so.8). Ubuntu 24.04 ships libfmt9, so we install the
