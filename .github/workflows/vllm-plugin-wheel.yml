@@ -209,11 +209,16 @@ jobs:
             echo "ERROR: '${build_backend}' is not in the runtime matrix" >&2
             exit 1
           fi
+          # runson is a JSON-encoded array STRING: emitted verbatim it
+          # double-encodes, and runs-on becomes one label reading
+          # ["self-hosted", "h20"] — which no runner has. fromjson unpacks it.
+          runson=$(jq -c '.runson | fromjson' <<<"${row}")
           echo ">>> build image: $(jq -r .image_tag <<<"${row}")"
+          echo ">>> runners: ${runson}"
           echo ">>> upload targets: ${repos}"
           {
             echo "backend=${build_backend}"
-            echo "runson=$(jq -c .runson <<<"${row}")"
+            echo "runson=${runson}"
             echo "image_tag=$(jq -r .image_tag <<<"${row}")"
             echo "extra_pypi=$(jq -r .extra_pypi <<<"${row}")"
             echo "repos=${repos}"
