@@ -8,7 +8,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.1.2`
+`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.2.0`
 
 ### Python
 
@@ -16,12 +16,14 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.5`
-- `numpy==2.2.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `numpy==1.26.4`
 - `pandas==3.0.5`
 - `torch-mlu-ops==1.12.1+torch2.11.0`
 - `torch-mlu==1.33.1+torch2.11.0`
 - `torch==2.11.0+cpu`
+- `torchaudio==2.11.0+cpu`
+- `torchvision==0.26.0+cpu`
 - `triton==3.4.0+mlu2.1.1`
 
 ## Launch
@@ -32,7 +34,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.2.0 bash
 ```
 
 ## Verify

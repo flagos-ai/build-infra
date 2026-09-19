@@ -29,7 +29,7 @@ title: "tsingmicro-tsm260610"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.2</code> <a href="../../base/tsingmicro-tsm260610/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.2.0</code> <a href="../../base/tsingmicro-tsm260610/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,9 +37,9 @@ title: "tsingmicro-tsm260610"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.5`
-- `flagtree==0.6.1+tsingmicro3.3`
-- `numpy==2.2.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `flagtree==0.7.0rc2+tsingmicro3.6`
+- `numpy==1.26.4`
 - `torch==2.11.0+cpu`
 - `torch_txda==0.1.0+20260728.f6fbdb71`
 - `torchaudio==2.11.0+cpu`
@@ -64,7 +64,7 @@ title: "tsingmicro-tsm260610"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.2.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -73,7 +73,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.2.0 bash
 ```
 
 ## 验证

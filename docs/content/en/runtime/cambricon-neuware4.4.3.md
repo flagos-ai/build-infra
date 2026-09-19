@@ -28,7 +28,7 @@ title: "cambricon-neuware4.4.3"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.1.2</code> <a href="../../base/cambricon-neuware4.4.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.2.0</code> <a href="../../base/cambricon-neuware4.4.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,11 +37,13 @@ title: "cambricon-neuware4.4.3"
 ### Major Python packages
 
 - `cambricon_dali==0.13.0`
-- `flag_gems==5.3.5`
-- `numpy==2.2.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `numpy==1.26.4`
 - `torch-mlu-ops==1.8.0+torch2.7.1`
 - `torch-mlu==1.29.2+torch2.7.1`
 - `torch==2.7.1+cpu`
+- `torchaudio==2.7.1+cpu`
+- `torchvision==0.22.1+cpu`
 - `triton==3.2.0+mlu1.7.2`
 
 ## Launch
@@ -52,7 +54,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.4.3:2.2.0 bash
 ```
 
 ## Verify

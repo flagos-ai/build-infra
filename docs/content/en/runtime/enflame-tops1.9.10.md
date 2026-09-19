@@ -29,7 +29,7 @@ title: "enflame-tops1.9.10"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.1.2</code> <a href="../../base/enflame-tops1.9.10/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.9.10:2.2.0</code> <a href="../../base/enflame-tops1.9.10/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,9 +37,10 @@ title: "enflame-tops1.9.10"
 
 ### Major Python packages
 
-- `flag_gems==5.3.5`
-- `flagtree==0.6.0+enflame3.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `flagtree==0.7.0rc2+enflame3.6`
 - `flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506`
+- `numpy==1.26.4`
 - `pyefml==1.9.10`
 - `torch-gcu==2.10.0+3.7.20260408`
 - `torch==2.10.0+cpu`
@@ -66,7 +67,7 @@ docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -75,7 +76,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.2.0 bash
 ```
 
 ## Verify
