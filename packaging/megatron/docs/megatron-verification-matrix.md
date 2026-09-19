@@ -65,16 +65,16 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 厂商 | 后端 | App | PR | 状态 |
 |---|---|---|---|---|
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | OPEN |
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | OPEN |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | OPEN |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | OPEN |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | OPEN |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
