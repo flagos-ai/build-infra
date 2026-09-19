@@ -96,21 +96,30 @@ app 线未开到的后端**无行**，不留一整行 `—`（`—` 的含义是
 |---|---|---|
 | `deps_app` | deps_app 落库 | configs.yaml `deps_app` 该 app key 存在（key 存在 = 已验证，app 在该后端可构建） |
 | `launch_docs` | 启动文档 | 启动文档是否落地 |
-| `image_tag` | 镜像发布 | **已发布 ⟺ 存在**：已推送的 Harbor 标签（如 `2.1.2-0.2.1_g825c1cd`）。谁声明镜像已发布，谁负责记录 tag —— 写入 tag 即声明发布，二者是一次编辑里的一体事实。`docs/gen_data.py` 从这里的 `image_tag` 读已发布标签生成 app 镜像文档（不再维护独立登记表）；`vllm` app 的 `plugin_package` 也由此反推（tag 的 `-` 后段 `+`→`_`）。 |
+| `image_tag` | 镜像发布 | **已发布 ⟺ 存在**：已推送的 Harbor 标签（如 `2.1.2-0.2.2rc2.post2`，或 pre-merge 构建的 `2.1.2-0.2.2rc2.post1_gdb28502.d20260915`）。谁声明镜像已发布，谁负责记录 tag —— 写入 tag 即声明发布，二者是一次编辑里的一体事实。`docs/gen_data.py` 从这里的 `image_tag` 读已发布标签生成 app 镜像文档（不再维护独立登记表）；`vllm` app 的 `plugin_package` 也由此反推（tag 的 `-` 后段 `+`→`_`）。 |
 | `note` | 备注 | 可选字符串：**该后端非全 ✅ 的原因**（如镜像暂不做、等待上游 PR 合并后重建）。面向"表格即入口"的读者 —— 状态符号只能回答"是什么"，原因就地补"为什么"，不再需要翻 index.md / backends 大段文字。全 ✅ 行不写，渲染为 `—`。 |
 
 未推送 Harbor 的后端**不要**写 `image_tag`（本地验证构建不等于已推送 Harbor）。
 
-`prs`（可选，string 列表）：**上游** PR 跟踪项 —— 验证/镜像基于 PR 分支 Head
-完成的那些 PR（如 vllm-plugin-FL / FlagTree / FlagGems 的 PR），合并后需联动
-更新矩阵格与 fact 条目。**每项必须是完整 GitHub PR URL**
+`prs`（可选，string 列表）：**尚未合并**的上游 PR 跟踪项 —— 验证/镜像基于
+PR 分支 Head 完成、且 PR 仍 OPEN 的那些（如 vllm-plugin-FL / FlagTree /
+FlagGems 的 PR）。**PR 一合并就从这里删掉**；删空后把 `prs` key 一并去掉
+（YAML 是待办工作集，只装未合并项）。**每项必须是完整 GitHub PR URL**
 （`https://github.com/<owner>/<repo>/pull/<N>`，渲染器校验，裸 `#N` 无法注册）。
 设施落地 PR（build-infra 本仓库、由仓库内 PR 跟踪体系负责）不放在这里，
 **facility 不携带 PR**。
 
-验证矩阵 PR 表的"状态"列在**渲染时**由 `render_status_matrix.py` 经 `gh`
-实时查询各 PR 的合并状态（值域：已合并 / OPEN / 已关闭；查询失败显示 `—`，
-重新渲染即刷新）。合并状态在 PR 所属的上游仓库变化，不维护在 YAML 里。
+验证矩阵的 PR 表则是**记录**，与 YAML 分工不同：它记每个后端的工作经由哪些
+上游 PR 走过，**只增不减** —— PR 从 YAML 移除后，md 里那一行留着，状态列刷新
+为"已合并"。渲染时 `render_status_matrix.py` 把 md 中已有的行读回来与 YAML
+合并，所以重新渲染不会抹掉记录。"状态"列在**渲染时**实时查询（REST API 优先，
+无 token 退回 `gh` CLI；值域：已合并 / OPEN / 已关闭）：YAML 行查不到时显示
+`—`，记录行查不到时保留上次的状态。渲染时若发现 YAML 里仍有已合并的条目，
+会在 stderr 列出提示删除。
+
+这个语义也是 `record_app_image_tag.py` 的 pin 闸门所依赖的：镜像 tag 钉的
+plugin commit 必须仍是某个在册（即 OPEN）PR 的 head。已合并的 PR 不在 `prs`
+里，其 tag 也就不再受漂移检查约束 —— tag 不可变，本无漂移可言。
 
 ## 刷新机制
 

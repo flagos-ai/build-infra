@@ -152,13 +152,22 @@ vllm-plugin-FL 定位为上游 vllm 的插件，目标是适配不同模型、�
   `pip install --no-build-isolation .`。硬件算子由 plugin 的 dispatch 机制
   路由到 flag_gems（Triton）。构建产物为 `py3-none-any` wheel，一份跨后端
   复用。
-- **分支拓扑：** `main` = 0.3.0-dev（vllm 0.24.0 开发线）；0.20.2 支持线在
-  **`release-0.2`** 分支，最新 tag **`v0.2.1`**（= commit `825c1cd`）。构建
-  0.20.2 线 plugin wheel 必须取 release-0.2（v0.2.1 tag 与该分支 head 同义，
-  取哪个都行）。
-- **wheel 版本格式：** `{tag}+g{sha}`（PEP 440 local version），如
-  `0.2.1+g825c1cd`。app 镜像 tag 中 `+` 转 `_`（workflow 内 `tr '+' '_'`），
-  如 `2.1.2-0.2.1_g825c1cd`。
+- **构建源：** 0.20.2 线的交付 tag 是 **`v0.2.2-rc2.post2`**（commit `214804a`，
+  分支 `0.2.2-rc2` 的 head）。该 tag 含本线全部补丁，且 wheel 为纯
+  `py3-none-any`，**一份跨全部 20 个后端复用**——按后端逐次构建仅在需要
+  pre-merge 验证时才有意义。0.24.0 线对应 `v0.3.0-rc2.post1`。
+- **wheel 版本两种形式**（由 `plugin_ref` **是什么**决定，不由开关决定；
+  两者都由 workflow 推导、从不手写）：
+  - **tag 形式** —— `plugin_ref` 是一个 tag，版本即 tag 名（PEP 440 归一）：
+    `v0.2.2-rc2.post2` → `vllm-plugin-fl==0.2.2rc2.post2`。不可变，可复现，
+    交付镜像用这个。
+  - **temp 形式** —— `plugin_ref` 是分支 / PR / SHA 时没有名字可用，版本为
+    `<git describe 最近的 tag>+g<sha7>.d<YYYYMMDD>`，如
+    `0.2.2rc2.post2+g214804a.d20260919`。sha 即 pin，供 pre-merge 验证。
+  - app 镜像 tag 中 `+` 转 `_`（workflow 内 `tr '+' '_'`）：tag 形式为
+    `2.1.2-0.2.2rc2.post2`，temp 形式为 `2.1.2-0.2.2rc2.post2_g214804a.d20260919`。
+- **pre-merge 构建优先给 PR 编号**（`plugin_pr` 输入，解析 `refs/pull/<N>/head`）
+  而非分支名：PR ref 不随分支改名/删除消失，且它就是矩阵记录的 `headRefOid`。
 
 发现 plugin bug 时向其 GIT 仓库提 PR，**尽量不打破** plugin 现有的模型层 /
 算子层适配机制，以最小改动打通。

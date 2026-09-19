@@ -225,8 +225,6 @@ vendors:
             # AICore ~83% busy, no named kernel) — a flagtree 0.6.0+ascend3.2
             # codegen efficiency defect with no discrete op left to blacklist.
             # So cann8.5.0 follows the cann9.0.0 baseline (USE_FLAGGEMS=0).
-            # The other keys mirror the verify SGLANG_SWITCHES so a plain
-            # `docker run <image> sglang-serve` serves like the verified install.
             USE_FLAGGEMS: "0"
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
@@ -301,15 +299,10 @@ vendors:
             # npu_kernel_stubs) — flag_gems.enable() pollutes torch_npu (see
             # packaging/sglang/docs/sglang-0.5.18/backends/ascend.md pit #1), so
             # the app image must serve with flag_gems disabled. The other three
-            # keys mirror the verify recipe's SGLANG_SWITCHES so a plain
-            # `docker run <image> sglang-serve ...` serves identically to the
-            # verified from-scratch install: TORCHINDUCTOR_COMPILE_THREADS
-            # compiles inductor in-process (flagtree fork crash, same as the
-            # megatron_rl env), SGLANG_IS_FLASHINFER_AVAILABLE=false skips
-            # flashinfer (absent on this runtime), and
-            # SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1 skips the sgl_kernel_npu
-            # shim's version hard check (it ships +flagos-shim, not the
-            # upstream version sglang asserts).
+            # keys: compile inductor in-process (flagtree fork crash, same as the
+            # megatron_rl env), skip flashinfer (absent on this runtime), and skip
+            # the sgl_kernel_npu shim's version hard check (it ships +flagos-shim,
+            # not the upstream version sglang asserts).
             USE_FLAGGEMS: "0"
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
@@ -593,8 +586,6 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/corex/lib
         app:
           sglang:
-            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
-            # `docker run <image>` behaves like the verified configuration.
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
@@ -646,8 +637,6 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/corex/lib
         app:
           sglang:
-            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
-            # `docker run <image>` behaves like the verified configuration.
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
@@ -692,8 +681,6 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/xpu/lib:/usr/local/xcudart/lib
         app:
           sglang:
-            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
-            # `docker run <image>` behaves like the verified configuration.
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
@@ -792,14 +779,11 @@ vendors:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
           sglang:
             # Zero sgl-kernel route: hardware ops come from flag_gems, the shim
-            # only satisfies the sgl_kernel import face (playbook §5.2). These
-            # three keys mirror the verify recipe's SGLANG_SWITCHES so a plain
-            # `docker run <image> sglang-serve ...` serves identically to the
-            # verified from-scratch install: skip flashinfer (absent on this
-            # runtime's import path), compile inductor in-process (flagtree
-            # fork crash — same reason as megatron_rl above), and skip the
-            # shim's version hard check (it ships +flagos-shim, not the
-            # upstream version sglang asserts).
+            # only satisfies the sgl_kernel import face (playbook §5.2). The three
+            # keys below skip flashinfer (absent on this runtime's import path),
+            # compile inductor in-process (flagtree fork crash — same reason as
+            # megatron_rl above), and skip the shim's version hard check (it ships
+            # +flagos-shim, not the upstream version sglang asserts).
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
@@ -914,10 +898,8 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64
         app:
           sglang:
-            # Mirror the verify recipe's SGLANG_SWITCHES so a plain
-            # `docker run <image>` behaves like the verified configuration.
-            # torch is a +cpu build with the PTPU device, so is_cuda() is
-            # false: there is no flashinfer and no sgl-kernel to reach for.
+            # torch is a +cpu build with the PTPU device, so is_cuda() is false:
+            # there is no flashinfer and no sgl-kernel to reach for.
             TORCHINDUCTOR_COMPILE_THREADS: "1"
             SGLANG_IS_FLASHINFER_AVAILABLE: "false"
             SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
