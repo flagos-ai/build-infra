@@ -49,8 +49,10 @@ on:
         default: 0.24.0
       plugin_fl_version:
         description: >-
-          vllm-plugin-fl wheel version to install (commit-precise pin, base+g<sha7>.d<date>
-          from the built ref). Empty = skip the plugin install.
+          vllm-plugin-fl wheel version to install (commit-precise pin). Either the
+          tag form copied from a released tag (0.2.2rc2.post2) or the temp form for a
+          pre-merge build (<base>+g<sha7>.d<date>); both come out of the vllm-plugin
+          wheel workflow's log. Empty = skip the plugin install.
         type: string
         default: ''
       flagcx_version:

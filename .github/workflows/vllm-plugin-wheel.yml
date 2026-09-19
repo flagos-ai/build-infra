@@ -34,12 +34,38 @@ name: vllm-plugin wheel
 # unset). The former vllm_fl._C native build (VLLM_VENDOR=cuda, nvidia only)
 # required a CUDA toolchain in the runtime image that it does not ship, and
 # the plugin's runtime fallbacks cover the empty-mode paths — retired
-# 2026-08-23 ("都走统一个模式"). vllm_vendor stays in the matrix (always "")
-# for the workflow env. The version is DERIVED, not typed: the resolve step
-# turns plugin_ref into its exact commit and computes
-# vllm-plugin-fl=={version_base}+g<sha7>.d<date>; post-build assertions verify
-# the wheel name and the checked-out commit match, so the version is a
-# trustworthy commit-precise pin for the app Containerfile.
+# 2026-08-23 ("都走统一个模式"). vllm_vendor is still emitted by
+# generate_matrix.py and set in this job's env (always ""), but is no longer
+# relayed into the build container.
+#
+# The version is DERIVED, never typed, and takes one of two forms — picked by
+# what the requested ref IS, not by a flag:
+#
+#   tag form   plugin_ref names a tag
+#              v0.2.2-rc2.post2 -> vllm-plugin-fl==0.2.2rc2.post2
+#              The tag name IS the version (PEP 440 normalized). Immutable, so
+#              the wheel is reproducible and the pin cannot drift. This is the
+#              form for a delivery image.
+#   temp form  a branch / PR / SHA — nothing to name
+#              vllm-plugin-fl==<base>+g<sha7>.d<YYYYMMDD>
+#              <base> is git describe's nearest reachable tag: the version line
+#              the commit sits on. This is the form for a pre-merge
+#              verification build, where the sha is the pin.
+#
+# Resolution happens on the runner (which has git and egress to the plugin
+# repo): it clones, resolves the ref, checks out the commit and derives the
+# version. The build step therefore hands the container exactly two things —
+# a source tree at the right commit, and the finished version string. The
+# container runs no git. The wheel name is asserted against the derived
+# version, so either form is a trustworthy commit-precise pin for the app
+# Containerfile.
+#
+# Inputs: plugin_pr (a PR number, resolved through refs/pull/<N>/head) wins over
+# plugin_ref (branch | tag | full SHA). PR refs survive branch renames and
+# deletion, so a PR number is the durable way to build a pre-merge PR. Both are
+# read from plugin_repo, so a fork is named as easily as upstream.
+# version_base is not an input you normally set: it exists only to name the
+# line when git describe cannot (see the resolve step).
 #
 # Clone source: plugin_repo defaults to the flagos-ai upstream, so the default
 # path builds released/merged code. Pre-merge port branches (e.g. the ascend
@@ -64,17 +90,21 @@ on:
         type: string
         default: ascend-cann9.0.0
       plugin_ref:
-        description: 'vllm-plugin-FL ref to build: a branch name, a tag, or a full 40-hex SHA (abbreviated SHAs are not fetchable by git). The exact commit is resolved and recorded by the workflow — the wheel version below is derived from it, never hand-typed.'
+        description: 'vllm-plugin-FL ref to build: a branch name, a tag, or a full 40-hex SHA (abbreviated SHAs are not fetchable by git). A TAG gives the tag-form version (the tag name itself); anything else gives <nearest tag>+g<sha7>.d<date>. Never type a version — it is derived from the ref and asserted against the actual checkout.'
         type: string
         default: main
+      plugin_pr:
+        description: 'vllm-plugin-FL PR number to build, resolved as refs/pull/<N>/head. WINS over plugin_ref (leave plugin_ref at main when using this). Prefer it for a pre-merge port PR — the ref survives branch renames and deletion.'
+        type: string
+        default: ''
       plugin_repo:
         description: 'vllm-plugin-FL git clone URL (default: flagos-ai upstream; point at a fork for pre-merge port branches)'
         type: string
         default: 'https://github.com/flagos-ai/vllm-plugin-FL.git'
       version_base:
-        description: 'Wheel version base line (e.g. 0.2.1). The workflow appends +g<sha7>.d<YYYYMMDD> from the resolved plugin_ref — do NOT type the full version; it is derived and asserted against the actual checkout.'
+        description: 'Escape hatch — leave empty unless the build fails for want of it. Only a temp-form build needs it, and only when git describe cannot name the line (0.4.0-dev has no tag of its own; a PR head may describe to an older line). The value REPLACES the derived base. Tag-form builds never use it.'
         type: string
-        default: '0.2.1'
+        default: ''
       upload:
         description: 'upload the wheel to the vendor PyPI'
         type: boolean
@@ -131,6 +161,7 @@ jobs:
       WORK: /tmp/vllm-plugin-${{ matrix.name }}-${{ github.run_id }}
       BASE_IMAGE: ${{ matrix.image_tag }}
       PLUGIN_REF: ${{ inputs.plugin_ref }}
+      PLUGIN_PR: ${{ inputs.plugin_pr }}
       PLUGIN_REPO: ${{ inputs.plugin_repo }}
       PLUGIN_VERSION_BASE: ${{ inputs.version_base }}
       VLLM_VENDOR: ${{ matrix.vllm_vendor }}
@@ -139,110 +170,160 @@ jobs:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Resolve the requested ref to its exact commit and derive the wheel
-      # version from it — the version is NEVER hand-typed. The derived version
-      # (base +g<sha7>.d<date>) is the single source of truth for the wheel
-      # name, the image tag, and the status-matrix record; the sha is asserted
-      # against the actual checkout below.
+      # Resolve the ref to an exact commit, check that commit out, and derive
+      # the wheel version from it — all on the runner, which already has git and
+      # egress to the plugin repo. The build step then receives ONE thing: the
+      # finished version string, and a source tree already at the right commit.
       - name: Resolve plugin commit + version
         run: |
           set -euo pipefail
-          sha=""
-          # Read the remote refs once into a variable and match against that text,
-          refs=$(git ls-remote "${PLUGIN_REPO}")
-          if [[ "${PLUGIN_REF}" =~ ^[0-9a-f]{40}$ ]]; then
+          # PEP 440 normalization: a git tag name IS the version.
+          python3 -c "import packaging" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages packaging
+
+          # Blob-filtered FULL clone: the tags and the commit graph are what
+          # `git describe` needs, and checking out one commit does not need
+          # every blob. ~800K / ~20s through the runner proxy. Retried because
+          # that proxy answers 503 intermittently; a remote without filter
+          # support is cloned in full instead — bigger, same result.
+          rm -rf "${WORK}/src"
+          mkdir -p "${WORK}"
+          for attempt in 1 2 3; do
+            if git clone --quiet --filter=blob:none "${PLUGIN_REPO}" "${WORK}/src"; then
+              break
+            fi
+            rm -rf "${WORK}/src"
+            if [ "${attempt}" = 1 ]; then
+              echo ">>> blob-filtered clone failed; retrying, then falling back to a full clone"
+            fi
+            if [ "${attempt}" = 3 ]; then
+              git clone --quiet "${PLUGIN_REPO}" "${WORK}/src"
+            fi
+            sleep 5
+          done
+          [ -d "${WORK}/src/.git" ] \
+            || { echo "ERROR: cannot clone ${PLUGIN_REPO}" >&2; exit 1; }
+          cd "${WORK}/src"
+
+          sha=""; tag=""; label=""
+          if [ -n "${PLUGIN_PR}" ]; then
+            [[ "${PLUGIN_PR}" =~ ^[0-9]+$ ]] \
+              || { echo "ERROR: plugin_pr '${PLUGIN_PR}' is not a PR number" >&2; exit 1; }
+            # Reachable from no branch and no tag — fetch it by name. PR refs
+            # outlive their branch, which is why a PR number beats a branch name
+            # for a pre-merge build.
+            git fetch --quiet --no-tags origin "refs/pull/${PLUGIN_PR}/head" \
+              || { echo "ERROR: no refs/pull/${PLUGIN_PR}/head in ${PLUGIN_REPO} — wrong repo, or the PR number is wrong." >&2; exit 1; }
+            sha=$(git rev-parse FETCH_HEAD)
+            label="PR #${PLUGIN_PR}"
+          elif [[ "${PLUGIN_REF}" =~ ^[0-9a-f]{40}$ ]]; then
             sha="${PLUGIN_REF,,}"
-            # A bare SHA only exists on some branch/tag tip (or main);
-            # GitHub refuses to serve unadvertised objects.
-            if ! awk -v want="${sha}" '$1 == want { found = 1 } END { exit !found }' <<<"${refs}"; then
-              echo "ERROR: ${sha} is not the tip of any branch or tag in ${PLUGIN_REPO} —" >&2
-              echo "      pass a branch/tag name, or push the commit to a branch first." >&2
-              exit 1
-            fi
+            git cat-file -e "${sha}^{commit}" 2>/dev/null \
+              || { echo "ERROR: ${sha} is not a commit in ${PLUGIN_REPO} — pass a branch/tag name or a PR number, or push the commit to a branch first." >&2; exit 1; }
+            label="commit ${sha:0:7}"
+          elif git rev-parse --verify --quiet "refs/remotes/origin/${PLUGIN_REF}" >/dev/null; then
+            sha=$(git rev-parse "refs/remotes/origin/${PLUGIN_REF}")
+            label="branch ${PLUGIN_REF}"
+          elif git rev-parse --verify --quiet "refs/tags/${PLUGIN_REF}^{commit}" >/dev/null; then
+            # A tag gets its own version form: the tag name, normalized.
+            sha=$(git rev-parse "refs/tags/${PLUGIN_REF}^{commit}")
+            tag="${PLUGIN_REF}"
+            label="tag ${PLUGIN_REF}"
           else
-            # Branch or tag name: resolve it to its current tip (branch wins —
-            # ls-remote lists refs/heads/* before refs/tags/*, so the first
-            # match is the same one the old `head -1` picked).
-            sha=$(awk -v head="refs/heads/${PLUGIN_REF}" -v tag="refs/tags/${PLUGIN_REF}" \
-                '$2 == head || $2 == tag { print $1; exit }' <<<"${refs}")
-            if [ -z "${sha}" ]; then
-              echo "ERROR: ref '${PLUGIN_REF}' not found as a branch or tag in ${PLUGIN_REPO}" >&2
-              exit 1
-            fi
+            echo "ERROR: '${PLUGIN_REF}' is neither a branch nor a tag in ${PLUGIN_REPO}" >&2
+            echo "      (an abbreviated SHA is not resolvable — pass the full 40-hex one)" >&2
+            exit 1
           fi
-          echo "PLUGIN_SHA=${sha}" >> "$GITHUB_ENV"
-          echo "PLUGIN_SHA7=${sha:0:7}" >> "$GITHUB_ENV"
-          echo "PLUGIN_VERSION=${PLUGIN_VERSION_BASE}+g${sha:0:7}.d$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
-          echo ">>> resolved ${PLUGIN_REF} -> ${sha}"
-          echo ">>> wheel version ${PLUGIN_VERSION_BASE}+g${sha:0:7}.d$(date -u +%Y%m%d)"
+
+          git checkout -q --detach "${sha}"
+          actual=$(git rev-parse HEAD)
+          if [ "${actual}" != "${sha}" ]; then
+            echo "ERROR: checked out ${actual}, expected ${sha}" >&2
+            exit 1
+          fi
+
+          norm() {
+            python3 -c "import sys; from packaging.version import Version; print(Version(sys.argv[1]))" "$1"
+          }
+          if [ -n "${tag}" ]; then
+            # Immutable: the wheel is reproducible and the pin cannot drift.
+            version=$(norm "${tag}")
+            echo ">>> version form: tag — ${tag} -> ${version}"
+          else
+            # git describe's nearest reachable tag names the version line this
+            # commit sits on. version_base overrides it, for a line with no tag
+            # of its own (0.4.0-dev) or a PR head that describes to an older
+            # line; without either, an undescribable commit is a hard error
+            # rather than a silently mislabelled wheel.
+            base=""; desc=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -n "${desc}" ]; then base=$(norm "${desc}"); fi
+            if [ -z "${base}" ]; then
+              [ -n "${PLUGIN_VERSION_BASE}" ] \
+                || { echo "ERROR: no tag is reachable from ${sha} and version_base is empty — re-dispatch with version_base naming this line." >&2; exit 1; }
+              base="${PLUGIN_VERSION_BASE}"
+              echo ">>> no reachable tag; base from version_base: ${base}"
+            elif [ -n "${PLUGIN_VERSION_BASE}" ] && [ "${base}" != "${PLUGIN_VERSION_BASE}" ]; then
+              echo ">>> version_base overrides the describe base: ${base} -> ${PLUGIN_VERSION_BASE}"
+              base="${PLUGIN_VERSION_BASE}"
+            else
+              echo ">>> git describe: ${desc} -> base ${base}"
+            fi
+            version="${base}+g${sha:0:7}.d$(date -u +%Y%m%d)"
+            echo ">>> version form: temp — ${version}"
+          fi
+          {
+            echo "PLUGIN_SHA=${sha}"
+            echo "PLUGIN_VERSION=${version}"
+          } >> "$GITHUB_ENV"
+          echo ">>> resolved ${label} -> ${sha}"
 
       # Build the wheel inside the runtime image: same python/ABI as delivery.
-      # Everything (git clone, pip) egresses the way the host does — the
-      # runner's proxy, and the host's own no_proxy if it has one, are relayed
-      # by name. This workflow invents no proxy values of its own.
+      # The container gets the resolved source tree (read-only) and the derived
+      # version — nothing else; it does not talk to git at all. Everything
+      # (pip) egresses the way the host does — the runner's proxy, and the
+      # host's own no_proxy if it has one, are relayed by name. This workflow
+      # invents no proxy values of its own.
       - name: Build the wheel in the runtime image
         run: |
           set -euo pipefail
           docker pull "${BASE_IMAGE}"
-          mkdir -p "${WORK}/src" "${WORK}/out"
+          mkdir -p "${WORK}/out"
           # Prefer the proxy the runner relays into this step (lowercase wins)
           proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
           proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
           # No NO_PROXY of this workflow's making.
           docker run --rm \
-            -e VLLM_VENDOR \
-            -e PLUGIN_SHA \
-            -e PLUGIN_REPO \
             -e PLUGIN_VERSION \
             -e EXTRA_PYPI \
             -e HTTPS_PROXY="${proxy_url}" \
             -e HTTP_PROXY="${proxy_url}" \
             -e no_proxy="${no_proxy:-}" \
             -e NO_PROXY="${NO_PROXY:-}" \
-            -v "${WORK}/src:/work/src" \
+            -v "${WORK}/src:/work/src:ro" \
             -v "${WORK}/out:/work/out" \
             "${BASE_IMAGE}" \
             bash -euo pipefail -c '
-              # /work/src is a bind mount owned by the runner user (secure),
-              # not the container root — git would refuse it as dubious
-              # ownership on the first fetch.
-              git config --global --add safe.directory "*"
-              git clone --depth 1 "${PLUGIN_REPO}" /work/src
-              cd /work/src
-              
-              # Fetch the resolved commit.
-              git fetch --depth 1 origin \
-                "+refs/heads/*:refs/remotes/origin/*" \
-                "+refs/tags/*:refs/tags/*"
-              git checkout -q "${PLUGIN_SHA}"
-              actual=$(git rev-parse HEAD)
-              if [ "${actual}" != "${PLUGIN_SHA}" ]; then
-                echo "ERROR: checked out ${actual}, expected ${PLUGIN_SHA}" >&2
-                exit 1
-              fi
-              git rev-parse HEAD > /work/out/commit.txt
-
-              export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
+              # Build from a container-local copy: the tree is mounted
+              # read-only (the runner checked it out), and setuptools writes
+              # build/ + egg-info next to the sources.
+              mkdir -p /build && cp -a /work/src /build/src
+              cd /build/src
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
+              export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
               /flagos/bin/pip wheel --no-build-isolation --no-deps \
                 -w /work/out .
               ls -la /work/out/
             '
-          # Post-build assertions: the wheel must be named after the resolved
-          # version and the checkout must match — no silent version drift.
-          echo ">>> plugin commit: $(cat "${WORK}/out/commit.txt")"
-          if [ "$(cat "${WORK}/out/commit.txt")" != "${PLUGIN_SHA}" ]; then
-            echo "ERROR: wheel built from $(cat "${WORK}/out/commit.txt"), expected ${PLUGIN_SHA}" >&2
-            exit 1
-          fi
+          # Post-build assertion: the wheel must be named after the derived
+          # version — no silent version drift.
           wheel=$(ls "${WORK}"/out/*.whl | head -n1)
           wname=$(basename "${wheel}")
           if [[ "${wname}" != vllm_plugin_fl-${PLUGIN_VERSION}-* ]]; then
             echo "ERROR: wheel ${wname} does not match derived version ${PLUGIN_VERSION}" >&2
             exit 1
           fi
-          echo ">>> built: ${wname}"
+          echo ">>> built: ${wname} (plugin commit ${PLUGIN_SHA:0:7})"
 
       # Host-side audit (stdlib only): fail the build if the wheel declares a
       # critical package — it would drift the runtime matrix on a single-step

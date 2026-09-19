@@ -136,11 +136,13 @@ def _harbor_push_time(image_ref: str) -> str | None:
 
 
 # The image tag's plugin suffix is the wheel version with '+' mapped to '_'
-# (image-tag-safe): <version>_g<sha7>.d<date>. The sha7 after '_g' is the
-# plugin commit the image was built from — it must match what the backend's
-# tracked OPEN upstream PR currently points at. Enforced here so a record can
-# never silently pin an image whose plugin commit has drifted off the PR head
-# (metax 928bc19 incident, 2026-09-03).
+# (image-tag-safe): <version>, or <version>_g<sha7>.d<date> for a pre-merge
+# build. Only the latter names a plugin commit — the sha7 after '_g' is the
+# commit the image was built from, and it must match what the backend's tracked
+# OPEN upstream PR currently points at. Enforced here so a record can never
+# silently pin an image whose plugin commit has drifted off the PR head (metax
+# 928bc19 incident, 2026-09-03). A tag-form suffix names no sha (the tag is
+# immutable), so there is nothing to drift-check and the gate stays quiet.
 _PLUGIN_SHA_RE = re.compile(r"(?:^|[._-])g([0-9a-f]{7,40})\.d\d{8}$")
 
 
