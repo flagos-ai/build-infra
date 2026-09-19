@@ -14,15 +14,39 @@
 
 name: vllm-plugin wheel
 
-# Build vllm-plugin-FL wheels in the backend's runtime image, and
-# (optionally) upload them to the per-vendor PyPI.
+# Build the vllm-plugin-FL wheel and (optionally) upload it to the per-vendor
+# PyPI.
 #
-# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
-# flagos-runtime-{vendor}-{backend}:{version} (from generate_matrix --runtime),
-# exactly the megatron-wheel.yml model. Build env == delivery env: the wheel
-# is built against the same python/torch/triton/flag_gems the app image will
-# run, so it can be installed single-step without pulling in (or upgrading)
-# any runtime package.
+# ONE BUILD SERVES EVERY BACKEND, so this workflow builds once and uploads to
+# every vendor index — the FlagGems arrangement. The plugin ships as a
+# pure-python py3-none-any wheel whose content does not depend on where it was
+# built: the same ref + version built in flagos-runtime-nvidia-cuda12.8
+# (python 3.12) and in flagos-runtime-kunlunxin-xre5.29.0 (python 3.10) gave
+# 328 members, member for member identical — only the zip mtimes of generated
+# files differ, so the sha256 of the file differs while its content does not
+# (measured 2026-09-19). The former per-backend fan-out built that same wheel
+# 20 times. `backend` therefore picks THE IMAGE THE BUILD RUNS IN, not the
+# index the wheel lands on: "all" builds in DEFAULT_BUILD_BACKEND and uploads
+# to every index in the runtime matrix; a named backend builds there and
+# uploads to that vendor's index alone (a staged rollout, or one index before
+# the rest).
+#
+# THE BUILD ENVIRONMENT IS STILL A RUNTIME IMAGE: BASE_IMAGE =
+# flagos-runtime-{vendor}-{backend}:{version}, from generate_matrix --runtime.
+# Build env == delivery env, so the wheel is built against the same
+# python/torch/triton/flag_gems the app image runs, and installs single-step
+# without pulling in (or upgrading) any runtime package. With the wheel proven
+# backend-independent, that image is a reference build environment rather than
+# a constraint on the artifact.
+#
+# THE BUILD NEEDS A WORKING GIT. setuptools-scm uses git for the version and
+# as a file finder: with git present vllm_fl/dispatch/README.md is a member of
+# the wheel; with git hidden the wheel is quietly one member short (measured
+# 2026-09-19). The runner checks the source out as its own user while the
+# container runs as root, and git refuses a repository it does not own
+# ("dubious ownership") — so the container takes ownership of its copy before
+# building, and fails loudly if git is missing rather than shipping the short
+# wheel.
 #
 # Dependency audit gate: after the wheel is built, packaging/script/audit-deps.py
 # reads the wheel's METADATA Requires-Dist and fails the build if it declares
@@ -30,13 +54,11 @@ name: vllm-plugin wheel
 # flag_gems / numpy / vllm). The plugin must not ship dependencies that could
 # overwrite the runtime matrix — the image provides them.
 #
-# Wheel flavor: every backend builds the pure-python wheel (VLLM_VENDOR
-# unset). The former vllm_fl._C native build (VLLM_VENDOR=cuda, nvidia only)
-# required a CUDA toolchain in the runtime image that it does not ship, and
-# the plugin's runtime fallbacks cover the empty-mode paths — retired
-# 2026-08-23 ("都走统一个模式"). vllm_vendor is still emitted by
-# generate_matrix.py and set in this job's env (always ""), but is no longer
-# relayed into the build container.
+# Wheel flavor: the pure-python wheel (VLLM_VENDOR unset). The former
+# vllm_fl._C native build (VLLM_VENDOR=cuda, nvidia only) required a CUDA
+# toolchain in the runtime image that it does not ship, and the plugin's
+# runtime fallbacks cover the empty-mode paths — retired 2026-08-23
+# ("都走统一个模式").
 #
 # The version is DERIVED, never typed, and takes one of two forms — picked by
 # what the requested ref IS, not by a flag:
@@ -56,9 +78,9 @@ name: vllm-plugin wheel
 # repo): it clones, resolves the ref, checks out the commit and derives the
 # version. The build step therefore hands the container exactly two things —
 # a source tree at the right commit, and the finished version string. The
-# container runs no git. The wheel name is asserted against the derived
-# version, so either form is a trustworthy commit-precise pin for the app
-# Containerfile.
+# container runs no git of its own beyond setuptools-scm's file finder. The
+# wheel name is asserted against the derived version, so either form is a
+# trustworthy commit-precise pin for the app Containerfile.
 #
 # Inputs: plugin_pr (a PR number, resolved through refs/pull/<N>/head) wins over
 # plugin_ref (branch | tag | full SHA). PR refs survive branch renames and
@@ -73,9 +95,10 @@ name: vllm-plugin wheel
 # on a fork — dispatch with plugin_repo=<fork URL> + plugin_ref=<branch|tag|SHA>
 # to build them, and gate the upload with audit-deps.py as usual.
 #
-# Upload target defaults to flagos-pypi-<vendor> so the wheel lands next to
-# that backend's vllm+flagos / torch / flag_gems. There is no schedule:
-# uploads are manual.
+# Upload target: every vendor index under backend=all, else flagos-pypi-<vendor>
+# so the wheel lands next to that backend's vllm+flagos / torch / flag_gems;
+# pypi_repo replaces the target with the one repo it names. There is no
+# schedule: uploads are manual.
 #
 # The wheel is also kept as a run artifact on every build, publish or not:
 # the cleanup step deletes the work dir, so a manual build (upload=false —
@@ -86,9 +109,9 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose runtime image builds the wheel (e.g. ascend-cann9.0.0, or "all")'
+        description: 'Backend whose runtime image builds the wheel (e.g. nvidia-cuda12.8). "all" = build once in the default image and upload to every vendor index.'
         type: string
-        default: ascend-cann9.0.0
+        default: all
       plugin_ref:
         description: 'vllm-plugin-FL ref to build: a branch name, a tag, or a full 40-hex SHA (abbreviated SHAs are not fetchable by git). A TAG gives the tag-form version (the tag name itself); anything else gives <nearest tag>+g<sha7>.d<date>. Never type a version — it is derived from the ref and asserted against the actual checkout.'
         type: string
@@ -106,11 +129,11 @@ on:
         type: string
         default: ''
       upload:
-        description: 'upload the wheel to the vendor PyPI'
+        description: 'upload the wheel to the vendor PyPI index(es)'
         type: boolean
         default: false
       pypi_repo:
-        description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
+        description: 'Nexus PyPI repo (default: every vendor index under backend=all, else flagos-pypi-<vendor>)'
         type: string
         default: ''
 
@@ -129,43 +152,85 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
-  set-matrix:
+  # Which image builds, and where the wheel goes. The two are decoupled (the
+  # wheel is backend-independent), so this resolves a single build row plus a
+  # list of upload targets rather than a build matrix.
+  resolve:
     needs: authorize
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      backend: ${{ steps.resolve.outputs.backend }}
+      runson: ${{ steps.resolve.outputs.runson }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+      extra_pypi: ${{ steps.resolve.outputs.extra_pypi }}
+      repos: ${{ steps.resolve.outputs.repos }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
-      - id: set-matrix
+      - id: resolve
+        env:
+          BACKEND: ${{ inputs.backend }}
+          PYPI_REPO: ${{ inputs.pypi_repo }}
+          # The reference build image for backend=all. Any row would do — the
+          # wheel does not depend on it — so this is the platform the vllm
+          # work is verified on first, not a constraint on the artifact.
+          DEFAULT_BUILD_BACKEND: nvidia-cuda12.8
         run: |
-          if [[ "${{ inputs.backend }}" == "all" ]]; then
+          set -euo pipefail
+          if [[ "${BACKEND}" == "all" ]]; then
             python3 scripts/generate_matrix.py --runtime > matrix.json
           else
-            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+            python3 scripts/generate_matrix.py --runtime "${BACKEND}" > matrix.json
           fi
-          cat matrix.json
-          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+          if [[ "$(jq '.include | length' matrix.json)" -eq 0 ]]; then
+            echo "ERROR: no runtime backend matches '${BACKEND}'" >&2
+            exit 1
+          fi
+          # The vendor index a backend installs the plugin from is the one its
+          # runtime row already carries (flagos_pypi), so the fan-out cannot
+          # drift from the index the app images use.
+          build_backend="${BACKEND}"
+          if [[ "${BACKEND}" == "all" ]]; then
+            build_backend="${DEFAULT_BUILD_BACKEND}"
+            repos=$(jq -r '.include[].flagos_pypi' matrix.json \
+              | sed 's#.*/repository/##; s#/simple$##' | sort -u | paste -sd' ' -)
+          else
+            repos=$(jq -r '.include[0].flagos_pypi' matrix.json \
+              | sed 's#.*/repository/##; s#/simple$##')
+          fi
+          if [[ -n "${PYPI_REPO}" ]]; then
+            repos="${PYPI_REPO}"
+          fi
+          row=$(jq -c --arg n "${build_backend}" '.include[] | select(.name == $n)' matrix.json)
+          if [[ -z "${row}" ]]; then
+            echo "ERROR: '${build_backend}' is not in the runtime matrix" >&2
+            exit 1
+          fi
+          echo ">>> build image: $(jq -r .image_tag <<<"${row}")"
+          echo ">>> upload targets: ${repos}"
+          {
+            echo "backend=${build_backend}"
+            echo "runson=$(jq -c .runson <<<"${row}")"
+            echo "image_tag=$(jq -r .image_tag <<<"${row}")"
+            echo "extra_pypi=$(jq -r .extra_pypi <<<"${row}")"
+            echo "repos=${repos}"
+          } >> "$GITHUB_OUTPUT"
 
   build:
-    needs: set-matrix
-    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
-    runs-on: ${{ fromJSON(matrix.runson) }}
+    needs: resolve
+    runs-on: ${{ fromJSON(needs.resolve.outputs.runson) }}
     env:
-      WORK: /tmp/vllm-plugin-${{ matrix.name }}-${{ github.run_id }}
-      BASE_IMAGE: ${{ matrix.image_tag }}
+      WORK: /tmp/vllm-plugin-${{ github.run_id }}
+      BASE_IMAGE: ${{ needs.resolve.outputs.image_tag }}
+      EXTRA_PYPI: ${{ needs.resolve.outputs.extra_pypi }}
+      PYPI_REPOS: ${{ needs.resolve.outputs.repos }}
       PLUGIN_REF: ${{ inputs.plugin_ref }}
       PLUGIN_PR: ${{ inputs.plugin_pr }}
       PLUGIN_REPO: ${{ inputs.plugin_repo }}
       PLUGIN_VERSION_BASE: ${{ inputs.version_base }}
-      VLLM_VENDOR: ${{ matrix.vllm_vendor }}
-      EXTRA_PYPI: ${{ matrix.extra_pypi }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -279,10 +344,10 @@ jobs:
 
       # Build the wheel inside the runtime image: same python/ABI as delivery.
       # The container gets the resolved source tree (read-only) and the derived
-      # version — nothing else; it does not talk to git at all. Everything
-      # (pip) egresses the way the host does — the runner's proxy, and the
-      # host's own no_proxy if it has one, are relayed by name. This workflow
-      # invents no proxy values of its own.
+      # version — nothing else; it talks to git only through setuptools-scm.
+      # Everything (pip) egresses the way the host does — the runner's proxy,
+      # and the host's own no_proxy if it has one, are relayed by name. This
+      # workflow invents no proxy values of its own.
       - name: Build the wheel in the runtime image
         run: |
           set -euo pipefail
@@ -305,8 +370,14 @@ jobs:
             bash -euo pipefail -c '
               # Build from a container-local copy: the tree is mounted
               # read-only (the runner checked it out), and setuptools writes
-              # build/ + egg-info next to the sources.
+              # build/ + egg-info next to the sources. Take ownership of the
+              # copy — git refuses a repository owned by anyone else, and
+              # setuptools-scm needs git to find the files it ships. A refused
+              # git is not an error there: it silently drops a member.
               mkdir -p /build && cp -a /work/src /build/src
+              chown -R root:root /build/src
+              command -v git >/dev/null \
+                || { echo "ERROR: no git in the build image — setuptools-scm would ship a wheel missing vllm_fl/dispatch/README.md" >&2; exit 1; }
               cd /build/src
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
@@ -343,13 +414,15 @@ jobs:
       - name: Upload the wheel as a run artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: vllm-plugin-wheel-${{ matrix.name }}
+          name: vllm-plugin-wheel-${{ needs.resolve.outputs.backend }}
           path: ${{ env.WORK }}/out/*.whl
           if-no-files-found: error
           retention-days: 14
 
-      # Upload only when explicitly requested (default false).
-      - name: Upload to vendor PyPI
+      # Upload only when explicitly requested (default false). One wheel, every
+      # target index: a backend installs the plugin from its own vendor index,
+      # so a partial fan-out leaves the rest of them unable to install it.
+      - name: Upload to the vendor PyPI
         if: ${{ inputs.upload }}
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
@@ -359,16 +432,7 @@ jobs:
             echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
             exit 1
           fi
-          # `${{ matrix.name }}` cannot be substituted inside a bash
-          # parameter-expansion expression — ${matrix.name%%-*} reaches bash
-          # unexpanded and dies with "bad substitution". Expand into a local
-          # var first (2026-08-18, run 32138523697: build+audit passed, upload
-          # died on this line).
-          matrix_name="${{ matrix.name }}"
-          vendor="${matrix_name%%-*}"
-          pypi_repo="${{ inputs.pypi_repo }}"
-          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
-          echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to: ${PYPI_REPOS}"
           # Same egress rule as the build step: relay the runner's proxy, and
           # relay the host's no_proxy verbatim (usually unset) instead of
           # carving out hosts ourselves. Without any proxy this container
@@ -378,7 +442,7 @@ jobs:
           proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
           docker run --rm \
             -e NEXUS_TOKEN \
-            -e pypi_repo="${pypi_repo}" \
+            -e PYPI_REPOS \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
             -e HTTPS_PROXY="${proxy_url}" \
             -e HTTP_PROXY="${proxy_url}" \
@@ -393,10 +457,21 @@ jobs:
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
               export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
               export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-              /flagos/bin/twine upload \
-                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
-                --non-interactive \
-                /wheels/*.whl
+              # Every target gets an attempt even if one of them fails: a
+              # single flaky index must not strand the rest of the fan-out.
+              # The failures are collected and the step still exits non-zero,
+              # so a half-published wheel is visible rather than silent;
+              # re-dispatch with pypi_repo=<index> for the stragglers.
+              failed=""
+              for repo in ${PYPI_REPOS}; do
+                echo ">>> uploading to ${repo}"
+                /flagos/bin/twine upload \
+                  --repository-url "https://resource.flagos.net/repository/${repo}/" \
+                  --non-interactive \
+                  /wheels/*.whl || failed="${failed} ${repo}"
+              done
+              [ -z "${failed}" ] \
+                || { echo "ERROR: upload failed for:${failed}" >&2; exit 1; }
             '
 
       - name: Clean up the work dir
