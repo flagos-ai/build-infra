@@ -44,7 +44,14 @@ also refreshes upstream PR status. Resolution prefers the GitHub REST API
 with GH_TOKEN/GITHUB_TOKEN (every CI step has one, including the record step
 on self-hosted runners that carry no `gh` binary), and falls back to the
 `gh` CLI for local renders without a token; when neither works the column
-falls back to "—".
+falls back to "—" (or, for a recorded row, to the state it already carries).
+
+The YAML and the md do different jobs here. `prs:` is a WORKING SET — the
+open tracking items — so a PR leaves the YAML when it merges. The md table
+is a RECORD of what each backend's work travelled through, so the renderer
+merges the rows already in the md back into the table: it only ever grows,
+and a merged row keeps its place with its state refreshed. A `prs:` entry
+that is already merged is reported on stderr as one to delete.
 
 Driven from the pre-commit hook (scripts/install-git-hooks.sh) and from CI
 (.github/workflows/status-matrix-consistency.yml), which opens a
@@ -180,6 +187,14 @@ _PR_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/p
 # `gh pr view --json state` values → display. Merged PRs report MERGED.
 PR_STATE = {"MERGED": "已合并", "OPEN": "OPEN", "CLOSED": "已关闭"}
 
+# Shape of one PR index row in the md. Matched by shape rather than by table
+# position so the block's heading text can change without dropping the record.
+_PR_ROW_RE = re.compile(
+    r"^\|\s*(?P<vendor>[^|]+?)\s*\|\s*(?P<backend>[^|]+?)\s*\|"
+    r"\s*(?P<app>[^|]+?)\s*\|\s*(?P<pr>https://github\.com/\S+?)\s*\|"
+    r"\s*(?P<state>[^|]+?)\s*\|\s*$"
+)
+
 
 def backend_parts(key: str) -> tuple[str, str]:
     vendor, _, backend = key.partition("-")
@@ -198,6 +213,15 @@ def vendor_display(vendor: str) -> str:
     if vendor in VENDOR_DISPLAY:
         return VENDOR_DISPLAY[vendor]
     return backend_display(f"{vendor}-{vendor}")  # fallback, mirrors launch docs
+
+
+# Display form → backend key, so a row read back from the md can be ordered
+# among the rows the YAML produces.
+_BACKEND_RANK = {key: i for i, key in enumerate(BACKENDS)}
+_BACKEND_KEY_BY_DISPLAY = {
+    (vendor_display(backend_parts(key)[0]), backend_display(key)): key
+    for key in BACKENDS
+}
 
 
 def version_key(version: str) -> tuple:
@@ -397,14 +421,15 @@ def _rest_pr_state(url: str) -> str | None:
 
 
 def resolve_pr_states(urls: list[str]) -> dict[str, str]:
-    """Best-effort {url: 已合并|OPEN|已关闭|—} map, one call per unique URL.
+    """Best-effort {url: 已合并|OPEN|已关闭} for the URLs it could resolve.
 
     Merge state changes in the PR's own repo, not build-infra, so it cannot
     be maintained in YAML — resolve it fresh on every render. Resolution
     order: REST with a workflow token (deterministic across runners, `gh`
-    binary or not), then the `gh` CLI (tokenless local renders); any failure
-    (offline, unauthenticated, rate limit) falls back to "—" so rendering
-    stays deterministic."""
+    binary or not), then the `gh` CLI (tokenless local renders). An
+    unresolvable URL is simply absent from the map, not "—": callers decide
+    what an unknown state means for the cell they are filling.
+    """
     states: dict[str, str] = {}
     failures = 0
     for url in sorted(set(urls)):
@@ -422,7 +447,6 @@ def resolve_pr_states(urls: list[str]) -> dict[str, str]:
         if state is not None:
             states[url] = PR_STATE.get(state, "—")
         else:
-            states[url] = "—"
             failures += 1
     if failures:
         print(f"render_status_matrix: {failures} 个 PR 状态查询失败，状态列显示 —"
@@ -430,17 +454,59 @@ def resolve_pr_states(urls: list[str]) -> dict[str, str]:
     return states
 
 
-def pr_rows(apps: list[dict], states: dict[str, str] | None = None) -> list[list[str]]:
-    """Backend-level PR index rows: one per PR, ordered by backend then app."""
+def parse_recorded_pr_rows(block: str) -> list[list[str]]:
+    """The PR index rows already in the md — the record the render preserves."""
     rows = []
+    for line in block.splitlines():
+        m = _PR_ROW_RE.match(line)
+        if m:
+            rows.append([m.group("vendor"), m.group("backend"),
+                         m.group("app"), m.group("pr"), m.group("state")])
+    return rows
+
+
+def pr_rows(apps: list[dict], states: dict[str, str] | None = None,
+            recorded: list[list[str]] | None = None) -> list[list[str]]:
+    """Backend-level PR index rows: one per PR, ordered by backend then app.
+
+    `prs:` is the working set and drops a PR as soon as it merges, so the rows
+    already in the md are merged back in: the table is a record of what each
+    backend's work travelled through and only ever grows. A recorded row is
+    kept verbatim (the YAML no longer knows which backend/app it belonged to),
+    keeping its own state when this render could not resolve one.
+
+    Deduplication is per (backend, app, PR): one PR is routinely tracked by
+    several backends, and each of those is its own row.
+    """
+    states = states or {}
+    rows: list[list[str]] = []
+    seq = 0
+    seen: set[tuple[str, str, str]] = set()
     for bkey in BACKENDS:
         for app in apps:
-            prs = (app["backends"].get(bkey) or {}).get("prs") or []
-            for pr in prs:
-                rows.append([vendor_display(backend_parts(bkey)[0]),
+            for pr in (app["backends"].get(bkey) or {}).get("prs") or []:
+                key = (backend_display(bkey), app["app"], pr)
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append([seq, vendor_display(backend_parts(bkey)[0]),
                              backend_display(bkey), app["app"], pr,
-                             (states or {}).get(pr, "—")])
-    return rows
+                             states.get(pr, "—")])
+                seq += 1
+    for row in recorded or []:
+        if len(row) < 5 or (row[1], row[2], row[3]) in seen:
+            continue
+        seen.add((row[1], row[2], row[3]))
+        rows.append([seq, row[0], row[1], row[2], row[3],
+                     states.get(row[3], row[4])])
+        seq += 1
+    app_rank = {app["app"]: i for i, app in enumerate(apps)}
+    rows.sort(key=lambda r: (
+        _BACKEND_RANK.get(_BACKEND_KEY_BY_DISPLAY.get((r[1], r[2])), len(BACKENDS)),
+        app_rank.get(r[3], len(app_rank)),
+        r[0],
+    ))
+    return [row[1:] for row in rows]
 
 
 def render_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -484,11 +550,21 @@ def render_facility(app: dict, apps: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def render_verification_block(apps: list[dict]) -> str:
+def render_verification_block(apps: list[dict],
+                              recorded: list[list[str]] | None = None) -> str:
     cols = scenario_columns(apps)
     parts = [render_table(matrix_header(cols), matrix_rows(cols))]
-    states = resolve_pr_states(collect_pr_urls(apps))
-    prs = pr_rows(apps, states)
+    tracked = collect_pr_urls(apps)
+    states = resolve_pr_states(tracked + [row[3] for row in recorded or []])
+    merged = sorted({u for u in tracked if states.get(u) == PR_STATE["MERGED"]})
+    if merged:
+        # The YAML is a working set of open items; a merged one belongs in the
+        # md record only. Reported, not enforced — the render still succeeds.
+        print(f"render_status_matrix: {len(merged)} 个已合并的 PR 仍在 YAML 的 prs: "
+              f"里，合并后应删除该条目（md 中的记录保留）：", file=sys.stderr)
+        for url in merged:
+            print(f"  {url}", file=sys.stderr)
+    prs = pr_rows(apps, states, recorded)
     if prs:
         parts += ["", "**后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**", ""]
         parts.append(render_table(["厂商", "后端", "App", "PR", "状态"], prs))
@@ -537,8 +613,11 @@ def render_component(comp: str) -> list[str]:
     apps = load_apps(comp)
     changed = []
     for md_path in [COMPONENTS[comp]["md"]]:
+        md = md_path.read_text()
+        span = find_markers(md, VERIFICATION_BLOCK)
+        recorded = parse_recorded_pr_rows(md[span[0]:span[1]]) if span else []
         rewritten = rewrite_block(md_path, VERIFICATION_BLOCK,
-                                  render_verification_block(apps))
+                                  render_verification_block(apps, recorded))
         if rewritten:
             changed.append(str(md_path))
     for app in apps:

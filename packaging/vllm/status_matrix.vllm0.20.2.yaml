@@ -63,9 +63,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.2rc2.post1_gdb28502.d20260915"
-    prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/361
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/402
   ascend-cann8.5.0-910c:
     deps_app: true
     launch_docs: true
@@ -74,9 +71,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.2rc2.post1_gdb28502.d20260915"
-    prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/361
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/402
   ascend-cann9.0.0-910c:
     deps_app: true
     launch_docs: true
@@ -85,16 +79,10 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_gcab2270.d20260905"
-    prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/411
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_gb954912.d20260904"
-    prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/411
-      - https://github.com/flagos-ai/FlagGems/pull/5745
-      - https://github.com/flagos-ai/FlagGems/pull/5510
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
@@ -119,9 +107,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_g8236c0a.d20260821"
-    prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/268
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/400
   metax-maca3.7.2.1:
     deps_app: true
     launch_docs: true
@@ -145,8 +130,6 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.0_g687217a.d20260819"
-    prs:
-      - https://github.com/flagos-ai/FlagTree/pull/978
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
@@ -154,5 +137,3 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.1.2-0.2.1_g90ffdf0.d20260912"
-    prs:
-      - https://github.com/flagos-ai/vllm-plugin-FL/pull/489
