@@ -56,9 +56,11 @@ name: vllm-plugin wheel
 # repo): it clones, resolves the ref, checks out the commit and derives the
 # version. The build step therefore hands the container exactly two things —
 # a source tree at the right commit, and the finished version string. The
-# container runs no git. The wheel name is asserted against the derived
-# version, so either form is a trustworthy commit-precise pin for the app
-# Containerfile.
+# container runs no git of its own beyond setuptools-scm's file finder: that
+# finder needs a working git and a repository it owns, or the wheel is quietly
+# missing a member (see the build step). The wheel name is asserted against the
+# derived version, so either form is a trustworthy commit-precise pin for the
+# app Containerfile.
 #
 # Inputs: plugin_pr (a PR number, resolved through refs/pull/<N>/head) wins over
 # plugin_ref (branch | tag | full SHA). PR refs survive branch renames and
@@ -305,8 +307,14 @@ jobs:
             bash -euo pipefail -c '
               # Build from a container-local copy: the tree is mounted
               # read-only (the runner checked it out), and setuptools writes
-              # build/ + egg-info next to the sources.
+              # build/ + egg-info next to the sources. Take ownership of the
+              # copy — git refuses a repository owned by anyone else, and
+              # setuptools-scm needs git to find the files it ships. A refused
+              # git is not an error there: it silently drops a member.
               mkdir -p /build && cp -a /work/src /build/src
+              chown -R root:root /build/src
+              command -v git >/dev/null \
+                || { echo "ERROR: no git in the build image — setuptools-scm would ship a wheel missing vllm_fl/dispatch/README.md" >&2; exit 1; }
               cd /build/src
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
