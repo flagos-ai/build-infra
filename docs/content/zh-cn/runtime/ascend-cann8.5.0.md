@@ -29,7 +29,7 @@ title: "ascend-cann8.5.0"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.1.2</code> <a href="../../base/ascend-cann8.5.0/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.2.0</code> <a href="../../base/ascend-cann8.5.0/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -37,9 +37,12 @@ title: "ascend-cann8.5.0"
 
 ### 主要 Python 软件包
 
-- `flag_gems==5.3.5`
+- `attrs==24.2.0`
+- `decorator==5.1.1`
+- `flag_gems==5.4.0-rc2.post3`
 - `flagtree==0.6.0+ascend3.2`
-- `numpy==2.3.5`
+- `numpy==1.26.4`
+- `psutil==6.0.0`
 - `torch-npu==2.9.0`
 - `torch==2.9.0+cpu`
 - `torchaudio==2.9.0`
@@ -57,7 +60,7 @@ title: "ascend-cann8.5.0"
 ```bash
 docker run --rm -it \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.2.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -72,7 +75,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.2.0 bash
 ```
 
 ## 验证

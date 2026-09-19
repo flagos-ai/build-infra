@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.1.2`
+`harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.2.0`
 
 ### Python
 
@@ -17,9 +17,9 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.5`
-- `flagtree==0.6.1+tsingmicro3.3`
-- `numpy==2.2.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `flagtree==0.7.0rc2+tsingmicro3.6`
+- `numpy==1.26.4`
 - `torch==2.11.0+cpu`
 - `torch_txda==0.1.0+20260728.f6fbdb71`
 - `torchaudio==2.11.0+cpu`
@@ -44,7 +44,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -53,7 +53,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.2.0 bash
 ```
 
 ## Verify

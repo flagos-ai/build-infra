@@ -29,7 +29,7 @@ title: "metax-maca3.8.1.3"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.1.2</code> <a href="../../base/metax-maca3.8.1.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.2.0</code> <a href="../../base/metax-maca3.8.1.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -38,13 +38,13 @@ title: "metax-maca3.8.1.3"
 ### Major Python packages
 
 - `apex==0.1+metax3.8.1.0`
-- `flag_gems==5.3.5`
-- `flagtree==0.6.1+metax3.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `flagtree==0.7.0rc2+metax3.6`
 - `flash_attn==2.6.3+metax3.8.1.0torch2.10`
 - `flash_linear_attention==0.5.0+metax3.8.1.0torch2.10`
 - `flash_mla==1.0.1+metax3.8.1.0torch2.10`
 - `flashinfer==0.2.6+metax3.8.1.0torch2.10`
-- `numpy==2.3.5`
+- `numpy==1.26.4`
 - `torch==2.10.0+metax3.8.1.0`
 - `torchaudio==2.4.1+metax3.8.1.0`
 - `torchcodec==0.6.0+metax3.8.1.0`
@@ -64,7 +64,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -74,7 +74,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0 bash
 ```
 
 ## Verify

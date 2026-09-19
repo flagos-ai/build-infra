@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.2`
+`harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.2.0`
 
 ### Python
 
@@ -17,9 +17,9 @@
 
 ### Major Python packages
 
-- `flag_gems==5.3.5`
-- `flagtree==0.6.1`
-- `numpy==2.3.5`
+- `flag_gems==5.4.0-rc2.post3`
+- `flagtree==0.7.0rc2`
+- `numpy==1.26.4`
 - `torch==2.11.0+cu130`
 - `torchaudio==2.11.0+cu130`
 - `torchvision==0.26.0+cu130`
@@ -36,7 +36,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.2.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -49,7 +49,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.2.0 bash
 ```
 
 ## Verify

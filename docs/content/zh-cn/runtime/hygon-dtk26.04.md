@@ -29,7 +29,7 @@ title: "hygon-dtk26.04"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.1.2</code> <a href="../../base/hygon-dtk26.04/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.2.0</code> <a href="../../base/hygon-dtk26.04/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -38,11 +38,12 @@ title: "hygon-dtk26.04"
 ### 主要 Python 软件包
 
 - `apex==1.7.0+das.opt1.dtk2604.torch290`
-- `flag_gems==5.3.5`
-- `flagtree==0.6.1+hcu3.6`
+- `flag_gems==5.4.0-rc2.post3`
+- `flagtree==0.7.0rc2+hcu3.6`
 - `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
 - `numpy==1.26.4`
 - `torch==2.9.0+das.opt1.dtk2604`
+- `torchvision==0.24.0+das.opt1.dtk2604.torch290`
 - <span class="muted"><code class="plain">triton==3.5.1+das.opt1.dtk2604.torch290</code></span>
 
 ### 切换编译器
@@ -56,7 +57,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.2.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -69,7 +70,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.2.0 bash
 ```
 
 ## 验证
