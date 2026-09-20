@@ -129,7 +129,7 @@ backends:
   sunrise-tangrt1.2.0:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.0_g687217a.d20260819"
+    image_tag: "2.2.0-0.2.2rc2.post2"
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
