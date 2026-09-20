@@ -34,7 +34,7 @@ image: vllm0.24.0-metax-maca3.7.2.1
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T09:55:46.608Z'
     reason: >-
       This moves the image from 990a8f7, one commit past v0.3.0-rc2.post1, onto the
       release tag itself. Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime
