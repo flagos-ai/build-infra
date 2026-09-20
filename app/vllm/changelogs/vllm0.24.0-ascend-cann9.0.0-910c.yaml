@@ -34,7 +34,7 @@ image: vllm0.24.0-ascend-cann9.0.0-910c
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:07:33.811Z'
     reason: >-
       The ascend 0.24.0 port (PR 387) is on the release line now, so this image
       leaves the pre-merge head cf8998c it was pinned to. Rebuilt on the FlagOS
