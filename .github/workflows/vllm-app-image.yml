@@ -263,13 +263,18 @@ jobs:
       # refuse any mismatch against the requested pin — a wrong/stale pin must
       # fail loudly here instead of silently shipping an image whose recorded
       # tag lies about its plugin commit.
+      #
+      # --entrypoint is required: the NVIDIA base carries
+      # /opt/nvidia/nvidia_entrypoint.sh, which writes its CUDA banner to
+      # STDOUT. Without the override the banner lands in ${installed} and the
+      # comparison fails on a correct image.
       - name: Verify installed plugin version matches the pin
         if: ${{ !inputs.record_only && inputs.plugin_fl_version != '' }}
         run: |
           set -euo pipefail
           requested="${{ inputs.plugin_fl_version }}"
-          installed=$(docker run --rm "${APP_TAG}" \
-            python3 -c "import importlib.metadata as m; print(m.version('vllm-plugin-fl'))" 2>/dev/null || true)
+          installed=$(docker run --rm --entrypoint python3 "${APP_TAG}" \
+            -c "import importlib.metadata as m; print(m.version('vllm-plugin-fl'))" 2>/dev/null || true)
           if [ -z "${installed}" ]; then
             echo "::error::vllm-plugin-fl requested (${requested}) but not found in ${APP_TAG}"
             exit 1
