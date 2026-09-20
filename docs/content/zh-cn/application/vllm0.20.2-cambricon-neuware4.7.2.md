@@ -28,7 +28,7 @@ title: "vllm0.20.2-cambricon-neuware4.7.2"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.2.0</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -39,16 +39,16 @@ title: "vllm0.20.2-cambricon-neuware4.7.2"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+gb954912.d20260904`
+`vllm-plugin-fl==0.2.2rc2.post2`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_gb954912.d20260904`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.2.0-0.2.2rc2.post2`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.1.2-0.2.1_gb954912.d20260904
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-cambricon-neuware4.7.2:2.2.0-0.2.2rc2.post2
 ```
 
 ### 无需工具包——直接使用 docker / podman

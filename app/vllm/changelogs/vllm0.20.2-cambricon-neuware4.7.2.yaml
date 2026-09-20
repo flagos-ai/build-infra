@@ -33,7 +33,7 @@ image: vllm0.20.2-cambricon-neuware4.7.2
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T11:14:33.469Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
       v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
@@ -45,11 +45,13 @@ tags:
 - tag: 2.1.2-0.2.1_gb954912.d20260904
   entries:
   - date: '2026-09-04T23:41:57Z'
-    reason: Rebuild on flag_gems 5.3.5 (FlagGems mask-logic fix) after re-verify on neuware4.7.2, correcting
-      a numpy mismatch (2.2.6 pulled into the earlier app image vs the runtime's 1.26.4 pin). Repacked
-      vllm wheel pins xgrammar==0.2.3+flagos; single-step install is matrix-inert; semantic serve verified.
-      Supersedes the initial 0.20.2 deliverable (same tag prefix, gb954912.d20260826, PR 411 cambricon
-      enablement with the flag_gems index blacklist).
+    reason: Rebuild on flag_gems 5.3.5 (FlagGems mask-logic fix) after re-verify
+      on neuware4.7.2, correcting a numpy mismatch (2.2.6 pulled into the 
+      earlier app image vs the runtime's 1.26.4 pin). Repacked vllm wheel pins 
+      xgrammar==0.2.3+flagos; single-step install is matrix-inert; semantic 
+      serve verified. Supersedes the initial 0.20.2 deliverable (same tag 
+      prefix, gb954912.d20260826, PR 411 cambricon enablement with the flag_gems
+      index blacklist).
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/411
     - https://github.com/flagos-ai/FlagGems/pull/5745
