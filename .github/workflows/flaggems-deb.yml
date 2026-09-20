@@ -1,0 +1,214 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: flaggems deb package
+
+# Build the python3-flag-gems .deb from the FlagGems repository's own packaging
+# definition, and publish it to the FlagOS apt repositories.
+#
+# Why the build lives here rather than in FlagGems: the packaging definition is
+# upstream's (packaging/debian/, already merged there) and stays upstream, which
+# is where distribution maintainers expect to find it. What lives here is the
+# *release path* — clone, build, verify, publish — so that producing packages
+# does not depend on changes landing in each component repository.
+#
+# Dispatch-only: a .deb is a release artifact, nothing here is worth running on
+# a push.
+#
+# `verify` installs the .deb into a clean container from the file alone: the
+# build tree proves nothing about whether the package's own Depends are
+# satisfiable. Publishing is a step of verify for the same reason — the
+# repository is the only path to a user's `apt-get install`, so an unverified
+# package must not reach it.
+#
+# The package is Architecture: all (pure Python), so it applies to every suite
+# and is published into each of them, per the packaging channels policy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flaggems_ref:
+        description: 'FlagGems git ref to build (tag for a release, branch otherwise)'
+        type: string
+        default: master
+      suites:
+        description: >-
+          apt suites to publish into, space-separated. Each value is the
+          repository name after "flagos-apt-", e.g. "ubuntu22.04" targets
+          flagos-apt-ubuntu22.04.
+        type: string
+        default: ubuntu22.04 ubuntu24.04
+      verify:
+        description: 'install the .deb in a clean container before uploading'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified .deb to the apt repositories (requires verify)'
+        type: boolean
+        default: false
+
+env:
+  NEXUS_REPO_BASE: https://resource.flagos.net/repository
+  FLAGGEMS_REPO: https://github.com/flagos-ai/FlagGems.git
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      deb_name: ${{ steps.build.outputs.deb_name }}
+    steps:
+      - name: Refuse to publish what was not verified
+        if: ${{ inputs.publish }}
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          # Verification runs against a fixed matrix. Publishing into a suite
+          # that matrix does not cover would ship a package nobody installed
+          # on that distribution, so the target set may not exceed it.
+          VERIFIED="ubuntu22.04 ubuntu24.04"
+          for suite in ${SUITES}; do
+            case " ${VERIFIED} " in
+              *" ${suite} "*) ;;
+              *)
+                echo "::error::suite '${suite}' is not covered by the verify matrix (${VERIFIED});"
+                echo "::error::add it there before publishing into it"
+                exit 1 ;;
+            esac
+          done
+          echo "Publish targets are all covered by verification: ${SUITES}"
+
+      - name: Clone FlagGems at ${{ inputs.flaggems_ref }}
+        run: |
+          set -euo pipefail
+          git clone --depth 50 --branch "${{ inputs.flaggems_ref }}" \
+            "${FLAGGEMS_REPO}" src
+          cd src
+          echo "Building $(git rev-parse --short HEAD) of ${{ inputs.flaggems_ref }}"
+          # The deb version comes from packaging/debian/changelog, not from git
+          # tags, so a shallow clone is enough.
+          test -f packaging/debian/build-helpers/build-flaggems.sh \
+            || { echo "::error::this ref has no Debian packaging definition"; exit 1; }
+
+      - name: Build the .deb
+        id: build
+        working-directory: src
+        run: |
+          set -euo pipefail
+          bash packaging/debian/build-helpers/build-flaggems.sh
+          deb=$(ls debian-packages/*.deb | head -1)
+          echo "deb_name=$(basename "$deb")" >> "$GITHUB_OUTPUT"
+          echo ">>> $(basename "$deb")"
+          dpkg-deb -f "$deb" Package Version Architecture Depends
+
+      - name: Upload the .deb
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: flaggems-deb
+          path: src/debian-packages/*.deb
+          retention-days: 7
+
+  verify:
+    needs: build
+    if: ${{ inputs.verify }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The package is arch-independent, but its dependencies are resolved
+        # per suite — Ubuntu 22.04 is the one that pins sqlalchemy to 1.4.
+        image: [ubuntu:22.04, ubuntu:24.04]
+    steps:
+      - name: Download the .deb
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flaggems-deb
+          path: pkg
+
+      - name: Install it in a clean ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
+            set -e
+            apt-get update -qq
+            # Installing the file itself is the test: apt has to satisfy the
+            # package'"'"'s own Depends from the distribution alone.
+            apt-get install -y -qq /pkg/*.deb
+            D=/usr/lib/python3/dist-packages/flag_gems
+            test -d "$D" || { echo "package installed but $D is missing"; exit 1; }
+            # A directory of .py files without __init__.py is dropped silently
+            # by find_packages, so the module is absent at runtime while the
+            # install looks clean. Check the whole tree, not a sample.
+            missing=$(find "$D" -name "*.py" | xargs -n1 dirname | sort -u \
+                      | while read -r d; do [ -f "$d/__init__.py" ] || echo "$d"; done)
+            if [ -n "$missing" ]; then
+              echo "subpackages shipped without __init__.py:"; echo "$missing"; exit 1
+            fi
+            echo "OK: installed, $(find "$D" -name "*.py" | wc -l) modules, no gaps"
+          '
+
+  publish:
+    needs: [build, verify]
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the .deb
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flaggems-deb
+          path: pkg
+
+      - name: Publish to the apt repositories
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          deb=$(ls pkg/*.deb | head -1)
+          uploaded=0
+          attempted=0
+          for suite in ${SUITES}; do
+            attempted=$((attempted + 1))
+            repo="${NEXUS_REPO_BASE}/flagos-apt-${suite}/"
+            echo ">>> ${suite}: $(basename "$deb")"
+            if curl -f -u "${NEXUS_TOKEN}" \
+                 -H 'Content-Type: multipart/form-data' \
+                 --data-binary "@${deb}" "${repo}"; then
+              echo "  -> OK"
+              uploaded=$((uploaded + 1))
+            else
+              echo "  -> FAILED"
+            fi
+          done
+          # A 2xx only says the upload was accepted; zero successes means the
+          # token or the repository is misconfigured, and silence would hide it.
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::error::no suite accepted the upload"
+            exit 1
+          fi
+          # A partial success is still a failure to report: the package is in
+          # some suites and not others, which is worse than being in none.
+          if [ "$uploaded" -ne "$attempted" ]; then
+            echo "::error::published into ${uploaded} of ${attempted} suite(s)"
+            exit 1
+          fi
+          echo "Published into all ${uploaded} suite(s)"
