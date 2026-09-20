@@ -29,7 +29,7 @@ title: "vllm0.20.2-iluvatar-corex4.5.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2</code> <a href="../../runtime/iluvatar-corex4.5.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.2.0</code> <a href="../../runtime/iluvatar-corex4.5.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -40,16 +40,16 @@ title: "vllm0.20.2-iluvatar-corex4.5.0"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.1+g16e8655.d20260907`
+`vllm-plugin-fl==0.2.2rc2.post2`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_g16e8655.d20260907`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.2.0-0.2.2rc2.post2`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.1.2-0.2.1_g16e8655.d20260907
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-iluvatar-corex4.5.0:2.2.0-0.2.2rc2.post2
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

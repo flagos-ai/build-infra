@@ -33,7 +33,7 @@ image: vllm0.20.2-iluvatar-corex4.5.0
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:54:55.154Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
       v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
@@ -45,10 +45,11 @@ tags:
 - tag: 2.1.2-0.2.1_g16e8655.d20260907
   entries:
   - date: '2026-09-07T11:06:12Z'
-    reason: 'Determinism fix on corex4.5.0, same as corex4.4.0: blacklist the flag_gems GEMM family so
-      GEMMs fall back to native corex ixblas (flagtree-compiled flag_gems GEMM kernels are nondeterministic
-      in the live engine; native GEMMs are deterministic and faster). F/T both 30/30 temp=0-deterministic.
-      Earlier publish (gc0c060a6) is superseded.'
+    reason: 'Determinism fix on corex4.5.0, same as corex4.4.0: blacklist the flag_gems
+      GEMM family so GEMMs fall back to native corex ixblas (flagtree-compiled flag_gems
+      GEMM kernels are nondeterministic in the live engine; native GEMMs are deterministic
+      and faster). F/T both 30/30 temp=0-deterministic. Earlier publish (gc0c060a6)
+      is superseded.'
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/450
     - https://github.com/flagos-ai/FlagGems/issues/6054
