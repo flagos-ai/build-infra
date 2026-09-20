@@ -33,7 +33,7 @@ image: vllm0.20.2-enflame-tops1.9.10
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T06:19:43.077Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
       v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
