@@ -1,0 +1,342 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: noarch deb package
+
+# Build an Architecture: all .deb from a component repository's own packaging
+# definition, and publish it to the FlagOS apt repositories.
+#
+# One workflow for every pure-Python component rather than one file each: they
+# differ only in the repository and the build script's name, and three copies
+# of this logic would drift apart within a release cycle. The per-component
+# facts live in the COMPONENTS table below, which is the only place to edit
+# when a fourth is added.
+#
+# Why the build lives here rather than in each component repository: the
+# packaging definition is upstream's and stays upstream, which is where
+# distribution maintainers expect to find it. What lives here is the *release
+# path* -- clone, build, verify, publish -- so that producing packages does not
+# depend on plumbing changes landing in every component repository.
+#
+# Dispatch-only: a .deb is a release artifact, nothing here is worth running on
+# a push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'component to build'
+        type: choice
+        required: true
+        options: [FlagAudio, FlagSparse, FlagAttention]
+      ref:
+        description: >-
+          git ref to build. Leave empty to use the ref this component is
+          pinned to in the current release manifest (see COMPONENTS below).
+          A tag is preferred: a branch head moves under later cherry-picks,
+          so the same dispatch would not build the same source twice.
+        type: string
+        default: ''
+      version:
+        description: >-
+          Debian version to stamp, without the revision (e.g. 0.3.0~rc2.post1).
+          Leave empty to derive it from the ref when the ref is a version tag,
+          and to fall back to the packaging changelog otherwise.
+        type: string
+        default: ''
+      suites:
+        description: >-
+          apt suites to publish into, space-separated. Each value is the
+          repository name after "flagos-apt-", e.g. "ubuntu22.04" targets
+          flagos-apt-ubuntu22.04.
+        type: string
+        default: ubuntu22.04 ubuntu24.04
+      verify:
+        description: 'install the .deb in a clean container before uploading'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified .deb to the apt repositories (requires verify)'
+        type: boolean
+        default: false
+
+env:
+  NEXUS_REPO_BASE: https://resource.flagos.net/repository
+  # Suites the verify matrix below actually covers. Publishing outside it would
+  # ship a package nobody installed on that distribution.
+  VERIFIED_SUITES: ubuntu22.04 ubuntu24.04
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      deb_name: ${{ steps.build.outputs.deb_name }}
+      built_sha: ${{ steps.clone.outputs.sha }}
+    steps:
+      - name: Resolve the component
+        id: cfg
+        env:
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          set -euo pipefail
+          # Per component: build script, and the ref and version the current
+          # release manifest pins it to. `ver` is the manifest tag rewritten
+          # for Debian (v0.3.0-rc2.post1 -> 0.3.0~rc2.post1); it is applied
+          # only when this table's ref is used, so overriding `ref` on a
+          # dispatch does not silently ship the manifest's version number.
+          #
+          # FlagAudio is pinned to a branch rather than to its manifest tag:
+          # that tag was cut in July and predates the packaging definition, so
+          # the tag has no packaging/ to build from. Its changelog carries the
+          # final version 0.3.0, which would outrank the real 0.3.0 release --
+          # hence the explicit pre-release version here. Drop this entry back
+          # to a tag once one is cut that contains the packaging definition.
+          case "${COMPONENT}" in
+            FlagAudio)
+              script=build-flag-audio.sh;     ref=0.3.0-rc2;        ver=0.3.0~rc2.post1 ;;
+            FlagSparse)
+              script=build-flagsparse.sh;     ref=v0.3.0-rc2.post1; ver=0.3.0~rc2.post1 ;;
+            FlagAttention)
+              script=build-flag-attention.sh; ref=v0.4.0-rc2.post1; ver=0.4.0~rc2.post1 ;;
+            *)
+              echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
+          esac
+          {
+            echo "repo_url=https://github.com/flagos-ai/${COMPONENT}.git"
+            echo "script=packaging/debian/build-helpers/${script}"
+            echo "default_ref=${ref}"
+            echo "default_version=${ver}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to publish what was not verified
+        if: ${{ inputs.publish }}
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          for suite in ${SUITES}; do
+            case " ${VERIFIED_SUITES} " in
+              *" ${suite} "*) ;;
+              *)
+                echo "::error::suite '${suite}' is not covered by the verify matrix (${VERIFIED_SUITES});"
+                echo "::error::add it there before publishing into it"
+                exit 1 ;;
+            esac
+          done
+          echo "Publish targets are all covered by verification: ${SUITES}"
+
+      - name: Clone ${{ inputs.component }}
+        id: clone
+        env:
+          REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+        run: |
+          set -euo pipefail
+          git clone --depth 50 --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          cd src
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          # Whether this ref is a tag decides whether a version may be derived
+          # from it. Branch names are version-shaped too (0.3.0-rc2 is a
+          # branch), and a branch head moves, so its name is not a version.
+          if git rev-parse -q --verify "refs/tags/${REF}" >/dev/null; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${REF} is a branch, not a tag - this build is not reproducible by ref name alone"
+          fi
+          # A branch head is not reproducible by name, so record the commit it
+          # resolved to. This line is what makes a branch build auditable.
+          echo "Built ${REF} = ${sha}"
+          test -f "${{ steps.cfg.outputs.script }}" \
+            || { echo "::error::ref '${REF}' has no Debian packaging definition"; exit 1; }
+
+      - name: Stamp the release version
+        working-directory: src
+        env:
+          REF: ${{ steps.clone.outputs.ref }}
+          REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
+          REQUESTED: ${{ inputs.version }}
+          # Only applies when this dispatch left `ref` at the pinned default.
+          PINNED: ${{ inputs.ref == '' && steps.cfg.outputs.default_version || '' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+
+          path = "packaging/debian/changelog"
+          head = open(path, encoding="utf-8").readline().rstrip("\n")
+          m = re.match(r"^(\S+) \(([^)]+)\)(.*)$", head)
+          if not m:
+              sys.exit(f"::error::cannot parse changelog first line: {head}")
+          source, current, rest = m.groups()
+
+          ref = os.environ["REF"]
+          requested = os.environ["REQUESTED"].strip()
+          pinned = os.environ["PINNED"].strip()
+          if requested:
+              upstream, why = requested, "requested by this dispatch"
+          elif pinned:
+              upstream, why = pinned, "pinned by the release manifest"
+          elif (os.environ["REF_IS_TAG"] == "true"
+                and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
+              # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare
+              # release, so a pre-release never shadows the final one; "-"
+              # would sort above it and block the upgrade.
+              upstream, why = re.sub(r"-rc", "~rc", ref.lstrip("v")), f"derived from tag {ref}"
+          else:
+              print(f"Keeping the changelog version {current}: {ref} is not a version tag."
+                    " Pass `version` to stamp a release version explicitly.")
+              sys.exit(0)
+
+          new = f"{upstream}-1"
+          if new == current:
+              print(f"Changelog already at {current}; nothing to stamp")
+              sys.exit(0)
+
+          # The packaging metadata in component repositories drifts from the
+          # release line it is cut on, and the version in this file is what
+          # apt sees. Overriding it here keeps the published package honest
+          # while that drift is fixed upstream; the rewrite is printed so the
+          # build log always says what was shipped and why.
+          print(f"::notice::stamping {source} {current} -> {new} ({why})")
+          body = open(path, encoding="utf-8").read()
+          open(path, "w", encoding="utf-8").write(
+              body.replace(f"{source} ({current})", f"{source} ({new})", 1))
+          PY
+          head -1 packaging/debian/changelog
+
+      - name: Build the .deb
+        id: build
+        working-directory: src
+        run: |
+          set -euo pipefail
+          bash "${{ steps.cfg.outputs.script }}"
+          deb=$(ls debian-packages/*.deb | head -1)
+          echo "deb_name=$(basename "$deb")" >> "$GITHUB_OUTPUT"
+          echo ">>> $(basename "$deb")"
+          dpkg-deb -f "$deb" Package Version Architecture Depends
+
+      - name: Upload the .deb
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ inputs.component }}-deb
+          path: src/debian-packages/*.deb
+          retention-days: 7
+
+  verify:
+    needs: build
+    if: ${{ inputs.verify }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The package is arch-independent, but its dependencies are resolved
+        # per suite -- 22.04 is the one that still ships the older Python
+        # library versions.
+        image: [ubuntu:22.04, ubuntu:24.04]
+    steps:
+      - name: Download the .deb
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.component }}-deb
+          path: pkg
+
+      - name: Install it in a clean ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
+            set -e
+            apt-get update -qq
+            # Installing the file itself is the test: apt has to satisfy the
+            # package'"'"'s own Depends from the distribution alone.
+            apt-get install -y -qq /pkg/*.deb
+            pkg=$(dpkg-deb -f /pkg/*.deb Package)
+            # Ask dpkg which directories the package actually shipped rather
+            # than guessing the module name from the package name -- they do
+            # not match for every component.
+            dirs=$(dpkg -L "$pkg" | grep "^/usr/lib/python3/dist-packages/" \
+                   | grep -v "\.egg-info" | cut -d/ -f1-6 | sort -u)
+            test -n "$dirs" || { echo "installed but shipped no Python module"; exit 1; }
+            # A directory of .py files without __init__.py is dropped silently
+            # by find_packages, so the module is absent at runtime while the
+            # install looks clean. Check the whole tree, not a sample.
+            missing=""
+            for d in $dirs; do
+              [ -d "$d" ] || continue
+              m=$(find "$d" -name "*.py" | xargs -r -n1 dirname | sort -u \
+                  | while read -r x; do [ -f "$x/__init__.py" ] || echo "$x"; done)
+              missing="${missing}${m}"
+            done
+            if [ -n "$missing" ]; then
+              echo "subpackages shipped without __init__.py:"; echo "$missing"; exit 1
+            fi
+            echo "OK: $pkg installed, $(find $dirs -name "*.py" | wc -l) modules, no gaps"
+          '
+
+  publish:
+    needs: [build, verify]
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the .deb
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.component }}-deb
+          path: pkg
+
+      - name: Publish to the apt repositories
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          deb=$(ls pkg/*.deb | head -1)
+          echo "Publishing $(basename "$deb") built from ${{ needs.build.outputs.built_sha }}"
+          uploaded=0
+          attempted=0
+          for suite in ${SUITES}; do
+            attempted=$((attempted + 1))
+            repo="${NEXUS_REPO_BASE}/flagos-apt-${suite}/"
+            echo ">>> ${suite}: $(basename "$deb")"
+            if curl -f -u "${NEXUS_TOKEN}" \
+                 -H 'Content-Type: multipart/form-data' \
+                 --data-binary "@${deb}" "${repo}"; then
+              echo "  -> OK"
+              uploaded=$((uploaded + 1))
+            else
+              echo "  -> FAILED"
+            fi
+          done
+          # A 2xx only says the upload was accepted; zero successes means the
+          # token or the repository is misconfigured, and silence would hide it.
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::error::no suite accepted the upload"
+            exit 1
+          fi
+          # A partial success is still a failure to report: the package is in
+          # some suites and not others, which is worse than being in none.
+          if [ "$uploaded" -ne "$attempted" ]; then
+            echo "::error::published into ${uploaded} of ${attempted} suite(s)"
+            exit 1
+          fi
+          echo "Published into all ${uploaded} suite(s)"
