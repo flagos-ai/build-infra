@@ -343,11 +343,11 @@ def app_launch_docs(app: str, name: str) -> bool:
     return bool(((matrix.get("backends") or {}).get(name) or {}).get("launch_docs"))
 
 
-def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> dict:
+def app_image_data(app_prefix: str, app: str, name: str) -> dict:
     """Per-app launch data for one backend: the image ref (published combos
     carry the exact Harbor tag from the status matrix's `image_tag`, the rest
-    get the workflow-default derivation), the published status, and the
-    launcher / default CMD for the docs page.
+    get a TBD tag — see below), the published status, and the launcher /
+    default CMD for the docs page.
 
     App keys are 'megatron_training' / 'megatron_rl' / 'vllm<version>' /
     'sglang<version>' — vllm and sglang are split per repacked version
@@ -366,11 +366,17 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
     app_version = key_version or d["app_version"]
     if app.startswith("megatron"):
         repo = f"{app}{app_version}-{name}"
-        tag = f"{stack_version}-{d['fork_version']}"
     else:
         repo = f"{base_app}{app_version}-{name}"
-        tag = stack_version
     published_tag = app_published_tag(app, name)
+    # An unpublished combo has no build to describe, so there is no version to
+    # print: the stack version in use at generation time would be a claim about
+    # an image that does not exist. It also moved with every stack bump — and
+    # with every unrelated record, which regenerates all app pages — so those
+    # pages churned while nothing was built. Print TBD; the pipeline assigns the
+    # tag at build time. The megatron fork version is this app's own and does
+    # not move, so it stays visible in the placeholder.
+    tag = published_tag or (f"TBD-{d['fork_version']}" if app.startswith("megatron") else "TBD")
     base = f"{app_prefix}/{repo}" if app_prefix else repo
     # Install spec, verbatim from the app Containerfiles: megatron apps select
     # the [training]/[rl] extra of megatron-core; vllm and sglang pin the
@@ -392,7 +398,7 @@ def app_image_data(app_prefix: str, app: str, name: str, stack_version: str) -> 
         else ""
     )
     return {
-        "image": f"{base}:{published_tag or tag}",
+        "image": f"{base}:{tag}",
         "published": bool(published_tag),
         "app_version": f"{d['package']} {app_version}",
         "package": package,
@@ -519,7 +525,7 @@ def main():
                         # unverified combo whose deps_app key was added to
                         # trigger a build gets no page.
                         "images": {
-                            a: app_image_data(app_prefix, a, name, configs["version"])
+                            a: app_image_data(app_prefix, a, name)
                             for a in spec.get("deps_app") or {}
                             # Only deps_app keys that name a documented app
                             # image (split_app leaves an unknown key as its own
