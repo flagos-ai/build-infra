@@ -271,7 +271,7 @@ jobs:
             # than guessing the module name from the package name -- they do
             # not match for every component.
             dirs=$(dpkg -L "$pkg" | grep "^/usr/lib/python3/dist-packages/" \
-                   | grep -v "\.egg-info" | cut -d/ -f1-6 | sort -u)
+                   | grep -vE "\.(egg|dist)-info" | cut -d/ -f1-6 | sort -u)
             test -n "$dirs" || { echo "installed but shipped no Python module"; exit 1; }
             # A directory of .py files without __init__.py is dropped silently
             # by find_packages, so the module is absent at runtime while the
