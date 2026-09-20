@@ -34,7 +34,7 @@ image: vllm0.20.2-sunrise-tangrt1.2.0
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:33:38.932Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
       v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
@@ -47,7 +47,9 @@ tags:
   entries:
   - date: 2026-08-20T02:26:28Z
     reason: >-
-      Initial 0.20.2 deliverable on Sunrise (PTPU). FlagTree PR 978 fixes the flagtree flash-attn decode
-      hang (0.4->2.4 tok/s); rebuilt flagtree wheel carried in the runtime. F path verified.
+      Initial 0.20.2 deliverable on Sunrise (PTPU). FlagTree PR 978 fixes the flagtree
+      flash-attn decode
+      hang (0.4->2.4 tok/s); rebuilt flagtree wheel carried in the runtime. F path
+      verified.
     upstream_prs:
     - https://github.com/flagos-ai/FlagTree/pull/978
