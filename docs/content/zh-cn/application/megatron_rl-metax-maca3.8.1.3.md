@@ -29,7 +29,7 @@ title: "megatron_rl-metax-maca3.8.1.3"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0</code> <a href="../../runtime/metax-maca3.8.1.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2</code> <a href="../../runtime/metax-maca3.8.1.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -47,12 +47,12 @@ title: "megatron_rl-metax-maca3.8.1.3"
 
 **尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。**
 
-`harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.2.0-0.2.1`
+`harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.1.2-0.2.1`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.2.0-0.2.1
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.8.1.3:2.1.2-0.2.1
 ```
 
 以下两种方式任选其一：
