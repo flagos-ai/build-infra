@@ -34,7 +34,7 @@ image: vllm0.24.0-hygon-dtk26.04
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T09:55:10.626Z'
     reason: >-
       This moves the image from v0.3.0-rc2.post1 onto post2, taking the eight
       commits merged since — the 0.24.0 backend ports among them. Rebuilt on the
