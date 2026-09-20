@@ -34,7 +34,7 @@ image: vllm0.24.0-sunrise-tangrt1.2.0
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T09:53:51.984Z'
     reason: >-
       The sunrise image leaves g687217a, a 0.2.0-line build, for the 0.3.0 release
       line, so it now carries the plugin the rest of the 0.24.0 matrix is built on.
@@ -48,7 +48,8 @@ tags:
   entries:
   - date: 2026-08-19T15:47:35Z
     reason: >-
-      Initial vllm 0.24.0 deliverable on sunrise (FlagTree 978 flash-attn decode hang fix). F path
+      Initial vllm 0.24.0 deliverable on sunrise (FlagTree 978 flash-attn decode hang
+      fix). F path
       verified.
     upstream_prs:
     - https://github.com/flagos-ai/FlagTree/pull/978
