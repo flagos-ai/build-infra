@@ -55,3 +55,64 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | P800 XPU；解码乱码 [VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400) + 假死 KL3 |
 | cambricon neuware4.4.3 | [cambricon.md](backends/cambricon.md) | §2.11，T-only 兼容 shim ×5 |
 | tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §2.14，TX8110 F/T 双路径 E2E |
+
+---
+
+## 0.20.2 在 2.2.0 栈上的发布快照
+
+2026-09-20，0.20.2 线在 FlagOS **2.2.0** 栈上全部重建完成：
+20 个有 app 镜像的后端统一为 `2.2.0-0.2.2rc2.post2`（plugin
+`vllm-plugin-FL v0.2.2-rc2.post2`），逐个通过 on-node verify
+（包矩阵比对 + vllm/vllm_fl import + 真实 serve 出 token）后推送。
+`packaging/vllm/status_matrix.vllm0.20.2.yaml` 是逐后端 tag 的权威记录。
+
+| 后端 | FlagTree | image tag | 镜像+验证 |
+|---|---|---|---|
+| nvidia-cuda12.8 | 0.7.0rc2 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| nvidia-cuda13.3 | 0.6.1 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| ascend-cann8.5.0 | 0.6.0+ascend3.2 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| ascend-cann8.5.0-910c | 0.6.0+ascend3.2 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| ascend-cann9.0.0 | 0.7.0rc2+ascend3.5 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| ascend-cann9.0.0-910c | 0.7.0rc2+ascend3.5 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| cambricon-neuware4.4.3 | —（无 FlagTree） | 2.2.0-0.2.2rc2.post2 | ✅ |
+| cambricon-neuware4.7.2 | —（无 FlagTree） | 2.2.0-0.2.2rc2.post2 | ✅ |
+| enflame-tops1.9.10 | 0.6.0+enflame3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| enflame-tops1.10.6 | 0.7.0rc2+enflame3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| hygon-dtk26.04 | 0.7.0rc2+hcu3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| iluvatar-corex4.4.0 | 0.7.0rc2+iluvatar3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| iluvatar-corex4.5.0 | 0.7.0rc2+iluvatar3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| kunlunxin-xre5.37.1 | 0.7.0rc2+xpu3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| metax-maca3.7.2.1 | 0.6.1+metax3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| metax-maca3.8.1.3 | 0.6.1+metax3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| mthreads-musa4.3.6 | 0.7.0rc2+mthreads3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| mthreads-musa5.2.0 | 0.7.0rc2+mthreads3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| sunrise-tangrt1.2.0 | 0.6.0+sunrise3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+| tsingmicro-tsm260610 | 0.7.0rc2+tsingmicro3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
+
+spacemit、thead-ppu2.0.0 无 app 镜像，不在表内。
+
+### FlagTree 0.7.0rc2 的三个回归与降版
+
+2.2.0 栈原本统一到 flagtree 0.7.0rc2，三个后端在 0.7.0rc2 上无法工作，
+各自回落并已在 FlagTree 报 issue（均带 on-node 最小重现与 0.6.x 对照）：
+
+| 后端 | 0.7.0rc2 上的问题 | issue | 回落至 |
+|---|---|---|---|
+| metax ×2 | `tl.dot` 在 `BLOCK_SIZE_M=8` 编译期 ICE（`MACAMmaEncodingAttr` 断言） | [#1232](https://github.com/flagos-ai/FlagTree/issues/1232) | 0.6.1+metax3.6 |
+| enflame-tops1.9.10 | 向 `--convert-gpu-to-gcu` 传 `enable_i64`，tops1.9.10 工具链不认，**所有** kernel 编译失败 | [#1233](https://github.com/flagos-ai/FlagTree/issues/1233) | 0.6.0+enflame3.6 |
+| nvidia-cuda13.3 | TLE 在 import 时 dlopen `libflagcx.so`（链 `libcudart.so.12`，CUDA 13 无此库），异常绕过 `has_triton_tle` 的 ImportError 探测，`import flag_gems` 直接失败 | [#1234](https://github.com/flagos-ai/FlagTree/issues/1234) | 0.6.1 |
+
+### 降版后的连带问题：FlagTune cost model
+
+flag_gems `5.4.0rc2.post3` 的 cost model 探测 flagtree 的异常契约，
+探测失败时回退到 `(FileNotFoundError, ModelBundleMissingError)`。
+0.6.x 的 flagtune 是**旧版而非缺失**：`triton.flagtune` 能 import，
+但没有 `runtime/errors.py` / `ModelBundleMissingError`，于是探测成功、
+真正抛出的异常类型却不在回退集合内，直接逃逸——表现是**任何走到
+cost model 的算子都中止**，vllm serve 在 engine core 初始化即死。
+
+`configs.yaml` 对 cuda13.3、metax ×2、sunrise 设 `env.runtime.USE_FLAGTUNE_COST_MODEL=0`
+（sunrise 为预防性：其 0.6.0 同样是旧版 flagtune）。代价是这些后端退回
+default tuning——0.6.x 的模型包里本来也没有 FlagGems 算子的模型，
+该路径在它们上面不可用。enflame 0.6.0 与 ascend 0.6.0 不含 flagtune，
+不受影响；0.7.0rc2 自带完整模块，能自行降级。
