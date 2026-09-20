@@ -34,7 +34,7 @@ image: vllm0.24.0-ascend-cann8.5.0
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T09:56:32.566Z'
     reason: >-
       The ascend 0.24.0 port (PR 387) is on the release line now, so this image
       leaves the pre-merge head cf8998c it was pinned to. Rebuilt on the FlagOS
@@ -47,7 +47,8 @@ tags:
   entries:
   - date: 2026-08-24T04:25:06Z
     reason: >-
-      Initial vllm 0.24.0 deliverable on Ascend 910B4. vllm-plugin-FL PR 387 (ascend 0.24 port). F/T
+      Initial vllm 0.24.0 deliverable on Ascend 910B4. vllm-plugin-FL PR 387 (ascend
+      0.24 port). F/T
       dual-compiler verified.
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/387
