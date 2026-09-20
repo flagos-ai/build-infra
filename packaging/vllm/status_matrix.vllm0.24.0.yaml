@@ -123,7 +123,7 @@ backends:
   mthreads-musa5.2.0:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.3.0rc2.post1_g990a8f7.d20260916"
+    image_tag: "2.2.0-0.3.0rc2.post2"
   spacemit-spacemit:
     deps_app: false
     launch_docs: false

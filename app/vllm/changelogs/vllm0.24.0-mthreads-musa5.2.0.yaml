@@ -34,7 +34,7 @@ image: vllm0.24.0-mthreads-musa5.2.0
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:08:31.303Z'
     reason: >-
       This moves the image from 990a8f7 onto the release tag, which carries the MUSA
       fix that landed with it: PR 537 binds TP workers before the runtime patches,
