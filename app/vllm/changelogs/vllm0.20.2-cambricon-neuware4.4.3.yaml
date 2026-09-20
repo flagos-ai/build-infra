@@ -33,7 +33,7 @@ image: vllm0.20.2-cambricon-neuware4.4.3
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T11:03:11.694Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
       v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
@@ -45,11 +45,12 @@ tags:
 - tag: 2.1.2-0.2.1_gcab2270.d20260905
   entries:
   - date: '2026-09-05T13:56:52Z'
-    reason: 'Fix cold-start mojibake on neuware4.4.3: flag_gems 5.3.5''s libentry online timing bench
-      runs on live decode tensors and poisons the MLU device state, so the first cold request degrades
-      to garbage. vllm-plugin-FL PR 411 blacklists flag_gems copy_ (falls back to torch_mlu); the config-built-in
-      blacklist form is verified cold on the delivered image (Paris anchor, 7.75 tok/s hot). Supersedes
-      earlier 0.20.2 publishes (g8d2bf5e/gef78dec/gb954912, same PR 411 line) that predated the semantic
-      gate and shipped the defect.'
+    reason: 'Fix cold-start mojibake on neuware4.4.3: flag_gems 5.3.5''s libentry
+      online timing bench runs on live decode tensors and poisons the MLU device state,
+      so the first cold request degrades to garbage. vllm-plugin-FL PR 411 blacklists
+      flag_gems copy_ (falls back to torch_mlu); the config-built-in blacklist form
+      is verified cold on the delivered image (Paris anchor, 7.75 tok/s hot). Supersedes
+      earlier 0.20.2 publishes (g8d2bf5e/gef78dec/gb954912, same PR 411 line) that
+      predated the semantic gate and shipped the defect.'
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/411
