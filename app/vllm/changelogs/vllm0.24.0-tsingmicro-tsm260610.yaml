@@ -33,7 +33,7 @@ image: vllm0.24.0-tsingmicro-tsm260610
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:31:16.825Z'
     reason: >-
       The txda enablement (PR 460) is on the release line now, so this image leaves
       2f034ee, the 0.3.0-rc0-based build of it. Rebuilt on the FlagOS 2.2.0 stack,
@@ -45,12 +45,13 @@ tags:
 - tag: 2.1.2-0.3.0rc0_g2f034ee.d20260908
   entries:
   - date: '2026-09-08T12:22:01Z'
-    reason: 'Enable vllm 0.24.0 on tsingmicro via vllm-plugin-FL PR 460 (tsingmicro-enable-main). The
-      PR 447 txda skeleton is not independently serveable (init nccl crash, warmup generator crash, wrong
-      attention/norms routing); this build adds the minimal enablement: txda->tccl dist backend, cpu torch.Generator,
-      tsingmicro.yaml (norms reference-first, attention->vendor/TxdaSDPA), TxdaSDPAAttentionBackend. F/T
-      both serve 5/5 correct. Supersedes the PR 421-based deliverable (bd010ce), whose KV-write-gate and
-      SDPA-attention work is carried forward.'
+    reason: 'Enable vllm 0.24.0 on tsingmicro via vllm-plugin-FL PR 460 (tsingmicro-enable-main).
+      The PR 447 txda skeleton is not independently serveable (init nccl crash, warmup
+      generator crash, wrong attention/norms routing); this build adds the minimal
+      enablement: txda->tccl dist backend, cpu torch.Generator, tsingmicro.yaml (norms
+      reference-first, attention->vendor/TxdaSDPA), TxdaSDPAAttentionBackend. F/T
+      both serve 5/5 correct. Supersedes the PR 421-based deliverable (bd010ce), whose
+      KV-write-gate and SDPA-attention work is carried forward.'
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/460
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/447
