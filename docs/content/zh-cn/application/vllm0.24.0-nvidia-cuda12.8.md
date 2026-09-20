@@ -29,7 +29,7 @@ title: "vllm0.24.0-nvidia-cuda12.8"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.2</code> <a href="../../runtime/nvidia-cuda12.8/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -40,7 +40,7 @@ title: "vllm0.24.0-nvidia-cuda12.8"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.2.0+ga9435a3.d20260821`
+`vllm-plugin-fl==0.3.0rc2.post2`
 
 ## 环境变量
 
@@ -48,12 +48,12 @@ title: "vllm0.24.0-nvidia-cuda12.8"
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_ga9435a3.d20260821`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.2.0-0.3.0rc2.post2`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_ga9435a3.d20260821
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.2.0-0.3.0rc2.post2
 ```
 
 以下两种方式任选其一：
