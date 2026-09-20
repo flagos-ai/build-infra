@@ -32,6 +32,17 @@
 
 image: vllm0.24.0-enflame-tops1.10.6
 tags:
+- tag: 2.2.0-0.3.0rc2.post2
+  entries:
+  - date: ''
+    reason: >-
+      The GCU300 enablement bundle (PR 432) is on the release line now, so this
+      image leaves 7c6758c, the pre-merge head of that port. Rebuilt on the FlagOS
+      2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and on the
+      vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the
+      plugin comes from a released tag rather than a pre-merge commit — an immutable
+      pin, and one wheel served by every vendor index.
+    upstream_prs: []
 - tag: 2.1.2-0.2.1_g7c6758c.d20260903
   entries:
   - date: 2026-09-03T15:41:45Z

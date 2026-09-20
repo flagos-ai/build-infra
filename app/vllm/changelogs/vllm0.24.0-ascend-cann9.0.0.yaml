@@ -32,6 +32,17 @@
 
 image: vllm0.24.0-ascend-cann9.0.0
 tags:
+- tag: 2.2.0-0.3.0rc2.post2
+  entries:
+  - date: ''
+    reason: >-
+      The ascend 0.24.0 port (PR 387) is on the release line now, so this image
+      leaves the pre-merge head cf8998c it was pinned to. Rebuilt on the FlagOS
+      2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and on the
+      vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the
+      plugin comes from a released tag rather than a pre-merge commit — an immutable
+      pin, and one wheel served by every vendor index.
+    upstream_prs: []
 - tag: 2.1.2-0.2.0_gcf8998c.d20260818
   entries:
   - date: 2026-08-19T15:49:50Z
