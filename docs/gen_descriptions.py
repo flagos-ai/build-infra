@@ -106,7 +106,7 @@ STRINGS = {
         "app_image": "Application image",
         "app_package": "Application package",
         "published": "Published",
-        "not_published": "Not published yet — this image is not on the registry yet. The tag below is what the build pipeline will push once it is built for this backend.",
+        "not_published": "Not published yet — this image is not on the registry yet. `TBD` is the tag the build pipeline assigns when it builds the image for this backend.",
         "launch_default": "Start the app with its default settings:",
         "launch_custom": "Pass arguments to the launcher:",
         "launch_none": "**No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.",
@@ -149,7 +149,7 @@ STRINGS = {
         "app_image": "应用镜像",
         "app_package": "应用软件包",
         "published": "已发布",
-        "not_published": "尚未发布——该镜像还未推送到仓库。下面的 tag 是构建管线届时将推送的版本。",
+        "not_published": "尚未发布——该镜像还未推送到仓库。`TBD` 为构建管线在本后端构建该镜像时确定的 tag。",
         "launch_default": "以默认设置启动应用：",
         "launch_custom": "向启动器传参：",
         "launch_none": "**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。",
@@ -583,12 +583,18 @@ def _app_runtime_image(entry: dict, data: dict) -> str:
     configs.yaml pins today. Rendering the current stack version instead
     rewrote the page of every already-shipped app the moment the stack was
     bumped, putting a runtime version on the page that contradicts the
-    published tag printed a few lines below it. Unpublished combos have no
-    recorded build and keep the current stack version.
+    published tag printed a few lines below it.
+
+    An unpublished combo was never built, so there is no runtime under it to
+    name: it gets the same TBD as its tag (see gen_data.app_image_data). Naming
+    the current stack version there would be the same unfounded claim and would
+    churn on every bump just the same.
     """
     image = entry["runtime"].get("image") or ""
-    if not image or not data.get("published"):
+    if not image:
         return image
+    if not data.get("published"):
+        return f"{image.rsplit(':', 1)[0]}:TBD"
     stack = data["image"].rsplit(":", 1)[-1].split("-", 1)[0]
     return f"{image.rsplit(':', 1)[0]}:{stack}"
 
