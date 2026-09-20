@@ -189,6 +189,12 @@ vendors:
           LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64
           NVIDIA_VISIBLE_DEVICES: all
           NVIDIA_DRIVER_CAPABILITIES: compute,utility
+        runtime:
+          # flag_gems 5.4.0rc2.post3's FlagTune cost model probes flagtree's
+          # exception contract. The 0.6.x flagtree here ships a partial flagtune
+          # (no runtime/errors.py), so its errors are outside the fallback set and
+          # abort the operator instead of degrading. Verified on-node.
+          USE_FLAGTUNE_COST_MODEL: "0"
         app:
           vllm:
             # vLLM 0.24.0 unconditionally imports flashinfer (sampler switch
@@ -747,6 +753,12 @@ vendors:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
           MACA_PATH: /opt/maca
           LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
+        runtime:
+          # flag_gems 5.4.0rc2.post3's FlagTune cost model probes flagtree's
+          # exception contract. The 0.6.x flagtree here ships a partial flagtune
+          # (no runtime/errors.py), so its errors are outside the fallback set and
+          # abort the operator instead of degrading. Verified on-node.
+          USE_FLAGTUNE_COST_MODEL: "0"
         app:
           sglang:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
@@ -784,6 +796,12 @@ vendors:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
           MACA_PATH: /opt/maca
           LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
+        runtime:
+          # flag_gems 5.4.0rc2.post3's FlagTune cost model probes flagtree's
+          # exception contract. The 0.6.x flagtree here ships a partial flagtune
+          # (no runtime/errors.py), so its errors are outside the fallback set and
+          # abort the operator instead of degrading. Verified on-node.
+          USE_FLAGTUNE_COST_MODEL: "0"
         app:
           megatron_rl:
             # RL's first rollout forward triggers self_attn_bda torch.compile;
@@ -912,6 +930,12 @@ vendors:
           TANGRT_ROOT: /usr/local/tangrt
           LIBRARY_PATH: /usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64
           LD_LIBRARY_PATH: /usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64
+        runtime:
+          # flag_gems 5.4.0rc2.post3's FlagTune cost model probes flagtree's
+          # exception contract. The 0.6.x flagtree here ships a partial flagtune
+          # (no runtime/errors.py), so its errors are outside the fallback set and
+          # abort the operator instead of degrading. Verified on-node.
+          USE_FLAGTUNE_COST_MODEL: "0"
         app:
           sglang:
             # torch is a +cpu build with the PTPU device, so is_cuda() is false:
