@@ -78,7 +78,7 @@ backends:
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_gea38c86.d20260902"
+    image_tag: "2.2.0-0.3.0rc2.post2"
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true

@@ -34,7 +34,7 @@ image: vllm0.24.0-cambricon-neuware4.4.3
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:20:43.791Z'
     reason: >-
       The MLU590 / neuware 4.4.3 port (PR 431) is on the release line now, so this
       image leaves ea38c86, a 0.2.1-line commit. Rebuilt on the FlagOS 2.2.0 stack,
@@ -47,7 +47,8 @@ tags:
   entries:
   - date: 2026-09-02T10:10:22Z
     reason: >-
-      Initial vllm 0.24.0 deliverable on cambricon 4.4.3 via vllm-plugin-FL PR 431 (MLU590/4.4.3 port to
+      Initial vllm 0.24.0 deliverable on cambricon 4.4.3 via vllm-plugin-FL PR 431
+      (MLU590/4.4.3 port to
       main). F path verified.
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/431
