@@ -575,6 +575,24 @@ def _app_launch(entry: dict, s: dict, data: dict, image: str) -> list[str]:
     return lines
 
 
+def _app_runtime_image(entry: dict, data: dict) -> str:
+    """Runtime image ref an app page's "Built on" line points at.
+
+    A published app image was built on the runtime of *its own* stack — the
+    stack prefix of the tag the status matrix recorded for it — not on whatever
+    configs.yaml pins today. Rendering the current stack version instead
+    rewrote the page of every already-shipped app the moment the stack was
+    bumped, putting a runtime version on the page that contradicts the
+    published tag printed a few lines below it. Unpublished combos have no
+    recorded build and keep the current stack version.
+    """
+    image = entry["runtime"].get("image") or ""
+    if not image or not data.get("published"):
+        return image
+    stack = data["image"].rsplit(":", 1)[-1].split("-", 1)[0]
+    return f"{image.rsplit(':', 1)[0]}:{stack}"
+
+
 def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> str:
     """Compose the app-image description markdown for one backend and one app.
 
@@ -603,15 +621,16 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
     # ── Image contents (runtime image ref + Python + the app package) ──
     lines += [f"## {s['image_contents']}", ""]
 
-    if entry["runtime"].get("image"):
+    runtime_image = _app_runtime_image(entry, data)
+    if runtime_image:
         if web:
             lines += [f"### {s['base_image_ref']}", "",
-                      f'<div class="ms-3"><code class="plain">{entry["runtime"]["image"]}</code> '
+                      f'<div class="ms-3"><code class="plain">{runtime_image}</code> '
                       f'<a href="../../runtime/{name}/" title="{s["base_image_link_title"]}" '
                       f'aria-label="{s["base_image_link_title"]}">'
                       f'<i class="material-icons align-middle size-20">open_in_new</i></a></div>', ""]
         else:
-            lines += [f"### {s['base_image_ref']}", "", f"`{entry['runtime']['image']}`", ""]
+            lines += [f"### {s['base_image_ref']}", "", f"`{runtime_image}`", ""]
 
     python_ver = entry["runtime"].get("python", "")
     if python_ver:
