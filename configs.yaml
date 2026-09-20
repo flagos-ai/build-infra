@@ -730,7 +730,10 @@ vendors:
       driver: "3.8.30"
       python: "3.12"
       triton: triton==3.0.0+metax3.7.2.0
-      flagtree: flagtree==0.7.0rc2+metax3.6
+      # Held at 0.6.1: 0.7.0rc2's metax backend cannot compile BLOCK_SIZE_M=8
+      # tl.dot tiles (FlagTree #1232), the tiling flag_gems' autotuner picks for
+      # decode-shaped GEMMs, so the first request kills the engine.
+      flagtree: flagtree==0.6.1+metax3.6
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -764,7 +767,10 @@ vendors:
       driver: "3.9.6"
       python: "3.12"
       triton: triton==3.6.0+metax3.8.1.0
-      flagtree: flagtree==0.7.0rc2+metax3.6
+      # Held at 0.6.1: 0.7.0rc2's metax backend cannot compile BLOCK_SIZE_M=8
+      # tl.dot tiles (FlagTree #1232), the tiling flag_gems' autotuner picks for
+      # decode-shaped GEMMs, so the first request kills the engine.
+      flagtree: flagtree==0.6.1+metax3.6
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
