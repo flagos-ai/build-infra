@@ -450,7 +450,10 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
-      flagtree: flagtree==0.7.0rc2+enflame3.6
+      # Held at 0.6.0: 0.7.0rc2 emits enable_i64=true into --convert-gpu-to-gcu,
+      # which this toolkit's gcu-compiler-opt rejects (FlagTree #1233), so every
+      # kernel fails to compile. tops1.10.6 accepts the option and stays on rc2.
+      flagtree: flagtree==0.6.0+enflame3.6
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
