@@ -54,7 +54,7 @@ backends:
   nvidia-cuda12.8:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.1_g825c1cd"
+    image_tag: "2.2.0-0.2.2rc2.post2"
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true
