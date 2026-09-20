@@ -32,6 +32,18 @@
 
 image: vllm0.24.0-sunrise-tangrt1.2.0
 tags:
+- tag: 2.2.0-0.3.0rc2.post2
+  entries:
+  - date: ''
+    reason: >-
+      The sunrise image leaves g687217a, a 0.2.0-line build, for the 0.3.0 release
+      line, so it now carries the plugin the rest of the 0.24.0 matrix is built on.
+      Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime carry FlagGems
+      5.4.0-rc2.post3, and on the vllm-plugin-FL release tag v0.3.0-rc2.post2
+      (0891073, head of 0.3.0-rc2): the plugin comes from a released tag rather than
+      a pre-merge commit — an immutable pin, and one wheel served by every vendor
+      index.
+    upstream_prs: []
 - tag: 2.1.2-0.2.0_g687217a.d20260819
   entries:
   - date: 2026-08-19T15:47:35Z

@@ -32,6 +32,17 @@
 
 image: vllm0.24.0-hygon-dtk26.04
 tags:
+- tag: 2.2.0-0.3.0rc2.post2
+  entries:
+  - date: ''
+    reason: >-
+      This moves the image from v0.3.0-rc2.post1 onto post2, taking the eight
+      commits merged since — the 0.24.0 backend ports among them. Rebuilt on the
+      FlagOS 2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and
+      on the vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of
+      0.3.0-rc2): the plugin comes from a released tag rather than a pre-merge
+      commit — an immutable pin, and one wheel served by every vendor index.
+    upstream_prs: []
 - tag: 2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914
   entries:
   - date: "2026-09-14T03:48:46.111Z"
