@@ -34,7 +34,7 @@ image: vllm0.24.0-enflame-tops1.10.6
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:08:12.828Z'
     reason: >-
       The GCU300 enablement bundle (PR 432) is on the release line now, so this
       image leaves 7c6758c, the pre-merge head of that port. Rebuilt on the FlagOS
@@ -47,6 +47,7 @@ tags:
   entries:
   - date: 2026-09-03T15:41:45Z
     reason: >-
-      Initial vllm 0.24.0 deliverable on enflame tops1.10.6 (PR 432 GCU300 port). F/T verified.
+      Initial vllm 0.24.0 deliverable on enflame tops1.10.6 (PR 432 GCU300 port).
+      F/T verified.
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/432
