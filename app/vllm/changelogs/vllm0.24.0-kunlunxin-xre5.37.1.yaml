@@ -34,7 +34,7 @@ image: vllm0.24.0-kunlunxin-xre5.37.1
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T09:54:00.617Z'
     reason: >-
       The kunlunxin 0.24.0 port (PR 401) is on the release line now, so this image
       leaves f780db1, the pre-merge head of that port; the port carries the paged-KV

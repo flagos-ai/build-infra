@@ -107,7 +107,7 @@ backends:
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.0_gf780db1.d20260823"
+    image_tag: "2.2.0-0.3.0rc2.post2"
   metax-maca3.7.2.1:
     deps_app: true
     launch_docs: true
