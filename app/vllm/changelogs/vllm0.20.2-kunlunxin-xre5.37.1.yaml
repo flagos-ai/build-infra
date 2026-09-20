@@ -34,7 +34,7 @@ image: vllm0.20.2-kunlunxin-xre5.37.1
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-20T10:54:30.388Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
       v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
@@ -47,7 +47,8 @@ tags:
   entries:
   - date: 2026-08-21T03:11:21Z
     reason: >-
-      Initial 0.20.2 deliverable on Kunlunxin P800 XPU. vllm-plugin-FL PR 268 kunlunxin enablement plus
+      Initial 0.20.2 deliverable on Kunlunxin P800 XPU. vllm-plugin-FL PR 268 kunlunxin
+      enablement plus
       the decode-scale fix (PR 400: adjusted attention scale for decode via prefill_attention).
       Single-step install matrix-inert.
     upstream_prs:
