@@ -68,11 +68,30 @@ jobs:
     outputs:
       deb_name: ${{ steps.build.outputs.deb_name }}
     steps:
-      - name: Refuse to publish without verifying
-        if: ${{ inputs.publish && !inputs.verify }}
+      - name: Refuse to publish what was not verified
+        if: ${{ inputs.publish }}
+        env:
+          SUITES: ${{ inputs.suites }}
         run: |
-          echo "::error::publish requires verify - an unverified package must not reach the repository"
-          exit 1
+          set -euo pipefail
+          if [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          # Verification runs against a fixed matrix. Publishing into a suite
+          # that matrix does not cover would ship a package nobody installed
+          # on that distribution, so the target set may not exceed it.
+          VERIFIED="ubuntu22.04 ubuntu24.04"
+          for suite in ${SUITES}; do
+            case " ${VERIFIED} " in
+              *" ${suite} "*) ;;
+              *)
+                echo "::error::suite '${suite}' is not covered by the verify matrix (${VERIFIED});"
+                echo "::error::add it there before publishing into it"
+                exit 1 ;;
+            esac
+          done
+          echo "Publish targets are all covered by verification: ${SUITES}"
 
       - name: Clone FlagGems at ${{ inputs.flaggems_ref }}
         run: |
