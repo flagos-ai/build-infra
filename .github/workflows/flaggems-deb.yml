@@ -43,7 +43,10 @@ on:
         type: string
         default: master
       suites:
-        description: 'apt suites to publish into (space-separated)'
+        description: >-
+          apt suites to publish into, space-separated. Each value is the
+          repository name after "flagos-apt-", e.g. "ubuntu22.04" targets
+          flagos-apt-ubuntu22.04.
         type: string
         default: ubuntu22.04 ubuntu24.04
       verify:
@@ -163,7 +166,9 @@ jobs:
           fi
           deb=$(ls pkg/*.deb | head -1)
           uploaded=0
+          attempted=0
           for suite in ${SUITES}; do
+            attempted=$((attempted + 1))
             repo="${NEXUS_REPO_BASE}/flagos-apt-${suite}/"
             echo ">>> ${suite}: $(basename "$deb")"
             if curl -f -u "${NEXUS_TOKEN}" \
@@ -181,4 +186,10 @@ jobs:
             echo "::error::no suite accepted the upload"
             exit 1
           fi
-          echo "Published into ${uploaded} suite(s)"
+          # A partial success is still a failure to report: the package is in
+          # some suites and not others, which is worse than being in none.
+          if [ "$uploaded" -ne "$attempted" ]; then
+            echo "::error::published into ${uploaded} of ${attempted} suite(s)"
+            exit 1
+          fi
+          echo "Published into all ${uploaded} suite(s)"
