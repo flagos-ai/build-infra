@@ -175,7 +175,12 @@ vendors:
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
-      flagtree: flagtree==0.7.0rc2
+      # Held at 0.6.1 while the CUDA 12 backends move to 0.7.0rc2: 0.7.0rc2
+      # dlopens libflagcx.so at triton.experimental.tle import, and that library
+      # links libcudart.so.12, which a CUDA 13 image does not carry. The
+      # resulting OSError escapes flag_gems' ImportError-only TLE probe and
+      # fails `import flag_gems` outright.
+      flagtree: flagtree==0.6.1
       env:
         base:
           # Effective env — inherited verbatim from nvcr 13.3.0-runtime-ubuntu24.04
