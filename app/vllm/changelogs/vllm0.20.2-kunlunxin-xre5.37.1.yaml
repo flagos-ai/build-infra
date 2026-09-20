@@ -32,6 +32,17 @@
 
 image: vllm0.20.2-kunlunxin-xre5.37.1
 tags:
+- tag: 2.2.0-0.2.2rc2.post2
+  entries:
+  - date: ''
+    reason: >-
+      Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
+      v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
+      the stack brings the 2.2.0 base and runtime, with FlagGems 5.4.0-rc2.post3
+      and the 0.7.0-era FlagTree, and the plugin now comes from a released tag
+      rather than a pre-merge commit — an immutable pin, and one wheel served by
+      every vendor index.
+    upstream_prs: []
 - tag: 2.1.2-0.2.1_g8236c0a.d20260821
   entries:
   - date: 2026-08-21T03:11:21Z

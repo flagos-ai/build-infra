@@ -32,17 +32,23 @@
 
 image: vllm0.20.2-mthreads-musa4.3.6
 tags:
-- tag: 2.2.0-0.2.2rc2.post1_g52949b6.d20260917
+- tag: 2.2.0-0.2.2rc2.post2
   entries:
   - date: ''
     reason: >-
-      Rebuild on the vllm-plugin-FL v0.2.2-rc2.post1 tag (release/0.2 head
-      52949b6) and on the FlagOS 2.2.0 stack. The previous image was a bare
-      2.1.2 tag carrying no plugin — this is the first 0.20.2 build on the
-      release line that installs vllm-plugin-FL, so the image now ships the
-      MUSA enablement the plugin carries (v1 attention backend registry, the
-      use_sparse argument on attention_backend, and the torch.accelerator /
-      torch.cuda shims for MUSA).
+      Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
+      v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
+      the stack brings the 2.2.0 base and runtime, with FlagGems 5.4.0-rc2.post3
+      and the 0.7.0-era FlagTree, and the plugin now comes from a released tag
+      rather than a pre-merge commit — an immutable pin, and one wheel served by
+      every vendor index.
+      What matters for MUSA: the previous published image was a bare 2.1.2 tag
+      carrying no plugin, so this is the first 0.20.2 deliverable here that
+      installs vllm-plugin-FL — it ships the MUSA enablement the plugin holds
+      (v1 attention backend registry, the use_sparse argument on
+      attention_backend, and the torch.accelerator / torch.cuda shims for MUSA).
+      The earlier 2.2.0 attempt (temp-form post1) never reached the registry —
+      it built but failed app-image verification.
     upstream_prs: []
 - tag: 2.1.2
   entries:
