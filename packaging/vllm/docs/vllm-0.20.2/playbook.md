@@ -156,6 +156,13 @@ vllm-plugin-FL 定位为上游 vllm 的插件，目标是适配不同模型、�
   分支 `0.2.2-rc2` 的 head）。该 tag 含本线全部补丁，且 wheel 为纯
   `py3-none-any`，**一份跨全部 20 个后端复用**——按后端逐次构建仅在需要
   pre-merge 验证时才有意义。0.24.0 线对应 `v0.3.0-rc2.post1`。
+- **派发语义（2026-09-20 起）：** `backend` 选的是**构建镜像**，不是上传目标。
+  `backend=all`（默认）在一次构建里产出该 wheel（实测 1m1s），再扇出到 runtime
+  矩阵里的**全部 11 个 vendor index**；具名 `backend` 则在那个镜像里构建、只传该
+  vendor 的索引（分阶段放量，或先传一个库）。`pypi_repo` 覆盖为单库。
+  通用性不是推断而是实测：同一 tag 在 nvidia-cuda12.8(py3.12) 与
+  kunlunxin-xre5.29.0(py3.10) 构建出 328 个成员逐个同内容，2026-09-20 发布时
+  11 个索引的 sha256 全为 `99415ed7…f01233`（同一份文件）。
 - **wheel 版本两种形式**（由 `plugin_ref` **是什么**决定，不由开关决定；
   两者都由 workflow 推导、从不手写）：
   - **tag 形式** —— `plugin_ref` 是一个 tag，版本即 tag 名（PEP 440 归一）：

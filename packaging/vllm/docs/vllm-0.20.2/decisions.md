@@ -15,7 +15,7 @@
 | 上传到 vendor PyPI | `build-and-repack.sh --upload`（twine + token） | ✅ |
 | 安装 + serve 验证 | `verify-vllm-backend.sh <vendor>-<backend>` | ✅ |
 | 验证 METADATA（无空行、deps 正确） | `wc -l`、`grep Requires-Dist`、removed vs retained 计数 | ⚒️ 需要脚本 |
-| 一次构建上传到全部 vendor PyPI | 遍历 configs.yaml 各厂商（依赖 §5.2 empty 通用性成立） | ⚒️ 需要脚本 |
+| 一次构建上传到全部 vendor PyPI | **plugin wheel 已 ✅**（`vllm-plugin-wheel.yml` `backend=all`）；vllm repack 仍 ⬜——二进制 wheel 必须按 (python, arch) 各自重生 | ⚒️/✅ 09-20 |
 | CI：repack → upload → build → push | 模式已存在于 `flaggems-release.yml` + `runtime.yml` | ⚒️ 需要 workflow |
 | app 镜像 Containerfile | `FROM runtime` + pip install vllm + plugin-FL | ✅ app/vllm/Containerfile + app/megatron×2；vllm 线已验证 |
 | 构建后冒烟测试 | `docker run --rm ... python3 -c 'import vllm'` | ⚒️ 需要 CI step |
