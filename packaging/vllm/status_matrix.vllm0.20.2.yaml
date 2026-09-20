@@ -94,7 +94,7 @@ backends:
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true
-    image_tag: "2.1.2-0.2.2rc2.post1_g52949b6.d20260914"
+    image_tag: "2.2.0-0.2.2rc2.post2"
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: true
