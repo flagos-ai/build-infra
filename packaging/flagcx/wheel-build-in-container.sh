@@ -30,7 +30,7 @@
 # verify script passes.
 #
 # Every input arrives as environment set by that exec (-e NAME=value, values from
-# deb-config.py --build-inputs), so nothing here is interpolated into a shell
+# flagcx-config.py --build-inputs), so nothing here is interpolated into a shell
 # string on the host. /output is a bind mount: it is where the artifacts land for
 # the host to collect, and where the two provenance files beside the wheel go.
 #
@@ -77,10 +77,10 @@ unset SETUPTOOLS_SCM_PRETEND_VERSION SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAGCX
 # NVCC_PREPEND_FLAGS — the device units need C++20 (third-party/json) and nvcc's
 # default is below it — is PREPEND and not CXXFLAGS so the host objects keep the
 # standard the Makefile chose; that flag never reaches nvcc's front end.
-if [ -n "${DEB_BITCODE_ARCH}" ]; then
+if [ -n "${WHEEL_BITCODE_ARCH}" ]; then
     export COMPILE_KERNEL=1 NVCC_PREPEND_FLAGS="-std=c++20" \
-           FLAGCX_BITCODE_ARCH="${DEB_BITCODE_ARCH}" \
-           FLAGCX_BITCODE_ADAPTOR_FLAGS="${DEB_BITCODE_ADAPTOR_FLAG}"
+           FLAGCX_BITCODE_ARCH="${WHEEL_BITCODE_ARCH}" \
+           FLAGCX_BITCODE_ADAPTOR_FLAGS="${WHEEL_BITCODE_ADAPTOR_FLAG}"
 fi
 
 # FLAGCX_ADAPTOR is given rather than detected: the adaptor is a property of the
@@ -100,11 +100,11 @@ fi
 # pyproject.toml no dependencies, so this turns "nothing was pulled in" into a
 # failure instead of a silent extra dependency inside the wheel.
 export SETUPTOOLS_SCM_OVERRIDES_FOR_FLAGCX='{scm.git.describe_command="git describe --dirty --tags --long --abbrev='"${FLAGCX_SCM_ABBREV}"' --match *[0-9]*"}' \
-       FLAGCX_ADAPTOR="${DEB_WHEEL_ADAPTOR}" \
-       FLAGCX_TORCH_BACKEND="${DEB_WHEEL_TORCH_BACKEND}" \
-       FLAGCX_VERSION_SUFFIX="${DEB_WHEEL_VERSION_SUFFIX}" \
-       CUDA_PATH="${DEB_WHEEL_CUDA_PATH}" \
-       ${DEB_WHEEL_MAKE_ENV}
+       FLAGCX_ADAPTOR="${WHEEL_ADAPTOR}" \
+       FLAGCX_TORCH_BACKEND="${WHEEL_TORCH_BACKEND}" \
+       FLAGCX_VERSION_SUFFIX="${WHEEL_VERSION_SUFFIX}" \
+       CUDA_PATH="${WHEEL_CUDA_PATH}" \
+       ${WHEEL_MAKE_ENV}
 /flagos/bin/python -m pip wheel --no-build-isolation --no-deps --no-cache-dir -w /output .
 ls -la /output
 

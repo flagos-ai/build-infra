@@ -60,7 +60,7 @@ plus the backend's `apt:` packages — no runtime image is involved.
 Some rows' runtime images carry no device toolchain at all — the two nvidia rows have no nvcc, no
 `cuda_runtime.h`, no `nccl.h` and no clang — and the wheel line builds *in* the runtime image. For
 those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`: the
-runtime image plus the row's own SDK packages, `builder.apt`, and clang/llvm 22.
+runtime image plus the row's own SDK packages, `builder.extra_apt`, and clang/llvm 22.
 
 ```bash
 packaging/flagcx/build-flagcx-builder.sh --list

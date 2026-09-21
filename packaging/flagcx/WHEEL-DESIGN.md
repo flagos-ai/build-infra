@@ -63,7 +63,7 @@ unconsumed until now).
 | Question | Decision |
 |---|---|
 | Base | The row's own **runtime** image — never a vendor `-devel` tag |
-| Contents | The row's `apt:` list + `builder.apt` + clang/llvm 22 + the wheel's build-only headers |
+| Contents | The row's `apt:` list + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers |
 | Which rows | Only those declaring `builder.enabled`; a runtime image that already carries the toolchain needs none |
 | Acceptance | Compiling that row's device bitcode inside the built image, in CI, before the push |
 

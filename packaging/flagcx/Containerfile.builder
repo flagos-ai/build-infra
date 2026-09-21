@@ -19,10 +19,10 @@
 #   key=nvidia-cuda13.3
 #   eval "$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$key" --channel builder)"
 #   docker build \
-#       --build-arg "BASE_IMAGE=$DEB_IMAGE_TAG" \
-#       --build-arg "DEB_APT=$DEB_APT" \
-#       --build-arg "DEB_BUILDER_APT=$DEB_BUILDER_APT" \
-#       --build-arg "DEB_ASSERT=$DEB_ASSERT" \
+#       --build-arg "BASE_IMAGE=$BUILDER_IMAGE_TAG" \
+#       --build-arg "BUILDER_APT=$BUILDER_APT" \
+#       --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
+#       --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
 #       --build-arg "LLVM_VERSION=22.1.8" \
 #       --build-arg "LLVM_SHA256=df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384" \
 #       -f packaging/flagcx/Containerfile.builder -t "flagos-dev/flagcx-builder:$key" .
@@ -38,7 +38,7 @@
 # and the device rpaths, and only /flagos carries torch, setuptools_scm and a
 # Python.h for the interpreter that will install the result. Build env ==
 # delivery env. This image is therefore the runtime image plus the two things a
-# FlagCX build needs that no runtime image ships — the vendor SDK (DEB_APT, the
+# FlagCX build needs that no runtime image ships — the vendor SDK (BUILDER_APT, the
 # same list the .deb line already states) and clang/llvm — and nothing else. It
 # is a legitimate image precisely because the runtime image is *insufficient*
 # here: the packaging/megatron line rejected a pre-built builder for the
@@ -51,9 +51,9 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
-ARG DEB_APT
-ARG DEB_BUILDER_APT
-ARG DEB_ASSERT
+ARG BUILDER_APT
+ARG BUILDER_EXTRA_APT
+ARG BUILDER_ASSERT
 ARG LLVM_VERSION
 ARG LLVM_SHA256
 
@@ -76,9 +76,9 @@ ARG https_proxy=
 # value, and that is the only source.
 ARG no_proxy=
 
-# DEB_APT is what the adaptor needs on top of the runtime image and is the same
+# BUILDER_APT is what the adaptor needs on top of the runtime image and is the same
 # list Containerfile.deb installs — one fact, stated once, in backends.yaml.
-# DEB_BUILDER_APT is this channel's own increment and is build-time-only.
+# BUILDER_EXTRA_APT is this channel's own increment and is build-time-only.
 #
 # libgflags-dev/libgoogle-glog-dev are here rather than in Containerfile.wheel
 # because they are build-only headers that no runtime image ships (torch's
@@ -92,7 +92,7 @@ ARG no_proxy=
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ${DEB_APT} ${DEB_BUILDER_APT} \
+        ${BUILDER_APT} ${BUILDER_EXTRA_APT} \
         libgflags-dev libgoogle-glog-dev \
         curl xz-utils ca-certificates; \
     rm -rf /var/lib/apt/lists/*
@@ -115,7 +115,7 @@ RUN set -eux; \
     done; \
     rm -rf /var/lib/apt/lists/*
 
-# DEB_ASSERT is the list of files that proves the SDK is the one we think it is,
+# BUILDER_ASSERT is the list of files that proves the SDK is the one we think it is,
 # and it is checked *after* the install above — not before, as
 # Containerfile.wheel checks it. That file's early gate is right for the SDK-free
 # rows it was written for and is exactly why the nvidia rows could not use the
@@ -123,7 +123,7 @@ RUN set -eux; \
 # this image has just installed. Here the assert answers the question the install
 # raises, which is whether the packages that landed are the ones the row means.
 RUN set -eux; \
-    for path in ${DEB_ASSERT}; do \
+    for path in ${BUILDER_ASSERT}; do \
         test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
     done
 

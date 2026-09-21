@@ -30,24 +30,24 @@
 #   key=hygon-dtk26.04
 #   eval "$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$key" --channel wheel)"
 #   docker build \
-#       --build-arg "BASE_IMAGE=$DEB_WHEEL_BASE_IMAGE" \
+#       --build-arg "BASE_IMAGE=$WHEEL_BASE_IMAGE" \
 #       --build-arg "FLAGCX_REPO=https://github.com/flagos-ai/FlagCX.git" \
 #       --build-arg "FLAGCX_REF=$FLAGCX_REF" \
 #       --build-arg "BACKEND=$key" \
-#       --build-arg "DEB_WHEEL_ASSERT=$DEB_WHEEL_ASSERT" \
-#       --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
+#       --build-arg "WHEEL_ASSERT=$WHEEL_ASSERT" \
+#       --build-arg "WHEEL_PYTHON_TAG=$WHEEL_PYTHON_TAG" \
 #       -f packaging/flagcx/Containerfile.wheel -t "flagcx-wheel:$key" .
 #
 #   docker run -d --name flagcx-wheel-build-$key <the row's run.vendors flags> \
 #       -v "$PWD/dist:/output" \
 #       -v "$PWD/packaging/flagcx/wheel-build-in-container.sh:/wheel-build.sh:ro" \
-#       -e DEB_WHEEL_ADAPTOR="$DEB_WHEEL_ADAPTOR" \
-#       -e DEB_WHEEL_TORCH_BACKEND="$DEB_WHEEL_TORCH_BACKEND" \
-#       -e DEB_WHEEL_VERSION_SUFFIX="$DEB_WHEEL_VERSION_SUFFIX" \
-#       -e DEB_WHEEL_MAKE_ENV="$DEB_WHEEL_MAKE_ENV" \
-#       -e DEB_WHEEL_CUDA_PATH="$DEB_WHEEL_CUDA_PATH" \
-#       -e DEB_BITCODE_ARCH="$DEB_BITCODE_ARCH" \
-#       -e DEB_BITCODE_ADAPTOR_FLAG="$DEB_BITCODE_ADAPTOR_FLAG" \
+#       -e WHEEL_ADAPTOR="$WHEEL_ADAPTOR" \
+#       -e WHEEL_TORCH_BACKEND="$WHEEL_TORCH_BACKEND" \
+#       -e WHEEL_VERSION_SUFFIX="$WHEEL_VERSION_SUFFIX" \
+#       -e WHEEL_MAKE_ENV="$WHEEL_MAKE_ENV" \
+#       -e WHEEL_CUDA_PATH="$WHEEL_CUDA_PATH" \
+#       -e WHEEL_BITCODE_ARCH="$WHEEL_BITCODE_ARCH" \
+#       -e WHEEL_BITCODE_ADAPTOR_FLAG="$WHEEL_BITCODE_ADAPTOR_FLAG" \
 #       "flagcx-wheel:$key" sleep infinity
 #   docker exec flagcx-wheel-build-$key bash /wheel-build.sh
 #   docker rm -f flagcx-wheel-build-$key     # /output is the host's, it is a bind mount
@@ -79,8 +79,8 @@ FROM ${BASE_IMAGE}
 ARG FLAGCX_REPO
 ARG FLAGCX_REF
 ARG BACKEND
-ARG DEB_WHEEL_ASSERT
-ARG DEB_WHEEL_PYTHON_TAG
+ARG WHEEL_ASSERT
+ARG WHEEL_PYTHON_TAG
 
 # Scoped to the clone below and never set as image ENV: the proxy is a build-time
 # fact of one RUN, and an image that remembers it is an image that leaks it.
@@ -99,14 +99,14 @@ ARG https_proxy=
 # value, and that is the only source.
 ARG no_proxy=
 
-# DEB_WHEEL_ASSERT is the list of files that proves the SDK is the one we think
+# WHEEL_ASSERT is the list of files that proves the SDK is the one we think
 # it is — checked here, in three seconds, rather than surfacing as an unresolved
 # symbol after the build. The wheel line needs it for a second reason: the
 # CUDA_PATH handed to the build is derived from the same registry row, so a
 # container built from the wrong backend's runtime image is exactly the case
 # where that path is plausible and wrong.
 RUN set -eux; \
-    for path in ${DEB_WHEEL_ASSERT}; do \
+    for path in ${WHEEL_ASSERT}; do \
         test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
     done
 
@@ -177,14 +177,14 @@ RUN set -eu; \
       'assert os.path.exists(header), msg % header' \
       '' \
       'tag = "cp3%d" % sys.version_info.minor' \
-      'want = os.environ["DEB_WHEEL_PYTHON_TAG"]' \
+      'want = os.environ["WHEEL_PYTHON_TAG"]' \
       'assert tag == want, "the venv is %s, the registry row says %s" % (tag, want)' \
       '' \
       'import torch' \
       'print(">>> build env: %s, %s, torch %s, setuptools_scm %s"' \
       '      % (sys.executable, tag, torch.__version__,' \
       '         importlib.metadata.version("setuptools_scm")))' \
-    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 DEB_WHEEL_PYTHON_TAG="${DEB_WHEEL_PYTHON_TAG}" \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 WHEEL_PYTHON_TAG="${WHEEL_PYTHON_TAG}" \
       /flagos/bin/python -
 
 # No --depth 1 on the main repository: setuptools_scm derives the public version

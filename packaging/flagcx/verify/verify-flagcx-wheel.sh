@@ -172,7 +172,7 @@ fi
 
 # Captured into a variable rather than inlined: `set -e` does not see a failure
 # inside eval's command substitution, so an inline one would let the script run
-# on with every DEB_* empty.
+# on with every WHEEL_* empty.
 INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$KEY" --channel wheel)"
 set -a
 eval "$INPUTS"
@@ -182,34 +182,34 @@ set +a
 # label does not is a wheel of another row: the image below is the wrong one, and
 # so are the device flags.
 case "$LABEL" in
-    "$DEB_WHEEL_LOCAL_VERSION"|"$DEB_WHEEL_LOCAL_VERSION".*) ;;
-    *) fail "$KEY publishes the label $DEB_WHEEL_LOCAL_VERSION, the artifact carries $LABEL" ;;
+    "$WHEEL_LOCAL_VERSION"|"$WHEEL_LOCAL_VERSION".*) ;;
+    *) fail "$KEY publishes the label $WHEEL_LOCAL_VERSION, the artifact carries $LABEL" ;;
 esac
 # The runtime image is the delivery environment, and the build environment too on
 # every row without a builder image. This is still where the wheel has to stand
 # on its own: the builder is only ever a superset.
-[[ -n "$DEB_IMAGE_TAG" ]] \
+[[ -n "$WHEEL_IMAGE_TAG" ]] \
     || fail "$KEY: no runtime image in its matrix row, so there is nothing to verify in"
 if [[ -n "$OPT_INDEX_URL" ]]; then
     # Both sides come off the same matrix row, so this holds by construction —
     # and it is what keeps a read-back from reporting on an index the row does
     # not publish to.
-    [[ "$OPT_INDEX_URL" == "$DEB_WHEEL_INDEX_URL" ]] \
-        || fail "--index-url $OPT_INDEX_URL is not this row's index ($DEB_WHEEL_INDEX_URL)"
+    [[ "$OPT_INDEX_URL" == "$WHEEL_INDEX_URL" ]] \
+        || fail "--index-url $OPT_INDEX_URL is not this row's index ($WHEEL_INDEX_URL)"
 fi
 
-docker image inspect "$DEB_IMAGE_TAG" >/dev/null 2>&1 || docker pull "$DEB_IMAGE_TAG"
+docker image inspect "$WHEEL_IMAGE_TAG" >/dev/null 2>&1 || docker pull "$WHEEL_IMAGE_TAG"
 
 # The vendor's device passthrough, from build-config.yml: the extension this
 # wheel installs links the vendor's communication library, so this container
 # needs the flags a runtime container gets. Keyed on the backend key's prefix,
-# not DEB_WHEEL_ADAPTOR: that is the FlagCX adaptor family, which is not the
+# not WHEEL_ADAPTOR: that is the FlagCX adaptor family, which is not the
 # build-infra vendor wherever the adaptor carries its own name (iluvatar_corex,
 # musa, tsm), and a miss fell back to run.default — leaving the device out of
 # the container with no line in the log saying so. metax is why the chain ends at
 # run.default -- its entry carries toolkit_cmd (a wrapper binary CI does not
 # have) and raw, no toolkit.
-RUN_FLAGS="$(BACKEND="$DEB_NAME" python3 - <<'PY'
+RUN_FLAGS="$(BACKEND="$WHEEL_NAME" python3 - <<'PY'
 import os
 import yaml
 with open(".github/build-config.yml") as fh:
@@ -276,7 +276,7 @@ verify_in() {
 
     docker exec -i -e MODE="$mode" -e IMAGE="$image" -e WANT_VERSION="$WANT_VERSION" \
         -e WHEEL="$in_container" -e INDEX="$OPT_INDEX_URL" -e PIN="$OPT_PIN" \
-        -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$DEB_BITCODE_ARCH" \
+        -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$WHEEL_BITCODE_ARCH" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 PY=/flagos/bin/python
 
@@ -407,6 +407,6 @@ echo ">>> $MODE: flagcx $installed imports, $lib and its dependencies resolve, n
 IN_CONTAINER
 }
 
-verify_in "$DEB_IMAGE_TAG" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
+verify_in "$WHEEL_IMAGE_TAG" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
 
-echo ">>> ok: flagcx $WANT_VERSION ($DEB_ARCH, $DEB_WHEEL_PYTHON_TAG)"
+echo ">>> ok: flagcx $WANT_VERSION ($WHEEL_ARCH, $WHEEL_PYTHON_TAG)"
