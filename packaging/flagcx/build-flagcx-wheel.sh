@@ -487,8 +487,8 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
             --build-arg "DEB_WHEEL_MAKE_ENV=$DEB_WHEEL_MAKE_ENV" \
             --build-arg "DEB_WHEEL_CUDA_PATH=$DEB_WHEEL_CUDA_PATH" \
-            --build-arg "DEB_WHEEL_BITCODE_ARCH=$DEB_WHEEL_BITCODE_ARCH" \
-            --build-arg "DEB_WHEEL_BITCODE_ADAPTOR_FLAG=$DEB_WHEEL_BITCODE_ADAPTOR_FLAG" \
+            --build-arg "DEB_BITCODE_ARCH=$DEB_BITCODE_ARCH" \
+            --build-arg "DEB_BITCODE_ADAPTOR_FLAG=$DEB_BITCODE_ADAPTOR_FLAG" \
             -t "$tag" \
             -f "$HERE/Containerfile.wheel" \
             "$REPO_ROOT" 2>&1 \
@@ -503,7 +503,7 @@ for key in "${BACKENDS[@]}"; do
         bitcode=""
         cid="$(docker create "$tag")"
         docker cp "$cid:/output/." "$OPT_OUT/"
-        if [ -n "$DEB_WHEEL_BITCODE_ARCH" ]; then
+        if [ -n "$DEB_BITCODE_ARCH" ]; then
             bitcode="$(mktemp -d)"
             docker cp "$cid:/bitcode/." "$bitcode/"
         fi

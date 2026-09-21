@@ -277,7 +277,7 @@ verify_in() {
 
     docker exec -i -e MODE="$mode" -e IMAGE="$image" -e WANT_VERSION="$WANT_VERSION" \
         -e WHEEL="$in_container" -e INDEX="$OPT_INDEX_URL" -e PIN="$OPT_PIN" \
-        -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$DEB_WHEEL_BITCODE_ARCH" \
+        -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$DEB_BITCODE_ARCH" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 PY=/flagos/bin/python
 

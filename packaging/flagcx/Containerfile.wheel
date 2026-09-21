@@ -30,8 +30,8 @@
 #       --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
 #       --build-arg "DEB_WHEEL_MAKE_ENV=$DEB_WHEEL_MAKE_ENV" \
 #       --build-arg "DEB_WHEEL_CUDA_PATH=$DEB_WHEEL_CUDA_PATH" \
-#       --build-arg "DEB_WHEEL_BITCODE_ARCH=$DEB_WHEEL_BITCODE_ARCH" \
-#       --build-arg "DEB_WHEEL_BITCODE_ADAPTOR_FLAG=$DEB_WHEEL_BITCODE_ADAPTOR_FLAG" \
+#       --build-arg "DEB_BITCODE_ARCH=$DEB_BITCODE_ARCH" \
+#       --build-arg "DEB_BITCODE_ADAPTOR_FLAG=$DEB_BITCODE_ADAPTOR_FLAG" \
 #       -f packaging/flagcx/Containerfile.wheel -t "flagcx-wheel:$key" .
 #
 # packaging/flagcx/build-flagcx-wheel.sh is that recipe with the bookkeeping
@@ -83,8 +83,13 @@ ARG DEB_WHEEL_CUDA_PATH
 # `.so` built without the device kernels is inert — the device net-construction
 # kernels live in the `.so`, and without them `flagcxDevNetSizeOf()` reports 0 and
 # the backend the `.bc` describes has no contexts to talk to.
-ARG DEB_WHEEL_BITCODE_ARCH=
-ARG DEB_WHEEL_BITCODE_ADAPTOR_FLAG=
+#
+# The two names carry no WHEEL_ infix because they are not this channel's own:
+# they are the row's `bitcode_arch`/`bitcode_adaptor_flag`, the pair the builder
+# channel's verification compiles, and `deb-config.py` names a variable after the
+# field it came from.
+ARG DEB_BITCODE_ARCH=
+ARG DEB_BITCODE_ADAPTOR_FLAG=
 
 # setuptools_scm's default is --abbrev=40 (git.py DEFAULT_DESCRIBE), which puts a
 # full SHA in the wheel name and in every pin written from it. Shared with the
@@ -306,7 +311,7 @@ WORKDIR /flagcx
 RUN set -eux; \
     if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
     unset SETUPTOOLS_SCM_PRETEND_VERSION SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAGCX; \
-    if [ -n "${DEB_WHEEL_BITCODE_ARCH}" ]; then \
+    if [ -n "${DEB_BITCODE_ARCH}" ]; then \
         export COMPILE_KERNEL=1 NVCC_PREPEND_FLAGS="-std=c++20"; \
     fi; \
     export SETUPTOOLS_SCM_OVERRIDES_FOR_FLAGCX='{scm.git.describe_command="git describe --dirty --tags --long --abbrev='"${FLAGCX_SCM_ABBREV}"' --match *[0-9]*"}' \
@@ -333,16 +338,16 @@ RUN set -eux; \
 # `.bc` that arrived there without going through the wheel would read as a second
 # artifact of the build.
 RUN set -eux; \
-    if [ -z "${DEB_WHEEL_BITCODE_ARCH}" ]; then \
+    if [ -z "${DEB_BITCODE_ARCH}" ]; then \
         echo ">>> no bitcode for this row"; exit 0; \
     fi; \
     if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
     export ${DEB_WHEEL_MAKE_ENV}; \
     make -C bindings/ir/nvidia \
         BUILDDIR=/bitcode \
-        BITCODE_LIB_ARCH="${DEB_WHEEL_BITCODE_ARCH}" \
+        BITCODE_LIB_ARCH="${DEB_BITCODE_ARCH}" \
         BITCODE_CXX_STD=gnu++17 \
-        ADAPTOR_FLAG="${DEB_WHEEL_BITCODE_ADAPTOR_FLAG}" \
+        ADAPTOR_FLAG="${DEB_BITCODE_ADAPTOR_FLAG}" \
         DEVICE_HOME="$DEVICE_HOME" CCL_HOME="$CCL_HOME"; \
     test -s /bitcode/lib/libflagcx_device.bc; \
     test -s /bitcode/include/flagcx_device_wrapper.h; \
