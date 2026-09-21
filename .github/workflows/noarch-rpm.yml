@@ -192,11 +192,16 @@ jobs:
                     " Pass `version` to stamp a release version explicitly.")
               sys.exit(0)
 
-          # v5.4.0-rc2.post2 -> upstream 5.4.0, pre-release "rc2.post2".
-          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+(?:\.post\d+)?))?$", release)
+          # v5.4.0-rc2.post2 -> upstream 5.4.0, rc "rc2", post "post2".
+          # `post` is matched on its own because it appears both after an rc
+          # (v0.3.0-rc2.post1, a respin of a pre-release) and directly after a
+          # release (v0.3.0.post1, a respin of the release) -- and the two sort
+          # to opposite sides of the bare release.
+          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+))?(?:[-.]?(post\d+))?$",
+                       release)
           if not m:
               sys.exit(f"::error::cannot parse a release version out of '{release}'")
-          upstream, pre = m.group(1), m.group(2)
+          upstream, rc, post = m.group(1), m.group(2), m.group(3)
 
           # A pre-release qualifier cannot go in Version. "~" would order
           # correctly for rpm but is not a valid PEP 440 version, and these
@@ -204,10 +209,18 @@ jobs:
           # it; spelling it "5.4.0rc2.post2" is valid for Python but orders
           # *above* 5.4.0 in rpm, so the pre-release would shadow the real
           # release. The packaging guidelines' answer is to keep Version at the
-          # upstream number and put the qualifier in Release behind a leading
-          # 0, which sorts below the 1 a final release carries.
+          # upstream number and put the qualifier in Release: behind a leading
+          # 0 for a pre-release, which sorts below the 1 a final release
+          # carries, and behind that same 1 for a post-release, which must sort
+          # above it. Checked in both directions with rpmdev-vercmp.
           version = upstream
-          relval = f"0.{pre}%{{?dist}}" if pre else "1%{?dist}"
+          qualifier = ".".join(x for x in (rc, post) if x)
+          if rc:
+              relval = f"0.{qualifier}%{{?dist}}"
+          elif post:
+              relval = f"1.{post}%{{?dist}}"
+          else:
+              relval = "1%{?dist}"
 
           if (version, relval) == (mv.group(2), mr.group(2)):
               print(f"Spec already at {version}-{relval}; nothing to stamp")
