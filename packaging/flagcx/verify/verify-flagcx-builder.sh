@@ -80,16 +80,16 @@ cd "$REPO_ROOT"
 
 # Captured into a variable rather than inlined: `set -e` does not see a failure
 # inside eval's command substitution, so an inline one would let the script run
-# on with every DEB_* empty.
+# on with every BUILDER_* empty.
 INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$OPT_BACKEND" --channel builder)"
 set -a
 eval "$INPUTS"
 set +a
 
-IMAGE="${OPT_IMAGE:-$DEB_BUILDER_IMAGE}"
+IMAGE="${OPT_IMAGE:-$BUILDER_IMAGE}"
 [[ -n "$IMAGE" ]] \
     || fail "$OPT_BACKEND: the row publishes no builder image ref; see flagcx-config.py --check --channel builder"
-[[ -n "$DEB_BITCODE_ARCH" && -n "$DEB_BITCODE_ADAPTOR_FLAG" ]] \
+[[ -n "$BUILDER_BITCODE_ARCH" && -n "$BUILDER_BITCODE_ADAPTOR_FLAG" ]] \
     || fail "$OPT_BACKEND: no bitcode_arch/bitcode_adaptor_flag, so there is no device bitcode to verify"
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE" \
@@ -122,7 +122,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo ">>> $OPT_BACKEND: $IMAGE at $DEB_BITCODE_ARCH, $DEB_BITCODE_ADAPTOR_FLAG"
+echo ">>> $OPT_BACKEND: $IMAGE at $BUILDER_BITCODE_ARCH, $BUILDER_BITCODE_ADAPTOR_FLAG"
 docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
 # --network host: the clone is the container's only network use, and the default
 # bridge on the runners intermittently cannot open a TCP connection to github.com
@@ -130,11 +130,11 @@ docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
 docker run -d --name "$CONTAINER" --network host "${PROXY_ENV[@]}" "$IMAGE" sleep infinity >/dev/null
 
 docker exec -i \
-    -e BACKEND="$DEB_NAME" -e IMAGE="$IMAGE" \
+    -e BACKEND="$BUILDER_NAME" -e IMAGE="$IMAGE" \
     -e FLAGCX_REPO="$OPT_REPO" -e FLAGCX_REF="$OPT_REF" \
-    -e BITCODE_ARCH="$DEB_BITCODE_ARCH" \
-    -e ADAPTOR_FLAG="$DEB_BITCODE_ADAPTOR_FLAG" \
-    -e MAKE_ENV="$DEB_MAKE_ENV" \
+    -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
+    -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
+    -e MAKE_ENV="$BUILDER_MAKE_ENV" \
     "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 fail() { echo "$BACKEND: $*" >&2; exit 1; }
 

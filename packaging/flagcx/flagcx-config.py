@@ -89,8 +89,8 @@ DEB_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
 # What `--build-inputs` hands the build script. Everything else in a matrix row
 # describes the runtime image (deps, pypi indexes, compilers) and a deb build
 # never links against it, so emitting those would only suggest they matter.
-# Every name is emitted DEB_-prefixed so the container's build args cannot
-# collide with anything the base image already exports.
+# Every name is prefixed with the channel it belongs to, so the container's
+# build args cannot collide with anything the base image already exports.
 BUILD_INPUT_FIELDS = (
     "name", "version", "base_image", "arch", "glibc_floor", "vendor", "codename",
     "make_flag", "make_env", "apt", "vendor_libs", "vendor_lib_dirs", "assert",
@@ -121,7 +121,7 @@ WHEEL_BUILD_INPUT_FIELDS = (
 # identity fields are absent because nothing here is published to an index.
 BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "image_tag", "builder_image", "arch", "vendor",
-    "apt", "builder_apt", "assert", "make_env",
+    "apt", "builder_extra_apt", "assert", "make_env",
     "bitcode_arch", "bitcode_adaptor_flag",
 )
 
@@ -408,16 +408,21 @@ def relationship_fields(key: str, spec: dict, registry: dict) -> dict[str, str]:
     }
 
 
-def build_input_var(field: str) -> str:
+def build_input_var(field: str, channel: str = "deb") -> str:
     """Registry field name -> the variable `--build-inputs` emits.
 
-    One DEB_ namespace for everything, and a leading `deb_` is absorbed rather
-    than doubled (`deb_package` -> DEB_PACKAGE). debian/rules reads
-    DEB_MAKE_FLAG/DEB_MAKE_ENV out of the environment and control.in is rendered
-    from the same set, so there is exactly one naming rule to remember and no
-    way for a matrix row to shadow a variable the base image already exports.
+    The channel's own name is the prefix, and a field already carrying it is
+    absorbed rather than doubled (`deb_package` -> DEB_PACKAGE, `wheel_adaptor`
+    -> WHEEL_ADAPTOR, bare `bitcode_arch` -> WHEEL_BITCODE_ARCH). So a wheel
+    build reads WHEEL_* and never a deb name, and the prefix is what keeps a
+    matrix row from shadowing a variable the base image already exports.
+
+    debian/rules reads DEB_MAKE_FLAG/DEB_MAKE_ENV out of the environment and
+    control.in is rendered from the same set, so the deb channel's names are
+    load-bearing; each channel's are its own.
     """
-    return "DEB_" + field.removeprefix("deb_").upper()
+    prefix = channel.upper()
+    return f"{prefix}_" + field.removeprefix(f"{channel}_").upper()
 
 
 def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict]:
@@ -506,9 +511,10 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # answer different questions. `apt` is the row's SDK — the same list
             # the .deb line states, installed here because this build needs it
             # too — while this one is build-time-only and no other channel has
-            # it.
-            entry["builder_apt"] = " ".join(
-                (spec.get("builder") or {}).get("apt") or []
+            # it. Named `extra` because this channel's prefix would otherwise
+            # collapse it onto `apt`'s own name.
+            entry["builder_extra_apt"] = " ".join(
+                (spec.get("builder") or {}).get("extra_apt") or []
             )
             # Not under `builder:` in the registry: nothing in the image depends
             # on either, so a block that also holds what the image installs would
@@ -923,7 +929,7 @@ def main() -> int:
         # assign `a` and then try to *run* `b` when the script sources it.
         for name in fields:
             print(
-                f"{build_input_var(name)}={shlex.quote(str(entry.get(name, '')))}"
+                f"{build_input_var(name, args.channel)}={shlex.quote(str(entry.get(name, '')))}"
             )
         return 0
 

@@ -114,14 +114,14 @@ for key in "${BACKENDS[@]}"; do
         set -a
         # Captured first, then eval'd, rather than `eval "$(python3 ...)"`: a
         # command substitution inside eval fails invisibly to `set -e`, and the
-        # build would then proceed with every DEB_* empty.
+        # build would then proceed with every BUILDER_* empty.
         INPUTS="$(python3 "$HERE/flagcx-config.py" --build-inputs "$key" --channel builder)"
         eval "$INPUTS"
         set +a
 
-        ref="${OPT_TAG:-$DEB_BUILDER_IMAGE}"
+        ref="${OPT_TAG:-$BUILDER_IMAGE}"
         [[ -n "$ref" ]] || { echo "$key: no image ref (see --check)" >&2; exit 1; }
-        echo ">>> $key: $ref (from $DEB_IMAGE_TAG)"
+        echo ">>> $key: $ref (from $BUILDER_IMAGE_TAG)"
 
         # The runtime image this is built on is a moving flat tag, so the ref
         # alone does not say which runtime the toolchain was laid over. The
@@ -130,17 +130,17 @@ for key in "${BACKENDS[@]}"; do
         # Absent rather than wrong for a locally built runtime image, which has
         # no RepoDigests at all.
         base_digest="$(docker image inspect \
-            --format '{{range .RepoDigests}}{{println .}}{{end}}' "$DEB_IMAGE_TAG" \
+            --format '{{range .RepoDigests}}{{println .}}{{end}}' "$BUILDER_IMAGE_TAG" \
             2>/dev/null | head -n1 || true)"
 
         labels=(
-            --label "org.opencontainers.image.version=$DEB_VERSION"
+            --label "org.opencontainers.image.version=$BUILDER_VERSION"
             --label "org.opencontainers.image.source=https://github.com/flagos-ai/build-infra"
             # Which row this toolchain was assembled for. Two builders for the
             # same vendor are near-identical 17 GB images, and the runtime ref
             # alone does not say which row's SDK apt list went in.
             --label "flagos.backend=$key"
-            --label "flagos.base=$DEB_IMAGE_TAG"
+            --label "flagos.base=$BUILDER_IMAGE_TAG"
             --label "flagos.llvm.version=$LLVM_VERSION"
             --label "flagos.llvm.sha256=$LLVM_SHA256"
         )
@@ -180,10 +180,10 @@ for key in "${BACKENDS[@]}"; do
             "${proxy_arg[@]}" \
             "${labels[@]}" \
             --network host \
-            --build-arg "BASE_IMAGE=$DEB_IMAGE_TAG" \
-            --build-arg "DEB_APT=$DEB_APT" \
-            --build-arg "DEB_BUILDER_APT=$DEB_BUILDER_APT" \
-            --build-arg "DEB_ASSERT=$DEB_ASSERT" \
+            --build-arg "BASE_IMAGE=$BUILDER_IMAGE_TAG" \
+            --build-arg "BUILDER_APT=$BUILDER_APT" \
+            --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
+            --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
             --build-arg "LLVM_VERSION=$LLVM_VERSION" \
             --build-arg "LLVM_SHA256=$LLVM_SHA256" \
             -t "$ref" \

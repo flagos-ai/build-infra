@@ -63,7 +63,7 @@ unconsumed until now).
 | Question | Decision |
 |---|---|
 | Base | The row's own **runtime** image — never a vendor `-devel` tag |
-| Contents | The row's `apt:` list + `builder.apt` + clang/llvm 22 + the wheel's build-only headers |
+| Contents | The row's `apt:` list + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers |
 | Which rows | Only those declaring `builder.enabled`; a runtime image that already carries the toolchain needs none |
 | Acceptance | Compiling that row's device bitcode inside the built image, in CI, before the push |
 
@@ -187,6 +187,16 @@ make.
 
 ## Mechanics
 
+- **The compile is a `docker exec`, not a build step.** `docker build` gives its RUN steps no
+  devices, and the wheel needs one: `plugin/torch/_build_config.py` imports torch to pick the
+  extension classes, and torch's vendor bridge aborts at import when no device is visible
+  (`torch_ptpu` on sunrise, `torch_txda` on tsingmicro — both measured). `Containerfile.wheel` is
+  therefore the *environment* — SDK assert, the two build-only headers, the interpreter probe, the
+  clone, which is the slow and cacheable half and needs no device — and `wheel-build-in-container.sh`
+  is the compile, executed by `build-flagcx-wheel.sh` in a container started from that image with the
+  row's `run.vendors` flags. Those are the same flags `verify-flagcx-wheel.sh` verifies in, so the
+  build and the verification see the same device; a row whose adaptor tolerates a device-less build is
+  unaffected, because the flags are what the verify script would have used anyway.
 - **Version label** `0.13.0+cann9.0.0`, derived from the backend key the way `_build_config.py`
   derives its adaptor flag from `ADAPTOR_MAP` — never hand-written. Dropping the `{vendor}-` prefix
   was checked against all 20 backends: no two vendors collide on the remainder, so the label stays

@@ -177,7 +177,7 @@ nvidia-cuda12.8:
   # pin and not a field: both NVIDIA rows take the same one, in the Containerfile.
   builder:
     enabled: true
-    apt: [libcurand-dev-12-8]
+    extra_apt: [libcurand-dev-12-8]
   # This row's .so is built against NCCL 2.25, so its .bc takes the same Default
   # branch — the two have to agree, and nothing in the bitcode Makefile reads
   # nccl.h to find that out.
@@ -206,7 +206,7 @@ nvidia-cuda13.3:
   # Same two build-time gaps as the 12.8 row, and the same one-line answer.
   builder:
     enabled: true
-    apt: [libcurand-dev-13-3]
+    extra_apt: [libcurand-dev-13-3]
   # NCCL 2.31 here, so CCL — the branch that needs BITCODE_CXX_STD=gnu++17 (the
   # device headers under nccl_device/ use `typeof`). Both values are the ones the
   # recipe was measured at; whether one .bc covers this row's whole gencode range
@@ -451,6 +451,7 @@ sunrise-tangrt1.2.0:
   assert: [/usr/local/tangrt/include/tang_runtime.h, /usr/local/pccl/include/pccl.h]
   vendor_lib_dirs: [/usr/local/tangrt/targets/linux-x86_64/lib, /usr/local/pccl/lib/linux-x86_64]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true}
 
 tsingmicro-tsm260610:
   vendor: tsm
@@ -464,3 +465,4 @@ tsingmicro-tsm260610:
   assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
   vendor_lib_dirs: [/usr/local/kuiper/lib]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true}

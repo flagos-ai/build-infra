@@ -60,7 +60,7 @@ plus the backend's `apt:` packages — no runtime image is involved.
 Some rows' runtime images carry no device toolchain at all — the two nvidia rows have no nvcc, no
 `cuda_runtime.h`, no `nccl.h` and no clang — and the wheel line builds *in* the runtime image. For
 those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`: the
-runtime image plus the row's own SDK packages, `builder.apt`, and clang/llvm 22.
+runtime image plus the row's own SDK packages, `builder.extra_apt`, and clang/llvm 22.
 
 ```bash
 packaging/flagcx/build-flagcx-builder.sh --list
@@ -177,7 +177,8 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `Containerfile.deb` | the deb build, on top of the backend's base image |
 | `debian/` | `rules` + `control.in`; `debian/control` is rendered on the host |
 | `build-flagcx-deb.sh` | local/CI entry point, one backend per invocation |
-| `Containerfile.wheel` | the wheel build, in the backend's runtime image — or in its builder image where the row has one |
+| `Containerfile.wheel` | the wheel build's environment, on the backend's runtime image — or on its builder image where the row has one; it prepares (SDK assert, build-only headers, interpreter probe, clone), it does not compile |
+| `wheel-build-in-container.sh` | the compiling half: exec'd in a container from that image, carrying the row's device flags |
 | `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
 | `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
 | `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |

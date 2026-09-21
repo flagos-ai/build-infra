@@ -12,37 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# FlagCX wheels for one backend. One container, one backend.
+# FlagCX wheels for one backend: the image the wheel is built in. One container,
+# one backend.
+#
+# This file prepares, and wheel-build-in-container.sh builds. The split is not a
+# convenience — `docker build` gives its RUN steps no devices, and the build needs
+# them: plugin/torch/_build_config.py imports torch to pick the extension classes,
+# and torch's vendor bridge aborts at import when no device is visible (sunrise's
+# torch_ptpu, tsingmicro's torch_txda), so on those rows the build died before it
+# compiled anything. What runs here needs no device — the SDK assert, the two
+# build-only headers, the interpreter probe, the clone — and it is the slow,
+# cacheable half. build-flagcx-wheel.sh starts a container from this image with
+# the row's run.vendors flags and execs the rest in it.
 #
 # The build context is the repository root, not this directory:
 #
 #   key=hygon-dtk26.04
 #   eval "$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$key" --channel wheel)"
 #   docker build \
-#       --build-arg "BASE_IMAGE=$DEB_WHEEL_BASE_IMAGE" \
+#       --build-arg "BASE_IMAGE=$WHEEL_BASE_IMAGE" \
 #       --build-arg "FLAGCX_REPO=https://github.com/flagos-ai/FlagCX.git" \
 #       --build-arg "FLAGCX_REF=$FLAGCX_REF" \
 #       --build-arg "BACKEND=$key" \
-#       --build-arg "DEB_WHEEL_ASSERT=$DEB_WHEEL_ASSERT" \
-#       --build-arg "DEB_WHEEL_ADAPTOR=$DEB_WHEEL_ADAPTOR" \
-#       --build-arg "DEB_WHEEL_TORCH_BACKEND=$DEB_WHEEL_TORCH_BACKEND" \
-#       --build-arg "DEB_WHEEL_VERSION_SUFFIX=$DEB_WHEEL_VERSION_SUFFIX" \
-#       --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
-#       --build-arg "DEB_WHEEL_MAKE_ENV=$DEB_WHEEL_MAKE_ENV" \
-#       --build-arg "DEB_WHEEL_CUDA_PATH=$DEB_WHEEL_CUDA_PATH" \
-#       --build-arg "DEB_BITCODE_ARCH=$DEB_BITCODE_ARCH" \
-#       --build-arg "DEB_BITCODE_ADAPTOR_FLAG=$DEB_BITCODE_ADAPTOR_FLAG" \
+#       --build-arg "WHEEL_ASSERT=$WHEEL_ASSERT" \
+#       --build-arg "WHEEL_PYTHON_TAG=$WHEEL_PYTHON_TAG" \
 #       -f packaging/flagcx/Containerfile.wheel -t "flagcx-wheel:$key" .
+#
+#   docker run -d --name flagcx-wheel-build-$key <the row's run.vendors flags> \
+#       -v "$PWD/dist:/output" \
+#       -v "$PWD/packaging/flagcx/wheel-build-in-container.sh:/wheel-build.sh:ro" \
+#       -e WHEEL_ADAPTOR="$WHEEL_ADAPTOR" \
+#       -e WHEEL_TORCH_BACKEND="$WHEEL_TORCH_BACKEND" \
+#       -e WHEEL_VERSION_SUFFIX="$WHEEL_VERSION_SUFFIX" \
+#       -e WHEEL_MAKE_ENV="$WHEEL_MAKE_ENV" \
+#       -e WHEEL_CUDA_PATH="$WHEEL_CUDA_PATH" \
+#       -e WHEEL_BITCODE_ARCH="$WHEEL_BITCODE_ARCH" \
+#       -e WHEEL_BITCODE_ADAPTOR_FLAG="$WHEEL_BITCODE_ADAPTOR_FLAG" \
+#       "flagcx-wheel:$key" sleep infinity
+#   docker exec flagcx-wheel-build-$key bash /wheel-build.sh
+#   docker rm -f flagcx-wheel-build-$key     # /output is the host's, it is a bind mount
 #
 # packaging/flagcx/build-flagcx-wheel.sh is that recipe with the bookkeeping
 # around it; it is written out here because it has to be reproducible by hand.
-#
-# The build is a single stage — the artifacts are read out of the image rather
-# than copied to a later stage — so extraction is:
-#
-#   cid=$(docker create "flagcx-wheel:$key")
-#   docker cp "$cid:/output/." ./dist/
-#   docker rm "$cid"
 #
 # What the artifact is published under is its own name, and that name is the pin:
 # `build-flagcx-wheel.sh --print-pin dist/flagcx-*.whl` reads one back and prints
@@ -68,28 +79,8 @@ FROM ${BASE_IMAGE}
 ARG FLAGCX_REPO
 ARG FLAGCX_REF
 ARG BACKEND
-ARG DEB_WHEEL_ASSERT
-ARG DEB_WHEEL_ADAPTOR
-ARG DEB_WHEEL_TORCH_BACKEND
-ARG DEB_WHEEL_VERSION_SUFFIX
-ARG DEB_WHEEL_PYTHON_TAG
-ARG DEB_WHEEL_MAKE_ENV
-ARG DEB_WHEEL_CUDA_PATH
-
-# The row's device bitcode, empty on a row that publishes none. One switch
-# rather than a `compile_kernel` flag beside it: the device kernels live in the
-# `.so`, so a `.bc` built without them describes a backend with no contexts.
-#
-# No WHEEL_ infix: the names are the row's `bitcode_arch`/`bitcode_adaptor_flag`,
-# the same pair the builder channel's verification compiles, and flagcx-config.py
-# names a variable after the field it came from.
-ARG DEB_BITCODE_ARCH=
-ARG DEB_BITCODE_ADAPTOR_FLAG=
-
-# setuptools_scm's default is --abbrev=40 (git.py DEFAULT_DESCRIBE), which puts a
-# full SHA in the wheel name and in every pin written from it. Shared with the
-# scm-describe record below, which the host checks that name against.
-ARG FLAGCX_SCM_ABBREV=7
+ARG WHEEL_ASSERT
+ARG WHEEL_PYTHON_TAG
 
 # Scoped to the clone below and never set as image ENV: the proxy is a build-time
 # fact of one RUN, and an image that remembers it is an image that leaks it.
@@ -108,14 +99,14 @@ ARG https_proxy=
 # value, and that is the only source.
 ARG no_proxy=
 
-# DEB_WHEEL_ASSERT is the list of files that proves the SDK is the one we think
+# WHEEL_ASSERT is the list of files that proves the SDK is the one we think
 # it is — checked here, in three seconds, rather than surfacing as an unresolved
 # symbol after the build. The wheel line needs it for a second reason: the
 # CUDA_PATH handed to the build is derived from the same registry row, so a
 # container built from the wrong backend's runtime image is exactly the case
 # where that path is plausible and wrong.
 RUN set -eux; \
-    for path in ${DEB_WHEEL_ASSERT}; do \
+    for path in ${WHEEL_ASSERT}; do \
         test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
     done
 
@@ -186,14 +177,14 @@ RUN set -eu; \
       'assert os.path.exists(header), msg % header' \
       '' \
       'tag = "cp3%d" % sys.version_info.minor' \
-      'want = os.environ["DEB_WHEEL_PYTHON_TAG"]' \
+      'want = os.environ["WHEEL_PYTHON_TAG"]' \
       'assert tag == want, "the venv is %s, the registry row says %s" % (tag, want)' \
       '' \
       'import torch' \
       'print(">>> build env: %s, %s, torch %s, setuptools_scm %s"' \
       '      % (sys.executable, tag, torch.__version__,' \
       '         importlib.metadata.version("setuptools_scm")))' \
-    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 DEB_WHEEL_PYTHON_TAG="${DEB_WHEEL_PYTHON_TAG}" \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 WHEEL_PYTHON_TAG="${WHEEL_PYTHON_TAG}" \
       /flagos/bin/python -
 
 # No --depth 1 on the main repository: setuptools_scm derives the public version
@@ -236,14 +227,16 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 \
     done && \
     test -f /flagcx/third-party/json/single_include/nlohmann/json.hpp
 
-# The commit and the tag landscape are written out for the host to check: the
-# wheel's own name is the only thing that carries the version, and it is written
-# by a version scheme that reads this clone. A ref that is a branch name or a tag
-# resolves by itself; a 40-hex SHA has to be fetched before it can be checked out
-# (`git clone --branch <sha>` refuses it outright — Containerfile.deb:128 uses
-# that idiom and cannot use it here), and when the ref is one, the checkout is
-# asserted rather than assumed: a silent fallback to the default branch would
-# otherwise produce a well-formed wheel of the wrong commit.
+# The commit and the tag landscape are recorded by the build step, beside the
+# wheel, rather than here: /output is a bind mount in that container, and a
+# second copy written into the image would be shadowed by it.
+#
+# A ref that is a branch name or a tag resolves by itself; a 40-hex SHA has to be
+# fetched before it can be checked out (`git clone --branch <sha>` refuses it
+# outright — Containerfile.deb:128 uses that idiom and cannot use it here), and
+# when the ref is one, the checkout is asserted rather than assumed: a silent
+# fallback to the default branch would otherwise produce a well-formed wheel of
+# the wrong commit.
 RUN set -eux; \
     cd /flagcx; \
     if ! git checkout -q "${FLAGCX_REF}" 2>/dev/null; then \
@@ -256,78 +249,11 @@ RUN set -eux; \
             || { echo "assert: checked out $(git rev-parse HEAD), asked for $sha" >&2; exit 1; }; \
     fi; \
     test "$(git tag -l 'v*' | wc -l)" -gt 0 \
-        || { echo "assert: the clone carries no v* tag, so the version cannot be derived" >&2; exit 1; }; \
-    mkdir -p /output; \
-    git rev-parse HEAD > /output/commit.txt; \
-    git describe --tags --always --abbrev="${FLAGCX_SCM_ABBREV}" > /output/scm-describe.txt
+        || { echo "assert: the clone carries no v* tag, so the version cannot be derived" >&2; exit 1; }
 
 WORKDIR /flagcx
 
-# The ARGs are re-passed as environment: build args are not environment
-# variables, and setup.py reads every one of these out of the environment.
-#
-# A runner that exports SETUPTOOLS_SCM_PRETEND_VERSION (vllm-plugin-wheel.yml
-# does, for its own wheel) would otherwise override the tag-derived version here
-# and produce a wheel whose name has nothing to do with the commit.
-#
-# FLAGCX_ADAPTOR is given rather than detected: the adaptor is a property of the
-# registry row, not of the container's PATH, and _build_config.py's fallback also
-# scans USE_* variables that this build does not set.
-#
-# CUDA_PATH is read by the vendored torch, not by make: _build_config.py:284
-# takes it (or CUDA_HOME) and otherwise falls back to /usr/local/cuda, which
-# neither DTK nor MACA has. An empty value is not inert — the metax torch calls
-# set_wcuda_gnu_path() at import (cpp_extension.py:287) to set CXX from
-# $CUDA_PATH/bin/gnu, and only warns when it finds none. hygon's value is its
-# DEVICE_HOME (the two roots coincide); MACA's is its own field, because its
-# device root and its cu-bridge toolchain are different directories.
-#
-# --no-build-isolation: pyproject.toml requires torch, so isolation would go to
-# an index for it. --no-deps: setup.py declares no install_requires and
-# pyproject.toml no dependencies, so this turns "nothing was pulled in" into a
-# failure instead of a silent extra dependency inside the wheel.
-#
-# The vendor environment is sourced for the same reason the probe sources it:
-# setup.py imports torch through _build_config.py, and make needs the SDK's
-# compiler, headers and libraries on PATH/LD_LIBRARY_PATH. Both live in
-# /etc/profile.d, which a login shell reads and this one does not. Sourcing comes
-# first so that the CUDA_PATH exported below wins over anything the file sets.
-#
-# COMPILE_KERNEL=1 follows the bitcode arg rather than being its own input: a row
-# cannot publish a `.bc` its `.so` cannot service.
-#
-# The two FLAGCX_BITCODE_* variables are the same switch read by setup.py, which
-# builds the device bitcode and carries it into the wheel along with the headers
-# a consumer compiles against. Building it there rather than here is what makes
-# the wheel self-consistent: the archive and its RECORD are written once, by the
-# one process that knows everything that went into them.
-#
-# NVCC_PREPEND_FLAGS — the device units need C++20 (third-party/json) and nvcc's
-# default is below it — is PREPEND and not CXXFLAGS so the host objects keep the
-# standard the Makefile chose; that flag never reaches nvcc's front end.
-RUN set -eux; \
-    if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
-    unset SETUPTOOLS_SCM_PRETEND_VERSION SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAGCX; \
-    if [ -n "${DEB_BITCODE_ARCH}" ]; then \
-        export COMPILE_KERNEL=1 NVCC_PREPEND_FLAGS="-std=c++20" \
-               FLAGCX_BITCODE_ARCH="${DEB_BITCODE_ARCH}" \
-               FLAGCX_BITCODE_ADAPTOR_FLAGS="${DEB_BITCODE_ADAPTOR_FLAG}"; \
-    fi; \
-    export SETUPTOOLS_SCM_OVERRIDES_FOR_FLAGCX='{scm.git.describe_command="git describe --dirty --tags --long --abbrev='"${FLAGCX_SCM_ABBREV}"' --match *[0-9]*"}' \
-           FLAGCX_ADAPTOR="${DEB_WHEEL_ADAPTOR}" \
-           FLAGCX_TORCH_BACKEND="${DEB_WHEEL_TORCH_BACKEND}" \
-           FLAGCX_VERSION_SUFFIX="${DEB_WHEEL_VERSION_SUFFIX}" \
-           CUDA_PATH="${DEB_WHEEL_CUDA_PATH}" \
-           ${DEB_WHEEL_MAKE_ENV}; \
-    /flagos/bin/python -m pip wheel --no-build-isolation --no-deps --no-cache-dir -w /output .; \
-    ls -la /output
+# The build itself is packaging/flagcx/wheel-build-in-container.sh, which
+# build-flagcx-wheel.sh execs here with the row's devices. Nothing below this
+# line may be a RUN.
 
-# Exactly one wheel, asserted by the glob — and by its existence, since an
-# unmatched pattern stays literal in /bin/sh and would count as one. A second
-# wheel means something else in the tree is installable, and the pin cannot tell
-# them apart: it names a version, not a file.
-RUN set -eux; \
-    set -- /output/flagcx-*.whl; \
-    test "$#" -eq 1 -a -e "$1" \
-        || { ls -1 /output >&2; echo "assert: $# wheels in /output, expected exactly 1" >&2; exit 1; }; \
-    ls -1 /output/flagcx-*.whl

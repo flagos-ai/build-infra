@@ -186,9 +186,9 @@ if mode != "assert":
     die("unknown mode %r" % mode, code=2)
 
 out = sys.argv[2]
-want_local = os.environ["DEB_WHEEL_LOCAL_VERSION"]
-want_pytag = os.environ["DEB_WHEEL_PYTHON_TAG"]
-arch = os.environ["DEB_ARCH"]
+want_local = os.environ["WHEEL_LOCAL_VERSION"]
+want_pytag = os.environ["WHEEL_PYTHON_TAG"]
+arch = os.environ["WHEEL_ARCH"]
 want_plat = PLATFORM_TAG.get(arch)
 expect = os.environ.get("WHEEL_EXPECT_VERSION", "")
 
@@ -391,7 +391,7 @@ for key in "${BACKENDS[@]}"; do
         set -a
         # Captured first, then eval'd, rather than `eval "$(python3 ...)"`: a
         # command substitution inside eval fails invisibly to `set -e`, and the
-        # build would then proceed with every DEB_* empty. eval and not
+        # build would then proceed with every WHEEL_* empty. eval and not
         # `. <(...)`, which is bash-4 and sources nothing at all on bash 3.2;
         # flagcx-config.py shell-quotes every value, so there is nothing here for
         # eval to reinterpret.
@@ -400,7 +400,7 @@ for key in "${BACKENDS[@]}"; do
         set +a
 
         tag="flagcx-wheel:$key"
-        echo ">>> $key: $DEB_NAME ($DEB_ARCH, $DEB_WHEEL_PYTHON_TAG) from $FLAGCX_REF"
+        echo ">>> $key: $WHEEL_NAME ($WHEEL_ARCH, $WHEEL_PYTHON_TAG) from $FLAGCX_REF"
 
         # A runtime rebuilt after its builder leaves the builder describing an
         # environment that is no longer the delivery one, and the wheel would be
@@ -409,20 +409,20 @@ for key in "${BACKENDS[@]}"; do
         # The builder records which runtime it was built on (`flagos.base_digest`)
         # and the registry is asked what that tag resolves to now. Both sides are
         # index digests; a platform manifest digest would call every builder stale.
-        if [ "$DEB_WHEEL_BASE_IMAGE" != "$DEB_IMAGE_TAG" ]; then
-            docker image inspect "$DEB_WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
-                || docker pull "$DEB_WHEEL_BASE_IMAGE" >&2
+        if [ "$WHEEL_BASE_IMAGE" != "$WHEEL_IMAGE_TAG" ]; then
+            docker image inspect "$WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
+                || docker pull "$WHEEL_BASE_IMAGE" >&2
             built_on="$(docker image inspect \
-                -f '{{index .Config.Labels "flagos.base_digest"}}' "$DEB_WHEEL_BASE_IMAGE")"
+                -f '{{index .Config.Labels "flagos.base_digest"}}' "$WHEEL_BASE_IMAGE")"
             built_on="${built_on##*@}"
             [ -n "$built_on" ] \
-                || { echo "$DEB_WHEEL_BASE_IMAGE carries no flagos.base_digest label — it was not built by build-flagcx-builder.sh, so which runtime it describes cannot be checked" >&2; exit 1; }
-            now="$(docker buildx imagetools inspect "$DEB_IMAGE_TAG" 2>/dev/null \
+                || { echo "$WHEEL_BASE_IMAGE carries no flagos.base_digest label — it was not built by build-flagcx-builder.sh, so which runtime it describes cannot be checked" >&2; exit 1; }
+            now="$(docker buildx imagetools inspect "$WHEEL_IMAGE_TAG" 2>/dev/null \
                 | awk '/^Digest:/ {print $2; exit}')"
             [ -n "$now" ] \
-                || { echo "the registry states no digest for $DEB_IMAGE_TAG, so whether $DEB_WHEEL_BASE_IMAGE is stale cannot be checked" >&2; exit 1; }
+                || { echo "the registry states no digest for $WHEEL_IMAGE_TAG, so whether $WHEEL_BASE_IMAGE is stale cannot be checked" >&2; exit 1; }
             [ "$built_on" = "$now" ] \
-                || { echo "$DEB_WHEEL_BASE_IMAGE was built on $built_on, and $DEB_IMAGE_TAG is now $now — rebuild the builder before building the wheel in it" >&2; exit 1; }
+                || { echo "$WHEEL_BASE_IMAGE was built on $built_on, and $WHEEL_IMAGE_TAG is now $now — rebuild the builder before building the wheel in it" >&2; exit 1; }
         fi
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
@@ -468,29 +468,79 @@ for key in "${BACKENDS[@]}"; do
             "${cache_arg[@]}" \
             "${proxy_arg[@]}" \
             --network host \
-            --build-arg "BASE_IMAGE=$DEB_WHEEL_BASE_IMAGE" \
+            --build-arg "BASE_IMAGE=$WHEEL_BASE_IMAGE" \
             --build-arg "FLAGCX_REPO=$OPT_REPO" \
             --build-arg "FLAGCX_REF=$FLAGCX_REF" \
             --build-arg "BACKEND=$key" \
-            --build-arg "DEB_WHEEL_ASSERT=$DEB_WHEEL_ASSERT" \
-            --build-arg "DEB_WHEEL_ADAPTOR=$DEB_WHEEL_ADAPTOR" \
-            --build-arg "DEB_WHEEL_TORCH_BACKEND=$DEB_WHEEL_TORCH_BACKEND" \
-            --build-arg "DEB_WHEEL_VERSION_SUFFIX=$DEB_WHEEL_VERSION_SUFFIX" \
-            --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
-            --build-arg "DEB_WHEEL_MAKE_ENV=$DEB_WHEEL_MAKE_ENV" \
-            --build-arg "DEB_WHEEL_CUDA_PATH=$DEB_WHEEL_CUDA_PATH" \
-            --build-arg "DEB_BITCODE_ARCH=$DEB_BITCODE_ARCH" \
-            --build-arg "DEB_BITCODE_ADAPTOR_FLAG=$DEB_BITCODE_ADAPTOR_FLAG" \
+            --build-arg "WHEEL_ASSERT=$WHEEL_ASSERT" \
+            --build-arg "WHEEL_PYTHON_TAG=$WHEEL_PYTHON_TAG" \
             -t "$tag" \
             -f "$HERE/Containerfile.wheel" \
             "$REPO_ROOT" 2>&1 \
             | awk '{gsub(/:\/\/[^@\/ ]+:[^@\/ ]+@/, "://[redacted]@"); print; fflush()}'
 
-        # Same extraction idiom as packaging/flagtree and packaging/megatron:
-        # a single-stage build, so the artifacts are read out of the image.
-        cid="$(docker create "$tag")"
-        docker cp "$cid:/output/." "$OPT_OUT/"
-        docker rm "$cid"
+        # Then the build itself, in a container from that image — not a RUN in it,
+        # because `docker build` gives its steps no devices and the wheel build
+        # needs one: setup.py imports torch through _build_config.py, and torch's
+        # vendor bridge aborts at import when no device is visible (sunrise's
+        # torch_ptpu, tsingmicro's torch_txda). The flags are the row's, from the
+        # same build-config.yml table verify-flagcx-wheel.sh verifies in, so the
+        # build and the verification see the same device.
+        #
+        # /output is a bind mount rather than a `docker create` + `docker cp`
+        # source: the artifacts are the host's the moment they are written, and
+        # the wheel is read back from here with commit.txt/scm-describe.txt beside
+        # it, which is what the Containerfile no longer writes into the image.
+        RUN_FLAGS="$(BACKEND="$key" REPO_ROOT="$REPO_ROOT" python3 - <<'PY'
+import os
+import yaml
+with open(os.path.join(os.environ["REPO_ROOT"], ".github/build-config.yml")) as fh:
+    run = yaml.safe_load(fh).get("run") or {}
+# base/<name> names a backend {vendor}-{backend}, so the prefix is the
+# build-infra vendor name. There is no second copy to keep in step.
+key = os.environ["BACKEND"]
+entry = (run.get("vendors") or {}).get(key.split("-", 1)[0])
+if entry is None:
+    raise SystemExit(
+        f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
+        f"to build without the device flags its backend needs"
+    )
+print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
+PY
+)"
+        # Some vendor toolkits already carry it; naming it twice makes docker
+        # abort with "network host is specified multiple times" (run 33592252375).
+        if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
+            RUN_FLAGS="${RUN_FLAGS} --network host"
+        fi
+
+        build_container="flagcx-wheel-build-$key"
+        docker rm -f "$build_container" >/dev/null 2>&1 || true
+        # shellcheck disable=SC2086  # RUN_FLAGS is a flag list, meant to split
+        docker run -d --name "$build_container" \
+            $RUN_FLAGS \
+            -v "$OPT_OUT:/output" \
+            -v "$HERE/wheel-build-in-container.sh:/wheel-build.sh:ro" \
+            -e WHEEL_ADAPTOR="$WHEEL_ADAPTOR" \
+            -e WHEEL_TORCH_BACKEND="$WHEEL_TORCH_BACKEND" \
+            -e WHEEL_VERSION_SUFFIX="$WHEEL_VERSION_SUFFIX" \
+            -e WHEEL_MAKE_ENV="$WHEEL_MAKE_ENV" \
+            -e WHEEL_CUDA_PATH="$WHEEL_CUDA_PATH" \
+            -e WHEEL_BITCODE_ARCH="$WHEEL_BITCODE_ARCH" \
+            -e WHEEL_BITCODE_ADAPTOR_FLAG="$WHEEL_BITCODE_ADAPTOR_FLAG" \
+            "$tag" sleep infinity >/dev/null
+
+        rc=0
+        docker exec "$build_container" bash /wheel-build.sh || rc=$?
+        # Removed either way. It is started with the row's device flags, and a
+        # container left behind holds those devices: the next build on that node
+        # would see a device that is present and busy. The exec's own output is
+        # already in this log, so a failure loses nothing by it going.
+        docker rm -f "$build_container" >/dev/null 2>&1 || true
+        if (( rc != 0 )); then
+            echo "$key: the wheel build failed (rc=$rc)" >&2
+            exit "$rc"
+        fi
 
         # The assertion runs against the copy that landed here, not against a
         # name the container reported about itself: this is the artifact the
