@@ -82,6 +82,17 @@ comm-traits branch it landed in (the two differ by a factor of seven in size), t
 the runtime image it was built on has been rebuilt — `flagos.base_digest` records which one that
 was, so the staleness is detectable rather than remembered.
 
+Both rows are built, verified and published; the acceptance test was run on h20 against `21f8b5f`:
+
+| Row | At | Acceptance |
+|---|---|---|
+| `nvidia-cuda13.3` | h20 | clang 22, `sm_120`, CCL branch — 2,021,740 B of bitcode |
+| `nvidia-cuda12.8` | h20 | clang 22, `sm_90`, Default branch — 274,820 B |
+
+The two sizes are the band's calibration as well as the record: the CCL branch pulls in
+`nccl_device`'s device-side implementation, which is what separates them by a factor of seven, and
+the numbers do not move with the compiler.
+
 ## Adding a backend
 
 1. Add an entry to `backends.yaml` under either the `ready` or `probe-pending` heading, with a

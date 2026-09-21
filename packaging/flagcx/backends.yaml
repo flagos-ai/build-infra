@@ -122,7 +122,8 @@
 #                 file, so the branch can only reach the .bc as a value passed
 #                 in: left out, the .bc lands in DefaultBackend while the .so is
 #                 built against CCL, and the two then disagree about
-#                 DeviceAPI::Window/Multimem (see DESIGN.md, section 6). The
+#                 DeviceAPI::Window/Multimem (WHEEL-DESIGN.md, "The
+#                 build-toolchain image"). The
 #                 Makefile replaces ADAPTOR_FLAG wholesale rather than appending
 #                 to it, so the value restates the Makefile's own
 #                 -DUSE_NVIDIA_ADAPTOR default.

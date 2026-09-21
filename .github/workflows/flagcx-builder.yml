@@ -204,7 +204,6 @@ jobs:
         if: ${{ inputs.verify }}
         env:
           MATRIX_NAME: ${{ matrix.name }}
-          MATRIX_BUILDER_IMAGE: ${{ matrix.builder_image }}
         run: |
           set -euo pipefail
           packaging/flagcx/verify/verify-flagcx-builder.sh \

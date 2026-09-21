@@ -91,7 +91,11 @@ CUDA wrapper included unconditionally through 21, and CUDA 13.2's `crt/math_func
 compiler to define `_NV_RSQRT_SPECIFIER`; both fixes land in 22. Measured against CUDA 13.3: clang-20
 (Ubuntu 24.04) and clang-21 (apt.llvm.org) each fail to compile the device bitcode, clang-22
 succeeds. Only five binaries and clang's resource directory are taken from the 1.94 GB release
-tarball — 468 MB extracted, and clang-22 links no `libLLVM`. The one package that is not the
+tarball — 468 MB extracted, and clang-22 links no `libLLVM`. The tarball is fetched from the
+flagos filestore first and GitHub second, and **every build takes the second route today**: the
+filestore copy has not been uploaded (that needs the Nexus token, which is not this line's). Both
+routes are sha256-checked against the pin in `build-flagcx-builder.sh`, so the route taken does not
+change the artifact. The one package that is not the
 compiler's own: clang's `__clang_cuda_runtime_wrapper.h` force-includes `curand_mtgp32_kernel.h`,
 which no `cuda-nvcc` package ships, though FlagCX never calls cuRAND.
 
@@ -106,6 +110,11 @@ it the two artifacts disagree about `DeviceAPI::Window`/`Multimem`.
 builder built on the previous one stale; the order is runtime first, builder second. The image
 records `flagos.base_digest` so the comparison can be mechanical — that check belongs in the wheel
 build, which is where a stale builder would be consumed.
+
+Pointing the wheel build at one of these images also makes part of `Containerfile.wheel` redundant:
+its build-only apt list (`libgflags-dev`, `libgoogle-glog-dev`) is what the builder now carries, and
+that step is paid on every `FLAGCX_REF` change today. Removing it belongs to the wiring, not here,
+and cannot be done before the wheel actually starts from a builder.
 
 ## Mechanics
 
