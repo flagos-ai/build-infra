@@ -1,7 +1,8 @@
 # FlagCX wheels — build-infra side
 
-Status: **the builder images are built and the nvidia rows' wheels carry device bitcode**; the
-wheel itself has been built and installed end to end on h20, and is not yet published to an index.
+Status: **both nvidia rows build a wheel that carries their device bitcode, and it has been
+verified end to end on h20** — built in the row's builder image, installed into the row's runtime
+image, imported, with the bitcode and its header present. Not yet published to an index.
 `DESIGN.md` is the deb line's design of record; this file is the wheel line's, and it covers only
 what build-infra decides. The FlagCX-side questions — what goes inside the wheel, what the public
 API is — live in [flagos-ai/FlagCX#593](https://github.com/flagos-ai/FlagCX/issues/593), not here.

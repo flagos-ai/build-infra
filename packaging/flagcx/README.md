@@ -114,6 +114,15 @@ says what each file is for and why the paths are the ones they are.
 The install contract is the exact pin (`pip install 'flagcx==<version>+<label>'`); a range is
 satisfied by every vendor's build of the same commit, so nothing else can tell them apart.
 
+Both rows are built and verified locally; the acceptance test is the wheel installed into a
+container of the row's runtime image, run on h20 against `21f8b5f` — and neither is published to
+an index yet:
+
+| Row | Pin | Acceptance |
+|---|---|---|
+| `nvidia-cuda13.3` | `0.14.0rc2.post2.dev1+cuda13.3.20260920.g21f8b5f` | installs and imports; `sm_120`, 2,021,740 B of bitcode |
+| `nvidia-cuda12.8` | `0.14.0rc2.post2.dev1+cuda12.8.20260920.g21f8b5f` | installs and imports; `sm_90`, 274,820 B |
+
 ## Adding a backend
 
 1. Add an entry to `backends.yaml` under either the `ready` or `probe-pending` heading, with a
