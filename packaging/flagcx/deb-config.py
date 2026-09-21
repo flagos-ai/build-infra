@@ -98,16 +98,18 @@ BUILD_INPUT_FIELDS = (
     "deb_replaces", "deb_conflicts_dev", "deb_replaces_dev",
 )
 
-# The wheel channel's own set, not a superset: a wheel is built in the *runtime*
-# image (image_tag) rather than the base one, has no control stanza, and stamps
-# its identity from the wheel_* names instead of a package name. Emitting the
-# relationship fields here would suggest they reach a package that does not
-# exist on this channel.
+# The wheel channel's own set, not a superset: a wheel is built in an image
+# derived from the runtime one (`wheel_base_image`), has no control stanza, and
+# stamps its identity from the wheel_* names instead of a package name.
+#
+# The bitcode pair is the one field it shares with the builder channel: stated
+# there to verify, here to compile.
 WHEEL_BUILD_INPUT_FIELDS = (
     "name", "version", "image_tag", "arch", "python_version",
     "wheel_version_suffix", "wheel_local_version", "wheel_python_tag",
     "wheel_torch_backend", "wheel_adaptor", "wheel_make_env", "wheel_cuda_path",
-    "wheel_index_url", "wheel_assert",
+    "wheel_index_url", "wheel_assert", "wheel_base_image",
+    "bitcode_arch", "bitcode_adaptor_flag",
 )
 
 # The builder channel's own set. It builds an image rather than an artifact, so
@@ -483,6 +485,18 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             ) or (spec.get("make_env") or {}).get("DEVICE_HOME", "")
             entry["wheel_index_url"] = entry.get("flagos_pypi", "")
             entry["wheel_assert"] = " ".join(spec.get("assert") or [])
+            # The row's device bitcode, empty on the rows that carry none —
+            # the same pair the builder channel states, read here to compile it.
+            entry["bitcode_arch"] = spec.get("bitcode_arch", "")
+            entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
+            # Which image the wheel is built in: the runtime one by default, the
+            # builder for a row that publishes one — the builder being the
+            # runtime image plus a toolchain, and the only place with a clang.
+            entry["wheel_base_image"] = (
+                builder_image(key, entry)
+                if (spec.get("builder") or {}).get("enabled")
+                else entry["image_tag"]
+            )
         elif deb:
             entry["deb_package"] = deb_name(key)
             entry.update(relationship_fields(key, spec, registry))
@@ -613,6 +627,27 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                 where + "no bitcode_arch/bitcode_adaptor_flag — nothing would "
                 "state which device bitcode this row is verified on"
             )
+        # The wheel channel reads the same pair from the other end: one of the two
+        # without the other would compile the `.bc` at the Makefile's default,
+        # which is some other row's answer.
+        if wheel and bool(spec.get("bitcode_arch")) != bool(
+            spec.get("bitcode_adaptor_flag")
+        ):
+            problems.append(
+                where + "bitcode_arch and bitcode_adaptor_flag are stated one "
+                "without the other"
+            )
+        # A row that ships device bitcode is compiled by the builder image, since
+        # on exactly those rows the runtime image has no clang: without one the
+        # build would run there and fail at the make, with a vaguer message.
+        if wheel and spec.get("bitcode_arch") and not (
+            (spec.get("builder") or {}).get("enabled")
+        ):
+            problems.append(
+                where + "states bitcode_arch but publishes no builder image — "
+                "the wheel build would run in the runtime image, which carries "
+                "no clang"
+            )
         # Only the deb channel derives package relationships, so only it has
         # anything to collect below.
         if not deb:
@@ -681,6 +716,18 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                     f"{entry['name']}: the builder image has no ref — the matrix "
                     f"entry carries no registry host in image_tag, or "
                     f"build-config.yml states no registry.prefixes.builder"
+                )
+
+    if wheel:
+        # Read from the wheel side because this is the channel the build runs on:
+        # a row whose builder image cannot be named would reach the build as an
+        # empty BASE_IMAGE, and docker's message for that names no row.
+        for entry in merge(registry, matrix, channel):
+            if not entry.get("wheel_base_image"):
+                problems.append(
+                    f"{entry['name']}: no image to build the wheel in — the row "
+                    f"publishes a builder whose ref cannot be derived, and the "
+                    f"matrix entry carries no image_tag to fall back to"
                 )
 
     for vendor, keys in sorted(defaults.items()):

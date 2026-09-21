@@ -97,6 +97,24 @@ RUN set -eux; \
         curl xz-utils ca-certificates; \
     rm -rf /var/lib/apt/lists/*
 
+# The rest of torch's build-time headers: ATen is written against a full CUDA
+# toolkit (CUDAContextLight.h includes <cusparse.h>, the wider trees reach
+# cublas/cusolver/cufft), and a CUDA *runtime* image ships no headers at all.
+#
+# At the version already in the image, not apt's candidate — that one belongs to
+# a newer CUDA release (13.6 against this row's 13.3) and would upgrade
+# libcublas-13-3 out of the environment the wheel is delivered to.
+RUN set -eux; \
+    apt-get update; \
+    for pkg in $(dpkg-query -W -f='${Package}\n' \
+            'libcublas-*' 'libcusparse-*' 'libcusolver-*' 'libcufft-*' 2>/dev/null); do \
+        case "$pkg" in *-dev) continue ;; esac; \
+        dev="$(printf '%s' "$pkg" | sed -E 's/^((lib(cublas|cusparse|cusolver|cufft))-)/\1dev-/')"; \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            "${dev}=$(dpkg-query -W -f='${Version}' "$pkg")"; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
+
 # DEB_ASSERT is the list of files that proves the SDK is the one we think it is,
 # and it is checked *after* the install above — not before, as
 # Containerfile.wheel checks it. That file's early gate is right for the SDK-free

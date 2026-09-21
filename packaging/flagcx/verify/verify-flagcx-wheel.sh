@@ -185,8 +185,9 @@ case "$LABEL" in
     "$DEB_WHEEL_LOCAL_VERSION"|"$DEB_WHEEL_LOCAL_VERSION".*) ;;
     *) fail "$KEY publishes the label $DEB_WHEEL_LOCAL_VERSION, the artifact carries $LABEL" ;;
 esac
-# The runtime image is the build environment and the delivery environment at
-# once, which is the whole reason the wheel line builds where it does.
+# The runtime image is the delivery environment, and the build environment too on
+# every row without a builder image. This is still where the wheel has to stand
+# on its own: the builder is only ever a superset.
 [[ -n "$DEB_IMAGE_TAG" ]] \
     || fail "$KEY: no runtime image in its matrix row, so there is nothing to verify in"
 if [[ -n "$OPT_INDEX_URL" ]]; then
@@ -275,7 +276,7 @@ verify_in() {
 
     docker exec -i -e MODE="$mode" -e IMAGE="$image" -e WANT_VERSION="$WANT_VERSION" \
         -e WHEEL="$in_container" -e INDEX="$OPT_INDEX_URL" -e PIN="$OPT_PIN" \
-        -e EXPECT_SHA="$OPT_EXPECT_SHA256" \
+        -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$DEB_BITCODE_ARCH" \
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 PY=/flagos/bin/python
 
@@ -351,15 +352,37 @@ lib="$site/flagcx/lib/libflagcx.so"
 [ -f "$lib" ] \
     || { echo "flagcx: $lib is not on disk — the wheel's own payload did not survive the install" >&2; exit 1; }
 
+# The device bitcode and its header, on the rows that publish them. No import
+# reaches either: a wheel that dropped them installs and imports exactly like one
+# that has them, and the loss would surface as another repo's build failing later.
+if [ -n "${BITCODE_ARCH:-}" ]; then
+    bc="$site/flagcx/lib/libflagcx_device.bc"
+    hdr="$site/flagcx/include/flagcx_device_wrapper.h"
+    for f in "$bc" "$hdr"; do
+        [ -s "$f" ] \
+            || { echo "flagcx: $f is missing or empty — the $BITCODE_ARCH device bitcode did not survive the install" >&2; exit 1; }
+    done
+    # Bitcode magic: the file being there is not the same as it being bitcode,
+    # and a placeholder or a text file would pass every check above.
+    [ "$(head -c 2 "$bc")" = "BC" ] \
+        || { echo "flagcx: $bc does not start with the LLVM bitcode magic" >&2; exit 1; }
+    echo ">>> device bitcode: $bc ($(stat -c%s "$bc") bytes, $BITCODE_ARCH) and $(basename "$hdr")"
+fi
+
 # ldd is a bash script and the import below is not: leaving the startup hook on
 # would trace this against whatever /etc/profile.d re-exports, which is a list
 # the interpreter never sees. Naming the unresolved library here is the point —
 # the alternative is an ImportError that names nothing.
+#
+# The search path carries torch's own library directory, which is where `import
+# torch` finds libc10/libtorch: a bare ldd calls those unresolved in a wheel that
+# loads perfectly (measured on nvidia-cuda13.3).
 unset BASH_ENV
+torch_lib="$("$PY" -c 'import os, torch; print(os.path.join(os.path.dirname(torch.__file__), "lib"))')"
 for candidate in "$lib" $(find "$site/flagcx" -name '_C*.so'); do
-    if ldd "$candidate" | grep -q 'not found'; then
-        ldd "$candidate" >&2
-        echo "$candidate: unresolved libraries (the runtime image's SDK should supply them)" >&2
+    if LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" | grep -q 'not found'; then
+        LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" >&2
+        echo "$candidate: unresolved libraries (neither this image's SDK nor the interpreter's own runtime supplies them)" >&2
         exit 1
     fi
 done
