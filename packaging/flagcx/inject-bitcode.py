@@ -16,22 +16,16 @@
 
     inject-bitcode.py WHEEL --add ARCPATH=SRCPATH [--add ...]
 
-The wheel name is the pin (`build-flagcx-wheel.sh --print-pin`), so the archive
-is rewritten under the name it already has. A re-named wheel would install under
-the same version and the pin would then name whichever file the index happened
-to keep.
+The name is the pin (`--print-pin`), so the archive is rewritten under the name
+it already has; a re-named wheel installs under the same version, with the pin
+then naming whichever file the index happened to keep.
 
-Rewriting rather than appending because `RECORD` is inside the archive: an
-appended file that no `RECORD` row covers is one `pip uninstall` leaves behind
-and `pip install --require-hashes`-style checks reject. Every row is written
-back verbatim except the ones being added, and the added ones are hashed the way
-installers expect (`sha256=` + urlsafe-b64, padding stripped — PEP 376's spelling
-of both `RECORD`'s hash column and a `--hash` argument).
+Rewritten rather than appended because `RECORD` is inside the archive: a file no
+`RECORD` row covers is one `pip uninstall` leaves behind. Rows are written back
+verbatim except the added ones, hashed in PEP 376's spelling (`sha256=` + b64).
 
-Why this is a post-build step at all: FlagCX's `setup.py` declares
-`package_data={"flagcx": ["lib/*.so"]}`, so a `.bc` dropped into the tree before
-the build is not collected, and widening that glob is a FlagCX change the wheel
-line's first step is meant not to need.
+Post-build because `setup.py` declares `package_data={"flagcx": ["lib/*.so"]}`,
+so a `.bc` in the tree is not collected and a header never would be.
 """
 import argparse
 import base64

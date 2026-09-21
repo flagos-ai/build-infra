@@ -18,17 +18,12 @@ name: flagcx wheel
 # them to that vendor's PyPI.
 #
 # THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE, or the build-toolchain
-# image published beside it on the rows that carry device bitcode: BASE_IMAGE =
-# deb-config.py's `wheel_base_image` (flagos-runtime-{vendor}-{backend}:{version},
-# or flagos-dev/flagcx-builder-{vendor}-{backend}:{version}), exactly the
-# vllm-plugin-wheel.yml model and NOT flagcx-deb.yml's make route. The FlagCX
-# build imports torch while it configures itself (_build_config.py's
-# detect_torch_flag() and get_ext_classes()), so one environment has to carry
-# torch, setuptools_scm and Python.h at once — only the runtime image's /flagos
-# does, and the builder image is the runtime image plus a toolchain. Build env ==
-# delivery env also means the wheel is built against the same python/ABI the app
-# image will run; the verify job below still runs in the runtime image, which is
-# where the wheel has to stand on its own.
+# image published beside it where the row carries device bitcode: BASE_IMAGE =
+# deb-config.py's `wheel_base_image`, the vllm-plugin-wheel.yml model.
+#
+# The FlagCX build imports torch while it configures itself, so one environment
+# has to carry torch, setuptools_scm and Python.h at once — only /flagos does.
+# Build env == delivery env: a builder is the runtime image plus a toolchain.
 #
 # The matrix comes from `deb-config.py --merge --channel wheel` rather than from
 # `generate_matrix.py` directly: the merge is what joins the runtime matrix with

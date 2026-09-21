@@ -402,20 +402,13 @@ for key in "${BACKENDS[@]}"; do
         tag="flagcx-wheel:$key"
         echo ">>> $key: $DEB_NAME ($DEB_ARCH, $DEB_WHEEL_PYTHON_TAG) from $FLAGCX_REF"
 
-        # A builder image is built FROM this row's runtime image, and the runtime
-        # tag is flat and mutable: a runtime rebuilt after the builder leaves the
-        # builder describing an environment that is no longer the delivery one,
-        # and the wheel would be compiled in it — against another python, another
-        # torch, another SDK — with nothing failing until an import elsewhere.
+        # A runtime rebuilt after its builder leaves the builder describing an
+        # environment that is no longer the delivery one, and the wheel would be
+        # compiled in it with nothing failing until an import elsewhere.
         #
         # The builder records which runtime it was built on (`flagos.base_digest`)
-        # and the registry is asked what that tag resolves to now. `imagetools`
-        # answers that from the index without pulling 14 GB, and it answers with
-        # the index digest: comparing against a platform manifest digest would
-        # report every builder as stale (measured on h20: index 8094e543…, amd64
-        # manifest 4581c63e…). The label is written from the runtime image's
-        # RepoDigests, which spells the entry `repo@sha256:…`, so the repo half
-        # is dropped here — both sides then name the same digest.
+        # and the registry is asked what that tag resolves to now. Both sides are
+        # index digests; a platform manifest digest would call every builder stale.
         if [ "$DEB_WHEEL_BASE_IMAGE" != "$DEB_IMAGE_TAG" ]; then
             docker image inspect "$DEB_WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
                 || docker pull "$DEB_WHEEL_BASE_IMAGE" >&2
@@ -465,9 +458,8 @@ for key in "${BACKENDS[@]}"; do
         # succeeded in 12s). Isolation buys nothing here and costs the rebuild.
         #
         # BASE_IMAGE is the row's `wheel_base_image`: the runtime image, or the
-        # builder image on a row that publishes one. Both import torch and only
-        # /flagos has it, so build env == delivery env either way — the builder
-        # being the runtime image plus a toolchain, never a vendor image.
+        # builder image on a row that publishes one — always one with /flagos, so
+        # build env == delivery env either way.
         #
         # A failing step makes BuildKit echo the resolved RUN command, so the
         # relayed proxy's userinfo would land in whatever captures this stdout.
