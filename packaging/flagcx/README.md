@@ -93,6 +93,27 @@ The two sizes are the band's calibration as well as the record: the CCL branch p
 `nccl_device`'s device-side implementation, which is what separates them by a factor of seven, and
 the numbers do not move with the compiler.
 
+## Wheels
+
+One wheel per backend, built in the backend's runtime image — or, on a row that publishes a builder
+image, in that image instead, because the runtime image has no clang.
+
+```bash
+packaging/flagcx/build-flagcx-wheel.sh --list
+packaging/flagcx/build-flagcx-wheel.sh --backend nvidia-cuda13.3 --ref <sha> --out dist/
+packaging/flagcx/build-flagcx-wheel.sh --print-pin dist/flagcx-*.whl
+packaging/flagcx/verify/verify-flagcx-wheel.sh --backend nvidia-cuda13.3 --wheel dist/flagcx-*.whl
+```
+
+Every wheel carries `flagcx/lib/libflagcx.so`, the `_C` extension and `flagcx/api.py`. A row that
+states `bitcode_arch` carries two more files — `flagcx/lib/libflagcx_device.bc` and
+`flagcx/include/flagcx_device_wrapper.h` — compiled by the build image's clang and added to the
+archive after the build, under the name it already has, because that name is the pin. `WHEEL-DESIGN.md`
+says what each file is for and why the paths are the ones they are.
+
+The install contract is the exact pin (`pip install 'flagcx==<version>+<label>'`); a range is
+satisfied by every vendor's build of the same commit, so nothing else can tell them apart.
+
 ## Adding a backend
 
 1. Add an entry to `backends.yaml` under either the `ready` or `probe-pending` heading, with a
@@ -145,8 +166,9 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `Containerfile.deb` | the deb build, on top of the backend's base image |
 | `debian/` | `rules` + `control.in`; `debian/control` is rendered on the host |
 | `build-flagcx-deb.sh` | local/CI entry point, one backend per invocation |
-| `Containerfile.wheel` | the wheel build, in the backend's runtime image |
+| `Containerfile.wheel` | the wheel build, in the backend's runtime image — or in its builder image where the row has one |
 | `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
+| `inject-bitcode.py` | adds the device bitcode and its header to a built wheel, rewriting `RECORD`; the name does not change |
 | `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
 | `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |
 | `verify/` | `verify-flagcx-deb.sh` installs the `.deb` into its base image and a plain Ubuntu; `verify-flagcx-wheel.sh` installs the wheel from the file or from the index; `verify-flagcx-builder.sh` compiles the row's device bitcode in the builder image |

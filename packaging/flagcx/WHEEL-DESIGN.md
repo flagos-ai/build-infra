@@ -1,10 +1,10 @@
 # FlagCX wheels — build-infra side
 
-Status: **the builder images are built; no wheel exists in this tree yet**, so every decision below
-that is about the wheel itself is still a conclusion rather than a shipped thing. `DESIGN.md` is the
-deb line's design of record; this file is the wheel line's, and it covers only what build-infra
-decides. The FlagCX-side questions — what goes inside the wheel, what the public API is — live in
-[flagos-ai/FlagCX#593](https://github.com/flagos-ai/FlagCX/issues/593), not here.
+Status: **the builder images are built and the nvidia rows' wheels carry device bitcode**; the
+wheel itself has been built and installed end to end on h20, and is not yet published to an index.
+`DESIGN.md` is the deb line's design of record; this file is the wheel line's, and it covers only
+what build-infra decides. The FlagCX-side questions — what goes inside the wheel, what the public
+API is — live in [flagos-ai/FlagCX#593](https://github.com/flagos-ai/FlagCX/issues/593), not here.
 
 ## Context
 
@@ -109,12 +109,74 @@ it the two artifacts disagree about `DeviceAPI::Window`/`Multimem`.
 **Staleness is real.** The runtime image is a mutable flat tag, so rebuilding a runtime makes every
 builder built on the previous one stale; the order is runtime first, builder second. The image
 records `flagos.base_digest` so the comparison can be mechanical — that check belongs in the wheel
-build, which is where a stale builder would be consumed.
+build, which is where a stale builder would be consumed, and it compares **index** digests: the
+label is written from the runtime image's `RepoDigests` and the registry is asked through
+`imagetools`, while the platform manifest digest is a different value (measured on h20 for
+`nvidia-cuda13.3`: index `8094e543…`, amd64 manifest `4581c63e…`), so pairing the two would report
+every builder as stale.
 
 Pointing the wheel build at one of these images also makes part of `Containerfile.wheel` redundant:
 its build-only apt list (`libgflags-dev`, `libgoogle-glog-dev`) is what the builder now carries, and
-that step is paid on every `FLAGCX_REF` change today. Removing it belongs to the wiring, not here,
-and cannot be done before the wheel actually starts from a builder.
+that step is paid on every `FLAGCX_REF` change today. It stays because the rows without a builder
+still need it — the vendor SDK rows build their wheel in the runtime image, which carries neither
+header — so removing it would trade one build's copy for another's.
+
+The builder also carries the CUDA math libraries' headers (`libcublas-dev-*`, `libcusparse-dev-*`,
+`libcusolver-dev-*`, `libcufft-dev-*`), which the wheel build needs for a reason unrelated to
+FlagCX: torch's own headers include them (`ATen/cuda/CUDAContextLight.h` reaches `<cusparse.h>`),
+and a CUDA *runtime* image ships the libraries without the headers. They are installed at the
+version of the library already in the image, read rather than written down, because apt's candidate
+belongs to the newest CUDA release in the repo (13.6 while this row's toolkit is 13.3) and
+satisfying it would upgrade `libcublas-13-3` out from under the environment the wheel is delivered
+to.
+
+## What the wheel carries, and where
+
+| Path in the wheel | On which rows | What reads it |
+|---|---|---|
+| `flagcx/lib/libflagcx.so` | all | `flagcx._C`'s `$ORIGIN/lib` rpath, and the device API's net-construction kernels live here |
+| `flagcx/_C*.so`, `flagcx/api.py` | all | `import flagcx` |
+| `flagcx/lib/libflagcx_device.bc` | rows stating `bitcode_arch` | the consumer links it into its kernels (`extern_libs={...}`) |
+| `flagcx/include/flagcx_device_wrapper.h` | rows stating `bitcode_arch` | the same consumer's source includes it |
+
+Both bitcode paths are **inside the package** for the same reason the `.so` is: nothing else a
+consumer can see is guaranteed to exist. A consumer locates them from `flagcx.__file__` rather than
+from an install prefix, which is also what the deb line's consumers are being moved to — see the
+path-resolution half of #570.
+
+**The bitcode switch is `bitcode_arch`.** Where a row states it, the wheel build also compiles the
+`.so` with `COMPILE_KERNEL=1`, because the two are one decision: the device net-construction kernels
+live in the `.so`, and a `.bc` from an `.so` without them describes a backend whose
+`flagcxDevNetSizeOf()` is 0 and whose `_netContexts` stay empty. Stating one without the other is
+unrepresentable rather than refused, which is why there is no separate `compile_kernel` field.
+
+**nvcc needs `-std=c++20` for the device translation units** (measured on h20, CUDA 13.3): they
+include the vendored `third-party/json`, whose `decltype`-dependent templates need C++20, and
+nvcc's own default is below that. The Makefile's `-std=` is a host flag and never reaches nvcc's
+front end — `-Xcompiler -std=gnu++17` fails the same way — so the standard is set through
+`NVCC_PREPEND_FLAGS`, which leaves the host objects on the standard the Makefile chose. Only
+`-std=c++20` was measured to work: nvcc's default, `-std=c++17` and `-Xcompiler -std=gnu++17` each
+failed on `json.hpp`.
+
+**The bitcode's `BITCODE_CXX_STD` is `gnu++17` and not the same value**, because there are two
+compilers here: the `.bc` is clang's output, and NCCL 2.31's device headers use `typeof`, which
+clang drops under `-std=c++17`.
+
+**The bitcode is added to the wheel after the build, not to the tree before it.** `setup.py`
+declares `package_data={"flagcx": ["lib/*.so"]}`, so a `.bc` placed in the tree is not collected and
+a header never would be; widening that glob is a FlagCX change this step is meant not to need
+(D4 — zero FlagCX changes). `inject-bitcode.py` rewrites the archive in place, **under the name it
+already has**: the name is the pin, and a re-named wheel would install under the same version with
+the pin then naming whichever file the index happened to keep. `RECORD` is rewritten with it, in
+PEP 376's spelling, because a file the archive carries and `RECORD` does not is one `pip uninstall`
+leaves behind.
+
+**Which image the wheel is built in is derived** (`deb-config.py`'s `wheel_base_image`): the
+runtime image, or the builder image on a row that publishes one. The builder is the runtime image
+plus a toolchain, so the environment the extension is compiled in stays a superset of the one that
+installs it, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a
+builder — the build would otherwise run where there is no clang and fail one stage later, at the
+make.
 
 ## Mechanics
 
