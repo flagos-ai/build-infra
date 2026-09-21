@@ -330,7 +330,7 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           case "$vendor" in
-            nvidia|hygon|metax|mthreads|enflame) ;;
+            nvidia|hygon|metax|mthreads|enflame|cambricon|ascend|iluvatar|sunrise|tsingmicro) ;;
             *)
               echo "::error::no vendor PyPI for '${vendor}' (the build-infra vendor of ${matrix_name})"
               exit 1

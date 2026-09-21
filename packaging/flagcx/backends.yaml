@@ -255,6 +255,7 @@ cambricon-neuware4.4.3:
   vendor_libs: [cnrt, cncl]
   assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true}
 
 cambricon-neuware4.7.2:
   vendor: cambricon
@@ -269,6 +270,7 @@ cambricon-neuware4.7.2:
   vendor_libs: [cnrt, cncl]
   assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true}
 
 enflame-tops1.9.10:
   vendor: enflame
@@ -304,6 +306,7 @@ ascend-cann8.5.0:
   vendor_libs: [ascendcl, hccl]
   assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true}
 
 ascend-cann8.5.0-910c:
   vendor: ascend
@@ -315,6 +318,7 @@ ascend-cann8.5.0-910c:
   vendor_libs: [ascendcl, hccl]
   assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true}
 
 ascend-cann9.0.0:
   vendor: ascend
@@ -326,6 +330,7 @@ ascend-cann9.0.0:
   vendor_libs: [ascendcl, hccl]
   assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true}
 
 ascend-cann9.0.0-910c:
   vendor: ascend
@@ -337,6 +342,7 @@ ascend-cann9.0.0-910c:
   vendor_libs: [ascendcl, hccl]
   assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true}
 
 # ── probed in-container: enabled, or still owing one probe ─────────────────
 
@@ -383,6 +389,7 @@ iluvatar-corex4.4.0:
   assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
   vendor_lib_dirs: [/usr/local/corex/lib]
   deb: {enabled: true, default_for_vendor: false}
+  wheel: {enabled: true}
 
 iluvatar-corex4.5.0:
   vendor: iluvatar_corex
@@ -396,6 +403,7 @@ iluvatar-corex4.5.0:
   assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
   vendor_lib_dirs: [/usr/local/corex/lib]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true}
 
 kunlunxin-xre5.37.1:
   vendor: klx
