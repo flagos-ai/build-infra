@@ -1,11 +1,16 @@
-# FlagCX deb packages
+# FlagCX packaging
 
-Builds `libflagcx-<backend>` / `libflagcx-<backend>-dev` `.deb` pairs out of a FlagCX git ref,
-one backend per container. **`DESIGN.md` is the design of record** — why the packages look the
-way they do, and what each `backends.yaml` field is for. This file is only how to run it.
+Builds FlagCX out of a git ref, one backend per container. Three channels share one
+`backends.yaml`, one join (`deb-config.py --channel …`) and one set of registry facts:
 
-`WHEEL-DESIGN.md` is the design of record for the **wheel** line beside this one: same library,
-packaged as Python artifacts instead of `.deb`s. Decision-only, not yet implemented.
+| Channel | Product | Design of record |
+|---|---|---|
+| `deb` (default) | `libflagcx-<backend>` / `-dev` `.deb` pairs | `DESIGN.md` |
+| `wheel` | Python wheels for the vendor PyPI | `WHEEL-DESIGN.md` |
+| `builder` | build-toolchain images, `flagos-dev/flagcx-builder-<backend>` | `WHEEL-DESIGN.md` |
+
+**`DESIGN.md` is the design of record** — why the packages look the way they do, and what each
+`backends.yaml` field is for. This file is only how to run it.
 
 ## Quickstart
 
@@ -50,6 +55,44 @@ Every build needs a Docker host that can reach the registry and pull the backend
 The build itself takes the base image as-is and adds only `debhelper`/`fakeroot`/`devscripts`
 plus the backend's `apt:` packages — no runtime image is involved.
 
+## Builder images
+
+Some rows' runtime images carry no device toolchain at all — the two nvidia rows have no nvcc, no
+`cuda_runtime.h`, no `nccl.h` and no clang — and the wheel line builds *in* the runtime image. For
+those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`: the
+runtime image plus the row's own SDK packages, `builder.apt`, and clang/llvm 22.
+
+```bash
+packaging/flagcx/build-flagcx-builder.sh --list
+packaging/flagcx/build-flagcx-builder.sh --backend nvidia-cuda13.3
+packaging/flagcx/verify/verify-flagcx-builder.sh --backend nvidia-cuda13.3 --ref <sha>
+```
+
+Only rows with a `builder:` block have one. A row whose runtime image already carries what the
+build needs — every vendor-SDK row, whose base image brings the toolchain with it — builds its
+wheel straight from the runtime image and has none, which is the ordinary state and not drift.
+The image is arch-agnostic: `bitcode_arch` is the arch the verification compiles at, not a
+property of the image.
+
+The verification is the acceptance test, not the image existing. `verify-flagcx-builder.sh`
+compiles that row's device bitcode inside the built image and asserts the artifact: which
+comm-traits branch it landed in (the two differ by a factor of seven in size), that it is
+`nvptx64-nvidia-cuda` bitcode, and that the wrapper header came with it. In CI,
+`.github/workflows/flagcx-builder.yml` runs that before pushing, and the image is stale whenever
+the runtime image it was built on has been rebuilt — `flagos.base_digest` records which one that
+was, so the staleness is detectable rather than remembered.
+
+Both rows are built, verified and published; the acceptance test was run on h20 against `21f8b5f`:
+
+| Row | At | Acceptance |
+|---|---|---|
+| `nvidia-cuda13.3` | h20 | clang 22, `sm_120`, CCL branch — 2,021,740 B of bitcode |
+| `nvidia-cuda12.8` | h20 | clang 22, `sm_90`, Default branch — 274,820 B |
+
+The two sizes are the band's calibration as well as the record: the CCL branch pulls in
+`nccl_device`'s device-side implementation, which is what separates them by a factor of seven, and
+the numbers do not move with the compiler.
+
 ## Adding a backend
 
 1. Add an entry to `backends.yaml` under either the `ready` or `probe-pending` heading, with a
@@ -66,6 +109,11 @@ Makefile: `make_env` (the FlagCX Makefile's `?=` ladders are pre-assigned, so a 
 default is unreachable and an unset variable silently becomes an empty path) and
 `vendor_lib_dirs` (a vendor soname the loader cannot see at all is a hard `dpkg-shlibdeps`
 error, and nothing else in the build knows where it lives). `DESIGN.md` has the details.
+
+A row whose runtime image lacks what the FlagCX build needs additionally gets a `builder:` block
+and the two `bitcode_*` fields that state how its device bitcode is compiled — those are what the
+builder channel's verification rebuilds. Everything else on that channel is a field the row
+already states.
 
 ## Verified
 
@@ -91,12 +139,16 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | Path | What |
 |---|---|
 | `DESIGN.md` | design of record — rationale, `dpkg-shlibdeps` mechanism, ADRs |
-| `WHEEL-DESIGN.md` | design of record for the wheel line — identity, version label, pin |
+| `WHEEL-DESIGN.md` | design of record for the wheel and builder lines — identity, version label, pin |
 | `backends.yaml` | per-backend packaging facts: the one input build-infra cannot derive |
 | `deb-config.py` | joins `backends.yaml` with `generate_matrix.py --runtime` |
-| `Containerfile.deb` | the build, on top of the backend's base image |
+| `Containerfile.deb` | the deb build, on top of the backend's base image |
 | `debian/` | `rules` + `control.in`; `debian/control` is rendered on the host |
 | `build-flagcx-deb.sh` | local/CI entry point, one backend per invocation |
-| `verify/` | installs the built `.deb` into its base image and into a plain Ubuntu |
+| `Containerfile.wheel` | the wheel build, in the backend's runtime image |
+| `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
+| `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
+| `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |
+| `verify/` | `verify-flagcx-deb.sh` installs the `.deb` into its base image and a plain Ubuntu; `verify-flagcx-wheel.sh` installs the wheel from the file or from the index; `verify-flagcx-builder.sh` compiles the row's device bitcode in the builder image |
 
 `debian/control` is **generated** — edit `control.in`, never the rendered file.

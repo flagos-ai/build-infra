@@ -1,0 +1,243 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: flagcx builder
+
+# Build and publish the FlagCX build-toolchain images, one backend per runner.
+#
+# WHAT THEY ARE FOR: the wheel line builds in the backend's runtime image, and on
+# the nvidia rows that image carries no device toolchain at all — no nvcc, no
+# cuda_runtime.h, no nccl.h, no clang. This line produces the image the wheel
+# build can then be pointed at, and the FlagCX wheel work is what consumes it.
+# Rows whose runtime image already carries what the build needs have no builder;
+# the matrix says which do (`builder.enabled` in packaging/flagcx/backends.yaml).
+#
+# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
+# flagos-runtime-{vendor}-{backend}:{version}, plus the vendor SDK and clang.
+# Never a vendor `-devel` image: the wheel build imports torch and asserts
+# Python.h, so one environment has to carry torch and the toolchain at once, and
+# a builder that could not be the wheel's BASE_IMAGE would be the wrong artifact.
+# Measured: neither nvidia `-devel` tag ships any clang/llvm, so the LLVM 22 pin
+# is unavoidable on any base, and swapping the flagos base for a `-devel` one
+# would add 6.9 GB (13.3) / 9.0 GB (12.8) to every layer above it.
+#
+# VERIFICATION IS A STEP AND NOT A JOB, unlike flagcx-wheel.yml. The two lines
+# verify different things and only one of them can travel: the wheel is a file,
+# so the verify job can download it onto another runner and install it into a
+# fresh container, while a builder image is 17 GB and cannot be uploaded at all.
+# Verification therefore runs in the job that has the image, and still gates the
+# push — which is the property that matters, that no unverified image reaches the
+# registry. What it asserts is the row's own acceptance test in
+# packaging/flagcx/verify/verify-flagcx-builder.sh: compile that row's device
+# bitcode, at that row's arch and comm-traits branch, inside the built image.
+#
+# THE MATRIX COMES FROM `deb-config.py --merge --channel builder`, not from
+# `generate_matrix.py` directly: the merge joins the runtime matrix with the row's
+# builder fields (the extra apt list, the bitcode arch and adaptor flag) and with
+# the image ref this line publishes, which is derived there so that the build, the
+# verification and the push all arrive at one spelling of it.
+#
+# A BUILDER GOES STALE: its base is the runtime image's mutable flat tag, so a
+# rebuilt runtime makes every builder built on the previous one stale. The order
+# is runtime first, builder second, and the image carries flagos.base_digest so
+# the staleness can be detected rather than remembered — the wheel build is where
+# that check belongs, since that is where a stale builder would be consumed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: 'Backend(s) to build a builder image for: a space-separated list, or "all"'
+        type: string
+        default: all
+      flagcx_ref:
+        description: 'FlagCX ref the verification compiles the device bitcode from (a branch/tag name resolves to its tip at dispatch time)'
+        type: string
+        default: 21f8b5f541bf589ecde9b3633de2cd585d6eaf56
+      verify:
+        description: 'compile the row device bitcode inside the built image before pushing'
+        type: boolean
+        default: true
+      push:
+        description: 'push the verified image to Harbor (requires verify)'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  set-matrix:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      harbor_host: ${{ steps.harbor-host.outputs.host }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install PyYAML
+        run: |
+          # deb-config.py imports yaml; ubuntu-latest's python does not ship it.
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: set-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The push is a step of the job that verifies, so asking for both at
+          # once would push nothing while looking like it did.
+          if [[ "${{ inputs.push }}" == "true" && "${{ inputs.verify }}" != "true" ]]; then
+            echo "::error::push=true requires verify -- an unverified builder image must not reach the registry"
+            exit 1
+          fi
+          if [[ "${{ inputs.backend }}" == all ]]; then
+            python3 scripts/generate_matrix.py --runtime > matrix.json
+          else
+            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
+          fi
+          # --merge only emits schedulable rows, so drift between backends.yaml
+          # and the runtime matrix would be filtered away silently here; --check
+          # is what turns it into a named failure.
+          python3 packaging/flagcx/deb-config.py --check --channel builder
+          python3 packaging/flagcx/deb-config.py --merge matrix.json --channel builder > builder-matrix.json
+          # An empty include list would skip the job silently, which reads as a
+          # successful run of a backend that does not exist.
+          if [[ "$(jq '.include | length' builder-matrix.json)" == 0 ]]; then
+            echo "::error::${{ inputs.backend }} names no backend with a builder; see packaging/flagcx/deb-config.py --list --channel builder"
+            exit 1
+          fi
+          cat builder-matrix.json
+          echo "matrix=$(jq -c . builder-matrix.json)" >> "$GITHUB_OUTPUT"
+
+      - id: harbor-host
+        shell: bash
+        run: |
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    if: ${{ fromJSON(needs.set-matrix.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check disk space
+        shell: bash
+        run: |
+          # Check free space on the working-directory filesystem — this is where
+          # the checkout, docker build context, and layer cache live.  We avoid
+          # /var/lib/docker because some runners don't have it or use a different
+          # data-root; checking . is universal.
+          #
+          # 30 GB and not flagcx-wheel.yml's 10: this build pulls the runtime
+          # image (~15 GB), adds a layer on top of it (~2.5 GB), and holds the
+          # 1.94 GB LLVM tarball in the build container while it unpacks.
+          FREE_KB=$(df -P . | awk 'NR==2{print $4}')
+          FREE_GB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk space: ${FREE_GB}G"
+          if [ "$FREE_GB" -lt 30 ]; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < 30G). Docker needs cleanup."
+            df -h .
+            exit 1
+          fi
+      - name: Harbor login (push only)
+        if: ${{ inputs.push }}
+        env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          host="${{ needs.set-matrix.outputs.harbor_host }}"
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+      - name: Pull the runtime image
+        run: |
+          # Pulled here rather than left to the build: the image is the builder's
+          # FROM, so a registry problem should be one named failure and not a
+          # build that runs for a while first. It is also what puts a RepoDigest
+          # on it, which is the flagos.base_digest label the build records.
+          docker pull "${{ matrix.image_tag }}" \
+            || { echo "::error::Failed to pull ${{ matrix.image_tag }}"; exit 1; }
+      - name: Build the builder image
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          packaging/flagcx/build-flagcx-builder.sh --backend "$MATRIX_NAME"
+      - name: Verify the builder image
+        if: ${{ inputs.verify }}
+        env:
+          MATRIX_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          packaging/flagcx/verify/verify-flagcx-builder.sh \
+            --backend "$MATRIX_NAME" \
+            --ref "${{ inputs.flagcx_ref }}"
+      - name: Push the builder image
+        if: ${{ inputs.push }}
+        env:
+          MATRIX_BUILDER_IMAGE: ${{ matrix.builder_image }}
+        run: |
+          set -euo pipefail
+          docker push "$MATRIX_BUILDER_IMAGE"
+      # The push is only accepted, not served: this reads the ref back the way a
+      # consumer does, and compares the digest the registry hands out with the one
+      # that was built. A tag that points at an older image reads as a successful
+      # push otherwise.
+      - name: Verify the pushed image reads back
+        if: ${{ inputs.push }}
+        env:
+          MATRIX_BUILDER_IMAGE: ${{ matrix.builder_image }}
+        run: |
+          set -euo pipefail
+          built="$(docker image inspect --format '{{.Id}}' "$MATRIX_BUILDER_IMAGE")"
+          docker pull "$MATRIX_BUILDER_IMAGE"
+          served="$(docker image inspect --format '{{.Id}}' "$MATRIX_BUILDER_IMAGE")"
+          if [ "$built" != "$served" ]; then
+            echo "::error::$MATRIX_BUILDER_IMAGE: the registry serves $served, this run built $built"
+            exit 1
+          fi
+          echo ">>> $MATRIX_BUILDER_IMAGE reads back as $served"
+      - name: Remove the builder image
+        if: ${{ always() }}
+        # The image is reproducible from the script and 17 GB of layers per run
+        # is how the disk check above starts failing on a shared runner. `|| true`
+        # so a build that failed before tagging cannot turn a finished job into a
+        # second failure. The build cache stays, so a rebuild is not a cold one.
+        run: docker rmi "${{ matrix.builder_image }}" 2>/dev/null || true

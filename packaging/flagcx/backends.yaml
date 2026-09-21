@@ -94,6 +94,39 @@
 #                 make_env.DEVICE_HOME. Separate because on MACA the vendor
 #                 torch's compiler driver lives outside the device root that
 #                 make_env.DEVICE_HOME hands the `.mk`.
+#   builder.enabled
+#                 true = this row also publishes a build-toolchain image,
+#                 `flagos-dev/flagcx-builder-<key>`, on top of its *runtime*
+#                 image. Only rows whose runtime image lacks what the FlagCX
+#                 build needs carry one — the vendor-SDK rows build their wheel
+#                 straight in the runtime image, so absent is the ordinary
+#                 state, not drift. The image is the runtime image plus
+#                 build-time tools and nothing else: the wheel build imports
+#                 torch, so build env == delivery env, and a builder that could
+#                 not be the wheel's BASE_IMAGE would be the wrong artifact.
+#   builder.apt   packages installed on top of the row's own `apt` list, which
+#                 the builder installs too (it is the same SDK fact, and a
+#                 second copy here could disagree with it). Build-time only —
+#                 nothing here needs to exist at run time.
+#   bitcode_arch  BITCODE_LIB_ARCH for the device-bitcode build, stated and not
+#                 derived. The only derivation available is the gencode table in
+#                 FlagCX's makefiles/nvidia_gencode.mk, and copying that table
+#                 here would be the second copy that drifts. Consumed by the
+#                 builder channel's verification, and by the wheel build once it
+#                 produces a .bc.
+#   bitcode_adaptor_flag
+#                 ADAPTOR_FLAG for that build — which is where the row's
+#                 comm-traits branch is spelled out. makefiles/nvidia.mk decides
+#                 that branch for the .so by reading NCCL_MAJOR/MINOR out of
+#                 nccl.h, and bindings/ir/nvidia/Makefile never includes that
+#                 file, so the branch can only reach the .bc as a value passed
+#                 in: left out, the .bc lands in DefaultBackend while the .so is
+#                 built against CCL, and the two then disagree about
+#                 DeviceAPI::Window/Multimem (WHEEL-DESIGN.md, "The
+#                 build-toolchain image"). The
+#                 Makefile replaces ADAPTOR_FLAG wholesale rather than appending
+#                 to it, so the value restates the Makefile's own
+#                 -DUSE_NVIDIA_ADAPTOR default.
 
 # ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
 
@@ -128,6 +161,20 @@ nvidia-cuda12.8:
   vendor_lib_dirs: [/usr/local/cuda/compat]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: true}
+  # The device-bitcode build needs clang/llvm >= 22 and curand's mtgp32 kernel
+  # header — clang's __clang_cuda_runtime_wrapper.h force-includes it, and no
+  # cuda-nvcc package ships it on 12.8 or 13.3 (measured). FlagCX never calls
+  # cuRAND; the header is a compiler-side requirement, so it is build-time only
+  # and belongs here rather than in `apt` above. clang/llvm is the builder's own
+  # pin and not a field: both NVIDIA rows take the same one, in the Containerfile.
+  builder:
+    enabled: true
+    apt: [libcurand-dev-12-8]
+  # This row's .so is built against NCCL 2.25, so its .bc takes the same Default
+  # branch — the two have to agree, and nothing in the bitcode Makefile reads
+  # nccl.h to find that out.
+  bitcode_arch: sm_90
+  bitcode_adaptor_flag: "-DUSE_NVIDIA_ADAPTOR -DFLAGCX_COMM_TRAITS_DEFAULT"
 
 nvidia-cuda13.3:
   vendor: nvidia
@@ -146,6 +193,16 @@ nvidia-cuda13.3:
   vendor_lib_dirs: [/usr/local/cuda/compat]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: false}
+  # Same two build-time gaps as the 12.8 row, and the same one-line answer.
+  builder:
+    enabled: true
+    apt: [libcurand-dev-13-3]
+  # NCCL 2.31 here, so CCL — the branch that needs BITCODE_CXX_STD=gnu++17 (the
+  # device headers under nccl_device/ use `typeof`). Both values are the ones the
+  # recipe was measured at; whether one .bc covers this row's whole gencode range
+  # (sm_80…sm_120) is still open, so this is one arch per row and not a range.
+  bitcode_arch: sm_120
+  bitcode_adaptor_flag: "-DUSE_NVIDIA_ADAPTOR -DFLAGCX_COMM_TRAITS_CCL"
 
 metax-maca3.7.2.1:
   vendor: metax

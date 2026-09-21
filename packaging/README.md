@@ -49,8 +49,10 @@ packaging/<app>/                          # app = vllm | sglang | megatron | ver
 `packaging/flagtree/`、`packaging/flaggems/`、`packaging/flash-attn/` 是
 runtime 层/编译器 wheel（非四 app，不适用本骨架）；`packaging/script/` 是
 共享工具（`repack.py` / `audit-deps.py`），不属任何 app。
-`packaging/flagcx/` 同样不适用本骨架——它产出的是 .deb 而非 wheel，入口是
-`packaging/flagcx/DESIGN.md`（用 `.github/workflows/flagcx-deb.yml` 驱动）。
+`packaging/flagcx/` 同样不适用本骨架——它有三条通道（deb / wheel / builder），
+产物都不是应用镜像，入口是 `packaging/flagcx/README.md`，设计档是
+`packaging/flagcx/DESIGN.md`（deb）与 `WHEEL-DESIGN.md`（wheel + builder），
+CI 在 `.github/workflows/flagcx-{deb,wheel,builder}.yml`。
 
 ## 引用维护清单
 

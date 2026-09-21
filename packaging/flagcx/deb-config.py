@@ -29,11 +29,12 @@ the drift alarm between the two — no version logic, no build logic.
                           name it when that differs from the matrix suffix
                           a PEP 440 round trip rewrote
 
---channel {deb,wheel} (default deb) picks the product: which rows are enabled
-(`deb.enabled` / `wheel.enabled`) and which fields the joined entry carries —
-the .deb channel derives deb_package and the control relationships, the wheel
-channel the wheel_* identity fields. The joining and the drift alarm are the
-same in both.
+--channel {deb,wheel,builder} (default deb) picks the product: which rows are
+enabled (`deb.enabled` / `wheel.enabled` / `builder.enabled`) and which fields
+the joined entry carries — the .deb channel derives deb_package and the control
+relationships, the wheel channel the wheel_* identity fields, the builder
+channel the image ref it publishes, built on the row's runtime image. The
+joining and the drift alarm are the same in all three.
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 REGISTRY = HERE / "backends.yaml"
 MATRIX_SCRIPT = REPO / "scripts" / "generate_matrix.py"
+BUILD_CONFIG = REPO / ".github" / "build-config.yml"
 
 # Fields that are lists in the registry and strings in the CI matrix — a build
 # arg can only be a string, and the workflow passes every field through as one.
@@ -65,6 +67,14 @@ REQUIRED_ENABLED = ("vendor", "make_flag", "arch", "glibc_floor", "deb")
 # a row that names an adaptor has to name its USE_* flag too — the two are one
 # choice spelled twice, and the deb channel is not the only reader of it.
 REQUIRED_WHEEL_ENABLED = ("vendor", "make_flag", "arch")
+# The builder channel needs even less: it installs a toolchain and builds no
+# FlagCX source, so neither the adaptor flag nor the packaging decisions that
+# only a .deb or a wheel embodies apply. `assert` is not listed because
+# check() requires it of every enabled row on every channel — a builder whose
+# SDK assertion list is empty would install a toolchain and prove nothing. The
+# bitcode fields are required the same way and in the same place: of an enabled
+# builder row, not of the eighteen rows that have no builder at all.
+REQUIRED_BUILDER_ENABLED = ("vendor", "arch")
 # _build_config.py rejects `flagos` for the du/metax adaptors outright, so a row
 # carrying it can only ever build a wheel that fails on import. Widening this is
 # a per-adaptor decision, not a default.
@@ -98,6 +108,19 @@ WHEEL_BUILD_INPUT_FIELDS = (
     "wheel_version_suffix", "wheel_local_version", "wheel_python_tag",
     "wheel_torch_backend", "wheel_adaptor", "wheel_make_env", "wheel_cuda_path",
     "wheel_index_url", "wheel_assert",
+)
+
+# The builder channel's own set. It builds an image rather than an artifact, so
+# it reads the row's runtime image (`image_tag`, the same one the wheel builds
+# in) and the two lists the image has to install. `arch`, `vendor` and `version`
+# are carried for the image tag and the labels; `make_env` and the bitcode pair
+# are not inputs to the image at all — they are what the verification rebuilds
+# the device bitcode with, which is the row's acceptance test. The wheel_*
+# identity fields are absent because nothing here is published to an index.
+BUILDER_BUILD_INPUT_FIELDS = (
+    "name", "version", "image_tag", "builder_image", "arch", "vendor",
+    "apt", "builder_apt", "assert", "make_env",
+    "bitcode_arch", "bitcode_adaptor_flag",
 )
 
 # control.in placeholder -> the DEB_* variable that fills it verbatim.
@@ -203,6 +226,37 @@ def base_image_codename(key: str) -> str | None:
 
 def deb_name(key: str) -> str:
     return f"libflagcx-{key}"
+
+
+def registry_prefix(name: str) -> str | None:
+    """One of build-config.yml's image prefixes, or None if it is not there.
+
+    Only the prefix is read: every matrix row already carries the registry host
+    in `image_tag` — the same host every other layer is pushed to — so taking it
+    from the row is one source for it rather than two.
+    """
+    if not BUILD_CONFIG.is_file():
+        return None
+    with BUILD_CONFIG.open() as fh:
+        cfg = yaml.safe_load(fh) or {}
+    prefixes = (cfg.get("registry") or {}).get("prefixes") or {}
+    return prefixes.get(name) or None
+
+
+def builder_image(key: str, entry: dict) -> str:
+    """The builder image ref this row publishes, or "" if it cannot be named.
+
+    Derived here rather than in the build script for the same reason deb_name()
+    is: it is this channel's artifact identity, and the build and the verify
+    scripts both have to arrive at it without either owning a second spelling
+    of it.
+    """
+    image_tag = entry.get("image_tag", "")
+    host = image_tag.split("/", 1)[0] if "/" in image_tag else ""
+    prefix = registry_prefix("builder")
+    if not host or not prefix:
+        return ""
+    return f"{host}/{prefix}/flagcx-builder-{key}:{entry.get('version', '')}"
 
 
 def version_label(key: str) -> str:
@@ -365,7 +419,9 @@ def build_input_var(field: str) -> str:
 
 
 def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict]:
+    deb = channel == "deb"
     wheel = channel == "wheel"
+    builder = channel == "builder"
     joined = []
     # Iterate the matrix, not the registry: the matrix carries the fields CI
     # needs to schedule a runner, and an enabled backend absent from it has no
@@ -382,7 +438,10 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
         entry["make_env"] = " ".join(
             f"{k}={v}" for k, v in sorted((spec.get("make_env") or {}).items())
         )
-        entry["make_flag"] = spec["make_flag"]
+        # The adaptor flag is the deb and wheel builds' input; a builder rows it
+        # too (the image is the wheel's environment), but nothing on this
+        # channel reads it, so it is not required of a builder row.
+        entry["make_flag"] = spec.get("make_flag", "")
         entry["vendor"] = spec["vendor"]
         entry["arch"] = spec["arch"]
         entry["glibc_floor"] = str(spec.get("glibc_floor", ""))
@@ -424,16 +483,41 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             ) or (spec.get("make_env") or {}).get("DEVICE_HOME", "")
             entry["wheel_index_url"] = entry.get("flagos_pypi", "")
             entry["wheel_assert"] = " ".join(spec.get("assert") or [])
-        else:
+        elif deb:
             entry["deb_package"] = deb_name(key)
             entry.update(relationship_fields(key, spec, registry))
+        else:
+            # The builder's own increment, kept apart from `apt` above rather
+            # than merged into it: the two are installed by one step but they
+            # answer different questions. `apt` is the row's SDK — the same list
+            # the .deb line states, installed here because this build needs it
+            # too — while this one is build-time-only and no other channel has
+            # it.
+            entry["builder_apt"] = " ".join(
+                (spec.get("builder") or {}).get("apt") or []
+            )
+            # Not under `builder:` in the registry: nothing in the image depends
+            # on either, so a block that also holds what the image installs would
+            # read as if they were installed too. They are the row's device
+            # bitcode — the arch it is compiled for and the comm-traits branch it
+            # takes — which the verification rebuilds and the wheel build will
+            # consume.
+            entry["bitcode_arch"] = spec.get("bitcode_arch", "")
+            entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
+            entry["builder_image"] = builder_image(key, entry)
         joined.append(entry)
     return joined
 
 
 def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]:
+    deb = channel == "deb"
     wheel = channel == "wheel"
-    required = REQUIRED_WHEEL_ENABLED if wheel else REQUIRED_ENABLED
+    builder = channel == "builder"
+    required = {
+        "deb": REQUIRED_ENABLED,
+        "wheel": REQUIRED_WHEEL_ENABLED,
+        "builder": REQUIRED_BUILDER_ENABLED,
+    }[channel]
     problems: list[str] = []
     matrix_keys = {entry["name"] for entry in matrix}
 
@@ -481,8 +565,16 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                     where + "wheel.default_for_vendor has no meaning (pip has "
                     "no Provides:) — it belongs to the deb block"
                 )
-        elif not isinstance(chan.get("default_for_vendor"), bool):
-            problems.append(where + "deb.default_for_vendor must be a boolean")
+        elif deb:
+            if not isinstance(chan.get("default_for_vendor"), bool):
+                problems.append(where + "deb.default_for_vendor must be a boolean")
+        elif "default_for_vendor" in chan:
+            # Same reasoning as the wheel channel's: a builder publishes an
+            # image, which answers to no apt name.
+            problems.append(
+                where + "builder.default_for_vendor has no meaning (an image is "
+                "not installed by name) — it belongs to the deb block"
+            )
         if spec["arch"] not in VALID_ARCH:
             problems.append(where + f"arch {spec['arch']!r} not in {VALID_ARCH}")
 
@@ -510,7 +602,20 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                 where + "assert is empty — the build would fail silently "
                 "rather than at the assert gate"
             )
-        if wheel:
+        # A builder that cannot be shown to compile the row's device bitcode is
+        # a large base image and nothing more: the verification is what the row
+        # is published on, and without these two it would rebuild at the
+        # Makefile's own defaults and answer a question about some other row.
+        if builder and not (
+            spec.get("bitcode_arch") and spec.get("bitcode_adaptor_flag")
+        ):
+            problems.append(
+                where + "no bitcode_arch/bitcode_adaptor_flag — nothing would "
+                "state which device bitcode this row is verified on"
+            )
+        # Only the deb channel derives package relationships, so only it has
+        # anything to collect below.
+        if not deb:
             continue
         if chan.get("default_for_vendor"):
             defaults.setdefault(spec["vendor"], []).append(key)
@@ -522,7 +627,7 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
     # the build, and it names the field rather than the character that broke it —
     # which is how an adaptor family name carrying an underscore
     # (iluvatar_corex) reached the link and only died there.
-    if not wheel:
+    if deb:
         for entry in merge(registry, matrix, channel):
             key = entry["name"]
             for field in ("deb_package", "deb_provides", "deb_replaces",
@@ -565,6 +670,19 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                     f"one pin, two artifacts"
                 )
 
+    if builder:
+        # The ref is derived, so no check above has seen it as a string: it needs
+        # the row's matrix entry for the registry host and build-config.yml for
+        # the prefix, and a row missing either would push to a name that is not
+        # the one its consumers look for.
+        for entry in merge(registry, matrix, channel):
+            if not entry.get("builder_image"):
+                problems.append(
+                    f"{entry['name']}: the builder image has no ref — the matrix "
+                    f"entry carries no registry host in image_tag, or "
+                    f"build-config.yml states no registry.prefixes.builder"
+                )
+
     for vendor, keys in sorted(defaults.items()):
         if len(keys) > 1:
             problems.append(
@@ -572,9 +690,9 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                 f"default_for_vendor ({', '.join(keys)}) — Provides: "
                 f"libflagcx-{vendor} would have two providers"
             )
-    # Nothing to note on the wheel channel: a wheel has no Provides: to be
-    # missing, and the note would name every wheel row.
-    if not wheel:
+    # Nothing to note on the wheel or builder channels: neither has a Provides:
+    # to be missing, and the note would name every row on them.
+    if deb:
         enabled_vendors = {
             spec["vendor"]
             for spec in registry.values()
@@ -666,7 +784,7 @@ def main() -> int:
     g.add_argument("--list", action="store_true")
     ap.add_argument(
         "--channel",
-        choices=("deb", "wheel"),
+        choices=("deb", "wheel", "builder"),
         default="deb",
         help="which product to describe; the row set and the derived fields "
              "differ, the join and the drift alarm do not (default: deb)",
@@ -698,13 +816,13 @@ def main() -> int:
             if (s.get(args.channel) or {}).get("enabled")
         )
         pending = len(registry) - enabled
-        if args.channel == "wheel":
+        if args.channel == "deb":
             # "probe-pending" is the deb channel's word for a row whose in-
-            # container probe has not run yet. Most rows are simply not on this
-            # channel, and saying otherwise would read as owed work.
-            print(f"ok: {enabled} wheel-enabled, {pending} off this channel")
-        else:
+            # container probe has not run yet. Most rows are simply not on the
+            # other two channels, and saying otherwise would read as owed work.
             print(f"ok: {enabled} enabled, {pending} probe-pending")
+        else:
+            print(f"ok: {enabled} {args.channel}-enabled, {pending} off this channel")
         return 0
 
     if args.check_version_label:
@@ -749,11 +867,11 @@ def main() -> int:
                 f"(see --list)"
             )
         entry = entries[args.build_inputs]
-        fields = (
-            WHEEL_BUILD_INPUT_FIELDS
-            if args.channel == "wheel"
-            else BUILD_INPUT_FIELDS
-        )
+        fields = {
+            "deb": BUILD_INPUT_FIELDS,
+            "wheel": WHEEL_BUILD_INPUT_FIELDS,
+            "builder": BUILDER_BUILD_INPUT_FIELDS,
+        }[args.channel]
         # Quoted: several values carry spaces, so an unquoted KEY=a b line would
         # assign `a` and then try to *run* `b` when the script sources it.
         for name in fields:
