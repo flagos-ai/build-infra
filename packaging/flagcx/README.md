@@ -177,7 +177,8 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `Containerfile.deb` | the deb build, on top of the backend's base image |
 | `debian/` | `rules` + `control.in`; `debian/control` is rendered on the host |
 | `build-flagcx-deb.sh` | local/CI entry point, one backend per invocation |
-| `Containerfile.wheel` | the wheel build, in the backend's runtime image — or in its builder image where the row has one |
+| `Containerfile.wheel` | the wheel build's environment, on the backend's runtime image — or on its builder image where the row has one; it prepares (SDK assert, build-only headers, interpreter probe, clone), it does not compile |
+| `wheel-build-in-container.sh` | the compiling half: exec'd in a container from that image, carrying the row's device flags |
 | `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
 | `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
 | `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |

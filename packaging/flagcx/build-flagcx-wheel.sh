@@ -473,24 +473,74 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "FLAGCX_REF=$FLAGCX_REF" \
             --build-arg "BACKEND=$key" \
             --build-arg "DEB_WHEEL_ASSERT=$DEB_WHEEL_ASSERT" \
-            --build-arg "DEB_WHEEL_ADAPTOR=$DEB_WHEEL_ADAPTOR" \
-            --build-arg "DEB_WHEEL_TORCH_BACKEND=$DEB_WHEEL_TORCH_BACKEND" \
-            --build-arg "DEB_WHEEL_VERSION_SUFFIX=$DEB_WHEEL_VERSION_SUFFIX" \
             --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
-            --build-arg "DEB_WHEEL_MAKE_ENV=$DEB_WHEEL_MAKE_ENV" \
-            --build-arg "DEB_WHEEL_CUDA_PATH=$DEB_WHEEL_CUDA_PATH" \
-            --build-arg "DEB_BITCODE_ARCH=$DEB_BITCODE_ARCH" \
-            --build-arg "DEB_BITCODE_ADAPTOR_FLAG=$DEB_BITCODE_ADAPTOR_FLAG" \
             -t "$tag" \
             -f "$HERE/Containerfile.wheel" \
             "$REPO_ROOT" 2>&1 \
             | awk '{gsub(/:\/\/[^@\/ ]+:[^@\/ ]+@/, "://[redacted]@"); print; fflush()}'
 
-        # Same extraction idiom as packaging/flagtree and packaging/megatron:
-        # a single-stage build, so the artifacts are read out of the image.
-        cid="$(docker create "$tag")"
-        docker cp "$cid:/output/." "$OPT_OUT/"
-        docker rm "$cid"
+        # Then the build itself, in a container from that image — not a RUN in it,
+        # because `docker build` gives its steps no devices and the wheel build
+        # needs one: setup.py imports torch through _build_config.py, and torch's
+        # vendor bridge aborts at import when no device is visible (sunrise's
+        # torch_ptpu, tsingmicro's torch_txda). The flags are the row's, from the
+        # same build-config.yml table verify-flagcx-wheel.sh verifies in, so the
+        # build and the verification see the same device.
+        #
+        # /output is a bind mount rather than a `docker create` + `docker cp`
+        # source: the artifacts are the host's the moment they are written, and
+        # the wheel is read back from here with commit.txt/scm-describe.txt beside
+        # it, which is what the Containerfile no longer writes into the image.
+        RUN_FLAGS="$(BACKEND="$key" REPO_ROOT="$REPO_ROOT" python3 - <<'PY'
+import os
+import yaml
+with open(os.path.join(os.environ["REPO_ROOT"], ".github/build-config.yml")) as fh:
+    run = yaml.safe_load(fh).get("run") or {}
+# base/<name> names a backend {vendor}-{backend}, so the prefix is the
+# build-infra vendor name. There is no second copy to keep in step.
+key = os.environ["BACKEND"]
+entry = (run.get("vendors") or {}).get(key.split("-", 1)[0])
+if entry is None:
+    raise SystemExit(
+        f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
+        f"to build without the device flags its backend needs"
+    )
+print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
+PY
+)"
+        # Some vendor toolkits already carry it; naming it twice makes docker
+        # abort with "network host is specified multiple times" (run 33592252375).
+        if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
+            RUN_FLAGS="${RUN_FLAGS} --network host"
+        fi
+
+        build_container="flagcx-wheel-build-$key"
+        docker rm -f "$build_container" >/dev/null 2>&1 || true
+        # shellcheck disable=SC2086  # RUN_FLAGS is a flag list, meant to split
+        docker run -d --name "$build_container" \
+            $RUN_FLAGS \
+            -v "$OPT_OUT:/output" \
+            -v "$HERE/wheel-build-in-container.sh:/wheel-build.sh:ro" \
+            -e DEB_WHEEL_ADAPTOR="$DEB_WHEEL_ADAPTOR" \
+            -e DEB_WHEEL_TORCH_BACKEND="$DEB_WHEEL_TORCH_BACKEND" \
+            -e DEB_WHEEL_VERSION_SUFFIX="$DEB_WHEEL_VERSION_SUFFIX" \
+            -e DEB_WHEEL_MAKE_ENV="$DEB_WHEEL_MAKE_ENV" \
+            -e DEB_WHEEL_CUDA_PATH="$DEB_WHEEL_CUDA_PATH" \
+            -e DEB_BITCODE_ARCH="$DEB_BITCODE_ARCH" \
+            -e DEB_BITCODE_ADAPTOR_FLAG="$DEB_BITCODE_ADAPTOR_FLAG" \
+            "$tag" sleep infinity >/dev/null
+
+        rc=0
+        docker exec "$build_container" bash /wheel-build.sh || rc=$?
+        # Removed either way. It is started with the row's device flags, and a
+        # container left behind holds those devices: the next build on that node
+        # would see a device that is present and busy. The exec's own output is
+        # already in this log, so a failure loses nothing by it going.
+        docker rm -f "$build_container" >/dev/null 2>&1 || true
+        if (( rc != 0 )); then
+            echo "$key: the wheel build failed (rc=$rc)" >&2
+            exit "$rc"
+        fi
 
         # The assertion runs against the copy that landed here, not against a
         # name the container reported about itself: this is the artifact the

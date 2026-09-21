@@ -451,6 +451,7 @@ sunrise-tangrt1.2.0:
   assert: [/usr/local/tangrt/include/tang_runtime.h, /usr/local/pccl/include/pccl.h]
   vendor_lib_dirs: [/usr/local/tangrt/targets/linux-x86_64/lib, /usr/local/pccl/lib/linux-x86_64]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true}
 
 tsingmicro-tsm260610:
   vendor: tsm
