@@ -106,10 +106,12 @@ packaging/flagcx/verify/verify-flagcx-wheel.sh --backend nvidia-cuda13.3 --wheel
 ```
 
 Every wheel carries `flagcx/lib/libflagcx.so`, the `_C` extension and `flagcx/api.py`. A row that
-states `bitcode_arch` carries two more files — `flagcx/lib/libflagcx_device.bc` and
-`flagcx/include/flagcx_device_wrapper.h` — compiled by the build image's clang and added to the
-archive after the build, under the name it already has, because that name is the pin. `WHEEL-DESIGN.md`
-says what each file is for and why the paths are the ones they are.
+states `bitcode_arch` carries two more — `flagcx/lib/libflagcx_device.bc` and the headers under
+`flagcx/include/` — compiled by the build image's clang and packaged by FlagCX's own `setup.py`
+([#614](https://github.com/flagos-ai/FlagCX/pull/614), from `v0.14.0-rc2.post2`), which the line
+hands the row's `bitcode_arch` and `bitcode_adaptor_flag` as `FLAGCX_BITCODE_ARCH` and
+`FLAGCX_BITCODE_ADAPTOR_FLAGS`. `WHEEL-DESIGN.md` says what each file is for and why the paths are
+the ones they are.
 
 The install contract is the exact pin (`pip install 'flagcx==<version>+<label>'`); a range is
 satisfied by every vendor's build of the same commit, so nothing else can tell them apart.
@@ -177,7 +179,6 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `build-flagcx-deb.sh` | local/CI entry point, one backend per invocation |
 | `Containerfile.wheel` | the wheel build, in the backend's runtime image — or in its builder image where the row has one |
 | `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
-| `inject-bitcode.py` | adds the device bitcode and its header to a built wheel, rewriting `RECORD`; the name does not change |
 | `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
 | `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |
 | `verify/` | `verify-flagcx-deb.sh` installs the `.deb` into its base image and a plain Ubuntu; `verify-flagcx-wheel.sh` installs the wheel from the file or from the index; `verify-flagcx-builder.sh` compiles the row's device bitcode in the builder image |

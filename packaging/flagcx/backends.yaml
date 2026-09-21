@@ -112,8 +112,8 @@
 #                 derived. The only derivation available is the gencode table in
 #                 FlagCX's makefiles/nvidia_gencode.mk, and copying that table
 #                 here would be the second copy that drifts. Consumed by the
-#                 builder channel's verification, and by the wheel build once it
-#                 produces a .bc.
+#                 builder channel's verification, and by the wheel channel, which
+#                 hands it to setup.py as FLAGCX_BITCODE_ARCH.
 #   bitcode_adaptor_flag
 #                 ADAPTOR_FLAG for that build — which is where the row's
 #                 comm-traits branch is spelled out. makefiles/nvidia.mk decides
@@ -126,7 +126,11 @@
 #                 build-toolchain image"). The
 #                 Makefile replaces ADAPTOR_FLAG wholesale rather than appending
 #                 to it, so the value restates the Makefile's own
-#                 -DUSE_NVIDIA_ADAPTOR default.
+#                 -DUSE_NVIDIA_ADAPTOR default. The wheel channel passes it to
+#                 setup.py as FLAGCX_BITCODE_ADAPTOR_FLAGS, which refuses an
+#                 empty value whenever the arch is set rather than defaulting
+#                 it — the wrong branch is not a build failure, it is a `.bc`
+#                 that loads and does the wrong thing.
 
 # ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
 
