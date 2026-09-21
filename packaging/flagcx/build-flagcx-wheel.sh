@@ -434,8 +434,10 @@ for key in "${BACKENDS[@]}"; do
         # 1 of 2 bridge clones failed at connect after 130s, 2 of 2 host clones
         # succeeded in 12s). Isolation buys nothing here and costs the rebuild.
         #
-        # BASE_IMAGE is the runtime image, not the base image: the build imports
-        # torch, and only /flagos has it, so build env == delivery env.
+        # BASE_IMAGE is the row's `wheel_base_image`: the runtime image, or the
+        # builder image on a row that publishes one. Both import torch and only
+        # /flagos has it, so build env == delivery env either way — the builder
+        # being the runtime image plus a toolchain, never a vendor image.
         #
         # A failing step makes BuildKit echo the resolved RUN command, so the
         # relayed proxy's userinfo would land in whatever captures this stdout.
@@ -444,7 +446,7 @@ for key in "${BACKENDS[@]}"; do
             "${cache_arg[@]}" \
             "${proxy_arg[@]}" \
             --network host \
-            --build-arg "BASE_IMAGE=$DEB_IMAGE_TAG" \
+            --build-arg "BASE_IMAGE=$DEB_WHEEL_BASE_IMAGE" \
             --build-arg "FLAGCX_REPO=$OPT_REPO" \
             --build-arg "FLAGCX_REF=$FLAGCX_REF" \
             --build-arg "BACKEND=$key" \
@@ -455,6 +457,8 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "DEB_WHEEL_PYTHON_TAG=$DEB_WHEEL_PYTHON_TAG" \
             --build-arg "DEB_WHEEL_MAKE_ENV=$DEB_WHEEL_MAKE_ENV" \
             --build-arg "DEB_WHEEL_CUDA_PATH=$DEB_WHEEL_CUDA_PATH" \
+            --build-arg "DEB_WHEEL_BITCODE_ARCH=$DEB_WHEEL_BITCODE_ARCH" \
+            --build-arg "DEB_WHEEL_BITCODE_ADAPTOR_FLAG=$DEB_WHEEL_BITCODE_ADAPTOR_FLAG" \
             -t "$tag" \
             -f "$HERE/Containerfile.wheel" \
             "$REPO_ROOT" 2>&1 \
@@ -462,8 +466,28 @@ for key in "${BACKENDS[@]}"; do
 
         # Same extraction idiom as packaging/flagtree and packaging/megatron:
         # a single-stage build, so the artifacts are read out of the image.
+        #
+        # The bitcode leaves the image into a scratch directory rather than into
+        # $OPT_OUT, which holds the build's artifacts and nothing else: it is not
+        # published on its own, it is added to the wheel just below.
+        bitcode=""
         cid="$(docker create "$tag")"
-        docker cp "$cid:/output/." "$OPT_OUT/" && docker rm "$cid"
+        docker cp "$cid:/output/." "$OPT_OUT/"
+        if [ -n "$DEB_WHEEL_BITCODE_ARCH" ]; then
+            bitcode="$(mktemp -d)"
+            docker cp "$cid:/bitcode/." "$bitcode/"
+        fi
+        docker rm "$cid"
+
+        # The device bitcode goes into the wheel here rather than inside the
+        # build, for the reason the assertion below is here too: what is
+        # published is this copy, so this is where it becomes the artifact.
+        if [ -n "$bitcode" ]; then
+            python3 "$HERE/inject-bitcode.py" "$OPT_OUT"/flagcx-*.whl \
+                --add "flagcx/lib/libflagcx_device.bc=$bitcode/lib/libflagcx_device.bc" \
+                --add "flagcx/include/flagcx_device_wrapper.h=$bitcode/include/flagcx_device_wrapper.h"
+            rm -rf "$bitcode"
+        fi
 
         # The assertion runs against the copy that landed here, not against a
         # name the container reported about itself: this is the artifact the

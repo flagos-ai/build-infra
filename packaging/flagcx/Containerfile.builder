@@ -97,6 +97,34 @@ RUN set -eux; \
         curl xz-utils ca-certificates; \
     rm -rf /var/lib/apt/lists/*
 
+# The rest of torch's build-time headers. ATen is written against a complete CUDA
+# toolkit — ATen/cuda/CUDAContextLight.h includes <cusparse.h> and the wider trees
+# reach cublas/cusolver/cufft — while a CUDA *runtime* image ships the libraries
+# and not the headers. The wheel build compiles flagcx._C against them, so on the
+# nvidia rows this step is the difference between a wheel and a stop at
+# cusparse.h (measured: then cublas_v2.h, then cusolverDn.h, then cufft.h).
+#
+# Installed at the version of the library already in the image rather than at
+# apt's candidate, and that is the whole reason this is a loop. apt's candidate
+# belongs to the newest CUDA release in the repo — 13.6 while this row's toolkit
+# is 13.3 — and satisfying it means upgrading libcublas-13-3 out from under the
+# environment the wheel is delivered to. Naming the pair keeps the header and the
+# library it describes in step, and reading the version rather than writing it
+# down means a base image bump moves both together.
+#
+# Inert on a row with no CUDA math libraries: the vendor SDK rows build their
+# wheel in the runtime image and have no builder at all.
+RUN set -eux; \
+    apt-get update; \
+    for pkg in $(dpkg-query -W -f='${Package}\n' \
+            'libcublas-*' 'libcusparse-*' 'libcusolver-*' 'libcufft-*' 2>/dev/null); do \
+        case "$pkg" in *-dev) continue ;; esac; \
+        dev="$(printf '%s' "$pkg" | sed -E 's/^((lib(cublas|cusparse|cusolver|cufft))-)/\1dev-/')"; \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            "${dev}=$(dpkg-query -W -f='${Version}' "$pkg")"; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
+
 # DEB_ASSERT is the list of files that proves the SDK is the one we think it is,
 # and it is checked *after* the install above — not before, as
 # Containerfile.wheel checks it. That file's early gate is right for the SDK-free

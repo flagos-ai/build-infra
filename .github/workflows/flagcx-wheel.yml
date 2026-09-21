@@ -17,14 +17,18 @@ name: flagcx wheel
 # Build FlagCX wheels in the backend's runtime image, and (optionally) publish
 # them to that vendor's PyPI.
 #
-# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
-# flagos-runtime-{vendor}-{backend}:{version} (from generate_matrix --runtime),
-# exactly the vllm-plugin-wheel.yml model and NOT flagcx-deb.yml's make route.
-# The FlagCX build imports torch while it configures itself (_build_config.py's
+# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE, or the build-toolchain
+# image published beside it on the rows that carry device bitcode: BASE_IMAGE =
+# deb-config.py's `wheel_base_image` (flagos-runtime-{vendor}-{backend}:{version},
+# or flagos-dev/flagcx-builder-{vendor}-{backend}:{version}), exactly the
+# vllm-plugin-wheel.yml model and NOT flagcx-deb.yml's make route. The FlagCX
+# build imports torch while it configures itself (_build_config.py's
 # detect_torch_flag() and get_ext_classes()), so one environment has to carry
 # torch, setuptools_scm and Python.h at once — only the runtime image's /flagos
-# does. Build env == delivery env also means the wheel is built against the same
-# python/ABI the app image will run.
+# does, and the builder image is the runtime image plus a toolchain. Build env ==
+# delivery env also means the wheel is built against the same python/ABI the app
+# image will run; the verify job below still runs in the runtime image, which is
+# where the wheel has to stand on its own.
 #
 # The matrix comes from `deb-config.py --merge --channel wheel` rather than from
 # `generate_matrix.py` directly: the merge is what joins the runtime matrix with
@@ -331,7 +335,7 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           case "$vendor" in
-            hygon|metax) ;;
+            nvidia|hygon|metax) ;;
             *)
               echo "::error::no vendor PyPI for '${vendor}' (the build-infra vendor of ${matrix_name})"
               exit 1

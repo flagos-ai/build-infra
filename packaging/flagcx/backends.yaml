@@ -161,6 +161,10 @@ nvidia-cuda12.8:
   vendor_lib_dirs: [/usr/local/cuda/compat]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: true}
+  # The wheel is built in the builder image rather than the runtime one: the
+  # runtime image carries no clang, and the bitcode below is compiled by it.
+  # deb-config.py derives that (`wheel_base_image`) rather than repeating it.
+  wheel: {enabled: true, torch_backend: vendor}
   # The device-bitcode build needs clang/llvm >= 22 and curand's mtgp32 kernel
   # header — clang's __clang_cuda_runtime_wrapper.h force-includes it, and no
   # cuda-nvcc package ships it on 12.8 or 13.3 (measured). FlagCX never calls
@@ -193,6 +197,8 @@ nvidia-cuda13.3:
   vendor_lib_dirs: [/usr/local/cuda/compat]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: true, default_for_vendor: false}
+  # Same builder-built wheel as the 12.8 row, for the same reason.
+  wheel: {enabled: true, torch_backend: vendor}
   # Same two build-time gaps as the 12.8 row, and the same one-line answer.
   builder:
     enabled: true
