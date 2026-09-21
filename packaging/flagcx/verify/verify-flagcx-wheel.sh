@@ -378,11 +378,20 @@ fi
 # would trace this against whatever /etc/profile.d re-exports, which is a list
 # the interpreter never sees. Naming the unresolved library here is the point —
 # the alternative is an ImportError that names nothing.
+#
+# The search path carries torch's own library directory, because that is where
+# `import torch` finds its shared libraries: they ship in site-packages, so a
+# bare ldd reports libc10.so, libc10_cuda.so and libtorch_cpu.so unresolved in a
+# wheel that loads perfectly (measured on nvidia-cuda13.3, whose extension is
+# linked against exactly those three). With it the loop asserts what the
+# interpreter would resolve — this image's SDK for `libflagcx.so`, and the
+# interpreter's own runtime for the extension beside it.
 unset BASH_ENV
+torch_lib="$("$PY" -c 'import os, torch; print(os.path.join(os.path.dirname(torch.__file__), "lib"))')"
 for candidate in "$lib" $(find "$site/flagcx" -name '_C*.so'); do
-    if ldd "$candidate" | grep -q 'not found'; then
-        ldd "$candidate" >&2
-        echo "$candidate: unresolved libraries (the runtime image's SDK should supply them)" >&2
+    if LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" | grep -q 'not found'; then
+        LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" >&2
+        echo "$candidate: unresolved libraries (neither this image's SDK nor the interpreter's own runtime supplies them)" >&2
         exit 1
     fi
 done
