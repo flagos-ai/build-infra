@@ -407,9 +407,20 @@ kunlunxin-xre5.37.1:
   # `CCL_HOME ?= /usr/local/xccl` and `MPI_HOME ?= /usr/local`, while the vendor
   # installs xccl_Linux_x86_64/ and mpich-<ver>/ under /usr/local. Given here
   # rather than patched into FlagCX, which ships the paths from its own docs.
+  #
+  # CPATH and LIBRARY_PATH carry the CUDA half that the wheel's plugin build
+  # needs and this image does not put on the default search path.
+  # _build_config.py's klx branch points at /opt/kunlun — a path this image does
+  # not have — so the torch headers' `#include <cuda.h>` resolves only through
+  # CPATH, and the `-lcuda` that branch lists only through the driver stub. Both
+  # root at /usr/local/cuda, which the base image installs (CUDA 12.9.0); this
+  # is the plugin build reading it, not a second SDK. Same shape as the nvidia
+  # rows' LIBRARY_PATH, which is there for the same stub.
   make_env:
     CCL_HOME: /usr/local/xccl_Linux_x86_64
     MPI_HOME: /usr/local/mpich-3.3.2
+    CPATH: /usr/local/xpu/include:/usr/local/cuda/include
+    LIBRARY_PATH: /usr/local/cuda/lib64/stubs:/usr/local/cuda/lib64:/usr/local/xpu/so
   vendor_libs: [cudart, xccl]
   # xpu/runtime.h is bkcl.h's own include and resolves through DEVICE_INCLUDE
   # (`$(DEVICE_HOME)/include`, DEVICE_HOME ?= /usr/local/xpu, a symlink into the
