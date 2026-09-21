@@ -403,15 +403,24 @@ kunlunxin-xre5.37.1:
   arch: amd64
   glibc_floor: "2.35"
   apt: []
-  make_env: {}
+  # Both roots kunlunxin.mk defaults are wrong for this image: it says
+  # `CCL_HOME ?= /usr/local/xccl` and `MPI_HOME ?= /usr/local`, while the vendor
+  # installs xccl_Linux_x86_64/ and mpich-<ver>/ under /usr/local. Given here
+  # rather than patched into FlagCX, which ships the paths from its own docs.
+  make_env:
+    CCL_HOME: /usr/local/xccl_Linux_x86_64
+    MPI_HOME: /usr/local/mpich-3.3.2
   vendor_libs: [cudart, xccl]
-  assert: []
+  # xpu/runtime.h is bkcl.h's own include and resolves through DEVICE_INCLUDE
+  # (`$(DEVICE_HOME)/include`, DEVICE_HOME ?= /usr/local/xpu, a symlink into the
+  # XRE tree) — so it is on the path once the SDK is, and is asserted as the
+  # file that proves the device half of the include closure is there too.
+  assert:
+    - /usr/local/xccl_Linux_x86_64/include/bkcl.h
+    - /usr/local/xpu/include/xpu/runtime.h
+    - /usr/local/mpich-3.3.2/include/mpi.h
   deb: {enabled: false, default_for_vendor: true}
-  probe: >-
-    Closed, not pending: this backend cannot be delivered from its base image. The base
-    Containerfile installs no CCL package and XRE 5.37.1.0 ships no xccl/bkcl, so CCL_HOME's
-    /usr/local/xccl is absent; the only libbkcl.so is a runtime-image artifact inside the
-    vendor torch wheel, and it exports no plain-C bkcl_* entry point. See DESIGN.md section 6.
+  wheel: {enabled: true}
 
 mthreads-musa4.3.6:
   vendor: musa
