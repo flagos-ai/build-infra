@@ -34,7 +34,7 @@ BUILDDIR := $(CURDIR)/build
 LIBDIR   := $(BUILDDIR)/lib
 INSTALL  := $(CURDIR)/debian/$(PKG)
 
-# DEB_MAKE_FLAG / DEB_MAKE_ENV come from `deb-config.py --build-inputs`.
+# DEB_MAKE_FLAG / DEB_MAKE_ENV come from `flagcx-config.py --build-inputs`.
 # They are passed as make *command-line* variables rather than environment, so
 # they outrank the `?=` in makefiles/*.mk and beat the Makefile's own ifeq
 # ladder, which pre-assigns DEVICE_HOME/CCL_HOME before including the vendor

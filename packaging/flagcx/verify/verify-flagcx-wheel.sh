@@ -97,14 +97,14 @@ local_part_of() {
 }
 
 wheel_rows() {
-    python3 packaging/flagcx/deb-config.py --list --channel wheel \
+    python3 packaging/flagcx/flagcx-config.py --list --channel wheel \
         | awk '$1 == "ready" {print $2}'
 }
 
 # --check-version-label reads backends.yaml alone; --build-inputs would run the
 # matrix generator once per row for a fact already in the registry.
 label_of_row() {
-    python3 packaging/flagcx/deb-config.py --check-version-label "$1" \
+    python3 packaging/flagcx/flagcx-config.py --check-version-label "$1" \
         | sed -n 's/^ok: .*: label //p'
 }
 
@@ -173,7 +173,7 @@ fi
 # Captured into a variable rather than inlined: `set -e` does not see a failure
 # inside eval's command substitution, so an inline one would let the script run
 # on with every DEB_* empty.
-INPUTS="$(python3 packaging/flagcx/deb-config.py --build-inputs "$KEY" --channel wheel)"
+INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$KEY" --channel wheel)"
 set -a
 eval "$INPUTS"
 set +a

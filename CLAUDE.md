@@ -156,7 +156,7 @@ switchable via the `compiler` shell function.
   `configs.yaml`, or `base/**` changes).
 
 - **`flagcx-deb.yml`** — FlagCX `.deb` build (manual, x86_64 + aarch64 runners).
-  Matrix comes from `deb-config.py --merge` over `generate_matrix.py --runtime`, which is what
+  Matrix comes from `flagcx-config.py --merge` over `generate_matrix.py --runtime`, which is what
   joins the runtime matrix with the FlagCX packaging fields in `packaging/flagcx/backends.yaml`;
   `--check` runs first so drift is a named failure rather than a silently filtered row.
   Builds one backend per runner (`packaging/flagcx/build-flagcx-deb.sh`), then `verify` installs
@@ -166,7 +166,7 @@ switchable via the `compiler` shell function.
 
 - **`flagcx-wheel.yml`** — FlagCX wheel build (manual).
   The build environment is the backend's **runtime** image (the FlagCX build imports torch, so
-  build env == delivery env), and the matrix comes from `deb-config.py --merge --channel wheel`.
+  build env == delivery env), and the matrix comes from `flagcx-config.py --merge --channel wheel`.
   `verify` installs the wheel from the file into that image before `publish` uploads it to the
   vendor PyPI, then reads the index back by pin and compares sha256.
 

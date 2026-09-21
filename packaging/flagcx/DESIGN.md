@@ -81,7 +81,7 @@ packaging/flagcx/
     source/format            # "3.0 (quilt)" — dpkg-buildpackage wants it declared
   Containerfile.deb          # BASE_IMAGE + BACKEND + FLAGCX_REF -> /output/*.deb
   build-flagcx-deb.sh        # --backend KEY... | --all | --list
-  deb-config.py              # merges backends.yaml with generate_matrix --runtime
+  flagcx-config.py              # merges backends.yaml with generate_matrix --runtime
   backends.yaml              # FlagCX-owned facts, one entry per backend key
   verify/verify-flagcx-deb.sh
   verify/smoke-load.c
@@ -121,7 +121,7 @@ image carries `build-essential` (so `gcc`, `g++`, `make` and `dpkg-dev` are pres
 **none** carries `debhelper`, `fakeroot`, `devscripts` or `patchelf` — those are added by the
 container, in one place.
 
-### 2. `deb-config.py` — the join, and nothing else
+### 2. `flagcx-config.py` — the join, and nothing else
 
 `--merge <matrix.json>` reads `generate_matrix.py --runtime` output and `backends.yaml`,
 emits the CI matrix (one entry per enabled backend, with the FlagCX fields joined in) and
@@ -139,7 +139,7 @@ rejected unless `verify` is also true). Jobs:
 
 | Job | Shape |
 |---|---|
-| `set-matrix` | `generate_matrix.py --runtime` → `deb-config.py --merge` → `fromJSON` matrix; each row carries the `ubuntu` field the verify job needs for `--floor-image` and the `codename` naming the suite its repo serves |
+| `set-matrix` | `generate_matrix.py --runtime` → `flagcx-config.py --merge` → `fromJSON` matrix; each row carries the `ubuntu` field the verify job needs for `--floor-image` and the `codename` naming the suite its repo serves |
 | `build` | `runs-on: ${{ fromJSON(matrix.runson) }}`; `build-flagcx-deb.sh --backend <key>`; uploads the `.deb` files as artifacts |
 | `verify` | `verify/verify-flagcx-deb.sh --backend <key> --floor-image ubuntu:<ubuntu>` on the downloaded `.deb` files; when `publish` is set, a step posts them to `flagos-apt-ubuntu<ubuntu>` and a last step reads that repository back |
 
@@ -357,7 +357,7 @@ only entry point) and `packaging/README.md`'s 引用维护清单:
 - `packaging/flagcx/README.md` — the line's entry point: what it builds, how to run it, the
   `backends.yaml` field meanings, and the publication hook.
 - `CLAUDE.md` — the layer table plus the `### CI workflows` list.
-- `scripts/README.md` — only if `deb-config.py` ends up CI-referenced from `scripts/`; verify
+- `scripts/README.md` — only if `flagcx-config.py` ends up CI-referenced from `scripts/`; verify
   during implementation rather than assume.
 - `license-tool` — `packaging/` is in `SKIP_PATH_PREFIXES`, so overlay files need no license
   header (same as every existing packaging line). Confirm with a scan, do not assume.
@@ -395,7 +395,7 @@ PR to another repo is opened.
 
 ## Sequencing
 
-1. `backends.yaml` + `deb-config.py` + `--check` against `generate_matrix.py --runtime`.
+1. `backends.yaml` + `flagcx-config.py` + `--check` against `generate_matrix.py --runtime`.
 2. `debian/` overlay (control.in, rules, changelog.sh, patch-soname.sh) with **metax first** —
    it already works today, so it isolates the new plumbing from SDK risk.
 3. `Containerfile.deb` + `build-flagcx-deb.sh`, reproducing metax, then nvidia.
@@ -408,8 +408,8 @@ PR to another repo is opened.
 ```bash
 # matrix resolves and agrees with build-infra
 python3 scripts/generate_matrix.py --runtime > /tmp/all.json
-python3 packaging/flagcx/deb-config.py --merge /tmp/all.json   # one entry per enabled backend
-python3 packaging/flagcx/deb-config.py --check                 # no drift
+python3 packaging/flagcx/flagcx-config.py --merge /tmp/all.json   # one entry per enabled backend
+python3 packaging/flagcx/flagcx-config.py --check                 # no drift
 
 # metax first (known-good upstream), then nvidia
 packaging/flagcx/build-flagcx-deb.sh --backend metax-maca3.8.1.3 \

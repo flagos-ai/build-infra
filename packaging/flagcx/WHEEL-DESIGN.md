@@ -32,7 +32,7 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
   Identical fields mean FlagCX has no knob for the difference — "cannot see it", not "the same".
 - **The deb line declines the same gamble.** Every multi-backend vendor except ascend has exactly
   one `default_for_vendor: true` variant; ascend has none. That flag is what makes a variant answer
-  to the unqualified `Provides: libflagcx-<vendor>` (`deb-config.py:195`), so no ascend package
+  to the unqualified `Provides: libflagcx-<vendor>` (`flagcx-config.py:195`), so no ascend package
   claims to stand in for another.
 - What deb can do and a wheel cannot: deb ships four ascend packages because each installs into a
   per-SDK image, which resolves the SDK axis at install time. A wheel has no equivalent exit — see
@@ -178,7 +178,7 @@ correct but it was a second author of an artifact: what shipped was not what the
 and every row that wanted a `.bc` depended on the build system carrying a copy of FlagCX's
 packaging knowledge.
 
-**Which image the wheel is built in is derived** (`deb-config.py`'s `wheel_base_image`): the
+**Which image the wheel is built in is derived** (`flagcx-config.py`'s `wheel_base_image`): the
 runtime image, or the builder image on a row that publishes one. The builder is the runtime image
 plus a toolchain, so the environment the extension is compiled in stays a superset of the one that
 installs it, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a
@@ -195,7 +195,7 @@ make.
   already uses for `flaggems:` (read at `scripts/build_runtime.py:302`, recorded as the OCI label
   `flagos.flaggems` at `:333`). Recording it as a label is what makes "which backend is installed
   here" queryable after the fact.
-- **A `--check` gate** in the style of `deb-config.py --check`: a version label without its backend
+- **A `--check` gate** in the style of `flagcx-config.py --check`: a version label without its backend
   suffix fails the build, rather than producing a wheel that silently overwrites its predecessor.
 - **pip has no `Provides:`.** The deb line's "the default variant answers to the unqualified name"
   cannot be reproduced. With two variants in one index, `pip install flagcx` does not fail — it
@@ -207,7 +207,7 @@ make.
 - **PEP 440 normalization, per backend key** — whether `iluvatar-corex4.4.0` has to be pinned as
   `+iluvatar.corex4.4.0`. The normalized string *is* the pin's value, so it has to be measured
   rather than assumed. `iluvatar_corex`'s underscore already broke the deb name path once;
-  `deb-config.py` carries that note.
+  `flagcx-config.py` carries that note.
 - **Whether Nexus, or whatever fronts it, decodes a literal `+` in a filename to a space.** Private
   registry, so the public PyPI rule does not bind it — but it has to be observed.
 - **The runtime layer, if a wheel's `.so` is ever asked to cross a vendor's SDKs.** Whether one
