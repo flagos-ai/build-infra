@@ -88,7 +88,7 @@ cd "$REPO_ROOT"
 # Captured into a variable rather than inlined: `set -e` does not see a failure
 # inside eval's command substitution, so an inline one would let the script run
 # on to the layout checks with every DEB_* empty.
-INPUTS="$(python3 packaging/flagcx/deb-config.py --build-inputs "$OPT_BACKEND")"
+INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$OPT_BACKEND")"
 set -a
 eval "$INPUTS"
 set +a

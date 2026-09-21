@@ -38,7 +38,7 @@
 #
 # The image is tagged with its published ref rather than a local name that a
 # second step renames, which is what scripts/build_runtime.py does too: the ref
-# is derived in deb-config.py (builder_image) from the row and the registry, so
+# is derived in flagcx-config.py (builder_image) from the row and the registry, so
 # the build and the verification arrive at the same string without either
 # owning a spelling of it.
 #
@@ -79,7 +79,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if (( LIST )); then
-    exec python3 "$HERE/deb-config.py" --list --channel builder
+    exec python3 "$HERE/flagcx-config.py" --list --channel builder
 fi
 if (( BUILD_ALL )); then
     # Rows without a builder: block are excluded on purpose: absent means that
@@ -87,7 +87,7 @@ if (( BUILD_ALL )); then
     # is what CI runs.
     while read -r state key _rest; do
         [[ "$state" == ready ]] && BACKENDS+=("$key")
-    done <<< "$(python3 "$HERE/deb-config.py" --list --channel builder)"
+    done <<< "$(python3 "$HERE/flagcx-config.py" --list --channel builder)"
 fi
 if [[ ${#BACKENDS[@]} -eq 0 ]]; then
     echo "nothing to build: pass --backend KEY, --all, or --list" >&2
@@ -101,7 +101,7 @@ fi
 # Drift between backends.yaml and the runtime matrix is cheaper to catch here
 # than inside a docker build, where a row with no runtime image fails on a pull
 # and names a ref rather than the row that produced it.
-python3 "$HERE/deb-config.py" --check --channel builder >/dev/null
+python3 "$HERE/flagcx-config.py" --check --channel builder >/dev/null
 
 # git is the source of truth for the provenance labels, as in build_base.py and
 # build_runtime.py: the image records where its recipe came from, not when it
@@ -115,7 +115,7 @@ for key in "${BACKENDS[@]}"; do
         # Captured first, then eval'd, rather than `eval "$(python3 ...)"`: a
         # command substitution inside eval fails invisibly to `set -e`, and the
         # build would then proceed with every DEB_* empty.
-        INPUTS="$(python3 "$HERE/deb-config.py" --build-inputs "$key" --channel builder)"
+        INPUTS="$(python3 "$HERE/flagcx-config.py" --build-inputs "$key" --channel builder)"
         eval "$INPUTS"
         set +a
 

@@ -16,7 +16,7 @@
 #
 # Only what build-infra cannot tell us lives here. `base_image`, `runson`,
 # `version` and `image_tag` come from `scripts/generate_matrix.py --runtime` at
-# build time and must NOT be duplicated (see deb-config.py).
+# build time and must NOT be duplicated (see flagcx-config.py).
 #
 # Field meanings:
 #   vendor        FlagCX adaptor family — matches makefiles/<vendor>.mk and the
@@ -27,7 +27,7 @@
 #   make_flag     USE_* flag handed to `make` (the adaptor's make flag).
 #   arch          `Architecture:` in the generated control. The matrix carries
 #                 no arch field at all, so this is the only source.
-#   glibc_floor   `Depends: libc6 (>= ...)`, cross-checked by deb-config.py
+#   glibc_floor   `Depends: libc6 (>= ...)`, cross-checked by flagcx-config.py
 #                 --check against the base image's Ubuntu release. It is a
 #                 packaging decision (the oldest runtime libc the binary links
 #                 against), which is why it lives here and not in the matrix.
@@ -84,7 +84,7 @@
 #                 segment. A label is normally just the suffix read back through
 #                 PEP 440, which leaves `maca3.7.2.1` alone; DTK is the one row
 #                 where that reading would respell the vendor's own `26.04`, so
-#                 deb-config.py's wheel_label() names that exception in code
+#                 flagcx-config.py's wheel_label() names that exception in code
 #                 rather than letting a field here become a third copy of a fact
 #                 the matrix already carries. `vendor` above is the FlagCX
 #                 adaptor family (hygon's is `du`) — the other, independent axis,
@@ -167,7 +167,7 @@ nvidia-cuda12.8:
   deb: {enabled: true, default_for_vendor: true}
   # The wheel is built in the builder image rather than the runtime one: the
   # runtime image carries no clang, and the bitcode below is compiled by it.
-  # deb-config.py derives that (`wheel_base_image`) rather than repeating it.
+  # flagcx-config.py derives that (`wheel_base_image`) rather than repeating it.
   wheel: {enabled: true, torch_backend: vendor}
   # The device-bitcode build needs clang/llvm >= 22 and curand's mtgp32 kernel
   # header — clang's __clang_cuda_runtime_wrapper.h force-includes it, and no

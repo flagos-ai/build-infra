@@ -1,7 +1,7 @@
 # FlagCX packaging
 
 Builds FlagCX out of a git ref, one backend per container. Three channels share one
-`backends.yaml`, one join (`deb-config.py --channel …`) and one set of registry facts:
+`backends.yaml`, one join (`flagcx-config.py --channel …`) and one set of registry facts:
 
 | Channel | Product | Design of record |
 |---|---|---|
@@ -129,7 +129,7 @@ an index yet:
 
 1. Add an entry to `backends.yaml` under either the `ready` or `probe-pending` heading, with a
    `probe:` note saying what one in-container `make` + `ldd` still has to answer.
-2. Run `python3 packaging/flagcx/deb-config.py --check` — it cross-checks the entry against the
+2. Run `python3 packaging/flagcx/flagcx-config.py --check` — it cross-checks the entry against the
    runtime matrix (base image, arch, glibc floor) and fails with a named reason on drift.
 3. Build and verify it. **A probe-pending entry is only flipped to `enabled: true` after that
    build and verify pass** — the `probe:` note is deleted, not resolved on paper.
@@ -173,7 +173,7 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `DESIGN.md` | design of record — rationale, `dpkg-shlibdeps` mechanism, ADRs |
 | `WHEEL-DESIGN.md` | design of record for the wheel and builder lines — identity, version label, pin |
 | `backends.yaml` | per-backend packaging facts: the one input build-infra cannot derive |
-| `deb-config.py` | joins `backends.yaml` with `generate_matrix.py --runtime` |
+| `flagcx-config.py` | joins `backends.yaml` with `generate_matrix.py --runtime` |
 | `Containerfile.deb` | the deb build, on top of the backend's base image |
 | `debian/` | `rules` + `control.in`; `debian/control` is rendered on the host |
 | `build-flagcx-deb.sh` | local/CI entry point, one backend per invocation |

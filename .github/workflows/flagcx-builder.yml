@@ -42,7 +42,7 @@ name: flagcx builder
 # packaging/flagcx/verify/verify-flagcx-builder.sh: compile that row's device
 # bitcode, at that row's arch and comm-traits branch, inside the built image.
 #
-# THE MATRIX COMES FROM `deb-config.py --merge --channel builder`, not from
+# THE MATRIX COMES FROM `flagcx-config.py --merge --channel builder`, not from
 # `generate_matrix.py` directly: the merge joins the runtime matrix with the row's
 # builder fields (the extra apt list, the bitcode arch and adaptor flag) and with
 # the image ref this line publishes, which is derived there so that the build, the
@@ -103,7 +103,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
         run: |
-          # deb-config.py imports yaml; ubuntu-latest's python does not ship it.
+          # flagcx-config.py imports yaml; ubuntu-latest's python does not ship it.
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
       - id: set-matrix
@@ -124,12 +124,12 @@ jobs:
           # --merge only emits schedulable rows, so drift between backends.yaml
           # and the runtime matrix would be filtered away silently here; --check
           # is what turns it into a named failure.
-          python3 packaging/flagcx/deb-config.py --check --channel builder
-          python3 packaging/flagcx/deb-config.py --merge matrix.json --channel builder > builder-matrix.json
+          python3 packaging/flagcx/flagcx-config.py --check --channel builder
+          python3 packaging/flagcx/flagcx-config.py --merge matrix.json --channel builder > builder-matrix.json
           # An empty include list would skip the job silently, which reads as a
           # successful run of a backend that does not exist.
           if [[ "$(jq '.include | length' builder-matrix.json)" == 0 ]]; then
-            echo "::error::${{ inputs.backend }} names no backend with a builder; see packaging/flagcx/deb-config.py --list --channel builder"
+            echo "::error::${{ inputs.backend }} names no backend with a builder; see packaging/flagcx/flagcx-config.py --list --channel builder"
             exit 1
           fi
           cat builder-matrix.json

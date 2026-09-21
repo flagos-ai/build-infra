@@ -19,13 +19,13 @@ name: flagcx wheel
 #
 # THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE, or the build-toolchain
 # image published beside it where the row carries device bitcode: BASE_IMAGE =
-# deb-config.py's `wheel_base_image`, the vllm-plugin-wheel.yml model.
+# flagcx-config.py's `wheel_base_image`, the vllm-plugin-wheel.yml model.
 #
 # The FlagCX build imports torch while it configures itself, so one environment
 # has to carry torch, setuptools_scm and Python.h at once — only /flagos does.
 # Build env == delivery env: a builder is the runtime image plus a toolchain.
 #
-# The matrix comes from `deb-config.py --merge --channel wheel` rather than from
+# The matrix comes from `flagcx-config.py --merge --channel wheel` rather than from
 # `generate_matrix.py` directly: the merge is what joins the runtime matrix with
 # the FlagCX wheel fields (version suffix, python tag, adaptor, make env), and
 # the runtime matrix alone lacks every input the build consumes.
@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML and packaging
         run: |
-          # deb-config.py imports yaml and packaging.version; ubuntu-latest's
+          # flagcx-config.py imports yaml and packaging.version; ubuntu-latest's
           # python ships neither.
           python3 -c "import yaml, packaging" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml packaging
@@ -145,12 +145,12 @@ jobs:
           # --merge only emits schedulable rows, so drift between backends.yaml
           # and the runtime matrix would be filtered away silently here; --check
           # is what turns it into a named failure.
-          python3 packaging/flagcx/deb-config.py --check --channel wheel
-          python3 packaging/flagcx/deb-config.py --merge matrix.json --channel wheel > wheel-matrix.json
+          python3 packaging/flagcx/flagcx-config.py --check --channel wheel
+          python3 packaging/flagcx/flagcx-config.py --merge matrix.json --channel wheel > wheel-matrix.json
           # An empty include list would skip both jobs silently, which reads as a
           # successful run of a backend that does not exist.
           if [[ "$(jq '.include | length' wheel-matrix.json)" == 0 ]]; then
-            echo "::error::${{ inputs.backend }} names no backend with a wheel; see packaging/flagcx/deb-config.py --list --channel wheel"
+            echo "::error::${{ inputs.backend }} names no backend with a wheel; see packaging/flagcx/flagcx-config.py --list --channel wheel"
             exit 1
           fi
           cat wheel-matrix.json

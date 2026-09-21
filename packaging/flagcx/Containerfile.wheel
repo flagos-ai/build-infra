@@ -17,7 +17,7 @@
 # The build context is the repository root, not this directory:
 #
 #   key=hygon-dtk26.04
-#   eval "$(python3 packaging/flagcx/deb-config.py --build-inputs "$key" --channel wheel)"
+#   eval "$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$key" --channel wheel)"
 #   docker build \
 #       --build-arg "BASE_IMAGE=$DEB_WHEEL_BASE_IMAGE" \
 #       --build-arg "FLAGCX_REPO=https://github.com/flagos-ai/FlagCX.git" \
@@ -56,7 +56,7 @@
 # the runtime image's /flagos carries torch, setuptools_scm and a Python.h for
 # the interpreter that will install the result. Build env == delivery env.
 #
-# A row that publishes a builder image builds in *that* instead (deb-config.py's
+# A row that publishes a builder image builds in *that* instead (flagcx-config.py's
 # `wheel_base_image`): the builder is the runtime image plus a toolchain, so the
 # environment stays a superset of the one that installs it — and has a clang.
 #
@@ -81,7 +81,7 @@ ARG DEB_WHEEL_CUDA_PATH
 # `.so`, so a `.bc` built without them describes a backend with no contexts.
 #
 # No WHEEL_ infix: the names are the row's `bitcode_arch`/`bitcode_adaptor_flag`,
-# the same pair the builder channel's verification compiles, and deb-config.py
+# the same pair the builder channel's verification compiles, and flagcx-config.py
 # names a variable after the field it came from.
 ARG DEB_BITCODE_ARCH=
 ARG DEB_BITCODE_ADAPTOR_FLAG=

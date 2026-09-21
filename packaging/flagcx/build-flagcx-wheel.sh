@@ -340,14 +340,14 @@ if (( PRINT_PIN )); then
 fi
 
 if (( LIST )); then
-    exec python3 "$HERE/deb-config.py" --list --channel wheel
+    exec python3 "$HERE/flagcx-config.py" --list --channel wheel
 fi
 if (( BUILD_ALL )); then
     # Rows without a wheel: block are excluded on purpose: absent means nobody
     # has asked to publish this backend, and --all is what CI runs.
     while read -r state key _rest; do
         [[ "$state" == ready ]] && BACKENDS+=("$key")
-    done <<< "$(python3 "$HERE/deb-config.py" --list --channel wheel)"
+    done <<< "$(python3 "$HERE/flagcx-config.py" --list --channel wheel)"
 fi
 if [[ ${#BACKENDS[@]} -eq 0 ]]; then
     echo "nothing to build: pass --backend KEY, --all, or --list" >&2
@@ -357,7 +357,7 @@ fi
 # Drift between backends.yaml and the runtime matrix is cheaper to catch here
 # than three layers down in setuptools_scm, where a stale row does not fail but
 # produces a wheel whose version names the wrong environment.
-python3 "$HERE/deb-config.py" --check --channel wheel >/dev/null
+python3 "$HERE/flagcx-config.py" --check --channel wheel >/dev/null
 
 resolve_ref() {
     if [[ -n "$OPT_REF" ]]; then
@@ -393,9 +393,9 @@ for key in "${BACKENDS[@]}"; do
         # command substitution inside eval fails invisibly to `set -e`, and the
         # build would then proceed with every DEB_* empty. eval and not
         # `. <(...)`, which is bash-4 and sources nothing at all on bash 3.2;
-        # deb-config.py shell-quotes every value, so there is nothing here for
+        # flagcx-config.py shell-quotes every value, so there is nothing here for
         # eval to reinterpret.
-        INPUTS="$(python3 "$HERE/deb-config.py" --build-inputs "$key" --channel wheel)"
+        INPUTS="$(python3 "$HERE/flagcx-config.py" --build-inputs "$key" --channel wheel)"
         eval "$INPUTS"
         set +a
 

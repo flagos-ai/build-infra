@@ -81,14 +81,14 @@ cd "$REPO_ROOT"
 # Captured into a variable rather than inlined: `set -e` does not see a failure
 # inside eval's command substitution, so an inline one would let the script run
 # on with every DEB_* empty.
-INPUTS="$(python3 packaging/flagcx/deb-config.py --build-inputs "$OPT_BACKEND" --channel builder)"
+INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$OPT_BACKEND" --channel builder)"
 set -a
 eval "$INPUTS"
 set +a
 
 IMAGE="${OPT_IMAGE:-$DEB_BUILDER_IMAGE}"
 [[ -n "$IMAGE" ]] \
-    || fail "$OPT_BACKEND: the row publishes no builder image ref; see deb-config.py --check --channel builder"
+    || fail "$OPT_BACKEND: the row publishes no builder image ref; see flagcx-config.py --check --channel builder"
 [[ -n "$DEB_BITCODE_ARCH" && -n "$DEB_BITCODE_ADAPTOR_FLAG" ]] \
     || fail "$OPT_BACKEND: no bitcode_arch/bitcode_adaptor_flag, so there is no device bitcode to verify"
 

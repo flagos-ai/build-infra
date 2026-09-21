@@ -72,14 +72,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 if (( LIST )); then
-    exec python3 "$HERE/deb-config.py" --list
+    exec python3 "$HERE/flagcx-config.py" --list
 fi
 if (( BUILD_ALL )); then
     # Probe-pending backends are excluded on purpose: they are excluded because
     # nobody has confirmed their SDK paths yet, and --all is what CI runs.
     while read -r state key _rest; do
         [[ "$state" == ready ]] && BACKENDS+=("$key")
-    done <<< "$(python3 "$HERE/deb-config.py" --list)"
+    done <<< "$(python3 "$HERE/flagcx-config.py" --list)"
 fi
 if [[ ${#BACKENDS[@]} -eq 0 ]]; then
     echo "nothing to build: pass --backend KEY, --all, or --list" >&2
@@ -88,7 +88,7 @@ fi
 
 # Drift between backends.yaml and the runtime matrix is cheaper to catch here
 # than three layers down in dpkg-buildpackage.
-python3 "$HERE/deb-config.py" --check >/dev/null
+python3 "$HERE/flagcx-config.py" --check >/dev/null
 
 resolve_ref() {
     if [[ -n "$OPT_REF" ]]; then
@@ -124,13 +124,13 @@ for key in "${BACKENDS[@]}"; do
         # command substitution inside eval fails invisibly to `set -e`, and the
         # build would then proceed with every DEB_* empty. eval and not
         # `. <(...)`, which is bash-4 and sources nothing at all on bash 3.2;
-        # deb-config.py shell-quotes every value, so there is nothing here for
+        # flagcx-config.py shell-quotes every value, so there is nothing here for
         # eval to reinterpret.
-        INPUTS="$(python3 "$HERE/deb-config.py" --build-inputs "$key")"
+        INPUTS="$(python3 "$HERE/flagcx-config.py" --build-inputs "$key")"
         eval "$INPUTS"
         set +a
 
-        python3 "$HERE/deb-config.py" --render-control "$HERE/debian/control"
+        python3 "$HERE/flagcx-config.py" --render-control "$HERE/debian/control"
 
         tag="flagcx-deb:$key"
         echo ">>> $key: $DEB_PACKAGE ($DEB_ARCH, glibc >= $DEB_GLIBC_FLOOR) from $FLAGCX_REF"

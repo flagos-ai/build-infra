@@ -17,7 +17,7 @@
 # The build context is the repository root, not this directory:
 #
 #   key=nvidia-cuda13.3
-#   eval "$(python3 packaging/flagcx/deb-config.py --build-inputs "$key" --channel builder)"
+#   eval "$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$key" --channel builder)"
 #   docker build \
 #       --build-arg "BASE_IMAGE=$DEB_IMAGE_TAG" \
 #       --build-arg "DEB_APT=$DEB_APT" \
