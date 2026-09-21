@@ -1,0 +1,360 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: noarch rpm package
+
+# Build a BuildArch: noarch .rpm from a component repository's own packaging
+# definition, and publish it to the FlagOS yum repositories. The rpm sibling of
+# noarch-deb.yml, and deliberately the same shape: clone, build, verify,
+# publish, with publishing gated on verification.
+#
+# Only Fedora 43 for now. openEuler 24.03 has every other build dependency but
+# not pyproject-rpm-macros, and these specs call %pyproject_wheel /
+# %pyproject_install with no fallback, so they cannot build there until either
+# the distribution carries the macros or the spec grows a non-macro path.
+# Adding a suite here without adding it to the verify matrix is refused below.
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'component to build'
+        type: choice
+        required: true
+        options: [FlagGems]
+      ref:
+        description: >-
+          git ref to build. Leave empty to use the ref this component is
+          pinned to in the current release manifest (see COMPONENTS below).
+          A tag is preferred: a branch head moves under later cherry-picks,
+          so the same dispatch would not build the same source twice.
+        type: string
+        default: ''
+      version:
+        description: >-
+          release version to stamp, as the manifest spells it
+          (e.g. v5.4.0-rc2.post2). A pre-release qualifier is placed in
+          Release, not Version -- see the stamping step. Leave empty to derive
+          it from the ref when the ref is a version tag, and to leave the spec
+          untouched otherwise.
+        type: string
+        default: ''
+      suites:
+        description: >-
+          yum suites to publish into, space-separated. Each value is the
+          repository name after "flagos-yum-", e.g. "fedora43" targets
+          flagos-yum-fedora43.
+        type: string
+        default: fedora43
+      verify:
+        description: 'install the .rpm in a clean container before uploading'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified .rpm to the yum repositories (requires verify)'
+        type: boolean
+        default: false
+
+env:
+  NEXUS_REPO_BASE: https://resource.flagos.net/repository
+  VERIFIED_SUITES: fedora43
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      rpm_name: ${{ steps.build.outputs.rpm_name }}
+      built_sha: ${{ steps.clone.outputs.sha }}
+    steps:
+      - name: Resolve the component
+        id: cfg
+        env:
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          set -euo pipefail
+          # Per component: build script, spec, and the ref and version the
+          # current release manifest pins it to. `ver` is applied only when
+          # this table's ref is used, so overriding `ref` on a dispatch does
+          # not silently ship the manifest's version number.
+          #
+          # FlagGems is pinned to a branch rather than to its manifest tag
+          # v5.4.0-rc2.post2: that tag was cut on 2026-09-15 and the packaging
+          # definition landed on 2026-09-18, so the tag has no packaging/ to
+          # build from. Move this back to a tag once one is cut that contains
+          # the packaging definition.
+          case "${COMPONENT}" in
+            FlagGems)
+              script=packaging/rpm/build-flag-gems-rpm.sh
+              spec=packaging/rpm/specs/flag-gems.spec
+              ref=5.4.0-rc2
+              ver=v5.4.0-rc2.post2 ;;
+            *)
+              echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
+          esac
+          {
+            echo "repo_url=https://github.com/flagos-ai/${COMPONENT}.git"
+            echo "script=${script}"
+            echo "spec=${spec}"
+            echo "default_ref=${ref}"
+            echo "default_version=${ver}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to publish what was not verified
+        if: ${{ inputs.publish }}
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          for suite in ${SUITES}; do
+            case " ${VERIFIED_SUITES} " in
+              *" ${suite} "*) ;;
+              *)
+                echo "::error::suite '${suite}' is not covered by the verify matrix (${VERIFIED_SUITES});"
+                echo "::error::add it there before publishing into it"
+                exit 1 ;;
+            esac
+          done
+          echo "Publish targets are all covered by verification: ${SUITES}"
+
+      - name: Clone ${{ inputs.component }}
+        id: clone
+        env:
+          REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+        run: |
+          set -euo pipefail
+          git clone --depth 50 --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          cd src
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          # Whether this ref is a tag decides whether a version may be derived
+          # from it. Branch names are version-shaped too (5.4.0-rc2 is a
+          # branch), and a branch head moves, so its name is not a version.
+          if git rev-parse -q --verify "refs/tags/${REF}" >/dev/null; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${REF} is a branch, not a tag - this build is not reproducible by ref name alone"
+          fi
+          echo "Built ${REF} = ${sha}"
+          test -f "${{ steps.cfg.outputs.script }}" \
+            || { echo "::error::ref '${REF}' has no RPM packaging definition"; exit 1; }
+
+      - name: Stamp the release version
+        working-directory: src
+        env:
+          SPEC: ${{ steps.cfg.outputs.spec }}
+          REF: ${{ steps.clone.outputs.ref }}
+          REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
+          REQUESTED: ${{ inputs.version }}
+          # Only applies when this dispatch left `ref` at the pinned default.
+          PINNED: ${{ inputs.ref == '' && steps.cfg.outputs.default_version || '' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+
+          path = os.environ["SPEC"]
+          body = open(path, encoding="utf-8").read()
+          mv = re.search(r"^Version:(\s+)(\S+)\s*$", body, re.M)
+          mr = re.search(r"^Release:(\s+)(\S+)\s*$", body, re.M)
+          if not mv or not mr:
+              sys.exit(f"::error::{path} needs both a Version: and a Release: line")
+
+          ref = os.environ["REF"]
+          requested = os.environ["REQUESTED"].strip()
+          pinned = os.environ["PINNED"].strip()
+          if requested:
+              release, why = requested, "requested by this dispatch"
+          elif pinned:
+              release, why = pinned, "pinned by the release manifest"
+          elif (os.environ["REF_IS_TAG"] == "true"
+                and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
+              release, why = ref, f"derived from tag {ref}"
+          else:
+              print(f"Keeping the spec at {mv.group(2)}-{mr.group(2)}:"
+                    f" {ref} is not a version tag."
+                    " Pass `version` to stamp a release version explicitly.")
+              sys.exit(0)
+
+          # v5.4.0-rc2.post2 -> upstream 5.4.0, pre-release "rc2.post2".
+          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+(?:\.post\d+)?))?$", release)
+          if not m:
+              sys.exit(f"::error::cannot parse a release version out of '{release}'")
+          upstream, pre = m.group(1), m.group(2)
+
+          # A pre-release qualifier cannot go in Version. "~" would order
+          # correctly for rpm but is not a valid PEP 440 version, and these
+          # specs feed Version straight into %pyproject_wheel, which fails on
+          # it; spelling it "5.4.0rc2.post2" is valid for Python but orders
+          # *above* 5.4.0 in rpm, so the pre-release would shadow the real
+          # release. The packaging guidelines' answer is to keep Version at the
+          # upstream number and put the qualifier in Release behind a leading
+          # 0, which sorts below the 1 a final release carries.
+          version = upstream
+          relval = f"0.{pre}%{{?dist}}" if pre else "1%{?dist}"
+
+          if (version, relval) == (mv.group(2), mr.group(2)):
+              print(f"Spec already at {version}-{relval}; nothing to stamp")
+              sys.exit(0)
+
+          # The packaging metadata in component repositories drifts from the
+          # release line it is cut on, and these two fields become the rpm's
+          # version. Overriding them here keeps the published package honest
+          # while that drift is fixed upstream; the rewrite is printed so the
+          # build log always says what was shipped and why.
+          print(f"::notice::stamping {path} "
+                f"{mv.group(2)}-{mr.group(2)} -> {version}-{relval} ({why})")
+          # Rewrite Release first: editing Version first would move the offsets
+          # the Release match was found at.
+          body = body[:mr.start(2)] + relval + body[mr.end(2):]
+          body = body[:mv.start(2)] + version + body[mv.end(2):]
+          open(path, "w", encoding="utf-8").write(body)
+          PY
+          grep -E '^(Version|Release):' "${SPEC}"
+
+      - name: Build the .rpm
+        id: build
+        working-directory: src
+        run: |
+          set -euo pipefail
+          bash "${{ steps.cfg.outputs.script }}" 43
+          # The build tree also emits the .src.rpm; only binary packages are
+          # published, so pick those and fail if none appeared.
+          mapfile -t rpms < <(find rpm-packages -name '*.rpm' ! -name '*.src.rpm' | sort)
+          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::the build produced no binary rpm"; exit 1; }
+          echo "rpm_name=$(basename "${rpms[0]}")" >> "$GITHUB_OUTPUT"
+          for r in "${rpms[@]}"; do
+            echo ">>> $(basename "$r")"
+            rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$r" 2>/dev/null || true
+          done
+
+      - name: Upload the .rpm
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ inputs.component }}-rpm
+          path: src/rpm-packages/*.rpm
+          retention-days: 7
+
+  verify:
+    needs: build
+    if: ${{ inputs.verify }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [fedora:43]
+    steps:
+      - name: Download the .rpm
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.component }}-rpm
+          path: pkg
+
+      - name: Install it in a clean ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
+            set -e
+            # Installing the file itself is the test: dnf has to satisfy the
+            # package'"'"'s own Requires from the distribution alone.
+            dnf install -y --setopt=install_weak_deps=False /pkg/*.noarch.rpm
+            pkg=$(rpm -qp --qf "%{NAME}" /pkg/*.noarch.rpm)
+            echo "installed $(rpm -q --qf "%{NAME} %{VERSION}-%{RELEASE}" "$pkg")"
+            # Ask rpm which directories the package shipped rather than
+            # guessing the module name from the package name -- they do not
+            # match for every component.
+            # Keep only real package directories: a top-level module file and
+            # __pycache__ are both shipped under site-packages and neither has
+            # -- nor should have -- an __init__.py.
+            dirs=$(rpm -ql "$pkg" | grep "/site-packages/" \
+                   | grep -vE "\.(egg|dist)-info" | cut -d/ -f1-6 | sort -u \
+                   | while read -r d; do
+                       [ -d "$d" ] && [ "$(basename "$d")" != "__pycache__" ] && echo "$d"
+                     done)
+            test -n "$dirs" || { echo "installed but shipped no Python package"; exit 1; }
+            # A directory of .py files without __init__.py is dropped silently
+            # by find_packages, so the module is absent at runtime while the
+            # install looks clean. Check the whole tree, not a sample.
+            missing=""
+            for d in $dirs; do
+              [ -d "$d" ] || continue
+              m=$(find "$d" -name "*.py" | xargs -r -n1 dirname | sort -u \
+                  | while read -r x; do [ -f "$x/__init__.py" ] || echo "$x"; done)
+              missing="${missing}${m}"
+            done
+            if [ -n "$missing" ]; then
+              echo "subpackages shipped without __init__.py:"; echo "$missing"; exit 1
+            fi
+            echo "OK: $(find $dirs -name "*.py" | wc -l) modules, no gaps"
+          '
+
+  publish:
+    needs: [build, verify]
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the .rpm
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.component }}-rpm
+          path: pkg
+
+      - name: Publish to the yum repositories
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          # Source rpms are build inputs, not something a user installs.
+          mapfile -t rpms < <(find pkg -name '*.rpm' ! -name '*.src.rpm' | sort)
+          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm to publish"; exit 1; }
+          echo "Publishing ${#rpms[@]} package(s) built from ${{ needs.build.outputs.built_sha }}"
+          uploaded=0
+          attempted=0
+          for suite in ${SUITES}; do
+            repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
+            for r in "${rpms[@]}"; do
+              attempted=$((attempted + 1))
+              echo ">>> ${suite}: $(basename "$r")"
+              if curl -f -u "${NEXUS_TOKEN}" --upload-file "$r" \
+                   "${repo}$(basename "$r")"; then
+                echo "  -> OK"
+                uploaded=$((uploaded + 1))
+              else
+                echo "  -> FAILED"
+              fi
+            done
+          done
+          # A 2xx only says the upload was accepted; zero successes means the
+          # token or the repository is misconfigured, and silence would hide it.
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::error::no suite accepted the upload"
+            exit 1
+          fi
+          # A partial success is still a failure to report: the package is in
+          # some suites and not others, which is worse than being in none.
+          if [ "$uploaded" -ne "$attempted" ]; then
+            echo "::error::published ${uploaded} of ${attempted} upload(s)"
+            exit 1
+          fi
+          echo "Published all ${uploaded} upload(s)"

@@ -198,6 +198,12 @@ jobs:
               # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare
               # release, so a pre-release never shadows the final one; "-"
               # would sort above it and block the upgrade.
+              #
+              # noarch-rpm.yml reaches the same end by a different route: rpm
+              # honours "~" too, but these specs feed Version into
+              # %pyproject_wheel, and "~" is not a valid PEP 440 version, so
+              # the qualifier goes in Release there instead. Debian has no
+              # such constraint -- dpkg never hands this string to Python.
               upstream, why = re.sub(r"-rc", "~rc", ref.lstrip("v")), f"derived from tag {ref}"
           else:
               print(f"Keeping the changelog version {current}: {ref} is not a version tag."
