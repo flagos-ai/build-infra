@@ -402,6 +402,36 @@ for key in "${BACKENDS[@]}"; do
         tag="flagcx-wheel:$key"
         echo ">>> $key: $DEB_NAME ($DEB_ARCH, $DEB_WHEEL_PYTHON_TAG) from $FLAGCX_REF"
 
+        # A builder image is built FROM this row's runtime image, and the runtime
+        # tag is flat and mutable: a runtime rebuilt after the builder leaves the
+        # builder describing an environment that is no longer the delivery one,
+        # and the wheel would be compiled in it — against another python, another
+        # torch, another SDK — with nothing failing until an import elsewhere.
+        #
+        # The builder records which runtime it was built on (`flagos.base_digest`)
+        # and the registry is asked what that tag resolves to now. `imagetools`
+        # answers that from the index without pulling 14 GB, and it answers with
+        # the index digest: comparing against a platform manifest digest would
+        # report every builder as stale (measured on h20: index 8094e543…, amd64
+        # manifest 4581c63e…). The label is written from the runtime image's
+        # RepoDigests, which spells the entry `repo@sha256:…`, so the repo half
+        # is dropped here — both sides then name the same digest.
+        if [ "$DEB_WHEEL_BASE_IMAGE" != "$DEB_IMAGE_TAG" ]; then
+            docker image inspect "$DEB_WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
+                || docker pull "$DEB_WHEEL_BASE_IMAGE" >&2
+            built_on="$(docker image inspect \
+                -f '{{index .Config.Labels "flagos.base_digest"}}' "$DEB_WHEEL_BASE_IMAGE")"
+            built_on="${built_on##*@}"
+            [ -n "$built_on" ] \
+                || { echo "$DEB_WHEEL_BASE_IMAGE carries no flagos.base_digest label — it was not built by build-flagcx-builder.sh, so which runtime it describes cannot be checked" >&2; exit 1; }
+            now="$(docker buildx imagetools inspect "$DEB_IMAGE_TAG" 2>/dev/null \
+                | awk '/^Digest:/ {print $2; exit}')"
+            [ -n "$now" ] \
+                || { echo "the registry states no digest for $DEB_IMAGE_TAG, so whether $DEB_WHEEL_BASE_IMAGE is stale cannot be checked" >&2; exit 1; }
+            [ "$built_on" = "$now" ] \
+                || { echo "$DEB_WHEEL_BASE_IMAGE was built on $built_on, and $DEB_IMAGE_TAG is now $now — rebuild the builder before building the wheel in it" >&2; exit 1; }
+        fi
+
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
 
         # The runner's proxy is not forwarded into builds, and the aarch64 nodes
