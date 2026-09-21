@@ -1,8 +1,9 @@
 # FlagCX wheels — build-infra side
 
-Status: **conclusions only, nothing built.** No wheel exists in this tree. `DESIGN.md` is the deb
-line's design of record; this file is the wheel line's, and it covers only what build-infra decides.
-The FlagCX-side questions — what goes inside the wheel, what the public API is — live in
+Status: **the builder images are built; no wheel exists in this tree yet**, so every decision below
+that is about the wheel itself is still a conclusion rather than a shipped thing. `DESIGN.md` is the
+deb line's design of record; this file is the wheel line's, and it covers only what build-infra
+decides. The FlagCX-side questions — what goes inside the wheel, what the public API is — live in
 [flagos-ai/FlagCX#593](https://github.com/flagos-ai/FlagCX/issues/593), not here.
 
 ## Context
@@ -48,6 +49,63 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
 - **What does vary** is `FLAGCX_TORCH_BACKEND` ∈ {`vendor`, `flagos`}: different torch package
   (`torch_npu` vs `torch_fl`), a `-DFLAGCX_TORCH_BACKEND_FLAGOS` compile flag, and a `libflagos.so`
   link. The Python version varies with the torch extension, since `flagcx._C` is compiled.
+
+## The build-toolchain image (the `builder` channel)
+
+A wheel is built *inside* the backend's runtime image, and on the nvidia rows that image carries no
+device toolchain at all — measured on `flagos-runtime-nvidia-cuda13.3:2.2.0`: no nvcc, no
+`cuda_runtime.h`, no `include/cccl`, no `nccl.h`, no clang. Those rows therefore publish one more
+artifact beside the wheel: an image that can be the wheel build's environment, under the prefix
+`build-config.yml` already reserved for builder images (`registry.prefixes.builder` = `flagos-dev`,
+unconsumed until now).
+
+| Question | Decision |
+|---|---|
+| Base | The row's own **runtime** image — never a vendor `-devel` tag |
+| Contents | The row's `apt:` list + `builder.apt` + clang/llvm 22 + the wheel's build-only headers |
+| Which rows | Only those declaring `builder.enabled`; a runtime image that already carries the toolchain needs none |
+| Acceptance | Compiling that row's device bitcode inside the built image, in CI, before the push |
+
+This is not the pre-built builder the megatron line declined. That decision's reason was that its
+runtime image was already sufficient; here it is not, and the invariant that keeps the shape honest
+is the same one the wheel line already runs on — **build env == delivery env**, so the builder is a
+superset of the row's runtime image and nothing else.
+
+**Why the runtime image and not `nvcr.io/nvidia/cuda:*-devel`.** Measured on h20:
+
+| Image | Size | nvcc | clang/llvm | NCCL | curand header |
+|---|---|---|---|---|---|
+| `cuda:13.3.0-runtime-ubuntu24.04` | 3.87 GB | ✗ | ✗ | ✗ | ✗ |
+| `cuda:13.3.0-devel-ubuntu24.04` | 10.8 GB | ✓ | **✗** | ✗ | ✓ |
+| `cuda:12.8.0-runtime-ubuntu24.04` | 5.61 GB | ✗ | ✗ | ✓ (held) | ✗ |
+| `cuda:12.8.0-devel-ubuntu24.04` | 14.6 GB | ✓ | **✗** | ✓ (held) | ✓ |
+
+Neither `-devel` tag ships any clang/llvm, so the LLVM pin below is unavoidable on any base, and
+13.3's `-devel` carries no NCCL either — that apt step would not go away. A `-devel` base also has
+no `/flagos`, so on its own it could not be the wheel's `BASE_IMAGE` at all. The alternative — moving
+the flagos base itself onto `-devel` — costs +6.9 GB (13.3) / +9.0 GB (12.8) on every layer above
+it, which is how a compiler ends up shipped in delivery images with no consumer.
+
+**LLVM 22 is a floor, not a preference.** CUDA 13 removed `texture_fetch_functions.h`, which clang's
+CUDA wrapper included unconditionally through 21, and CUDA 13.2's `crt/math_functions.h` expects the
+compiler to define `_NV_RSQRT_SPECIFIER`; both fixes land in 22. Measured against CUDA 13.3: clang-20
+(Ubuntu 24.04) and clang-21 (apt.llvm.org) each fail to compile the device bitcode, clang-22
+succeeds. Only five binaries and clang's resource directory are taken from the 1.94 GB release
+tarball — 468 MB extracted, and clang-22 links no `libLLVM`. The one package that is not the
+compiler's own: clang's `__clang_cuda_runtime_wrapper.h` force-includes `curand_mtgp32_kernel.h`,
+which no `cuda-nvcc` package ships, though FlagCX never calls cuRAND.
+
+**Two fields state the row's device bitcode** (`bitcode_arch` → `BITCODE_LIB_ARCH`,
+`bitcode_adaptor_flag` → `ADAPTOR_FLAG`), stated rather than derived because the only derivation
+available is `makefiles/nvidia_gencode.mk`'s table, and a second copy of it here would drift.
+`bindings/ir/nvidia/Makefile` never includes `makefiles/nvidia.mk`, so the comm-traits branch that
+file picks for the `.so` by reading `nccl.h` can reach the `.bc` only as a value passed in — without
+it the two artifacts disagree about `DeviceAPI::Window`/`Multimem`.
+
+**Staleness is real.** The runtime image is a mutable flat tag, so rebuilding a runtime makes every
+builder built on the previous one stale; the order is runtime first, builder second. The image
+records `flagos.base_digest` so the comparison can be mechanical — that check belongs in the wheel
+build, which is where a stale builder would be consumed.
 
 ## Mechanics
 

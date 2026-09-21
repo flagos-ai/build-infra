@@ -14,9 +14,12 @@ It builds four layers for 13+ GPU/NPU vendors:
 | **Wheels** | FlagTree (C++ compiler) + FlagGems (pure Python) + Megatron-LM-FL (pybind11 ext) | `packaging/flagtree/`, `packaging/flaggems/`, `packaging/megatron/builder/` |
 | **App images** | Runtime + megatron-core installed single-step from the vendor PyPI wheel (no repack), one Containerfile per app | `app/megatron/Containerfile.megatron-training` / `app/megatron/Containerfile.rl` (mirrors `packaging/vllm/` + `app/vllm/`) |
 
-`packaging/flagcx/` sits beside these layers rather than in them: it builds `.deb` packages
-(not images) out of a **base** image, one per backend, from a FlagCX git ref. Design and the
-`backends.yaml` field contract live in `packaging/flagcx/DESIGN.md`.
+`packaging/flagcx/` sits beside these layers rather than in them: it builds **FlagCX itself**,
+one backend per container, in three channels — `.deb` packages out of the backend's **base**
+image, wheels for the vendor PyPI out of its **runtime** image, and, for rows whose runtime image
+carries no device toolchain at all (the nvidia ones), the build-toolchain images that the wheel
+build then runs in. Design and the `backends.yaml` field contract live in
+`packaging/flagcx/DESIGN.md` (deb) and `packaging/flagcx/WHEEL-DESIGN.md` (wheel + builder).
 
 ## Agent 协作纪律
 
@@ -160,6 +163,20 @@ switchable via the `compiler` shell function.
   the `.deb` from the artifact alone — into its base image (`full`) and into a plain Ubuntu
   (`floor`) — before upload. Artifacts are uploaded, not published: shipping to the Nexus apt
   repo is a separate decision.
+
+- **`flagcx-wheel.yml`** — FlagCX wheel build (manual).
+  The build environment is the backend's **runtime** image (the FlagCX build imports torch, so
+  build env == delivery env), and the matrix comes from `deb-config.py --merge --channel wheel`.
+  `verify` installs the wheel from the file into that image before `publish` uploads it to the
+  vendor PyPI, then reads the index back by pin and compares sha256.
+
+- **`flagcx-builder.yml`** — FlagCX build-toolchain images (manual).
+  Publishes `flagos-dev/flagcx-builder-{vendor}-{backend}:{version}` for the rows that declare a
+  `builder:` block — the runtime image plus the row's SDK packages and clang/llvm 22, not a vendor
+  `-devel` image (which ships no clang and no `/flagos`).
+  Verification is a **step** of the build job, not a job: a wheel is a file the verify job can
+  download onto another runner, an image is not. It compiles the row's device bitcode inside the
+  built image and gates the push, so no unverified image reaches the registry.
 
 ### Runners
 
