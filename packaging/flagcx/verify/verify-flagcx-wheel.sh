@@ -280,11 +280,26 @@ verify_in() {
         "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 PY=/flagos/bin/python
 
+# A vendor image prints on its own stdout the moment a package imports: on
+# enflame-tops1.10.6, flagcx pulls in triton_kernel_gcu, which prints a line
+# before flagcx's own. A plain command substitution folds that into the value,
+# and a path read back with a word of prose in front of it is not a path — it
+# read as a six-entry glob rather than as one directory. So a value taken off
+# $PY names itself on the way out and is read back by that name.
+py_value() {
+    local marker="$1" code="$2" out n
+    out="$("$PY" -c "$code")"
+    n="$(printf '%s\n' "$out" | grep -c "^${marker}=" || true)"
+    [ "$n" -eq 1 ] \
+        || { echo "$PY printed $n $marker lines, not one: $out" >&2; exit 1; }
+    printf '%s\n' "$out" | sed -n "s/^${marker}=//p"
+}
+
 # Nothing on this line installs flagcx into the runtime image, so an importable
 # one is a different artifact: every assertion below would describe that copy
 # while reading as a pass for this one. The image's working directory is left
 # out of the probe — a source tree checked out there would answer it.
-if (cd /tmp && "$PY" -c 'import flagcx') 2>/dev/null; then
+if (cd /tmp && "$PY" -c 'import flagcx') >/dev/null 2>&1; then
     echo "$IMAGE already has an importable flagcx — this container is not the blank one the verification needs" >&2
     exit 1
 fi
@@ -325,13 +340,13 @@ else
     SOURCE="the wheel"
 fi
 
-installed="$("$PY" -c 'import importlib.metadata as m; print(m.version("flagcx"))')"
+installed="$(py_value FLAGCX_VERSION 'import importlib.metadata as m; print("FLAGCX_VERSION=" + m.version("flagcx"))')"
 # An older release under the same pin would install and exit 0, reading as a
 # pass.
 [ "$installed" = "$WANT_VERSION" ] \
     || { echo "flagcx: $SOURCE installs $installed, this build is $WANT_VERSION" >&2; exit 1; }
 
-site="$("$PY" -c 'import os, flagcx; print(os.path.dirname(os.path.dirname(flagcx.__file__)))')"
+site="$(py_value FLAGCX_SITE 'import os, flagcx; print("FLAGCX_SITE=" + os.path.dirname(os.path.dirname(flagcx.__file__)))')"
 set -- $site/flagcx-*.dist-info
 [ "$#" -eq 1 ] && [ -d "$1" ] \
     || { echo "flagcx: $# dist-info directories in $site, expected the one this install wrote" >&2; exit 1; }
@@ -378,7 +393,7 @@ fi
 # torch` finds libc10/libtorch: a bare ldd calls those unresolved in a wheel that
 # loads perfectly (measured on nvidia-cuda13.3).
 unset BASH_ENV
-torch_lib="$("$PY" -c 'import os, torch; print(os.path.join(os.path.dirname(torch.__file__), "lib"))')"
+torch_lib="$(py_value FLAGCX_TORCH_LIB 'import os, torch; print("FLAGCX_TORCH_LIB=" + os.path.join(os.path.dirname(torch.__file__), "lib"))')"
 for candidate in "$lib" $(find "$site/flagcx" -name '_C*.so'); do
     if LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" | grep -q 'not found'; then
         LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" >&2
@@ -387,7 +402,7 @@ for candidate in "$lib" $(find "$site/flagcx" -name '_C*.so'); do
     fi
 done
 
-"$PY" -c 'import flagcx, flagcx.api'
+"$PY" -c 'import flagcx, flagcx.api' >/dev/null
 echo ">>> $MODE: flagcx $installed imports, $lib and its dependencies resolve, no Requires-Dist"
 IN_CONTAINER
 }
