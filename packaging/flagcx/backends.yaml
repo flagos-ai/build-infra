@@ -465,3 +465,4 @@ tsingmicro-tsm260610:
   assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
   vendor_lib_dirs: [/usr/local/kuiper/lib]
   deb: {enabled: true, default_for_vendor: true}
+  wheel: {enabled: true}
