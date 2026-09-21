@@ -488,28 +488,9 @@ for key in "${BACKENDS[@]}"; do
 
         # Same extraction idiom as packaging/flagtree and packaging/megatron:
         # a single-stage build, so the artifacts are read out of the image.
-        #
-        # The bitcode leaves the image into a scratch directory rather than into
-        # $OPT_OUT, which holds the build's artifacts and nothing else: it is not
-        # published on its own, it is added to the wheel just below.
-        bitcode=""
         cid="$(docker create "$tag")"
         docker cp "$cid:/output/." "$OPT_OUT/"
-        if [ -n "$DEB_BITCODE_ARCH" ]; then
-            bitcode="$(mktemp -d)"
-            docker cp "$cid:/bitcode/." "$bitcode/"
-        fi
         docker rm "$cid"
-
-        # The device bitcode goes into the wheel here rather than inside the
-        # build, for the reason the assertion below is here too: what is
-        # published is this copy, so this is where it becomes the artifact.
-        if [ -n "$bitcode" ]; then
-            python3 "$HERE/inject-bitcode.py" "$OPT_OUT"/flagcx-*.whl \
-                --add "flagcx/lib/libflagcx_device.bc=$bitcode/lib/libflagcx_device.bc" \
-                --add "flagcx/include/flagcx_device_wrapper.h=$bitcode/include/flagcx_device_wrapper.h"
-            rm -rf "$bitcode"
-        fi
 
         # The assertion runs against the copy that landed here, not against a
         # name the container reported about itself: this is the artifact the

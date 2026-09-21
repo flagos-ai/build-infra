@@ -163,14 +163,20 @@ failed on `json.hpp`.
 compilers here: the `.bc` is clang's output, and NCCL 2.31's device headers use `typeof`, which
 clang drops under `-std=c++17`.
 
-**The bitcode is added to the wheel after the build, not to the tree before it.** `setup.py`
-declares `package_data={"flagcx": ["lib/*.so"]}`, so a `.bc` placed in the tree is not collected and
-a header never would be; widening that glob is a FlagCX change this step is meant not to need
-(D4 — zero FlagCX changes). `inject-bitcode.py` rewrites the archive in place, **under the name it
-already has**: the name is the pin, and a re-named wheel would install under the same version with
-the pin then naming whichever file the index happened to keep. `RECORD` is rewritten with it, in
-PEP 376's spelling, because a file the archive carries and `RECORD` does not is one `pip uninstall`
-leaves behind.
+**The bitcode and the headers are packaged by FlagCX's own `setup.py`**, which builds the bitcode
+inside `build_extensions` (gated on `FLAGCX_BITCODE_ARCH`) and copies it, with the exported
+headers, into the package before the archive is written
+([FlagCX #614](https://github.com/flagos-ai/FlagCX/pull/614), first tag `v0.14.0-rc2.post2`). The
+line therefore hands `setup.py` the same two facts the registry row states and adds nothing to the
+wheel afterwards: the archive and its `RECORD` are written once, by the one process that knows
+everything that went into them, and the name a wheel is published under is the name it was built
+with.
+
+This replaced a post-build injection step (`inject-bitcode.py`, removed here), which rewrote the
+archive under the name it already had and recomputed `RECORD` in PEP 376's spelling. That step was
+correct but it was a second author of an artifact: what shipped was not what the build produced,
+and every row that wanted a `.bc` depended on the build system carrying a copy of FlagCX's
+packaging knowledge.
 
 **Which image the wheel is built in is derived** (`deb-config.py`'s `wheel_base_image`): the
 runtime image, or the builder image on a row that publishes one. The builder is the runtime image

@@ -42,7 +42,6 @@
 #
 #   cid=$(docker create "flagcx-wheel:$key")
 #   docker cp "$cid:/output/." ./dist/
-#   docker cp "$cid:/bitcode/." ./bitcode/     # rows that publish device bitcode
 #   docker rm "$cid"
 #
 # What the artifact is published under is its own name, and that name is the pin:
@@ -297,6 +296,12 @@ WORKDIR /flagcx
 # COMPILE_KERNEL=1 follows the bitcode arg rather than being its own input: a row
 # cannot publish a `.bc` its `.so` cannot service.
 #
+# The two FLAGCX_BITCODE_* variables are the same switch read by setup.py, which
+# builds the device bitcode and carries it into the wheel along with the headers
+# a consumer compiles against. Building it there rather than here is what makes
+# the wheel self-consistent: the archive and its RECORD are written once, by the
+# one process that knows everything that went into them.
+#
 # NVCC_PREPEND_FLAGS — the device units need C++20 (third-party/json) and nvcc's
 # default is below it — is PREPEND and not CXXFLAGS so the host objects keep the
 # standard the Makefile chose; that flag never reaches nvcc's front end.
@@ -304,7 +309,9 @@ RUN set -eux; \
     if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
     unset SETUPTOOLS_SCM_PRETEND_VERSION SETUPTOOLS_SCM_PRETEND_VERSION_FOR_FLAGCX; \
     if [ -n "${DEB_BITCODE_ARCH}" ]; then \
-        export COMPILE_KERNEL=1 NVCC_PREPEND_FLAGS="-std=c++20"; \
+        export COMPILE_KERNEL=1 NVCC_PREPEND_FLAGS="-std=c++20" \
+               FLAGCX_BITCODE_ARCH="${DEB_BITCODE_ARCH}" \
+               FLAGCX_BITCODE_ADAPTOR_FLAGS="${DEB_BITCODE_ADAPTOR_FLAG}"; \
     fi; \
     export SETUPTOOLS_SCM_OVERRIDES_FOR_FLAGCX='{scm.git.describe_command="git describe --dirty --tags --long --abbrev='"${FLAGCX_SCM_ABBREV}"' --match *[0-9]*"}' \
            FLAGCX_ADAPTOR="${DEB_WHEEL_ADAPTOR}" \
@@ -314,31 +321,6 @@ RUN set -eux; \
            ${DEB_WHEEL_MAKE_ENV}; \
     /flagos/bin/python -m pip wheel --no-build-isolation --no-deps --no-cache-dir -w /output .; \
     ls -la /output
-
-# The device bitcode and the header a consumer compiles against, from the tree
-# the wheel was built from. Nothing here reaches the wheel by itself — `setup.py`
-# collects `flagcx/lib/*.so` only — so both are added afterwards, on the host.
-#
-# BITCODE_CXX_STD is gnu++17, not the C++20 above: these are clang's inputs, and
-# NCCL's device headers use `typeof`, which clang drops under `-std=c++17`.
-#
-# BUILDDIR is outside /output on purpose — /output is what gets copied out, and a
-# `.bc` there would read as a second artifact of the build.
-RUN set -eux; \
-    if [ -z "${DEB_BITCODE_ARCH}" ]; then \
-        echo ">>> no bitcode for this row"; exit 0; \
-    fi; \
-    if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
-    export ${DEB_WHEEL_MAKE_ENV}; \
-    make -C bindings/ir/nvidia \
-        BUILDDIR=/bitcode \
-        BITCODE_LIB_ARCH="${DEB_BITCODE_ARCH}" \
-        BITCODE_CXX_STD=gnu++17 \
-        ADAPTOR_FLAG="${DEB_BITCODE_ADAPTOR_FLAG}" \
-        DEVICE_HOME="$DEVICE_HOME" CCL_HOME="$CCL_HOME"; \
-    test -s /bitcode/lib/libflagcx_device.bc; \
-    test -s /bitcode/include/flagcx_device_wrapper.h; \
-    ls -la /bitcode/lib /bitcode/include
 
 # Exactly one wheel, asserted by the glob — and by its existence, since an
 # unmatched pattern stays literal in /bin/sh and would count as one. A second
