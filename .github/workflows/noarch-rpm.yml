@@ -37,7 +37,7 @@ on:
         description: 'component to build'
         type: choice
         required: true
-        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention]
+        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention, FlagBLAS, FlagTensor]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this component is
@@ -132,6 +132,16 @@ jobs:
               spec=packaging/rpm/specs/flag-attention.spec
               ref=v0.4.0-rc2.post1
               ver=v0.4.0-rc2.post1 ;;
+            FlagBLAS)
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
+              spec=packaging/rpm/specs/flag-blas.spec
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post1 ;;
+            FlagTensor)
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
+              spec=packaging/rpm/specs/flagtensor.spec
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post1 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac

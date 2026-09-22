@@ -39,7 +39,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree]
+        options: [libtriton_jit, FlagTree, FlagDNN, FlagFFT]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -83,13 +83,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - suite: fedora43
-            base_image: fedora:43
-            verify_image: fedora:43
-          - suite: openeuler24.03
-            base_image: openeuler/openeuler:24.03-lts
-            verify_image: openeuler/openeuler:24.03-lts
+        # Only the suite here. The base image cannot live in this matrix: a
+        # component whose build needs a vendor SDK builds on that vendor's
+        # image for the distribution, not on the plain one -- FlagDNN needs a
+        # CUDA-on-RockyLinux image where FlagTree needs bare Fedora. The
+        # target table below names the image per suite, and a target that has
+        # none for a suite is skipped rather than built on the wrong base.
+        suite: [fedora43, openeuler24.03]
     steps:
       - name: Resolve the target
         id: cfg
@@ -113,14 +113,36 @@ jobs:
               base_arg=flag
               spec=packaging/rpm/libtriton-jit.spec
               outdir=rpm-packages
-              ref=master ;;
+              ref=master
+              image_fedora43=nvidia/cuda:12.6.0-devel-rockylinux9
+              image_openeuler2403= ;;
             FlagTree)
               repo=FlagTree
               script=packaging/rpm/helpers/build-flagtree-rpm.sh
               base_arg=env
               spec=packaging/rpm/specs/flagtree.spec
               outdir=dist-rpm/output
-              ref=0.7.0-rc2-triton3.6 ;;
+              ref=0.7.0-rc2-triton3.6
+              image_fedora43=fedora:43
+              image_openeuler2403=openeuler/openeuler:24.03-lts ;;
+            FlagDNN)
+              repo=FlagDNN
+              script=packaging/rpm/build-flag-dnn-rpm.sh
+              base_arg=env
+              spec=packaging/rpm/specs/flag-dnn.spec
+              outdir=rpm-packages
+              ref=0.3.0-rc2
+              image_fedora43=nvidia/cuda:12.6.0-devel-rockylinux9
+              image_openeuler2403= ;;
+            FlagFFT)
+              repo=FlagFFT
+              script=packaging/rpm/build-flagfft-rpm.sh
+              base_arg=env
+              spec=packaging/rpm/specs/flagfft.spec
+              outdir=rpm-packages
+              ref=0.2.0-rc2
+              image_fedora43=
+              image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts ;;
             *)
               echo "::error::unknown target '${TARGET}'"; exit 1 ;;
           esac
@@ -249,10 +271,15 @@ jobs:
           PY
           grep -E '^(Version|Release):' "${SPEC}"
 
+      - name: Skip a suite this target has no image for
+        if: ${{ steps.cfg.outputs.base_image == '' }}
+        run: echo "::notice::${{ inputs.target }} has no ${{ matrix.suite }} base image; skipping"
+
       - name: Build the .rpm packages for ${{ matrix.suite }}
+        if: ${{ steps.cfg.outputs.base_image != '' }}
         working-directory: src
         env:
-          BASE_IMAGE: ${{ matrix.base_image }}
+          BASE_IMAGE: ${{ steps.cfg.outputs.base_image }}
         run: |
           set -euo pipefail
           case "${{ steps.cfg.outputs.base_arg }}" in
@@ -273,6 +300,7 @@ jobs:
           done
 
       - name: Upload the .rpm packages
+        if: ${{ steps.cfg.outputs.base_image != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ inputs.target }}-rpm-${{ matrix.suite }}
