@@ -30,17 +30,23 @@ name: flagcx wheel
 # the FlagCX wheel fields (version suffix, python tag, adaptor, make env), and
 # the runtime matrix alone lacks every input the build consumes.
 #
-# THE DEFAULT REF IS A COMMIT, not the `main` branch flagcx-deb.yml defaults to,
-# and the difference is deliberate. Until FlagCX PR #598 merges, the setup.py on
-# main derives its version from tags and produces the same 0.13.0 for every
-# commit; with two backends built from it the second upload either collides with
-# or silently overwrites the first, and the index stops answering "which vendor
-# is this wheel for". For the same reason this line does NOT refuse a non-tag ref
-# the way the deb line does ("refusing to publish X -- not a release tag"): a
-# build that is not a tag is what this line exists to publish. What it refuses
-# instead is publishing without a version a human wrote down (`wheel_version`) —
-# the honest substitute for that gate, since the version here is asserted
-# against the artifact rather than derived from a tag.
+# THE REF IS STATED PER DISPATCH and carries no default. It decides the version
+# the artifact carries, so an inherited one is the wrong commit with a plausible
+# name. Two kinds are meaningful here:
+#
+#   * a release tag (`v0.14.0-rc2.post2`) for a versioned build. setuptools_scm
+#     reads the tag, so the wheel is named `<the tag's version>+<row label>` and
+#     the tag is the whole of what names it. The pin is therefore derived per row
+#     in set-matrix rather than typed, which is what lets one dispatch publish
+#     twenty backends whose pins all differ.
+#   * an upstream branch for a verification build. Its wheels carry
+#     `.dev<distance>` and a `<date>.<node>` tail — what such a build should say
+#     about itself, and a distance nothing outside the build knows. Publishing
+#     one therefore requires `wheel_version`, stated by the operator.
+#
+# Unlike flagcx-deb.yml this line does not refuse a non-tag ref: a build that is
+# not a tag is what the verification case is. What it refuses is publishing a
+# wheel under a name nothing can derive or state.
 #
 # `pypi_repo` is derived from the matrix row and is deliberately NOT an input
 # (megatron-wheel.yml, sglang-wheel.yml and vllm-plugin-wheel.yml all expose
@@ -75,7 +81,7 @@ on:
         type: string
         default: ''
       wheel_version:
-        description: 'Exact version to publish as flagcx==<this>, e.g. 0.14.0.dev14+dtk2604.20260915.g08ab373 (required when publish=true; never typed for a build-only run — the build prints it)'
+        description: 'Exact version to publish as flagcx==<this>, e.g. 0.14.0.dev14+dtk2604.20260915.g08ab373. Required only for a non-tag ref — a release tag names its own version, and nothing has to be typed.'
         type: string
         default: ''
       verify:
@@ -137,13 +143,23 @@ jobs:
             echo "::error::flagcx_ref is required -- the release tag (v0.14.0-rc2.post2) for a versioned build, or the upstream branch for a verification build"
             exit 1
           fi
-          # The wheel line refuses this instead of refusing a non-tag ref (see
-          # the header): a version nobody wrote down cannot name what landed in
-          # the index, and the build step cannot supply it — it is what the
-          # build reports.
+          # Publishing needs something that names the artifact in the index. A
+          # release tag does, and the pin is derived from it below. A branch does
+          # not — its version carries a `.dev<distance>` only the build knows —
+          # so there the operator states the name.
+          #
+          # `packaging` answers "is this ref a version?" with the library
+          # setuptools_scm parses tags with, so a ref that passes here is one the
+          # build can stamp. A 40-hex commit is not a version and is refused. A
+          # branch whose name happens to parse (`2.0`) is not caught here, but the
+          # derivation below then expects an exact-tag version and the artifact's
+          # `.dev` name fails the comparison — refused, not published.
           if [[ "${{ inputs.publish }}" == "true" && -z "${{ inputs.wheel_version }}" ]]; then
-            echo "::error::publish=true requires wheel_version -- a non-tag build is named by its version, not by a tag"
-            exit 1
+            if ! python3 -c 'import sys; from packaging.version import Version; Version(sys.argv[1].lstrip("v"))' \
+                "${{ inputs.flagcx_ref }}"; then
+              echo "::error::publish=true on '${{ inputs.flagcx_ref }}' requires wheel_version -- the ref is not a version tag, so it names no version to publish under"
+              exit 1
+            fi
           fi
           if [[ "${{ inputs.backend }}" == all ]]; then
             python3 scripts/generate_matrix.py --runtime > matrix.json
@@ -161,6 +177,21 @@ jobs:
             echo "::error::${{ inputs.backend }} names no backend with a wheel; see packaging/flagcx/flagcx-config.py --list --channel wheel"
             exit 1
           fi
+          # The pin each row must carry, derived where the ref is known. A tag
+          # build's is `<the tag's version>+<this row's label>` — `wheel_label` is
+          # already the spelling the artifact carries, so this is the same string
+          # the publish step reads back off the file, not a second derivation of
+          # it. A build whose version was typed carries that one for every row.
+          if [[ -n "${{ inputs.wheel_version }}" ]]; then
+            jq --arg pin "flagcx==${{ inputs.wheel_version }}" \
+              '.include |= map(.wheel_pin = $pin)' wheel-matrix.json > wheel-matrix.pin.json
+          else
+            public="$(python3 -c 'import sys; from packaging.version import Version; print(Version(sys.argv[1].lstrip("v")))' "${{ inputs.flagcx_ref }}")"
+            jq --arg public "flagcx==$public" \
+              '.include |= map(.wheel_pin = ($public + "+" + .wheel_local_version))' \
+              wheel-matrix.json > wheel-matrix.pin.json
+          fi
+          mv wheel-matrix.pin.json wheel-matrix.json
           cat wheel-matrix.json
           echo "matrix=$(jq -c . wheel-matrix.json)" >> "$GITHUB_OUTPUT"
 
@@ -316,7 +347,10 @@ jobs:
         if: ${{ inputs.publish && steps.download.outcome == 'success' }}
         env:
           MATRIX_NAME: ${{ matrix.name }}
-          WHEEL_VERSION: ${{ inputs.wheel_version }}
+          # Derived in set-matrix, where the ref is known. For a tag build it is
+          # `<the tag's version>+<this row's label>`, so twenty rows publishing
+          # under twenty names is one dispatch rather than twenty.
+          EXPECTED_PIN: ${{ matrix.wheel_pin }}
           EXTRA_PYPI: ${{ matrix.extra_pypi }}
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
@@ -325,7 +359,7 @@ jobs:
             echo "::error::NEXUS_TOKEN secret is empty or unset"
             exit 1
           fi
-          : "${WHEEL_VERSION:?publish=true requires the wheel_version input}"
+          : "${EXPECTED_PIN:?set-matrix derives the pin a publish names}"
           # The index is derived from the matrix row, never from an input: no
           # input can reach another vendor's index, and the read-back step reads
           # the same row's flagos_pypi. The matrix placeholder cannot be
@@ -338,7 +372,7 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           case "$vendor" in
-            nvidia|hygon|metax|mthreads|enflame|cambricon|ascend|iluvatar|sunrise|tsingmicro) ;;
+            nvidia|hygon|metax|mthreads|enflame|cambricon|ascend|iluvatar|sunrise|tsingmicro|kunlunxin) ;;
             *)
               echo "::error::no vendor PyPI for '${vendor}' (the build-infra vendor of ${matrix_name})"
               exit 1
@@ -350,12 +384,13 @@ jobs:
             echo "::error::expected exactly one wheel, found ${#wheel[@]}"
             exit 1
           fi
-          # The pin is read off the artifact, not constructed from the inputs, so
-          # a mismatch means the built wheel is not the version that was asked
-          # for -- and the version is the whole of what names a non-tag build.
+          # The pin is read off the artifact, not constructed here, so a mismatch
+          # means the wheel is not the version the ref names: a tag that the clone
+          # did not see as exact leaves a `.dev<distance>` in the name, and that
+          # is the case this refuses.
           pin="$(packaging/flagcx/build-flagcx-wheel.sh --print-pin "${wheel[@]}")"
-          if [ "$pin" != "flagcx==${WHEEL_VERSION}" ]; then
-            echo "::error::artifact is $pin, wheel_version is $WHEEL_VERSION"
+          if [ "$pin" != "${EXPECTED_PIN}" ]; then
+            echo "::error::artifact is $pin, the ref names ${EXPECTED_PIN}"
             exit 1
           fi
           # The sha256 of exactly the file about to be uploaded, recorded for the
