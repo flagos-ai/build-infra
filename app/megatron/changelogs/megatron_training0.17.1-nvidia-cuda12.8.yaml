@@ -32,6 +32,18 @@
 
 image: megatron_training0.17.1-nvidia-cuda12.8
 tags:
+- tag: 2.2.0-0.2.3
+  entries:
+  - date: ''
+    reason: >-
+      Rebuilt on the FlagOS 2.2.0 stack, and on the megatron-core wheel built from
+      the Megatron-LM-FL release tag v0.2.3 — the head of release/0.2 once the
+      app-image PRs had all merged into it. The image this replaces installed a
+      wheel built off PR heads and an integration branch, so the platform fixes
+      those PRs carry were not in the artifact; they are now, and the install pin
+      states the wheel exactly (0.17.1+fl.0.2.3) rather than resolving ==0.17.1 to
+      whichever local version the index happened to hold.
+    upstream_prs: []
 - tag: 2.1.2-0.2.1_9.g48b97a13f
   entries:
   - date: 2026-08-20T02:26:13Z
