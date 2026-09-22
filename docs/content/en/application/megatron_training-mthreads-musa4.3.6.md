@@ -29,7 +29,7 @@ title: "megatron_training-mthreads-musa4.3.6"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.1.2</code> <a href="../../runtime/mthreads-musa4.3.6/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.2.0</code> <a href="../../runtime/mthreads-musa4.3.6/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_training-mthreads-musa4.3.6"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.3.0_rc0.post1_3.g6e8d7ffc7`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.1.2-0.3.0_rc0.post1_3.g6e8d7ffc7
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa4.3.6:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
