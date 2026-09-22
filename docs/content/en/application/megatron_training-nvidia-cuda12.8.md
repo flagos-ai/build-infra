@@ -29,7 +29,7 @@ title: "megatron_training-nvidia-cuda12.8"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.2</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_training-nvidia-cuda12.8"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.1.2-0.2.1_9.g48b97a13f
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
