@@ -34,6 +34,18 @@ image: vllm0.20.2-kunlunxin-xre5.37.1
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
+  - date: ''
+    reason: >-
+      Rebuilt on the refreshed kunlunxin base, which now keeps one generation of
+      the five sonames XRE and xcudart both ship (libxpuml, libxpucuda,
+      libxpunvidia-ml, libcudart, libxpurt) where it previously installed both.
+      Two generations of one name were reachable at once: torch_plugin dlopens
+      libxpuml.so.1 by absolute path out of the libcuda.so.1 directory, which is
+      xcudart's copy, while the loader's default search and FlagCX's link line
+      take XRE's, and the xcudart copy lacks nvml symbols the XRE one has. The
+      runtime image this app is built on was rebuilt on that base and the app
+      image carries it, so the mix would otherwise ship inside this image.
+    upstream_prs: []
   - date: '2026-09-20T10:54:30.388Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
