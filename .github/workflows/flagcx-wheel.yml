@@ -71,9 +71,9 @@ on:
         type: string
         default: all
       flagcx_ref:
-        description: 'FlagCX git ref to build (PR #598 head; a branch/tag name resolves to its tip at dispatch time)'
+        description: 'FlagCX git ref to build: a release tag (v0.14.0-rc2.post2) for a versioned build, or an upstream branch name for a verification build. No default — the ref decides the version the artifact carries, so it is stated per run and never inherited.'
         type: string
-        default: 08ab37330fa72403e989023d6e4e779d09cbca88
+        default: ''
       wheel_version:
         description: 'Exact version to publish as flagcx==<this>, e.g. 0.14.0.dev14+dtk2604.20260915.g08ab373 (required when publish=true; never typed for a build-only run — the build prints it)'
         type: string
@@ -127,6 +127,14 @@ jobs:
           # would publish nothing while looking like it did.
           if [[ "${{ inputs.publish }}" == "true" && "${{ inputs.verify }}" != "true" ]]; then
             echo "::error::publish=true requires verify -- publication is a step of the verify job"
+            exit 1
+          fi
+          # The ref decides the version the artifact carries, so an inherited
+          # one is the wrong commit with a plausible name. Empty is refused here
+          # rather than in each build job, where it would queue the whole matrix
+          # and then fail twenty times.
+          if [ -z "${{ inputs.flagcx_ref }}" ]; then
+            echo "::error::flagcx_ref is required -- the release tag (v0.14.0-rc2.post2) for a versioned build, or the upstream branch for a verification build"
             exit 1
           fi
           # The wheel line refuses this instead of refusing a non-tag ref (see
