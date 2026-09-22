@@ -86,4 +86,4 @@ Inside the container, confirm the accelerator is visible:
 xpu-smi
 ```
 
-*Last updated: 2026-09-17 10:25:11 · `65c46623bf47`*
+*Last updated: 2026-09-22 15:02:49 · `9c7f640e27de`*
