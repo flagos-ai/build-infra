@@ -1,0 +1,206 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: FlagTree builder
+
+# Builds packaging/flagtree/iluvatar: the FlagTree iluvatar wheel builder
+# (`--target builder`) and the flagtree image that stage 2 derives from it.
+#
+# WHY A BUILDER: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6) is built on
+# Ubuntu 24.04, so its libtriton.so needs GLIBC_2.38 -- a 22.04 client aborts
+# before main(). Rebuilding it on 22.04 is what the builder stage is for, and
+# the stage is published so the same wheel can be reproduced (and the image
+# rebuilt) without this repo: the Containerfile is self-contained.
+#
+# THE IMAGE IS NOT PUSHED: this line publishes the builder image; the flagtree
+# image is built and smoke-tested here so the builder is proven to deliver one.
+#
+# THE WHEEL IS A FILE, so `upload` puts it on the vendor index via twine -- the
+# same gate shape as flagtree-wheel.yml, whose gates run inside `docker build`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flagtree_version:
+        description: 'FlagTree ref to build (blank = Containerfile default: the 0.7.0-rc2-triton3.6 branch)'
+        type: string
+        default: ''
+      push:
+        description: 'push the builder image to Harbor'
+        type: boolean
+        default: false
+      upload:
+        description: 'upload the wheel to the vendor PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (blank = flagos-pypi-iluvatar)'
+        type: string
+        default: ''
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; checkout lets the local composite action resolve.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    # A plain x86_64 runner, NOT the corex-labeled ones: the build needs Docker
+    # Hub for ubuntu:22.04, which the CoreX nodes cannot reach (registry-1.docker.io
+    # resets), and no iluvatar hardware. Device checks belong to the iluvatar
+    # verify line, which runs on those nodes.
+    runs-on: [self-hosted, h20]
+    env:
+      TARGET: iluvatar
+      BUILDER_IMAGE: flagtree-builder-iluvatar:ci
+      APP_IMAGE: flagtree-iluvatar:ci
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check disk space
+        run: |
+          # The build holds a 1.7 GB LLVM bundle, a 385 MB toolkit tarball and
+          # ~60 GB of intermediate triton objects while it compiles.
+          FREE_KB=$(df -P . | awk 'NR==2{print $4}')
+          FREE_GB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk space: ${FREE_GB}G"
+          if [ "$FREE_GB" -lt 60 ]; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < 60G). Docker needs cleanup."
+            df -h .
+            exit 1
+          fi
+
+      - name: Resolve the published image ref
+        id: ref
+        run: |
+          set -euo pipefail
+          version=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
+          host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+          prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['builder'])")
+          echo "image=${host}/${prefix}/flagtree-builder-iluvatar-corex4.5.0:${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Harbor login (push only)
+        if: ${{ inputs.push }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          host="${IMAGE_REF%%/*}"
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
+      - name: Build the builder stage
+        working-directory: packaging/flagtree
+        run: |
+          set -euo pipefail
+          build_args=()
+          if [ -n "${{ inputs.flagtree_version }}" ]; then
+            build_args+=(--build-arg "FLAGTREE_VERSION=${{ inputs.flagtree_version }}")
+          fi
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          if [ -n "${proxy_url}" ]; then
+            build_args+=(--build-arg "https_proxy=${proxy_url}")
+            build_args+=(--build-arg "http_proxy=${proxy_url}")
+          fi
+          docker build --target builder "${build_args[@]}" -t "$BUILDER_IMAGE" -f "$TARGET" .
+          docker tag "$BUILDER_IMAGE" "${{ steps.ref.outputs.image }}"
+
+      - name: Build the flagtree image
+        working-directory: packaging/flagtree
+        run: |
+          set -euo pipefail
+          docker build -t "$APP_IMAGE" -f "$TARGET" .
+
+      - name: Extract the wheel
+        working-directory: packaging/flagtree
+        run: |
+          set -euo pipefail
+          rm -rf wheels && mkdir -p wheels
+          cid=$(docker create "$APP_IMAGE")
+          docker cp "$cid:/wheels/." wheels/
+          docker rm "$cid" >/dev/null
+          ls -la wheels/*.whl
+
+      - name: Upload to vendor PyPI
+        if: ${{ inputs.upload }}
+        working-directory: packaging/flagtree
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-iluvatar}"
+          echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
+          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
+            || python3 -m pip install --quiet --upgrade twine pkginfo
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+          python3 -m twine upload \
+            --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+            --non-interactive \
+            wheels/*.whl
+
+      - name: Push the builder image
+        if: ${{ inputs.push }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE_REF"
+
+      # The push is only accepted, not served: read the tag back the way a
+      # consumer does, and compare what the registry serves with what was built.
+      - name: Verify the pushed image reads back
+        if: ${{ inputs.push }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          built="$(docker image inspect --format '{{.Id}}' "$IMAGE_REF")"
+          docker pull "$IMAGE_REF"
+          served="$(docker image inspect --format '{{.Id}}' "$IMAGE_REF")"
+          if [ "$built" != "$served" ]; then
+            echo "::error::$IMAGE_REF: the registry serves $served, this run built $built"
+            exit 1
+          fi
+          echo ">>> $IMAGE_REF reads back as $served"
+
+      - name: Clean up
+        if: ${{ always() }}
+        run: |
+          docker rmi "$BUILDER_IMAGE" "$APP_IMAGE" 2>/dev/null || true

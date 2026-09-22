@@ -16,13 +16,10 @@
 # image on top of it. Self-contained: `docker build -f iluvatar .` needs no
 # build-infra script or file.
 #
-# Why a 22.04 rebuild: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6, cp312)
-# is built on 24.04 -- its libtriton.so imports GLIBC_2.38 + GLIBCXX_3.4.32 +
-# __isoc23_*, so a 22.04 client aborts before main() ("version not found").
-#
-# The 3.6 line compiles iluvatarTritonPlugin.so from source into the wheel (the
-# prebuilt plugin is gone), so a plain 22.04 rebuild is enough -- no symbol
-# patching. An objdump gate below fails the build if that changes.
+# Why 22.04: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6, cp312) is built
+# on 24.04 -- its libtriton.so imports GLIBC_2.38 + GLIBCXX_3.4.32 + __isoc23_*,
+# so a 22.04 client aborts before main(). The 3.6 line compiles the plugin into
+# the wheel, so a plain rebuild is enough; the gate below enforces it.
 #
 # Stage `builder` is the publishable artifact; the default target is the
 # flagtree image, which takes the venv + wheel from it.
@@ -39,18 +36,18 @@ FROM ubuntu:22.04 AS builder
 # Proxy is only consumed during build (predefined ARG, not persisted).
 ARG http_proxy=
 ARG https_proxy=
-# FlagTree ref to build; the iluvatar 3.6 backend lives on this branch. It is a
-# moving branch -- pin a sha via --build-arg when a byte-exact rebuild is needed.
+# FlagTree ref to build; the iluvatar 3.6 backend lives on this branch. A moving
+# branch -- pin a sha via --build-arg for a byte-exact rebuild.
 ARG FLAGTREE_VERSION=0.7.0-rc2-triton3.6
-# Wheel version, kept in the vendor's spelling so it is a drop-in replacement
-# for the wheel configs.yaml pins. setup.py appends a dirty "+git<sha>" unless
-# it holds the vendor key we lack, so .git is removed before `pip wheel`.
+# Wheel version in the vendor's spelling, so it is a drop-in for the configs.yaml
+# pin. FlagTree's setup.py appends a dirty "+git<sha>" unless there is no .git,
+# so .git is removed before `pip wheel`.
 ARG FLAGTREE_WHEEL_VERSION=0.7.0rc2+iluvatar3.6
-# FlagPrism is a source dependency of the iluvatar backend (on by default).
-# FlagTree's resolver clones it unpinned; pin a commit so rebuilds are stable.
+# FlagPrism is a source dependency the backend resolves unpinned; pin a commit
+# so rebuilds are stable.
 ARG FLAGPRISM_COMMIT=7a0838c7897f5e9bb440dbd2d59ace6dd86210c4
-# Prebuilt deps staged into FlagTree's offline cache: iluvatar-llvm22 (also
-# provides the LLD the plugin links against) and the triton origin toolkits.
+# Prebuilt deps staged into FlagTree's offline cache: iluvatar-llvm22 (also the
+# LLD the plugin links against) and the triton origin toolkits.
 ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
 ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
 ARG LLVM_TARBALL=iluvatar-llvm22-x86_64_v0.6.1.tar.gz
@@ -58,9 +55,8 @@ ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 # Python 3.12 via uv -- the runtime image's shape, so the cp tag matches.
 ARG PYTHON_VERSION=3.12
 ARG UV_VERSION=0.11.30
-# libtriton and the plugin it ships share pybind11 type registries only when
-# their internals versions match; both are built here, so this is for
-# reproducibility (the vendor's 3.6 wheel carries interns v12).
+# libtriton and the plugin it links share pybind11 type registries only when
+# their internals versions match; the vendor wheel is v12.
 ARG PYBIND11_SPEC=>=3.1,<3.2
 ARG MAX_JOBS=32
 ENV DEBIAN_FRONTEND=noninteractive
@@ -87,7 +83,10 @@ RUN uv python install "${PYTHON_VERSION}" --python-preference only-managed -q \
     && uv venv /flagos --python "${PYTHON_VERSION}" --relocatable --seed
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
-RUN pip install --no-cache-dir --upgrade pip
+# pypi.org is unreachable from the build runners; ubuntu's pip still defaults
+# to it, so pin the mirror in pip.conf rather than on every command line.
+RUN printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
+    && pip install --no-cache-dir --upgrade pip
 # Raise pip's resume ceiling (>=25.1): the vendor link drops mid-stream on CN
 # runners and the LLVM/wheel downloads are large.
 ENV PIP_RESUME_RETRIES=100
@@ -109,10 +108,9 @@ RUN mkdir -p /root/.flagtree/iluvatar /root/.triton \
     && test -d /root/.flagtree/iluvatar/iluvatar-llvm22-x86_64 \
     && test -f /root/.triton/json/include/nlohmann/json.hpp
 
-# Build the wheel. TRITON_OFFLINE_BUILD=1 makes it consume the cache above
-# instead of fetching; Proton off / FlagPrism on is the iluvatar default and
-# the Gluon build is off per the vendor's own CI. HTTP/1.1 + retries because
-# this network is flaky.
+# Build the wheel. TRITON_OFFLINE_BUILD=1 consumes the cache above instead of
+# fetching; Proton/Gluon off and FlagPrism on follow the vendor's own CI.
+# HTTP/1.1 + retries because this network is flaky.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -142,39 +140,58 @@ RUN git config --global http.version HTTP/1.1 \
        done \
     && ls -la /wheels/*.whl
 
-# Gate: fail the build on a symbol a 22.04 client cannot satisfy, on a dirty
-# version (the .git removal did not take), on a wrong cp tag, or on a wheel
-# that does not ship both .so files.
-RUN python - <<'PY'
-import glob, os, re, subprocess, sys, tempfile, zipfile
-
-whl = glob.glob("/wheels/*.whl")[0]
-ver = os.path.basename(whl).split("-")[1]
-if "git" in ver:
-    print(f"FAIL: dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
-    sys.exit(1)
-if "cp312" not in os.path.basename(whl):
-    print(f"FAIL: unexpected wheel tag in '{os.path.basename(whl)}' (expected cp312)")
-    sys.exit(1)
-print(f"OK: wheel {os.path.basename(whl)} version '{ver}'")
-
-d = tempfile.mkdtemp()
-zipfile.ZipFile(whl).extractall(d)
-forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]
-sos = sorted(glob.glob(d + "/**/libtriton.so", recursive=True)
-             + glob.glob(d + "/**/iluvatarTritonPlugin.so", recursive=True))
-if len(sos) != 2:
-    print(f"FAIL: expected libtriton.so + iluvatarTritonPlugin.so, found {sos}")
-    sys.exit(1)
-for so in sos:
-    syms = subprocess.check_output(["objdump", "-T", so], text=True)
-    hits = {f: syms.count(f) for f in forbidden if f in syms}
-    if hits:
-        print(f"FAIL: 22.04-incompatible symbols in {os.path.basename(so)}: {hits}")
-        sys.exit(1)
-    maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)), key=lambda v: [int(x) for x in v[6:].split(".")])
-    print(f"OK: {os.path.basename(so)} is 22.04-clean (max {maxglibc}, no forbidden symbols)")
-PY
+# Gate: fail on a symbol a 22.04 client cannot satisfy, a dirty wheel version, a
+# wrong cp tag, or a libtriton.so that lost the plugin -- this branch links the
+# plugin in as an object, so the symbol proves it, not a separate .so file.
+#
+# Written to a file with printf, NOT as `python - <<'PY'`: on Docker's legacy
+# builder (what the CoreX nodes run) a heredoc never reaches python's stdin.
+RUN printf '%s\n' \
+      'import glob, os, re, subprocess, sys, tempfile, zipfile' \
+      '' \
+      'whl = glob.glob("/wheels/*.whl")[0]' \
+      'name = os.path.basename(whl)' \
+      'ver = name.split("-")[1]' \
+      'if "git" in ver:' \
+      '    print("FAIL: dirty wheel version " + ver + " (expected clean, no git<sha> suffix)")' \
+      '    sys.exit(1)' \
+      'if "cp312" not in name:' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp312)")' \
+      '    sys.exit(1)' \
+      'print("OK: wheel " + name + " version " + ver)' \
+      '' \
+      'd = tempfile.mkdtemp()' \
+      'zipfile.ZipFile(whl).extractall(d)' \
+      'so = os.path.join(d, "triton", "_C", "libtriton.so")' \
+      'if not os.path.exists(so):' \
+      '    print("FAIL: no triton/_C/libtriton.so in " + name)' \
+      '    sys.exit(1)' \
+      'syms = subprocess.check_output(["objdump", "-T", so], text=True)' \
+      'forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]' \
+      'hits = [f for f in forbidden if f in syms]' \
+      'if hits:' \
+      '    print("FAIL: 22.04-incompatible symbols in libtriton.so: " + str(hits))' \
+      '    sys.exit(1)' \
+      'maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)), key=lambda v: [int(x) for x in v[6:].split(".")])' \
+      'print("OK: libtriton.so is 22.04-clean (max " + maxglibc + ", no forbidden symbols)")' \
+      '' \
+      'if "translateLLVMIRToILUVATAR" not in syms:' \
+      '    print("FAIL: the iluvatar plugin is not linked into libtriton.so")' \
+      '    sys.exit(1)' \
+      'print("OK: iluvatar plugin is linked into libtriton.so")' \
+      '' \
+      'blob = open(so, "rb").read()' \
+      'internals = re.findall(rb"pybind11_internals_v[0-9]+", blob)' \
+      'if not internals:' \
+      '    print("FAIL: libtriton.so carries no pybind11 internals tag")' \
+      '    sys.exit(1)' \
+      'tag = sorted(set(internals))[-1].decode()' \
+      'if tag != "pybind11_internals_v12":' \
+      '    print("FAIL: libtriton.so is " + tag + ", the vendor wheel is v12")' \
+      '    sys.exit(1)' \
+      'print("OK: pybind11 internals " + tag + " (matches the vendor wheel)")' \
+    > /tmp/gate.py \
+    && python /tmp/gate.py
 
 # Smoke test: install the wheel and import it. PYTHONPATH is dropped so nothing
 # outside this venv can satisfy the import.
@@ -183,3 +200,109 @@ RUN pip install --no-cache-dir /wheels/*.whl \
          print('OK triton', triton.__version__, triton.__file__); \
          print('OK backends', list(backends.keys()))" \
     && env -u PYTHONPATH python -c "import flagtree; print('OK flagtree', flagtree.__file__)"
+
+
+# ════════════════════════════════════════════════════════════════
+#  Stage 2 — flagtree image
+# ════════════════════════════════════════════════════════════════
+# Same base OS as the builder, so the wheel shipped here is the one the builder
+# produced. CoreX 4.5.0 on top, as base/iluvatar-corex4.5.0 does it. No
+# flag_gems: this is the flagtree build platform, not a runtime image.
+FROM ubuntu:22.04 AS flagtree
+
+# ── CoreX 4.5.0 ────────────────────────────────────────────────
+# The four SDK artifacts and their install steps mirror
+# base/iluvatar-corex4.5.0; the only difference is the OpenMPI package name.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
+ARG SDK_INSTALLER=corex-installer-linux64-4.5.0.20260804_x86_64_10.2.run
+ARG DRIVER_INSTALLER=corex-driver-linux64-4.5.0.20260804_x86_64.run
+ARG CUDA_HEADER=cuda-header-260604.zip
+ARG CMAKE_PKG=cmake-3.31.8+corex.4.5.0.20260804-linux-x86_64.sh
+ARG DEBIAN_FRONTEND=noninteractive
+
+# corex ships libnvshmem_host.so (NEEDs libmpi.so.40) but no OpenMPI, and torch
+# links torch_nvshmem, so torch import needs libmpi.so.40.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl unzip git vim ca-certificates \
+        build-essential gcc g++ libopenmpi3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# One block per SDK artifact, so a failed download leaves a legible layer.
+RUN curl -o /cuda-header.zip ${FILE_STORE}/iluvatar/${CUDA_HEADER} \
+    && unzip /cuda-header.zip -d /tmp \
+    && bash /tmp/partial_install_cuda_header/install-cuda-header.sh \
+    && rm -fr /tmp/partial_install_cuda_header /cuda-header.zip
+
+RUN curl -o /corex-installer.run ${FILE_STORE}/iluvatar/${SDK_INSTALLER} \
+    && bash /corex-installer.run --silent --toolkit \
+    && rm /corex-installer.run
+
+# Driver userspace only (libcuda/libixml/ixsmi): the kernel module cannot load
+# in-container, and the docs mount the host's ixsmi over ours.
+RUN curl -o /corex-driver.run ${FILE_STORE}/iluvatar/${DRIVER_INSTALLER} \
+    && bash /corex-driver.run --noexec --target /tmp/drv >/dev/null \
+    && mkdir -p /usr/local/corex/lib /usr/local/corex/bin \
+    && cp /tmp/drv/corex/lib64/libcuda.so.1 /usr/local/corex/lib/ \
+    && cp /tmp/drv/corex/lib64/libixml.so /usr/local/corex/lib/ \
+    && cp /tmp/drv/corex/bin/ixsmi /usr/local/corex/bin/ \
+    && ln -s libcuda.so.1 /usr/local/corex/lib/libcuda.so \
+    && rm -rf /tmp/drv /corex-driver.run
+
+# The corex cmake installer ignores --target and unpacks relative to /: modules
+# into /share, binaries into a real /bin. The binary looks for them in
+# /usr/share/cmake-3.31, so it dies with "Could not find CMAKE_ROOT !!!".
+RUN curl -o cmake.sh ${FILE_STORE}/iluvatar/${CMAKE_PKG} \
+    && bash cmake.sh --skip-license --target /opt/cmake-corex \
+    && rm cmake.sh \
+    && mv /share/cmake-3.31 /usr/share/cmake-3.31 \
+    && if [ ! -L /bin ]; then mv /bin/* /usr/bin/; rmdir /bin && ln -s usr/bin /bin; fi \
+    && cmake --version
+
+ENV COREX_ROOT=/usr/local/corex
+ENV PATH="${COREX_ROOT}/bin:/flagos/bin:${PATH}" \
+    LD_LIBRARY_PATH="${COREX_ROOT}/lib"
+
+# ── Python environment and the wheel ───────────────────────────
+# Taken from the builder so the image ships the triton it was verified with,
+# not a second copy built here.
+COPY --from=builder /flagos /flagos
+COPY --from=builder /root/.local/share/uv /root/.local/share/uv
+COPY --from=builder /wheels /wheels
+ENV VIRTUAL_ENV=/flagos \
+    UV_PYTHON_INSTALL_MIRROR=${FILE_STORE}/uv-python
+
+# torch first, then flagtree: the wheel owns the triton package directory, so
+# any vendor triton goes before it. Two indexes, vendor LAST -- torch's deps are
+# not on the vendor index, and on a tie the later index wins, so +corex is what
+# gets picked over a same-version upstream torch.
+ARG VENDOR_PYPI=https://resource.flagos.net/repository/flagos-pypi-iluvatar/simple
+RUN pip uninstall -y triton || true \
+    && for i in 1 2 3; do \
+         PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple \
+         PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+         PIP_TRUSTED_HOST=resource.flagos.net \
+         pip install --no-cache-dir --pre \
+           "torch==2.10.0+corex.4.5.0.20260804" \
+           "torchaudio==2.10.0+corex.4.5.0.20260804" \
+           "torchvision==0.25.0+corex.4.5.0.20260804" \
+           "numpy==1.26.4" \
+           "pybind11==3.0.3" "ninja==1.13.0" "PyYAML==6.0.1" \
+         && break; \
+         echo ">>> dependency install attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && pip install --no-cache-dir --force-reinstall --no-deps /wheels/*.whl
+
+# Verify the image the way a user meets it: torch and triton import, and the
+# compiled extension loads. A build box has no card, so ixsmi is checked for
+# presence and resolvable libraries, not output -- it exits 255 without a device.
+RUN python -c "import torch; print('torch', torch.__version__)" \
+    && python -c "import triton; from triton.backends import backends; \
+         print('triton', triton.__version__); print('backends', list(backends.keys()))" \
+    && python -c "import flagtree; print('flagtree', flagtree.__file__)" \
+    && python -c "import ctypes; ctypes.CDLL('${COREX_ROOT}/lib/libcudart.so'); print('OK libcudart')" \
+    && test -x "${COREX_ROOT}/bin/ixsmi" \
+    && ! ldd "${COREX_ROOT}/bin/ixsmi" 2>&1 | grep -q "not found" \
+    && echo "OK ixsmi present"
+
+WORKDIR /app
+CMD ["bash"]
