@@ -34,7 +34,7 @@ image: megatron_training0.17.1-ascend-cann8.5.0
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-22T16:04:10.399Z'
     reason: >-
       Rebuilt on the FlagOS 2.2.0 stack and on release/0.2, whose head carries
       the app-image PRs now merged into it — the image this replaces installed a
@@ -48,8 +48,10 @@ tags:
   entries:
   - date: 2026-09-01T05:06:09Z
     reason: >-
-      megatron-core wheel (0.17.1+fl) app image on this backend. Built on the MLF wheel-full-scope line
-      (PR 107) with backend enablement carried by the listed MLF/vendor PRs. Single-step wheel install
+      megatron-core wheel (0.17.1+fl) app image on this backend. Built on the MLF
+      wheel-full-scope line
+      (PR 107) with backend enablement carried by the listed MLF/vendor PRs. Single-step
+      wheel install
       over the runtime.
     upstream_prs:
     - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
