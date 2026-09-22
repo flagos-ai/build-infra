@@ -744,9 +744,9 @@ vendors:
       driver: "3.8.30"
       python: "3.12"
       triton: triton==3.0.0+metax3.7.2.0
-      # Held at 0.6.1: 0.7.0rc2's metax backend cannot compile BLOCK_SIZE_M=8
-      # tl.dot tiles (FlagTree #1232), the tiling flag_gems' autotuner picks for
-      # decode-shaped GEMMs, so the first request kills the engine.
+      # Held at 0.6.1 on the vllm 0.20.2 line for the F path: this stack installs
+      # the flagtree carrying FlagTree #1052's triton_key re-export — see
+      # packaging/vllm/docs/vllm-0.20.2/backends/metax.md.
       flagtree: flagtree==0.6.1+metax3.6
       env:
         base:
@@ -787,9 +787,9 @@ vendors:
       driver: "3.9.6"
       python: "3.12"
       triton: triton==3.6.0+metax3.8.1.0
-      # Held at 0.6.1: 0.7.0rc2's metax backend cannot compile BLOCK_SIZE_M=8
-      # tl.dot tiles (FlagTree #1232), the tiling flag_gems' autotuner picks for
-      # decode-shaped GEMMs, so the first request kills the engine.
+      # Held at 0.6.1 on the vllm 0.20.2 line for the F path: this stack installs
+      # the flagtree carrying FlagTree #1052's triton_key re-export — see
+      # packaging/vllm/docs/vllm-0.20.2/backends/metax.md.
       flagtree: flagtree==0.6.1+metax3.6
       env:
         base:

@@ -91,16 +91,22 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 
 spacemit、thead-ppu2.0.0 无 app 镜像，不在表内。
 
-### FlagTree 0.7.0rc2 的三个回归与降版
+### FlagTree 0.7.0rc2 的两个回归与降版
 
-2.2.0 栈原本统一到 flagtree 0.7.0rc2，三个后端在 0.7.0rc2 上无法工作，
+2.2.0 栈原本统一到 flagtree 0.7.0rc2，两个后端在 0.7.0rc2 上无法工作，
 各自回落并已在 FlagTree 报 issue（均带 on-node 最小重现与 0.6.x 对照）：
 
 | 后端 | 0.7.0rc2 上的问题 | issue | 回落至 |
 |---|---|---|---|
-| metax ×2 | `tl.dot` 在 `BLOCK_SIZE_M=8` 编译期 ICE（`MACAMmaEncodingAttr` 断言） | [#1232](https://github.com/flagos-ai/FlagTree/issues/1232) | 0.6.1+metax3.6 |
 | enflame-tops1.9.10 | 向 `--convert-gpu-to-gcu` 传 `enable_i64`，tops1.9.10 工具链不认，**所有** kernel 编译失败 | [#1233](https://github.com/flagos-ai/FlagTree/issues/1233) | 0.6.0+enflame3.6 |
 | nvidia-cuda13.3 | TLE 在 import 时 dlopen `libflagcx.so`（链 `libcudart.so.12`，CUDA 13 无此库），异常绕过 `has_triton_tle` 的 ImportError 探测，`import flag_gems` 直接失败 | [#1234](https://github.com/flagos-ai/FlagTree/issues/1234) | 0.6.1 |
+
+metax ×2 原本列在此表（#1232，`tl.dot` 在 `BLOCK_SIZE_M=8` 编译期 ICE），
+该 issue 已关闭：metax 的 GEMM 配置空间（`mm`/`mm_nn`/`linear`/`addmm`）最小
+`BLOCK_M` 是 16，BM=8 只出现在非 `tl.dot` 的归约类算子，端到端 serving 也未复现
+（清空 triton cache 与 libentry DB 后 Qwen3.6-27B eager 全用例通过，日志无 BM=8）。
+metax ×2 停在 0.6.1 的理由是 F 路径需要的 FlagTree #1052，见
+[`backends/metax.md`](backends/metax.md) §2.2。
 
 ### 降版后的连带问题：FlagTune cost model
 
