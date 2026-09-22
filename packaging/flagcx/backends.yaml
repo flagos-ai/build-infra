@@ -416,11 +416,20 @@ kunlunxin-xre5.37.1:
   # root at /usr/local/cuda, which the base image installs (CUDA 12.9.0); this
   # is the plugin build reading it, not a second SDK. Same shape as the nvidia
   # rows' LIBRARY_PATH, which is there for the same stub.
+  #
+  # /usr/local/xpu/so is deliberately NOT here. kunlunxin.mk already puts that
+  # directory on the link line (DEVICE_LIB := $(DEVICE_HOME)/so), so listing it
+  # again buys nothing and costs the wrong xpuml: ld takes each LIBRARY_PATH
+  # entry and also searches its sibling `../lib`, where this vendor keeps only
+  # libxpuml.a — so `-lxpuml` linked the archive and libflagcx.so came out
+  # defining the xpuml* API itself and leaving 60 nvml* undefined, none of which
+  # any shared object provides. Without the entry ld takes the shared
+  # libxpuml.so from the default path, which is what the deb build does.
   make_env:
     CCL_HOME: /usr/local/xccl_Linux_x86_64
     MPI_HOME: /usr/local/mpich-3.3.2
     CPATH: /usr/local/xpu/include:/usr/local/cuda/include
-    LIBRARY_PATH: /usr/local/cuda/lib64/stubs:/usr/local/cuda/lib64:/usr/local/xpu/so
+    LIBRARY_PATH: /usr/local/cuda/lib64/stubs:/usr/local/cuda/lib64
   vendor_libs: [cudart, xccl]
   # xpu/runtime.h is bkcl.h's own include and resolves through DEVICE_INCLUDE
   # (`$(DEVICE_HOME)/include`, DEVICE_HOME ?= /usr/local/xpu, a symlink into the
