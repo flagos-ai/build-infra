@@ -62,8 +62,7 @@ Step 7 serve E2E 3/3 全过）+ push（2026-09-08）；image_tag 由 record 步�
 |---|---|---|
 | 1 | 0.5.18 把 KV pool 从 `ForwardBatch` 移到 ModelRunner（树 backend 于 `__init__` 捕获），后端仍按老 API 从 ForwardBatch 读 | 插件改从 runner 读（PR #98，§2）|
 | 2 | serve 受控配置硬门禁：受控参数集不全，启动直接 RuntimeError | 起 serve 必须带下方受控参数集 |
-| 3 | flag_gems SQL ConfigCache 跨编译器共享，F 调优配置被 T cache-hit 硬崩 | F/T 切换起 serve 前清 cache（命令见下）|
-| 4 | 同容器 F/T 并行不可行（config_cache 互相清/投毒 + compiler env 进程级 + serve log 同路径）| 顺序跑，一次一个 compiler（本轮即顺序执行）|
+| 3 | 同容器 F/T 并行不可行（compiler env 进程级 + serve log 同路径）| 顺序跑，一次一个 compiler（本轮即顺序执行）|
 
 受控 serve 参数（#2）：缺 `--disable-radix-cache` / `--disable-piecewise-cuda-graph`
 任一 → 启动直接 RuntimeError "Strict HCU attention requires the controlled Qwen
@@ -75,12 +74,6 @@ python3 -m sglang.launch_server --model-path <模型路径> --port <端口> \
     --page-size 64 --disable-cuda-graph \
     --disable-piecewise-cuda-graph --disable-radix-cache
 ```
-
-flag_gems SQL ConfigCache 跨编译器共享（#3）：F/T 共用同 db
-（`/root/.flaggems/config_cache/TunedConfig_*.db`），F 调优配置被 T cache-hit
-复用 → 硬崩（PassManager::run failed）。切换 compiler 起 serve 前
-`rm -f /root/.flaggems/config_cache/TunedConfig_*.db`（同 metax 线根因，见
-[metax.md](metax.md)）。
 
 ## 5. 遗留
 

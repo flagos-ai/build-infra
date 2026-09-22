@@ -153,21 +153,13 @@ shim 的设计（`generate.py` 生成）：
 | `SGLANG_IS_FLASHINFER_AVAILABLE=false` | 跳过 flashinfer（metax 无）|
 | `TORCHINDUCTOR_COMPILE_THREADS=1` | F 路径 inductor 并发 fork 崩溃规避 |
 | `SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1` | 跳过 shim 版本号硬校验 |
-| 启动前 `mv /root/.flaggems/config_cache/*.db` | F/T 切换前清 flag_gems SQL ConfigCache（跨编译器污染，见 5.4）|
 
 ### 5.3 服务入口
 
 0.5.18 服务入口为**顶层模块**：`python -m sglang.launch_server`（不是
 `sglang.srt.launch_server`）。
 
-### 5.4 flag_gems ConfigCache 跨编译器污染（F/T 双路径核心坑）
-
-flag_gems SQL ConfigCache（`/root/.flaggems/config_cache/TunedConfig_*.db`）
-F/T 同 db 同表：F 路径 tuning 写 `BLOCK_SIZE_M=8` config 后，T 路径
-cache-hit 直接复用 → 硬崩 `PassManager::run failed`。解法：**F/T 切换前
-移 db**，让 T fresh tuning。详见 [backends/metax.md](backends/metax.md) 坑 6。
-
-### 5.5 验证判据
+### 5.4 验证判据
 
 - 服务起于 runtime `-build` 无关的**验证容器**（镜像
   `flagos-runtime-<vendor>-<backend>:<version>` + 两条 pip install）。

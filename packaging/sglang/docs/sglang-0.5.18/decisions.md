@@ -54,7 +54,6 @@ runtime + 单步安装"。2026-08-28 用户 pivot 后定案：**封装分发角�
 | 0.5.16+ circular-import 回归 | 中 | 节点 smoke；metax 0.5.18 实证未触发 |
 | multimodal rust ext 构建失败 | 中 | rust 1.98.0 工具链缓存 + rustup fallback；备选纯 Python 路径 |
 | sgl-kernel shim 版本硬校验 | 中 | `SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1` |
-| flag_gems ConfigCache 跨编译器污染 | 高 | F/T 切换前移 db（[metax.md](backends/metax.md) 坑 6）|
 
 ### 痛点
 

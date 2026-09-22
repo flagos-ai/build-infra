@@ -63,52 +63,6 @@ vendor triton-3.6.0+metax3.8.1.0 的 bf16 MMA 断言 `shape_judge && "tn and tk 
 conditon"`：BLOCK_SIZE_M=8 的 GEMM tile 编译失败，M-tile≥16 全过（raw kernel 14 组合
 实证）。flagtree 无此限制。处置：vendor triton 侧缺陷，移交厂商。
 
-## 注意事项：flag_gems SQL ConfigCache 跨编译器污染
-
-> 仅 F/T 双路径验证场景需要处理；最终用户钉一个编译器不触发，无影响。
-
-### 现象
-
-F 路径 serve + E2E 全过后，T 路径（PYTHONPATH=/opt/triton）serve 在首个请求直接硬崩
-`RuntimeError: PassManager::run failed`，触发位置 libentry.py:1085
-`self.fn.run(*args, **kwargs, **config.all_kwargs())`。直接调 fg_ops.linear（M=8/16/32、
-N=3072）却全 OK，矛盾。
-
-### 根因链（证据闭环）
-
-1. flag_gems 5.3.5 的 LibCache（libentry.py:280）持久化到 SQLite：
-   `config_cache_dir()/TunedConfig_{vendor}_triton_{major}_{minor}.db`（可用
-   FLAGGEMS_DB_URL 覆盖）。文件名只含 vendor + triton 主次版本号 → flagtree 3.6.0 与
-   vendor triton 3.6.0 共享同一文件
-   `/root/.flaggems/config_cache/TunedConfig_metax_triton_3_6.db`。
-2. SQL 表名 = `{name}_{kernel_hash}-{md5(列名)}`（libentry.py:526 + sql.py
-   get_sql_model），kernel_hash = md5(cache_key + configs_hash)（libentry.py:632）。
-   cache_key 与 configs_hash 均与编译器身份无关 → F/T 计算出完全相同的表名 → 同一 SQL
-   表 → 跨编译器共享是结构性必然，非偶然。
-3. F 路径（flagtree）可编译 M-tile=8，bench 选出 (8,4096,1024)→(8,32,32,num_warps=4)
-   （0.0259ms 最快）写入 Config 表。
-4. T 路径 serve 的形状 (8,4096,1024)（Qwen3-0.6B qkv_proj）命中 cache-hit 分支（DBG
-   无 "run configs len=" 打印实证）→ 直接取 (8,32,32) → vendor triton MMA M-tile=8
-   编译失败 → 硬崩。
-5. 关键：cache-hit 分支（libentry.py:1085）在 bench() 的 `except RuntimeError → inf`
-   保护（libentry.py:998 注释点名 cambricon "PassManager::run failed"）之外 → 编译失败
-   直接炸，不会降级重选 config。
-
-### 解法与验证
-
-移走缓存 db（`mv TunedConfig_metax_triton_3_6.db .bak`）→ T 路径 fresh tuning →
-bench() 把 M-tile=8 全部标 inf（p50=inf 实证）→ 崩溃形状重选 (32,64,32,num_warps=2,
-num_stages=5)（安全）→ T 路径 serve + E2E 全过（9.5/11.0/6.9 tok/s）。修复前 db 中
-(8,4096,1024)/(8,6144,1024) 的 config 均为 (8,32,32,4,1,4)；修复后为
-(32,64,32,2,1,5)，表名不变（`6e3c9826...-0f015d35...`）—— 结构性共享的又一实证。
-
-### 处置
-
-- flag_gems：cache key / 表名应含编译器身份（或同 db 分表），或 cache-hit 路径加编译
-  保护（M-tile=8 编译失败时重选）。移交 FlagGems 修复。
-- vendor triton：metax M-tile=8 bf16 MMA 编译失败（M≥16 全过），移交厂商。
-- 运维侧：同一后端换编译器（F/T 切换）前清 flag_gems 调优缓存，或全程钉一个编译器。
-
 ## 遗留
 
 - 性能：零 sgl-kernel 路径 7-11 tok/s vs 基线 ~40 tok/s，慢 4-5 倍，未优化（0.5.18
