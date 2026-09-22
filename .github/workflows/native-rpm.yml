@@ -1,0 +1,411 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: native rpm package
+
+# Build .rpm packages containing compiled code from a component repository's
+# own packaging definition, and publish them to the FlagOS yum repositories.
+# The rpm sibling of native-deb.yml, and the native sibling of noarch-rpm.yml.
+#
+# Keyed by package class, not by repository -- see native-deb.yml for why, for
+# what native verification asks that the noarch one does not, and for why
+# FlagGems' per-vendor C++ operators stay with flaggems-deb.yml rather than
+# coming here.
+#
+# One build per target distribution rather than one shared build: an rpm
+# carries the distribution in its Release field (.fc43, .oe2403), so a package
+# built for one does not belong in another's repository. Unlike the noarch
+# pair, that is doubly true here -- these link against the distribution's own
+# libraries, so the package is not merely mislabelled elsewhere, it is wrong.
+#
+# Dispatch-only: an .rpm is a release artifact, nothing here is worth running
+# on a push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'component and package class to build'
+        type: choice
+        required: true
+        options: [libtriton_jit, FlagTree]
+      ref:
+        description: >-
+          git ref to build. Leave empty to use the ref this target is pinned to
+          below. A tag is preferred: a branch head moves under later
+          cherry-picks, so the same dispatch would not build the same source
+          twice.
+        type: string
+        default: ''
+      version:
+        description: >-
+          release version to stamp, as the manifest spells it
+          (e.g. v0.2.0-rc0.1). A pre-release qualifier goes in Release, not
+          Version -- see the stamping step. Leave empty to derive it from the
+          ref when the ref is a version tag, and to leave the spec alone
+          otherwise.
+        type: string
+        default: ''
+      suites:
+        description: >-
+          yum suites to publish into, space-separated. Leave empty to publish
+          into every suite this target was built and verified for.
+        type: string
+        default: ''
+      verify:
+        description: 'install the .rpm in a clean container before uploading'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified .rpm to the yum repositories (requires verify)'
+        type: boolean
+        default: false
+
+env:
+  NEXUS_REPO_BASE: https://resource.flagos.net/repository
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      built_sha: ${{ steps.clone.outputs.sha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: fedora43
+            base_image: fedora:43
+            verify_image: fedora:43
+          - suite: openeuler24.03
+            base_image: openeuler/openeuler:24.03-lts
+            verify_image: openeuler/openeuler:24.03-lts
+    steps:
+      - name: Resolve the target
+        id: cfg
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          # Per target: repository, build script, how that script takes its
+          # base image, the spec to stamp, and the ref the release manifest
+          # pins it to.
+          #
+          # `base_arg` exists because these scripts do not agree on how to be
+          # told which distribution to build for: libtriton_jit takes
+          # --base-image, FlagTree reads RPM_BASE_IMAGE from the environment.
+          # Recording the difference here is cheaper than an upstream PR to
+          # each of them for the sake of uniformity.
+          case "${TARGET}" in
+            libtriton_jit)
+              repo=libtriton_jit
+              script=packaging/rpm/build-rpm.sh
+              base_arg=flag
+              spec=packaging/rpm/libtriton-jit.spec
+              outdir=rpm-packages
+              ref=master ;;
+            FlagTree)
+              repo=FlagTree
+              script=packaging/rpm/helpers/build-flagtree-rpm.sh
+              base_arg=env
+              spec=packaging/rpm/specs/flagtree.spec
+              outdir=dist-rpm/output
+              ref=0.7.0-rc2-triton3.6 ;;
+            *)
+              echo "::error::unknown target '${TARGET}'"; exit 1 ;;
+          esac
+          {
+            echo "repo_url=https://github.com/flagos-ai/${repo}.git"
+            echo "script=${script}"
+            echo "base_arg=${base_arg}"
+            echo "spec=${spec}"
+            echo "outdir=${outdir}"
+            echo "default_ref=${ref}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to publish what was not verified
+        if: ${{ inputs.publish }}
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          # The matrix above is what gets built and verified; a suite outside
+          # it has no package to publish, and asking for one is a mistake worth
+          # naming rather than a silent no-op.
+          BUILT="fedora43 openeuler24.03"
+          for suite in ${SUITES:-}; do
+            case " ${BUILT} " in
+              *" ${suite} "*) ;;
+              *)
+                echo "::error::'${suite}' is not built by this workflow (${BUILT})"
+                exit 1 ;;
+            esac
+          done
+          echo "Publish targets: ${SUITES:-${BUILT}}"
+
+      - name: Clone ${{ inputs.target }}
+        id: clone
+        env:
+          REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+        run: |
+          set -euo pipefail
+          git clone --depth 50 --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          cd src
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${REF}" >/dev/null; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${REF} is a branch, not a tag - this build is not reproducible by ref name alone"
+          fi
+          echo "Built ${REF} = ${sha}"
+          for f in "${{ steps.cfg.outputs.script }}" "${{ steps.cfg.outputs.spec }}"; do
+            test -f "$f" \
+              || { echo "::error::ref '${REF}' has no RPM packaging definition ($f is missing)"; exit 1; }
+          done
+
+      - name: Stamp the release version
+        working-directory: src
+        env:
+          SPEC: ${{ steps.cfg.outputs.spec }}
+          REF: ${{ steps.clone.outputs.ref }}
+          REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+
+          path = os.environ["SPEC"]
+          body = open(path, encoding="utf-8").read()
+          mv = re.search(r"^Version:(\s+)(\S+)\s*$", body, re.M)
+          mr = re.search(r"^Release:(\s+)(\S+)\s*$", body, re.M)
+          if not mv or not mr:
+              sys.exit(f"::error::{path} needs both a Version: and a Release: line")
+
+          ref = os.environ["REF"]
+          requested = os.environ["REQUESTED"].strip()
+          if requested:
+              release, why = requested, "requested by this dispatch"
+          elif (os.environ["REF_IS_TAG"] == "true"
+                and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
+              release, why = ref, f"derived from tag {ref}"
+          else:
+              print(f"Keeping the spec at {mv.group(2)}-{mr.group(2)}:"
+                    f" {ref} is not a version tag."
+                    " Pass `version` to stamp a release version explicitly.")
+              sys.exit(0)
+
+          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
+                       release)
+          if not m:
+              sys.exit(f"::error::cannot parse a release version out of '{release}'")
+          upstream, rc, post = m.group(1), m.group(2), m.group(3)
+
+          # A pre-release qualifier cannot go in Version: "~" orders correctly
+          # for rpm but breaks any consumer that reads the field as a Python
+          # version, and the Python spelling ("0.2.0rc0") orders *above* the
+          # release in rpm, so the pre-release would shadow what it precedes.
+          # The packaging guidelines' answer is to keep Version at the upstream
+          # number and put the qualifier in Release: behind a leading 0 for a
+          # pre-release, which sorts below the 1 a final release carries, and
+          # behind that 1 for a post-release, which must sort above it.
+          version = upstream
+          qualifier = ".".join(x for x in (rc, post) if x)
+          if rc:
+              relval = f"0.{qualifier}%{{?dist}}"
+          elif post:
+              relval = f"1.{post}%{{?dist}}"
+          else:
+              relval = "1%{?dist}"
+
+          if (version, relval) == (mv.group(2), mr.group(2)):
+              print(f"Spec already at {version}-{relval}; nothing to stamp")
+              sys.exit(0)
+
+          print(f"::notice::stamping {path} "
+                f"{mv.group(2)}-{mr.group(2)} -> {version}-{relval} ({why})")
+          # Release first: editing Version first moves the offsets the Release
+          # match was found at.
+          body = body[:mr.start(2)] + relval + body[mr.end(2):]
+          body = body[:mv.start(2)] + version + body[mv.end(2):]
+          open(path, "w", encoding="utf-8").write(body)
+          PY
+          grep -E '^(Version|Release):' "${SPEC}"
+
+      - name: Build the .rpm packages for ${{ matrix.suite }}
+        working-directory: src
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+        run: |
+          set -euo pipefail
+          case "${{ steps.cfg.outputs.base_arg }}" in
+            flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ;;
+            env)  RPM_BASE_IMAGE="${BASE_IMAGE}" bash "${{ steps.cfg.outputs.script }}" ;;
+            *)    echo "::error::unknown base_arg"; exit 1 ;;
+          esac
+          # Every binary package, not the first: these builds emit a runtime
+          # and a -devel package, and taking one would silently drop the other.
+          # Source rpms are build inputs, not something a user installs.
+          mapfile -t rpms < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.rpm' ! -name '*.src.rpm' | sort)
+          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::the build produced no binary rpm"; exit 1; }
+          mkdir -p out && cp "${rpms[@]}" out/
+          echo "Built ${#rpms[@]} package(s):"
+          for r in "${rpms[@]}"; do
+            echo ">>> $(basename "$r")"
+            rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$r" 2>/dev/null || true
+          done
+
+      - name: Upload the .rpm packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ inputs.target }}-rpm-${{ matrix.suite }}
+          path: src/out/*.rpm
+          retention-days: 7
+
+  verify:
+    needs: build
+    if: ${{ inputs.verify }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: fedora43
+            image: fedora:43
+          - suite: openeuler24.03
+            image: openeuler/openeuler:24.03-lts
+    steps:
+      - name: Download the .rpm packages
+        id: fetch
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.target }}-rpm-${{ matrix.suite }}
+          path: pkg
+
+      - name: Note a suite with no package
+        if: ${{ steps.fetch.outcome == 'failure' }}
+        run: echo "::notice::nothing was built for ${{ matrix.suite }}"
+
+      - name: Install and check in a clean ${{ matrix.image }}
+        if: ${{ steps.fetch.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
+            set -e
+            # Installing the files themselves is the test: dnf has to satisfy
+            # their own Requires from the distribution alone. All of them, so a
+            # -devel package whose runtime is unsatisfiable fails here rather
+            # than in a user'"'"'s terminal.
+            dnf install -y -q --setopt=install_weak_deps=False /pkg/*.rpm
+            dnf install -y -q binutils > /dev/null 2>&1 || true
+
+            checked=0
+            for pkg in $(rpm -qp --qf "%{NAME}\n" /pkg/*.rpm | sort -u); do
+              for so in $(rpm -ql "$pkg" | grep -E "\.so($|\.)" || true); do
+                [ -f "$so" ] || continue
+                checked=$((checked + 1))
+                # A library the package deliberately leaves to the environment
+                # -- the GPU driver from the host, torch from pip -- cannot be
+                # present in a clean container and is not a defect. A library
+                # that some installed package does provide, and this one did
+                # not declare, is: it works where it happens to be present and
+                # fails elsewhere.
+                for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
+                  if rpm -q --whatprovides "$lib" > /dev/null 2>&1; then
+                    echo "$(basename "$so"): $lib is provided by an installed package but not declared"
+                    exit 1
+                  fi
+                  echo "  $(basename "$so"): $lib left to the environment"
+                done
+                # An undefined symbol is never environmental: the library was
+                # linked against something it neither carries nor asks for.
+                if ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
+                  echo "$(basename "$so") has undefined symbols:"
+                  ldd -r "$so" 2>&1 | grep "undefined symbol" | head -5
+                  exit 1
+                fi
+                echo "  $(basename "$so"): links resolve"
+              done
+            done
+            test "$checked" -gt 0 || { echo "no shared library shipped - is this a native package?"; exit 1; }
+            echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
+          '
+
+  publish:
+    needs: [build, verify]
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download every built .rpm
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ${{ inputs.target }}-rpm-*
+          path: pkg
+
+      - name: Publish to the yum repositories
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          SUITES: ${{ inputs.suites }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
+          uploaded=0
+          attempted=0
+          for suite in ${SUITES:-fedora43 openeuler24.03}; do
+            # Each suite gets the rpm built for that distribution and no other:
+            # the Release field carries the distribution tag, and a native
+            # package links against that distribution's libraries.
+            dir="pkg/${TARGET}-rpm-${suite}"
+            if [ ! -d "${dir}" ]; then
+              echo "::error::nothing was built for '${suite}' - it failed or was skipped"
+              exit 1
+            fi
+            mapfile -t rpms < <(find "${dir}" -name '*.rpm' ! -name '*.src.rpm' | sort)
+            [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
+            repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
+            for r in "${rpms[@]}"; do
+              attempted=$((attempted + 1))
+              echo ">>> ${suite}: $(basename "$r")"
+              if curl -f -u "${NEXUS_TOKEN}" --upload-file "$r" \
+                   "${repo}$(basename "$r")"; then
+                echo "  -> OK"
+                uploaded=$((uploaded + 1))
+              else
+                echo "  -> FAILED"
+              fi
+            done
+          done
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::error::no suite accepted the upload"
+            exit 1
+          fi
+          # A partial success is worse than none: a -devel package can be
+          # installable while the runtime it needs is absent.
+          if [ "$uploaded" -ne "$attempted" ]; then
+            echo "::error::published ${uploaded} of ${attempted} upload(s)"
+            exit 1
+          fi
+          echo "Published all ${uploaded} upload(s)"
