@@ -1,0 +1,252 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: flagcx rpm packages
+
+# Build FlagCX .rpm packages and publish them to the FlagOS yum repositories.
+#
+# This drives the FlagCX repository's *own* rpm flow (packaging/rpm/), not the
+# deb line's overlay under packaging/flagcx/. The deb line exists because
+# FlagCX shipped packaging for two backends where build-infra can build images
+# for twenty, and it reaches that width by building on the Ubuntu base images
+# build-infra already has. An rpm has to be built on an RPM-family
+# distribution, and whether a vendor SDK installs on one is a fact about that
+# vendor, not about our tooling -- so rpm coverage is what FlagCX's own flow
+# supports, and it grows when a vendor makes it possible.
+#
+# Three rows today, which are the combinations that have a repository to land
+# in:
+#
+#   nvidia  x openeuler2403  ->  flagos-yum-openeuler24.03
+#   nvidia  x fedora43       ->  flagos-yum-fedora43
+#   ascend  x openeuler2403  ->  flagos-yum-openeuler24.03
+#
+# Two combinations the upstream flow supports are deliberately absent: its
+# default nvidia x rocky8, and metax x rocky8. Both produce .el8 packages and
+# there is no el8 repository -- the yum side has fedora43, openeuler24.03 and
+# rhel9 (el9). Building them here would produce packages with nowhere to go,
+# so they wait on either an el8 repository or an el9 build from the vendor.
+#
+# Dispatch-only: an .rpm is a release artifact, nothing here is worth running
+# on a push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      row:
+        description: 'backend and distribution to build'
+        type: choice
+        required: true
+        options:
+          - all
+          - nvidia-openeuler2403
+          - nvidia-fedora43
+          - ascend-openeuler2403
+      ref:
+        description: >-
+          FlagCX git ref to build. A tag is preferred: a branch head moves, so
+          the same dispatch would not build the same source twice.
+        type: string
+        default: 0.14.0-rc2
+      verify:
+        description: 'install the .rpm in a clean container before uploading'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified .rpm to the yum repositories (requires verify)'
+        type: boolean
+        default: false
+
+env:
+  NEXUS_REPO_BASE: https://resource.flagos.net/repository
+  FLAGCX_REPO: https://github.com/flagos-ai/FlagCX.git
+
+jobs:
+  set-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.rows.outputs.matrix }}
+    steps:
+      - id: rows
+        env:
+          ROW: ${{ inputs.row }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.publish }}" = "true" ] && [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          # backend, the flow's RPM_DISTRO, the suite the result belongs in,
+          # and the image to verify in. suite is not derived from distro: they
+          # are spelled differently (openeuler2403 vs openeuler24.03) and the
+          # mapping is what decides where a package lands, so it is written out
+          # rather than computed from a string.
+          all='[
+            {"name":"nvidia-openeuler2403","backend":"nvidia","distro":"openeuler2403",
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts"},
+            {"name":"nvidia-fedora43","backend":"nvidia","distro":"fedora43",
+             "suite":"fedora43","verify_image":"fedora:43"},
+            {"name":"ascend-openeuler2403","backend":"ascend","distro":"openeuler2403",
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts"}
+          ]'
+          if [ "${ROW}" = "all" ]; then
+            echo "matrix=$(echo "$all" | jq -c '{include: .}')" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$(echo "$all" | jq -c --arg n "${ROW}" '{include: [.[] | select(.name == $n)]}')" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: set-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    steps:
+      - name: Clone FlagCX at ${{ inputs.ref }}
+        id: clone
+        run: |
+          set -euo pipefail
+          git clone --depth 50 --branch "${{ inputs.ref }}" "${FLAGCX_REPO}" src
+          cd src
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          if ! git rev-parse -q --verify "refs/tags/${{ inputs.ref }}" >/dev/null; then
+            echo "::warning::${{ inputs.ref }} is a branch, not a tag - this build is not reproducible by ref name alone"
+          fi
+          echo "Built ${{ inputs.ref }} = ${sha}"
+          test -f packaging/rpm/build-flagcx-rpm.sh \
+            || { echo "::error::this ref has no rpm packaging definition"; exit 1; }
+
+      - name: Build ${{ matrix.name }}
+        working-directory: src
+        env:
+          RPM_DISTRO: ${{ matrix.distro }}
+        run: |
+          set -euo pipefail
+          bash packaging/rpm/build-flagcx-rpm.sh "${{ matrix.backend }}"
+          # Every binary package: this flow emits a runtime and a -devel, and
+          # taking one would leave the other unpublished. Source rpms are build
+          # inputs, not something a user installs.
+          mapfile -t rpms < <(find . -name '*.rpm' ! -name '*.src.rpm' | sort)
+          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::the build produced no binary rpm"; exit 1; }
+          mkdir -p out && cp "${rpms[@]}" out/
+          for r in "${rpms[@]}"; do
+            echo ">>> $(basename "$r")"
+            rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$r" 2>/dev/null || true
+          done
+
+      - name: Upload ${{ matrix.name }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: flagcx-rpm-${{ matrix.name }}
+          path: src/out/*.rpm
+          retention-days: 7
+
+  verify:
+    needs: [set-matrix, build]
+    if: ${{ inputs.verify }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    steps:
+      - name: Download ${{ matrix.name }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flagcx-rpm-${{ matrix.name }}
+          path: pkg
+
+      - name: Install and check in a clean ${{ matrix.verify_image }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.verify_image }} bash -c '
+            set -e
+            # Installing the files themselves is the test: dnf has to satisfy
+            # their Requires from the distribution alone.
+            dnf install -y -q --setopt=install_weak_deps=False /pkg/*.rpm
+            dnf install -y -q binutils > /dev/null 2>&1 || true
+
+            checked=0
+            for pkg in $(rpm -qp --qf "%{NAME}\n" /pkg/*.rpm | sort -u); do
+              for so in $(rpm -ql "$pkg" | grep -E "\.so($|\.)" || true); do
+                [ -f "$so" ] || continue
+                checked=$((checked + 1))
+                # The vendor runtime is supplied by the site: the driver comes
+                # from the host and the SDK from the vendor installation, and
+                # neither is an rpm dependency -- FlagCX'"'"'s own packaging says
+                # so explicitly. A library that some installed package *does*
+                # provide and this one did not declare is a different thing:
+                # it works where it happens to be present and fails elsewhere.
+                for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
+                  if rpm -q --whatprovides "$lib" > /dev/null 2>&1; then
+                    echo "$(basename "$so"): $lib is provided by an installed package but not declared"
+                    exit 1
+                  fi
+                  echo "  $(basename "$so"): $lib left to the site"
+                done
+                if ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
+                  echo "$(basename "$so") has undefined symbols:"
+                  ldd -r "$so" 2>&1 | grep "undefined symbol" | head -5
+                  exit 1
+                fi
+                echo "  $(basename "$so"): links resolve"
+              done
+            done
+            test "$checked" -gt 0 || { echo "no shared library shipped"; exit 1; }
+            echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
+          '
+
+  publish:
+    needs: [set-matrix, build, verify]
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    steps:
+      - name: Download ${{ matrix.name }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: flagcx-rpm-${{ matrix.name }}
+          path: pkg
+
+      - name: Publish to flagos-yum-${{ matrix.suite }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          mapfile -t rpms < <(find pkg -name '*.rpm' ! -name '*.src.rpm' | sort)
+          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm to publish"; exit 1; }
+          repo="${NEXUS_REPO_BASE}/flagos-yum-${{ matrix.suite }}/"
+          uploaded=0
+          for r in "${rpms[@]}"; do
+            echo ">>> ${{ matrix.suite }}: $(basename "$r")"
+            if curl -f -u "${NEXUS_TOKEN}" --upload-file "$r" "${repo}$(basename "$r")"; then
+              echo "  -> OK"
+              uploaded=$((uploaded + 1))
+            else
+              echo "  -> FAILED"
+            fi
+          done
+          # A partial success is worse than none: a -devel package can be
+          # installable while the runtime it requires is absent.
+          if [ "$uploaded" -ne "${#rpms[@]}" ]; then
+            echo "::error::published ${uploaded} of ${#rpms[@]}"
+            exit 1
+          fi
+          echo "Published all ${uploaded} package(s)"

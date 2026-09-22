@@ -47,7 +47,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree]
+        options: [libtriton_jit, FlagTree, FlagDNN, FlagFFT]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -122,6 +122,20 @@ jobs:
               ver=''
               suites=ubuntu24.04
               image=ubuntu:24.04 ;;
+            FlagDNN)
+              repo=FlagDNN
+              script=packaging/debian/build-helpers/build-flag-dnn.sh
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post1
+              suites=ubuntu22.04
+              image=ubuntu:22.04 ;;
+            FlagFFT)
+              repo=FlagFFT
+              script=packaging/debian/build-helpers/build-flagfft.sh
+              ref=0.2.0-rc2
+              ver=v0.2.0-rc2.post1
+              suites=ubuntu22.04
+              image=ubuntu:22.04 ;;
             *)
               echo "::error::unknown target '${TARGET}'"; exit 1 ;;
           esac
