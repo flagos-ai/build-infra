@@ -85,6 +85,8 @@ sibling file from this repo, which is what lets the published builder be the
 whole recipe for reproducing the wheel. `iluvatar` is deliberately **not** a
 `flagtree-wheel.yml` target: the wheel keeps the vendor's version string, so a
 second workflow able to upload it would be a second uploader of one version.
+The consumer-facing version of all this — pull, extract, build — is
+[`iluvatar-usage.md`](iluvatar-usage.md).
 
 **The plugin is linked in, not shipped.** The 3.6 branch builds
 `triton_iluvatar.cc` as an object and links it into `libtriton.so`
