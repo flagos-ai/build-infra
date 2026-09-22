@@ -55,6 +55,55 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
     && dpkg -i --instdir /usr/local /xcudart.deb \
     && rm /xcudart.deb
 
+# ── Reconcile the sonames both deliveries ship ─────────────────
+# XRE and xcudart each ship libxpuml, libxpucuda, libxpunvidia-ml, libcudart and
+# libxpurt, under identical names from builds of different generations, and both
+# are installed — so a process ends up holding two generations of one name.
+# Which one it holds depends on how the library is reached: torch_plugin dlopens
+# libxpuml.so.1 by absolute path out of the libcuda.so.1 directory, which is
+# xcudart's, while the loader's default search and FlagCX's link line take XRE's.
+# No name in either delivery can settle which is which. The number inside the
+# soname is the driver-compatible version — XRE's own version.txt prints it under
+# that heading — so it is identical across SDK generations by design. Both
+# deliveries also carry the same pipeline tag, KL3_Release_129. The field that
+# does differ, XPURT_VERSION_STR in include/xpu/version.h, is 5.13.0 in xcudart
+# and 5.37.1 in XRE, and it lives inside the package: neither delivery's name nor
+# its control file carries it (both debs report Version: 0.0.1).
+#
+# XRE's copies are therefore the ones kept, and the test is content, not a
+# version. XRE's copy of each of the five is a superset, symbol for symbol, of
+# every other copy on the loader's path; the one exception anywhere in the image
+# is torch_xmlir's `so_debug` build of libxpucuda, which carries 361 extra
+# symbols by virtue of being the debug build and which no loader path reaches.
+# After this step no soname is shipped twice with different content inside the
+# base image. The runtime layer lays down its own package-private copies
+# (torch_xmlir, the triton backends) — libxpuml alone exists nine times in the
+# finished runtime image, as five distinct builds — and none of them is on the
+# loader's path.
+#
+# Only names XRE also ships are touched. libcuda.so.1 — the libxpucuda alias —
+# and libcupti.so.12.9 exist only in xcudart, and torch_plugin's _C.so lists the
+# alias in its NEEDED.
+RUN set -eux; \
+    for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
+        for src in "$dir"/*.kunlun; do \
+            [ -e "$src" ] || continue; \
+            name="$(basename "$src")"; \
+            dst="/usr/local/xcudart/lib/$name"; \
+            [ -e "$dst" ] || continue; \
+            install -m 755 "$src" "$dst"; \
+            echo "reconciled $name from $dir"; \
+        done; \
+    done; \
+    for dst in /usr/local/xcudart/lib/*.kunlun; do \
+        name="$(basename "$dst")"; \
+        for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
+            [ -e "$dir/$name" ] || continue; \
+            cmp "$dst" "$dir/$name" \
+                || { echo "assert: $name differs between /usr/local/xcudart/lib and $dir" >&2; exit 1; }; \
+        done; \
+    done
+
 # ── Install MPI ────────────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mpi.tgz ${FILE_STORE}/kunlunxin/${MPI_PACKAGE} \
     && tar -xvf /mpi.tgz -C /usr/local \

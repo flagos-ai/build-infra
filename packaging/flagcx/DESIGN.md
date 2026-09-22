@@ -306,30 +306,46 @@ Makefile has no `-soname` flag and stays untouched.
 
 ### 6. Backend triage
 
-**19 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
-du ×1, iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1): their `makefiles/*.mk` defaults and the
-base-image SDK layout agree. Every probe that was owed is answered in `backends.yaml` as
-`assert` + `vendor_lib_dirs`, which is where the answer stays actionable — the note below only
-names what cannot be delivered.
+**20 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
+du ×1, iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1, kunlunxin ×1): their `makefiles/*.mk`
+defaults and the base-image SDK layout agree. Every probe that was owed is
+answered in `backends.yaml` as `assert` + `vendor_lib_dirs`, which is where the answer stays
+actionable — the note below only names what cannot be delivered.
 
-**1 backend cannot be delivered from its base image: `kunlunxin-xre5.37.1`.** Its entry stays
-`deb: {enabled: false}`, on two grounds, both measured in-container:
+**`kunlunxin-xre5.37.1` is delivered through the wheel channel only**, and its `deb:` stays
+`enabled: false`. This section used to record it as undeliverable from its base image, on two
+grounds that later work falsified:
 
-1. **The CCL library is not in the image the `.deb` builds in.** `base/kunlunxin-xre5.37.1`
-   installs no CCL package; the XRE 5.37.1.0 installer payload (495 entries) carries only
-   `so/libxpurt.so*` and `so/libcudart.so*`; the vendor file store holds five assets and none of
-   them is a CCL package. The only `libbkcl.so` in the stack is a *runtime*-image artifact
-   inside the vendor torch wheel (`site-packages/torch_xmlir/`), headers under
-   `torch_xmlir/xccl/include/`. `/usr/local/xccl` — the value `kunlunxin.mk` gives `CCL_HOME` —
-   does not exist in the base image at all. `kunlunxin.mk`'s `DEVICE_LIB` is also worth
-   correcting in passing: it resolves to `/usr/local/xpu/so`, not the `/usr/local/xpu/lib` this
-   section used to say, and `libcudart.so` is in it.
-2. **Its API does not bind even once located.** None of the four xccl headers declares
-   `extern "C"`; `bkcl.h` is a C++ header including `<functional>`/`<tuple>`/`<vector>`. The
-   wheel's `libbkcl.so` (7.6 MB) shows 1444 symbols under `nm -D --defined-only`, 1344 of them
-   `_Z`-mangled, and no plain-C `bkcl_*` entry point; no sibling `.so` in the wheel supplies one
-   either, so FlagCX's plain-C `bkcl_init_rank` / `bkcl_destroy_context` / `bkcl_comm_count` /
-   `bkcl_get_unique_id` cannot resolve. This ground is independent of ground 1.
+1. **The CCL library is in the base image.** `base/kunlunxin-xre5.37.1` installs
+   `xccl_Linux_x86_64_cuda12.tar.gz` under `/usr/local`, and the row asserts
+   `/usr/local/xccl_Linux_x86_64/include/bkcl.h`. That is also the row's `CCL_HOME`: the
+   `kunlunxin.mk` default of `/usr/local/xccl` is not where this vendor installs it. The same
+   holds for `MPI_HOME`. `DEVICE_LIB` needed no override — it resolves to
+   `$(DEVICE_HOME)/so` = `/usr/local/xpu/so`, which is right.
+2. **Its API binds.** `libbkcl.so` resolves and the wheel imports it; `bkcl_init_rank` and
+   friends have plain-C definitions once the shared library is the one linked (see below),
+   and the deb build reaches the same place.
+
+Whether the deb channel should now be enabled is a separate call, not a measurement.
+
+**`kunlunxin.mk` links `-lxpuml` by name, and the name alone does not settle which build it
+gets.** Five sonames (`libxpuml`, `libxpucuda`, `libxpunvidia-ml`, `libcudart`, `libxpurt`) are
+shipped by XRE, by xcudart, and again by every package that bundles the SDK — *torch_xmlir* and
+the triton backends — so the finished runtime image carries nine copies of `libxpuml` across
+nine directories, as five distinct builds, and ten each of `libcudart` and `libxpurt`. Nothing
+in a name separates them: the number inside the soname is the driver-compatible version that
+XRE's own `version.txt` prints under that heading, so it is identical across SDK generations by
+design; both deliveries carry the same pipeline tag; and the field that does differ,
+`XPURT_VERSION_STR`, is 5.13.0 in xcudart against 5.37.1 in XRE, inside a header neither
+package's name nor its control file carries (both debs report `Version: 0.0.1`).
+
+Content separates them, and on content XRE's copy of each is a superset, symbol for symbol, of
+every other copy on the loader's path — the one exception in the whole image being
+*torch_xmlir*'s `so_debug` build of `libxpucuda`, which is the debug build and is on no path.
+Two consequences are load-bearing here, both fixed in this branch: a `LIBRARY_PATH` entry that
+reaches the static `libxpuml.a` silently links it instead of the shared library (the row's
+comment in `backends.yaml`), and the base image now reconciles the sonames both deliveries ship
+so that no name is present twice with different content.
 
 The one-sided path is not what blocks it: `kunlunxin.mk` gates the whole xshmem route on
 `USE_SHMEM=1`, which the `.deb` build does not set, so `xshmem_adaptor.cc` is never compiled and
