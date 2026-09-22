@@ -61,6 +61,10 @@ FROM ${RUNTIME_IMAGE}
 
 # --- Build arguments ------------------------------------------
 
+# The exact version to install, local part included (0.17.1+fl.0.2.3). A plain
+# 0.17.1 is satisfied by every fork build of that upstream version, so pip picks
+# the greatest local version the index holds — which need not be the release
+# this image is meant to carry.
 ARG MEGATRON_VERSION=0.17.1
 
 # Vendor PyPI (flagos-pypi-{vendor}) holding the megatron-core wheel — searched first.
