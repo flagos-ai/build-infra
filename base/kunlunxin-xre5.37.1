@@ -62,17 +62,24 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
 # Which one it holds depends on how the library is reached: torch_plugin dlopens
 # libxpuml.so.1 by absolute path out of the libcuda.so.1 directory, which is
 # xcudart's, while the loader's default search and FlagCX's link line take XRE's.
-# No name in either delivery can settle which is which: both stamp the same
-# version string, the soname's own number is frozen across generations, and the
-# version that actually differs lives in an uninstalled header.
+# No name in either delivery can settle which is which. The number inside the
+# soname is the driver-compatible version — XRE's own version.txt prints it under
+# that heading — so it is identical across SDK generations by design. Both
+# deliveries also carry the same pipeline tag, KL3_Release_129. The field that
+# does differ, XPURT_VERSION_STR in include/xpu/version.h, is 5.13.0 in xcudart
+# and 5.37.1 in XRE, and it lives inside the package: neither delivery's name nor
+# its control file carries it (both debs report Version: 0.0.1).
 #
 # XRE's copies are therefore the ones kept, and the test is content, not a
-# version: XRE's libxpuml is a strict superset of every other copy in this image
-# (8 of them, in 7 directories, six of them distinct builds), symbol for symbol,
-# and the same holds for the other four. After this step no soname is shipped
-# twice with different content inside the base image. The runtime layer lays
-# down its own package-private copies (torch_xmlir, the triton backends), and
-# none of them is on the loader's path.
+# version. XRE's copy of each of the five is a superset, symbol for symbol, of
+# every other copy on the loader's path; the one exception anywhere in the image
+# is torch_xmlir's `so_debug` build of libxpucuda, which carries 361 extra
+# symbols by virtue of being the debug build and which no loader path reaches.
+# After this step no soname is shipped twice with different content inside the
+# base image. The runtime layer lays down its own package-private copies
+# (torch_xmlir, the triton backends) — libxpuml alone exists nine times in the
+# finished runtime image, as five distinct builds — and none of them is on the
+# loader's path.
 #
 # Only names XRE also ships are touched. libcuda.so.1 — the libxpucuda alias —
 # and libcupti.so.12.9 exist only in xcudart, and torch_plugin's _C.so lists the
