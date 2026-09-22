@@ -29,7 +29,7 @@ title: "megatron_training-iluvatar-corex4.4.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.1.2</code> <a href="../../runtime/iluvatar-corex4.4.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.2.0</code> <a href="../../runtime/iluvatar-corex4.4.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_training-iluvatar-corex4.4.0"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-iluvatar-corex4.4.0:2.1.2-0.2.1_15_g56acf36ba`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-iluvatar-corex4.4.0:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-iluvatar-corex4.4.0:2.1.2-0.2.1_15_g56acf36ba
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-iluvatar-corex4.4.0:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
