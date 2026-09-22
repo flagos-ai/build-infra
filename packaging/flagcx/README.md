@@ -149,7 +149,7 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `iluvatar-corex4.4.0` | 2026-09-22 | `0.14.0rc2.post2+corex4.4.0` |
 | `iluvatar-corex4.5.0` | 2026-09-22 | `0.14.0rc2.post2+corex4.5.0` |
 | `kunlunxin-xre5.37.1` | 2026-09-22 | `0.14.0rc2.post2+xre5.37.1` |
-| `metax-maca3.7.2.1` | 2026-09-21 | — |
+| `metax-maca3.7.2.1` | 2026-09-22 | `0.14.0rc2.post2+maca3.7.2.1` |
 | `metax-maca3.8.1.3` | 2026-09-22 | `0.14.0rc2.post2+maca3.8.1.3` |
 | `mthreads-musa4.3.6` | 2026-09-22 | `0.14.0rc2.post2+musa4.3.6` |
 | `mthreads-musa5.2.0` | 2026-09-22 | `0.14.0rc2.post2+musa5.2.0` |
@@ -161,7 +161,8 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 Every published pin is a build off the release tag `v0.14.0-rc2.post2`, so the pins differ only in
 the row label, and the pin is what tells two vendors' builds of one commit apart. One dispatch
 published eighteen of them, each under the pin `set-matrix` derived for its own row; the two nvidia
-rows published earlier off the same tag.
+rows published earlier off the same tag, and `metax-maca3.7.2.1` followed once its build had a
+runner again.
 
 `kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
 the node, while the wheel channel was being enabled for it (#1000).
