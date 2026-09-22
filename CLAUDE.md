@@ -155,6 +155,14 @@ switchable via the `compiler` shell function.
 - **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`,
   `configs.yaml`, or `base/**` changes).
 
+- **`flagcx-rpm.yml`** — FlagCX `.rpm` build and publish (manual). Drives the FlagCX
+  repository's *own* `packaging/rpm/` flow rather than the deb line's overlay: an rpm has to be
+  built on an RPM-family distribution, and whether a vendor SDK installs on one is a fact about
+  that vendor. Three rows — nvidia on openEuler 24.03 and Fedora 43, ascend on openEuler 24.03 —
+  which are the combinations that have a repository to land in. The upstream flow's default
+  `nvidia x rocky8` and its `metax x rocky8` produce `.el8` packages and there is no el8
+  repository, so they are left out rather than built with nowhere to go.
+
 - **`flagcx-deb.yml`** — FlagCX `.deb` build (manual, x86_64 + aarch64 runners).
   Matrix comes from `flagcx-config.py --merge` over `generate_matrix.py --runtime`, which is what
   joins the runtime matrix with the FlagCX packaging fields in `packaging/flagcx/backends.yaml`;
