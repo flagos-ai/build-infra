@@ -34,7 +34,7 @@ image: vllm0.24.0-kunlunxin-xre5.37.1
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-22T11:31:33.174Z'
     reason: >-
       Rebuilt on the refreshed kunlunxin base, which now keeps one generation of
       the five sonames XRE and xcudart both ship (libxpuml, libxpucuda,
