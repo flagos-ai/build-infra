@@ -193,6 +193,10 @@ jobs:
           # of that upstream version, so it resolves to whichever local version
           # the index happens to hold — a rebuild can then install a different
           # wheel than the release names, silently, and the tag cannot show it.
+          # Same-step consumers must read ${wheel_version}: GITHUB_ENV only
+          # reaches later steps, and `set -u` turns a same-step read of it into
+          # an immediate unbound-variable failure (the whole matrix failed this
+          # way on the first verify run after the pin landed).
           wheel_version='${{ inputs.megatron_wheel_version }}'
           [ -n "${wheel_version}" ] || wheel_version='${{ inputs.megatron_version }}'
           echo "MEGATRON_WHEEL_VERSION=${wheel_version}" >> "$GITHUB_ENV"
@@ -217,7 +221,7 @@ jobs:
           docker build \
             ${no_cache_arg} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
-            --build-arg "MEGATRON_VERSION=${MEGATRON_WHEEL_VERSION}" \
+            --build-arg "MEGATRON_VERSION=${wheel_version}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
