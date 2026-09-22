@@ -137,34 +137,34 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 
 | Row | Built + verified | Published |
 |---|---|---|
-| `ascend-cann8.5.0` | 2026-09-22 | — |
-| `ascend-cann8.5.0-910c` | 2026-09-22 | — |
-| `ascend-cann9.0.0` | 2026-09-22 | — |
-| `ascend-cann9.0.0-910c` | 2026-09-22 | — |
-| `cambricon-neuware4.4.3` | 2026-09-22 | — |
-| `cambricon-neuware4.7.2` | 2026-09-22 | — |
-| `enflame-tops1.9.10` | 2026-09-21 | — |
-| `enflame-tops1.10.6` | 2026-09-21 | — |
-| `hygon-dtk26.04` | 2026-09-21 | — |
-| `iluvatar-corex4.4.0` | 2026-09-22 | — |
-| `iluvatar-corex4.5.0` | 2026-09-22 | — |
-| `kunlunxin-xre5.37.1` | 2026-09-21, on the node | — |
-| `metax-maca3.7.2.1` | 2026-09-21 | `0.14.0rc2.post2.dev4+maca3.7.2.1.20260914.g08ab373` |
-| `metax-maca3.8.1.3` | 2026-09-21 | `0.14.0rc2.post2.dev4+maca3.8.1.3.20260914.g08ab373` |
-| `mthreads-musa4.3.6` | 2026-09-21 | — |
-| `mthreads-musa5.2.0` | 2026-09-21 | — |
+| `ascend-cann8.5.0` | 2026-09-22 | `0.14.0rc2.post2+cann8.5.0` |
+| `ascend-cann8.5.0-910c` | 2026-09-22 | `0.14.0rc2.post2+cann8.5.0.910c` |
+| `ascend-cann9.0.0` | 2026-09-22 | `0.14.0rc2.post2+cann9.0.0` |
+| `ascend-cann9.0.0-910c` | 2026-09-22 | `0.14.0rc2.post2+cann9.0.0.910c` |
+| `cambricon-neuware4.4.3` | 2026-09-22 | `0.14.0rc2.post2+neuware4.4.3` |
+| `cambricon-neuware4.7.2` | 2026-09-22 | `0.14.0rc2.post2+neuware4.7.2` |
+| `enflame-tops1.9.10` | 2026-09-22 | `0.14.0rc2.post2+tops1.9.10` |
+| `enflame-tops1.10.6` | 2026-09-22 | `0.14.0rc2.post2+tops1.10.6` |
+| `hygon-dtk26.04` | 2026-09-22 | `0.14.0rc2.post2+dtk2604` |
+| `iluvatar-corex4.4.0` | 2026-09-22 | `0.14.0rc2.post2+corex4.4.0` |
+| `iluvatar-corex4.5.0` | 2026-09-22 | `0.14.0rc2.post2+corex4.5.0` |
+| `kunlunxin-xre5.37.1` | 2026-09-22 | `0.14.0rc2.post2+xre5.37.1` |
+| `metax-maca3.7.2.1` | 2026-09-21 | — |
+| `metax-maca3.8.1.3` | 2026-09-22 | `0.14.0rc2.post2+maca3.8.1.3` |
+| `mthreads-musa4.3.6` | 2026-09-22 | `0.14.0rc2.post2+musa4.3.6` |
+| `mthreads-musa5.2.0` | 2026-09-22 | `0.14.0rc2.post2+musa5.2.0` |
 | `nvidia-cuda12.8` | 2026-09-21 | `0.14.0rc2.post2+cuda12.8` |
 | `nvidia-cuda13.3` | 2026-09-21 | `0.14.0rc2.post2+cuda13.3` |
-| `sunrise-tangrt1.2.0` | 2026-09-21 | — |
-| `tsingmicro-tsm260610` | 2026-09-21 | — |
+| `sunrise-tangrt1.2.0` | 2026-09-22 | `0.14.0rc2.post2+tangrt1.2.0` |
+| `tsingmicro-tsm260610` | 2026-09-22 | `0.14.0rc2.post2+tsm260610` |
 
-A published pin with a `.dev` tail is a build off a commit and one without it is a build off a tag.
-Publishing the other sixteen rows is a decision rather than a step — no consumer reads those indexes
-yet — so the column is left as it stands rather than filled in to make the table look finished.
+Every published pin is a build off the release tag `v0.14.0-rc2.post2`, so the pins differ only in
+the row label, and the pin is what tells two vendors' builds of one commit apart. One dispatch
+published eighteen of them, each under the pin `set-matrix` derived for its own row; the two nvidia
+rows published earlier off the same tag.
 
-`kunlunxin-xre5.37.1` is the one row whose verification has not run in CI: it passed on the node
-while the wheel channel was being enabled for it (#1000), and the row has not been dispatched to
-`flagcx-wheel.yml` since. The claim is the same test on the same node; only the runner differs.
+`kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
+the node, while the wheel channel was being enabled for it (#1000).
 
 ## Adding a backend
 
