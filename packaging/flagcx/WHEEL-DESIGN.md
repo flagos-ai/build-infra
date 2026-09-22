@@ -2,7 +2,8 @@
 
 Status: **both nvidia rows build a wheel that carries their device bitcode, and it has been
 verified end to end on h20** — built in the row's builder image, installed into the row's runtime
-image, imported, with the bitcode and its header present. Not yet published to an index.
+image, imported, with the bitcode and its header present. Published to the vendor index; `README.md`
+holds the per-row state of every row on this channel.
 `DESIGN.md` is the deb line's design of record; this file is the wheel line's, and it covers only
 what build-infra decides. The FlagCX-side questions — what goes inside the wheel, what the public
 API is — live in [flagos-ai/FlagCX#593](https://github.com/flagos-ai/FlagCX/issues/593), not here.
@@ -144,6 +145,39 @@ Both bitcode paths are **inside the package** for the same reason the `.so` is: 
 consumer can see is guaranteed to exist. A consumer locates them from `flagcx.__file__` rather than
 from an install prefix, which is also what the deb line's consumers are being moved to — see the
 path-resolution half of #570.
+
+### `_C.so` binds to the torch it was built against
+
+The extension does not carry torch: `flagcxWork` derives from `c10d::Work` and overrides only some
+of its virtuals, so the rest — nineteen symbols, `c10d::Work::synchronize`, `::result`, `::abort`,
+`typeinfo for c10d::Work` among them — are left undefined for the loader to resolve out of whatever
+torch the process has. `import flagcx` therefore fails with a bare symbol name when that torch is
+older than the one the wheel was built on:
+
+```
+ImportError: /usr/local/lib/python3.12/dist-packages/flagcx/_C.cpython-312-x86_64-linux-gnu.so:
+undefined symbol: _ZN4c10d4Work18blockCurrentStreamEv
+```
+
+`blockCurrentStream` is the symbol that makes this concrete, and its arrival is the measured
+boundary: declared in `torch/csrc/distributed/c10d/Work.hpp` from **2.9.0** and absent in 2.6.0,
+2.7.0 and 2.8.0 (read off each release's header). A wheel built on 2.10 leaves that reference, so a
+container on torch ≤ 2.8 fails at the import — reported from a flagtree-owned image, which installs
+flagcx for its bitcode and had no reason to match its torch.
+
+That is a property of the extension, not of this line: the same `setup.py` produces the same
+undefined references wherever it is compiled, and no version of flagcx can be built to run against
+a torch the headers did not describe. Two consequences here:
+
+- **A consumer that only wants the bitcode should not import the package.** `importlib.util.find_spec`
+  locates `flagcx/` without importing it, which is how the consumer-side path resolution is written
+  (see the consumer note in the plan) — and the `.bc` and the headers are plain files in the package
+  directory, so nothing about this boundary applies to them.
+- **The wheel states no torch requirement**, because `pyproject.toml` declares no dependencies at
+  all — a deliberate earlier decision so installing flagcx cannot drag a torch in beside the vendor's
+  own. The consequence is that a mismatch is refused at load rather than at install, in symbol names.
+  Moving that gate into the metadata is a FlagCX-side change and would reopen the no-dependency
+  decision; it is not made here.
 
 **The bitcode switch is `bitcode_arch`.** Where a row states it, the wheel build also compiles the
 `.so` with `COMPILE_KERNEL=1`, because the two are one decision: the device net-construction kernels

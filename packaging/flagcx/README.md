@@ -116,14 +116,50 @@ the ones they are.
 The install contract is the exact pin (`pip install 'flagcx==<version>+<label>'`); a range is
 satisfied by every vendor's build of the same commit, so nothing else can tell them apart.
 
-Both rows are built and verified locally; the acceptance test is the wheel installed into a
-container of the row's runtime image, run on h20 against `21f8b5f` — and neither is published to
-an index yet:
+`import flagcx` also binds to the torch the wheel was built against — the extension leaves
+`c10d::Work`'s virtuals to the loader, and one of them first exists in torch 2.9.0, so an older
+torch fails at the import with an undefined symbol rather than at install. `WHEEL-DESIGN.md` has the
+measurement. A consumer that wants only the bitcode can locate the package with
+`importlib.util.find_spec` and never import it, which is the intended route.
 
-| Row | Pin | Acceptance |
+### State
+
+Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty rows carry it —
+so the two columns here are what has actually run, and they answer different questions. **Built +
+verified** is the wheel installed from the file alone into a container of the row's runtime image,
+on the row's own node, by the CI verify job unless the entry says otherwise. **Published** is the
+pin the vendor index serves, which is the only column a user's `pip install` can see.
+
+| Row | Built + verified | Published |
 |---|---|---|
-| `nvidia-cuda13.3` | `0.14.0rc2.post2.dev1+cuda13.3.20260920.g21f8b5f` | installs and imports; `sm_120`, 2,021,740 B of bitcode |
-| `nvidia-cuda12.8` | `0.14.0rc2.post2.dev1+cuda12.8.20260920.g21f8b5f` | installs and imports; `sm_90`, 274,820 B |
+| `ascend-cann8.5.0` | 2026-09-22 | — |
+| `ascend-cann8.5.0-910c` | 2026-09-22 | — |
+| `ascend-cann9.0.0` | 2026-09-22 | — |
+| `ascend-cann9.0.0-910c` | 2026-09-22 | — |
+| `cambricon-neuware4.4.3` | 2026-09-22 | — |
+| `cambricon-neuware4.7.2` | 2026-09-22 | — |
+| `enflame-tops1.9.10` | 2026-09-21 | — |
+| `enflame-tops1.10.6` | 2026-09-21 | — |
+| `hygon-dtk26.04` | 2026-09-21 | — |
+| `iluvatar-corex4.4.0` | 2026-09-22 | — |
+| `iluvatar-corex4.5.0` | 2026-09-22 | — |
+| `kunlunxin-xre5.37.1` | 2026-09-21, on the node | — |
+| `metax-maca3.7.2.1` | 2026-09-21 | `0.14.0rc2.post2.dev4+maca3.7.2.1.20260914.g08ab373` |
+| `metax-maca3.8.1.3` | 2026-09-21 | `0.14.0rc2.post2.dev4+maca3.8.1.3.20260914.g08ab373` |
+| `mthreads-musa4.3.6` | 2026-09-21 | — |
+| `mthreads-musa5.2.0` | 2026-09-21 | — |
+| `nvidia-cuda12.8` | 2026-09-21 | `0.14.0rc2.post2+cuda12.8` |
+| `nvidia-cuda13.3` | 2026-09-21 | `0.14.0rc2.post2+cuda13.3` |
+| `sunrise-tangrt1.2.0` | 2026-09-21 | — |
+| `tsingmicro-tsm260610` | 2026-09-21 | — |
+
+A published pin with a `.dev` tail is a build off a commit and one without it is a build off a tag.
+Publishing the other sixteen rows is a decision rather than a step — no consumer reads those indexes
+yet — so the column is left as it stands rather than filled in to make the table look finished.
+
+`kunlunxin-xre5.37.1` is the one row whose verification has not run in CI: it passed on the node
+while the wheel channel was being enabled for it (#1000), and the row has not been dispatched to
+`flagcx-wheel.yml` since. The claim is the same test on the same node; only the runner differs.
 
 ## Adding a backend
 
