@@ -16,13 +16,10 @@
 # image on top of it. Self-contained: `docker build -f iluvatar .` needs no
 # build-infra script or file.
 #
-# Why a 22.04 rebuild: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6, cp312)
-# is built on 24.04 -- its libtriton.so imports GLIBC_2.38 + GLIBCXX_3.4.32 +
-# __isoc23_*, so a 22.04 client aborts before main() ("version not found").
-#
-# The 3.6 line compiles iluvatarTritonPlugin.so from source into the wheel (the
-# prebuilt plugin is gone), so a plain 22.04 rebuild is enough -- no symbol
-# patching. An objdump gate below fails the build if that changes.
+# Why 22.04: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6, cp312) is built
+# on 24.04 -- its libtriton.so imports GLIBC_2.38 + GLIBCXX_3.4.32 + __isoc23_*,
+# so a 22.04 client aborts before main(). The 3.6 line compiles the plugin into
+# the wheel, so a plain rebuild is enough; the gate below enforces it.
 #
 # Stage `builder` is the publishable artifact; the default target is the
 # flagtree image, which takes the venv + wheel from it.
@@ -39,18 +36,18 @@ FROM ubuntu:22.04 AS builder
 # Proxy is only consumed during build (predefined ARG, not persisted).
 ARG http_proxy=
 ARG https_proxy=
-# FlagTree ref to build; the iluvatar 3.6 backend lives on this branch. It is a
-# moving branch -- pin a sha via --build-arg when a byte-exact rebuild is needed.
+# FlagTree ref to build; the iluvatar 3.6 backend lives on this branch. A moving
+# branch -- pin a sha via --build-arg for a byte-exact rebuild.
 ARG FLAGTREE_VERSION=0.7.0-rc2-triton3.6
-# Wheel version, kept in the vendor's spelling so it is a drop-in replacement
-# for the wheel configs.yaml pins. setup.py appends a dirty "+git<sha>" unless
-# it holds the vendor key we lack, so .git is removed before `pip wheel`.
+# Wheel version in the vendor's spelling, so it is a drop-in for the configs.yaml
+# pin. FlagTree's setup.py appends a dirty "+git<sha>" unless there is no .git,
+# so .git is removed before `pip wheel`.
 ARG FLAGTREE_WHEEL_VERSION=0.7.0rc2+iluvatar3.6
-# FlagPrism is a source dependency of the iluvatar backend (on by default).
-# FlagTree's resolver clones it unpinned; pin a commit so rebuilds are stable.
+# FlagPrism is a source dependency the backend resolves unpinned; pin a commit
+# so rebuilds are stable.
 ARG FLAGPRISM_COMMIT=7a0838c7897f5e9bb440dbd2d59ace6dd86210c4
-# Prebuilt deps staged into FlagTree's offline cache: iluvatar-llvm22 (also
-# provides the LLD the plugin links against) and the triton origin toolkits.
+# Prebuilt deps staged into FlagTree's offline cache: iluvatar-llvm22 (also the
+# LLD the plugin links against) and the triton origin toolkits.
 ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
 ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
 ARG LLVM_TARBALL=iluvatar-llvm22-x86_64_v0.6.1.tar.gz
@@ -58,9 +55,8 @@ ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 # Python 3.12 via uv -- the runtime image's shape, so the cp tag matches.
 ARG PYTHON_VERSION=3.12
 ARG UV_VERSION=0.11.30
-# libtriton and the plugin it ships share pybind11 type registries only when
-# their internals versions match; both are built here, so this is for
-# reproducibility (the vendor's 3.6 wheel carries interns v12).
+# libtriton and the plugin it links share pybind11 type registries only when
+# their internals versions match; the vendor wheel is v12.
 ARG PYBIND11_SPEC=>=3.1,<3.2
 ARG MAX_JOBS=32
 ENV DEBIAN_FRONTEND=noninteractive
@@ -112,10 +108,9 @@ RUN mkdir -p /root/.flagtree/iluvatar /root/.triton \
     && test -d /root/.flagtree/iluvatar/iluvatar-llvm22-x86_64 \
     && test -f /root/.triton/json/include/nlohmann/json.hpp
 
-# Build the wheel. TRITON_OFFLINE_BUILD=1 makes it consume the cache above
-# instead of fetching; Proton off / FlagPrism on is the iluvatar default and
-# the Gluon build is off per the vendor's own CI. HTTP/1.1 + retries because
-# this network is flaky.
+# Build the wheel. TRITON_OFFLINE_BUILD=1 consumes the cache above instead of
+# fetching; Proton/Gluon off and FlagPrism on follow the vendor's own CI.
+# HTTP/1.1 + retries because this network is flaky.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -145,18 +140,12 @@ RUN git config --global http.version HTTP/1.1 \
        done \
     && ls -la /wheels/*.whl
 
-# Gate: fail the build on a symbol a 22.04 client cannot satisfy, on a dirty
-# version (the .git removal did not take), on a wrong cp tag, or on a wheel
-# that lost the plugin it is supposed to carry.
+# Gate: fail on a symbol a 22.04 client cannot satisfy, a dirty wheel version, a
+# wrong cp tag, or a libtriton.so that lost the plugin -- this branch links the
+# plugin in as an object, so the symbol proves it, not a separate .so file.
 #
-# Written to a file with printf and then run, NOT as `python - <<'PY'`: on
-# Docker's legacy builder (the CoreX nodes run it) a heredoc is never handed to
-# python's stdin, so the gate runs with an empty program and exits 0 -- a
-# silent no-op. Same reason the ascend pair COPYs verify_ascend_wheel.py.
-#
-# This branch links the plugin into libtriton.so (add_triton_plugin builds it
-# as an object; third_party/iluvatar/CMakeLists.txt), so there is no separate
-# iluvatarTritonPlugin.so to assert -- the symbol is what proves it is in.
+# Written to a file with printf, NOT as `python - <<'PY'`: on Docker's legacy
+# builder (what the CoreX nodes run) a heredoc never reaches python's stdin.
 RUN printf '%s\n' \
       'import glob, os, re, subprocess, sys, tempfile, zipfile' \
       '' \
@@ -216,16 +205,14 @@ RUN pip install --no-cache-dir /wheels/*.whl \
 # ════════════════════════════════════════════════════════════════
 #  Stage 2 — flagtree image
 # ════════════════════════════════════════════════════════════════
-# Same base OS as the builder, so the wheel this image ships is the one the
-# builder produced. CoreX 4.5.0 on top, as base/iluvatar-corex4.5.0 does it.
-# No flag_gems: this is the flagtree build platform (runtime:v1's shape), the
-# place a source build or a triton test runs -- not a runtime image.
+# Same base OS as the builder, so the wheel shipped here is the one the builder
+# produced. CoreX 4.5.0 on top, as base/iluvatar-corex4.5.0 does it. No
+# flag_gems: this is the flagtree build platform, not a runtime image.
 FROM ubuntu:22.04 AS flagtree
 
 # ── CoreX 4.5.0 ────────────────────────────────────────────────
 # The four SDK artifacts and their install steps mirror
-# base/iluvatar-corex4.5.0; the only difference is the OpenMPI package
-# name (22.04 has no t64 transition).
+# base/iluvatar-corex4.5.0; the only difference is the OpenMPI package name.
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ARG SDK_INSTALLER=corex-installer-linux64-4.5.0.20260804_x86_64_10.2.run
 ARG DRIVER_INSTALLER=corex-driver-linux64-4.5.0.20260804_x86_64.run
@@ -233,15 +220,14 @@ ARG CUDA_HEADER=cuda-header-260604.zip
 ARG CMAKE_PKG=cmake-3.31.8+corex.4.5.0.20260804-linux-x86_64.sh
 ARG DEBIAN_FRONTEND=noninteractive
 
-# corex ships libnvshmem_host.so (NEEDs libmpi.so.40) but no OpenMPI, and
-# torch 2.10.0+corex links torch_nvshmem, so torch import needs libmpi.so.40.
+# corex ships libnvshmem_host.so (NEEDs libmpi.so.40) but no OpenMPI, and torch
+# links torch_nvshmem, so torch import needs libmpi.so.40.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl unzip git vim ca-certificates \
         build-essential gcc g++ libopenmpi3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Header, toolkit, driver userspace, corex cmake — one block per artifact so a
-# failed download leaves a legible layer.
+# One block per SDK artifact, so a failed download leaves a legible layer.
 RUN curl -o /cuda-header.zip ${FILE_STORE}/iluvatar/${CUDA_HEADER} \
     && unzip /cuda-header.zip -d /tmp \
     && bash /tmp/partial_install_cuda_header/install-cuda-header.sh \
@@ -263,8 +249,7 @@ RUN curl -o /corex-driver.run ${FILE_STORE}/iluvatar/${DRIVER_INSTALLER} \
     && rm -rf /tmp/drv /corex-driver.run
 
 # The corex cmake installer ignores --target and unpacks relative to /: modules
-# into /share, binaries into a real /bin it creates by deleting the
-# /bin -> usr/bin symlink. The binary looks for its modules in
+# into /share, binaries into a real /bin. The binary looks for them in
 # /usr/share/cmake-3.31, so it dies with "Could not find CMAKE_ROOT !!!".
 RUN curl -o cmake.sh ${FILE_STORE}/iluvatar/${CMAKE_PKG} \
     && bash cmake.sh --skip-license --target /opt/cmake-corex \
@@ -287,13 +272,9 @@ ENV VIRTUAL_ENV=/flagos \
     UV_PYTHON_INSTALL_MIRROR=${FILE_STORE}/uv-python
 
 # torch first, then flagtree: the wheel owns the triton package directory, so
-# any vendor triton has to go before it (the wiki orders it the same way).
-# Two indexes, vendor LAST: torch's own deps (sympy, jinja2, filelock) are not
-# on the vendor index, and on a tie the later index wins -- so the vendor's
-# +corex build is what gets picked, not a same-version upstream torch.
-# No flag_gems: this image is the flagtree build platform (the shape of
-# runtime:v1, NO_FLAGGEMS), not a runtime image -- flag_gems depends on
-# triton, and installing it here would obscure whether triton works.
+# any vendor triton goes before it. Two indexes, vendor LAST -- torch's deps are
+# not on the vendor index, and on a tie the later index wins, so +corex is what
+# gets picked over a same-version upstream torch.
 ARG VENDOR_PYPI=https://resource.flagos.net/repository/flagos-pypi-iluvatar/simple
 RUN pip uninstall -y triton || true \
     && for i in 1 2 3; do \
@@ -312,11 +293,8 @@ RUN pip uninstall -y triton || true \
     && pip install --no-cache-dir --force-reinstall --no-deps /wheels/*.whl
 
 # Verify the image the way a user meets it: torch and triton import, and the
-# compiled extension loads against corex's libcudart. Nothing here needs a card
-# -- a build box has none, so ixsmi is checked for presence and resolvable
-# libraries, not for output. `ixsmi` on a device-less box exits 255, so
-# asserting its output would fail every build; the device check is the
-# hardware smoke test.
+# compiled extension loads. A build box has no card, so ixsmi is checked for
+# presence and resolvable libraries, not output -- it exits 255 without a device.
 RUN python -c "import torch; print('torch', torch.__version__)" \
     && python -c "import triton; from triton.backends import backends; \
          print('triton', triton.__version__); print('backends', list(backends.keys()))" \
