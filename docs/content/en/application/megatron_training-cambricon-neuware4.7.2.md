@@ -28,7 +28,7 @@ title: "megatron_training-cambricon-neuware4.7.2"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.2.0</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -40,12 +40,12 @@ title: "megatron_training-cambricon-neuware4.7.2"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.7.2:2.1.2-0.2.1_15.g56acf36ba`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.7.2:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.7.2:2.1.2-0.2.1_15.g56acf36ba
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-cambricon-neuware4.7.2:2.2.0-0.2.3
 ```
 
 ### Without a toolkit — plain docker / podman
