@@ -24,13 +24,17 @@ The `nvidia-cuda` / `metax` / `sunrise` builders start from a plain Ubuntu 22.04
 the backend's prebuilt deps into FlagTree's offline cache. The
 `ascend-cann9.0.0` / `ascend-cann8.5.0` pair instead builds **inside the
 backend's runtime image**, because FlagTree's Ascend build needs CANN on the
-build machine — see the section below.
+build machine — see the section below. `iluvatar` is the odd one out: its
+builder stage is a plain 22.04 like the first group, but the file carries a
+**second stage** that installs CoreX on top and produces a flagtree image — see
+below.
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA| Ubuntu 22.04 (glibc 2.35)   |
 | `metax`      | FlagTree for MetaX (MACA) | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU) | Ubuntu 22.04 + clang/lld 14 |
+| `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + image | Ubuntu 22.04 (glibc 2.35) + CoreX 4.5.0 |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
 
@@ -55,6 +59,60 @@ imports fine but fails on real MetaX hardware at kernel-compile time with
 CI smoke test (`import triton`) runs on a GPU-less box and cannot catch this, so
 the gate additionally **asserts libtriton's pybind11 internals are v11**
 (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
+
+## Iluvatar builder (`iluvatar`)
+
+Same reason as `metax`: the vendor's own wheel is built on Ubuntu 24.04. Measured
+on `flagos-pypi-hosted`'s `flagtree==0.7.0rc2+iluvatar3.6` (cp312):
+
+| Object | max GLIBC | max GLIBCXX | `__isoc23_*` |
+|---|---|---|---|
+| `triton/_C/libtriton.so` | **2.38** | **3.4.32** | 1 |
+| `triton/_C/iluvatarTritonPlugin.so` | 2.29 | 3.4.26 | 0 |
+
+22.04 is glibc 2.35 / gcc 11.4 (GLIBCXX 3.4.30), so a 22.04 client aborts before
+`main()`. Rebuilt here from the `0.7.0-rc2-triton3.6` branch, `libtriton.so` comes
+out at **GLIBC 2.34 / GLIBCXX 3.4.30 / no `__isoc23_`**, which is what the gate
+asserts. pybind11 is pinned to the vendor's internals **v12**
+(`PYBIND11_SPEC=>=3.1,<3.2`), for the ABI reason described under `metax`.
+
+**Two stages, one file.** `--target builder` is the publishable artifact, pushed
+by `flagtree-builder.yml` to
+`harbor.baai.ac.cn/flagos-dev/flagtree-builder-iluvatar-corex4.5.0:{version}`;
+the default target is a flagtree image that takes that stage's venv and wheel.
+The file is self-contained — `docker build -f iluvatar .` needs no script or
+sibling file from this repo, which is what lets the published builder be the
+whole recipe for reproducing the wheel. `iluvatar` is deliberately **not** a
+`flagtree-wheel.yml` target: the wheel keeps the vendor's version string, so a
+second workflow able to upload it would be a second uploader of one version.
+
+**The plugin is linked in, not shipped.** The 3.6 branch builds
+`triton_iluvatar.cc` as an object and links it into `libtriton.so`
+(`add_triton_plugin` in `third_party/iluvatar/CMakeLists.txt`), so there is no
+separate `iluvatarTritonPlugin.so` as the vendor wheel has. The gate therefore
+asserts the plugin's symbol (`translateLLVMIRToILUVATAR`) is *in* `libtriton.so`
+rather than asserting a second file. LLVM, the triton toolkits and a pinned
+`FlagPrism` clone are staged into FlagTree's offline cache first, as the other
+plain-22.04 builders do.
+
+**The gate is a file, not a heredoc.** It was written `RUN python - <<'PY'`,
+which on Docker's **legacy builder** — what the CoreX nodes run — never reaches
+python's stdin: the step runs an empty program and exits 0. It printed nothing,
+and a wheel missing an assertion target built "successfully". It now writes
+itself to `/tmp/gate.py` with `printf` and runs that, which behaves the same on
+both builders. Anything meant to fail a build has to be exercised on the builder
+the job actually runs on.
+
+**No `flag_gems`.** The image is the flagtree build platform — the shape of
+`runtime:v1` (`NO_FLAGGEMS`), where a source build or a triton test runs — not a
+runtime image. `flag_gems` depends on triton, so shipping it would also hide
+whether the triton in the image works.
+
+**CoreX's cmake installer ignores `--target`**, unpacking modules into `/share`
+while the binary looks in `/usr/share`, which leaves `cmake` unusable
+(`Could not find CMAKE_ROOT !!!`). The image stage moves them and asserts
+`cmake --version`. `base/iluvatar-corex4.5.0` carries the same defect, filed
+separately (#1011) since fixing it there means rebuilding the iluvatar images.
 
 ## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
 
