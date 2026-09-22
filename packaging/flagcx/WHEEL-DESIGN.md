@@ -276,7 +276,7 @@ make.
   where the comment carries the same reasoning: `device_api/` is not globbed by the Makefile, and
   `-shared` without `--no-undefined` tolerates the unresolved `devApiBackend` until `dlopen`.
 
-## Version — open, because the two lines disagree today
+## Version — a tag names it, a branch has it typed
 
 The deb line pins to a **tag**: `debian/changelog.sh` derives the version from the clone's own tags
 and exits non-zero on anything it cannot map, so an unreproducible `.deb` is refused rather than
@@ -286,11 +286,19 @@ The megatron wheel line takes the other stance — `stamp_version.py` writes
 `<public>+fl.<commit-date>.g<sha>` into the checkout before building, exactly so a wheel answers
 "which code is this?" without a tag existing.
 
-Not decided. Whichever way it goes, the local label composes with the backend label from Mechanics,
-backend first (`0.13.0+cann9.0.0.20260814.g<sha>`): PEP 440 compares local segments left to
-right, so leading with the backend is what stops a range from crossing into another backend's
-variants. And note `stamp_version.py`'s recorded trap — `==` matching **ignores** the local label
-entirely, so `==0.13.0` resolves against every variant. The exact pin is load-bearing either way.
+**Resolved 2026-09-22: both stances, chosen by the ref.** `flagcx-wheel.yml` takes the ref per
+dispatch, and setuptools_scm turns it into the version — so a release tag produces
+`<the tag's version>+<row label>` (which is why the label is what tells twenty vendor wheels of one
+commit apart), and a branch produces a `.dev<distance>` build. The version is then never typed for a
+tag build: set-matrix derives each row's pin from the tag and that row's label, so one dispatch can
+publish twenty rows. Publishing a branch build still needs `wheel_version`, because the distance is
+something only the build knows.
+
+The local label composes with the backend label from Mechanics, backend first
+(`0.13.0+cann9.0.0.20260814.g<sha>`): PEP 440 compares local segments left to right, so leading with
+the backend is what stops a range from crossing into another backend's variants. And note
+`stamp_version.py`'s recorded trap — `==` matching **ignores** the local label entirely, so
+`==0.13.0` resolves against every variant. The exact pin is load-bearing either way.
 
 ## Not started
 

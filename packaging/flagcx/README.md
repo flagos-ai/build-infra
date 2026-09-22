@@ -116,6 +116,11 @@ the ones they are.
 The install contract is the exact pin (`pip install 'flagcx==<version>+<label>'`); a range is
 satisfied by every vendor's build of the same commit, so nothing else can tell them apart.
 
+The ref a build is made from is stated per dispatch, and it is what decides that version: a release
+tag makes the wheel `<the tag's version>+<row label>`, and a branch makes it a `.dev<distance>` build
+whose version only the build knows. `publish=true` therefore takes a tag as it stands and needs
+`wheel_version` typed for anything else.
+
 `import flagcx` also binds to the torch the wheel was built against — the extension leaves
 `c10d::Work`'s virtuals to the loader, and one of them first exists in torch 2.9.0, so an older
 torch fails at the import with an undefined symbol rather than at install. `WHEEL-DESIGN.md` has the

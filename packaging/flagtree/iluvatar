@@ -1,0 +1,185 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build a FlagTree iluvatar (CoreX) wheel on Ubuntu 22.04, plus the flagtree
+# image on top of it. Self-contained: `docker build -f iluvatar .` needs no
+# build-infra script or file.
+#
+# Why a 22.04 rebuild: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6, cp312)
+# is built on 24.04 -- its libtriton.so imports GLIBC_2.38 + GLIBCXX_3.4.32 +
+# __isoc23_*, so a 22.04 client aborts before main() ("version not found").
+#
+# The 3.6 line compiles iluvatarTritonPlugin.so from source into the wheel (the
+# prebuilt plugin is gone), so a plain 22.04 rebuild is enough -- no symbol
+# patching. An objdump gate below fails the build if that changes.
+#
+# Stage `builder` is the publishable artifact; the default target is the
+# flagtree image, which takes the venv + wheel from it.
+#
+#   docker build -t flagtree-iluvatar:0.7.0rc2 -f iluvatar .
+#   docker build --target builder -t flagtree-builder-iluvatar:0.7.0rc2 -f iluvatar .
+#   id=$(docker create flagtree-iluvatar:0.7.0rc2); docker cp $id:/wheels ./wheels
+
+# ════════════════════════════════════════════════════════════════
+#  Stage 1 — builder
+# ════════════════════════════════════════════════════════════════
+FROM ubuntu:22.04 AS builder
+
+# Proxy is only consumed during build (predefined ARG, not persisted).
+ARG http_proxy=
+ARG https_proxy=
+# FlagTree ref to build; the iluvatar 3.6 backend lives on this branch. It is a
+# moving branch -- pin a sha via --build-arg when a byte-exact rebuild is needed.
+ARG FLAGTREE_VERSION=0.7.0-rc2-triton3.6
+# Wheel version, kept in the vendor's spelling so it is a drop-in replacement
+# for the wheel configs.yaml pins. setup.py appends a dirty "+git<sha>" unless
+# it holds the vendor key we lack, so .git is removed before `pip wheel`.
+ARG FLAGTREE_WHEEL_VERSION=0.7.0rc2+iluvatar3.6
+# FlagPrism is a source dependency of the iluvatar backend (on by default).
+# FlagTree's resolver clones it unpinned; pin a commit so rebuilds are stable.
+ARG FLAGPRISM_COMMIT=7a0838c7897f5e9bb440dbd2d59ace6dd86210c4
+# Prebuilt deps staged into FlagTree's offline cache: iluvatar-llvm22 (also
+# provides the LLD the plugin links against) and the triton origin toolkits.
+ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
+ARG LLVM_TARBALL=iluvatar-llvm22-x86_64_v0.6.1.tar.gz
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
+# Python 3.12 via uv -- the runtime image's shape, so the cp tag matches.
+ARG PYTHON_VERSION=3.12
+ARG UV_VERSION=0.11.30
+# libtriton and the plugin it ships share pybind11 type registries only when
+# their internals versions match; both are built here, so this is for
+# reproducibility (the vendor's 3.6 wheel carries interns v12).
+ARG PYBIND11_SPEC=>=3.1,<3.2
+ARG MAX_JOBS=32
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System build deps for the LLVM/Triton native build. CoreX's cmake belongs to
+# the image stage; here FlagTree pins its own cmake>=3.20,<4.0.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates git wget curl binutils \
+        build-essential cmake ninja-build \
+        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
+        libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+        libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# uv and CPython come from the internal filestore (the international link is
+# the flaky part on CN runners), the package index from the CN mirror.
+RUN curl -LsSf "${FILESTORE}/utils/uv-$(uname -m)-${UV_VERSION}-linux-gnu.tar.gz" \
+        | tar xz -C /usr/local/bin --strip-components=1
+ENV UV_PYTHON_INSTALL_MIRROR=${FILESTORE}/uv-python \
+    UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple \
+    UV_HTTP_TIMEOUT=120
+RUN uv python install "${PYTHON_VERSION}" --python-preference only-managed -q \
+    && uv venv /flagos --python "${PYTHON_VERSION}" --relocatable --seed
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN pip install --no-cache-dir --upgrade pip
+# Raise pip's resume ceiling (>=25.1): the vendor link drops mid-stream on CN
+# runners and the LLVM/wheel downloads are large.
+ENV PIP_RESUME_RETRIES=100
+
+# Pre-stage the offline cache so the build wires the prebuilt deps itself:
+# iluvatar-llvm22 -> LLVM_SYSPATH (backend post_hook), toolkits -> ~/.triton.
+# --strip-components=1 matches FlagTree's own unpack_triton_build_deps.sh.
+RUN mkdir -p /root/.flagtree/iluvatar /root/.triton \
+    && cd /tmp \
+    && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+         for i in 1 2 3 4 5; do \
+           wget -q --tries=3 --timeout=60 "${DEPS_BASE}/${f}" -O "${f}" && break; \
+           echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
+         done; \
+       done \
+    && tar -xzf "${LLVM_TARBALL}" -C /root/.flagtree/iluvatar \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
+    && rm -f /tmp/*.tar.gz \
+    && test -d /root/.flagtree/iluvatar/iluvatar-llvm22-x86_64 \
+    && test -f /root/.triton/json/include/nlohmann/json.hpp
+
+# Build the wheel. TRITON_OFFLINE_BUILD=1 makes it consume the cache above
+# instead of fetching; Proton off / FlagPrism on is the iluvatar default and
+# the Gluon build is off per the vendor's own CI. HTTP/1.1 + retries because
+# this network is flaky.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
+           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
+         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/flagtree; sleep 5; \
+       done \
+    && test -d /opt/flagtree/.git \
+    && cd /opt/flagtree \
+    && python -m pip install --no-cache-dir -r python/requirements.txt \
+    && python -m pip install --no-cache-dir "pybind11${PYBIND11_SPEC}" \
+    && for i in 1 2 3 4 5; do \
+         git clone https://github.com/flagos-ai/FlagPrism third_party/FlagPrism \
+           && git -C third_party/FlagPrism checkout "${FLAGPRISM_COMMIT}" && break; \
+         echo ">>> FlagPrism clone attempt $i failed, retrying in 5s..."; \
+         rm -rf third_party/FlagPrism; sleep 5; \
+       done \
+    && test -f third_party/FlagPrism/python/flagprism_build.py \
+    && export FLAGTREE_BACKEND=iluvatar \
+    && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export TRITON_OFFLINE_BUILD=1 TRITON_BUILD_PROTON=OFF TRITON_ILU_BUILD_GLUON=OFF \
+    && export MAX_JOBS="${MAX_JOBS}" \
+    && rm -rf /opt/flagtree/.git \
+    && for i in 1 2 3 4 5; do \
+         python -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# Gate: fail the build on a symbol a 22.04 client cannot satisfy, on a dirty
+# version (the .git removal did not take), on a wrong cp tag, or on a wheel
+# that does not ship both .so files.
+RUN python - <<'PY'
+import glob, os, re, subprocess, sys, tempfile, zipfile
+
+whl = glob.glob("/wheels/*.whl")[0]
+ver = os.path.basename(whl).split("-")[1]
+if "git" in ver:
+    print(f"FAIL: dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
+    sys.exit(1)
+if "cp312" not in os.path.basename(whl):
+    print(f"FAIL: unexpected wheel tag in '{os.path.basename(whl)}' (expected cp312)")
+    sys.exit(1)
+print(f"OK: wheel {os.path.basename(whl)} version '{ver}'")
+
+d = tempfile.mkdtemp()
+zipfile.ZipFile(whl).extractall(d)
+forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]
+sos = sorted(glob.glob(d + "/**/libtriton.so", recursive=True)
+             + glob.glob(d + "/**/iluvatarTritonPlugin.so", recursive=True))
+if len(sos) != 2:
+    print(f"FAIL: expected libtriton.so + iluvatarTritonPlugin.so, found {sos}")
+    sys.exit(1)
+for so in sos:
+    syms = subprocess.check_output(["objdump", "-T", so], text=True)
+    hits = {f: syms.count(f) for f in forbidden if f in syms}
+    if hits:
+        print(f"FAIL: 22.04-incompatible symbols in {os.path.basename(so)}: {hits}")
+        sys.exit(1)
+    maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)), key=lambda v: [int(x) for x in v[6:].split(".")])
+    print(f"OK: {os.path.basename(so)} is 22.04-clean (max {maxglibc}, no forbidden symbols)")
+PY
+
+# Smoke test: install the wheel and import it. PYTHONPATH is dropped so nothing
+# outside this venv can satisfy the import.
+RUN pip install --no-cache-dir /wheels/*.whl \
+    && env -u PYTHONPATH python -c "import triton; from triton.backends import backends; \
+         print('OK triton', triton.__version__, triton.__file__); \
+         print('OK backends', list(backends.keys()))" \
+    && env -u PYTHONPATH python -c "import flagtree; print('OK flagtree', flagtree.__file__)"
