@@ -55,6 +55,48 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
     && dpkg -i --instdir /usr/local /xcudart.deb \
     && rm /xcudart.deb
 
+# ── Reconcile the sonames both deliveries ship ─────────────────
+# XRE and xcudart each ship libxpuml, libxpucuda, libxpunvidia-ml, libcudart and
+# libxpurt, under identical names from builds of different generations, and both
+# are installed — so a process ends up holding two generations of one name.
+# Which one it holds depends on how the library is reached: torch_plugin dlopens
+# libxpuml.so.1 by absolute path out of the libcuda.so.1 directory, which is
+# xcudart's, while the loader's default search and FlagCX's link line take XRE's.
+# No name in either delivery can settle which is which: both stamp the same
+# version string, the soname's own number is frozen across generations, and the
+# version that actually differs lives in an uninstalled header.
+#
+# XRE's copies are therefore the ones kept, and the test is content, not a
+# version: XRE's libxpuml is a strict superset of every other copy in this image
+# (8 of them, in 7 directories, six of them distinct builds), symbol for symbol,
+# and the same holds for the other four. After this step no soname is shipped
+# twice with different content inside the base image. The runtime layer lays
+# down its own package-private copies (torch_xmlir, the triton backends), and
+# none of them is on the loader's path.
+#
+# Only names XRE also ships are touched. libcuda.so.1 — the libxpucuda alias —
+# and libcupti.so.12.9 exist only in xcudart, and torch_plugin's _C.so lists the
+# alias in its NEEDED.
+RUN set -eux; \
+    for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
+        for src in "$dir"/*.kunlun; do \
+            [ -e "$src" ] || continue; \
+            name="$(basename "$src")"; \
+            dst="/usr/local/xcudart/lib/$name"; \
+            [ -e "$dst" ] || continue; \
+            install -m 755 "$src" "$dst"; \
+            echo "reconciled $name from $dir"; \
+        done; \
+    done; \
+    for dst in /usr/local/xcudart/lib/*.kunlun; do \
+        name="$(basename "$dst")"; \
+        for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
+            [ -e "$dir/$name" ] || continue; \
+            cmp "$dst" "$dir/$name" \
+                || { echo "assert: $name differs between /usr/local/xcudart/lib and $dir" >&2; exit 1; }; \
+        done; \
+    done
+
 # ── Install MPI ────────────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mpi.tgz ${FILE_STORE}/kunlunxin/${MPI_PACKAGE} \
     && tar -xvf /mpi.tgz -C /usr/local \
