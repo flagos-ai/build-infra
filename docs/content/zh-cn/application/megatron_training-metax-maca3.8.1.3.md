@@ -29,7 +29,7 @@ title: "megatron_training-metax-maca3.8.1.3"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:TBD</code> <a href="../../runtime/metax-maca3.8.1.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0</code> <a href="../../runtime/metax-maca3.8.1.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,14 +41,12 @@ title: "megatron_training-metax-maca3.8.1.3"
 
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。`TBD` 为构建管线在本后端构建该镜像时确定的 tag。**
-
-`harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-metax-maca3.8.1.3:TBD-0.2.1`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-metax-maca3.8.1.3:2.2.0-0.2.3`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-metax-maca3.8.1.3:TBD-0.2.1
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-metax-maca3.8.1.3:2.2.0-0.2.3
 ```
 
 以下两种方式任选其一：
