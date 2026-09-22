@@ -24,9 +24,9 @@
 # Qwen3-0.6B serve answers 3× chat/completions with HTTP 200, a real
 # completion (completion_tokens>0) and sampling_backend=pytorch from
 # /server_info (0.5.18 chat bodies never carry that field — see the Step 7
-# comment; playbook §5.5). The runtime switches are exported BEFORE the
-# install; the flag_gems SQL ConfigCache is cleared before serve so the F and
-# T compiler paths never cross-pollinate (playbook §5.4).
+# comment; playbook §5.4). The runtime switches are exported BEFORE the
+# install; the flag_gems SQL ConfigCache is cleared before serve so the
+# kernels tune under the active compiler.
 #
 # The plugin is NOT on any index yet: verify builds it in-container from the
 # sglang-plugin-FL repo (exp/0.5.18 branch) — git clone + `pip wheel` — then
@@ -263,7 +263,7 @@ WORK_DIR="/tmp/sglang-verify-${VENDOR}-${BACKEND}-$$"
 # inertness — the app Containerfile build-step replay).
 WATCH_PKGS="torch triton flag_gems numpy"
 
-# Runtime switches from playbook §5.2/§5.5: skip flashinfer (not present on
+# Runtime switches from playbook §5.2/§5.4: skip flashinfer (not present on
 # vendor runtimes), inline inductor compile (the flagtree fork-crash
 # workaround; inert for triton), and skip the sgl_kernel shim version hard
 # check. Exported in every shell that installs or runs sglang — the runtime
@@ -719,12 +719,9 @@ except (KeyError, TypeError):
             export SGLANG_WARMUP_TIMEOUT=\"\${WARMUP_TIMEOUT}\"
         fi
 
-        # flag_gems SQL ConfigCache is shared across compilers: an F-path
-        # tuned BLOCK_SIZE_M=8 config is cache-hit by the T path and
-        # hard-crashes (PassManager::run failed, playbook §5.4). A fresh
-        # container from the image carries at most a bake-time default-compiler
-        # db — clear it so this run's kernels tune under the ACTIVE compiler,
-        # whatever it is.
+        # A fresh container may carry a bake-time default-compiler db — clear
+        # it so this run's kernels tune under the ACTIVE compiler, whatever
+        # it is.
         rm -f /root/.flaggems/config_cache/TunedConfig_*.db
 
         echo ''

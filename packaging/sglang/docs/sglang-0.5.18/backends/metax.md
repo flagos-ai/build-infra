@@ -106,14 +106,6 @@ build 容器启动之前（`build-and-repack.sh` "Pull + patch source" 段），
 | 4 | F 路径 inductor 并发 fork 崩溃 | `TORCHINDUCTOR_COMPILE_THREADS=1` |
 | 5 | CUDA-alias 无 nvcc 的 load_jit 链 | §4 三处 fallback 以构建期 patch 落进 wheel |
 
-**注意事项：flag_gems SQL ConfigCache 跨编译器污染**（仅 F/T 双路径验证场景
-需要处理；最终用户钉单一编译器不触发，无影响）。F/T 同 db 同表
-（`/root/.flaggems/config_cache/TunedConfig_metax_triton_3_6.db`）——F 路径
-tuning 写 `BLOCK_SIZE_M=8` config 后，T 路径 cache-hit 直接复用 → 硬崩
-`PassManager::run failed`。解法：F/T 切换前 `mv .../TunedConfig_*.db
-.../.F_backup`，让 T fresh tuning（副作用：T 首 token 慢）。根因链完整证据
-闭环见 [metax-0.5.12.md](metax-0.5.12.md)。
-
 ## 6. 遗留
 
 - 性能 0.5.18 < 0.5.12（~4 vs ~7-11 tok/s），未优化；sgl-kernel 基线 ~40
