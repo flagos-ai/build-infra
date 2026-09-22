@@ -62,9 +62,13 @@ on:
           - megatron_rl
         default: megatron_training
       megatron_version:
-        description: 'megatron-core version to install (e.g. 0.17.1)'
+        description: 'megatron-core version to install (e.g. 0.17.1). Names the image tag; the wheel to install is megatron_wheel_version.'
         type: string
         default: 0.17.1
+      megatron_wheel_version:
+        description: 'Exact megatron-core version to install, local part included (e.g. 0.17.1+fl.0.2.3). Blank = megatron_version, which resolves to whichever wheel the index holds.'
+        type: string
+        default: ''
       mlf_version:
         description: 'Megatron-LM-FL fork version (git describe from its release tag: 0.2.1, or 0.2.1_9.g48b97a13f)'
         type: string
@@ -184,6 +188,14 @@ jobs:
           if [[ "${{ inputs.app }}" == "megatron_rl" ]]; then
             containerfile="app/megatron/Containerfile.rl"
           fi
+          # The wheel the image installs is pinned to its exact version wherever
+          # the operator states one. `==0.17.1` is satisfied by every fork build
+          # of that upstream version, so it resolves to whichever local version
+          # the index happens to hold — a rebuild can then install a different
+          # wheel than the release names, silently, and the tag cannot show it.
+          wheel_version='${{ inputs.megatron_wheel_version }}'
+          [ -n "${wheel_version}" ] || wheel_version='${{ inputs.megatron_version }}'
+          echo "MEGATRON_WHEEL_VERSION=${wheel_version}" >> "$GITHUB_ENV"
           # --no-cache only on verify-only runs (push=false): the pip RUN layer
           # caches by command string, so a re-uploaded wheel under the same
           # ==0.17.1 spec is silently skipped — the verify must resolve the
@@ -205,7 +217,7 @@ jobs:
           docker build \
             ${no_cache_arg} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
-            --build-arg "MEGATRON_VERSION=${{ inputs.megatron_version }}" \
+            --build-arg "MEGATRON_VERSION=${MEGATRON_WHEEL_VERSION}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
             --build-arg "APP_ENV=${{ matrix.app_env }}" \
@@ -232,7 +244,7 @@ jobs:
           set -euo pipefail
           bash packaging/megatron/verify/verify-megatron-backend.sh \
             "${{ matrix.name }}" \
-            --megatron-version "${{ inputs.megatron_version }}" \
+            --megatron-version "${MEGATRON_WHEEL_VERSION}" \
             --app-image "${APP_TAG}"
 
       - name: Push megatron app image
