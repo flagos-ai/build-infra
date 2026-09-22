@@ -19,11 +19,16 @@ name: noarch rpm package
 # noarch-deb.yml, and deliberately the same shape: clone, build, verify,
 # publish, with publishing gated on verification.
 #
-# Only Fedora 43 for now. openEuler 24.03 has every other build dependency but
-# not pyproject-rpm-macros, and these specs call %pyproject_wheel /
-# %pyproject_install with no fallback, so they cannot build there until either
-# the distribution carries the macros or the spec grows a non-macro path.
-# Adding a suite here without adding it to the verify matrix is refused below.
+# Fedora 43 and openEuler 24.03. One build per distribution rather than one
+# shared build: an rpm carries the distribution in its Release field (.fc43,
+# .oe2403), so a package built for one does not belong in another's
+# repository even when its contents are arch-independent.
+#
+# openEuler lacks pyproject-rpm-macros, so a component can only be built there
+# if its spec detects them and falls back to a plain pip build. Components
+# whose spec does not are skipped for that suite with a notice, rather than
+# failing the run -- and publishing into a suite nothing was built for is a
+# hard error, so a skip can never quietly become a missing package.
 
 on:
   workflow_dispatch:
@@ -32,7 +37,7 @@ on:
         description: 'component to build'
         type: choice
         required: true
-        options: [FlagGems]
+        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this component is
@@ -56,7 +61,7 @@ on:
           repository name after "flagos-yum-", e.g. "fedora43" targets
           flagos-yum-fedora43.
         type: string
-        default: fedora43
+        default: fedora43 openeuler24.03
       verify:
         description: 'install the .rpm in a clean container before uploading'
         type: boolean
@@ -68,14 +73,27 @@ on:
 
 env:
   NEXUS_REPO_BASE: https://resource.flagos.net/repository
-  VERIFIED_SUITES: fedora43
+  VERIFIED_SUITES: fedora43 openeuler24.03
 
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      rpm_name: ${{ steps.build.outputs.rpm_name }}
       built_sha: ${{ steps.clone.outputs.sha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # One build per target distribution, not one shared build: the rpm
+        # carries the distribution in its Release field (.fc43, .oe2403), and
+        # a package tagged for one distribution does not belong in another's
+        # repository even when its contents are arch-independent.
+        include:
+          - suite: fedora43
+            base_image: fedora
+            base_version: "43"
+          - suite: openeuler24.03
+            base_image: openeuler/openeuler
+            base_version: 24.03-lts
     steps:
       - name: Resolve the component
         id: cfg
@@ -95,16 +113,31 @@ jobs:
           # the packaging definition.
           case "${COMPONENT}" in
             FlagGems)
-              script=packaging/rpm/build-flag-gems-rpm.sh
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-gems.spec
               ref=5.4.0-rc2
               ver=v5.4.0-rc2.post2 ;;
+            FlagAudio)
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
+              spec=packaging/rpm/specs/flag-audio.spec
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post1 ;;
+            FlagSparse)
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
+              spec=packaging/rpm/specs/flagsparse.spec
+              ref=v0.3.0-rc2.post1
+              ver=v0.3.0-rc2.post1 ;;
+            FlagAttention)
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
+              spec=packaging/rpm/specs/flag-attention.spec
+              ref=v0.4.0-rc2.post1
+              ver=v0.4.0-rc2.post1 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac
           {
             echo "repo_url=https://github.com/flagos-ai/${COMPONENT}.git"
-            echo "script=${script}"
+            echo "dockerfile=${dockerfile}"
             echo "spec=${spec}"
             echo "default_ref=${ref}"
             echo "default_version=${ver}"
@@ -152,8 +185,10 @@ jobs:
             echo "::warning::${REF} is a branch, not a tag - this build is not reproducible by ref name alone"
           fi
           echo "Built ${REF} = ${sha}"
-          test -f "${{ steps.cfg.outputs.script }}" \
-            || { echo "::error::ref '${REF}' has no RPM packaging definition"; exit 1; }
+          for f in "${{ steps.cfg.outputs.dockerfile }}" "${{ steps.cfg.outputs.spec }}"; do
+            test -f "$f" \
+              || { echo "::error::ref '${REF}' has no RPM packaging definition ($f is missing)"; exit 1; }
+          done
 
       - name: Stamp the release version
         working-directory: src
@@ -241,27 +276,62 @@ jobs:
           PY
           grep -E '^(Version|Release):' "${SPEC}"
 
-      - name: Build the .rpm
-        id: build
+      - name: Can this ref build for ${{ matrix.suite }}
+        id: capable
         working-directory: src
+        env:
+          SPEC: ${{ steps.cfg.outputs.spec }}
+          SUITE: ${{ matrix.suite }}
         run: |
           set -euo pipefail
-          bash "${{ steps.cfg.outputs.script }}" 43
+          # Fedora carries pyproject-rpm-macros, so every spec builds there.
+          # Elsewhere the spec has to detect them and fall back to a plain pip
+          # build; without that it fails at parse time, before anything is
+          # built. Skip rather than fail, so adding a component here does not
+          # have to wait for its upstream spec to grow the fallback.
+          if [ "${SUITE}" = "fedora43" ] || grep -q 'defined pyproject_wheel' "${SPEC}"; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${{ inputs.component }} at this ref has no non-macro build path; skipping ${SUITE}"
+          fi
+
+      - name: Build the .rpm for ${{ matrix.suite }}
+        id: build
+        if: ${{ steps.capable.outputs.build == 'true' }}
+        working-directory: src
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+          BASE_VERSION: ${{ matrix.base_version }}
+        run: |
+          set -euo pipefail
+          # The component's own build script hardcodes the Fedora base image,
+          # so drive its Dockerfile directly -- that file, not the script, is
+          # the packaging definition, and it already takes both arguments.
+          docker build --network=host \
+            -f "${{ steps.cfg.outputs.dockerfile }}" \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+            --build-arg BASE_IMAGE_VERSION="${BASE_VERSION}" \
+            -t "rpmbuild:${{ matrix.suite }}" .
+          mkdir -p out
+          cid=$(docker create "rpmbuild:${{ matrix.suite }}")
+          docker cp "${cid}:/output/." out/
+          docker rm "${cid}" > /dev/null
           # The build tree also emits the .src.rpm; only binary packages are
           # published, so pick those and fail if none appeared.
-          mapfile -t rpms < <(find rpm-packages -name '*.rpm' ! -name '*.src.rpm' | sort)
+          mapfile -t rpms < <(find out -name '*.rpm' ! -name '*.src.rpm' | sort)
           [ "${#rpms[@]}" -gt 0 ] || { echo "::error::the build produced no binary rpm"; exit 1; }
-          echo "rpm_name=$(basename "${rpms[0]}")" >> "$GITHUB_OUTPUT"
           for r in "${rpms[@]}"; do
             echo ">>> $(basename "$r")"
             rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$r" 2>/dev/null || true
           done
 
       - name: Upload the .rpm
+        if: ${{ steps.capable.outputs.build == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: ${{ inputs.component }}-rpm
-          path: src/rpm-packages/*.rpm
+          name: ${{ inputs.component }}-rpm-${{ matrix.suite }}
+          path: src/out/*.rpm
           retention-days: 7
 
   verify:
@@ -271,15 +341,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [fedora:43]
+        include:
+          - suite: fedora43
+            image: fedora:43
+          - suite: openeuler24.03
+            image: openeuler/openeuler:24.03-lts
     steps:
       - name: Download the .rpm
+        id: fetch
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ${{ inputs.component }}-rpm
+          name: ${{ inputs.component }}-rpm-${{ matrix.suite }}
           path: pkg
 
+      - name: Note a skipped suite
+        if: ${{ steps.fetch.outcome == 'failure' }}
+        run: echo "::notice::no artifact for ${{ matrix.suite }} - the build step skipped it"
+
       - name: Install it in a clean ${{ matrix.image }}
+        if: ${{ steps.fetch.outcome == 'success' }}
         run: |
           set -euo pipefail
           docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
@@ -322,29 +403,39 @@ jobs:
     if: ${{ inputs.publish }}
     runs-on: ubuntu-latest
     steps:
-      - name: Download the .rpm
+      - name: Download every built .rpm
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: ${{ inputs.component }}-rpm
+          pattern: ${{ inputs.component }}-rpm-*
           path: pkg
 
       - name: Publish to the yum repositories
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
           SUITES: ${{ inputs.suites }}
+          COMPONENT: ${{ inputs.component }}
         run: |
           set -euo pipefail
           if [ -z "${NEXUS_TOKEN:-}" ]; then
             echo "::error::NEXUS_TOKEN secret is empty or unset"
             exit 1
           fi
-          # Source rpms are build inputs, not something a user installs.
-          mapfile -t rpms < <(find pkg -name '*.rpm' ! -name '*.src.rpm' | sort)
-          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm to publish"; exit 1; }
-          echo "Publishing ${#rpms[@]} package(s) built from ${{ needs.build.outputs.built_sha }}"
+          echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
           uploaded=0
           attempted=0
           for suite in ${SUITES}; do
+            # Each suite gets the rpm built for that distribution and no
+            # other: the Release field carries the distribution tag, so
+            # cross-posting would put an .fc43 package in an openEuler
+            # repository.
+            dir="pkg/${COMPONENT}-rpm-${suite}"
+            if [ ! -d "${dir}" ]; then
+              echo "::error::nothing was built for '${suite}' - it was skipped or the build failed"
+              exit 1
+            fi
+            # Source rpms are build inputs, not something a user installs.
+            mapfile -t rpms < <(find "${dir}" -name '*.rpm' ! -name '*.src.rpm' | sort)
+            [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
             repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
             for r in "${rpms[@]}"; do
               attempted=$((attempted + 1))

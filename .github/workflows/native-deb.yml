@@ -1,0 +1,374 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: native deb package
+
+# Build .deb packages containing compiled code from a component repository's
+# own packaging definition, and publish them to the FlagOS apt repositories.
+# The native sibling of noarch-deb.yml.
+#
+# Why these are not in noarch-deb.yml, given the pipeline looks the same: what
+# it means to verify the package is different, and verification is the gate
+# publishing depends on. There, the question is whether the Python module tree
+# is complete -- a directory of .py files with no __init__.py installs cleanly
+# and is absent at runtime. Here, the module-tree assertion would fail outright
+# (these ship no Python tree) and would not ask the question that matters: does
+# the library load, and does what it links against resolve.
+#
+# The key is a package class, not a repository: FlagTensor produces
+# python3-flagtensor (Architecture: all) and libflagtensor-nvidia (amd64) from
+# one build, so a repository can appear in more than one of these workflows,
+# each covering the packages its verification suits.
+#
+# FlagGems is the case that does not come here. Its C++ operators are built
+# per vendor across seven or eight backends, which is a matrix like
+# flagcx-deb.yml's rather than the single build per target this workflow
+# assumes -- so flaggems-deb.yml stays as the home for that line when those
+# operators are packaged, and this workflow does not try to absorb it.
+#
+# Dispatch-only: a .deb is a release artifact, nothing here is worth running on
+# a push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'component and package class to build'
+        type: choice
+        required: true
+        options: [libtriton_jit, FlagTree]
+      ref:
+        description: >-
+          git ref to build. Leave empty to use the ref this target is pinned to
+          below. A tag is preferred: a branch head moves under later
+          cherry-picks, so the same dispatch would not build the same source
+          twice.
+        type: string
+        default: ''
+      version:
+        description: >-
+          release version to stamp, as the manifest spells it
+          (e.g. v0.2.0-rc0.1). Leave empty to derive it from the ref when the
+          ref is a version tag, and to leave the changelog alone otherwise.
+        type: string
+        default: ''
+      suites:
+        description: >-
+          apt suites to publish into, space-separated. Leave empty to use the
+          suites this target is valid for -- which is not every suite: a
+          compiled package belongs only where what it links against resolves.
+        type: string
+        default: ''
+      verify:
+        description: 'install the .deb in a clean container before uploading'
+        type: boolean
+        default: true
+      publish:
+        description: 'push the verified .deb to the apt repositories (requires verify)'
+        type: boolean
+        default: false
+
+env:
+  NEXUS_REPO_BASE: https://resource.flagos.net/repository
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      built_sha: ${{ steps.clone.outputs.sha }}
+      suites: ${{ steps.cfg.outputs.suites }}
+      verify_image: ${{ steps.cfg.outputs.verify_image }}
+    steps:
+      - name: Resolve the target
+        id: cfg
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          # Per target: repository, build script, the ref and version the
+          # release manifest pins it to, the suites the package is valid for,
+          # and the image to verify in.
+          #
+          # `suites` is per target and not a global default because a compiled
+          # package is not portable across releases the way an
+          # Architecture: all one is. libtriton-jit depends on libpython3.12,
+          # which Ubuntu 24.04 provides (as libpython3.12t64, which Provides:
+          # libpython3.12) and 22.04 does not carry at all -- publishing it
+          # into 22.04 would put a package there that cannot be installed.
+          # Verified both ways before this list was written.
+          case "${TARGET}" in
+            libtriton_jit)
+              repo=libtriton_jit
+              script=packaging/debian/build-helpers/build-libtriton-jit.sh
+              ref=master
+              ver=''
+              suites=ubuntu24.04
+              image=ubuntu:24.04 ;;
+            FlagTree)
+              repo=FlagTree
+              script=packaging/debian/build-helpers/build-flagtree.sh
+              ref=0.7.0-rc2-triton3.6
+              ver=''
+              suites=ubuntu24.04
+              image=ubuntu:24.04 ;;
+            *)
+              echo "::error::unknown target '${TARGET}'"; exit 1 ;;
+          esac
+          {
+            echo "repo_url=https://github.com/flagos-ai/${repo}.git"
+            echo "script=${script}"
+            echo "default_ref=${ref}"
+            echo "default_version=${ver}"
+            echo "suites=${suites}"
+            echo "verify_image=${image}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to publish what was not verified
+        if: ${{ inputs.publish }}
+        env:
+          REQUESTED: ${{ inputs.suites }}
+          VALID: ${{ steps.cfg.outputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.verify }}" != "true" ]; then
+            echo "::error::publish requires verify - an unverified package must not reach the repository"
+            exit 1
+          fi
+          # An override may narrow the target's suites but never widen them:
+          # the list above is where the package was shown to install, and a
+          # dispatch is not the place to decide it belongs somewhere else.
+          for suite in ${REQUESTED:-}; do
+            case " ${VALID} " in
+              *" ${suite} "*) ;;
+              *)
+                echo "::error::'${suite}' is not a suite ${{ inputs.target }} is valid for (${VALID})"
+                exit 1 ;;
+            esac
+          done
+          echo "Publishing into: ${REQUESTED:-${VALID}}"
+
+      - name: Clone ${{ inputs.target }}
+        id: clone
+        env:
+          REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+        run: |
+          set -euo pipefail
+          git clone --depth 50 --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          cd src
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          # Whether this ref is a tag decides whether a version may be derived
+          # from it. Branch names are version-shaped too, and a branch head
+          # moves, so its name is not a version.
+          if git rev-parse -q --verify "refs/tags/${REF}" >/dev/null; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${REF} is a branch, not a tag - this build is not reproducible by ref name alone"
+          fi
+          echo "Built ${REF} = ${sha}"
+          test -f "${{ steps.cfg.outputs.script }}" \
+            || { echo "::error::ref '${REF}' has no Debian packaging definition"; exit 1; }
+
+      - name: Stamp the release version
+        working-directory: src
+        env:
+          REF: ${{ steps.clone.outputs.ref }}
+          REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
+          REQUESTED: ${{ inputs.version }}
+          PINNED: ${{ inputs.ref == '' && steps.cfg.outputs.default_version || '' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+
+          path = "packaging/debian/changelog"
+          head = open(path, encoding="utf-8").readline().rstrip("\n")
+          m = re.match(r"^(\S+) \(([^)]+)\)(.*)$", head)
+          if not m:
+              sys.exit(f"::error::cannot parse changelog first line: {head}")
+          source, current, _ = m.groups()
+
+          ref = os.environ["REF"]
+          requested = os.environ["REQUESTED"].strip()
+          pinned = os.environ["PINNED"].strip()
+          if requested:
+              release, why = requested, "requested by this dispatch"
+          elif pinned:
+              release, why = pinned, "pinned by the release manifest"
+          elif (os.environ["REF_IS_TAG"] == "true"
+                and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
+              release, why = ref, f"derived from tag {ref}"
+          else:
+              print(f"Keeping the changelog version {current}: {ref} is not a version tag."
+                    " Pass `version` to stamp a release version explicitly.")
+              sys.exit(0)
+
+          # v0.2.0-rc0.1 -> 0.2.0~rc0.1. "~" sorts below the bare release, so a
+          # pre-release never shadows the final one; "-" would sort above it and
+          # block the upgrade.
+          new = re.sub(r"-?rc", "~rc", release.lstrip("v")) + "-1"
+          if new == current:
+              print(f"Changelog already at {current}; nothing to stamp")
+              sys.exit(0)
+
+          # The packaging metadata in component repositories drifts from the
+          # release line it is cut on, and the version in this file is what apt
+          # sees. Overriding it here keeps the published package honest while
+          # that drift is fixed upstream; the rewrite is printed so the build
+          # log always says what was shipped and why.
+          print(f"::notice::stamping {source} {current} -> {new} ({why})")
+          body = open(path, encoding="utf-8").read()
+          open(path, "w", encoding="utf-8").write(
+              body.replace(f"{source} ({current})", f"{source} ({new})", 1))
+          PY
+          head -1 packaging/debian/changelog
+
+      - name: Build the .deb packages
+        working-directory: src
+        run: |
+          set -euo pipefail
+          bash "${{ steps.cfg.outputs.script }}"
+          # Every package, not the first one: these builds produce a runtime
+          # and a -dev package, and taking one would silently drop the other.
+          mapfile -t debs < <(find debian-packages -name '*.deb' | sort)
+          [ "${#debs[@]}" -gt 0 ] || { echo "::error::the build produced no .deb"; exit 1; }
+          echo "Built ${#debs[@]} package(s):"
+          for d in "${debs[@]}"; do
+            echo ">>> $(basename "$d")"
+            dpkg-deb -f "$d" Package Version Architecture Depends
+          done
+
+      - name: Upload the .deb packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ inputs.target }}-deb
+          path: src/debian-packages/*.deb
+          retention-days: 7
+
+  verify:
+    needs: build
+    if: ${{ inputs.verify }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the .deb packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.target }}-deb
+          path: pkg
+
+      - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ needs.build.outputs.verify_image }} bash -c '
+            set -e
+            apt-get update -qq
+            # Installing the files themselves is the test: apt has to satisfy
+            # their own Depends from the distribution alone. All of them, so a
+            # -dev package whose runtime dependency is unsatisfiable fails here
+            # rather than in a user'"'"'s terminal.
+            apt-get install -y -qq /pkg/*.deb
+            apt-get install -y -qq binutils > /dev/null
+
+            checked=0
+            for pkg in $(dpkg-deb -W --showformat="\${Package}\n" /pkg/*.deb); do
+              for so in $(dpkg -L "$pkg" | grep -E "\.so($|\.)" || true); do
+                [ -f "$so" ] || continue
+                checked=$((checked + 1))
+                # ldd -r reports what the loader cannot resolve. Libraries the
+                # package deliberately leaves to the environment are expected
+                # to be missing here -- the GPU driver comes from the host and
+                # torch from pip, neither is a Debian dependency and neither
+                # can be in the container. What is not expected is a missing
+                # library that some installed package does provide: that means
+                # the dependency was not declared, and the package would fail
+                # on a machine that happens not to have it.
+                for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
+                  if dpkg -S "*/$lib" > /dev/null 2>&1; then
+                    echo "$(basename "$so"): $lib is provided by an installed package but not declared"
+                    exit 1
+                  fi
+                  echo "  $(basename "$so"): $lib left to the environment"
+                done
+                # An undefined symbol is never environmental: the library was
+                # linked against something it does not carry and does not ask
+                # for.
+                if ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
+                  echo "$(basename "$so") has undefined symbols:"
+                  ldd -r "$so" 2>&1 | grep "undefined symbol" | head -5
+                  exit 1
+                fi
+                echo "  $(basename "$so"): links resolve"
+              done
+            done
+            test "$checked" -gt 0 || { echo "no shared library shipped - is this a native package?"; exit 1; }
+            echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
+          '
+
+  publish:
+    needs: [build, verify]
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the .deb packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.target }}-deb
+          path: pkg
+
+      - name: Publish to the apt repositories
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          SUITES: ${{ inputs.suites || needs.build.outputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset"
+            exit 1
+          fi
+          mapfile -t debs < <(find pkg -name '*.deb' | sort)
+          [ "${#debs[@]}" -gt 0 ] || { echo "::error::no .deb to publish"; exit 1; }
+          echo "Publishing ${#debs[@]} package(s) built from ${{ needs.build.outputs.built_sha }}"
+          uploaded=0
+          attempted=0
+          for suite in ${SUITES}; do
+            repo="${NEXUS_REPO_BASE}/flagos-apt-${suite}/"
+            for deb in "${debs[@]}"; do
+              attempted=$((attempted + 1))
+              echo ">>> ${suite}: $(basename "$deb")"
+              if curl -f -u "${NEXUS_TOKEN}" \
+                   -H 'Content-Type: multipart/form-data' \
+                   --data-binary "@${deb}" "${repo}"; then
+                echo "  -> OK"
+                uploaded=$((uploaded + 1))
+              else
+                echo "  -> FAILED"
+              fi
+            done
+          done
+          # A 2xx only says the upload was accepted; zero successes means the
+          # token or the repository is misconfigured, and silence would hide it.
+          if [ "$uploaded" -eq 0 ]; then
+            echo "::error::no suite accepted the upload"
+            exit 1
+          fi
+          # A partial success is worse than none: some packages are in the
+          # repository and others are not, so a -dev package can be installable
+          # while the runtime it needs is absent.
+          if [ "$uploaded" -ne "$attempted" ]; then
+            echo "::error::published ${uploaded} of ${attempted} upload(s)"
+            exit 1
+          fi
+          echo "Published all ${uploaded} upload(s)"
