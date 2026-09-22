@@ -17,7 +17,7 @@
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-22T16:06:40.554Z'
     reason: >-
       First app image for this backend. The row's E2E runs are green on both
       compiler paths but no image was ever built for it, so the entry point to
