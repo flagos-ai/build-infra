@@ -88,7 +88,7 @@ cd "$REPO_ROOT"
 
 # The local part is the build's own, and the row's label is only its head: the
 # version scheme appends the clone's date and node after it, so a wheel built
-# off a tag is recognised by the prefix and never by equality.
+# off a tag is recognised by its head and never by equality.
 local_part_of() {
     local text="$1"
     [[ "$text" == *+* ]] || return 1
@@ -108,19 +108,30 @@ label_of_row() {
         | sed -n 's/^ok: .*: label //p'
 }
 
+# A row owns a label when the label is that row's, or is that row's followed by
+# the `<date>.<node>` the version scheme appends — the same tail
+# build-flagcx-wheel.sh asserts by. Taking any dot-suffix instead would read a
+# chip row's label as its base row's: `cann8.5.0` heads `cann8.5.0.910c.<date>`,
+# so every pair of rows that differ only by a suffix would name two rows and
+# neither artifact could be verified.
 row_for_label() {
-    local label="$1" key row_label match=""
+    local label="$1" key row_label tail match=""
     for key in $(wheel_rows); do
         row_label="$(label_of_row "$key")"
         # An empty one is a row whose label did not print, and every pattern
         # below would then match it.
         [[ -n "$row_label" ]] || continue
-        case "$label" in
-            "$row_label"|"$row_label".*)
-                [[ -z "$match" ]] \
-                    || fail "$label is published by both $match and $key, so the artifact names no single row"
-                match="$key" ;;
-        esac
+        if [[ "$label" == "$row_label" ]]; then
+            tail=""
+        elif [[ "$label" == "$row_label".* ]]; then
+            tail="${label#"$row_label".}"
+        else
+            continue
+        fi
+        [[ -z "$tail" || "$tail" =~ ^[0-9]{8}\. ]] || continue
+        [[ -z "$match" ]] \
+            || fail "$label is published by both $match and $key, so the artifact names no single row"
+        match="$key"
     done
     [[ -n "$match" ]] \
         || fail "no wheel row publishes the label $label — the artifact names no row in backends.yaml"
