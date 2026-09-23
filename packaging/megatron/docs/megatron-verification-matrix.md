@@ -171,15 +171,15 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | DTK 26.04 | ✅ | ✅ | ✅ | app 镜像未发布：modelopt 未入镜像（已决策进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) [training] extra），单步安装测试待 extra 合入后随 app 镜像走 |
 | COREX 4.4.0 | ✅ | ✅ | ✅ | — |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
-| XRE 5.37.1 | ✅ | ⬜ | ⬜ | — |
+| XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ⬜ | ⬜ | — |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |
 | MUSA 4.3.6 | ✅ | ✅ | ✅ | — |
 | MUSA 5.2.0 | ✅ | ✅ | ✅ | — |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
-| TANGRT 1.2.0 | ✅ | ⬜ | ⬜ | — |
+| TANGRT 1.2.0 | ✅ | ✅ | ✅ | — |
 | PPU 2.0.0 | ⬜ | ⬜ | ⬜ | — |
-| TSM 260610 | ✅ | ⬜ | ⬜ | — |
+| TSM 260610 | ✅ | ✅ | ✅ | — |
 
 
 <!-- /status-matrix:facility:megatron_training -->
