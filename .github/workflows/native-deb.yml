@@ -107,6 +107,7 @@ jobs:
           # libpython3.12) and 22.04 does not carry at all -- publishing it
           # into 22.04 would put a package there that cannot be installed.
           # Verified both ways before this list was written.
+          outdir=debian-packages
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -122,6 +123,7 @@ jobs:
               # 0.7.0rc2.post2 plus two XPU-only commits.
               ref=0.7.0-rc2-triton3.6
               ver=0.7.0rc2.post2
+              outdir=dist/output
               suites=ubuntu24.04
               image=ubuntu:24.04 ;;
             FlagDNN)
@@ -144,6 +146,7 @@ jobs:
           {
             echo "repo_url=https://github.com/flagos-ai/${repo}.git"
             echo "script=${script}"
+            echo "outdir=${outdir}"
             echo "default_ref=${ref}"
             echo "default_version=${ver}"
             echo "suites=${suites}"
@@ -259,7 +262,7 @@ jobs:
           bash "${{ steps.cfg.outputs.script }}"
           # Every package, not the first one: these builds produce a runtime
           # and a -dev package, and taking one would silently drop the other.
-          mapfile -t debs < <(find debian-packages -name '*.deb' | sort)
+          mapfile -t debs < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.deb' | sort)
           [ "${#debs[@]}" -gt 0 ] || { echo "::error::the build produced no .deb"; exit 1; }
           echo "Built ${#debs[@]} package(s):"
           for d in "${debs[@]}"; do
@@ -271,7 +274,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ inputs.target }}-deb
-          path: src/debian-packages/*.deb
+          path: src/${{ steps.cfg.outputs.outdir }}/*.deb
           retention-days: 7
 
   verify:
