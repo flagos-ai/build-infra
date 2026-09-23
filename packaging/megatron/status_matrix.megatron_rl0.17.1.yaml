@@ -73,7 +73,8 @@ backends:
     note: "RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控"
   ascend-cann9.0.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
     note: "RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控"
   cambricon-neuware4.4.3:
     deps_app: true
@@ -100,7 +101,8 @@ backends:
     note: "RL 场景未实测（本轮只过构建 + training gate）"
   iluvatar-corex4.4.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
     note: "RL 场景未实测；本后端无 flash-attn"
   iluvatar-corex4.5.0:
     deps_app: true
@@ -109,7 +111,8 @@ backends:
     note: "RL 场景未实测；本后端无 flash-attn"
   kunlunxin-xre5.37.1:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
     note: "RL 场景未实测（本轮只过构建 + training gate）"
   metax-maca3.7.2.1:
     deps_app: true
@@ -127,7 +130,8 @@ backends:
     note: "RL 场景未实测；本后端无 flash-attn"
   mthreads-musa5.2.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
     note: "RL 场景未实测；本后端无 flash-attn"
   spacemit-spacemit:
     deps_app: false
