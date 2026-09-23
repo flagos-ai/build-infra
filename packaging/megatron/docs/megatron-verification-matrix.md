@@ -206,21 +206,21 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | CANN 9.0.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
-| NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
+| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | TOPS 1.9.10 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
-| TOPS 1.10.6 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
+| TOPS 1.10.6 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | DTK 26.04 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
 | COREX 4.4.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
-| COREX 4.5.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
+| COREX 4.5.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | XRE 5.37.1 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
 | MACA 3.7.2.1 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
-| MACA 3.8.1.3 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
+| MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | MUSA 4.3.6 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | MUSA 5.2.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
-| TANGRT 1.2.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
+| TANGRT 1.2.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | PPU 2.0.0 | ⬜ | ⬜ | ⬜ | — |
-| TSM 260610 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
+| TSM 260610 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 
 
 <!-- /status-matrix:facility:megatron_rl0.17.1 -->
