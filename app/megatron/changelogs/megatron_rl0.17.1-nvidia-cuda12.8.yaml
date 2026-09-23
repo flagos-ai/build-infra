@@ -34,7 +34,7 @@ image: megatron_rl0.17.1-nvidia-cuda12.8
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-23T13:48:39.351Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack with the release-line wheel, pinned
       exactly (0.17.1+fl.0.2.3). The image this replaces was built on 2.1.2 from
@@ -47,7 +47,8 @@ tags:
   entries:
   - date: 2026-08-20T02:18:45Z
     reason: >-
-      megatron-core RL wheel app image (MLF PR 114 RL extra + PR 119). Single-step wheel install over the
+      megatron-core RL wheel app image (MLF PR 114 RL extra + PR 119). Single-step
+      wheel install over the
       runtime.
     upstream_prs:
     - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
