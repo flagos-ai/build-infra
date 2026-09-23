@@ -88,17 +88,24 @@ jobs:
             exit 1
           fi
           # backend, the flow's RPM_DISTRO, the suite the result belongs in,
-          # and the image to verify in. suite is not derived from distro: they
-          # are spelled differently (openeuler2403 vs openeuler24.03) and the
-          # mapping is what decides where a package lands, so it is written out
-          # rather than computed from a string.
+          # the image to verify in, and the vendor repository that image needs.
+          # suite is not derived from distro: they are spelled differently
+          # (openeuler2403 vs openeuler24.03) and the mapping is what decides
+          # where a package lands.
+          #
+          # verify_repo is set only where the spec keeps the vendor SONAMEs in
+          # Requires. fedora43 filters NCCL alone, because NVIDIA publishes a
+          # Fedora repository providing libcuda and libcudart.
           all='[
             {"name":"nvidia-openeuler2403","backend":"nvidia","distro":"openeuler2403",
-             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts"},
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts",
+             "verify_repo":""},
             {"name":"nvidia-fedora43","backend":"nvidia","distro":"fedora43",
-             "suite":"fedora43","verify_image":"fedora:43"},
+             "suite":"fedora43","verify_image":"fedora:43",
+             "verify_repo":"https://developer.download.nvidia.com/compute/cuda/repos/fedora43/x86_64/cuda-fedora43.repo"},
             {"name":"ascend-openeuler2403","backend":"ascend","distro":"openeuler2403",
-             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts"}
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts",
+             "verify_repo":""}
           ]'
           if [ "${ROW}" = "all" ]; then
             echo "matrix=$(echo "$all" | jq -c '{include: .}')" >> "$GITHUB_OUTPUT"
@@ -168,12 +175,22 @@ jobs:
           path: pkg
 
       - name: Install and check in a clean ${{ matrix.verify_image }}
+        env:
+          VERIFY_REPO: ${{ matrix.verify_repo }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -e VERIFY_REPO ${{ matrix.verify_image }} bash -c '
             set -e
+            # The package declares these libraries; the check is whether they
+            # resolve where it says they will.
+            if [ -n "${VERIFY_REPO:-}" ]; then
+              dnf install -y -q curl > /dev/null 2>&1 || true
+              curl -fsSL -o /etc/yum.repos.d/vendor.repo "${VERIFY_REPO}"
+              echo "added $(basename "${VERIFY_REPO}")"
+            fi
+
             # Installing the files themselves is the test: dnf has to satisfy
-            # their Requires from the distribution alone.
+            # their Requires from the distribution and that repository alone.
             dnf install -y -q --setopt=install_weak_deps=False /pkg/*.rpm
             dnf install -y -q binutils > /dev/null 2>&1 || true
 
