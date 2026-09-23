@@ -118,22 +118,24 @@ jobs:
             FlagTree)
               repo=FlagTree
               script=packaging/debian/build-helpers/build-flagtree.sh
+              # No FlagTree tag carries packaging/; the branch is
+              # 0.7.0rc2.post2 plus two XPU-only commits.
               ref=0.7.0-rc2-triton3.6
-              ver=''
+              ver=0.7.0rc2.post2
               suites=ubuntu24.04
               image=ubuntu:24.04 ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/debian/build-helpers/build-flag-dnn.sh
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post1
+              ref=v0.3.0-rc2.post2
+              ver=v0.3.0-rc2.post2
               suites=ubuntu22.04
               image=ubuntu:22.04 ;;
             FlagFFT)
               repo=FlagFFT
               script=packaging/debian/build-helpers/build-flagfft.sh
-              ref=0.2.0-rc2
-              ver=v0.2.0-rc2.post1
+              ref=v0.2.0-rc2.post2
+              ver=v0.2.0-rc2.post2
               suites=ubuntu22.04
               image=ubuntu:22.04 ;;
             *)
@@ -221,7 +223,7 @@ jobs:
           if requested:
               release, why = requested, "requested by this dispatch"
           elif pinned:
-              release, why = pinned, "pinned by the release manifest"
+              release, why = pinned, "pinned for this target"
           elif (os.environ["REF_IS_TAG"] == "true"
                 and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
               release, why = ref, f"derived from tag {ref}"

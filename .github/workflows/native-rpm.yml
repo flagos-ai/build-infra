@@ -117,6 +117,7 @@ jobs:
               spec=packaging/rpm/libtriton-jit.spec
               outdir=rpm-packages
               ref=master
+              ver=''
               image_fedora43=
               image_openeuler2403=
               image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
@@ -126,7 +127,10 @@ jobs:
               base_arg=env
               spec=packaging/rpm/specs/flagtree.spec
               outdir=dist-rpm/output
+              # No FlagTree tag carries packaging/; the branch is
+              # 0.7.0rc2.post2 plus two XPU-only commits.
               ref=0.7.0-rc2-triton3.6
+              ver=0.7.0rc2.post2
               image_fedora43=fedora:43
               image_openeuler2403=openeuler/openeuler:24.03-lts
               image_rhel9= ;;
@@ -136,7 +140,8 @@ jobs:
               base_arg=env
               spec=packaging/rpm/specs/flag-dnn.spec
               outdir=rpm-packages
-              ref=0.3.0-rc2
+              ref=v0.3.0-rc2.post2
+              ver=''
               image_fedora43=
               image_openeuler2403=
               image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
@@ -146,7 +151,8 @@ jobs:
               base_arg=env
               spec=packaging/rpm/specs/flagfft.spec
               outdir=rpm-packages
-              ref=0.2.0-rc2
+              ref=v0.2.0-rc2.post2
+              ver=''
               image_fedora43=
               image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts
               image_rhel9= ;;
@@ -160,6 +166,7 @@ jobs:
             echo "spec=${spec}"
             echo "outdir=${outdir}"
             echo "default_ref=${ref}"
+            echo "default_version=${ver}"
           } >> "$GITHUB_OUTPUT"
           # The base image for the suite this matrix row builds. Empty means the
           # target has no image for that distribution and the row is skipped --
@@ -225,6 +232,7 @@ jobs:
           REF: ${{ steps.clone.outputs.ref }}
           REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
           REQUESTED: ${{ inputs.version }}
+          PINNED: ${{ inputs.ref == '' && steps.cfg.outputs.default_version || '' }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -239,8 +247,11 @@ jobs:
 
           ref = os.environ["REF"]
           requested = os.environ["REQUESTED"].strip()
+          pinned = os.environ["PINNED"].strip()
           if requested:
               release, why = requested, "requested by this dispatch"
+          elif pinned:
+              release, why = pinned, "pinned for this target"
           elif (os.environ["REF_IS_TAG"] == "true"
                 and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
               release, why = ref, f"derived from tag {ref}"

@@ -96,23 +96,19 @@ jobs:
           # only when this table's ref is used, so overriding `ref` on a
           # dispatch does not silently ship the manifest's version number.
           #
-          # FlagAudio is pinned to a branch rather than to its manifest tag:
-          # that tag was cut in July and predates the packaging definition, so
-          # the tag has no packaging/ to build from. Its changelog carries the
-          # final version 0.3.0, which would outrank the real 0.3.0 release --
-          # hence the explicit pre-release version here. Drop this entry back
-          # to a tag once one is cut that contains the packaging definition.
+          # Where the manifest's tag predates packaging/, the pin is the newest
+          # tag whose code is what gets built, and the version follows it.
           case "${COMPONENT}" in
             FlagAudio)
-              script=build-flag-audio.sh;     ref=0.3.0-rc2;        ver=0.3.0~rc2.post1 ;;
+              script=build-flag-audio.sh;     ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
             FlagSparse)
               script=build-flagsparse.sh;     ref=v0.3.0-rc2.post1; ver=0.3.0~rc2.post1 ;;
             FlagAttention)
               script=build-flag-attention.sh; ref=v0.4.0-rc2.post1; ver=0.4.0~rc2.post1 ;;
             FlagBLAS)
-              script=build-flag-blas.sh;      ref=0.3.0-rc2;        ver=v0.3.0-rc2.post1 ;;
+              script=build-flag-blas.sh;      ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
             FlagTensor)
-              script=build-flagtensor.sh;     ref=0.3.0-rc2;        ver=v0.3.0-rc2.post1 ;;
+              script=build-flagtensor.sh;     ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac
@@ -196,7 +192,7 @@ jobs:
           if requested:
               upstream, why = requested, "requested by this dispatch"
           elif pinned:
-              upstream, why = pinned, "pinned by the release manifest"
+              upstream, why = pinned, "pinned for this component"
           elif (os.environ["REF_IS_TAG"] == "true"
                 and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
               # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare

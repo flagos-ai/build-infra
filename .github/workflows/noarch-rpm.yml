@@ -106,22 +106,19 @@ jobs:
           # this table's ref is used, so overriding `ref` on a dispatch does
           # not silently ship the manifest's version number.
           #
-          # FlagGems is pinned to a branch rather than to its manifest tag
-          # v5.4.0-rc2.post2: that tag was cut on 2026-09-15 and the packaging
-          # definition landed on 2026-09-18, so the tag has no packaging/ to
-          # build from. Move this back to a tag once one is cut that contains
-          # the packaging definition.
+          # Where the manifest's tag predates packaging/, the pin is the newest
+          # tag whose code is what gets built, and the version follows it.
           case "${COMPONENT}" in
             FlagGems)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-gems.spec
-              ref=5.4.0-rc2
-              ver=v5.4.0-rc2.post2 ;;
+              ref=v5.4.0-rc2.post4
+              ver=v5.4.0-rc2.post4 ;;
             FlagAudio)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-audio.spec
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post1 ;;
+              ref=v0.3.0-rc2.post2
+              ver=v0.3.0-rc2.post2 ;;
             FlagSparse)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flagsparse.spec
@@ -135,13 +132,13 @@ jobs:
             FlagBLAS)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-blas.spec
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post1 ;;
+              ref=v0.3.0-rc2.post2
+              ver=v0.3.0-rc2.post2 ;;
             FlagTensor)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flagtensor.spec
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post1 ;;
+              ref=v0.3.0-rc2.post2
+              ver=v0.3.0-rc2.post2 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac
@@ -227,7 +224,7 @@ jobs:
           if requested:
               release, why = requested, "requested by this dispatch"
           elif pinned:
-              release, why = pinned, "pinned by the release manifest"
+              release, why = pinned, "pinned for this component"
           elif (os.environ["REF_IS_TAG"] == "true"
                 and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
               release, why = ref, f"derived from tag {ref}"
