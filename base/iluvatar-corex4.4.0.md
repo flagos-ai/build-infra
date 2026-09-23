@@ -64,4 +64,4 @@ Inside the container, confirm the accelerator is visible:
 ixsmi
 ```
 
-*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*
+*Last updated: 2026-09-23 15:39:13 · `1e41d72e5e5b`*
