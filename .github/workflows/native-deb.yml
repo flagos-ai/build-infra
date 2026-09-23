@@ -309,22 +309,26 @@ jobs:
                 # library that some installed package does provide: that means
                 # the dependency was not declared, and the package would fail
                 # on a machine that happens not to have it.
+                missing=0
                 for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
                   if dpkg -S "*/$lib" > /dev/null 2>&1; then
                     echo "$(basename "$so"): $lib is provided by an installed package but not declared"
                     exit 1
                   fi
                   echo "  $(basename "$so"): $lib left to the environment"
+                  missing=$((missing + 1))
                 done
-                # An undefined symbol is never environmental: the library was
-                # linked against something it does not carry and does not ask
-                # for.
-                if ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
+                # A missing library takes every symbol it defines with it, so this
+                # only means anything once they are all present.
+                if [ "$missing" -gt 0 ]; then
+                  echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
+                elif ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
                   echo "$(basename "$so") has undefined symbols:"
                   ldd -r "$so" 2>&1 | grep "undefined symbol" | head -5
                   exit 1
+                else
+                  echo "  $(basename "$so"): links resolve"
                 fi
-                echo "  $(basename "$so"): links resolve"
               done
             done
             test "$checked" -gt 0 || { echo "no shared library shipped - is this a native package?"; exit 1; }
