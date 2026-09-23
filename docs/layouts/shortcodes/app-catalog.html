@@ -22,12 +22,17 @@
        deps_app.sglang<version>): an app's rows are every key that starts with
        the app name, and when a table mixes versions a Version column is added
        so a backend published under both versions (e.g. sunrise, vllm) shows
-       distinct rows. */ -}}
+       distinct rows.
+
+       The one-line description under each heading is the app's own, not the
+       version's: several versions of one app share a heading (vllm 0.20.2 and
+       0.24.0), so a per-version blurb would have to pick one. */ -}}
 {{- $zh := eq site.Language.Lang "zh-cn" -}}
 {{- $apps := slice "megatron_training" "megatron_rl" "vllm" "sglang" -}}
 {{- range $apps }}
 {{- $appKey := . }}
 <h2 id="{{ $appKey }}">{{ T (printf "app_%s" $appKey) }}</h2>
+<p>{{ T (printf "app_%s_desc" $appKey) }}</p>
 {{- $rows := slice }}
 {{- range site.Data.images.backends }}
   {{- $b := . }}

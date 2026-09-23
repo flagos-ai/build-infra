@@ -107,14 +107,26 @@ other = "仅用于下方的工具包启动方式；直接使用 docker/podman �
 [app_megatron_training]
 other = "Megatron 训练"
 
+[app_megatron_training_desc]
+other = "开箱即用的大模型训练环境，基于 Megatron-LM。镜像内已装好 FlagOS 版 megatron-core 与完整的 FlagOS 软件栈，在对应的加速卡上一条命令即可开始训练。"
+
 [app_megatron_rl]
 other = "Megatron 强化学习"
+
+[app_megatron_rl_desc]
+other = "开箱即用的强化学习环境，基于 Megatron-LM。镜像内已装好带强化学习支持的 FlagOS 版 megatron-core，无需自行搭建环境，即可在对应的加速卡上运行 GRPO 类训练。"
 
 [app_vllm]
 other = "vLLM"
 
+[app_vllm_desc]
+other = "开箱即用的大模型推理服务。镜像内已装好 vLLM 及其 FlagOS 插件与完整的 FlagOS 软件栈，在对应的加速卡上启动后即为 OpenAI 兼容的 API 服务。"
+
 [app_sglang]
 other = "SGLang"
+
+[app_sglang_desc]
+other = "开箱即用的大模型推理服务，内置结构化输出支持。镜像内已装好 SGLang 及其 FlagOS 插件与完整的 FlagOS 软件栈，在对应的加速卡上启动即可对外提供 API 服务。"
 
 [app_version]
 other = "版本"

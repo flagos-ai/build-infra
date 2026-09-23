@@ -108,14 +108,26 @@ other = "only for the toolkit launch below; the plain docker/podman command need
 [app_megatron_training]
 other = "Megatron training"
 
+[app_megatron_training_desc]
+other = "A ready-to-run environment for training large language models with Megatron-LM. The image already contains FlagOS's build of megatron-core and the full FlagOS software stack — one command on a supported accelerator starts training."
+
 [app_megatron_rl]
 other = "Megatron RL"
+
+[app_megatron_rl_desc]
+other = "A ready-to-run environment for reinforcement learning with Megatron-LM. The image already contains FlagOS's build of megatron-core with reinforcement-learning support, so a GRPO-style training run needs no environment setup of its own."
 
 [app_vllm]
 other = "vLLM"
 
+[app_vllm_desc]
+other = "A ready-to-run inference service for large language models. The image already contains vLLM, its FlagOS plugin and the full FlagOS software stack — start it on a supported accelerator and it serves an OpenAI-compatible API."
+
 [app_sglang]
 other = "SGLang"
+
+[app_sglang_desc]
+other = "A ready-to-run inference service for large language models, with structured output built in. The image already contains SGLang, its FlagOS plugin and the full FlagOS software stack — start it on a supported accelerator and it serves an API."
 
 [app_version]
 other = "Version"
