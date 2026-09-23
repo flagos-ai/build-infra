@@ -772,6 +772,7 @@ vendors:
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
         - numpy==1.26.4
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
