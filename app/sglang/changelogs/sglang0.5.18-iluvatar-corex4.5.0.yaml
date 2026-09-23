@@ -34,7 +34,7 @@ image: sglang0.5.18-iluvatar-corex4.5.0
 tags:
 - tag: 2.2.0-0.1.dev1_g201484665
   entries:
-  - date: ''
+  - date: '2026-09-23T11:33:09.374Z'
     reason: >-
       First rebuild since the stack moved to 2.2.0, so the tag leaves 2.1.2. The
       base and runtime underneath are new for two reasons: the CoreX cmake
