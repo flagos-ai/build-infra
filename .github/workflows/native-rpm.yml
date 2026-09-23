@@ -92,7 +92,7 @@ jobs:
         # CUDA-on-RockyLinux image where FlagTree needs bare Fedora. The
         # target table below names the image per suite, and a target that has
         # none for a suite is skipped rather than built on the wrong base.
-        suite: [fedora43, openeuler24.03]
+        suite: [fedora43, openeuler24.03, rhel9]
     steps:
       - name: Resolve the target
         id: cfg
@@ -117,8 +117,9 @@ jobs:
               spec=packaging/rpm/libtriton-jit.spec
               outdir=rpm-packages
               ref=master
-              image_fedora43=nvidia/cuda:12.6.0-devel-rockylinux9
-              image_openeuler2403= ;;
+              image_fedora43=
+              image_openeuler2403=
+              image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
             FlagTree)
               repo=FlagTree
               script=packaging/rpm/helpers/build-flagtree-rpm.sh
@@ -127,7 +128,8 @@ jobs:
               outdir=dist-rpm/output
               ref=0.7.0-rc2-triton3.6
               image_fedora43=fedora:43
-              image_openeuler2403=openeuler/openeuler:24.03-lts ;;
+              image_openeuler2403=openeuler/openeuler:24.03-lts
+              image_rhel9= ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/rpm/build-flag-dnn-rpm.sh
@@ -135,8 +137,9 @@ jobs:
               spec=packaging/rpm/specs/flag-dnn.spec
               outdir=rpm-packages
               ref=0.3.0-rc2
-              image_fedora43=nvidia/cuda:12.6.0-devel-rockylinux9
-              image_openeuler2403= ;;
+              image_fedora43=
+              image_openeuler2403=
+              image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
             FlagFFT)
               repo=FlagFFT
               script=packaging/rpm/build-flagfft-rpm.sh
@@ -145,7 +148,8 @@ jobs:
               outdir=rpm-packages
               ref=0.2.0-rc2
               image_fedora43=
-              image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts ;;
+              image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts
+              image_rhel9= ;;
             *)
               echo "::error::unknown target '${TARGET}'"; exit 1 ;;
           esac
@@ -164,6 +168,7 @@ jobs:
           case "${{ matrix.suite }}" in
             fedora43)       echo "base_image=${image_fedora43}" >> "$GITHUB_OUTPUT" ;;
             openeuler24.03) echo "base_image=${image_openeuler2403}" >> "$GITHUB_OUTPUT" ;;
+            rhel9)          echo "base_image=${image_rhel9}" >> "$GITHUB_OUTPUT" ;;
           esac
 
       - name: Refuse to publish what was not verified
@@ -179,7 +184,7 @@ jobs:
           # The matrix above is what gets built and verified; a suite outside
           # it has no package to publish, and asking for one is a mistake worth
           # naming rather than a silent no-op.
-          BUILT="fedora43 openeuler24.03"
+          BUILT="fedora43 openeuler24.03 rhel9"
           for suite in ${SUITES:-}; do
             case " ${BUILT} " in
               *" ${suite} "*) ;;
@@ -332,6 +337,10 @@ jobs:
             image: fedora:43
           - suite: openeuler24.03
             image: openeuler/openeuler:24.03-lts
+          - suite: rhel9
+            image: rockylinux:9
+            # fmt lives in EPEL on el9, as it does for any RHEL 9 user.
+            repos: epel-release
     steps:
       - name: Download the .rpm packages
         id: fetch
@@ -358,14 +367,18 @@ jobs:
 
       - name: Install and check in a clean ${{ matrix.image }}
         if: ${{ steps.fetch.outcome == 'success' }}
+        env:
+          REPOS: ${{ matrix.repos }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -e REPOS ${{ matrix.image }} bash -c '
             set -e
+            [ -z "${REPOS:-}" ] || dnf install -y -q ${REPOS}
             # Installing the files themselves is the test: dnf has to satisfy
-            # their own Requires from the distribution alone. All of them, so a
-            # -devel package whose runtime is unsatisfiable fails here rather
-            # than in a user'"'"'s terminal.
+            # their own Requires from the distribution and the repositories its
+            # row names, nothing else. All of them, so a -devel package whose
+            # runtime is unsatisfiable fails here rather than in a user'"'"'s
+            # terminal.
             dnf install -y -q --setopt=install_weak_deps=False /pkg/*.rpm
             dnf install -y -q binutils > /dev/null 2>&1 || true
 
@@ -381,8 +394,12 @@ jobs:
                 # not declare, is: it works where it happens to be present and
                 # fails elsewhere.
                 missing=0
+                # Declared by the package that ships the ELF, not by a -devel
+                # package whose .so is only a symlink to it.
+                owner=$(rpm -qf "$(readlink -f "$so")")
                 for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  if rpm -q --whatprovides "$lib" > /dev/null 2>&1; then
+                  if rpm -q --whatprovides "${lib}()(64bit)" > /dev/null 2>&1 \
+                     && ! rpm -q --requires "$owner" | grep -qF "${lib}()"; then
                     echo "$(basename "$so"): $lib is provided by an installed package but not declared"
                     exit 1
                   fi
@@ -431,7 +448,12 @@ jobs:
           echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
           uploaded=0
           attempted=0
-          for suite in ${SUITES:-fedora43 openeuler24.03}; do
+          # Empty means every suite this target was built for, not every
+          # suite there is: most targets have no image for some of them.
+          if [ -z "${SUITES:-}" ]; then
+            SUITES=$(cd pkg && ls -d "${TARGET}"-rpm-* | sed "s/^${TARGET}-rpm-//" | tr '\n' ' ')
+          fi
+          for suite in ${SUITES}; do
             # Each suite gets the rpm built for that distribution and no other:
             # the Release field carries the distribution tag, and a native
             # package links against that distribution's libraries.
