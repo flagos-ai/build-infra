@@ -29,7 +29,7 @@ title: "sglang0.5.18-iluvatar-corex4.4.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.1.2</code> <a href="../../runtime/iluvatar-corex4.4.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.2.0</code> <a href="../../runtime/iluvatar-corex4.4.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -50,12 +50,12 @@ title: "sglang0.5.18-iluvatar-corex4.4.0"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-iluvatar-corex4.4.0:2.1.2-0.1.dev1_g4d44a24cd`
+**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-iluvatar-corex4.4.0:2.2.0-0.1.dev1_g4d44a24cd`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-iluvatar-corex4.4.0:2.1.2-0.1.dev1_g4d44a24cd
+IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-iluvatar-corex4.4.0:2.2.0-0.1.dev1_g4d44a24cd
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
