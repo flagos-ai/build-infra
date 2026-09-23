@@ -490,6 +490,7 @@ vendors:
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -544,6 +545,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18: []
@@ -731,6 +733,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -777,6 +780,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
