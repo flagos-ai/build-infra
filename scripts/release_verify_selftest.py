@@ -125,7 +125,9 @@ def deb_script():
 
 
 def docker(image, script, mounts=()):
-    cmd = ['docker', 'run', '--rm']
+    # The fixtures are amd64; a same-named image of another architecture
+    # left in the local cache would otherwise run under emulation.
+    cmd = ['docker', 'run', '--rm', '--platform', 'linux/amd64']
     for host, target, mode in mounts:
         cmd += ['-v', f'{host}:{target}:{mode}']
     return subprocess.run(cmd + [image, 'bash', '-c', script],
@@ -180,7 +182,8 @@ def main(selected):
                     print('      ' + '\n      '.join(output.strip().splitlines()[-8:]))
     finally:
         # Written as root inside the containers.
-        subprocess.run(['docker', 'run', '--rm', '-v', f'{work}:/w', 'ubuntu:24.04',
+        subprocess.run(['docker', 'run', '--rm', '--platform', 'linux/amd64',
+                        '-v', f'{work}:/w', 'ubuntu:24.04',
                         'bash', '-c', 'rm -rf /w/*'], capture_output=True)
         shutil.rmtree(work, ignore_errors=True)
     return 1 if failures else 0
