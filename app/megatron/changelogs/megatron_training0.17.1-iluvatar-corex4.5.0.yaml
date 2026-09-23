@@ -34,7 +34,7 @@ image: megatron_training0.17.1-iluvatar-corex4.5.0
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-23T10:54:36.689Z'
     reason: >-
       Rebuild on a corrected base image. The CoreX cmake installer was being
       handed a flag it silently ignores, so every image in this chain shipped a
