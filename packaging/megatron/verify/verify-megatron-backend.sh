@@ -209,10 +209,13 @@ case "${VENDOR_BACKEND}" in
     cambricon-neuware4.4.3) MASTER_PORT=29500 ;;
     cambricon-neuware4.7.2) MASTER_PORT=29501 ;;
     mthreads-*) TRAIN_EXTRA_ARGS="--distributed-backend mccl" ;;
+    sunrise-*) TRAIN_EXTRA_ARGS="--distributed-backend pccl" ;;
 esac
 # NOTE (mthreads): MUSA torch ships no NCCL — distributed backend must be mccl
 # (MCCL lives in the base image layer). Without it, DDP/checkpointing aborts
 # with "Distributed backend nccl does not exist".
+# NOTE (sunrise): PT-PU torch registers PCCL and does not alias it onto nccl
+# either; without the flag the same abort happens.
 # NOTE (hygon flagtree): --disable-jit-fuser is INSUFFICIENT there — the jit
 # fuser binds torch.compile at import time, before args flip. A container-side
 # noop patch (or the upstream lazy-decorator fix) is required before a hygon
