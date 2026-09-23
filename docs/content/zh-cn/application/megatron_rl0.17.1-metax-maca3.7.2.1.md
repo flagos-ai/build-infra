@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-nvidia-cuda12.8"
+title: "megatron_rl0.17.1-metax-maca3.7.2.1"
 ---
 
 <!--
@@ -21,15 +21,15 @@ title: "megatron_rl0.17.1-nvidia-cuda12.8"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** NVIDIA H20
-- **宿主机驱动:** 610.43.02
-- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: nvidia-container-toolkit
+- **芯片型号:** MetaX C550
+- **宿主机驱动:** 3.8.30
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: metax-docker >= 0.15.3
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.2.0</code> <a href="../../runtime/metax-maca3.7.2.1/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-nvidia-cuda12.8"
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.2.0-0.2.3`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.7.2.1:2.2.0-0.2.3`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-metax-maca3.7.2.1:2.2.0-0.2.3
 ```
 
 以下两种方式任选其一：
@@ -56,9 +56,7 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.2.0-0.2.3
 启动交互式 shell：
 
 ```bash
-docker run --rm -it \
-  --gpus all \
-  $IMG bash
+metax-docker run --rm -it $IMG bash
 ```
 
 **暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
@@ -70,12 +68,9 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  --device /dev/nvidia0 \
-  --device /dev/nvidiactl \
-  --device /dev/nvidia-uvm \
-  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
-  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
-  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+  --device /dev/mxcd \
+  --device /dev/dri \
+  --group-add video \
   $IMG bash
 ```
 

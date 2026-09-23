@@ -297,7 +297,11 @@ jobs:
             apt-get install -y -qq binutils > /dev/null
 
             checked=0
-            for pkg in $(dpkg-deb -W --showformat="\${Package}\n" /pkg/*.deb); do
+            # One -f per file: dpkg-deb -W over a glob reports only the last
+            # one, which silently narrowed this loop to the -dev package --
+            # where the .so is a symlink owned by the runtime package, so the
+            # check then found no library at all and failed a sound build.
+            for pkg in $(for d in /pkg/*.deb; do dpkg-deb -f "$d" Package; done); do
               for so in $(dpkg -L "$pkg" | grep -E "\.so($|\.)" || true); do
                 [ -f "$so" ] || continue
                 checked=$((checked + 1))
