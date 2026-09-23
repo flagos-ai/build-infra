@@ -13,7 +13,7 @@ type: megatron
 app: megatron_training
 description: Megatron training app image — megatron-core[training] single-step
   install on the vendor runtime.
-last_updated: "2026-08-31"
+last_updated: "2026-09-23"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -35,15 +35,15 @@ scenarios:
       hygon-dtk26.04:        {T: "✅", F: "✅"}
       iluvatar-corex4.4.0:   {T: "✅", F: "✅"}
       iluvatar-corex4.5.0:   {T: "✅", F: "✅"}
-      kunlunxin-xre5.37.1:   {T: "⬜", F: "⬜"}
+      kunlunxin-xre5.37.1:   {T: "✅", F: "✅"}
       metax-maca3.7.2.1:     {T: "✅", F: "✅"}
       metax-maca3.8.1.3:     {T: "✅", F: "✅"}
       mthreads-musa4.3.6:    {T: "✅", F: "✅"}
       mthreads-musa5.2.0:    {T: "✅", F: "✅"}
       spacemit-spacemit:     {T: "⬜", F: "—"}
-      sunrise-tangrt1.2.0:   {T: "⬜", F: "⬜"}
+      sunrise-tangrt1.2.0:   {T: "✅", F: "✅"}
       thead-ppu2.0.0:        {T: "⬜", F: "—"}
-      tsingmicro-tsm260610:  {T: "⬜", F: "⬜"}
+      tsingmicro-tsm260610:  {T: "✅", F: "✅"}
   post_training:
     label: 后训练
     verification:
@@ -100,98 +100,54 @@ backends:
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/120
       - https://github.com/NVIDIA/Megatron-LM/pull/6709
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/120
       - https://github.com/NVIDIA/Megatron-LM/pull/6709
   ascend-cann8.5.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
       - https://github.com/flagos-ai/FlagTree/pull/1023
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/124
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
       - https://github.com/flagos-ai/FlagTree/pull/1023
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/124
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/125
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/125
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/122
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/125
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/130
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/131
   enflame-tops1.10.6:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/122
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/125
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/130
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/131
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     note: "app 镜像未发布：modelopt 未入镜像（已决策进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) [training] extra），单步安装测试待 extra 合入后随 app 镜像走"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/122
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/125
   iluvatar-corex4.5.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/125
   kunlunxin-xre5.37.1:
     deps_app: false
     launch_docs: false
@@ -202,31 +158,14 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
   mthreads-musa4.3.6:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/127
   mthreads-musa5.2.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    prs:
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/105
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/106
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
-      - https://github.com/flagos-ai/Megatron-LM-FL/pull/127
   spacemit-spacemit:
     deps_app: false
     launch_docs: false
