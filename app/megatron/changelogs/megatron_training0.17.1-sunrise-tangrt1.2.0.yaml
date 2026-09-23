@@ -1,0 +1,45 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written.
+#     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
+#                  ...) that this build is waiting on — a tracking list, so a
+#                  merged PR does not belong here (its change is already in
+#                  the tag being built). build-infra PRs are the delivery
+#                  action itself and are NOT listed here.
+
+
+image: megatron_training0.17.1-sunrise-tangrt1.2.0
+tags:
+- tag: 2.2.0-0.2.3
+  entries:
+  - date: ''
+    reason: >-
+      First publication of the training app image on this backend. The megatron-core
+      wheel is built from the Megatron-LM-FL release line's head, which now carries
+      the platform PRs merged into it (MLF 180 txda graph-capture query, MLF 181
+      Sunrise PT-PU platform), and the single-step install pin states the wheel
+      exactly (0.17.1+fl.0.2.3) rather than resolving ==0.17.1 to whichever local
+      version the index held. No vendor-side PR is pending.
+    upstream_prs: []

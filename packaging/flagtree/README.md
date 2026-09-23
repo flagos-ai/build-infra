@@ -108,11 +108,10 @@ the job actually runs on.
 runtime image. `flag_gems` depends on triton, so shipping it would also hide
 whether the triton in the image works.
 
-**CoreX's cmake installer ignores `--target`**, unpacking modules into `/share`
-while the binary looks in `/usr/share`, which leaves `cmake` unusable
-(`Could not find CMAKE_ROOT !!!`). The image stage moves them and asserts
-`cmake --version`. `base/iluvatar-corex4.5.0` carries the same defect, filed
-separately (#1011) since fixing it there means rebuilding the iluvatar images.
+**CoreX's cmake installer takes only `--prefix=dir`** and unpacks into the
+current directory for any other spelling. Here that is `/`, so the image stage
+moves the modules from `/share` to `/usr/share` and asserts `cmake --version`.
+The iluvatar bases carried the same defect; they now pass `--prefix` (#1011).
 
 ## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
 
