@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-hygon-dtk26.04"
+title: "megatron_rl0.17.1-enflame-tops1.9.10"
 ---
 
 <!--
@@ -21,19 +21,19 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** Hygon BW1000
-- **宿主机驱动:** 6.3.30-V1.4.1a
-- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: dcu-container-toolkit >= 1.3.0
+- **芯片型号:** Enflame Zixiao C200 (S60)
+- **宿主机驱动:** 1.9.10
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: tencent-container-toolkit >= 2.0.52
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.2.0</code> <a href="../../runtime/hygon-dtk26.04/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.2.0</code> <a href="../../runtime/enflame-tops1.9.10/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
-3.10
+3.12
 
 ### 应用软件包
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-enflame-tops1.9.10:2.2.0-0.2.3`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-enflame-tops1.9.10:2.2.0-0.2.3
 ```
 
 以下两种方式任选其一：
@@ -57,7 +57,9 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3
 
 ```bash
 docker run --rm -it \
-  -e DCU_VISIBLE_DEVICES=all \
+  --network host \
+  -e ENFLAME_VISIBLE_DEVICES=all \
+  -e TENCENT_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -70,12 +72,8 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  --device /dev/kfd \
-  --device /dev/mkfd \
-  --device /dev/dri \
-  --group-add video \
-  -v /opt/hyhal:/opt/hyhal \
-  --security-opt seccomp=unconfined \
+  --privileged \
+  -v /dev:/dev \
   $IMG bash
 ```
 

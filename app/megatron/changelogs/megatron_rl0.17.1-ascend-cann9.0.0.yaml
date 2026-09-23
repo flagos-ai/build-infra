@@ -40,7 +40,7 @@ tags:
       the hard flash-attn >= 2.7.3 assert with a platform / DotProductAttention
       gate. Built on the FlagOS 2.2.0 stack with the release-line wheel, pinned
       exactly (0.17.1+fl.0.2.3) rather than resolving ==0.17.1 to whichever
-      local version the index held. This backend ships no flash-attn, so the RL
-      loop runs on the unfused attention backend; the RL scenario has not been
-      exercised on this image.
+      local version the index held. This backend ships no flash-attn; the NPU platform skips the
+      dynamic-batching flash-attn gate and uses the CANN paged attention
+      op. The RL scenario has not been measured on this image.
     upstream_prs: []

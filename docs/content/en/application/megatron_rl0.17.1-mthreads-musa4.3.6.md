@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-hygon-dtk26.04"
+title: "megatron_rl0.17.1-mthreads-musa4.3.6"
 ---
 
 <!--
@@ -21,15 +21,15 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** Hygon BW1000
-- **Host driver:** 6.3.30-V1.4.1a
-- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: dcu-container-toolkit >= 1.3.0
+- **Chip models:** MThreads MTT S5000
+- **Host driver:** 5.2.0-server
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.2.0</code> <a href="../../runtime/hygon-dtk26.04/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.2.0</code> <a href="../../runtime/mthreads-musa4.3.6/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -57,7 +57,8 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  -e DCU_VISIBLE_DEVICES=all \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -70,12 +71,9 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  --device /dev/kfd \
-  --device /dev/mkfd \
+  --device /dev/mtgpu.0 \
   --device /dev/dri \
-  --group-add video \
-  -v /opt/hyhal:/opt/hyhal \
-  --security-opt seccomp=unconfined \
+  -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
   $IMG bash
 ```
 
