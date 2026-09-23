@@ -34,7 +34,7 @@ image: megatron_training0.17.1-sunrise-tangrt1.2.0
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-23T07:23:20.100Z'
     reason: >-
       First publication of the training app image on this backend. The megatron-core
       wheel is built from the Megatron-LM-FL release line's head, which now carries
