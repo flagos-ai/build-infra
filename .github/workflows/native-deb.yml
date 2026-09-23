@@ -314,8 +314,13 @@ jobs:
                 # the dependency was not declared, and the package would fail
                 # on a machine that happens not to have it.
                 missing=0
+                # Declared by the package that ships the ELF, not by a -dev
+                # package whose .so is only a symlink to it.
+                owner=$(dpkg -S "$(readlink -f "$so")" | head -1 | cut -d: -f1)
+                depends=$(dpkg-query -W -f="\${Depends}" "$owner" | tr ",|" "\n\n" | sed -E "s/^ +//; s/[ (:].*//")
                 for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  if dpkg -S "*/$lib" > /dev/null 2>&1; then
+                  provider=$(dpkg -S "*/$lib" 2>/dev/null | head -1 | cut -d: -f1)
+                  if [ -n "$provider" ] && ! printf "%s\n" "$depends" | grep -qx "$provider"; then
                     echo "$(basename "$so"): $lib is provided by an installed package but not declared"
                     exit 1
                   fi
