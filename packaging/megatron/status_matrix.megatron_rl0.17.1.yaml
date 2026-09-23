@@ -70,21 +70,21 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控"
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: false
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控"
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: false
@@ -101,12 +101,12 @@ backends:
   iluvatar-corex4.4.0:
     deps_app: true
     launch_docs: false
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   iluvatar-corex4.5.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: false
@@ -124,11 +124,11 @@ backends:
   mthreads-musa4.3.6:
     deps_app: true
     launch_docs: false
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   mthreads-musa5.2.0:
     deps_app: true
     launch_docs: false
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   spacemit-spacemit:
     deps_app: false
     launch_docs: false
@@ -136,7 +136,7 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
@@ -144,4 +144,4 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
+    note: "RL 场景未实测；本后端无 flash-attn"
