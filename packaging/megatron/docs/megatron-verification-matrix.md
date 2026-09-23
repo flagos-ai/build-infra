@@ -50,40 +50,40 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 海光 | DTK 26.04 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 天数智芯 | COREX 4.4.0 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 | 天数智芯 | COREX 4.5.0 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
-| 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ | ⏸ | ⏸ | ✅ | ✅ | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | ⏸ | ⏸ | ✅ | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ⏸ | ⏸ | ？ | — | ⛔ | — |
-| 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 | 平头哥 | PPU 2.0.0 | ⬜ | — | ⏸ | ⏸ | ？ | — | ⛔ | — |
-| 清微智能 | TSM 260610 | ⬜ | ⬜ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
+| 清微智能 | TSM 260610 | ✅ | ✅ | ⏸ | ⏸ | ？ | ？ | ⛔ | ⛔ |
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
 | 厂商 | 后端 | App | PR | 状态 |
 |---|---|---|---|---|
+| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | 已合并 |
-| 英伟达 | CUDA 12.8 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 12.8 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
+| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | 已合并 |
-| 英伟达 | CUDA 12.8 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | 已合并 |
-| 英伟达 | CUDA 13.3 | megatron_training | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
+| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
 | 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | 已合并 |
-| 英伟达 | CUDA 13.3 | megatron_rl | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
-| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
+| 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
-| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
+| 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 寒武纪 | NEUWARE 4.4.3 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
@@ -132,6 +132,8 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 | 已合并 |
+| 曦望 | TANGRT 1.2.0 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/181 | 已合并 |
+| 清微智能 | TSM 260610 | megatron_training | https://github.com/flagos-ai/Megatron-LM-FL/pull/180 | 已合并 |
 
 <!-- /status-matrix:verification -->
 
@@ -145,7 +147,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 ### megatron_training
 
-> 数据截止：2026-08-31
+> 数据截止：2026-09-23
 
 **App 级设施（全后端共享）**
 

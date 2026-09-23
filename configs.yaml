@@ -726,6 +726,7 @@ vendors:
         - xmlir==1.0.0.1+20260605
         - numpy==1.26.4
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -962,6 +963,7 @@ vendors:
         - torch-ptpu==0.2.3+torch2.11
         - numpy==1.26.4
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -1028,6 +1030,7 @@ vendors:
         - txops==0.1.0+20260716.e94d9509
         - numpy==1.26.4
       deps_app:
+        megatron_training: []
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
