@@ -218,7 +218,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | MUSA 4.3.6 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | MUSA 5.2.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
-| TANGRT 1.2.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
+| TANGRT 1.2.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | PPU 2.0.0 | ⬜ | ⬜ | ⬜ | — |
 | TSM 260610 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 
