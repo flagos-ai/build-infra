@@ -40,7 +40,7 @@ on:
   workflow_dispatch:
     inputs:
       apps:
-        description: 'Comma-separated app keys to verify (empty = all): vllm0.20.2,vllm0.24.0,megatron_training,megatron_rl'
+        description: 'Comma-separated app keys to verify (empty = all): vllm0.20.2,vllm0.24.0,megatron_training0.17.1,megatron_rl0.17.1'
         required: false
         default: ''
       backends:

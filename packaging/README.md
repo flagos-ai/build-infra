@@ -29,9 +29,9 @@ packaging/<app>/                          # app = vllm | sglang | megatron | ver
 ## 命名规则
 
 - **文档目录 `<app>-<version>` 带连字符**：`vllm-0.20.2`、`megatron-0.17.1`。
-- **app 键 `<app><version>` 不带连字符**：`vllm0.20.2`、`megatron_training` /
-  `megatron_rl` —— 是 workflow 输入、Harbor repo 段、status_matrix 文件名的
-  唯一事实源，**保持现状不改**。
+- **app 键 `<app><version>` 不带连字符**：`vllm0.20.2`、`megatron_training0.17.1`
+  / `megatron_rl0.17.1` —— 是 workflow 输入、Harbor repo 段、status_matrix 文件名的
+  唯一事实源，**保持现状不改**（megatron 两条线 2026-09-23 起同样带版本号）。
 - **状态矩阵**：`status_matrix.<appkey>.yaml` 是数据源（人工只改 YAML），
   `docs/<app>-verification-matrix.md` 是渲染目标——marker 块由
   `scripts/render_status_matrix.py` 重写，marker 外的手写 prose（含 wiki

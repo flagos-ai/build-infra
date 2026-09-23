@@ -78,7 +78,7 @@ megatron_version=0.17.1，mlf_version=0.2.1_9.g48b97a13f）。
 workflow 内 verify（runtime → app 前后包矩阵 unchanged +
 megatron.core import + helpers_cpp bindings）通过后推送。
 
-training 无 vendor 条件包（deps_app.megatron_training = `[]`），
+training 无 vendor 条件包（deps_app.megatron_training0.17.1 = `[]`），
 镜像 = runtime + wheel `[training]` extra。
 
 ## RL（全链 E2E 暂停）

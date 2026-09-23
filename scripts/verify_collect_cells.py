@@ -28,6 +28,11 @@ is marked ⛔ and skipped as a terminal symbol. The deeper megatron columns
 (post_training / inference) are human/worker conclusions, not script-driven
 verifications, so they are never turned into cells.
 
+App keys are the app name + packaged version, and are the key of APP_VERIFY /
+MATRICES below: megatron_training0.17.1 / megatron_rl0.17.1 / vllm0.24.0 /
+sglang0.5.18 — the same key configs.yaml deps_app and the status matrices are
+keyed by.
+
 Every pending (⬜) compiler column becomes a cell — FlagTree (F) and Triton
 (T) are each collected when their symbol is ⬜, in F then T order. The driver
 passes each cell's compiler to the verify script as ``--compiler
@@ -79,12 +84,12 @@ APP_VERIFY = {
         "verify_args": "--vllm-version 0.24.0",
         "derive_plugin": True,
     },
-    "megatron_training": {
+    "megatron_training0.17.1": {
         "script": "packaging/megatron/verify/verify-megatron-backend.sh",
         "scenario": "training",
         "verify_args": "--scenario training",
     },
-    "megatron_rl": {
+    "megatron_rl0.17.1": {
         "script": "packaging/megatron/verify/verify-megatron-backend.sh",
         "scenario": "rl",
         "verify_args": "--scenario rl",
@@ -94,8 +99,8 @@ APP_VERIFY = {
 MATRICES = {
     "vllm0.20.2": "packaging/vllm/status_matrix.vllm0.20.2.yaml",
     "vllm0.24.0": "packaging/vllm/status_matrix.vllm0.24.0.yaml",
-    "megatron_training": "packaging/megatron/status_matrix.megatron_training.yaml",
-    "megatron_rl": "packaging/megatron/status_matrix.megatron_rl.yaml",
+    "megatron_training0.17.1": "packaging/megatron/status_matrix.megatron_training0.17.1.yaml",
+    "megatron_rl0.17.1": "packaging/megatron/status_matrix.megatron_rl0.17.1.yaml",
 }
 
 PENDING = "⬜"

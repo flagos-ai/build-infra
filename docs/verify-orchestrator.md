@@ -7,8 +7,8 @@
 
 ## 1. 目标与需求映射
 
-一次触发，编排器驱动 6 个 app（vllm0.20.2 / vllm0.24.0 / megatron_training /
-megatron_rl / sglang / verl）× configs.yaml 枚举的每个后端，逐 cell 走通
+一次触发，编排器驱动 6 个 app（vllm0.20.2 / vllm0.24.0 / megatron_training0.17.1 /
+megatron_rl0.17.1 / sglang / verl）× configs.yaml 枚举的每个后端，逐 cell 走通
 「验证 → 构建 app 镜像 → 记录 tag → 按规则提 PR」，进度实时落回
 `status_matrix.*.yaml`。人不当 driver、不当 monitor。
 

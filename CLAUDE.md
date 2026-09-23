@@ -133,7 +133,9 @@ switchable via the `compiler` shell function.
 
 - **`megatron-app-image.yml`** — Manual.
   Builds `flagos-app/{app}{app_version}-{vendor}-{backend}:{version}`
-  (`{app}` = `megatron_training` | `megatron_rl`, app name + version with no separator)
+  (`{app}` = `megatron_training` | `megatron_rl`, app name; the app key is app + version,
+  e.g. `megatron_training0.17.1`, no separator — `configs.yaml deps_app`, the status matrix
+  filename and the workflow's `--app` all use the versioned key)
   from `flagos-runtime-{vendor}-{backend}` by installing the megatron-core wheel single-step
   (no `--no-deps`; the wheel keeps `torch>=2.6.0` and the vendor torch satisfies it),
   selecting the app's Containerfile + wheel extra (`[training]` / `[rl]`) plus vendor-conditional deps

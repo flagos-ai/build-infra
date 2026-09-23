@@ -42,9 +42,10 @@ name: Megatron app image
 # torch/triton/flag_gems matrix cannot be disturbed (the repack facility was
 # removed 2026-08-14).
 #
-# Backend matrix comes from scripts/generate_matrix.py --app {app} (same
+# Backend matrix comes from scripts/generate_matrix.py --app {app}{app_version},
+# the versioned app key configs.yaml deps_app is keyed by (same
 # runtime fields as runtime-image.yaml plus the per-backend app env vars and
-# vendor-conditional deps from configs.yaml deps_app.{app}).
+# vendor-conditional deps from configs.yaml deps_app.{app}{app_version}).
 # Per-vendor PyPI (flagos_pypi) is searched first; aliyun is the fallback.
 
 on:
@@ -55,7 +56,7 @@ on:
         type: string
         default: all
       app:
-        description: 'App to build: megatron_training (training + post_training) or megatron_rl (RL loop)'
+        description: 'App to build: megatron_training (training + post_training) or megatron_rl (RL loop). The app key is this name + megatron_version (megatron_training0.17.1).'
         type: choice
         options:
           - megatron_training
@@ -117,10 +118,13 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
+          # --app takes the *versioned* app key (configs.yaml deps_app), which
+          # is the app name plus the version being installed.
+          app_key="${{ inputs.app }}${{ inputs.megatron_version }}"
           if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 scripts/generate_matrix.py --app "${{ inputs.app }}" > matrix.json
+            python3 scripts/generate_matrix.py --app "${app_key}" > matrix.json
           else
-            python3 scripts/generate_matrix.py --app "${{ inputs.app }}" ${{ inputs.backend }} > matrix.json
+            python3 scripts/generate_matrix.py --app "${app_key}" ${{ inputs.backend }} > matrix.json
           fi
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
@@ -266,7 +270,7 @@ jobs:
         if: ${{ success() && inputs.push }}
         uses: ./.github/actions/record-app-image-tag
         with:
-          matrix: "packaging/megatron/status_matrix.${{ inputs.app }}.yaml"
+          matrix: "packaging/megatron/status_matrix.${{ inputs.app }}${{ inputs.megatron_version }}.yaml"
           backend: "${{ matrix.name }}"
           changelog: "app/megatron/changelogs/${{ inputs.app }}${{ inputs.megatron_version }}-${{ matrix.name }}.yaml"
           tag: "${APP_TAG}"

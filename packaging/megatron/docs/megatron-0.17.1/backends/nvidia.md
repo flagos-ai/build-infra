@@ -161,7 +161,7 @@ dry-run 实证仅装 einops + flash_attn。
 megatron_version=0.17.1、mlf_version=0.2.1_9.g48b97a13f，workflow 内 verify
 （--app-image 模式：BEFORE(runtime) vs AFTER(app) 矩阵逐包 unchanged +
 megatron.core import）双后端均过。training 无 vendor 条件包（configs.yaml
-deps_app.megatron_training = `[]`，仅 RL 有 flash_attn）——镜像 = runtime +
+deps_app.megatron_training0.17.1 = `[]`，仅 RL 有 flash_attn）——镜像 = runtime +
 wheel `[training]` extra 单步安装。**E2E 复验（cuda12.8）**：mock data
 5 iter 直跑 pretrain_gpt.py，
 双编译器全 exit 0——flagtree 3.6.0 默认线与 vendor triton 3.6.0

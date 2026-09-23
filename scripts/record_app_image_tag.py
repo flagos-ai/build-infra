@@ -195,9 +195,8 @@ def component_of(matrix_rel: str) -> str:
 def app_key_of(matrix_rel: str) -> str:
     """Versioned app key from the matrix filename stem (``status_matrix.<app>.yaml``).
 
-    Carries the app version (sglang0.5.18, vllm0.24.0) so two versions of one
-    app map to distinct records; megatron's per-app matrices stem as
-    megatron_training / megatron_rl.
+    Carries the app version (sglang0.5.18, vllm0.24.0, megatron_training0.17.1)
+    so two versions of one app map to distinct records.
     """
     name = Path(matrix_rel).name
     prefix, suffix = "status_matrix.", ".yaml"
