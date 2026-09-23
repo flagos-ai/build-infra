@@ -34,6 +34,13 @@ image: vllm0.24.0-iluvatar-corex4.5.0
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on a corrected base image. The CoreX cmake installer was being
+      handed a flag it silently ignores, so every image in this chain shipped a
+      cmake that cannot run (#1011). Nothing else moves: same stack, same base
+      and runtime recipe, same plugin pin.
+    upstream_prs: []
   - date: '2026-09-20T09:55:12.142Z'
     reason: >-
       The symmetric-memory stub (PR 491) is on the release line now, so this image
