@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-nvidia-cuda12.8"
+title: "megatron_rl0.17.1-tsingmicro-tsm260610"
 ---
 
 <!--
@@ -21,19 +21,19 @@ title: "megatron_rl0.17.1-nvidia-cuda12.8"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** NVIDIA H20
-- **Host driver:** 610.43.02
-- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: nvidia-container-toolkit
+- **Chip models:** Tsingmicro TX8110
+- **Host driver:** 260610164501.01
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: tx-container-toolkit >= 2.5.0
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-tsingmicro-tsm260610:2.2.0</code> <a href="../../runtime/tsingmicro-tsm260610/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
-3.12
+3.10
 
 ### Application package
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-nvidia-cuda12.8"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.2.0-0.2.3`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-tsingmicro-tsm260610:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda12.8:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-tsingmicro-tsm260610:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -57,7 +57,8 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  --gpus all \
+  --runtime=tsingmicro \
+  -e TSINGMICRO_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -70,12 +71,8 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  --device /dev/nvidia0 \
-  --device /dev/nvidiactl \
-  --device /dev/nvidia-uvm \
-  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
-  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
-  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+  --device /dev/accel \
+  --device /dev/accel_drv_mgr \
   $IMG bash
 ```
 
