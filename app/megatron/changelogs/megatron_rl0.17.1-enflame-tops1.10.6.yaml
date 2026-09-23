@@ -33,7 +33,7 @@ image: megatron_rl0.17.1-enflame-tops1.10.6
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-23T13:43:25.546Z'
     reason: >-
       First megatron_rl image on this backend. The RL line resumes for
       image publication after MLF PR 114 declared the [rl] extra and PR 116
