@@ -34,6 +34,13 @@ image: megatron_training0.17.1-iluvatar-corex4.4.0
 tags:
 - tag: 2.2.0-0.2.3
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on a corrected base image. The CoreX cmake installer was being
+      handed a flag it silently ignores, so every image in this chain shipped a
+      cmake that cannot run (#1011). Nothing else moves: same stack, same base
+      and runtime recipe, same wheel pin.
+    upstream_prs: []
   - date: '2026-09-22T16:04:20.355Z'
     reason: >-
       Rebuilt on the FlagOS 2.2.0 stack and on release/0.2, whose head carries

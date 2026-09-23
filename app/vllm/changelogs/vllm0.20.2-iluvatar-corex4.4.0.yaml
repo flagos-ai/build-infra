@@ -33,6 +33,13 @@ image: vllm0.20.2-iluvatar-corex4.4.0
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on a corrected base image. The CoreX cmake installer was being
+      handed a flag it silently ignores, so every image in this chain shipped a
+      cmake that cannot run (#1011). Nothing else moves: same stack, same base
+      and runtime recipe, same plugin pin.
+    upstream_prs: []
   - date: '2026-09-20T10:55:02.266Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
