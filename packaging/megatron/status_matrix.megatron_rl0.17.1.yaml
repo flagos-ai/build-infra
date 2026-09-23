@@ -76,7 +76,8 @@ backends:
     note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
   cambricon-neuware4.4.3:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
     note: "RL 场景未实测；本后端无 flash-attn，循环走 unfused attention"
   cambricon-neuware4.7.2:
     deps_app: true
