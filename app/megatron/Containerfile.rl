@@ -23,21 +23,25 @@
 #
 # megatron_rl = runtime + wheel, wheel install selecting the [rl]
 # extra (the full RL public group, declared in the MLF pyproject), +
-# vendor-conditional packages via APP_DEPS — e.g. hygon's
-# transformer_engine (configs.yaml deps_app.megatron_rl0.17.1). Transformer
-# engine stays a deps_app entry, NOT an [rl] extra member: it is
-# vendor-conditional, and the extra only carries public packages.
+# vendor-conditional packages via APP_DEPS. The extra carries only public
+# packages, so everything vendor-specific stays a deps_app entry — nvidia's
+# source-built flash_attn (absent from the extra and from that runtime),
+# hygon's transformer_engine. Backends whose runtime already ships flash_attn
+# need no deps_app packages at all; the key is present, empty, to pull the
+# backend into the build matrix.
 #
-# NOTE: the [rl] extra lands with the MLF pyproject PR (feat/
-# declare-runtime-extras). The megatron_rl image can be built only
-# from a wheel produced after that merges; the wheel uploaded before
-# it lacks the extra and pip fails with "extra 'rl' not found".
+# The [rl] extra exists from MLF v0.2.3 onward (PR 114); a wheel built before
+# that tag lacks it and pip fails with "extra 'rl' not found".
 #
 # Revision history:
 #   2026-08-18   Split from Containerfile (app decision D5): the RL
 #                app's own Containerfile, wheel install selecting the
 #                [rl] extra. APP_DEPS mechanism carried over for the
 #                vendor TE.
+#   2026-09-23   RL line resumed for publication (8 backends): PR 116
+#                replaced the flash-attn >= 2.7.3 assert with a platform /
+#                DotProductAttention gate, so sub-2.7.3 vendor wheels are
+#                usable. Note above rewritten — the extra is now upstream.
 # TODO
 #   - Publish-time verification (torch version, megatron.core import,
 #     [rl] group imports on the RL loop path).

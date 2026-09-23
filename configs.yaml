@@ -68,13 +68,15 @@
 #                        (megatron_training0.17.1, and 0.18.2 when it lands):
 #                        each is verified independently and its empty wheel
 #                        binds a CPython minor version.
-#                        KEY PRESENCE = the app is VERIFIED on this backend
-#                        (per the verification matrices in packaging/megatron/
-#                        docs/, packaging/vllm/docs/, and the per-version
-#                        status_matrix.sglang*.yaml under packaging/sglang/).
-#                        Backends without a
-#                        key neither build the app nor get a launch page.
-#                        [] means "verified, but has no vendor package".
+#                        KEY PRESENCE = the backend is admitted to that app's
+#                        build matrix. It does not assert verification: the
+#                        app's own status matrix carries that (packaging/
+#                        megatron/, packaging/vllm/, packaging/sglang/), and
+#                        its launch_docs flag gates the launch page — so a key
+#                        can be added to trigger a build whose result is still
+#                        pending. Backends without a key neither build the app
+#                        nor get a launch page.
+#                        [] means "buildable, but has no vendor package".
 #                        Public packages never appear here (they ride the
 #                        wheel's extras, see packaging/megatron).
 #                        The app's own wheel is NOT a deps_app entry — it is
@@ -255,6 +257,7 @@ vendors:
         - psutil==6.0.0
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -331,6 +334,7 @@ vendors:
         - cann-shmem==1.6.0
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -396,6 +400,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -442,6 +447,7 @@ vendors:
         - pandas==3.0.5
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -490,6 +496,7 @@ vendors:
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -544,6 +551,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18: []
@@ -616,6 +624,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -667,6 +676,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -731,6 +741,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -777,6 +788,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -872,6 +884,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -904,6 +917,7 @@ vendors:
 
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -969,6 +983,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -1036,6 +1051,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
