@@ -257,7 +257,7 @@ vendors:
         - psutil==6.0.0
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here — NPU skips the dynamic-batching flash-attn gate (CANN paged attention)
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -334,7 +334,7 @@ vendors:
         - cann-shmem==1.6.0
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here — NPU skips the dynamic-batching flash-attn gate (CANN paged attention)
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -400,7 +400,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -447,7 +447,7 @@ vendors:
         - pandas==3.0.5
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -624,7 +624,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -676,7 +676,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -884,7 +884,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -917,7 +917,7 @@ vendors:
 
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -983,7 +983,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -1051,7 +1051,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL loop needs the unfused attention backend
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:

@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-hygon-dtk26.04"
+title: "megatron_rl0.17.1-enflame-tops1.9.10"
 ---
 
 <!--
@@ -21,19 +21,19 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** Hygon BW1000
-- **Host driver:** 6.3.30-V1.4.1a
-- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: dcu-container-toolkit >= 1.3.0
+- **Chip models:** Enflame Zixiao C200 (S60)
+- **Host driver:** 1.9.10
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: tencent-container-toolkit >= 2.0.52
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.2.0</code> <a href="../../runtime/hygon-dtk26.04/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.9.10:2.2.0</code> <a href="../../runtime/enflame-tops1.9.10/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
-3.10
+3.12
 
 ### Application package
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-enflame-tops1.9.10:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-enflame-tops1.9.10:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -57,7 +57,9 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  -e DCU_VISIBLE_DEVICES=all \
+  --network host \
+  -e ENFLAME_VISIBLE_DEVICES=all \
+  -e TENCENT_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -70,12 +72,8 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
-  --device /dev/kfd \
-  --device /dev/mkfd \
-  --device /dev/dri \
-  --group-add video \
-  -v /opt/hyhal:/opt/hyhal \
-  --security-opt seccomp=unconfined \
+  --privileged \
+  -v /dev:/dev \
   $IMG bash
 ```
 

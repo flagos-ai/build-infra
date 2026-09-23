@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-hygon-dtk26.04"
+title: "megatron_rl0.17.1-mthreads-musa4.3.6"
 ---
 
 <!--
@@ -21,15 +21,15 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** Hygon BW1000
-- **宿主机驱动:** 6.3.30-V1.4.1a
-- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: dcu-container-toolkit >= 1.3.0
+- **芯片型号:** MThreads MTT S5000
+- **宿主机驱动:** 5.2.0-server
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.2.0</code> <a href="../../runtime/hygon-dtk26.04/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa4.3.6:2.2.0</code> <a href="../../runtime/mthreads-musa4.3.6/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-hygon-dtk26.04"
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.2.0-0.2.3`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa4.3.6:2.2.0-0.2.3
 ```
 
 以下两种方式任选其一：
@@ -57,7 +57,8 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-hygon-dtk26.04:2.2.0-0.2.3
 
 ```bash
 docker run --rm -it \
-  -e DCU_VISIBLE_DEVICES=all \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
   $IMG bash
 ```
 
@@ -70,12 +71,9 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
-  --device /dev/kfd \
-  --device /dev/mkfd \
+  --device /dev/mtgpu.0 \
   --device /dev/dri \
-  --group-add video \
-  -v /opt/hyhal:/opt/hyhal \
-  --security-opt seccomp=unconfined \
+  -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
   $IMG bash
 ```
 
