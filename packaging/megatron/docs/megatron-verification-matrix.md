@@ -204,7 +204,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 12.8 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | CUDA 13.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
-| CANN 9.0.0 | ✅ | ⬜ | ⬜ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
+| CANN 9.0.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，循环走 unfused attention |
 | TOPS 1.9.10 | ✅ | ⬜ | ⬜ | RL 场景未实测（本轮只过构建 + training gate） |
