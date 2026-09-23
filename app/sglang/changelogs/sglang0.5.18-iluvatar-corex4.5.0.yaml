@@ -32,6 +32,17 @@
 
 image: sglang0.5.18-iluvatar-corex4.5.0
 tags:
+- tag: 2.2.0-0.1.dev1_g201484665
+  entries:
+  - date: ''
+    reason: >-
+      First rebuild since the stack moved to 2.2.0, so the tag leaves 2.1.2. The
+      base and runtime underneath are new for two reasons: the CoreX cmake
+      installer was being handed a flag it silently ignores, leaving every image
+      in the chain with a cmake that cannot run (#1011), and FlagGems moves to
+      the version this stack pins. Same sglang and plugin pins as the 2.1.2
+      image it replaces.
+    upstream_prs: []
 - tag: 2.1.2-0.1.dev1_g201484665
   entries:
   - date: '2026-09-10T11:59:36.635Z'

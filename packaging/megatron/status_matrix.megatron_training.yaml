@@ -150,7 +150,8 @@ backends:
     image_tag: "2.2.0-0.2.3"
   kunlunxin-xre5.37.1:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
   metax-maca3.7.2.1:
     deps_app: true
     launch_docs: true
@@ -172,10 +173,12 @@ backends:
     launch_docs: false
   sunrise-tangrt1.2.0:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
   tsingmicro-tsm260610:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
