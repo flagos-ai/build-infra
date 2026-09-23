@@ -179,7 +179,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | — |
 | PPU 2.0.0 | ⬜ | ⬜ | ⬜ | — |
-| TSM 260610 | ✅ | ⬜ | ⬜ | — |
+| TSM 260610 | ✅ | ✅ | ✅ | — |
 
 
 <!-- /status-matrix:facility:megatron_training -->
