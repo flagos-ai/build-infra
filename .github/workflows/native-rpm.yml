@@ -80,6 +80,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
+      # Set by any matrix row that actually built. Empty means every row
+      # skipped, which is a configuration error rather than a clean run.
+      any_built: ${{ steps.build.outputs.built }}
     strategy:
       fail-fast: false
       matrix:
@@ -154,6 +157,14 @@ jobs:
             echo "outdir=${outdir}"
             echo "default_ref=${ref}"
           } >> "$GITHUB_OUTPUT"
+          # The base image for the suite this matrix row builds. Empty means the
+          # target has no image for that distribution and the row is skipped --
+          # so this has to be emitted, or every row skips and the run reports
+          # success having built nothing.
+          case "${{ matrix.suite }}" in
+            fedora43)       echo "base_image=${image_fedora43}" >> "$GITHUB_OUTPUT" ;;
+            openeuler24.03) echo "base_image=${image_openeuler2403}" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
@@ -276,6 +287,7 @@ jobs:
         run: echo "::notice::${{ inputs.target }} has no ${{ matrix.suite }} base image; skipping"
 
       - name: Build the .rpm packages for ${{ matrix.suite }}
+        id: build
         if: ${{ steps.cfg.outputs.base_image != '' }}
         working-directory: src
         env:
@@ -293,6 +305,7 @@ jobs:
           mapfile -t rpms < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.rpm' ! -name '*.src.rpm' | sort)
           [ "${#rpms[@]}" -gt 0 ] || { echo "::error::the build produced no binary rpm"; exit 1; }
           mkdir -p out && cp "${rpms[@]}" out/
+          echo "built=yes" >> "$GITHUB_OUTPUT"
           echo "Built ${#rpms[@]} package(s):"
           for r in "${rpms[@]}"; do
             echo ">>> $(basename "$r")"
@@ -330,7 +343,18 @@ jobs:
 
       - name: Note a suite with no package
         if: ${{ steps.fetch.outcome == 'failure' }}
-        run: echo "::notice::nothing was built for ${{ matrix.suite }}"
+        run: |
+          # A suite with no package is expected only when the target has no
+          # base image for it. Any other cause -- a build that failed, or a
+          # configuration that emits no image at all -- must not read as a
+          # verified run, which is how a bug that skipped every suite once
+          # reported success having built nothing.
+          if [ -n "${{ needs.build.outputs.any_built }}" ]; then
+            echo "::notice::nothing was built for ${{ matrix.suite }}"
+          else
+            echo "::error::no suite produced a package - nothing was verified"
+            exit 1
+          fi
 
       - name: Install and check in a clean ${{ matrix.image }}
         if: ${{ steps.fetch.outcome == 'success' }}
