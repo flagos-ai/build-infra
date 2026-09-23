@@ -17,8 +17,9 @@
 """Re-render app verification-matrix markdown from the status_matrix YAMLs.
 
 Source of truth: packaging/<component>/status_matrix.<app>.yaml — one file
-per app, and an app name carries no hyphen between app and version
-(megatron_training, megatron_rl, vllm0.20.2, vllm0.24.0). Rendered into the
+per app, and an app key is the app name + packaged version with no
+separator (megatron_training0.17.1, megatron_rl0.17.1, vllm0.20.2,
+vllm0.24.0). Rendered into the
 adjacent docs file packaging/<component>/docs/<component>-verification-matrix.md
 (the megatron md receives all megatron apps' columns; the vllm md receives
 both vllm apps' columns).

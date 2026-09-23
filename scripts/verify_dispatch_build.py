@@ -23,10 +23,14 @@ so the build + snapshot verify + tag record + PR chain reuses the existing
 workflow instead of re-implementing it.
 
 Mapping:
-  vllm0.20.2        -> vllm-app-image.yml      (vllm_version=0.20.2)
-  vllm0.24.0        -> vllm-app-image.yml      (vllm_version=0.24.0)
-  megatron_training -> megatron-app-image.yml  (app=megatron_training)
-  megatron_rl       -> megatron-app-image.yml  (app=megatron_rl)
+  vllm0.20.2              -> vllm-app-image.yml      (vllm_version=0.20.2)
+  vllm0.24.0              -> vllm-app-image.yml      (vllm_version=0.24.0)
+  megatron_training0.17.1 -> megatron-app-image.yml  (app=megatron_training, megatron_version=0.17.1)
+  megatron_rl0.17.1       -> megatron-app-image.yml  (app=megatron_rl, megatron_version=0.17.1)
+
+Keys are the cell's app key (app name + packaged version), which is what the
+status matrix and configs.yaml deps_app are keyed by; the megatron workflows
+take the bare app name plus the version as separate inputs, so both are passed.
 
 For vllm the cell's own ``--plugin-fl-version`` is forwarded as the build's
 ``plugin_fl_version`` input (see ``_plugin_fl_version``): without it the build
@@ -53,8 +57,10 @@ from pathlib import Path
 APP_WORKFLOW = {
     "vllm0.20.2": ("vllm-app-image.yml", {"vllm_version": "0.20.2"}),
     "vllm0.24.0": ("vllm-app-image.yml", {"vllm_version": "0.24.0"}),
-    "megatron_training": ("megatron-app-image.yml", {"app": "megatron_training"}),
-    "megatron_rl": ("megatron-app-image.yml", {"app": "megatron_rl"}),
+    "megatron_training0.17.1": ("megatron-app-image.yml",
+                               {"app": "megatron_training", "megatron_version": "0.17.1"}),
+    "megatron_rl0.17.1": ("megatron-app-image.yml",
+                          {"app": "megatron_rl", "megatron_version": "0.17.1"}),
 }
 
 

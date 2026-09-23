@@ -1,7 +1,7 @@
 # megatron app 验证文档
 
-megatron-core（Megatron-LM-FL fork）应用镜像（`megatron_training` /
-`megatron_rl`）的验证记录，按版本拆目录。
+megatron-core（Megatron-LM-FL fork）应用镜像（`megatron_training0.17.1` /
+`megatron_rl0.17.1`——app 键带版本号）的验证记录，按版本拆目录。
 
 ## 入口
 

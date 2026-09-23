@@ -11,13 +11,13 @@
 
 | 文件 | 组件 | app |
 |---|---|---|
-| `packaging/megatron/status_matrix.megatron_training.yaml` | megatron | megatron_training |
-| `packaging/megatron/status_matrix.megatron_rl.yaml` | megatron | megatron_rl |
+| `packaging/megatron/status_matrix.megatron_training0.17.1.yaml` | megatron | megatron_training0.17.1 |
+| `packaging/megatron/status_matrix.megatron_rl0.17.1.yaml` | megatron | megatron_rl0.17.1 |
 | `packaging/vllm/status_matrix.vllm0.20.2.yaml` | vllm | vllm0.20.2 |
 | `packaging/vllm/status_matrix.vllm0.24.0.yaml` | vllm | vllm0.24.0 |
 
 app 命名与镜像仓库的 app 段完全一致（app 与版本之间不加连字符）：
-`vllm0.20.2` / `vllm0.24.0` / `megatron_training` / `megatron_rl`。
+`vllm0.20.2` / `vllm0.24.0` / `megatron_training0.17.1` / `megatron_rl0.17.1`。
 同一组件下多个 app 各占一个 YAML（0.20.2 与 0.24.0 视为两个 app）。
 
 ## 渲染目标与 marker 块

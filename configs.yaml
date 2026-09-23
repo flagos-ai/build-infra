@@ -52,18 +52,22 @@
 #                          base:        vars baked into flagos-base-{vendor}-{backend}
 #                          runtime:     vars baked into flagos-runtime-{vendor}-{backend}
 #                          app:         per-app vars baked into
-#                                       flagos-app/{app}-{vendor}-{backend}, keyed by
-#                                       app name (vllm / sglang / megatron_training /
-#                                       megatron_rl)
+#                                       flagos-app/{app}{app_version}-{vendor}-{backend},
+#                                       keyed by app name (vllm / sglang /
+#                                       megatron_training / megatron_rl — the bare name;
+#                                       deps_app keys carry the version)
 #                        base/runtime/app must mirror EXACTLY what the image sets —
 #                        the source of truth for per-image env documentation.
 #   "deps:"            — Python dependencies (torch stack, etc.).
 #   "deps_app:"        — per-app vendor-conditional Python packages, keyed by
-#                        app name: megatron_training / megatron_rl /
-#                        vllm<version> / sglang<version>. vllm and sglang are
-#                        split per repacked version (vllm0.24.0 / vllm0.20.2 /
-#                        sglang0.5.18): each is verified independently and its
-#                        empty wheel binds a CPython minor version.
+#                        app name + packaged version: megatron_training0.17.1 /
+#                        megatron_rl0.17.1 / vllm<version> / sglang<version>.
+#                        Every app is split per version — vllm/sglang per
+#                        repacked version (vllm0.24.0 / vllm0.20.2 /
+#                        sglang0.5.18), megatron per megatron-core release
+#                        (megatron_training0.17.1, and 0.18.2 when it lands):
+#                        each is verified independently and its empty wheel
+#                        binds a CPython minor version.
 #                        KEY PRESENCE = the app is VERIFIED on this backend
 #                        (per the verification matrices in packaging/megatron/
 #                        docs/, packaging/vllm/docs/, and the per-version
@@ -155,13 +159,13 @@ vendors:
         - torchvision==0.25.0+cu128
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         # flash-attn is a hard dependency of the RL dynamic engine
         # (attention.py flash_attn_with_kvcache assertion, ≥2.7.3 gate). The
         # wheel is source-built (packaging/flash-attn/Containerfile) with the
         # ABI locked to this backend's torch: build-time torch must equal the
         # runtime torch, hence the per-backend +fl.cu128.torch210 tag.
-        megatron_rl:
+        megatron_rl0.17.1:
           - flash_attn==2.8.3.post1+fl.cu128.torch210
         vllm0.20.2: []
         vllm0.24.0: []
@@ -207,10 +211,10 @@ vendors:
         - torchvision==0.26.0+cu130
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         # flash-attn wheel source-built with ABI locked to torch 2.11.0+cu130
         # (build-time torch == runtime torch; see cuda12.8 comment).
-        megatron_rl:
+        megatron_rl0.17.1:
           - flash_attn==2.8.3.post1+fl.cu130.torch211
         vllm0.20.2: []
         vllm0.24.0: []
@@ -250,7 +254,7 @@ vendors:
         - decorator==5.1.1
         - psutil==6.0.0
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -266,7 +270,7 @@ vendors:
     # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run); toolkit/NNAL/deps/toolchain
     # are identical to the 910B line. deps_app carries only the apps actually
     # verified on 910C (key presence = verified): the vllm line as of the app
-    # layer opening; megatron_training/sglang0.5.18 stay absent on purpose — a
+    # layer opening; megatron_training0.17.1/sglang0.5.18 stay absent on purpose — a
     # key here would pull 910C into their build matrices.
     cann8.5.0-910c:
       extras: ascend-cann850-910c
@@ -326,7 +330,7 @@ vendors:
         - numpy==1.26.4
         - cann-shmem==1.6.0
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -391,7 +395,7 @@ vendors:
         - torchvision==0.22.1+cpu
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -437,7 +441,7 @@ vendors:
         - numpy==1.26.4
         - pandas==3.0.5
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -485,7 +489,7 @@ vendors:
         - torch-gcu==2.10.0+3.7.20260408
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -539,7 +543,7 @@ vendors:
         - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18: []
@@ -575,8 +579,8 @@ vendors:
         - torchvision==0.24.0+das.opt1.dtk2604.torch290
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
-        megatron_rl:
+        megatron_training0.17.1: []
+        megatron_rl0.17.1:
           - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
         vllm0.20.2: []
         vllm0.24.0: []
@@ -611,7 +615,7 @@ vendors:
         - torchvision==0.22.1+corex.4.4.0
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -662,7 +666,7 @@ vendors:
         - torchvision==0.25.0+corex.4.5.0.20260804
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -726,7 +730,7 @@ vendors:
         - xmlir==1.0.0.1+20260605
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -772,7 +776,7 @@ vendors:
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -835,8 +839,8 @@ vendors:
         - flash_mla==1.0.1+metax3.8.1.0torch2.10
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
-        megatron_rl: []  # RL verified per megatron-verification-matrix.md; no vendor extra
+        megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # RL verified per megatron-verification-matrix.md; no vendor extra
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -867,7 +871,7 @@ vendors:
         - mkl==2024.0.0
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -899,7 +903,7 @@ vendors:
         - numpy==1.26.4
 
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -964,7 +968,7 @@ vendors:
         - torch-ptpu==0.2.3+torch2.11
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -1031,7 +1035,7 @@ vendors:
         - txops==0.1.0+20260716.e94d9509
         - numpy==1.26.4
       deps_app:
-        megatron_training: []
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:

@@ -25,13 +25,13 @@ Usage:
     python scripts/generate_matrix.py --runtime                    # runtime: all
     python scripts/generate_matrix.py --runtime nvidia-cuda12.8    # runtime: subset
     python scripts/generate_matrix.py --app vllm0.24.0 nvidia-cuda12.8  # app: subset
-    python scripts/generate_matrix.py --app megatron_rl           # app: keyed backends
+    python scripts/generate_matrix.py --app megatron_rl0.17.1     # app: keyed backends
 
 --runtime mode pre-computes all docker build args so self-hosted
 runners don't need Python/pyyaml installed.  --app mode is the
 same superset plus the per-backend app-layer env vars
 (configs.yaml env.app.{app} — a versioned app key like vllm0.24.0 or
-sglang0.5.18 resolves to the bare name vllm / sglang) serialized as
+megatron_training0.17.1 resolves to the bare name vllm / megatron_training) serialized as
 "KEY=value\n...".  Only backends whose deps_app carries the app
 key are included (key presence = verified in the app's matrix).
 """
@@ -109,8 +109,9 @@ def _runtime_matrix(
     as "KEY=value\\n..." (same format as runtime_env) under ``app_env``,
     and the per-backend app deps from configs.yaml deps_app.{app}
     (space-separated) under ``app_deps``.  ``app`` is a deps_app key —
-    vllm and sglang keys are versioned (vllm0.24.0 / sglang0.5.18)
-    while env.app keys stay bare ('vllm' / 'sglang'), so the env
+    every app key is the app name + its packaged version (vllm0.24.0 /
+    sglang0.5.18 / megatron_training0.17.1) while env.app keys stay bare
+    ('vllm' / 'sglang' / 'megatron_training'), so the env
     lookup strips a trailing version suffix.
     """
     build_config = load_yaml(repo_root / ".github" / "build-config.yml")
@@ -169,10 +170,10 @@ def _runtime_matrix(
         # (configs.yaml deps_app.{app}). Space-separated, same format as deps.
         app_deps = ""
         if app is not None:
-            # env.app keys stay bare app names ('vllm' / 'sglang') while deps_app
-            # keys may be versioned ('vllm0.24.0' / 'sglang0.5.18') — resolve to
-            # the bare name by stripping the trailing version (megatron_rl /
-            # megatron_training end in no digits and pass through untouched).
+            # env.app keys stay bare app names ('vllm' / 'sglang' /
+            # 'megatron_training') while the --app key is the app name +
+            # packaged version ('vllm0.24.0' / 'megatron_training0.17.1') —
+            # resolve to the bare name by stripping the trailing version.
             env_key = re.sub(r"\d[\d.]*$", "", app) or app
             app_env = ((backend_info.get("env") or {}).get("app") or {}).get(env_key, {})
             app_env_lines = "\n".join(
@@ -226,8 +227,8 @@ def main():
     parser.add_argument(
         "--app", metavar="APP",
         help="Generate app build matrix for the named app key "
-             "(vllm0.24.0 / sglang0.5.18 / megatron_training / "
-             "megatron_rl): runtime matrix fields + per-backend "
+             "(vllm0.24.0 / sglang0.5.18 / megatron_training0.17.1 / "
+             "megatron_rl0.17.1): runtime matrix fields + per-backend "
              "env.app.{APP} as app_env",
     )
     parser.add_argument(
