@@ -173,7 +173,7 @@ jobs:
               ver=v0.2.0-rc2.post2
               # The spec BuildRequires nlohmann-json-devel; FlagFFT#27 dropped it
               # from the Dockerfile. Until FlagFFT can change again, add it here.
-              base_pkgs=nlohmann-json-devel
+              base_pkgs="nlohmann-json-devel python3-wheel"
               image_fedora43=
               image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts
               image_rhel9= ;;
