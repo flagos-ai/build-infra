@@ -41,8 +41,8 @@ title: "sglang0.5.12-thead-ppu2.1.0"
 
 | Component | Version |
 | --- | --- |
-| FlagGems | `5.4.0-rc2.post4` (`6ed2f390`) |
-| FlagTree | `0.7.0rc2.post2+triton3.6` (`d9e65f4df`) |
+| FlagGems | `5.4.0` (`6ed2f390`) |
+| FlagTree | `0.7.0+triton3.6` (`3bc8649b`) |
 | FlagCX | `0.13.0` |
 | triton | 3.6.0 (backend: `ppu`) |
 | torch | 2.10.0 |
@@ -56,12 +56,12 @@ title: "sglang0.5.12-thead-ppu2.1.0"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.12-thead-ppu2.1.0:2.2.0-beta-0.2.0`
+**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.12-thead-ppu2.1.0:2.2.0-0.2.0`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.12-thead-ppu2.1.0:2.2.0-beta-0.2.0
+IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.12-thead-ppu2.1.0:2.2.0-0.2.0
 ```
 
 ### Without a toolkit — plain docker / podman
