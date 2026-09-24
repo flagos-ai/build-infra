@@ -231,6 +231,9 @@ Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in
 
 - **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `docs/gen_descriptions.py`.
   Edit the generator or data files, not the markdown.
+  Generated web pages carry a provenance marker, and the generator refuses to overwrite a page without one —
+  hand-written pages live in the same directories (the app tree has several), and a name collision would
+  otherwise be a silent clobber. Give a hand-written page its own name rather than one a backend key derives.
 
 - **Review-gated descriptions.** System package versions are extracted from built images and injected into description PRs.
   Human review of version bumps happens before descriptions go live on the docs site or Harbor.
