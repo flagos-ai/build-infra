@@ -303,8 +303,8 @@ vendors:
     # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run); toolkit/NNAL/deps/toolchain
     # are identical to the 910B line. deps_app carries only the apps actually
     # verified on 910C (key presence = verified): the vllm line as of the app
-    # layer opening; megatron_training0.17.1/sglang0.5.18 stay absent on purpose — a
-    # key here would pull 910C into their build matrices.
+    # layer opening; sglang0.5.18 stays absent on purpose — a key here would
+    # pull 910C into its build matrix.
     cann8.5.0-910c:
       extras: ascend-cann850-910c
       hardware: ["Ascend 910C"]
@@ -323,6 +323,7 @@ vendors:
         - decorator==5.1.1
         - psutil==6.0.0
       deps_app:
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
@@ -375,7 +376,9 @@ vendors:
         - CANN NNAL 9.0.0 (aarch64)     # Ascend-cann-nnal_9.0.0_linux-aarch64.run
 
     # 910C twin of cann9.0.0. The ops package is the only chip-split piece
-    # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run)
+    # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run). megatron_training0.17.1 /
+    # megatron_rl0.17.1 carry [] — no vendor flash-attn here, NPU skips the
+    # dynamic-batching flash-attn gate (CANN paged attention), same as 910B.
     cann9.0.0-910c:
       extras: ascend-cann900-910c
       hardware: ["Ascend 910C"]
@@ -394,6 +397,7 @@ vendors:
         - numpy==1.26.4
         - cann-shmem==1.6.0
       deps_app:
+        megatron_training0.17.1: []
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
