@@ -277,7 +277,7 @@ checkout；`megatron.training` 已在 wheel 中，§1.1）。**3.5.1 复验通�
     构建时对 checkout 打同样的 sysconfig 补丁。脚本幂等且自 gate：已是
     sysconfig 形式 → no-op（[MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112) 合并后自动跳过）；仍是 python3-config
     形式 → 就地替换；源码演进（两种形式都找不到）→ exit 1 硬失败，补丁不可能静默失效。
-- **现在状态:** 已落地（build-infra 兜底）；[MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112) 待合并。
+- **现在状态:** 已落地（build-infra 兜底）；[MLF #112](https://github.com/flagos-ai/Megatron-LM-FL/pull/112) 已合入 `release/0.2`（2026-09-22）——按该分支重建 wheel 时，build-infra 侧补丁按其自 gate 自动 no-op。
 
 ## 3. post_training
 

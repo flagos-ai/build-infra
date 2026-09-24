@@ -16,7 +16,12 @@ description: Megatron RL app image — megatron-core[rl] single-step install on
   the vendor runtime. 2026-09-23 起恢复发布：MLF PR 114 声明 [rl] extra、PR 116
   把 flash-attn >= 2.7.3 的硬断言换成平台/DotProductAttention 门控，上游阻塞解除。
   镜像按后端分批构建；RL 场景的 ✅ 待各后端实测后再标。
-last_updated: "2026-09-23"
+  2026-09-24：paged 分派缺陷已由 MLF PR 188 修复（base=release/0.2）——原先
+  attention.py 的两处分派按字面量 device_name 判断，非 NPU 平台永远到不了
+  平台自带的 paged 实现；两个无 flash-attn 后端在容器内应用该补丁后 RL E2E
+  跑通（见 backends 备注）。该修复尚未进 wheel（当前 0.17.1+fl.0.2.3 早于
+  该 PR），故各格仍为 ⬜：待按 release/0.2 重建 wheel、重建 app 镜像后复验转 ✅。
+last_updated: "2026-09-24"
 
 # App-level facility (shared across all backends of this app).
 facility:
@@ -70,22 +75,22 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控"
+    note: "RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变）"
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控"
+    note: "RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变）"
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，两轮 iteration + eval greedy_reward 1.0000）；阻塞是 paged 分派写死 npu，wheel 未带该修复，待重建后复验"
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复"
   enflame-tops1.9.10:
     deps_app: true
     launch_docs: true
@@ -105,12 +110,12 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复"
   iluvatar-corex4.5.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复"
   kunlunxin-xre5.37.1:
     deps_app: true
     launch_docs: true
@@ -130,12 +135,12 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，paged 实测 prefill 374 / decode 36524 次）；wheel 未带该修复，待重建后复验。另需 `--distributed-backend mccl`（MUSA torch 无 NCCL）"
   mthreads-musa5.2.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复；另需 `--distributed-backend mccl`"
   spacemit-spacemit:
     deps_app: false
     launch_docs: false
@@ -143,7 +148,7 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复"
   thead-ppu2.0.0:
     deps_app: false
     launch_docs: false
@@ -151,4 +156,4 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
-    note: "RL 场景未实测；本后端无 flash-attn"
+    note: "RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复"

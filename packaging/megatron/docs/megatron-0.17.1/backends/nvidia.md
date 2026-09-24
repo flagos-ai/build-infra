@@ -176,23 +176,22 @@ app-image 装配路径相对 runtime+wheel 无行为回归（mock 数据确定�
 
 ## 后续追踪
 
-**待合并（等上游 merge）:**
+**已合并、待按新 wheel 复验（MLF 侧 2026-09-22 全部合入 `release/0.2`）:**
 
 - [MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)
   （core 独立 import 修复：`megatron.training` 缺席时
-  `is_built_on_zero_rank` import 修复）— MLF main 未合；
-  合入后重建 wheel，重跑受影响场景，更新矩阵
+  `is_built_on_zero_rank` import 修复）
 - [MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)
-  （psutil 运行时依赖声明）— 同上
+  （psutil 运行时依赖声明）
 - [MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
-  （full-scope 打包：wheel 覆盖四场景 + 顶层入口模块）— 同上
+  （full-scope 打包：wheel 覆盖四场景 + 顶层入口模块）
 - [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)
-  （声明 `[training]`/`[rl]` extras，含 `nvidia-modelopt==0.45.0` 锁版）—
-  **当前只合入集成分支 ci/merge-105-106-107-114，MLF main 未合**；
-  合入前 main 构建的 wheel 不带 modelopt → 合入后重建 wheel，更新矩阵
+  （声明 `[training]`/`[rl]` extras 与 pin）
 - [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)
-  （RL local-impl 固化：5 补丁 + 4 配方参数）— 合入后容器侧补丁取消，
-  重跑 RL，更新矩阵
+  （RL local-impl 固化：5 补丁 + 4 配方参数）
+
+这些修复此前只在 PR head / 集成分支上，现随 `release/0.2` 落定。**下一步 = 按该分支
+重建 wheel → 重跑受影响场景 → 更新矩阵**；容器侧补丁（#116 对应项）随之取消。
 
 **待决（需权衡）:**
 

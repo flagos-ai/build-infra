@@ -28,8 +28,8 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
 | nvidia（CUDA 12.8 / 13.3） | [backends/nvidia.md](backends/nvidia.md) | 四场景 × 双编译器全 ✅；training/rl app 镜像已 push |
 | hygon（DTK 26.04） | [backends/hygon.md](backends/hygon.md) | 四场景 × 双编译器全 ✅（flagtree 需 jit_fuser noop） |
 | metax（MACA 3.8.1.3） | [backends/metax.md](backends/metax.md) | 四场景 × 双编译器全 ✅；17 障碍全闭环 |
-| ascend（CANN 8.5.0 / 9.0.0） | [backends/ascend.md](backends/ascend.md) | training / post_training / inference ✅；RL 暂停（无 flash-attn） |
-| cambricon（NEUWARE 4.4.3 / 4.7.2） | [backends/cambricon.md](backends/cambricon.md) | 三场景 ✅（triton-only）；RL 暂缓 |
+| ascend（CANN 8.5.0 / 9.0.0） | [backends/ascend.md](backends/ascend.md) | training / post_training / inference ✅；RL 未实测 |
+| cambricon（NEUWARE 4.4.3 / 4.7.2） | [backends/cambricon.md](backends/cambricon.md) | 三场景 ✅（triton-only）；RL：4.4.3 已 E2E 跑通（待重建 wheel 复验） |
 | enflame（TOPS 1.9.10 / 1.10.6） | [backends/enflame.md](backends/enflame.md) | training 双编译器 ✅（flagtree 需 jit_fuser noop；1.10.6 另需 ECCL fp64 patch） |
 | iluvatar（CoreX 4.4.0 / 4.5.0） | [backends/iluvatar.md](backends/iluvatar.md) | training 双编译器 ✅，零 workaround |
 
@@ -50,12 +50,14 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
 
 ## 遗留
 
-- **MLF PR 全 OPEN**：[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)（core 独立 import）、[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)（psutil 声明）、[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
-  （wheel 全 scope）、[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)（`[rl]` extra）、[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)（RL local-impl 5 文件补丁）、
+- **MLF PR 全数已合并（2026-09-22，`release/0.2`）**：[MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)（core 独立 import）、[MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)（psutil 声明）、[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
+  （wheel 全 scope）、[MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)（`[rl]`/`[training]` extra）、[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116)（RL local-impl 5 文件补丁）、
   [MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119)（packed_seq gate）、[MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)（KV-append 断言 + NPU paged attention）、
   [MLF #122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122)（jit_fuser 惰性装饰）、[MLF #124](https://github.com/flagos-ai/Megatron-LM-FL/pull/124)（persist_layer_norm 默认）、[MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（mlu
-  平台注册）——每个合并后重建 wheel、重跑受影响场景、更新矩阵（跟踪表见
-  verification-matrix「待合并/待落地修复跟踪」）。
+  平台注册）、[MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)（paged 分派按能力查询，2026-09-24）。
+  **现有制品均出自 PR head / 集成分支，下一步 = 按 `release/0.2` 重建 wheel → 重跑受影响场景 →
+  更新矩阵**（跟踪表见 verification-matrix「待落地修复跟踪」）。
+- **仍未合的上游**：NVIDIA 同修 [NVIDIA #6709](https://github.com/NVIDIA/Megatron-LM/pull/6709) / [#6730](https://github.com/NVIDIA/Megatron-LM/pull/6730)，FlagTree [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)（nvidia driver is_active）。
 - **cambricon 需复验**：runtime 5.3.3 之后 +39k kernel rewrite，neuware
   4.7.2:2.1.2 的 E2E 结果不再背书新产物（见 [backends/cambricon.md](backends/cambricon.md)）。
 - **决策未决**：modelopt 入镜像的版本约束演进（抬版本前先核 torch 约束）。

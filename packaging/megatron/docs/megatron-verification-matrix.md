@@ -8,8 +8,10 @@
 
 > 规划工具，随验证推进更新。每单元格为对应后端 runtime 镜像 + 一步安装 wheel 后，对应场景入口跑通的验证。
 > wheel 打包范围：core+training+legacy+rl+post_training+inference（全范围
-> wheel，[MLF PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) feat/wheel-full-scope）；hygon/nvidia/metax/ascend
-> 均已用该 wheel 验证（详见厂商文档）。
+> wheel，[MLF PR #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) feat/wheel-full-scope，已合入 `release/0.2`）；hygon/nvidia/metax/ascend
+> 均已用该 wheel 验证（详见厂商文档）。**现有制品均出自 PR head / 集成分支，
+> 按上一条原则需以 `release/0.2` 重建 wheel 后重跑**（该分支已含 paged 分派修复
+> [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)，见跟踪表 A1#14）。
 
 ## 状态图例
 
@@ -18,7 +20,7 @@
 | ✅ | 已验证通过（E2E exit 0） |
 | ❌ | 已屏蔽（编译器不可用，不设默认/不交付） |
 | ⛔ | 挂起（需先解决上游阻塞） |
-| ⏸ | 暂停（app 线降级/搁置，非验证失败——megatron_rl 转向 verl） |
+| ⏸ | 暂停（app 线降级/搁置，非验证失败） |
 | ？ | 成功概率不确定（缺 vendor 变体依赖） |
 | ⬜ | 待验证 |
 | — | 该后端无此编译器 |
@@ -87,6 +89,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 寒武纪 | NEUWARE 4.4.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
+| 寒武纪 | NEUWARE 4.4.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/188 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
 | 燧原 | TOPS 1.9.10 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
 | 燧原 | TOPS 1.9.10 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
@@ -127,6 +130,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 | 已合并 |
+| 摩尔线程 | MUSA 4.3.6 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/188 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
@@ -168,7 +172,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
-| DTK 26.04 | ✅ | ✅ | ✅ | app 镜像未发布：modelopt 未入镜像（已决策进 [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) [training] extra），单步安装测试待 extra 合入后随 app 镜像走 |
+| DTK 26.04 | ✅ | ✅ | ✅ | — |
 | COREX 4.4.0 | ✅ | ✅ | ✅ | — |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
@@ -188,7 +192,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 ### megatron_rl0.17.1
 
-> 数据截止：2026-09-23
+> 数据截止：2026-09-24
 
 **App 级设施（全后端共享）**
 
@@ -203,62 +207,75 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 |---|---|---|---|---|
 | CUDA 12.8 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | CUDA 13.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
-| CANN 8.5.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控 |
-| CANN 9.0.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn，NPU 平台自带 paged attention 并关闭该门控 |
-| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
-| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
+| CANN 8.5.0 | ✅ | ✅ | ✅ | RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变） |
+| CANN 9.0.0 | ✅ | ✅ | ✅ | RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变） |
+| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，两轮 iteration + eval greedy_reward 1.0000）；阻塞是 paged 分派写死 npu，wheel 未带该修复，待重建后复验 |
+| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | DTK 26.04 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
-| COREX 4.4.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
-| COREX 4.5.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
+| COREX 4.4.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |
+| COREX 4.5.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
-| MUSA 4.3.6 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
-| MUSA 5.2.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
+| MUSA 4.3.6 | ✅ | ✅ | ✅ | RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，paged 实测 prefill 374 / decode 36524 次）；wheel 未带该修复，待重建后复验。另需 `--distributed-backend mccl`（MUSA torch 无 NCCL） |
+| MUSA 5.2.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复；另需 `--distributed-backend mccl` |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
-| TANGRT 1.2.0 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
+| TANGRT 1.2.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |
 | PPU 2.0.0 | ⬜ | ⬜ | ⬜ | — |
-| TSM 260610 | ✅ | ✅ | ✅ | RL 场景未实测；本后端无 flash-attn |
+| TSM 260610 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |
 
 
 <!-- /status-matrix:facility:megatron_rl0.17.1 -->
 
-## 待合并/待落地修复跟踪（2026-08-21 建）
+## 待落地修复跟踪（2026-08-21 建）
 
-矩阵 ✅/⬜ 的前提条件拆为三类 pending：上游已提未合并、已实证待提上游
-（workaround 在容器侧/配方侧）、决策未决。**状态变更（合并/关闭/新提/定案）
+矩阵 ✅/⬜ 的前提条件拆为三类：上游已提（已合/未合）、已实证且已由上游覆盖
+（原 workaround 在容器侧/配方侧）、决策未决。**状态变更（合并/关闭/新提/定案）
 即更新本表对应行**，并联动相应矩阵格与 fact 条目——合并 → 去 workaround →
 复验 → 更新格。
 
-### A. 上游已提、未合并
+**2026-09-24 现状**：MLF 侧 9 项（#107/#114/#116/#119/#120/#122/#124/#125/#188）
+已全部合入 `release/0.2`（`git tag v0.2.x` 线，与 0.3.x 线不串）；仍未合的上游
+只有 NVIDIA 同修两条与 FlagTree #1023。**这些行里的 workaround/制品都出自 PR head
+或集成分支，下一步 = 按 `release/0.2` 重建 wheel → 重跑受影响场景 → 更新格。**
+
+### A. 上游已提
+
+**A1. 已合并（MLF `release/0.2`）**
 
 | # | 修复项 | 现状（前提/阻塞） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
-| 1 | packed_seq 无条件构造 | `--transformer-impl local` 非 TE RL 训练断言炸；unfused 路径亦需此修 | [MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119) / [NVIDIA #6709](https://github.com/NVIDIA/Megatron-LM/pull/6709)（[issue #118](https://github.com/flagos-ai/Megatron-LM-FL/issues/118) / [issue #6708](https://github.com/NVIDIA/Megatron-LM/issues/6708)） | OPEN | RL local 训练解锁 |
-| 2 | KV-append 内核设备断言 | 动态批推理首发 KV-append 断言炸（CUDA 白名单） | [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) / [NVIDIA #6730](https://github.com/NVIDIA/Megatron-LM/pull/6730)（[issue #6729](https://github.com/NVIDIA/Megatron-LM/issues/6729)） | OPEN | NPU 动态批推理解锁 |
-| 3 | flagtree nvidia driver is_active | torch_npu shim 伪造 cuda.is_available → 双后端 is_active 全 True → driver 崩 | [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)（[issue #1022](https://github.com/flagos-ai/FlagTree/issues/1022)） | OPEN | ascend flagtree 直接可用 |
-| 4 | RL `[rl]` extra 声明 + pin | RL app 镜像不可建（C 机制前置） | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | OPEN | RL app 镜像解锁 |
-| 5 | RL local-impl 5 文件补丁 | metax 容器侧 5 补丁（6 hunk） | [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) | OPEN | 容器补丁取消、落地上游 |
-| 6 | wheel 全 scope | #15 任务前置 | [MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) | OPEN | #15 收尾 |
-| 7 | jit_fuser 惰性装饰 | hygon flagtree 容器侧 jit.py noop 补丁（§1.4） | [MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121)→[#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122) | OPEN | 去容器补丁 |
-| 8 | persist_layer_norm 默认 persist=True | ascend post_training 配方需 `--no-persist-layer-norm` | [MLF #123](https://github.com/flagos-ai/Megatron-LM-FL/issues/123)→[#124](https://github.com/flagos-ai/Megatron-LM-FL/pull/124) | OPEN | 去配方参数 |
-| 9 | torch-first 导入顺序 | ascend 特有用法前提（flagtree ascend backend discovery 嵌套 import torch，源头 testing.py:27 顶层 import，[#1025](https://github.com/flagos-ai/FlagTree/pull/1025) 已惰性化） | [FlagTree #1024](https://github.com/flagos-ai/FlagTree/issues/1024)→[#1025](https://github.com/flagos-ai/FlagTree/pull/1025) | OPEN | 去用法前提 |
+| 1 | packed_seq 无条件构造 | `--transformer-impl local` 非 TE RL 训练断言炸；unfused 路径亦需此修 | [MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119)（[issue #118](https://github.com/flagos-ai/Megatron-LM-FL/issues/118)）；NVIDIA 同修 [#6709](https://github.com/NVIDIA/Megatron-LM/pull/6709)（[issue #6708](https://github.com/NVIDIA/Megatron-LM/issues/6708)）未合 | MLF 已合并（2026-09-22） | RL local 训练解锁 |
+| 2 | KV-append 内核设备断言 | 动态批推理首发 KV-append 断言炸（CUDA 白名单） | [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)；NVIDIA 同修 [#6730](https://github.com/NVIDIA/Megatron-LM/pull/6730)（[issue #6729](https://github.com/NVIDIA/Megatron-LM/issues/6729)）未合 | MLF 已合并（2026-09-22） | NPU 动态批推理解锁 |
+| 4 | RL `[rl]` extra 声明 + pin | RL app 镜像不可建（C 机制前置） | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已合并（2026-09-22） | RL app 镜像解锁 |
+| 5 | RL local-impl 5 文件补丁 | metax 容器侧 5 补丁（6 hunk） | [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) | 已合并（2026-09-22） | 容器补丁取消、落地上游 |
+| 6 | wheel 全 scope | #15 任务前置 | [MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107) | 已合并（2026-09-22） | #15 收尾 |
+| 7 | jit_fuser 惰性装饰 | hygon flagtree 容器侧 jit.py noop 补丁（§1.4） | [MLF #121](https://github.com/flagos-ai/Megatron-LM-FL/issues/121)→[#122](https://github.com/flagos-ai/Megatron-LM-FL/pull/122) | 已合并（2026-09-22） | 去容器补丁（hygon 复验后） |
+| 8 | persist_layer_norm 默认 persist=True | ascend post_training 配方需 `--no-persist-layer-norm` | [MLF #123](https://github.com/flagos-ai/Megatron-LM-FL/issues/123)→[#124](https://github.com/flagos-ai/Megatron-LM-FL/pull/124) | 已合并（2026-09-22） | 去配方参数（ascend 复验后） |
+| 9 | torch-first 导入顺序 | ascend 特有用法前提（flagtree ascend backend discovery 嵌套 import torch，源头 testing.py:27 顶层 import，[#1025](https://github.com/flagos-ai/FlagTree/pull/1025) 已惰性化） | [FlagTree #1024](https://github.com/flagos-ai/FlagTree/issues/1024)→[#1025](https://github.com/flagos-ai/FlagTree/pull/1025) | 已合并（2026-09-04） | 去用法前提 |
+| 14 | paged 注意力按能力分派 | 非 NPU 平台到不了平台自带 paged 实现（`attention.py` 按字面量 `device_name()=="npu"` 分派）→ 无 flash-attn 的后端动态批（RL）不可用；NPU 平台自带 paged attention 且关闭 flash-attn 门控，故 CANN 两行不受影响 | [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) | 已合并（2026-09-24） | 按 `release/0.2` 重建 wheel → 重建各后端 RL app 镜像 → 复验转 ✅ |
 
-### B. 已实证、待提上游（workaround 当前在容器侧/配方侧）
+**A2. 未合并**
+
+| # | 修复项 | 现状（前提/阻塞） | 上游 | 状态 | 合并后动作 |
+|---|---|---|---|---|---|
+| 3 | flagtree nvidia driver is_active | torch_npu shim 伪造 cuda.is_available → 双后端 is_active 全 True → driver 崩 | [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)（[issue #1022](https://github.com/flagos-ai/FlagTree/issues/1022)） | OPEN | ascend flagtree 直接可用 |
+
+### B. 已实证、已由上游覆盖（原 workaround 在容器侧/配方侧）
 
 | # | 修复项 | 现状（workaround） | 上游 | 状态 | 合并后动作 |
 |---|---|---|---|---|---|
-| 10 | flash_attn 依赖软化 | RL 动态引擎硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言；L943 已随 [MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) DotProductAttention 跳过，L677 待软化） | MLF | 待提 | ascend RL 可走 fallback |
-| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration 桥接选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError | MLF | 已提 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（2026-08-22，mlu 平台原生注册，CUDA 前置选中）；已并入集成分支 ci/merge-105-106-107-114 并重建 wheel，无需容器侧补丁，training/post_training/inference 双后端复验全 ✅ | 待 #125 合入 MLF main（合入后仅文档收尾） |
+| 10 | flash_attn 依赖软化 | RL 动态引擎曾硬依赖 flash_attn（attention.py:943 版本 gate + L677 kernel 断言）。**gate 与分派两侧均已关闭**：[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) 使 DotProductAttention 豁免，[MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 把分派改为能力查询、无 flash-attn 平台走 flag_gems paged 内核（cambricon/mthreads 已 E2E 实证）。L677 断言位于 flash-attn 内核路径上，不装该包的平台不会到达——不再单独上提 | MLF | 已关闭（#116 + #188） | — |
+| 11 | mlu 平台抽象缺口 | megatron platform registry（platform_register.py）无 mlu 平台 → cuda 平台经 gpu_migration 桥接选中；PlatformCUDA.device_name()='cuda' vs tensor device.type='mlu' → optimizer.py:773 TypeError | [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)（mlu 平台原生注册，CUDA 前置选中） | 已合并（2026-09-22，release/0.2） | 文档收尾（本行 + cambricon 文档已同步） |
 
 ### C. 决策未决 / 工程化
 
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
-| 11 | modelopt 入镜像 | 当前 wheel `[training]` extra 声明 `nvidia-modelopt[torch]==0.43.0`（无 `[torch]` extra，pip 仅警告后继续；核心约束 `torch>=2.6`），cambricon 双后端（torch 2.7.1/2.11.0）单步 `megatron-core[training]` 安装实测安全：modelopt 0.43.0 + 完整闭包就位，关键包（torch/torch-mlu/triton/flag_gems）复核未变 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) | 已实证（0.43.0 安全） | app-image 实建 cambricon 可单步装；**历史 hazard（0.45.0 时代，不再适用）**：旧 extra 曾声明 0.45.0（约束 `torch>=2.8`），4.4.3 下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 替换 vendor torch，实测下载阶段 OOM（exit 137）；未来抬 modelopt 版本先核 torch 约束与 `[torch]` extra |
-| 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | **定案（2026-08-31）：megatron_rl 全线降优先级，RL 框架转向 verl**；ascend ≤950 无 flash_attn 不再是需要攻坚的阻塞，MLF 侧 RL 方案维持待定 | 用户权衡 | 已定案 | 矩阵 RL 列已按暂停更新；RL 验证随 verl 线推进 |
+| 11 | modelopt 入镜像 | 当前 wheel `[training]` extra 声明 `nvidia-modelopt[torch]==0.43.0`（无 `[torch]` extra，pip 仅警告后继续；核心约束 `torch>=2.6`），cambricon 双后端（torch 2.7.1/2.11.0）单步 `megatron-core[training]` 安装实测安全：modelopt 0.43.0 + 完整闭包就位，关键包（torch/torch-mlu/triton/flag_gems）复核未变 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)（已合并 2026-09-22） | 已实证（0.43.0 安全） | app-image 实建 cambricon 可单步装；**历史 hazard（0.45.0 时代，不再适用）**：旧 extra 曾声明 0.45.0（约束 `torch>=2.8`），4.4.3 下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 替换 vendor torch，实测下载阶段 OOM（exit 137）；未来抬 modelopt 版本先核 torch 约束与 `[torch]` extra |
+| 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | **定案（2026-08-31）：megatron_rl 全线降优先级，RL 框架转向 verl**；ascend ≤950 无 flash_attn 不再是需要攻坚的阻塞，MLF 侧 RL 方案维持待定。2026-09-24 追加：paged 分派缺陷已由 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 修复，无 flash-attn 后端的 RL E2E 已在 cambricon/mthreads 跑通（A1#14），交付路径不再缺实现 | 用户权衡 | 已定案 | 矩阵 RL 列维持 ⬜（未验），镜像按后端分批发布；verl 转向的框架选择不变 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 
 ## 编译器覆盖现状（configs.yaml 2026-08-14）
@@ -277,9 +294,10 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 - **metax**（training / post_training×inference / RL，实证链终止 2026-08-19，
   17 障碍全为本地代码/参数/harness 缺陷）：[[megatron-0.17.1/backends/metax.md]]
 - **cambricon**（training / post_training×inference，NEUWARE 4.4.3+4.7.2
-  双后端，triton-only；RL 两端暂缓；首例平台抽象缺口——megatron platform
+  双后端，triton-only；RL：4.4.3 已用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)
+  补丁 E2E 跑通、待重建 wheel 复验；首例平台抽象缺口——megatron platform
   registry 无 mlu 平台，已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-  并入集成分支 wheel 关闭，无需容器侧补丁，见跟踪表 B#11）：
+  合入 `release/0.2` 关闭，无需容器侧补丁，见跟踪表 B#11）：
   [[megatron-0.17.1/backends/cambricon.md]]
 - **full-scope wheel 重建（2026-08-22，verify-driver E2E 前置）**：
   `0.17.1+fl.20260822.g56acf36bacd1`（MLF 集成分支
@@ -337,6 +355,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 1. **training 场景**：先验双编译器后端（编译器链风险已知存在——hygon
    教训），后验单编译器后端。每后端 = runtime 镜像 + wheel 单步安装 +
    pretrain_gpt.py 小规模跑通。
-2. **rl 场景**：~~依赖面干净，验证成本与 training 相当；同镜像按用途补 pydantic/typing_extensions~~。**已降级（2026-08-31 定案）：megatron_rl 暂停，RL 框架转向 verl**——矩阵 RL 列标 ⏸，RL 验证随 verl 线推进，不再按原顺序安排。
+2. **rl 场景**：~~依赖面干净，验证成本与 training 相当；同镜像按用途补 pydantic/typing_extensions~~。**2026-08-31 定案 megatron_rl 降优先级、框架转向 verl**；2026-09-23 起镜像恢复发布，交付路径的实现缺口（paged 分派）已由 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 关闭——按 `release/0.2` 重建 wheel 后逐后端复验即可，不再需要容器侧补丁。
 3. **post_training 场景**：仅 NVIDIA 先行，其余后端等 modelopt 可用性结论。
 4. **inference 场景**：hygon 已用全范围 wheel（[MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)）验证 ✅（static legacy 路径）；其余后端待该 PR 合入后按序验证。
