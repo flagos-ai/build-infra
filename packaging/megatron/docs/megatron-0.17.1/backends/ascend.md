@@ -81,22 +81,22 @@ megatron.core import + helpers_cpp bindings）通过后推送。
 training 无 vendor 条件包（deps_app.megatron_training0.17.1 = `[]`），
 镜像 = runtime + wheel `[training]` extra。
 
-## RL（全链 E2E 暂停）
+## RL（未实测）
 
 `--transformer-impl local --attention-backend unfused` 下，
 GRPO 链（rollout → 参考 logprobs → 训练步）可跑通 exit 0。
 unfused 绕开 flash-attn 硬依赖，但非生产路径。
-三处代码级障碍已实证并上提：
+三处代码级障碍已实证并上提（前两处的 MLF 侧已合并，见下）：
 
 1. **packed_seq 无条件构造**（[MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119)
-   / [NVIDIA #6709](https://github.com/NVIDIA/Megatron-LM/pull/6709)，OPEN）:
+   已合并 `release/0.2`；[NVIDIA #6709](https://github.com/NVIDIA/Megatron-LM/pull/6709) OPEN）:
    `get_logprobs` 与 `train_rl.py` forward_step 在 sequence_packing=False
    时仍无条件构造单序列 thd packed_seq_params（CUDA graph 签名一致性）。
    → local 非融合 DotProductAttention 断言（Packed sequence is not
    supported）。
    修复 = 仅 `rl_training_cuda_graphs` 开启时构造。
 2. **KV-append 内核设备断言**（[MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)
-   / [NVIDIA #6730](https://github.com/NVIDIA/Megatron-LM/pull/6730)，OPEN）:
+   已合并 `release/0.2`；[NVIDIA #6730](https://github.com/NVIDIA/Megatron-LM/pull/6730) OPEN）:
    `triton_append_key_value_cache` 输入校验硬断言 CUDA，
    黑名单改为 `not in ('cpu','meta')`（内核纯 Triton 设备无关；
    910B NPU Triton backend 实跑通过）。
@@ -109,8 +109,15 @@ unfused 绕开 flash-attn 硬依赖，但非生产路径。
    修复 = nvidia is_active 增加 `torch.version.cuda is not None`
    守卫（与上游 triton nvidia driver 同款）。
 
-**暂停原因:** 默认 fused 路径动态引擎硬依赖 flash-attn
-（`attention.py:677`）；Ascend 950 之前的型号（含 910B4）不支持
+**2026-09-24 状态**：1、2 的 MLF 侧已于 2026-09-22 合入 `release/0.2`，
+仍未合的是 FlagTree #1023 与两条 NVIDIA 同修。**RL 全链 E2E 尚未跑过**
+（矩阵 ⬜）——按 `release/0.2` 重建 wheel 后实测；届时下面这条 flash-attn
+判断可一并复核：NPU 平台自带 paged attention，
+[MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 后该分派改按能力
+查询（NPU 行为不变），无 flash-attn 在 NPU 上本就不是分派侧阻塞。
+
+**原暂停原因（2026-08-31 记录，待复核实测）:** 默认 fused 路径动态引擎硬依赖
+flash-attn（`attention.py:677`）；Ascend 950 之前的型号（含 910B4）不支持
 flash-attn，vendor 包路线关闭。
 候选替代 = torch_npu `npu_fusion_attention`（TND varlen）
 映射 `flash_decode_and_prefill` 的 prefill/decode 分支
@@ -150,41 +157,43 @@ DummyModel + `simple_generate`，输出 shape=(1, 8)，两线均 exit 0。
 legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。动态引擎
 路径依赖 flash-attn，本平台不可用（见 RL 节）。
 
-### RL（全链 E2E 暂停）
+### RL（路径未实测）
 
-同 CANN 9.0.0：910B4 无 flash-attn，三处代码级障碍
+同 CANN 9.0.0：910B4 无 flash-attn，本条路径上的三处代码级障碍
 （[MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119) /
 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) /
 [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)）
-未合并，路径未验证，细节见 CANN 9.0.0 段 RL 节。
+中前两处已随 `release/0.2` 合入（2026-09-22），仅 FlagTree #1023 仍未合；
+RL 全链 E2E 尚未跑过（矩阵 ⬜），细节见 CANN 9.0.0 段 RL 节。
+**注**：NPU 平台自带 paged attention，[MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)
+（paged 分派按能力查询）不改变 NPU 行为——无 flash-attn 在这里从来不是分派侧的阻塞。
 
 ## 后续追踪
 
-**待合并（等上游 merge）:**
+**已合并、待按新 wheel 复验（MLF 侧 2026-09-22 全部合入 `release/0.2`）:**
 
 - [MLF #105](https://github.com/flagos-ai/Megatron-LM-FL/pull/105)
   （core 独立 import 修复：`megatron.training` 缺席时
-  `is_built_on_zero_rank` import 修复）— MLF main 未合；
-  合入后重建 wheel，重跑受影响场景，更新矩阵
+  `is_built_on_zero_rank` import 修复）
 - [MLF #106](https://github.com/flagos-ai/Megatron-LM-FL/pull/106)
-  （psutil 运行时依赖声明）— 同上
+  （psutil 运行时依赖声明）
 - [MLF #107](https://github.com/flagos-ai/Megatron-LM-FL/pull/107)
-  （full-scope 打包：wheel 覆盖四场景 + 顶层入口模块）— 同上
+  （full-scope 打包：wheel 覆盖四场景 + 顶层入口模块）
 - [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)
-  （声明 `[training]`/`[rl]` extras，含 `nvidia-modelopt==0.45.0` 锁版）—
-  **当前只合入集成分支 ci/merge-105-106-107-114，MLF main 未合**；
-  合入前 main 构建的 wheel 不带 modelopt → 合入后重建 wheel，更新矩阵
+  （声明 `[training]`/`[rl]` extras 与 pin）
 - [MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119)
-  （packed_seq gate）— 合入后重建 wheel，重跑 RL unfused 前置，更新矩阵
+  （packed_seq gate）— RL unfused 前置
 - [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)
-  （KV-append 断言 + NPU paged attention 平台化）— 同上
-- [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)
-  （nvidia driver is_active 守卫）— 重建 flagtree wheel，
-  重跑 RL，更新矩阵
+  （KV-append 断言 + NPU paged attention 平台化）
 - [FlagTree #1024](https://github.com/flagos-ai/FlagTree/issues/1024) /
   [FlagTree #1025](https://github.com/flagos-ai/FlagTree/pull/1025)
-  （testing.py 惰性化）— 重建 flagtree wheel 后解除「torch-first
-  导入顺序」用法前提
+  （testing.py 惰性化）— **已合并（2026-09-04）**；重建 flagtree wheel 后解除
+  「torch-first 导入顺序」用法前提
+
+**未合并（等上游 merge）:**
+
+- [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)
+  （nvidia driver is_active 守卫）— 重建 flagtree wheel，重跑 RL，更新矩阵
 
 **待决（需权衡）:**
 

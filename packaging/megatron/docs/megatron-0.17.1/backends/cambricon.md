@@ -57,10 +57,10 @@ cpu/cuda/musa/txda/npu/enflame/kunlunxin）→ cuda 平台经 gpu_migration 桥�
 （2026-08-22）：PlatformMLU 原生注册，继承 PlatformCUDA（gpu_migration
 桥接），`is_available()` 强制设备初始化，MLU 注册/选中均在 CUDA 之前；
 含 4 个单测。**[MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-已并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`），
-三场景复验全 ✅**（training / post_training / inference 均打印
-`mlu Selected`，见下文各节）。待 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-合入 MLF main 即完全落地。
+已合入 MLF `release/0.2`（2026-09-22）**；合入前已用集成分支
+`ci/merge-105-106-107-114` 重建的 wheel（`0.17.1+fl.20260822.g56acf36bacd1`）
+三场景复验全 ✅（training / post_training / inference 均打印 `mlu Selected`，
+见下文各节），无需容器侧补丁。
 
 其余配方参数缺口（merged wheel config dataclass，与 metax/hygon 同源）：
 `--max-position-embeddings`（arguments.py:1131 默认 None 断言）、
@@ -96,23 +96,43 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 'triton'`（torch_mlu 1.33.1 inductor triton_fusion 插件顶层 import 失败，
 捕获后非致命——推理走 sdpa，不触碰 inductor）记录为 observed。
 
-静态 legacy 路径不需要动态批（KV-append 内核设备断言，跟踪表 #2
-[MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)），故推理
-⛔→✅；**动态批推理仍被 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120)
-阻塞**（矩阵 ⛔ 的原始语义）。
+静态 legacy 路径不需要动态批，故推理 ⛔→✅；**动态批推理的 KV-append 设备断言
+已随 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) 合入
+`release/0.2`（2026-09-22）关闭**（矩阵 ⛔ 的原始语义），待按该分支重建 wheel 后复验。
 
-## RL（暂缓）
+## RL（2026-09-24：4.4.3 已 E2E 跑通，待重建 wheel 复验）
 
-按验证决策，cambricon 两后端 RL **两端都暂缓**（矩阵 RL 列维持 ⬜）；
-待其他后端 RL 路径定案后统一处理。
+**结论：RL 跑不起来的真实原因不是「本后端无 flash-attn」。** 上游两处缺陷叠加：
+
+1. `attention.py` 的动态批分派按**字面量** `device_name() == "npu"` 判断 →
+   非 NPU 平台永远到不了平台自带的 `paged_*_attention()`（这两个扩展点
+   `platform_base.py` 早已声明）。
+2. 其上的版本 gate 走 `is_fa_min_version()` → 裸 `import flash_attn`，没装该包的
+   平台在 `or` 链上直接 `ModuleNotFoundError`，后面的 DotProductAttention 豁免
+   没有机会求值。
+
+修复 = [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)（已合入
+`release/0.2`，2026-09-24）：新增能力位 `PlatformBase.supports_paged_attention()`
+（**默认 False**——nvidia/hygon runtime 也装 FlagGems，默认 True 会顶掉已验通的
+flash-attn 路径），无 flash-attn 的平台 override 为 True，并由 `PlatformBase`
+的 `paged_decode_attention()` / `paged_prefill_attention()` 默认实现走 flag_gems
+的 `flash_attn_varlen_func`（page-major KV cache + block_table）。
+
+**实测（neuware 4.4.3 后端）**：把 #188 的五个源文件装进 `megatron_rl` app 镜像后，
+`train_rl.py` GRPO 2 iteration 跑完 —— `TRAIN_RL_EXIT=0`，两轮 iteration 打印
+loss / `rl/kl_term` / `rl/entropy_term`，eval `dummy_eval_mean_greedy_reward: 1.0000`。
+4.7.2 后端未实测。
+
+**本格仍为 ⬜ 的原因**：镜像里的 wheel（`0.17.1+fl.0.2.3` 系）早于 #188，原样跑仍失败；
+待按 `release/0.2` 重建 wheel → 重建 app 镜像 → 复验后转 ✅（与其余后端同一批，
+跟踪表 A1#14）。
 
 ## 后续追踪
 
 - 平台抽象缺口（#11）已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-  并入集成分支并重建 wheel（`0.17.1+fl.20260822.g56acf36bacd1`）：复验
-  training / post_training / inference 双后端全 ✅（矩阵 B#11 已同步）。
-  [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
-  上游保持 OPEN，按决策不等待其 merge；合入 main 后仅剩文档表述收尾。
+  合入 `release/0.2`（2026-09-22）：三场景双后端复验全 ✅（矩阵 B#11 已同步）。
+- RL 交付路径（#14）：实现缺口已由 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)
+  关闭（2026-09-24，见上节）；剩余 = 按 `release/0.2` 重建 wheel 与 app 镜像后复验。
 - modelopt 已随当前 wheel 的 `[training]` extra（0.43.0）实测安全：单步安装、
   关键包未动（详见上文 modelopt 依赖面）——0.45.0 时代 hazard 不再适用，
   未来抬 modelopt 版本需先核 torch 约束。
