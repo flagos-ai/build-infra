@@ -438,16 +438,13 @@ jobs:
     needs: [build, verify]
     if: ${{ inputs.publish }}
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
     steps:
-      - name: Download every built .rpm
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          pattern: ${{ inputs.target }}-rpm-*
-          path: pkg
-
       - name: Publish to the yum repositories
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           SUITES: ${{ inputs.suites }}
           TARGET: ${{ inputs.target }}
         run: |
@@ -462,14 +459,19 @@ jobs:
           # Empty means every suite this target was built for, not every
           # suite there is: most targets have no image for some of them.
           if [ -z "${SUITES:-}" ]; then
-            SUITES=$(cd pkg && ls -d "${TARGET}"-rpm-* | sed "s/^${TARGET}-rpm-//" | tr '\n' ' ')
+            SUITES=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+              -q ".artifacts[].name | select(startswith(\"${TARGET}-rpm-\")) | ltrimstr(\"${TARGET}-rpm-\")" | tr '\n' ' ')
           fi
           for suite in ${SUITES}; do
             # Each suite gets the rpm built for that distribution and no other:
             # the Release field carries the distribution tag, and a native
             # package links against that distribution's libraries.
-            dir="pkg/${TARGET}-rpm-${suite}"
-            if [ ! -d "${dir}" ]; then
+            # By name, one suite at a time: download-artifact unpacks a lone
+            # match straight into its path, so the layout depended on how many
+            # suites had built.
+            dir="pkg/${suite}"
+            if ! gh run download "${GITHUB_RUN_ID}" -R "${GITHUB_REPOSITORY}" \
+                   -n "${TARGET}-rpm-${suite}" -D "${dir}"; then
               echo "::error::nothing was built for '${suite}' - it failed or was skipped"
               exit 1
             fi
