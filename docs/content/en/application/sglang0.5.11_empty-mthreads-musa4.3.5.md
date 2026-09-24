@@ -1,5 +1,5 @@
 ---
-title: "sglang0.5.11-mthreads-musa4.3.5-empty"
+title: "sglang0.5.11_empty-mthreads-musa4.3.5"
 ---
 
 <!--
@@ -33,7 +33,7 @@ title: "sglang0.5.11-mthreads-musa4.3.5-empty"
 
 ### Application package
 
-`sglang==0.5.11`
+`sglang==0.5.11+empty`
 
 
 `sglang-fl==0.2.0`
@@ -64,12 +64,12 @@ title: "sglang0.5.11-mthreads-musa4.3.5-empty"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.11-mthreads-musa4.3.5-empty:2.2.0-0.2.0`
+**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.11_empty-mthreads-musa4.3.5:2.2.0-0.2.0`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.11-mthreads-musa4.3.5-empty:2.2.0-0.2.0
+IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.11_empty-mthreads-musa4.3.5:2.2.0-0.2.0
 ```
 
 ### Without a toolkit — plain docker / podman
