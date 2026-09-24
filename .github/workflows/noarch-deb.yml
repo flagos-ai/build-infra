@@ -39,7 +39,7 @@ on:
         description: 'component to build'
         type: choice
         required: true
-        options: [FlagAudio, FlagSparse, FlagAttention, FlagBLAS, FlagTensor]
+        options: [FlagAudio, FlagSparse, FlagAttention, FlagBLAS]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this component is
@@ -107,8 +107,6 @@ jobs:
               script=build-flag-attention.sh; ref=v0.4.0-rc2.post1; ver=0.4.0~rc2.post1 ;;
             FlagBLAS)
               script=build-flag-blas.sh;      ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
-            FlagTensor)
-              script=build-flagtensor.sh;     ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac
