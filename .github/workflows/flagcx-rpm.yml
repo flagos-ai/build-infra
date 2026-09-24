@@ -206,8 +206,12 @@ jobs:
                 # provide and this one did not declare is a different thing:
                 # it works where it happens to be present and fails elsewhere.
                 missing=0
+                # Declared by the package that ships the ELF, not by a -devel
+                # package whose .so is only a symlink to it.
+                owner=$(rpm -qf "$(readlink -f "$so")")
                 for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  if rpm -q --whatprovides "$lib" > /dev/null 2>&1; then
+                  if rpm -q --whatprovides "${lib}()(64bit)" > /dev/null 2>&1 \
+                     && ! rpm -q --requires "$owner" | grep -qF "${lib}()"; then
                     echo "$(basename "$so"): $lib is provided by an installed package but not declared"
                     exit 1
                   fi
