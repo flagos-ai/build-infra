@@ -44,9 +44,9 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 英伟达 | CUDA 12.8 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
 | 英伟达 | CUDA 13.3 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 8.5.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 8.5.0-910c | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 9.0.0-910c | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⬜ | ⬜ | ✅ | — | ✅ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⬜ | ⬜ | ✅ | — | ✅ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
@@ -87,11 +87,13 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 昇腾 | CANN 8.5.0-910c | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
+| 昇腾 | CANN 8.5.0-910c | megatron_rl0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 昇腾 | CANN 9.0.0-910c | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
+| 昇腾 | CANN 9.0.0-910c | megatron_rl0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 寒武纪 | NEUWARE 4.4.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
 | 寒武纪 | NEUWARE 4.4.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/188 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
@@ -214,7 +216,9 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 12.8 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | CUDA 13.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变） |
+| CANN 8.5.0-910c | ✅ | ✅ | ✅ | RL E2E 已在 910C 上跑通（hw114，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁 |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变） |
+| CANN 9.0.0-910c | ✅ | ✅ | ✅ | RL E2E 已在 910C 上跑通（hw115，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁 |
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，两轮 iteration + eval greedy_reward 1.0000）；阻塞是 paged 分派写死 npu，wheel 未带该修复，待重建后复验 |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |

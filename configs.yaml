@@ -324,6 +324,7 @@ vendors:
         - psutil==6.0.0
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here — NPU skips the dynamic-batching flash-attn gate (CANN paged attention). RL E2E verified on hw114 (see backends/ascend.md).
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:
@@ -398,6 +399,7 @@ vendors:
         - cann-shmem==1.6.0
       deps_app:
         megatron_training0.17.1: []
+        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here — NPU skips the dynamic-batching flash-attn gate (CANN paged attention). RL E2E verified on hw115 (see backends/ascend.md).
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:

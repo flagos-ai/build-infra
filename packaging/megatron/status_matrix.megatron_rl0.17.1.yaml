@@ -35,7 +35,9 @@ scenarios:
       nvidia-cuda12.8:       {T: "⬜", F: "⬜"}
       nvidia-cuda13.3:       {T: "⬜", F: "⬜"}
       ascend-cann8.5.0:       {T: "⬜", F: "⬜"}
+      ascend-cann8.5.0-910c:  {T: "✅", F: "✅"}
       ascend-cann9.0.0:       {T: "⬜", F: "⬜"}
+      ascend-cann9.0.0-910c:  {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "⬜", F: "⬜"}
       cambricon-neuware4.7.2: {T: "⬜", F: "⬜"}
       enflame-tops1.9.10:    {T: "⬜", F: "⬜"}
@@ -76,11 +78,25 @@ backends:
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     note: "RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变）"
+  ascend-cann8.5.0-910c:
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
+    prs:
+      - https://github.com/flagos-ai/FlagTree/pull/1023
+    note: "RL E2E 已在 910C 上跑通（hw114，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁"
   ascend-cann9.0.0:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
     note: "RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变）"
+  ascend-cann9.0.0-910c:
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
+    prs:
+      - https://github.com/flagos-ai/FlagTree/pull/1023
+    note: "RL E2E 已在 910C 上跑通（hw115，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁"
   cambricon-neuware4.4.3:
     deps_app: true
     launch_docs: true

@@ -109,12 +109,13 @@ unfused 绕开 flash-attn 硬依赖，但非生产路径。
    修复 = nvidia is_active 增加 `torch.version.cuda is not None`
    守卫（与上游 triton nvidia driver 同款）。
 
-**2026-09-24 状态**：1、2 的 MLF 侧已于 2026-09-22 合入 `release/0.2`，
-仍未合的是 FlagTree #1023 与两条 NVIDIA 同修。**RL 全链 E2E 尚未跑过**
-（矩阵 ⬜）——按 `release/0.2` 重建 wheel 后实测；届时下面这条 flash-attn
-判断可一并复核：NPU 平台自带 paged attention，
-[MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 后该分派改按能力
-查询（NPU 行为不变），无 flash-attn 在 NPU 上本就不是分派侧阻塞。
+**2026-09-25 状态（910C 实测）**：`train_rl.py` GRPO 已在两个 910C 后端容器内
+跑通全链（rollout → 训练步 2 轮）——hw114（CANN 8.5.0，torch 2.9.0）与
+hw115（CANN 9.0.0，torch 2.10.0）均 `TRAIN_RL_EXIT=0`，CANN paged attention
+路径实测可用，无需容器侧补丁（与 910B 的 1、2 修复 + #188 平台化直接对齐）。
+配方同其余无 flash-attn 后端：`--transformer-impl local --attention-backend
+unfused --perform-rl-step --rl-partial-rollouts` + 动态批参数对齐。详见下文
+「910C RL E2E」段。910B 全链 E2E 仍待按 `release/0.2` 重建 wheel 后实测（矩阵 ⬜）。
 
 **原暂停原因（2026-08-31 记录，待复核实测）:** 默认 fused 路径动态引擎硬依赖
 flash-attn（`attention.py:677`）；Ascend 950 之前的型号（含 910B4）不支持
@@ -157,16 +158,46 @@ DummyModel + `simple_generate`，输出 shape=(1, 8)，两线均 exit 0。
 legacy 静态推理引擎，3 请求 × 8 tokens，两线均 exit 0。动态引擎
 路径依赖 flash-attn，本平台不可用（见 RL 节）。
 
-### RL（路径未实测）
+### RL（910B 路径未实测 / 910C 已实测）
 
 同 CANN 9.0.0：910B4 无 flash-attn，本条路径上的三处代码级障碍
 （[MLF #119](https://github.com/flagos-ai/Megatron-LM-FL/pull/119) /
 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) /
 [FlagTree #1023](https://github.com/flagos-ai/FlagTree/pull/1023)）
 中前两处已随 `release/0.2` 合入（2026-09-22），仅 FlagTree #1023 仍未合；
-RL 全链 E2E 尚未跑过（矩阵 ⬜），细节见 CANN 9.0.0 段 RL 节。
+910B 全链 E2E 尚未跑过（矩阵 ⬜），细节见 CANN 9.0.0 段 RL 节。
 **注**：NPU 平台自带 paged attention，[MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)
 （paged 分派按能力查询）不改变 NPU 行为——无 flash-attn 在这里从来不是分派侧的阻塞。
+910C 两个后端的 RL 全链已实测跑通（见 CANN 9.0.0 段 RL 节末的「910C RL E2E」）。
+
+## 910C RL E2E（2026-09-25）
+
+两个 910C 后端容器内各自跑通 `train_rl.py` GRPO 全链（rollout → 训练步
+2 轮），`TRAIN_RL_EXIT=0`：
+
+- **hw115**（CANN 9.0.0，`flagos-runtime-ascend-cann9.0.0-910c:2.2.0`，
+  torch 2.10.0 + torch-npu 2.10.0，容器 `rl10-e2e`，装
+  `megatron-core[rl]==0.17.1+fl.0.2.3`）；另需 `einops`（`attention.py`
+  `rearrange` 的 lazy import 落到 None）——经 runner 代理装。
+- **hw114**（CANN 8.5.0，`flagos-runtime-ascend-cann8.5.0-910c:2.2.0`，
+  torch 2.9.0 + torch-npu 2.9.0，容器 `rl10-e2e-hw114`，同 wheel；
+  einops 同样经代理装）。
+
+与 910B 的修复对齐，无需容器侧补丁（wheel 已含 #119/#120/#188 平台化）。
+两容器各一处容器侧小改：einops 需装入（lazy `rearrange`，见上）；
+`megatron/inference/utils.py` 的 `--return-log-probs` 与
+`megatron/training/arguments.py` 的 inference 段注册冲突（同一 flag 两侧
+`add_argument`），需将 utils.py 侧改名为 `--inference-return-log-probs`
+（与 910B 早期配方一致）。GRPO 链实跑: rollouts 全链（64 条 dummy prompt
+× group 4 → rollout）→ 训练步 2 轮，两容器 `[after training is done]` 后
+`TRAIN_RL_EXIT=0`。
+配方要点（同其余无 flash-attn 后端）：
+`--transformer-impl local --attention-backend unfused --perform-rl-step
+--rl-partial-rollouts`，`grpo-prompts-per-step × grpo-group-size ×
+grpo-iterations` 需被 `global-batch-size` 整除（本轮
+prompts=16×group=4×iter=2=64 ÷ gbs=16 = 4），动态批 `max-requests/max-tokens`
+须如实给出（配套图；框架未代填），token 用 `NullTokenizer`（prompt 逐个
+空格分隔的 int）。RL 场景在 app 镜像矩阵上按后端标 ✅。
 
 ## 后续追踪
 
