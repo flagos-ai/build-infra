@@ -78,8 +78,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      built_sha: ${{ steps.clone.outputs.sha }}
     strategy:
       fail-fast: false
       matrix:
@@ -87,13 +85,18 @@ jobs:
         # carries the distribution in its Release field (.fc43, .oe2403), and
         # a package tagged for one distribution does not belong in another's
         # repository even when its contents are arch-independent.
+        #
+        # Each row builds, verifies and publishes its own suite, so one
+        # distribution failing does not hold back another.
         include:
           - suite: fedora43
             base_image: fedora
             base_version: "43"
+            image: fedora:43
           - suite: openeuler24.03
             base_image: openeuler/openeuler
             base_version: 24.03-lts
+            image: openeuler/openeuler:24.03-lts
     steps:
       - name: Resolve the component
         id: cfg
@@ -301,6 +304,10 @@ jobs:
           else
             echo "build=false" >> "$GITHUB_OUTPUT"
             echo "::notice::${{ inputs.component }} at this ref has no non-macro build path; skipping ${SUITE}"
+            if [ "${{ inputs.publish }}" = "true" ] && [[ " ${{ inputs.suites }} " == *" ${SUITE} "* ]]; then
+              echo "::error::publishing into ${SUITE} was requested, but it cannot be built"
+              exit 1
+            fi
           fi
 
       - name: Build the .rpm for ${{ matrix.suite }}
@@ -341,36 +348,11 @@ jobs:
           path: src/out/*.rpm
           retention-days: 7
 
-  verify:
-    needs: build
-    if: ${{ inputs.verify }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - suite: fedora43
-            image: fedora:43
-          - suite: openeuler24.03
-            image: openeuler/openeuler:24.03-lts
-    steps:
-      - name: Download the .rpm
-        id: fetch
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: ${{ inputs.component }}-rpm-${{ matrix.suite }}
-          path: pkg
-
-      - name: Note a skipped suite
-        if: ${{ steps.fetch.outcome == 'failure' }}
-        run: echo "::notice::no artifact for ${{ matrix.suite }} - the build step skipped it"
-
       - name: Install it in a clean ${{ matrix.image }}
-        if: ${{ steps.fetch.outcome == 'success' }}
+        if: ${{ inputs.verify && steps.capable.outputs.build == 'true' }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ matrix.image }} bash -c '
+          docker run --rm -v "$PWD/src/out:/pkg:ro" ${{ matrix.image }} bash -c '
             set -e
             # Installing the file itself is the test: dnf has to satisfy the
             # package'"'"'s own Requires from the distribution alone.
@@ -405,65 +387,45 @@ jobs:
             echo "OK: $(find $dirs -name "*.py" | wc -l) modules, no gaps"
           '
 
-  publish:
-    needs: [build, verify]
-    if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download every built .rpm
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          pattern: ${{ inputs.component }}-rpm-*
-          path: pkg
-
-      - name: Publish to the yum repositories
+      - name: Publish to flagos-yum-${{ matrix.suite }}
+        if: >-
+          ${{ inputs.publish && steps.capable.outputs.build == 'true'
+              && contains(format(' {0} ', inputs.suites), format(' {0} ', matrix.suite)) }}
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
-          SUITES: ${{ inputs.suites }}
-          COMPONENT: ${{ inputs.component }}
+          suite: ${{ matrix.suite }}
         run: |
           set -euo pipefail
           if [ -z "${NEXUS_TOKEN:-}" ]; then
             echo "::error::NEXUS_TOKEN secret is empty or unset"
             exit 1
           fi
-          echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
+          echo "Publishing packages built from ${{ steps.clone.outputs.sha }}"
           uploaded=0
           attempted=0
-          for suite in ${SUITES}; do
-            # Each suite gets the rpm built for that distribution and no
-            # other: the Release field carries the distribution tag, so
-            # cross-posting would put an .fc43 package in an openEuler
-            # repository.
-            dir="pkg/${COMPONENT}-rpm-${suite}"
-            if [ ! -d "${dir}" ]; then
-              echo "::error::nothing was built for '${suite}' - it was skipped or the build failed"
-              exit 1
+          # Source rpms are build inputs, not something a user installs.
+          mapfile -t rpms < <(find src/out -name '*.rpm' ! -name '*.src.rpm' | sort)
+          [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
+          repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
+          for r in "${rpms[@]}"; do
+            attempted=$((attempted + 1))
+            echo ">>> ${suite}: $(basename "$r")"
+            if curl -f -u "${NEXUS_TOKEN}" --upload-file "$r" \
+                 "${repo}$(basename "$r")"; then
+              echo "  -> OK"
+              uploaded=$((uploaded + 1))
+            else
+              echo "  -> FAILED"
             fi
-            # Source rpms are build inputs, not something a user installs.
-            mapfile -t rpms < <(find "${dir}" -name '*.rpm' ! -name '*.src.rpm' | sort)
-            [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
-            repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
-            for r in "${rpms[@]}"; do
-              attempted=$((attempted + 1))
-              echo ">>> ${suite}: $(basename "$r")"
-              if curl -f -u "${NEXUS_TOKEN}" --upload-file "$r" \
-                   "${repo}$(basename "$r")"; then
-                echo "  -> OK"
-                uploaded=$((uploaded + 1))
-              else
-                echo "  -> FAILED"
-              fi
-            done
           done
           # A 2xx only says the upload was accepted; zero successes means the
           # token or the repository is misconfigured, and silence would hide it.
           if [ "$uploaded" -eq 0 ]; then
-            echo "::error::no suite accepted the upload"
+            echo "::error::the repository accepted no upload"
             exit 1
           fi
-          # A partial success is still a failure to report: the package is in
-          # some suites and not others, which is worse than being in none.
+          # A partial success is still a failure to report: a -devel or data
+          # package can be in the repository without what it depends on.
           if [ "$uploaded" -ne "$attempted" ]; then
             echo "::error::published ${uploaded} of ${attempted} upload(s)"
             exit 1
