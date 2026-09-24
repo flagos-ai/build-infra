@@ -37,7 +37,7 @@ on:
         description: 'component to build'
         type: choice
         required: true
-        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention, FlagBLAS, FlagTensor]
+        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention, FlagBLAS]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this component is
@@ -109,38 +109,34 @@ jobs:
           # this table's ref is used, so overriding `ref` on a dispatch does
           # not silently ship the manifest's version number.
           #
-          # Where the manifest's tag predates packaging/, the pin is the newest
-          # tag whose code is what gets built, and the version follows it.
+          # Release branches, not tags: the rpm fixes merged for 2.2 (the pip
+          # fallback, the dist-info glob) live on the branch, whose code is
+          # otherwise the tag `ver` names.
           case "${COMPONENT}" in
             FlagGems)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-gems.spec
-              ref=v5.4.0-rc2.post4
+              ref=5.4.0-rc2
               ver=v5.4.0-rc2.post4 ;;
             FlagAudio)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-audio.spec
-              ref=v0.3.0-rc2.post2
+              ref=0.3.0-rc2
               ver=v0.3.0-rc2.post2 ;;
             FlagSparse)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flagsparse.spec
-              ref=v0.3.0-rc2.post1
+              ref=0.3.0-rc2
               ver=v0.3.0-rc2.post1 ;;
             FlagAttention)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-attention.spec
-              ref=v0.4.0-rc2.post1
+              ref=0.4.0-rc2
               ver=v0.4.0-rc2.post1 ;;
             FlagBLAS)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-blas.spec
-              ref=v0.3.0-rc2.post2
-              ver=v0.3.0-rc2.post2 ;;
-            FlagTensor)
-              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
-              spec=packaging/rpm/specs/flagtensor.spec
-              ref=v0.3.0-rc2.post2
+              ref=0.3.0-rc2
               ver=v0.3.0-rc2.post2 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
