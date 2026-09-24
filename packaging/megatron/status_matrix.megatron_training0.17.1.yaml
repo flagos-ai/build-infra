@@ -27,6 +27,7 @@ scenarios:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
+      ascend-cann8.5.0-910c: {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0-910c: {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}
@@ -51,6 +52,7 @@ scenarios:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
+      ascend-cann8.5.0-910c: {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0-910c: {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}
@@ -75,6 +77,7 @@ scenarios:
       nvidia-cuda12.8:       {T: "✅", F: "✅"}
       nvidia-cuda13.3:       {T: "✅", F: "✅"}
       ascend-cann8.5.0:      {T: "✅", F: "✅"}
+      ascend-cann8.5.0-910c: {T: "✅", F: "✅"}
       ascend-cann9.0.0:      {T: "✅", F: "✅"}
       ascend-cann9.0.0-910c: {T: "✅", F: "✅"}
       cambricon-neuware4.4.3: {T: "✅", F: "—"}
@@ -111,6 +114,12 @@ backends:
     prs:
       - https://github.com/NVIDIA/Megatron-LM/pull/6709
   ascend-cann8.5.0:
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.2.0-0.2.3"
+    prs:
+      - https://github.com/flagos-ai/FlagTree/pull/1023
+  ascend-cann8.5.0-910c:
     deps_app: true
     launch_docs: true
     image_tag: "2.2.0-0.2.3"
