@@ -42,6 +42,13 @@ on:
         description: 'FlagGems git ref to build (tag for a release, branch otherwise)'
         type: string
         default: master
+      version:
+        description: >-
+          Debian version to stamp, without the revision (e.g. 5.4.0~rc2.post4).
+          Leave empty to derive it from the ref when the ref is a version tag,
+          and to keep the packaging changelog otherwise.
+        type: string
+        default: ''
       suites:
         description: >-
           apt suites to publish into, space-separated. Each value is the
@@ -94,16 +101,84 @@ jobs:
           echo "Publish targets are all covered by verification: ${SUITES}"
 
       - name: Clone FlagGems at ${{ inputs.flaggems_ref }}
+        id: clone
         run: |
           set -euo pipefail
           git clone --depth 50 --branch "${{ inputs.flaggems_ref }}" \
             "${FLAGGEMS_REPO}" src
           cd src
           echo "Building $(git rev-parse --short HEAD) of ${{ inputs.flaggems_ref }}"
+          echo "ref=${{ inputs.flaggems_ref }}" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${{ inputs.flaggems_ref }}" >/dev/null; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${{ inputs.flaggems_ref }} is a branch, not a tag - this build is not reproducible by ref name alone"
+          fi
           # The deb version comes from packaging/debian/changelog, not from git
           # tags, so a shallow clone is enough.
           test -f packaging/debian/build-helpers/build-flaggems.sh \
             || { echo "::error::this ref has no Debian packaging definition"; exit 1; }
+
+      - name: Stamp the release version
+        working-directory: src
+        env:
+          REF: ${{ steps.clone.outputs.ref }}
+          REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
+          REQUESTED: ${{ inputs.version }}
+          # Only applies when this dispatch left `ref` at the pinned default.
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+
+          path = "packaging/debian/changelog"
+          head = open(path, encoding="utf-8").readline().rstrip("\n")
+          m = re.match(r"^(\S+) \(([^)]+)\)(.*)$", head)
+          if not m:
+              sys.exit(f"::error::cannot parse changelog first line: {head}")
+          source, current, rest = m.groups()
+
+          ref = os.environ["REF"]
+          requested = os.environ["REQUESTED"].strip()
+          pinned = ""
+          if requested:
+              upstream, why = requested, "requested by this dispatch"
+          elif pinned:
+              upstream, why = pinned, "pinned for this component"
+          elif (os.environ["REF_IS_TAG"] == "true"
+                and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
+              # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare
+              # release, so a pre-release never shadows the final one; "-"
+              # would sort above it and block the upgrade.
+              #
+              # noarch-rpm.yml reaches the same end by a different route: rpm
+              # honours "~" too, but these specs feed Version into
+              # %pyproject_wheel, and "~" is not a valid PEP 440 version, so
+              # the qualifier goes in Release there instead. Debian has no
+              # such constraint -- dpkg never hands this string to Python.
+              upstream, why = re.sub(r"-rc", "~rc", ref.lstrip("v")), f"derived from tag {ref}"
+          else:
+              print(f"Keeping the changelog version {current}: {ref} is not a version tag."
+                    " Pass `version` to stamp a release version explicitly.")
+              sys.exit(0)
+
+          new = f"{upstream}-1"
+          if new == current:
+              print(f"Changelog already at {current}; nothing to stamp")
+              sys.exit(0)
+
+          # The packaging metadata in component repositories drifts from the
+          # release line it is cut on, and the version in this file is what
+          # apt sees. Overriding it here keeps the published package honest
+          # while that drift is fixed upstream; the rewrite is printed so the
+          # build log always says what was shipped and why.
+          print(f"::notice::stamping {source} {current} -> {new} ({why})")
+          body = open(path, encoding="utf-8").read()
+          open(path, "w", encoding="utf-8").write(
+              body.replace(f"{source} ({current})", f"{source} ({new})", 1))
+          PY
+          head -1 packaging/debian/changelog
 
       - name: Build the .deb
         id: build
