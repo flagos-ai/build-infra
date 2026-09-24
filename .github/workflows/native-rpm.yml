@@ -39,7 +39,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree, FlagDNN, FlagFFT]
+        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -83,6 +83,7 @@ jobs:
       # Set by any matrix row that actually built. Empty means every row
       # skipped, which is a configuration error rather than a clean run.
       any_built: ${{ steps.build.outputs.built }}
+      deps: ${{ steps.cfg.outputs.deps }}
     strategy:
       fail-fast: false
       matrix:
@@ -109,6 +110,7 @@ jobs:
           # --base-image, FlagTree reads RPM_BASE_IMAGE from the environment.
           # Recording the difference here is cheaper than an upstream PR to
           # each of them for the sake of uniformity.
+          deps=''
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -137,11 +139,25 @@ jobs:
             FlagDNN)
               repo=FlagDNN
               script=packaging/rpm/build-flag-dnn-rpm.sh
-              base_arg=env
+              base_arg=arg
               spec=packaging/rpm/specs/flag-dnn.spec
               outdir=rpm-packages
-              ref=v0.3.0-rc2.post2
-              ver=''
+              # Same ref as native-deb, which needs the branch for FlagDNN#17.
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post2
+              deps='libtriton-jit-nvidia libtriton-jit-nvidia-devel'
+              image_fedora43=
+              image_openeuler2403=
+              image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
+            FlagTensor)
+              repo=FlagTensor
+              script=packaging/rpm/build-flagtensor-rpm.sh
+              base_arg=arg
+              spec=packaging/rpm/specs/flagtensor.spec
+              outdir=rpm-packages
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post2
+              deps='libtriton-jit-nvidia libtriton-jit-nvidia-devel'
               image_fedora43=
               image_openeuler2403=
               image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
@@ -163,6 +179,7 @@ jobs:
             echo "repo_url=https://github.com/flagos-ai/${repo}.git"
             echo "script=${script}"
             echo "base_arg=${base_arg}"
+            echo "deps=${deps}"
             echo "spec=${spec}"
             echo "outdir=${outdir}"
             echo "default_ref=${ref}"
@@ -208,7 +225,7 @@ jobs:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
@@ -302,6 +319,35 @@ jobs:
         if: ${{ steps.cfg.outputs.base_image == '' }}
         run: echo "::notice::${{ inputs.target }} has no ${{ matrix.suite }} base image; skipping"
 
+      - name: Fetch FlagOS build dependencies for ${{ matrix.suite }}
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.deps != '' }}
+        working-directory: src
+        env:
+          DEPS: ${{ steps.cfg.outputs.deps }}
+          BASE: ${{ env.NEXUS_REPO_BASE }}/flagos-yum-${{ matrix.suite }}
+        run: |
+          set -euo pipefail
+          mkdir -p packaging/rpm/local-deps
+          python3 - <<'PY'
+          import gzip, os, re, sys, urllib.request, xml.etree.ElementTree as ET
+          base, out = os.environ["BASE"], "packaging/rpm/local-deps"
+          ns = {"r": "http://linux.duke.edu/metadata/repo", "c": "http://linux.duke.edu/metadata/common"}
+          get = lambda u: urllib.request.urlopen(u).read()
+          href = ET.fromstring(get(f"{base}/repodata/repomd.xml")).find(
+              "r:data[@type='primary']/r:location", ns).get("href")
+          primary = ET.fromstring(gzip.decompress(get(f"{base}/{href}")))
+          key = lambda v: [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", v)]
+          for dep in os.environ["DEPS"].split():
+              found = [(p.find("c:version", ns), p.find("c:location", ns).get("href"))
+                       for p in primary.findall("c:package", ns)
+                       if p.find("c:name", ns).text == dep and p.find("c:arch", ns).text != "src"]
+              if not found:
+                  sys.exit(f"::error::{dep} is not in {base}")
+              v, loc = max(found, key=lambda f: (key(f[0].get("ver")), key(f[0].get("rel"))))
+              print(f">>> {dep} {v.get('ver')}-{v.get('rel')}")
+              urllib.request.urlretrieve(f"{base}/{loc}", os.path.join(out, os.path.basename(loc)))
+          PY
+
       - name: Build the .rpm packages for ${{ matrix.suite }}
         id: build
         if: ${{ steps.cfg.outputs.base_image != '' }}
@@ -313,6 +359,7 @@ jobs:
           case "${{ steps.cfg.outputs.base_arg }}" in
             flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ;;
             env)  RPM_BASE_IMAGE="${BASE_IMAGE}" bash "${{ steps.cfg.outputs.script }}" ;;
+            arg)  bash "${{ steps.cfg.outputs.script }}" "${BASE_IMAGE}" ;;
             *)    echo "::error::unknown base_arg"; exit 1 ;;
           esac
           # Every binary package, not the first: these builds emit a runtime
@@ -380,11 +427,21 @@ jobs:
         if: ${{ steps.fetch.outcome == 'success' }}
         env:
           REPOS: ${{ matrix.repos }}
+          # A package that depends on another FlagOS package gets the FlagOS
+          # repository it will be published to.
+          FLAGOS_YUM: ${{ needs.build.outputs.deps != '' && format('{0}/flagos-yum-{1}', env.NEXUS_REPO_BASE, matrix.suite) || '' }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e REPOS ${{ matrix.image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -e REPOS -e FLAGOS_YUM ${{ matrix.image }} bash -c '
             set -e
-            [ -z "${REPOS:-}" ] || dnf install -y -q ${REPOS}
+            if [ -n "${REPOS:-}" ]; then
+              dnf install -y -q ${REPOS}
+              # EPEL packages assume CRB is enabled alongside.
+              case " ${REPOS} " in *" epel-release "*) dnf config-manager --set-enabled crb 2>/dev/null || true ;; esac
+            fi
+            if [ -n "${FLAGOS_YUM:-}" ]; then
+              printf "[flagos]\nname=FlagOS\nbaseurl=%s\nenabled=1\ngpgcheck=0\n" "${FLAGOS_YUM}" > /etc/yum.repos.d/flagos.repo
+            fi
             # Installing the files themselves is the test: dnf has to satisfy
             # their own Requires from the distribution and the repositories its
             # row names, nothing else. All of them, so a -devel package whose

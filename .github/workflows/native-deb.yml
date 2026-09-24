@@ -26,10 +26,9 @@ name: native deb package
 # (these ship no Python tree) and would not ask the question that matters: does
 # the library load, and does what it links against resolve.
 #
-# The key is a package class, not a repository: FlagTensor produces
-# python3-flagtensor (Architecture: all) and libflagtensor-nvidia (amd64) from
-# one build, so a repository can appear in more than one of these workflows,
-# each covering the packages its verification suits.
+# The key is a package class, not a repository. FlagTensor builds
+# python3-flagtensor (Architecture: all) alongside its native packages, but
+# all of them come from one build that needs libtriton-jit, so it is here.
 #
 # FlagGems is the case that does not come here. Its C++ operators are built
 # per vendor across seven or eight backends, which is a matrix like
@@ -47,7 +46,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree, FlagDNN, FlagFFT]
+        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -89,6 +88,8 @@ jobs:
       built_sha: ${{ steps.clone.outputs.sha }}
       suites: ${{ steps.cfg.outputs.suites }}
       verify_image: ${{ steps.cfg.outputs.verify_image }}
+      flagos_apt: ${{ steps.cfg.outputs.flagos_apt }}
+      ppa: ${{ steps.cfg.outputs.ppa }}
     steps:
       - name: Resolve the target
         id: cfg
@@ -108,6 +109,12 @@ jobs:
           # into 22.04 would put a package there that cannot be installed.
           # Verified both ways before this list was written.
           outdir=debian-packages
+          # base: the build image, passed to the script as its argument.
+          # deps: FlagOS packages the build needs, fetched from the target's
+          # own apt repository into packaging/debian/local-deps/.
+          base=''
+          deps=''
+          ppa=''
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -129,15 +136,33 @@ jobs:
             FlagDNN)
               repo=FlagDNN
               script=packaging/debian/build-helpers/build-flag-dnn.sh
-              ref=v0.3.0-rc2.post2
+              # The 24.04 build fixes (FlagDNN#17) are on the branch only;
+              # it is post2 plus packaging commits.
+              ref=0.3.0-rc2
               ver=v0.3.0-rc2.post2
-              suites=ubuntu22.04
-              image=ubuntu:22.04 ;;
+              # Depends on libpython3.12 and libtriton-jit-nvidia, both 24.04-only.
+              base=nvidia/cuda:12.8.0-devel-ubuntu24.04
+              deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
+              suites=ubuntu24.04
+              image=ubuntu:24.04 ;;
+            FlagTensor)
+              repo=FlagTensor
+              script=packaging/debian/build-helpers/build-flagtensor.sh
+              # As FlagDNN, with FlagTensor#25.
+              ref=0.3.0-rc2
+              ver=v0.3.0-rc2.post2
+              base=nvidia/cuda:12.8.0-devel-ubuntu24.04
+              deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
+              suites=ubuntu24.04
+              image=ubuntu:24.04 ;;
             FlagFFT)
               repo=FlagFFT
               script=packaging/debian/build-helpers/build-flagfft.sh
               ref=v0.2.0-rc2.post2
               ver=v0.2.0-rc2.post2
+              # Depends on python3.12, which 22.04 gets from deadsnakes (its
+              # control file says so).
+              ppa=ppa:deadsnakes/ppa
               suites=ubuntu22.04
               image=ubuntu:22.04 ;;
             *)
@@ -147,6 +172,15 @@ jobs:
             echo "repo_url=https://github.com/flagos-ai/${repo}.git"
             echo "script=${script}"
             echo "outdir=${outdir}"
+            echo "base=${base}"
+            echo "deps=${deps}"
+            echo "ppa=${ppa}"
+            if [ -n "${deps}" ]; then
+              case "${suites}" in
+                ubuntu22.04) echo "flagos_apt=${NEXUS_REPO_BASE}/flagos-apt-${suites} jammy main" ;;
+                ubuntu24.04) echo "flagos_apt=${NEXUS_REPO_BASE}/flagos-apt-${suites} noble main" ;;
+              esac
+            fi
             echo "default_ref=${ref}"
             echo "default_version=${ver}"
             echo "suites=${suites}"
@@ -183,7 +217,7 @@ jobs:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
@@ -255,11 +289,43 @@ jobs:
           PY
           head -1 packaging/debian/changelog
 
+      - name: Fetch FlagOS build dependencies
+        if: ${{ steps.cfg.outputs.deps != '' }}
+        working-directory: src
+        env:
+          DEPS: ${{ steps.cfg.outputs.deps }}
+          SUITE: ${{ steps.cfg.outputs.suites }}
+        run: |
+          set -euo pipefail
+          case "${SUITE}" in
+            ubuntu22.04) codename=jammy ;;
+            ubuntu24.04) codename=noble ;;
+            *) echo "::error::no codename for '${SUITE}'"; exit 1 ;;
+          esac
+          base="${NEXUS_REPO_BASE}/flagos-apt-${SUITE}"
+          curl -fsSL "${base}/dists/${codename}/main/binary-amd64/Packages" -o Packages
+          mkdir -p packaging/debian/local-deps
+          for dep in ${DEPS}; do
+            # The newest version of each, by dpkg's own ordering.
+            best=''; bestver=''
+            while IFS='|' read -r ver file; do
+              if [ -z "$bestver" ] || dpkg --compare-versions "$ver" gt "$bestver"; then
+                best="$file"; bestver="$ver"
+              fi
+            done < <(awk -v p="$dep" 'BEGIN{RS="";FS="\n"} {n=v=f=""; for(i=1;i<=NF;i++){
+                       if($i~/^Package: /)n=substr($i,10); if($i~/^Version: /)v=substr($i,10);
+                       if($i~/^Filename: /)f=substr($i,11)} if(n==p)print v"|"f}' Packages)
+            [ -n "$best" ] || { echo "::error::${dep} is not in flagos-apt-${SUITE}"; exit 1; }
+            echo ">>> ${dep} ${bestver}"
+            curl -fsSL "${base}/${best}" -o "packaging/debian/local-deps/$(basename "$best")"
+          done
+          rm Packages
+
       - name: Build the .deb packages
         working-directory: src
         run: |
           set -euo pipefail
-          bash "${{ steps.cfg.outputs.script }}"
+          bash "${{ steps.cfg.outputs.script }}" ${{ steps.cfg.outputs.base }}
           # Every package, not the first one: these builds produce a runtime
           # and a -dev package, and taking one would silently drop the other.
           mapfile -t debs < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.deb' | sort)
@@ -289,10 +355,23 @@ jobs:
           path: pkg
 
       - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
+        env:
+          FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
+          PPA: ${{ needs.build.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e PPA ${{ needs.build.outputs.verify_image }} bash -c '
             set -e
+            if [ -n "${PPA:-}" ]; then
+              apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
+              add-apt-repository -y "${PPA}" > /dev/null
+            fi
+            # A package that depends on another FlagOS package gets the FlagOS
+            # repository it will be published to, and nothing else.
+            if [ -n "${FLAGOS_APT:-}" ]; then
+              apt-get update -qq && apt-get install -y -qq ca-certificates > /dev/null
+              echo "deb [trusted=yes] ${FLAGOS_APT}" > /etc/apt/sources.list.d/flagos.list
+            fi
             apt-get update -qq
             # Installing the files themselves is the test: apt has to satisfy
             # their own Depends from the distribution alone. All of them, so a
