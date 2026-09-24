@@ -227,8 +227,31 @@ jobs:
           # App's own build provenance (see vllm-app-image.yml).
           commit="$(git rev-parse HEAD)"
           created="$(git show -s --format=%cI HEAD)"
+          # Relay the runner proxy for the build; no_proxy goes verbatim — the
+          # host knows which endpoints are internal, and a value invented here
+          # overrides that (same as vllm-app-image.yml / runtime-image.yaml).
+          # Some vendor nodes (e.g. the 910C ones) have no direct egress and
+          # only reach the vendor PyPI through the runner proxy; without this,
+          # the pip RUN layer fails to resolve the index.
+          proxy_args=""
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
+          if [ -n "$http_proxy_val" ] || [ -n "$https_proxy_val" ]; then
+            if [ -n "$http_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg http_proxy=${http_proxy_val} "
+            fi
+            if [ -n "$https_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg https_proxy=${https_proxy_val} "
+            fi
+            if [ -n "$no_proxy_val" ]; then
+              proxy_args="${proxy_args}--build-arg no_proxy=${no_proxy_val}"
+            fi
+          fi
+
           docker build \
             ${no_cache_arg} \
+            ${proxy_args} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "MEGATRON_VERSION=${wheel_version}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
