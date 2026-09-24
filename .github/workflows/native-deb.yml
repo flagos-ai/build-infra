@@ -361,7 +361,7 @@ jobs:
           PPA: ${{ needs.build.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e PPA ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
             set -e
             if [ -n "${PPA:-}" ]; then
               apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
