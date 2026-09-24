@@ -158,7 +158,8 @@ jobs:
             FlagFFT)
               repo=FlagFFT
               script=packaging/debian/build-helpers/build-flagfft.sh
-              ref=v0.2.0-rc2.post2
+              # 0.2.0-rc2 carries FlagFFT#25 and #27 on top of post2.
+              ref=0.2.0-rc2
               ver=v0.2.0-rc2.post2
               # Depends on python3.12, which 22.04 gets from deadsnakes (its
               # control file says so).
