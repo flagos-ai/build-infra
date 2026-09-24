@@ -165,7 +165,7 @@ jobs:
             FlagFFT)
               repo=FlagFFT
               script=packaging/rpm/build-flagfft-rpm.sh
-              base_arg=env
+              base_arg=flag
               spec=packaging/rpm/specs/flagfft.spec
               outdir=rpm-packages
               # 0.2.0-rc2 carries FlagFFT#25 and #27 on top of post2.
