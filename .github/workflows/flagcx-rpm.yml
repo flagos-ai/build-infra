@@ -59,6 +59,13 @@ on:
           the same dispatch would not build the same source twice.
         type: string
         default: 0.14.0-rc2
+      version:
+        description: >-
+          release version to stamp into the spec (e.g. v0.14.0-rc2.post2).
+          Leave empty to derive it from the ref when the ref is a version tag,
+          and to keep the spec's own Version otherwise.
+        type: string
+        default: ''
       verify:
         description: 'install the .rpm in a clean container before uploading'
         type: boolean
@@ -128,12 +135,88 @@ jobs:
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          if ! git rev-parse -q --verify "refs/tags/${{ inputs.ref }}" >/dev/null; then
+          echo "ref=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${{ inputs.ref }}" >/dev/null; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
             echo "::warning::${{ inputs.ref }} is a branch, not a tag - this build is not reproducible by ref name alone"
           fi
           echo "Built ${{ inputs.ref }} = ${sha}"
           test -f packaging/rpm/build-flagcx-rpm.sh \
             || { echo "::error::this ref has no rpm packaging definition"; exit 1; }
+
+      - name: Stamp the release version
+        working-directory: src
+        env:
+          SPEC: packaging/rpm/specs/flagcx.spec
+          REF: ${{ steps.clone.outputs.ref }}
+          REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+
+          path = os.environ["SPEC"]
+          body = open(path, encoding="utf-8").read()
+          mv = re.search(r"^Version:(\s+)(\S+)\s*$", body, re.M)
+          mr = re.search(r"^Release:(\s+)(\S+)\s*$", body, re.M)
+          if not mv or not mr:
+              sys.exit(f"::error::{path} needs both a Version: and a Release: line")
+
+          ref = os.environ["REF"]
+          requested = os.environ["REQUESTED"].strip()
+          pinned = ""
+          if requested:
+              release, why = requested, "requested by this dispatch"
+          elif pinned:
+              release, why = pinned, "pinned for this target"
+          elif (os.environ["REF_IS_TAG"] == "true"
+                and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
+              release, why = ref, f"derived from tag {ref}"
+          else:
+              print(f"Keeping the spec at {mv.group(2)}-{mr.group(2)}:"
+                    f" {ref} is not a version tag."
+                    " Pass `version` to stamp a release version explicitly.")
+              sys.exit(0)
+
+          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
+                       release)
+          if not m:
+              sys.exit(f"::error::cannot parse a release version out of '{release}'")
+          upstream, rc, post = m.group(1), m.group(2), m.group(3)
+
+          # A pre-release qualifier cannot go in Version: "~" orders correctly
+          # for rpm but breaks any consumer that reads the field as a Python
+          # version, and the Python spelling ("0.2.0rc0") orders *above* the
+          # release in rpm, so the pre-release would shadow what it precedes.
+          # The packaging guidelines' answer is to keep Version at the upstream
+          # number and put the qualifier in Release: behind a leading 0 for a
+          # pre-release, which sorts below the 1 a final release carries, and
+          # behind that 1 for a post-release, which must sort above it.
+          version = upstream
+          qualifier = ".".join(x for x in (rc, post) if x)
+          if rc:
+              relval = f"0.{qualifier}%{{?dist}}"
+          elif post:
+              relval = f"1.{post}%{{?dist}}"
+          else:
+              relval = "1%{?dist}"
+
+          if (version, relval) == (mv.group(2), mr.group(2)):
+              print(f"Spec already at {version}-{relval}; nothing to stamp")
+              sys.exit(0)
+
+          print(f"::notice::stamping {path} "
+                f"{mv.group(2)}-{mr.group(2)} -> {version}-{relval} ({why})")
+          # Release first: editing Version first moves the offsets the Release
+          # match was found at.
+          body = body[:mr.start(2)] + relval + body[mr.end(2):]
+          body = body[:mv.start(2)] + version + body[mv.end(2):]
+          open(path, "w", encoding="utf-8").write(body)
+          PY
+          grep -E '^(Version|Release):' "${SPEC}"
 
       - name: Build ${{ matrix.name }}
         working-directory: src
