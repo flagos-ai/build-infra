@@ -3,6 +3,9 @@
 > 本文对应原报告第 2 部分 §2.1。标准流程见 [`playbook.md`](../playbook.md)，
 > 决策见 [`decisions.md`](../decisions.md)。
 
+> **2026-09 改名**：app 层去品牌化，app 镜像 `…-nvidia-cuda12.8` → `…-generic-12.8`
+> （runtime 镜像名与本文件其余记录不变；同一 tag、内容不变，非重建）。
+
 ## 2.1 NVIDIA cuda12.8（参考实现，2026-08-23 起 empty 模式）
 
 **日期:** 2026-07-27/28　**平台:** NVIDIA H20 (8×)

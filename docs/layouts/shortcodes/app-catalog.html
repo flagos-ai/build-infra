@@ -18,6 +18,13 @@
        vendor name + slug (code) + per-backend page link. Rows link the
        generated {app}-{vendor}-{backend} launch pages.
 
+       Vendor, code, backend and the link target are the backend's *app-layer
+       public identity* (gen_data.py app_public, from configs.yaml): the app
+       layer is published vendor-neutral, so a backend whose app images drop
+       the chip brand shows the public vendor/model here while the base and
+       runtime tables keep the real name. `pub` is nil for a backend published
+       under its own name — the row then falls back to the real values.
+
        Some app keys are versioned (configs.yaml deps_app.vllm<version> /
        deps_app.sglang<version>): an app's rows are every key that starts with
        the app name, and when a table mixes versions a Version column is added
@@ -39,7 +46,7 @@
   {{- $v := index site.Data.vendors.vendors .vendor }}
   {{- range $k, $img := .app.images }}
     {{- if hasPrefix $k $appKey }}
-      {{- $rows = $rows | append (dict "k" $k "name" $b.name "vendor" $b.vendor "vname" $v "backend" $b.backend) }}
+      {{- $rows = $rows | append (dict "k" $k "name" $b.name "vendor" $b.vendor "vname" $v "backend" $b.backend "pub" $b.app_public) }}
     {{- end }}
   {{- end }}
 {{- end }}
@@ -49,10 +56,11 @@
 <thead><tr><th>{{ T "vendor" }}</th><th>{{ T "code" }}</th><th>{{ T "backend" }}</th>{{ if $versioned }}<th>{{ T "app_version" }}</th>{{ end }}</tr></thead>
 <tbody>
 {{- range $rows }}
+  {{- $pub := .pub }}
   <tr>
-    <td>{{ if $zh }}{{ .vname.zh }}{{ else }}{{ .vname.en }}{{ end }}</td>
-    <td><code class="plain">{{ .vendor }}</code></td>
-    <td><a href="{{ $.Page.RelPermalink }}{{ .k }}-{{ .name }}/"><code class="plain">{{ .backend }}</code></a></td>
+    <td>{{ if $pub }}{{ if $zh }}{{ $pub.vendor_zh }}{{ else }}{{ $pub.vendor_en }}{{ end }}{{ else if $zh }}{{ .vname.zh }}{{ else }}{{ .vname.en }}{{ end }}</td>
+    <td><code class="plain">{{ if $pub }}{{ $pub.vendor }}{{ else }}{{ .vendor }}{{ end }}</code></td>
+    <td><a href="{{ $.Page.RelPermalink }}{{ .k }}-{{ if $pub }}{{ $pub.name }}{{ else }}{{ .name }}{{ end }}/"><code class="plain">{{ if $pub }}{{ $pub.backend }}{{ else }}{{ .backend }}{{ end }}</code></a></td>
     {{- if $versioned }}<td>{{ if ne .k $appKey }}{{ strings.TrimPrefix $appKey .k }}{{ else }}—{{ end }}</td>{{ end }}
   </tr>
 {{- end }}

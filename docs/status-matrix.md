@@ -20,6 +20,10 @@ app 命名与镜像仓库的 app 段完全一致（app 与版本之间不加连�
 `vllm0.20.2` / `vllm0.24.0` / `megatron_training0.17.1` / `megatron_rl0.17.1`。
 同一组件下多个 app 各占一个 YAML（0.20.2 与 0.24.0 视为两个 app）。
 
+矩阵一律以**真实后端 key**（`{vendor}-{backend}`，如 `nvidia-cuda12.8`）为行键；
+app 镜像的 tag 用**公开名**（`generic-12.8`，见 `scripts/app_public.py`），两者不通用 ——
+`image_tag` 只记 tag，仓库名由 app key + 公开名派生，所以改名不影响本文件的内容。
+
 ## 渲染目标与 marker 块
 
 每个组件的 YAML 渲染进该组件的验证矩阵 md：

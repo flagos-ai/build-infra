@@ -57,7 +57,7 @@ wheel 以 `vllm-{version}+flagos` 名称上传到厂商的 `FLAGOS_PYPI`。
 插件以预构建 wheel（`vllm-plugin-fl==<version>`）从厂商 PyPI 安装——不在应用
 镜像内做源码编译。wheel 由 vllm-plugin-wheel 工作流构建并做过依赖审计。
 `PLUGIN_FL_VERSION` 构建参数锁定确切版本；非空时，发布镜像的 tag 会追加
-`-{version}` 段（`+` → `_`），如 `vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_gcf8998c.d20260815`。
+`-{version}` 段（`+` → `_`），如 `vllm0.24.0-generic-12.8:2.1.2-0.2.0_gcf8998c.d20260815`。
 
 ## 构建示例
 
@@ -66,6 +66,6 @@ docker build \
   --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.2 \
   --build-arg FLAGOS_PYPI=https://resource.flagos.net/repository/flagos-pypi-nvidia/simple \
   --build-arg PLUGIN_FL_VERSION=0.2.0+gcf8998c.d20260815 \
-  -t harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_gcf8998c.d20260815 \
+  -t harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.1.2-0.2.0_gcf8998c.d20260815 \
   -f app/vllm/Containerfile .
 ```

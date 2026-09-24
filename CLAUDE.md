@@ -69,7 +69,7 @@ configs.yaml + base/ Containerfiles + build-config.yml
         └──→  scripts/build_runtime.py    ──→  --build-arg       ──→  runtime/Containerfile
 ```
 
-`configs.yaml` owns: vendors, backends, deps, env vars, SDK components, Python version, compiler packages, cmake backend.
+`configs.yaml` owns: vendors, backends, deps, env vars, SDK components, Python version, compiler packages, cmake backend, and the app-layer public naming (`app_public`).
 
 `build-config.yml` owns: registry host+prefixes, runner labels per backend, `docker run` flags per vendor, verify commands.
 
@@ -85,6 +85,13 @@ to produce `docs/data/images.yaml` — the intermediate data file that feeds doc
   (A per-backend `-N` commit-count affix was tried and dropped as confusing.)
 
 - **Runtime:** `flagos-runtime-{vendor}-{backend}:{version}` — version from configs.yaml `version:` (same as base)
+
+- **App:** `flagos-app/{app}{app_version}-{app_name}:{version}` — `{app_name}` is the backend's
+  **app-layer public name** (`scripts/app_public.py`, from configs.yaml `app_public`), not the
+  backend key: the app layer is published vendor-neutral, so `nvidia-cuda12.8` publishes as
+  `generic-12.8`. Base and runtime keep the real name, and so does everything that addresses the
+  backend — runner label, status-matrix key, Containerfile, `--backend`. `app_name` reaches
+  only the image tag, the changelog filename and the launch page.
 
 - Registry: `harbor.baai.ac.cn/{prefix}/` (prefix from `build-config.yml` registry.prefixes)
 
@@ -132,10 +139,11 @@ switchable via the `compiler` shell function.
   Whether one cpXXX wheel is shareable across the backends running that Python is decision 6, not yet validated.
 
 - **`megatron-app-image.yml`** — Manual.
-  Builds `flagos-app/{app}{app_version}-{vendor}-{backend}:{version}`
+  Builds `flagos-app/{app}{app_version}-{app_name}:{version}`
   (`{app}` = `megatron_training` | `megatron_rl`, app name; the app key is app + version,
   e.g. `megatron_training0.17.1`, no separator — `configs.yaml deps_app`, the status matrix
-  filename and the workflow's `--app` all use the versioned key)
+  filename and the workflow's `--app` all use the versioned key; `{app_name}` is the backend's
+  app-layer public name — see Image naming)
   from `flagos-runtime-{vendor}-{backend}` by installing the megatron-core wheel single-step
   (no `--no-deps`; the wheel keeps `torch>=2.6.0` and the vendor torch satisfies it),
   selecting the app's Containerfile + wheel extra (`[training]` / `[rl]`) plus vendor-conditional deps

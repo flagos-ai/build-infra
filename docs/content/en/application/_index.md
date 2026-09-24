@@ -25,6 +25,11 @@ package a ready-to-run AI application together with the FlagOS stack. Each
 application is published as a per-backend image, and every image has its own
 page with the image reference, prerequisites, and launch commands.
 
+Application images are named after a **generic vendor** rather than the chip
+brand (for example `generic-12.8`); base and runtime images keep their real
+vendor names. The "Built on" reference on each page points at the runtime image
+the application was built from, under its real name.
+
 Pick an application and a backend to see how to run it:
 
 {{< app-catalog >}}
