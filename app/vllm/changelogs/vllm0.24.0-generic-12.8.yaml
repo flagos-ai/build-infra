@@ -30,11 +30,11 @@
 #                  action itself and are NOT listed here.
 
 
-image: vllm0.24.0-nvidia-cuda13.3
+image: vllm0.24.0-generic-12.8
 tags:
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: '2026-09-20T09:50:50.686Z'
+  - date: '2026-09-20T09:58:26.876Z'
     reason: >-
       The NVIDIA image leaves the v0.3.0-rc0 tag, a 0.2.0-line build, for the 0.3.0
       release line, so it now carries the plugin the rest of the 0.24.0 matrix is
@@ -46,8 +46,9 @@ tags:
     upstream_prs: []
 - tag: 2.1.2-0.2.0_ga9435a3.d20260821
   entries:
-  - date: 2026-09-01T06:37:45Z
+  - date: 2026-08-24T06:04:48Z
     reason: >-
-      Initial vllm 0.24.0 deliverable on NVIDIA cuda13.3 (repacked empty wheel). F/T
-      dual-compiler E2E
+      Initial vllm 0.24.0 deliverable on NVIDIA (repacked empty wheel, single-step
+      install). Rust frontend
+      components make the wheel ABI-bound to (python, arch); F/T dual-compiler E2E
       verified.

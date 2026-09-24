@@ -309,13 +309,44 @@ def _tier_parts(template: str) -> tuple[str, str, str]:
     return before.rstrip(), "", after.strip()
 
 
-def _prerequisites(entry: dict, s: dict, web: bool) -> list[str]:
+def _app_public(entry: dict) -> dict:
+    """App-layer public identity of the backend, or {} when it has none.
+
+    Emitted by docs/gen_data.py from configs.yaml ``app_public``: the vendors
+    whose app images are published vendor-neutral (scripts/app_public.py). Only
+    the app layer — base and runtime pages keep the real vendor name, which is
+    also why an app page's "Built on" ref stays the real runtime image.
+    """
+    return entry.get("app_public") or {}
+
+
+def _app_page_name(entry: dict) -> str:
+    """Page stem and title segment of an app page, i.e. the app-layer public
+    name — the same segment the published image tag carries."""
+    return _app_public(entry).get("name") or entry["name"]
+
+
+def _app_model(entry: dict, lang: str) -> str:
+    """Chip-model line of an app page, or "" to inherit the real hardware.
+
+    The config keys are suffixed with the short language code while LANGS
+    carries the Hugo codes ("zh-cn"), so the two are mapped rather than
+    concatenated.
+    """
+    suffix = lang.split("-", 1)[0]
+    return _app_public(entry).get(f"model_{suffix}") or ""
+
+
+def _prerequisites(entry: dict, s: dict, web: bool, hardware: list[str] | None = None) -> list[str]:
     """Prerequisites section shared by base and runtime: arch, chip models,
-    host driver, container toolkit (with optional tooltip on the web)."""
+    host driver, container toolkit (with optional tooltip on the web).
+
+    ``hardware`` overrides the backend's configs.yaml ``hardware:`` — an app
+    page prints the generic model of a vendor-neutral vendor, not the SKU."""
     base = entry["base"]
     lines = [f"## {s['prerequisites']}", ""]
     lines.append(f"- **{s['architecture']}:** {base.get('arch', '')}")
-    hw = base.get("hardware") or []
+    hw = base.get("hardware") or [] if hardware is None else hardware
     if hw:
         lines.append(f"- **{s['chip_models']}:** {', '.join(hw)}")
     drv = base.get("driver") or ""
@@ -616,13 +647,17 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
 
     # Hugo front matter — web flavor only.
     if web:
-        lines += ["---", f'title: "{app}-{name}"', "---", ""]
+        lines += ["---", f'title: "{app}-{_app_page_name(entry)}"', "---", ""]
         # Apache 2.0 copyright header (only for web — Harbor can't parse HTML comments).
         lines += COPYRIGHT
         _ = lines.append("")
 
     # ── Prerequisites (inherited from the runtime image) ──
-    lines += _prerequisites(entry, s, web)
+    # A vendor-neutral vendor prints a generic model in place of its SKU; the
+    # rest of the prerequisite lines (toolkit name, driver) stay verbatim —
+    # they are what the launch commands below need.
+    model = _app_model(entry, lang)
+    lines += _prerequisites(entry, s, web, [model] if model else None)
 
     # ── Image contents (runtime image ref + Python + the app package) ──
     lines += [f"## {s['image_contents']}", ""]
@@ -702,7 +737,7 @@ def main():
                 out_dir = root / "docs" / "content" / lang / "application"
                 for name, entry in backends.items():
                     for app in entry.get("app", {}).get("images", {}):
-                        path = out_dir / f"{app}-{name}.md"
+                        path = out_dir / f"{app}-{_app_page_name(entry)}.md"
                         if not path.is_file() or path.read_text() != render_app(entry, app, lang, "web"):
                             drift.append(str(path))
             if drift:
@@ -719,7 +754,7 @@ def main():
             n = 0
             for name, entry in backends.items():
                 for app in entry.get("app", {}).get("images", {}):
-                    (out_dir / f"{app}-{name}.md").write_text(render_app(entry, app, lang, "web"))
+                    (out_dir / f"{app}-{_app_page_name(entry)}.md").write_text(render_app(entry, app, lang, "web"))
                     n += 1
                     total += 1
             print(f"Wrote {n} {lang} app web pages to {out_dir}")
@@ -800,7 +835,7 @@ def main():
                     continue
                 for app in backends[name].get("app", {}).get("images", {}):
                     md = render_app(backends[name], app, lang, "web")
-                    (out_dir / f"{app}-{name}.md").write_text(md)
+                    (out_dir / f"{app}-{_app_page_name(backends[name])}.md").write_text(md)
                     n += 1
             print(f"Wrote {n} {lang} app web pages to {out_dir}")
         return
@@ -858,7 +893,8 @@ def main():
     print(f"Wrote {len(backends)} runtime plain readmes to {runtime_dir}")
 
     # ── App images ──────────────────────────────────────────────
-    # App web flavor: docs/content/{en,zh-cn}/application/{app}-{name}.md.
+    # App web flavor: docs/content/{en,zh-cn}/application/{app}-{name}.md, where
+    # {name} is the backend's app-layer public identity when it has one.
     # Harbor plain flavor deferred to PR 2 (upload_descriptions.py --layer app).
     total_app = 0
     for lang in LANGS:
@@ -868,7 +904,7 @@ def main():
         for name, entry in backends.items():
             for app in entry.get("app", {}).get("images", {}):
                 md = render_app(entry, app, lang, "web")
-                (out_dir / f"{app}-{name}.md").write_text(md)
+                (out_dir / f"{app}-{_app_page_name(entry)}.md").write_text(md)
                 n += 1
                 total_app += 1
         print(f"Wrote {n} {lang} app web pages to {out_dir}")

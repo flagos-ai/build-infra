@@ -55,7 +55,11 @@
 #                                       flagos-app/{app}{app_version}-{vendor}-{backend},
 #                                       keyed by app name (vllm / sglang /
 #                                       megatron_training / megatron_rl — the bare name;
-#                                       deps_app keys carry the version)
+#                                       deps_app keys carry the version).
+#                                       The {vendor}-{backend} segment of an app image
+#                                       is its app-layer public identity (app_public
+#                                       below) — the app layer is published
+#                                       vendor-neutral, base/runtime are not.
 #                        base/runtime/app must mirror EXACTLY what the image sets —
 #                        the source of truth for per-image env documentation.
 #   "deps:"            — Python dependencies (torch stack, etc.).
@@ -130,6 +134,32 @@ base_image_prefix: "flagos-base"
 pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"
 pypi_daily: "https://resource.flagos.net/repository/flagos-pypi-daily/simple"
 mirror: "https://mirrors.aliyun.com/pypi/simple"
+
+# App-layer public identity — how a vendor's app images are NAMED and SHOWN.
+# App images and their launch pages are published vendor-neutral: the app image
+# tag, the app catalog, the launch page, and the per-image changelog all carry
+# this identity instead of the chip brand. Only the app layer: base and runtime
+# images keep the real {vendor}-{backend} they are built and pushed under, and
+# an app page still prints the runtime image it was built on, verbatim.
+#
+#   vendor:         public vendor slug (app image tag + catalog "code" column)
+#   vendor_{en,zh}: the vendor name the app catalog prints
+#   drop:           tokens removed from the backend segment of the app name
+#                   (cuda 字样直接删除 — cuda12.8 -> 12.8)
+#   model_{en,zh}:  the generic model the app page prints in place of this
+#                   backend's `hardware:` — a model, not a SKU
+#
+# A vendor absent here is published under its own name (app_name == backend key).
+# Note: this `generic` is unrelated to the `generic` launch tier in
+# .github/build-config.yml `run` (a plain `docker run` with no device flags).
+app_public:
+  nvidia:
+    vendor: generic
+    vendor_en: Generic
+    vendor_zh: 通用
+    drop: [cuda]
+    model_en: Generic GPU
+    model_zh: 通用 GPU
 
 vendors:
   nvidia:

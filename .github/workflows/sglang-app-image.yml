@@ -14,7 +14,9 @@
 
 name: sglang app image
 
-# Builds flagos-app/sglang{sglang_version}-{vendor}-{backend}:{version}[-{plugin}]
+# Builds flagos-app/sglang{sglang_version}-{app_name}:{version}[-{plugin}]
+# ({app_name} = the app-layer public name of the backend, matrix.app_name —
+# generic-12.8 for nvidia-cuda12.8; the app layer is published vendor-neutral)
 # from the runtime image by installing the repacked sglang wheel (+flagos) and
 # — once the sglang-plugin-wheel workflow has published them — the sglang-fl
 # plugin + sgl_kernel shim wheels (single clean pip installs, no source builds;
@@ -166,14 +168,17 @@ jobs:
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
           # Tag naming (same as the vllm app images in flagos-app):
-          #   sglang{sglang_version}-{backend}:{stack_version}[-{plugin_fl_version}]
+          #   sglang{sglang_version}-{app_name}:{stack_version}[-{plugin_fl_version}]
+          # The repo segment is the app-layer public name (matrix.app_name) —
+          # the app layer is published vendor-neutral, so the real vendor must
+          # not reach the tag.
           # The plugin wheel's PEP 440 local version (…+gb9e835e85) carries a
           # '+', which is not allowed in an image tag — use '_'.
           plugin="${{ inputs.plugin_fl_version }}"
           if [[ -n "${plugin}" ]]; then
-              app_tag="${host}/${app_prefix}/sglang${{ inputs.sglang_version }}-${{ matrix.name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
+              app_tag="${host}/${app_prefix}/sglang${{ inputs.sglang_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
           else
-              app_tag="${host}/${app_prefix}/sglang${{ inputs.sglang_version }}-${{ matrix.name }}:${{ matrix.version }}"
+              app_tag="${host}/${app_prefix}/sglang${{ inputs.sglang_version }}-${{ matrix.app_name }}:${{ matrix.version }}"
           fi
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
 
@@ -184,7 +189,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/changelog_gate.py \
-            "app/sglang/changelogs/sglang${{ inputs.sglang_version }}-${{ matrix.name }}.yaml" \
+            "app/sglang/changelogs/sglang${{ inputs.sglang_version }}-${{ matrix.app_name }}.yaml" \
             "${APP_TAG##*:}"
 
       - name: Build sglang app image
@@ -268,6 +273,8 @@ jobs:
         uses: ./.github/actions/record-app-image-tag
         with:
           matrix: "packaging/sglang/status_matrix.sglang${{ inputs.sglang_version }}.yaml"
+          # backend stays the real key (the status matrix is keyed by it); the
+          # changelog is named after the image, i.e. the public name.
           backend: "${{ matrix.name }}"
-          changelog: "app/sglang/changelogs/sglang${{ inputs.sglang_version }}-${{ matrix.name }}.yaml"
+          changelog: "app/sglang/changelogs/sglang${{ inputs.sglang_version }}-${{ matrix.app_name }}.yaml"
           tag: "${APP_TAG}"

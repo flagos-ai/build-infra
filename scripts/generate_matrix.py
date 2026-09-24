@@ -48,6 +48,9 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from app_public import public_name
+
 
 def find_repo_root() -> Path:
     d = Path(__file__).resolve().parent.parent
@@ -185,6 +188,13 @@ def _runtime_matrix(
 
         entry = {
             "name": name,
+            # App-layer public name of this backend — the segment the app image
+            # tag (and its changelog filename) is built with, for the vendors
+            # whose app layer is published vendor-neutral (configs.yaml
+            # app_public). Equal to `name` for every other vendor. `name` stays
+            # the real backend key: it drives the runtime image, the runner
+            # label, the status-matrix key and the Containerfile.
+            "app_name": public_name(configs, vendor, backend),
             "version": stack_version,
             "runson": runson_for(name, runners),
             "image_tag": runtime_tag,
