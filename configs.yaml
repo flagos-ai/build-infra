@@ -96,7 +96,7 @@
 #
 # At release: bump both fields → git tag v<VERSION> → done.
 version: "2.2.0"
-flaggems: "5.4.0-rc2.post3"
+flaggems: "5.4.0"
 
 # Versions of build tools needed to compile the cpp operator wheel inside the
 # runtime:v1 container.  Pinned so a future pip install won't silently pull an
