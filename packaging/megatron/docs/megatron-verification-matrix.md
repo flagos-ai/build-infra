@@ -44,6 +44,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 英伟达 | CUDA 12.8 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
 | 英伟达 | CUDA 13.3 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 8.5.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 8.5.0-910c | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0-910c | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ |
 | 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⬜ | ⬜ | ✅ | — | ✅ | — |
@@ -85,6 +86,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
+| 昇腾 | CANN 8.5.0-910c | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
@@ -169,6 +171,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 12.8 | ✅ | ✅ | ✅ | — |
 | CUDA 13.3 | ✅ | ✅ | ✅ | — |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | — |
+| CANN 8.5.0-910c | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
