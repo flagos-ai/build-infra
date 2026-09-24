@@ -416,9 +416,10 @@ jobs:
                 # only means anything once they are all present.
                 if [ "$missing" -gt 0 ]; then
                   echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
-                elif ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
+                # Python extension modules leave Py*/_Py* to the interpreter.
+                elif ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -qvE "undefined symbol: _?Py"; then
                   echo "$(basename "$so") has undefined symbols:"
-                  ldd -r "$so" 2>&1 | grep "undefined symbol" | head -5
+                  ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | head -5
                   exit 1
                 else
                   echo "  $(basename "$so"): links resolve"
