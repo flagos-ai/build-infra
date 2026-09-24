@@ -1,5 +1,9 @@
 # Megatron-LM-FL nvidia E2E 验证记录
 
+> **2026-09 改名**：app 层去品牌化，app 镜像 `…-nvidia-cuda12.8` → `…-generic-12.8`、
+> `…-nvidia-cuda13.3` → `…-generic-13.3`（runtime 镜像名与本文件其余记录不变；
+> 同一 tag、内容不变，非重建）。
+
 验证在 8× H100 上进行，runtime 镜像
 `flagos-runtime-nvidia-cuda12.8:2.1.2`（torch 2.10.0+cu128）与
 `flagos-runtime-nvidia-cuda13.3:2.1.2`（torch 2.11.0+cu130）。

@@ -41,6 +41,7 @@ from pathlib import Path
 _scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(_scripts_dir))
 from version import image_version
+from app_public import identity as app_public_identity, public_name
 
 import yaml
 
@@ -343,7 +344,7 @@ def app_launch_docs(app: str, name: str) -> bool:
     return bool(((matrix.get("backends") or {}).get(name) or {}).get("launch_docs"))
 
 
-def app_image_data(app_prefix: str, app: str, name: str) -> dict:
+def app_image_data(app_prefix: str, app: str, name: str, app_name: str = "") -> dict:
     """Per-app launch data for one backend: the image ref (published combos
     carry the exact Harbor tag from the status matrix's `image_tag`, the rest
     get a TBD tag — see below), the published status, and the launcher /
@@ -354,8 +355,15 @@ def app_image_data(app_prefix: str, app: str, name: str) -> dict:
     versions of one app coexist (configs.yaml deps_app.<app><version>), and the
     key's version segment drives the repo name / tag / package string. Every
     app repo is named {app}{version}-{vendor}-{backend} (app name + version, no
-    separator). megatron tags are {stack}-{fork_version}; vllm and sglang tags
-    are {stack} (a non-empty plugin version input appends -{plugin} to the tag).
+    separator), except that {vendor}-{backend} is the backend's app-layer
+    public identity (configs.yaml app_public, scripts/app_public.py) — the app
+    layer is published vendor-neutral, so an nvidia backend publishes as
+    ...-generic-12.8, not ...-nvidia-cuda12.8. megatron tags are
+    {stack}-{fork_version}; vllm and sglang tags are {stack} (a non-empty
+    plugin version input appends -{plugin} to the tag).
+
+    The status matrix stays keyed by the real backend key (`name`): only the
+    published image name is public.
     """
     base_app, key_version = split_app(app)
     d = APP_IMAGE_DEFAULTS[base_app]
@@ -363,7 +371,7 @@ def app_image_data(app_prefix: str, app: str, name: str) -> dict:
     # 0.20.2, sglang0.5.18 -> 0.5.18, megatron_training0.17.1 -> 0.17.1), not
     # the workflow default in APP_IMAGE_DEFAULTS.
     app_version = key_version or d["app_version"]
-    repo = f"{base_app}{app_version}-{name}"
+    repo = f"{base_app}{app_version}-{app_name or name}"
     published_tag = app_published_tag(app, name)
     # An unpublished combo has no build to describe, so there is no version to
     # print: the stack version in use at generation time would be a claim about
@@ -465,6 +473,7 @@ def main():
             cf = repo_root / "base" / name
             if not cf.is_file():
                 continue  # not buildable — no base image
+            app_name = public_name(configs, vendor, backend)
             meta = parse_containerfile(cf, {"PYTHON_VERSION": spec.get("python", "")})
             env = spec.get("env") or {}
             sdk = spec.get("sdk") or []
@@ -486,6 +495,13 @@ def main():
                     "name": name,
                     "vendor": vendor,
                     "backend": backend,
+                    # App-layer public identity (configs.yaml app_public), when
+                    # this vendor's app layer is published vendor-neutral: the
+                    # app image tag segment, the page title/filename, and the
+                    # app catalog's vendor/backend/model cells. Absent for every
+                    # other vendor — consumers fall back to name/vendor/backend/
+                    # hardware. `name` stays the real backend key everywhere.
+                    "app_public": app_public_identity(configs, vendor, backend),
                     "launch": launch_tiers(vendor),
                     "run_prereq": run_prereq.get(vendor, ""),
                     "verify": verify_vendors.get(vendor, ""),
@@ -521,7 +537,7 @@ def main():
                         # unverified combo whose deps_app key was added to
                         # trigger a build gets no page.
                         "images": {
-                            a: app_image_data(app_prefix, a, name)
+                            a: app_image_data(app_prefix, a, name, app_name)
                             for a in spec.get("deps_app") or {}
                             # Only deps_app keys that name a documented app
                             # image (split_app leaves an unknown key as its own

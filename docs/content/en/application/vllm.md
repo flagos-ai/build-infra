@@ -64,7 +64,7 @@ from the vendor PyPI — no source build inside the app image. The wheel is
 built and dependency-audited by the vllm-plugin-wheel workflow. The
 `PLUGIN_FL_VERSION` build arg pins the exact version; when it is non-empty,
 the published image tag gains a `-{version}` segment (`+` → `_`), e.g.
-`vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_gcf8998c.d20260815`.
+`vllm0.24.0-generic-12.8:2.1.2-0.2.0_gcf8998c.d20260815`.
 
 ## Build example
 
@@ -73,6 +73,6 @@ docker build \
   --build-arg RUNTIME_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.1.2 \
   --build-arg FLAGOS_PYPI=https://resource.flagos.net/repository/flagos-pypi-nvidia/simple \
   --build-arg PLUGIN_FL_VERSION=0.2.0+gcf8998c.d20260815 \
-  -t harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda12.8:2.1.2-0.2.0_gcf8998c.d20260815 \
+  -t harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.1.2-0.2.0_gcf8998c.d20260815 \
   -f app/vllm/Containerfile .
 ```

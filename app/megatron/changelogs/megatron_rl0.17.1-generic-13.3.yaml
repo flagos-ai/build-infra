@@ -30,23 +30,27 @@
 #                  action itself and are NOT listed here.
 
 
-image: vllm0.20.2-nvidia-cuda13.3
+image: megatron_rl0.17.1-generic-13.3
 tags:
-- tag: 2.2.0-0.2.2rc2.post2
+- tag: 2.2.0-0.2.3
   entries:
-  - date: '2026-09-20T07:12:39.475Z'
+  - date: '2026-09-23T13:59:20.755Z'
     reason: >-
-      Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag
-      v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once:
-      the stack brings the 2.2.0 base and runtime, with FlagGems 5.4.0-rc2.post3
-      and FlagTree 0.6.1, and the plugin now comes from a released tag
-      rather than a pre-merge commit — an immutable pin, and one wheel served by
-      every vendor index.
+      Rebuild on the FlagOS 2.2.0 stack with the release-line wheel, pinned
+      exactly (0.17.1+fl.0.2.3). The image this replaces was built on 2.1.2 from
+      a wheel taken off the MLF PR heads and an integration branch, so the
+      platform fixes those PRs carry were never in the artifact. flash_attn
+      stays an app-layer dep here: it is not a runtime dep on this backend and
+      the wheel is source-built with the ABI locked to this backend's torch.
     upstream_prs: []
-- tag: 2.1.2-0.2.1_g825c1cd
+- tag: 2.1.2-0.2.1_9.g48b97a13f
   entries:
-  - date: 2026-08-23T12:12:10Z
+  - date: 2026-08-20T02:18:47Z
     reason: >-
-      Initial 0.20.2 deliverable on NVIDIA (empty-mode repacked wheel, unified with
-      all backends). F/T
-      dual-compiler E2E verified.
+      megatron-core RL wheel app image (MLF PR 114 RL extra + PR 119). Single-step
+      wheel install over the
+      runtime.
+    upstream_prs:
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/119
+    - https://github.com/NVIDIA/Megatron-LM/pull/6709

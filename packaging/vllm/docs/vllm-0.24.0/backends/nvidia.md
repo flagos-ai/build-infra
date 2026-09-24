@@ -3,6 +3,10 @@
 > 本文对应原报告 §6。标准流程见 [`playbook.md`](../playbook.md)，
 > 决策见 [`decisions.md`](../decisions.md)。
 
+> **2026-09 改名**：app 层去品牌化，app 镜像 `…-nvidia-cuda12.8` → `…-generic-12.8`、
+> `…-nvidia-cuda13.3` → `…-generic-13.3`（runtime 镜像名与本文件其余记录不变；
+> 同一 tag、内容不变，非重建）。
+
 ## 6. NVIDIA（CUDA 12.8 / 13.3）详细记录
 
 日期：2026-08-16

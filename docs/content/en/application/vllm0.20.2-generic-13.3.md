@@ -1,5 +1,5 @@
 ---
-title: "vllm0.24.0-nvidia-cuda13.3"
+title: "vllm0.20.2-generic-13.3"
 ---
 
 <!--
@@ -18,49 +18,49 @@ title: "vllm0.24.0-nvidia-cuda13.3"
  limitations under the License.
 -->
 
-## 前置条件
+## Prerequisites
 
-- **架构:** x86_64
-- **芯片型号:** NVIDIA H20
-- **宿主机驱动:** 610.43.02
-- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: nvidia-container-toolkit
+- **Architecture:** x86_64
+- **Chip models:** Generic GPU
+- **Host driver:** 610.43.02
+- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: nvidia-container-toolkit
 
-## 镜像内容
+## Image contents
 
-### 基于
+### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.2.0</code> <a href="../../runtime/nvidia-cuda13.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.2.0</code> <a href="../../runtime/nvidia-cuda13.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
 3.12
 
-### 应用软件包
+### Application package
 
-`vllm==0.24.0+flagos`
+`vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.3.0rc2.post2`
+`vllm-plugin-fl==0.2.2rc2.post2`
 
-## 环境变量
+## Environment
 
 - `VLLM_USE_FLASHINFER_SAMPLER=0`
 
-## 启动
+## Launch
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.2.0-0.3.0rc2.post2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-generic-13.3:2.2.0-0.2.2rc2.post2`
 
-镜像名较长——先将其设为变量：
+The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-nvidia-cuda13.3:2.2.0-0.3.0rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-generic-13.3:2.2.0-0.2.2rc2.post2
 ```
 
-以下两种方式任选其一：
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
 
-### 使用容器工具包
+### With the container toolkit
 
-启动交互式 shell：
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
@@ -68,7 +68,7 @@ docker run --rm -it \
   $IMG bash
 ```
 
-以默认设置启动应用：
+Start the app with its default settings:
 
 ```bash
 docker run --rm -it \
@@ -76,7 +76,7 @@ docker run --rm -it \
   $IMG
 ```
 
-向启动器传参：
+Pass arguments to the launcher:
 
 ```bash
 docker run --rm -it \
@@ -84,9 +84,9 @@ docker run --rm -it \
   $IMG vllm-serve --model <path> --port 9000
 ```
 
-### 无需工具包——直接使用 docker / podman
+### Without a toolkit — plain docker / podman
 
-启动交互式 shell：
+Start an interactive shell:
 
 ```bash
 docker run --rm -it \
@@ -99,7 +99,7 @@ docker run --rm -it \
   $IMG bash
 ```
 
-以默认设置启动应用：
+Start the app with its default settings:
 
 ```bash
 docker run --rm -it \
@@ -112,7 +112,7 @@ docker run --rm -it \
   $IMG
 ```
 
-向启动器传参：
+Pass arguments to the launcher:
 
 ```bash
 docker run --rm -it \

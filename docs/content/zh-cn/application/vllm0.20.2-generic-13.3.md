@@ -1,5 +1,5 @@
 ---
-title: "vllm0.20.2-nvidia-cuda13.3"
+title: "vllm0.20.2-generic-13.3"
 ---
 
 <!--
@@ -21,7 +21,7 @@ title: "vllm0.20.2-nvidia-cuda13.3"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** NVIDIA H20
+- **芯片型号:** 通用 GPU
 - **宿主机驱动:** 610.43.02
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: nvidia-container-toolkit
 
@@ -48,12 +48,12 @@ title: "vllm0.20.2-nvidia-cuda13.3"
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.2.0-0.2.2rc2.post2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-generic-13.3:2.2.0-0.2.2rc2.post2`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.2.0-0.2.2rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-generic-13.3:2.2.0-0.2.2rc2.post2
 ```
 
 以下两种方式任选其一：

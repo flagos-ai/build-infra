@@ -1,5 +1,5 @@
 ---
-title: "megatron_training0.17.1-nvidia-cuda12.8"
+title: "vllm0.20.2-generic-12.8"
 ---
 
 <!--
@@ -18,42 +18,49 @@ title: "megatron_training0.17.1-nvidia-cuda12.8"
  limitations under the License.
 -->
 
-## Prerequisites
+## 前置条件
 
-- **Architecture:** x86_64
-- **Chip models:** NVIDIA H20
-- **Host driver:** 610.43.02
-- **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: nvidia-container-toolkit
+- **架构:** x86_64
+- **芯片型号:** 通用 GPU
+- **宿主机驱动:** 610.43.02
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: nvidia-container-toolkit
 
-## Image contents
+## 镜像内容
 
-### Built on
+### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
 3.12
 
-### Application package
+### 应用软件包
 
-`megatron-core[training]==0.17.1`
+`vllm==0.20.2+flagos`
 
-## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.2.0-0.2.3`
+`vllm-plugin-fl==0.2.2rc2.post2`
 
-The image name is long — assign it to a variable first:
+## 环境变量
+
+- `VLLM_USE_FLASHINFER_SAMPLER=0`
+
+## 启动
+
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-generic-12.8:2.2.0-0.2.2rc2.post2`
+
+镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-generic-12.8:2.2.0-0.2.2rc2.post2
 ```
 
-The two approaches below are alternatives — pick the one that matches how your host runs containers:
+以下两种方式任选其一：
 
-### With the container toolkit
+### 使用容器工具包
 
-Start an interactive shell:
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
@@ -61,7 +68,7 @@ docker run --rm -it \
   $IMG bash
 ```
 
-Start the app with its default settings:
+以默认设置启动应用：
 
 ```bash
 docker run --rm -it \
@@ -69,17 +76,17 @@ docker run --rm -it \
   $IMG
 ```
 
-Pass arguments to the launcher:
+向启动器传参：
 
 ```bash
 docker run --rm -it \
   --gpus all \
-  $IMG megatron-train --model-type GPT
+  $IMG vllm-serve --model <path> --port 9000
 ```
 
-### Without a toolkit — plain docker / podman
+### 无需工具包——直接使用 docker / podman
 
-Start an interactive shell:
+启动交互式 shell：
 
 ```bash
 docker run --rm -it \
@@ -92,7 +99,7 @@ docker run --rm -it \
   $IMG bash
 ```
 
-Start the app with its default settings:
+以默认设置启动应用：
 
 ```bash
 docker run --rm -it \
@@ -105,7 +112,7 @@ docker run --rm -it \
   $IMG
 ```
 
-Pass arguments to the launcher:
+向启动器传参：
 
 ```bash
 docker run --rm -it \
@@ -115,5 +122,5 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  $IMG megatron-train --model-type GPT
+  $IMG vllm-serve --model <path> --port 9000
 ```

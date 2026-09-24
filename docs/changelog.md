@@ -26,6 +26,11 @@ gate refuses the push when it is absent. Debug builds (`push=false`) are exempt.
 逐镜像一个文件，分 app 放在 `app/<app>/changelogs/<image>.yaml`
 （base/runtime 层同理，落位待定）。字段含义见文件头注释：
 
+文件名与文件内的 `image:` 就是镜像名（app 层即公开名
+`{app}{app_version}-{app_name}`，见 `scripts/app_public.py`）：app 层改公开名时
+两者一起改，**改名不构成重建，不新增 entry**。工作流的 changelog 路径与
+gate 都按这个名字找文件，漏改一处即 push 前被拒。
+
 - `tags`：发布过的 tag，按时间**倒序**（最新在前）。已被替换、registry 不再
   保留的 tag 折叠进取代它的那条 entry 的历史叙述里——本文件是它唯一的痕迹。
 - `entries`：每次实质构建一条，按时间**倒序**。
@@ -38,6 +43,12 @@ gate refuses the push when it is absent. Debug builds (`push=false`) are exempt.
 
 One YAML per image under `app/<app>/changelogs/<image>.yaml` (base/runtime
 follow the same idea; placement TBD). See each file's header for the schema:
+
+The filename and the `image:` field inside it are the image name (for the app
+layer, the public name `{app}{app_version}-{app_name}`, see
+`scripts/app_public.py`): renaming the app layer renames both, and a **rename is
+not a rebuild — no new entry**. The workflow's changelog path and the gate look
+the file up by that name, so missing one place fails the push.
 
 - `tags`: published tags, newest first. Tags the registry no longer carries are
   folded into the history of the entry that succeeded them — this file is their

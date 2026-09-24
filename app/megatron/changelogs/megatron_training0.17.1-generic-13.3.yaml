@@ -30,25 +30,31 @@
 #                  action itself and are NOT listed here.
 
 
-image: vllm0.24.0-nvidia-cuda12.8
+image: megatron_training0.17.1-generic-13.3
 tags:
-- tag: 2.2.0-0.3.0rc2.post2
+- tag: 2.2.0-0.2.3
   entries:
-  - date: '2026-09-20T09:58:26.876Z'
+  - date: '2026-09-22T16:03:50.555Z'
     reason: >-
-      The NVIDIA image leaves the v0.3.0-rc0 tag, a 0.2.0-line build, for the 0.3.0
-      release line, so it now carries the plugin the rest of the 0.24.0 matrix is
-      built on. Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime carry
-      FlagGems 5.4.0-rc2.post3, and on the vllm-plugin-FL release tag
-      v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the plugin comes from a
-      released tag rather than a pre-merge commit — an immutable pin, and one wheel
-      served by every vendor index.
+      Rebuilt on the FlagOS 2.2.0 stack and on release/0.2, whose head carries
+      the app-image PRs now merged into it — the image this replaces installed a
+      wheel built off their PR heads and an integration branch, so the platform
+      fixes they carry were never in the artifact. The wheel is the one built
+      from that line's release tag, and the install pin states it exactly
+      (0.17.1+fl.0.2.3) rather than resolving ==0.17.1 to whichever local version
+      the index held.
     upstream_prs: []
-- tag: 2.1.2-0.2.0_ga9435a3.d20260821
+- tag: 2.1.2-0.2.1_9.g48b97a13f
   entries:
-  - date: 2026-08-24T06:04:48Z
+  - date: 2026-08-20T02:28:04Z
     reason: >-
-      Initial vllm 0.24.0 deliverable on NVIDIA (repacked empty wheel, single-step
-      install). Rust frontend
-      components make the wheel ABI-bound to (python, arch); F/T dual-compiler E2E
-      verified.
+      megatron-core wheel (0.17.1+fl) app image on this backend. Built on the MLF
+      wheel-full-scope line
+      (PR 107) with backend enablement carried by the listed MLF/vendor PRs. Single-step
+      wheel install
+      over the runtime.
+    upstream_prs:
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/107
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/34
+    - https://github.com/flagos-ai/Megatron-LM-FL/pull/120
+    - https://github.com/NVIDIA/Megatron-LM/pull/6709

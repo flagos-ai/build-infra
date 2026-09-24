@@ -1,5 +1,5 @@
 ---
-title: "megatron_rl0.17.1-nvidia-cuda13.3"
+title: "megatron_rl0.17.1-generic-12.8"
 ---
 
 <!--
@@ -21,7 +21,7 @@ title: "megatron_rl0.17.1-nvidia-cuda13.3"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** NVIDIA H20
+- **Chip models:** Generic GPU
 - **Host driver:** 610.43.02
 - **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: nvidia-container-toolkit
 
@@ -29,7 +29,7 @@ title: "megatron_rl0.17.1-nvidia-cuda13.3"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.2.0</code> <a href="../../runtime/nvidia-cuda13.3/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,12 +41,12 @@ title: "megatron_rl0.17.1-nvidia-cuda13.3"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda13.3:2.2.0-0.2.3`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-generic-12.8:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-nvidia-cuda13.3:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-generic-12.8:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

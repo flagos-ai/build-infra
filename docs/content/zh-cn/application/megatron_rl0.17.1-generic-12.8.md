@@ -1,5 +1,5 @@
 ---
-title: "megatron_training0.17.1-nvidia-cuda12.8"
+title: "megatron_rl0.17.1-generic-12.8"
 ---
 
 <!--
@@ -21,7 +21,7 @@ title: "megatron_training0.17.1-nvidia-cuda12.8"
 ## 前置条件
 
 - **架构:** x86_64
-- **芯片型号:** NVIDIA H20
+- **芯片型号:** 通用 GPU
 - **宿主机驱动:** 610.43.02
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: nvidia-container-toolkit
 
@@ -37,16 +37,16 @@ title: "megatron_training0.17.1-nvidia-cuda12.8"
 
 ### 应用软件包
 
-`megatron-core[training]==0.17.1`
+`megatron-core[rl]==0.17.1`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.2.0-0.2.3`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-generic-12.8:2.2.0-0.2.3`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda12.8:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-generic-12.8:2.2.0-0.2.3
 ```
 
 以下两种方式任选其一：
@@ -61,21 +61,8 @@ docker run --rm -it \
   $IMG bash
 ```
 
-以默认设置启动应用：
+**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
 
-```bash
-docker run --rm -it \
-  --gpus all \
-  $IMG
-```
-
-向启动器传参：
-
-```bash
-docker run --rm -it \
-  --gpus all \
-  $IMG megatron-train --model-type GPT
-```
 
 ### 无需工具包——直接使用 docker / podman
 
@@ -92,28 +79,4 @@ docker run --rm -it \
   $IMG bash
 ```
 
-以默认设置启动应用：
-
-```bash
-docker run --rm -it \
-  --device /dev/nvidia0 \
-  --device /dev/nvidiactl \
-  --device /dev/nvidia-uvm \
-  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
-  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
-  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  $IMG
-```
-
-向启动器传参：
-
-```bash
-docker run --rm -it \
-  --device /dev/nvidia0 \
-  --device /dev/nvidiactl \
-  --device /dev/nvidia-uvm \
-  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
-  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
-  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  $IMG megatron-train --model-type GPT
-```
+**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。

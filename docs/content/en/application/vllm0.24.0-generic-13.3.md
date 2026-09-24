@@ -1,5 +1,5 @@
 ---
-title: "megatron_training0.17.1-nvidia-cuda13.3"
+title: "vllm0.24.0-generic-13.3"
 ---
 
 <!--
@@ -21,7 +21,7 @@ title: "megatron_training0.17.1-nvidia-cuda13.3"
 ## Prerequisites
 
 - **Architecture:** x86_64
-- **Chip models:** NVIDIA H20
+- **Chip models:** Generic GPU
 - **Host driver:** 610.43.02
 - **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: nvidia-container-toolkit
 
@@ -37,16 +37,23 @@ title: "megatron_training0.17.1-nvidia-cuda13.3"
 
 ### Application package
 
-`megatron-core[training]==0.17.1`
+`vllm==0.24.0+flagos`
+
+
+`vllm-plugin-fl==0.3.0rc2.post2`
+
+## Environment
+
+- `VLLM_USE_FLASHINFER_SAMPLER=0`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.2.0-0.2.3`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3:2.2.0-0.3.0rc2.post2`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-nvidia-cuda13.3:2.2.0-0.2.3
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3:2.2.0-0.3.0rc2.post2
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -74,7 +81,7 @@ Pass arguments to the launcher:
 ```bash
 docker run --rm -it \
   --gpus all \
-  $IMG megatron-train --model-type GPT
+  $IMG vllm-serve --model <path> --port 9000
 ```
 
 ### Without a toolkit — plain docker / podman
@@ -115,5 +122,5 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  $IMG megatron-train --model-type GPT
+  $IMG vllm-serve --model <path> --port 9000
 ```
