@@ -168,7 +168,8 @@ jobs:
               base_arg=env
               spec=packaging/rpm/specs/flagfft.spec
               outdir=rpm-packages
-              ref=v0.2.0-rc2.post2
+              # 0.2.0-rc2 carries FlagFFT#25 and #27 on top of post2.
+              ref=0.2.0-rc2
               ver=v0.2.0-rc2.post2
               # The spec BuildRequires nlohmann-json-devel; FlagFFT#27 dropped it
               # from the Dockerfile. Until FlagFFT can change again, add it here.
