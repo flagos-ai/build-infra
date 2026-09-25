@@ -33,7 +33,7 @@ image: megatron_rl0.17.1-ascend-cann8.5.0-910c
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-25T02:01:07.849Z'
     reason: >-
       megatron_rl image on the 910C twin of cann8.5.0. Built on the FlagOS
       2.2.0 stack and on release/0.2's wheel (0.17.1+fl.0.2.3, the same cp311
