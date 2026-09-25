@@ -74,7 +74,18 @@ run:
       # Indices are dies, not cards: a 910C card is two dies, and in-container
       # `npu-smi info` needs a whole die pair visible (a lone die exits -9005).
       # The list must be explicit — "all" fails the container create.
-      toolkit: "-e ASCEND_VISIBLE_DEVICES=0,1"
+      #
+      # --privileged: the container toolkits on our 910C nodes (hw114 CANN
+      # 8.5.0, hw115 CANN 9.0.0) do NOT map the davinci dies for fresh
+      # `docker run`s anymore (torch.npu.device_count() = 0, drvRetCode 87 /
+      # aclInit 507899) — only a privileged launch sees the NPU
+      # (device_count 16, tensors allocate on npu:0, pretrain_gpt mock-data 5
+      # iter exit 0). The ascend-docker-runtime hook (7.3.0, Default Runtime
+      # ascend) is present but not delivering device access. Verified on both
+      # 910C nodes AND the 910B nodes (hw25/hw26): --privileged does not
+      # regress the 910B path (toolkit gives npu_count 2, privileged gives 8;
+      # both run the E2E exit 0).
+      toolkit: "--privileged -e ASCEND_VISIBLE_DEVICES=0,1"
       raw: "--device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
     hygon:
       toolkit: "-e DCU_VISIBLE_DEVICES=all"
