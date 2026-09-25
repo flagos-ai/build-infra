@@ -62,6 +62,7 @@ IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0:2.2.0-0.2.2rc2.post
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -70,6 +71,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
@@ -78,6 +80,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG vllm-serve --model <path> --port 9000
 ```

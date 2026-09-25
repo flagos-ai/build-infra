@@ -59,6 +59,7 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann8.5.0:2.2.0-
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -67,6 +68,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
@@ -75,6 +77,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG megatron-train --model-type GPT
 ```

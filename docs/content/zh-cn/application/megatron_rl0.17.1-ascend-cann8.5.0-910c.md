@@ -1,5 +1,5 @@
 ---
-title: "vllm0.20.2-ascend-cann9.0.0-910c"
+title: "megatron_rl0.17.1-ascend-cann8.5.0-910c"
 ---
 
 <!--
@@ -24,14 +24,14 @@ title: "vllm0.20.2-ascend-cann9.0.0-910c"
 
 - **架构:** aarch64
 - **芯片型号:** Ascend 910C
-- **宿主机驱动:** 26.0.rc1
+- **宿主机驱动:** 25.5.0
 - **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: Ascend-docker-runtime >= 6.0.RC3
 
 ## 镜像内容
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.2.0</code> <a href="../../runtime/ascend-cann9.0.0-910c/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.2.0</code> <a href="../../runtime/ascend-cann8.5.0-910c/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -39,19 +39,16 @@ title: "vllm0.20.2-ascend-cann9.0.0-910c"
 
 ### 应用软件包
 
-`vllm==0.20.2+flagos`
-
-
-`vllm-plugin-fl==0.2.2rc2.post2`
+`megatron-core[rl]==0.17.1`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0-910c:2.2.0-0.2.2rc2.post2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-ascend-cann8.5.0-910c:2.2.0-0.2.3`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0-910c:2.2.0-0.2.2rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-ascend-cann8.5.0-910c:2.2.0-0.2.3
 ```
 
 以下两种方式任选其一：
@@ -67,23 +64,8 @@ docker run --rm -it \
   $IMG bash
 ```
 
-以默认设置启动应用：
+**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
 
-```bash
-docker run --rm -it \
-  --privileged \
-  -e ASCEND_VISIBLE_DEVICES=0,1 \
-  $IMG
-```
-
-向启动器传参：
-
-```bash
-docker run --rm -it \
-  --privileged \
-  -e ASCEND_VISIBLE_DEVICES=0,1 \
-  $IMG vllm-serve --model <path> --port 9000
-```
 
 ### 无需工具包——直接使用 docker / podman
 
@@ -102,32 +84,4 @@ docker run --rm -it \
   $IMG bash
 ```
 
-以默认设置启动应用：
-
-```bash
-docker run --rm -it \
-  --device /dev/davinci0 \
-  --device /dev/davinci1 \
-  --device /dev/davinci_manager \
-  --device /dev/devmm_svm \
-  --device /dev/hisi_hdc \
-  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-  -v /usr/local/dcmi:/usr/local/dcmi \
-  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  $IMG
-```
-
-向启动器传参：
-
-```bash
-docker run --rm -it \
-  --device /dev/davinci0 \
-  --device /dev/davinci1 \
-  --device /dev/davinci_manager \
-  --device /dev/devmm_svm \
-  --device /dev/hisi_hdc \
-  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-  -v /usr/local/dcmi:/usr/local/dcmi \
-  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  $IMG vllm-serve --model <path> --port 9000
-```
+**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
