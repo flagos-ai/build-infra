@@ -170,7 +170,7 @@ vendors:
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
-      flagtree: flagtree==0.7.0rc2
+      flagtree: flagtree==0.7.0
       env:
         base:
           # Effective env — inherited verbatim from nvcr 12.8.0-runtime-ubuntu24.04
@@ -211,12 +211,10 @@ vendors:
       python: "3.12"
       cmake_backend: CUDA
       triton: triton==3.6.0
-      # Held at 0.6.1 while the CUDA 12 backends move to 0.7.0rc2: 0.7.0rc2
-      # dlopens libflagcx.so at triton.experimental.tle import, and that library
-      # links libcudart.so.12, which a CUDA 13 image does not carry. The
-      # resulting OSError escapes flag_gems' ImportError-only TLE probe and
-      # fails `import flag_gems` outright.
-      flagtree: flagtree==0.6.1
+      # 0.7.0 links its flagcx against the flagcx wheel's libflagcx.so (PR
+      # #1266), not triton/_C/libflagcx.so (libcudart.so.12, absent on CUDA 13) —
+      # the flagcx wheel for cuda13.3 (flagcx-0.14.0rc2.post2+cuda13.3) is a dep.
+      flagtree: flagtree==0.7.0
       env:
         base:
           # Effective env — inherited verbatim from nvcr 13.3.0-runtime-ubuntu24.04
@@ -242,6 +240,12 @@ vendors:
         - torchaudio==2.11.0+cu130
         - torchvision==0.26.0+cu130
         - numpy==1.26.4
+        # 0.7.0's flagcx resolution prefers the flagcx wheel package's
+        # libflagcx.so (PR #1266); without it, triton/_C/libflagcx.so (which
+        # links libcudart.so.12, absent here) is the fallback and the TLE
+        # import OSError from #1234 returns. The +cuda13.3 wheel links
+        # libcudart.so.13, present in this image.
+        - flagcx==0.14.0rc2.post2+cuda13.3
       deps_app:
         megatron_training0.17.1: []
         # flash-attn wheel source-built with ABI locked to torch 2.11.0+cu130
@@ -339,7 +343,7 @@ vendors:
       python: "3.11"
       cmake_backend: NPU
       triton: triton==3.5.0
-      flagtree: flagtree==0.7.0rc2+ascend3.5
+      flagtree: flagtree==0.7.0+ascend3.5
       triton_post_install:
         - triton_ascend==3.2.1
       env:
@@ -387,7 +391,7 @@ vendors:
       python: "3.11"
       cmake_backend: NPU
       triton: triton==3.5.0
-      flagtree: flagtree==0.7.0rc2+ascend3.5
+      flagtree: flagtree==0.7.0+ascend3.5
       triton_post_install:
         - triton_ascend==3.2.1
       deps:
@@ -615,7 +619,7 @@ vendors:
       driver: "6.3.30-V1.4.1a"
       python: "3.10"
       triton: triton==3.5.1+das.opt1.dtk2604.torch290
-      flagtree: flagtree==0.7.0rc2+hcu3.6
+      flagtree: flagtree==0.7.0+hcu3.6
       deps:
         - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
@@ -642,7 +646,7 @@ vendors:
       python: "3.12"
       cmake_backend: IX
       triton: triton==3.1.0+corex.4.4.0
-      flagtree: flagtree==0.7.0rc2+iluvatar3.6
+      flagtree: flagtree==0.7.0+iluvatar3.6
       env:
         base:
           COREX_ROOT: /usr/local/corex
@@ -694,7 +698,7 @@ vendors:
       python: "3.12"
       cmake_backend: IX
       triton: triton==3.2.0+corex.4.5.0.20260804
-      flagtree: flagtree==0.7.0rc2+iluvatar3.6
+      flagtree: flagtree==0.7.0+iluvatar3.6
       env:
         base:
           COREX_ROOT: /usr/local/corex
@@ -740,7 +744,7 @@ vendors:
       python: "3.10"
       triton: triton==3.6.0+gitcd2d6c1b
       # triton: triton==3.0.0+a48aedef
-      flagtree: flagtree==0.7.0rc2+xpu3.6
+      flagtree: flagtree==0.7.0+xpu3.6
       env:
         base:
           PATH: /usr/local/xpu/bin:$PATH
@@ -796,10 +800,10 @@ vendors:
       driver: "3.8.30"
       python: "3.12"
       triton: triton==3.0.0+metax3.7.2.0
-      # Held at 0.6.1 on the vllm 0.20.2 line for the F path: this stack installs
-      # the flagtree carrying FlagTree #1052's triton_key re-export — see
-      # packaging/vllm/docs/vllm-0.20.2/backends/metax.md.
-      flagtree: flagtree==0.6.1+metax3.6
+      # 0.7.0 carries FlagTree #1052's triton_key re-export (verified in the
+      # 0.7.0+metax3.6 wheel: triton.compiler.compiler re-exports triton_key),
+      # so the F path no longer needs to be held at 0.6.1.
+      flagtree: flagtree==0.7.0+metax3.6
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -841,10 +845,9 @@ vendors:
       driver: "3.9.6"
       python: "3.12"
       triton: triton==3.6.0+metax3.8.1.0
-      # Held at 0.6.1 on the vllm 0.20.2 line for the F path: this stack installs
-      # the flagtree carrying FlagTree #1052's triton_key re-export — see
-      # packaging/vllm/docs/vllm-0.20.2/backends/metax.md.
-      flagtree: flagtree==0.6.1+metax3.6
+      # 0.7.0 carries FlagTree #1052's triton_key re-export (verified in the
+      # 0.7.0+metax3.6 wheel), so the F path no longer needs to be held at 0.6.1.
+      flagtree: flagtree==0.7.0+metax3.6
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -905,7 +908,7 @@ vendors:
       python: "3.10"
       cmake_backend: MUSA
       triton: triton==3.6.0+git89458660
-      flagtree: flagtree==0.7.0rc2+mthreads3.6
+      flagtree: flagtree==0.7.0+mthreads3.6
       env:
         base:
           MUSA_HOME: /usr/local/musa
@@ -937,7 +940,7 @@ vendors:
       python: "3.10"
       cmake_backend: MUSA
       triton: triton==3.6.0
-      flagtree: flagtree==0.7.0rc2+mthreads3.6
+      flagtree: flagtree==0.7.0+mthreads3.6
       env:
         base:
           MUSA_HOME: /usr/local/musa
@@ -1058,7 +1061,7 @@ vendors:
       driver: "260610164501.01"
       python: "3.10"
       triton: triton==3.6.0.post2026072919+git8f5b0609
-      flagtree: flagtree==0.7.0rc2+tsingmicro3.6
+      flagtree: flagtree==0.7.0+tsingmicro3.6
       system_dpkg:
         # libfmt8 is a system-level dependency for torch_txda (links
         # libfmt.so.8). Ubuntu 24.04 ships libfmt9, so we install the
