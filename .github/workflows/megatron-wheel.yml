@@ -125,16 +125,21 @@ jobs:
           EXTRA_PYPI: ${{ matrix.extra_pypi }}
           MLF_REF: ${{ inputs.mlf_ref }}
           MLF_VERSION: ${{ inputs.mlf_version }}
-          HTTP_PROXY: ${{ secrets.HTTP_PROXY }}
         run: |
           set -euo pipefail
           # Requires-python patch, .so-in-wheel gate and the smoke install run
           # inside this build; a failure here means the wheel is broken and
           # must not be published.
           #
-          # HTTPS_PROXY: route the github.com clone through the HTTP_PROXY
-          # secret (never hardcoded). aliyun/flagos/baai are bypassed inside
-          # the Containerfile's baked-in NO_PROXY.
+          # Proxy: relay the RUNNER's own proxy verbatim (https_proxy /
+          # http_proxy / no_proxy from the runner env, if set) into the build.
+          # No proxy is invented here — a value hardcoded in the workflow or
+          # taken from a secret would bypass the tunnel for hosts the runner
+          # cannot resolve on its own (hw114/hw115 reach the internet only
+          # through their proxy). Runners that reach the CN mirrors directly
+          # have no proxy set, so nothing is relayed and egress stays direct.
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
           # --no-cache: the clone layer caches by ref NAME, not content — a
           # moved branch would otherwise rebuild from stale source.
           docker build \
@@ -143,7 +148,8 @@ jobs:
             --build-arg EXTRA_PYPI="${EXTRA_PYPI}" \
             --build-arg MLF_REF="${MLF_REF}" \
             --build-arg MLF_VERSION="${MLF_VERSION}" \
-            --build-arg HTTPS_PROXY="${HTTP_PROXY}" \
+            --build-arg HTTPS_PROXY="${proxy_url}" \
+            --build-arg PROXY_NO_PROXY="${no_proxy_val}" \
             -t "$IMAGE" \
             -f Containerfile .
 
