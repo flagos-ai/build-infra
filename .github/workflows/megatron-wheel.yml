@@ -202,8 +202,15 @@ jobs:
           # `python3 -m pip`). The secret travels via `-e NEXUS_TOKEN` (inherits
           # the step env) so it never appears in a process list or image layer.
           echo ">>> uploading $(docker run --rm "$IMAGE" sh -c 'ls /wheels/*.whl' | tr '\n' ' ') to ${pypi_repo}"
+          # The 910C nodes have no egress of their own: they reach the outside
+          # only through the proxy their runner's systemd unit sets, so the
+          # container inherits it or the twine install below resolves nothing
+          # (same pattern as flagcx-wheel.yml:416). Named without a value, so
+          # no proxy value (and no credential in it) reaches an argument list,
+          # a log or an image layer.
           docker run --rm \
             -e NEXUS_TOKEN \
+            -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
             "$IMAGE" \
