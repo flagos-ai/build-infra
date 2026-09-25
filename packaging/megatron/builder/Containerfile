@@ -71,6 +71,7 @@ ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn"
 
 COPY stamp_version.py /usr/local/bin/stamp_version.py
 COPY patch-compile-helpers-sysconfig.py /usr/local/bin/patch-compile-helpers-sysconfig.py
+COPY verify-installed-wheel.py /usr/local/bin/verify-installed-wheel.py
 
 # ── Build deps for megatron.core.datasets.helpers_cpp ─────────────────
 # Installed into the runtime venv (/flagos/bin/python is on PATH via ENV).
@@ -174,20 +175,4 @@ RUN python -c "import glob,zipfile,sys; \
 # with importlib executes the pybind11 init and proves the extension is
 # loadable and bound.
 RUN python -m pip install --no-cache-dir --index-url "${EXTRA_PYPI}" /wheels/*.whl \
-    && python - <<'PY'
-import importlib.metadata
-import importlib.util
-import sys
-
-dist = importlib.metadata.distribution('megatron-core')
-root = dist.locate_file('')
-so = sorted((root / 'megatron/core/datasets').glob('helpers_cpp*.so'))
-assert so, "helpers_cpp .so not found in the installed wheel"
-spec = importlib.util.spec_from_file_location('helpers_cpp', str(so[0]))
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-assert callable(mod.build_sample_idx_int32), "build_sample_idx_int32 not bound"
-assert callable(mod.build_sample_idx_int64), "build_sample_idx_int64 not bound"
-assert callable(mod.build_exhaustive_blending_indices), "build_exhaustive_blending_indices not bound"
-print('OK helpers_cpp', mod.__file__)
-PY
+    && python /usr/local/bin/verify-installed-wheel.py
