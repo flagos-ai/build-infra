@@ -353,6 +353,8 @@ jobs:
             # Installing the file itself is the test: dnf has to satisfy the
             # package'"'"'s own Requires from the distribution alone.
             dnf install -y --setopt=install_weak_deps=False /pkg/*.noarch.rpm
+            # openEuler images ship without findutils; the checks below use find.
+            dnf install -y -q findutils > /dev/null
             pkg=$(rpm -qp --qf "%{NAME}" /pkg/*.noarch.rpm)
             echo "installed $(rpm -q --qf "%{NAME} %{VERSION}-%{RELEASE}" "$pkg")"
             # Ask rpm which directories the package shipped rather than
@@ -380,7 +382,9 @@ jobs:
             if [ -n "$missing" ]; then
               echo "subpackages shipped without __init__.py:"; echo "$missing"; exit 1
             fi
-            echo "OK: $(find $dirs -name "*.py" | wc -l) modules, no gaps"
+            n=$(find $dirs -name "*.py" | wc -l)
+            test "$n" -gt 0 || { echo "installed but shipped no Python modules"; exit 1; }
+            echo "OK: $n modules, no gaps"
           '
 
       - name: Publish to flagos-yum-${{ matrix.suite }}

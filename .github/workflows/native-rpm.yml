@@ -111,6 +111,7 @@ jobs:
           # Recording the difference here is cheaper than an upstream PR to
           # each of them for the sake of uniformity.
           deps=''
+          base_pkgs=''
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -164,11 +165,15 @@ jobs:
             FlagFFT)
               repo=FlagFFT
               script=packaging/rpm/build-flagfft-rpm.sh
-              base_arg=env
+              base_arg=flag
               spec=packaging/rpm/specs/flagfft.spec
               outdir=rpm-packages
-              ref=v0.2.0-rc2.post2
-              ver=''
+              # 0.2.0-rc2 carries FlagFFT#25 and #27 on top of post2.
+              ref=0.2.0-rc2
+              ver=v0.2.0-rc2.post2
+              # The spec BuildRequires nlohmann-json-devel; FlagFFT#27 dropped it
+              # from the Dockerfile. Until FlagFFT can change again, add it here.
+              base_pkgs="nlohmann-json-devel python3-wheel"
               image_fedora43=
               image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts
               image_rhel9= ;;
@@ -180,6 +185,7 @@ jobs:
             echo "script=${script}"
             echo "base_arg=${base_arg}"
             echo "deps=${deps}"
+            echo "base_pkgs=${base_pkgs}"
             echo "spec=${spec}"
             echo "outdir=${outdir}"
             echo "default_ref=${ref}"
@@ -354,8 +360,14 @@ jobs:
         working-directory: src
         env:
           BASE_IMAGE: ${{ steps.cfg.outputs.base_image }}
+          BASE_PKGS: ${{ steps.cfg.outputs.base_pkgs }}
         run: |
           set -euo pipefail
+          if [ -n "${BASE_PKGS}" ]; then
+            printf 'FROM %s\nRUN dnf install -y %s && dnf clean all\n' "${BASE_IMAGE}" "${BASE_PKGS}" \
+              | docker build -t "flagos-base:${{ matrix.suite }}" -
+            BASE_IMAGE="flagos-base:${{ matrix.suite }}"
+          fi
           case "${{ steps.cfg.outputs.base_arg }}" in
             flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ;;
             env)  RPM_BASE_IMAGE="${BASE_IMAGE}" bash "${{ steps.cfg.outputs.script }}" ;;
@@ -478,9 +490,10 @@ jobs:
                 # only means anything once they are all present.
                 if [ "$missing" -gt 0 ]; then
                   echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
-                elif ldd -r "$so" 2>&1 | grep -q "undefined symbol"; then
+                # Python extension modules leave Py*/_Py* to the interpreter.
+                elif ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -qvE "undefined symbol: _?Py"; then
                   echo "$(basename "$so") has undefined symbols:"
-                  ldd -r "$so" 2>&1 | grep "undefined symbol" | head -5
+                  ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | head -5
                   exit 1
                 else
                   echo "  $(basename "$so"): links resolve"
