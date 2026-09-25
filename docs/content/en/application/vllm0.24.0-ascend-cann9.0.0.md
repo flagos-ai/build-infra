@@ -62,6 +62,7 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -70,6 +71,7 @@ Start the app with its default settings:
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
@@ -78,6 +80,7 @@ Pass arguments to the launcher:
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG vllm-serve --model <path> --port 9000
 ```

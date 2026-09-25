@@ -69,6 +69,7 @@ IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-ascend-cann8.5.0:2.1.2-0.1.dev1_g0
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -77,6 +78,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
@@ -85,6 +87,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG sglang-serve --model-path <path> --port 9000
 ```

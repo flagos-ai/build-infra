@@ -59,6 +59,7 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-ascend-cann9.0.0:2.2.0-0.2.3
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```

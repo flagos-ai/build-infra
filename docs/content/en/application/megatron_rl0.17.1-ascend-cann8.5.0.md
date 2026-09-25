@@ -59,6 +59,7 @@ Start an interactive shell:
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```

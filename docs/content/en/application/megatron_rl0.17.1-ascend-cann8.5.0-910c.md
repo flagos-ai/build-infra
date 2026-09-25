@@ -1,5 +1,5 @@
 ---
-title: "vllm0.20.2-ascend-cann9.0.0-910c"
+title: "megatron_rl0.17.1-ascend-cann8.5.0-910c"
 ---
 
 <!--
@@ -24,14 +24,14 @@ title: "vllm0.20.2-ascend-cann9.0.0-910c"
 
 - **Architecture:** aarch64
 - **Chip models:** Ascend 910C
-- **Host driver:** 26.0.rc1
+- **Host driver:** 25.5.0
 - **Container toolkit** <em>(optional)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="only for the toolkit launch below; the plain docker/podman command needs none" aria-label="only for the toolkit launch below; the plain docker/podman command needs none">&#9432;</button>: Ascend-docker-runtime >= 6.0.RC3
 
 ## Image contents
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0-910c:2.2.0</code> <a href="../../runtime/ascend-cann9.0.0-910c/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.2.0</code> <a href="../../runtime/ascend-cann8.5.0-910c/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -39,19 +39,16 @@ title: "vllm0.20.2-ascend-cann9.0.0-910c"
 
 ### Application package
 
-`vllm==0.20.2+flagos`
-
-
-`vllm-plugin-fl==0.2.2rc2.post2`
+`megatron-core[rl]==0.17.1`
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0-910c:2.2.0-0.2.2rc2.post2`
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-ascend-cann8.5.0-910c:2.2.0-0.2.3`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0-910c:2.2.0-0.2.2rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-ascend-cann8.5.0-910c:2.2.0-0.2.3
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -67,23 +64,8 @@ docker run --rm -it \
   $IMG bash
 ```
 
-Start the app with its default settings:
+**No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
 
-```bash
-docker run --rm -it \
-  --privileged \
-  -e ASCEND_VISIBLE_DEVICES=0,1 \
-  $IMG
-```
-
-Pass arguments to the launcher:
-
-```bash
-docker run --rm -it \
-  --privileged \
-  -e ASCEND_VISIBLE_DEVICES=0,1 \
-  $IMG vllm-serve --model <path> --port 9000
-```
 
 ### Without a toolkit — plain docker / podman
 
@@ -102,32 +84,4 @@ docker run --rm -it \
   $IMG bash
 ```
 
-Start the app with its default settings:
-
-```bash
-docker run --rm -it \
-  --device /dev/davinci0 \
-  --device /dev/davinci1 \
-  --device /dev/davinci_manager \
-  --device /dev/devmm_svm \
-  --device /dev/hisi_hdc \
-  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-  -v /usr/local/dcmi:/usr/local/dcmi \
-  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  $IMG
-```
-
-Pass arguments to the launcher:
-
-```bash
-docker run --rm -it \
-  --device /dev/davinci0 \
-  --device /dev/davinci1 \
-  --device /dev/davinci_manager \
-  --device /dev/devmm_svm \
-  --device /dev/hisi_hdc \
-  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-  -v /usr/local/dcmi:/usr/local/dcmi \
-  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  $IMG vllm-serve --model <path> --port 9000
-```
+**No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
