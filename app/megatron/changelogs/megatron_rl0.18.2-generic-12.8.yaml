@@ -33,7 +33,7 @@ image: megatron_rl0.18.2-generic-12.8
 tags:
 - tag: 2.2.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-09-26T15:43:51.321Z'
     reason: >-
       Rebuild on the flagcx-fixed runtime: the flagcx wheel's
       libflagcx_device.bc now parses in flagtree's reader, replacing the
