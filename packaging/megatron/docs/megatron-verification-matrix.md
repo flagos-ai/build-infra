@@ -39,49 +39,53 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 <!-- status-matrix:verification -->
 
-| 厂商 | 后端 | 训练(T) | 训练(F) | 强化学习(T) | 强化学习(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) |
-|---|---|---|---|---|---|---|---|---|---|
-| 英伟达 | CUDA 12.8 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 英伟达 | CUDA 13.3 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 8.5.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 9.0.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 昇腾 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ⬜ | ⬜ | ✅ | — | ✅ | — |
-| 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ⬜ | ⬜ | ✅ | — | ✅ | — |
-| 燧原 | TOPS 1.9.10 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 燧原 | TOPS 1.10.6 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 海光 | DTK 26.04 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 天数智芯 | COREX 4.4.0 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 天数智芯 | COREX 4.5.0 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ |
-| 进迭时空 | SPACEMIT | ⬜ | — | ⏸ | ⏸ | ？ | — | ⛔ | — |
-| 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
-| 平头哥 | PPU 2.0.0 | ⬜ | — | ⏸ | ⏸ | ？ | — | ⛔ | — |
-| 清微智能 | TSM 260610 | ✅ | ✅ | ⬜ | ⬜ | ？ | ？ | ⛔ | ⛔ |
+| 厂商 | 后端 | 训练(T) | 训练(F) | 训练(T) | 训练(F) | 强化学习(T) | 强化学习(F) | 强化学习(T) | 强化学习(F) | 后训练(T) | 后训练(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) | 推理(T) | 推理(F) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 英伟达 | CUDA 12.8 | ✅ | ✅ | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 英伟达 | CUDA 13.3 | ✅ | ✅ | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 昇腾 | CANN 8.5.0 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — |
+| 昇腾 | CANN 8.5.0-910c | ✅ | ✅ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — |
+| 昇腾 | CANN 9.0.0 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — |
+| 昇腾 | CANN 9.0.0-910c | ✅ | ✅ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — |
+| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | — | — | ⬜ | ⬜ | — | — | ✅ | — | — | — | ✅ | — | — | — |
+| 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ✅ | — | ⬜ | ⬜ | ⬜ | ⬜ | ✅ | — | ✅ | — | ✅ | — | ✅ | — |
+| 燧原 | TOPS 1.9.10 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 燧原 | TOPS 1.10.6 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 海光 | DTK 26.04 | ✅ | ✅ | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 天数智芯 | COREX 4.4.0 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 天数智芯 | COREX 4.5.0 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — |
+| 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ✅ | ✅ | — | — | ✅ | ✅ | — | — |
+| 进迭时空 | SPACEMIT | ⬜ | — | — | — | ⏸ | ⏸ | — | — | ？ | — | — | — | ⛔ | — | — | — |
+| 曦望 | TANGRT 1.2.0 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
+| 平头哥 | PPU 2.0.0 | ⬜ | — | — | — | ⏸ | ⏸ | — | — | ？ | — | — | — | ⛔ | — | — | — |
+| 清微智能 | TSM 260610 | ✅ | ✅ | — | — | ⬜ | ⬜ | — | — | ？ | ？ | — | — | ⛔ | ⛔ | — | — |
 
 **后端级上游 PR（验证/镜像基于 PR 分支 Head 的跟踪项）**
 
 | 厂商 | 后端 | App | PR | 状态 |
 |---|---|---|---|---|
-| 英伟达 | CUDA 12.8 | megatron_training0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 12.8 | megatron_training0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
 | 英伟达 | CUDA 12.8 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
-| 英伟达 | CUDA 12.8 | megatron_rl0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 12.8 | megatron_training0.18.2 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
+| 英伟达 | CUDA 12.8 | megatron_rl0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
 | 英伟达 | CUDA 12.8 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 英伟达 | CUDA 12.8 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | 已合并 |
-| 英伟达 | CUDA 13.3 | megatron_training0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 12.8 | megatron_rl0.18.2 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
+| 英伟达 | CUDA 13.3 | megatron_training0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
 | 英伟达 | CUDA 13.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/120 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/34 | 已合并 |
-| 英伟达 | CUDA 13.3 | megatron_rl0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | OPEN |
+| 英伟达 | CUDA 13.3 | megatron_training0.18.2 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
+| 英伟达 | CUDA 13.3 | megatron_rl0.17.1 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
 | 英伟达 | CUDA 13.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 英伟达 | CUDA 13.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/119 | 已合并 |
+| 英伟达 | CUDA 13.3 | megatron_rl0.18.2 | https://github.com/NVIDIA/Megatron-LM/pull/6709 | 已关闭 |
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
 | 昇腾 | CANN 8.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/124 | 已合并 |
@@ -238,6 +242,59 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 
 <!-- /status-matrix:facility:megatron_rl0.17.1 -->
+
+<!-- status-matrix:facility:megatron_training0.18.2 -->
+
+### megatron_training0.18.2
+
+> 数据截止：2026-09-26
+
+**App 级设施（全后端共享）**
+
+| 事项 | 状态 |
+|---|---|
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
+
+**后端级设施**
+
+| 后端 | deps_app 落库 | 启动文档 | 镜像发布 | 备注 |
+|---|---|---|---|---|
+| CUDA 12.8 | ✅ | ✅ | ✅ | — |
+| CUDA 13.3 | ✅ | ✅ | ✅ | — |
+| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
+| DTK 26.04 | ✅ | ✅ | ✅ | — |
+| MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |
+
+
+<!-- /status-matrix:facility:megatron_training0.18.2 -->
+
+<!-- status-matrix:facility:megatron_rl0.18.2 -->
+
+### megatron_rl0.18.2
+
+> 数据截止：2026-09-26
+
+**App 级设施（全后端共享）**
+
+| 事项 | 状态 |
+|---|---|
+| Containerfile | ✅ |
+| 构建 workflow | ✅ |
+
+**后端级设施**
+
+| 后端 | deps_app 落库 | 启动文档 | 镜像发布 | 备注 |
+|---|---|---|---|---|
+| CUDA 12.8 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
+| CUDA 13.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
+| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
+| DTK 26.04 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
+| MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
+
+
+<!-- /status-matrix:facility:megatron_rl0.18.2 -->
+
 
 ## 待落地修复跟踪（2026-08-21 建）
 
