@@ -12,6 +12,7 @@ megatron-core（Megatron-LM-FL fork）应用镜像（`megatron_training0.17.1` /
 | [megatron-0.17.1/playbook.md](megatron-0.17.1/playbook.md) | 标准流程（wheel 构建 + app 镜像 + 节点 verify）与弯路记录 |
 | [megatron-0.17.1/decisions.md](megatron-0.17.1/decisions.md) | 自动化边界、风险痛点、ADR |
 | [megatron-0.17.1/report-builder.md](megatron-0.17.1/report-builder.md) | wheel 构建报告（`builder/` 产出） |
+| [megatron-0.18.2/index.md](megatron-0.18.2/index.md) | 0.18.2 版验证报告入口（与 0.17.1 分开追踪） |
 
 ## 各版本目录结构
 
