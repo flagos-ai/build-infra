@@ -339,7 +339,7 @@ def scenario_columns(apps: list[dict]) -> list[list[tuple[dict, str]]]:
     groups = []
     for app in sorted(apps, key=lambda a: version_key(a["app"])):
         cols = [(app, scid) for scid in app["scenarios"]]
-        groups.append(cols)
+        groups.append((cols, app))
     return groups
 
 
@@ -553,9 +553,15 @@ def render_verification_block(apps: list[dict],
                               recorded: list[list[str]] | None = None) -> str:
     groups = scenario_columns(apps)
     parts: list[str] = []
-    for i, cols in enumerate(groups):
+    for i, (cols, app) in enumerate(groups):
         if i:
             parts.append("")
+        # Each app version renders as its own table; give it a heading so a
+        # reader can tell which version a table belongs to (the table's own
+        # column labels repeat across versions). Heading level #### keeps
+        # clear of the facility blocks' ### per-app headings.
+        parts.append(f"#### {app['app']}")
+        parts.append("")
         parts.append(render_table(matrix_header(cols), matrix_rows(cols)))
     tracked = collect_pr_urls(apps)
     states = resolve_pr_states(tracked + [row[3] for row in recorded or []])
