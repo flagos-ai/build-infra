@@ -53,6 +53,7 @@ MODE_CONFIG = {
             "docs/content/zh-cn/base/*.md",
             "base/*.md",
         ],
+        "layer": "base",
         "pr_prefix": "auto/base-descriptions",
         "pr_title": "docs(base): refresh image descriptions for {label}",
         "pr_body": (
@@ -69,6 +70,7 @@ MODE_CONFIG = {
             "docs/content/zh-cn/runtime/*.md",
             "runtime/*.md",
         ],
+        "layer": "runtime",
         "pr_prefix": "auto/runtime-descriptions",
         "pr_title": "docs(runtime): refresh image descriptions for {label}",
         "pr_body": (
@@ -131,11 +133,16 @@ def _finalize(args) -> None:
     )
 
     # Only regenerate descriptions for backends that have TSV data
-    # collected in this run — not every backend in images.yaml.
+    # collected in this run — not every backend in images.yaml — and only
+    # the layer this mode owns. gen_descriptions.py otherwise rewrites all
+    # layers (base/runtime/app), which the caller then discards — and a
+    # hand-written page in a layer this PR won't touch would abort the run
+    # via the provenance guard for nothing (see #1088).
     versions_dir = REPO_ROOT / "versions"
     requested = sorted(f.stem for f in versions_dir.glob("*.tsv"))
     subprocess.run(
-        [sys.executable, str(REPO_ROOT / "docs" / "gen_descriptions.py")] + requested,
+        [sys.executable, str(REPO_ROOT / "docs" / "gen_descriptions.py"),
+         "--layer", cfg["layer"]] + requested,
         check=True, cwd=REPO_ROOT, env=env,
     )
 
