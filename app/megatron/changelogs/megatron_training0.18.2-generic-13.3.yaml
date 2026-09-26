@@ -35,13 +35,8 @@ tags:
   entries:
   - date: ''
     reason: >-
-      Rebuild on the flagcx-fixed 2.2.0 stack: the runtime now carries the
-      flagcx wheel built with the f6ded0be clang (its libflagcx_device.bc
-      parses in flagtree's reader; PRs #1133/#1134/#1135), replacing the
-      broken-bc wheel of the first 0.18.2 build. Same megatron-core
-      0.18.2+0.3.0 wheel (MLF v0.3.0).
-    upstream_prs: []
-  - date: ''
-    reason: >-
-      First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built from the MLF v0.3.0 tag (full-scope wheel, MLF #189); the install pin states the wheel exactly (0.18.2+0.3.0).
+      First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built
+      from the MLF v0.3.0 tag (full-scope wheel, MLF #189) on the flagcx-fixed
+      runtime, whose flagcx wheel's libflagcx_device.bc parses in flagtree's
+      reader.
     upstream_prs: []
