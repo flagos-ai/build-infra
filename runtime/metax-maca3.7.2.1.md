@@ -17,8 +17,8 @@
 
 ### Major Python packages
 
-- `flag_gems==5.4.0-rc2.post3`
-- `flagtree==0.7.0rc2+metax3.6`
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+metax3.6`
 - `flash_attn==2.6.3+metax3.7.2.0torch2.8`
 - `numpy==1.26.4`
 - `torch==2.8.0+metax3.7.2.0`
@@ -29,6 +29,10 @@
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+## Environment
+
+- `USE_FLAGTUNE_COST_MODEL=0`
 
 ## Launch
 

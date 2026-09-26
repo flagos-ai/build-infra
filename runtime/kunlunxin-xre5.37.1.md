@@ -20,8 +20,8 @@
 - `apex==0.1`
 - `benchflow==1.0.0`
 - `colorama==0.4.6`
-- `flag_gems==5.4.0-rc2.post3`
-- `flagtree==0.7.0rc2+xpu3.6`
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+xpu3.6`
 - `flash_attn==2.4.2+7e2dd4d`
 - `hydrax==0.1.0`
 - `hyperparameter==0.5.6`

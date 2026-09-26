@@ -18,8 +18,8 @@
 ### Major Python packages
 
 - `apex==0.1+metax3.8.1.0`
-- `flag_gems==5.4.0-rc2.post3`
-- `flagtree==0.7.0rc2+metax3.6`
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+metax3.6`
 - `flash_attn==2.6.3+metax3.8.1.0torch2.10`
 - `flash_linear_attention==0.5.0+metax3.8.1.0torch2.10`
 - `flash_mla==1.0.1+metax3.8.1.0torch2.10`
@@ -34,6 +34,10 @@
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+## Environment
+
+- `USE_FLAGTUNE_COST_MODEL=0`
 
 ## Launch
 

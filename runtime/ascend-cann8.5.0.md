@@ -19,7 +19,7 @@
 
 - `attrs==24.2.0`
 - `decorator==5.1.1`
-- `flag_gems==5.4.0-rc2.post3`
+- `flag_gems==5.4.0`
 - `flagtree==0.6.0+ascend3.2`
 - `numpy==1.26.4`
 - `psutil==6.0.0`
@@ -39,6 +39,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.2.0 bash
 ```

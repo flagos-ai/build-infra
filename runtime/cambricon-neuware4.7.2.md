@@ -16,7 +16,7 @@
 
 ### Major Python packages
 
-- `flag_gems==5.4.0-rc2.post3`
+- `flag_gems==5.4.0`
 - `numpy==1.26.4`
 - `pandas==3.0.5`
 - `torch-mlu-ops==1.12.1+torch2.11.0`
