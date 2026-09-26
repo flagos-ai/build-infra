@@ -26,7 +26,7 @@
 
 | 后端 | training F/T | rl F/T | CI verify（构建时） | 备注 |
 |---|---|---|---|---|
-| nvidia-cuda12.8 | ⬜/⬜ | ⬜/⬜ | ✅ 通过 | CI 走 flagtree 默认 |
+| nvidia-cuda12.8 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 E2E loss 一致 |
 | nvidia-cuda13.3 | ⬜/⬜ | ⬜/⬜ | ❌ | inductor 解析 flagcx `.bc` 失败（`libflagcx_device.bc` ValueError） |
 | cambricon-neuware4.7.2 | ⬜/⬜ | ⬜/⬜ | ❌ | pp group 未初始化断言 |
 | hygon-dtk26.04 | ⬜/⬜ | ⬜/⬜ | ✅ 通过 | CI 走 flagtree 默认 |
@@ -43,12 +43,15 @@ CI verify = 构建时 workflow 内 pre-push 的 import check + mock-data pretrai
 
 ## 节点环境
 
+SSH 别名均经 `bastion.aiops.baai.ac.cn`（Port 2224）；Rule 22：登录后
+`su -` 到非 root 账号（secure/tengqm）执行操作。镜像名均在节点本机。
+
 | runner 标签 | 用途 | SSH 入口 | 备注 |
 |---|---|---|---|
-| `[self-hosted, h20]` | nvidia | 待填 | x86_64 |
-| `[self-hosted, cambricon]` | cambricon | 待填 | |
-| hygon | hygon | 待填 | |
-| metax | metax | 待填 | |
+| `[self-hosted, h20]` | nvidia | `ssh h20`（登录 `secure`） | H20 cluster；`--gpus all` |
+| `[self-hosted, cambricon]` | cambricon | `ssh cambricon`（root，`secure` 在 docker 组） | MLU590-M9DE 8 卡；`--device /dev/cambricon_dev0 --device /dev/cambricon_ctl` |
+| hygon | hygon | `ssh hygon25`（root，`secure` 在 docker 组） | Hygon BW1000 8× HCU，DTK 26.04；kfd+mkfd 双设备 |
+| metax | metax | `ssh metax124`（root，`secure`/`tengqm`） | MACA 3.8.1.3；`--device /dev/mxcd --device /dev/dri` |
 
 ## 下一步
 
