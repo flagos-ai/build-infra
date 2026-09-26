@@ -55,6 +55,7 @@ web twin, so a collision aborts the run before reaching them.
 Usage:
   python docs/gen_descriptions.py                    # all langs + plain -> files
   python docs/gen_descriptions.py nvidia-cuda13.3    # one backend, all langs + plain -> stdout
+  python docs/gen_descriptions.py --layer runtime nvidia-cuda13.3  # requested backends, one layer only
   python docs/gen_descriptions.py --app-only         # regenerate only the app-image pages (no VERSIONS_DIR)
   python docs/gen_descriptions.py --app-only --check # compare, exit 1 on drift (hook / CI)
   VERSIONS_DIR=/path python docs/gen_descriptions.py # resolve versions from <dir>/<name>.tsv
@@ -753,24 +754,41 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _parse_args(argv: list[str]) -> tuple[bool, bool, list[str]]:
+def _parse_args(argv: list[str]) -> tuple[bool, bool, list[str], set[str]]:
     """Split CLI flags from positional backend names.
 
     ``--app-only`` regenerates only the app-image pages (no VERSIONS_DIR needed);
-    ``--check`` compares against existing files and exits 1 on drift (hook / CI).
+    ``--check`` compares against existing files and exits 1 on drift (hook / CI);
+    ``--layer`` scopes the requested-backend write to one layer (base/runtime/app,
+    default all). The gendoc finalize passes it so a base refresh never rewrites
+    runtime pages and vice versa — cross-layer writes are discarded by the caller,
+    and an unmarked page in the other layer would abort the run for nothing.
     """
     app_only = check = False
+    layers: set[str] = {"base", "runtime", "app"}
     names: list[str] = []
-    for a in argv:
+    it = iter(argv)
+    for a in it:
         if a == "--app-only":
             app_only = True
         elif a == "--check":
             check = True
+        elif a == "--layer":
+            try:
+                layer = next(it)
+            except StopIteration:
+                sys.exit("Error: --layer needs a value (base|runtime|app|all)")
+            if layer == "all":
+                layers = {"base", "runtime", "app"}
+            elif layer in ("base", "runtime", "app"):
+                layers = {layer}
+            else:
+                sys.exit(f"Error: unknown layer '{layer}' (base|runtime|app|all)")
         elif a.startswith("-"):
             sys.exit(f"Error: unknown flag '{a}'")
         else:
             names.append(a)
-    return app_only, check, names
+    return app_only, check, names, layers
 
 
 def main():
@@ -778,7 +796,7 @@ def main():
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
     backends = {b["name"]: b for b in images.get("backends", [])}
 
-    app_only, check, requested = _parse_args(sys.argv[1:])
+    app_only, check, requested, layers = _parse_args(sys.argv[1:])
 
     if app_only:
         # Regenerate only the app-image pages (docs/content/{en,zh-cn}/application/).
@@ -836,65 +854,68 @@ def main():
 
         # VERSIONS_DIR set: write only the requested backends to files.
         total = 0
-        for lang in LANGS:
-            out_dir = root / "docs" / "content" / lang / "base"
-            out_dir.mkdir(parents=True, exist_ok=True)
+        if "base" in layers:
+            for lang in LANGS:
+                out_dir = root / "docs" / "content" / lang / "base"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                for name in requested:
+                    if name not in backends:
+                        print(f"Warning: '{name}' not in images.yaml — skipping", file=sys.stderr)
+                        continue
+                    versions = load_versions(versions_dir, name)
+                    md = render(backends[name], versions, lang, "web", load_meta(versions_dir, name))
+                    write_generated(out_dir / f"{name}.md", md)
+                    total += 1
+                print(f"Wrote {len(requested)} {lang} base web pages to {out_dir}")
+
+            base_dir = root / "base"
             for name in requested:
                 if name not in backends:
-                    print(f"Warning: '{name}' not in images.yaml — skipping", file=sys.stderr)
                     continue
                 versions = load_versions(versions_dir, name)
-                md = render(backends[name], versions, lang, "web", load_meta(versions_dir, name))
-                write_generated(out_dir / f"{name}.md", md)
-                total += 1
-            print(f"Wrote {len(requested)} {lang} base web pages to {out_dir}")
-
-        base_dir = root / "base"
-        for name in requested:
-            if name not in backends:
-                continue
-            versions = load_versions(versions_dir, name)
-            md = render(backends[name], versions, "en", "plain", load_meta(versions_dir, name))
-            # Not guarded: the plain readme is Harbor-bound, so it carries no
-            # marker, and it is written in the same run as the guarded web twin
-            # above — a collision aborts the run before this line.
-            (base_dir / f"{name}.md").write_text(md)
-        print(f"Wrote {len(requested)} base plain readmes to {base_dir}")
+                md = render(backends[name], versions, "en", "plain", load_meta(versions_dir, name))
+                # Not guarded: the plain readme is Harbor-bound, so it carries no
+                # marker, and it is written in the same run as the guarded web twin
+                # above — a collision aborts the run before this line.
+                (base_dir / f"{name}.md").write_text(md)
+            print(f"Wrote {len(requested)} base plain readmes to {base_dir}")
 
         # Runtime web flavor.
-        for lang in LANGS:
-            out_dir = root / "docs" / "content" / lang / "runtime"
-            out_dir.mkdir(parents=True, exist_ok=True)
+        if "runtime" in layers:
+            for lang in LANGS:
+                out_dir = root / "docs" / "content" / lang / "runtime"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                for name in requested:
+                    if name not in backends:
+                        continue
+                    md = render_runtime(backends[name], lang, "web")
+                    write_generated(out_dir / f"{name}.md", md)
+                print(f"Wrote {len(requested)} {lang} runtime web pages to {out_dir}")
+
+            # Runtime plain flavor.
+            rt_dir = root / "runtime"
             for name in requested:
                 if name not in backends:
                     continue
-                md = render_runtime(backends[name], lang, "web")
-                write_generated(out_dir / f"{name}.md", md)
-            print(f"Wrote {len(requested)} {lang} runtime web pages to {out_dir}")
-
-        # Runtime plain flavor.
-        rt_dir = root / "runtime"
-        for name in requested:
-            if name not in backends:
-                continue
-            md = render_runtime(backends[name], "en", "plain")
-            # Not guarded, same reason as the base plain readme above.
-            (rt_dir / f"{name}.md").write_text(md)
-        print(f"Wrote {len(requested)} runtime plain readmes to {rt_dir}")
+                md = render_runtime(backends[name], "en", "plain")
+                # Not guarded, same reason as the base plain readme above.
+                (rt_dir / f"{name}.md").write_text(md)
+            print(f"Wrote {len(requested)} runtime plain readmes to {rt_dir}")
 
         # App web flavor (Harbor plain deferred — PR 2).
-        for lang in LANGS:
-            out_dir = root / "docs" / "content" / lang / "application"
-            out_dir.mkdir(parents=True, exist_ok=True)
-            n = 0
-            for name in requested:
-                if name not in backends:
-                    continue
-                for app in backends[name].get("app", {}).get("images", {}):
-                    md = render_app(backends[name], app, lang, "web")
-                    write_generated(out_dir / f"{app}-{_app_page_name(backends[name])}.md", md)
-                    n += 1
-            print(f"Wrote {n} {lang} app web pages to {out_dir}")
+        if "app" in layers:
+            for lang in LANGS:
+                out_dir = root / "docs" / "content" / lang / "application"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                n = 0
+                for name in requested:
+                    if name not in backends:
+                        continue
+                    for app in backends[name].get("app", {}).get("images", {}):
+                        md = render_app(backends[name], app, lang, "web")
+                        write_generated(out_dir / f"{app}-{_app_page_name(backends[name])}.md", md)
+                        n += 1
+                print(f"Wrote {n} {lang} app web pages to {out_dir}")
         return
 
     # File output requires VERSIONS_DIR — without it, only package names
@@ -914,59 +935,62 @@ def main():
     total = 0
 
     # Base web flavor: docs/content/{en,zh-cn}/base/
-    for lang in LANGS:
-        out_dir = root / "docs" / "content" / lang / "base"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for name, entry in backends.items():
-            md = render(entry, load_versions(versions_dir, name), lang, "web", load_meta(versions_dir, name))
-            write_generated(out_dir / f"{name}.md", md)
-            total += 1
-        print(f"Wrote {len(backends)} {lang} base web pages to {out_dir}")
+    if "base" in layers:
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "base"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for name, entry in backends.items():
+                md = render(entry, load_versions(versions_dir, name), lang, "web", load_meta(versions_dir, name))
+                write_generated(out_dir / f"{name}.md", md)
+                total += 1
+            print(f"Wrote {len(backends)} {lang} base web pages to {out_dir}")
 
-    # Base plain flavor: base/<name>.md (Harbor-bound)
-    base_dir = root / "base"
-    for name, entry in backends.items():
-        md = render(entry, load_versions(versions_dir, name), "en", "plain", load_meta(versions_dir, name))
-        # Not guarded, same reason as the requested-backend base plain readme.
-        (base_dir / f"{name}.md").write_text(md)
-    print(f"Wrote {len(backends)} base plain readmes to {base_dir}")
+        # Base plain flavor: base/<name>.md (Harbor-bound)
+        base_dir = root / "base"
+        for name, entry in backends.items():
+            md = render(entry, load_versions(versions_dir, name), "en", "plain", load_meta(versions_dir, name))
+            # Not guarded, same reason as the requested-backend base plain readme.
+            (base_dir / f"{name}.md").write_text(md)
+        print(f"Wrote {len(backends)} base plain readmes to {base_dir}")
 
     # ── Runtime images ───────────────────────────────────────────
-    # Runtime web flavor: docs/content/{en,zh-cn}/runtime/
-    for lang in LANGS:
-        out_dir = root / "docs" / "content" / lang / "runtime"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for name, entry in backends.items():
-            md = render_runtime(entry, lang, "web")
-            write_generated(out_dir / f"{name}.md", md)
-            total += 1
-        print(f"Wrote {len(backends)} {lang} runtime web pages to {out_dir}")
+    if "runtime" in layers:
+        # Runtime web flavor: docs/content/{en,zh-cn}/runtime/
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "runtime"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for name, entry in backends.items():
+                md = render_runtime(entry, lang, "web")
+                write_generated(out_dir / f"{name}.md", md)
+                total += 1
+            print(f"Wrote {len(backends)} {lang} runtime web pages to {out_dir}")
 
-    # Runtime plain flavor: runtime/<name>.md (Harbor-bound)
-    runtime_dir = root / "runtime"
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    for name, entry in backends.items():
-        md = render_runtime(entry, "en", "plain")
-        # Not guarded, same reason as the base plain readme above.
-        (runtime_dir / f"{name}.md").write_text(md)
-    print(f"Wrote {len(backends)} runtime plain readmes to {runtime_dir}")
+        # Runtime plain flavor: runtime/<name>.md (Harbor-bound)
+        runtime_dir = root / "runtime"
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        for name, entry in backends.items():
+            md = render_runtime(entry, "en", "plain")
+            # Not guarded, same reason as the base plain readme above.
+            (runtime_dir / f"{name}.md").write_text(md)
+        print(f"Wrote {len(backends)} runtime plain readmes to {runtime_dir}")
 
     # ── App images ──────────────────────────────────────────────
     # App web flavor: docs/content/{en,zh-cn}/application/{app}-{name}.md, where
     # {name} is the backend's app-layer public identity when it has one.
     # Harbor plain flavor deferred to PR 2 (upload_descriptions.py --layer app).
     total_app = 0
-    for lang in LANGS:
-        out_dir = root / "docs" / "content" / lang / "application"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        n = 0
-        for name, entry in backends.items():
-            for app in entry.get("app", {}).get("images", {}):
-                md = render_app(entry, app, lang, "web")
-                write_generated(out_dir / f"{app}-{_app_page_name(entry)}.md", md)
-                n += 1
-                total_app += 1
-        print(f"Wrote {n} {lang} app web pages to {out_dir}")
+    if "app" in layers:
+        for lang in LANGS:
+            out_dir = root / "docs" / "content" / lang / "application"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            n = 0
+            for name, entry in backends.items():
+                for app in entry.get("app", {}).get("images", {}):
+                    md = render_app(entry, app, lang, "web")
+                    write_generated(out_dir / f"{app}-{_app_page_name(entry)}.md", md)
+                    n += 1
+                    total_app += 1
+            print(f"Wrote {n} {lang} app web pages to {out_dir}")
     print(f"Total: {total + len(backends) + total_app} descriptions")
 
 
