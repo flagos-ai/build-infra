@@ -192,12 +192,17 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_training0.18.2: []
         # flash-attn is a hard dependency of the RL dynamic engine
         # (attention.py flash_attn_with_kvcache assertion, ≥2.7.3 gate). The
         # wheel is source-built (packaging/flash-attn/Containerfile) with the
         # ABI locked to this backend's torch: build-time torch must equal the
         # runtime torch, hence the per-backend +fl.cu128.torch210 tag.
         megatron_rl0.17.1:
+          - flash_attn==2.8.3.post1+fl.cu128.torch210
+        # rl deps re-verified for 0.18.2: same flash-attn ABI pins hold
+        # (0.18.2 rl extra still pins flash_attn_with_kvcache; per MLF #114/#189).
+        megatron_rl0.18.2:
           - flash_attn==2.8.3.post1+fl.cu128.torch210
         vllm0.20.2: []
         vllm0.24.0: []
@@ -248,9 +253,13 @@ vendors:
         - flagcx==0.14.0rc2.post2+cuda13.3
       deps_app:
         megatron_training0.17.1: []
+        megatron_training0.18.2: []
         # flash-attn wheel source-built with ABI locked to torch 2.11.0+cu130
         # (build-time torch == runtime torch; see cuda12.8 comment).
         megatron_rl0.17.1:
+          - flash_attn==2.8.3.post1+fl.cu130.torch211
+        # rl deps re-verified for 0.18.2: same ABI pins hold on cuda13.3.
+        megatron_rl0.18.2:
           - flash_attn==2.8.3.post1+fl.cu130.torch211
         vllm0.20.2: []
         vllm0.24.0: []
@@ -487,7 +496,9 @@ vendors:
         - pandas==3.0.5
       deps_app:
         megatron_training0.17.1: []
+        megatron_training0.18.2: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
+        megatron_rl0.18.2: []  # buildable; no vendor flash-attn (same as 0.17.1)
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
@@ -628,7 +639,11 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_training0.18.2: []
         megatron_rl0.17.1:
+          - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
+        # rl deps re-verified for 0.18.2: same TE pin holds (per MLF #189 caveat).
+        megatron_rl0.18.2:
           - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
         vllm0.20.2: []
         vllm0.24.0: []
@@ -891,7 +906,9 @@ vendors:
         - numpy==1.26.4
       deps_app:
         megatron_training0.17.1: []
+        megatron_training0.18.2: []
         megatron_rl0.17.1: []  # RL verified per megatron-verification-matrix.md; no vendor extra
+        megatron_rl0.18.2: []  # RL verified per megatron-verification-matrix.md; no vendor extra
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
