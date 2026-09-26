@@ -33,7 +33,9 @@ image: megatron_rl0.18.2-hygon-dtk26.04
 tags:
 - tag: 2.2.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-09-26T04:54:50.230Z'
     reason: >-
-      First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built from the MLF v0.3.0 tag (full-scope wheel, MLF #189); the install pin states the wheel exactly (0.18.2+0.3.0).
+      First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built from the
+      MLF v0.3.0 tag (full-scope wheel, MLF #189); the install pin states the wheel
+      exactly (0.18.2+0.3.0).
     upstream_prs: []
