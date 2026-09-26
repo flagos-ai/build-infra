@@ -190,6 +190,12 @@ vendors:
         - torchaudio==2.10.0+cu128
         - torchvision==0.25.0+cu128
         - numpy==1.26.4
+        # 0.7.0's flagcx resolution prefers the flagcx wheel package's
+        # libflagcx.so (PR #1266); without it, triton/_C/libflagcx.so (the
+        # flagtree-bundled one) is the fallback, and that is not the library a
+        # runtime should run collectives with. The +cuda12.8 wheel links
+        # libcudart.so.12, present in this image.
+        - flagcx==0.14.0rc2.post2+cuda12.8
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
