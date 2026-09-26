@@ -33,11 +33,15 @@ image: megatron_rl0.18.2-generic-12.8
 tags:
 - tag: 2.2.0-0.3.0
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the flagcx-fixed runtime: the flagcx wheel's
+      libflagcx_device.bc now parses in flagtree's reader, replacing the
+      broken-bc wheel the first build carried. Same megatron-core 0.18.2+0.3.0
+      wheel (MLF v0.3.0).
+    upstream_prs: []
   - date: '2026-09-26T04:53:51.329Z'
     reason: >-
       First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built
-      from the MLF v0.3.0 tag (full-scope wheel, MLF #189). The rebuild on the
-      flagcx-fixed runtime delivers the flagcx wheel whose libflagcx_device.bc
-      parses in flagtree's reader (the first build carried the broken-bc
-      wheel).
+      from the MLF v0.3.0 tag (full-scope wheel, MLF #189).
     upstream_prs: []
