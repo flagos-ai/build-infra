@@ -41,7 +41,7 @@ backends:
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true
-    image_tag: 2.2.0-0.3.0
+    image_tag: "2.2.0-0.3.0"
     prs:
     - https://github.com/NVIDIA/Megatron-LM/pull/6709
     note: RL 场景未实测（本轮只过构建 + training gate）
