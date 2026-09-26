@@ -29,7 +29,7 @@
 | nvidia-cuda12.8 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 E2E loss 一致 |
 | nvidia-cuda13.3 | ⬜/⬜ | ⬜/⬜ | ❌ | inductor 解析 flagcx `.bc` 失败（`libflagcx_device.bc` ValueError） |
 | cambricon-neuware4.7.2 | ⬜/⬜ | ⬜/⬜ | ❌ | pp group 未初始化断言 |
-| hygon-dtk26.04 | ⬜/⬜ | ⬜/⬜ | ✅ 通过 | CI 走 flagtree 默认 |
+| hygon-dtk26.04 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26；hy-smi 8× HCU DTK 26.04（github node v2.1.2 过旧 → `--stack-version 2.2.0`） |
 | metax-maca3.8.1.3 | ⬜/⬜ | ⬜/⬜ | ✅ 通过 | CI 走 flagtree 默认 |
 
 CI verify = 构建时 workflow 内 pre-push 的 import check + mock-data pretrain_gpt 5 iters
