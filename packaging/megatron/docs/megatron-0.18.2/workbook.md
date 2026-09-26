@@ -27,7 +27,7 @@
 | 后端 | training F/T | rl F/T | CI verify（构建时） | 备注 |
 |---|---|---|---|---|
 | nvidia-cuda12.8 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 E2E loss 一致 |
-| nvidia-cuda13.3 | ⬜/⬜ | ⬜/⬜ | ❌ | inductor 解析 flagcx `.bc` 失败（`libflagcx_device.bc` ValueError） |
+| nvidia-cuda13.3 | ✅/✅ | ⬜/⬜ | ❌ | 成功配方：`FLAGCX_BITCODE_PATH=/opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc`（flagtree 自带 .bc），F/T 双路径 E2E 通过，loss 1.087099E+01 与 cuda12.8 一致；env 已固化 configs.yaml，rebuild 后默认可用（现推镜像未含 env，F 路径需显式注入） |
 | cambricon-neuware4.7.2 | ❌/— | ⬜/— | ❌ | on-node 复现：wheel(v0.3.0) 无 MLU 平台登记 → pp group 未初始化；须按 release/0.2 重建 wheel 后复验，否则下线 |
 | hygon-dtk26.04 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26；hy-smi 8× HCU DTK 26.04（github node v2.1.2 过旧 → `--stack-version 2.2.0`） |
 | metax-maca3.8.1.3 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 loss 逐位一致 |
@@ -59,5 +59,6 @@ SSH 别名均经 `bastion.aiops.baai.ac.cn`（Port 2224）；Rule 22：登录后
 2. 逐后端 on-node 复验：`packaging/megatron/verify/verify-megatron-backend.sh <backend>
    --app-image <tag> --megatron-version 0.18.2+0.3.0 --compiler <flagtree|triton>`，
    training + rl 双场景 × 双编译器。
-3. cuda13.3（flagcx .bc）与 cambricon（pp-group）优先诊断修复；修不了 → 下线对应镜像。
+3. cuda13.3 成功配方已定（env 固化，待 rebuild）；cambricon 诊断完毕（wheel 无 MLU 登记）、
+   按 release/0.2 重建 wheel 后复验；修不了 → 下线对应镜像。
 4. 验证通过的后端：回填 changelog date（授权发布）+ 更新本工作簿 + 更新 status matrix。

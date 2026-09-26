@@ -108,7 +108,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 厂商 | 后端 | 训练(T) | 训练(F) | 后训练(T) | 后训练(F) | 推理(T) | 推理(F) |
 |---|---|---|---|---|---|---|---|
 | 英伟达 | CUDA 12.8 | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 英伟达 | CUDA 13.3 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 英伟达 | CUDA 13.3 | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 寒武纪 | NEUWARE 4.7.2 | ⬜ | — | ⬜ | — | ⬜ | — |
 | 海光 | DTK 26.04 | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -310,7 +310,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 后端 | deps_app 落库 | 启动文档 | 镜像发布 | 备注 |
 |---|---|---|---|---|
 | CUDA 12.8 | ✅ | ✅ | ✅ | — |
-| CUDA 13.3 | ✅ | ✅ | ✅ | 0.18.2 CI verify 失败：flagtree 路径 inductor 解析 libflagcx_device.bc 报 ValueError |
+| CUDA 13.3 | ✅ | ✅ | ✅ | 0.18.2 成功配方（2026-09-26 on-node）：F/T 双路径设 FLAGCX_BITCODE_PATH=/opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc （flagtree 自带 .bc）后 E2E 通过，loss 1.087099E+01 与 cuda12.8 逐位一致。env 已固化 configs.yaml env.runtime，runtime+app 镜像 rebuild 后默认可用；现推 2.2.0-0.3.0 未含 env，F 路径需显式注入，T 路径无此问题 |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | 0.18.2 CI+on-node 均失败：wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0 致 pp group 未初始化。上游 #125/#188/#190 仅入 release/0.2（2026-09-22 后），v0.3.0 分支早于它们。按 release/0.2 重建 wheel 后复验，否则该后端镜像须下线 |
 | DTK 26.04 | ✅ | ✅ | ✅ | — |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |

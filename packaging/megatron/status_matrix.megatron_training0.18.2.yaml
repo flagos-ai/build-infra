@@ -15,8 +15,8 @@ scenarios:
         T: ✅
         F: ✅
       nvidia-cuda13.3:
-        T: ⬜
-        F: ⬜
+        T: ✅
+        F: ✅
       cambricon-neuware4.7.2:
         T: ⬜
         F: —
@@ -75,7 +75,11 @@ backends:
     image_tag: 2.2.0-0.3.0
     prs:
     - https://github.com/NVIDIA/Megatron-LM/pull/6709
-    note: 0.18.2 CI verify 失败：flagtree 路径 inductor 解析 libflagcx_device.bc 报 ValueError
+    note: '0.18.2 成功配方（2026-09-26 on-node）：F/T 双路径设
+      FLAGCX_BITCODE_PATH=/opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc
+      （flagtree 自带 .bc）后 E2E 通过，loss 1.087099E+01 与 cuda12.8 逐位一致。env 已固化
+      configs.yaml env.runtime，runtime+app 镜像 rebuild 后默认可用；现推 2.2.0-0.3.0 未含
+      env，F 路径需显式注入，T 路径无此问题'
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
