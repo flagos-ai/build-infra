@@ -72,7 +72,7 @@ backends:
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true
-    image_tag: 2.2.0-0.3.0
+    image_tag: "2.2.0-0.3.0"
     prs:
     - https://github.com/NVIDIA/Megatron-LM/pull/6709
     note: '0.18.2 成功配方（2026-09-26 on-node）：F/T 双路径设
