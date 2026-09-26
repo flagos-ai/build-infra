@@ -24,8 +24,8 @@ scenarios:
         T: ✅
         F: ✅
       metax-maca3.8.1.3:
-        T: ⬜
-        F: ⬜
+        T: ✅
+        F: ✅
   post_training:
     label: 后训练
     verification:
