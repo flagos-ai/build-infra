@@ -18,7 +18,7 @@
 ### Major Python packages
 
 - `enflame-modelopt==3.6.20260615+torch.2.11.0`
-- `flag_gems==5.4.0-rc2.post3`
+- `flag_gems==5.4.0`
 - `flagtree==0.7.0rc2+enflame3.6`
 - `flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706`
 - `numpy==1.26.4`

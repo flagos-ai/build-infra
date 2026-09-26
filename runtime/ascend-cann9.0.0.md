@@ -17,8 +17,9 @@
 
 ### Major Python packages
 
-- `flag_gems==5.4.0-rc2.post3`
-- `flagtree==0.7.0rc2+ascend3.5`
+- `cann-shmem==1.6.0`
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+ascend3.5`
 - `numpy==1.26.4`
 - `torch-npu==2.10.0`
 - `torch==2.10.0+cpu`
@@ -36,6 +37,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ```bash
 docker run --rm -it \
+  --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.2.0 bash
 ```

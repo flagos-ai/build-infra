@@ -18,8 +18,8 @@
 ### Major Python packages
 
 - `apex==1.7.0+das.opt1.dtk2604.torch290`
-- `flag_gems==5.4.0-rc2.post3`
-- `flagtree==0.7.0rc2+hcu3.6`
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+hcu3.6`
 - `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
 - `numpy==1.26.4`
 - `torch==2.9.0+das.opt1.dtk2604`

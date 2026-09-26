@@ -17,8 +17,8 @@
 
 ### Major Python packages
 
-- `flag_gems==5.4.0-rc2.post3`
-- `flagtree==0.7.0rc2+iluvatar3.6`
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+iluvatar3.6`
 - `numpy==1.26.4`
 - `torch==2.7.1+corex.4.4.0`
 - `torchaudio==2.7.1+corex.4.4.0`

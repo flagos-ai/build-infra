@@ -17,7 +17,7 @@
 ### Major Python packages
 
 - `cambricon_dali==0.13.0`
-- `flag_gems==5.4.0-rc2.post3`
+- `flag_gems==5.4.0`
 - `numpy==1.26.4`
 - `torch-mlu-ops==1.8.0+torch2.7.1`
 - `torch-mlu==1.29.2+torch2.7.1`
