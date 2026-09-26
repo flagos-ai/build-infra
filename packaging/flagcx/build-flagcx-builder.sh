@@ -53,8 +53,17 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 
-LLVM_VERSION="${LLVM_VERSION:-22.1.8}"
-LLVM_SHA256="${LLVM_SHA256:-df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384}"
+# The reader is the binding: flagtree embeds LLVM f6ded0be (22.0.0git), and the
+# flagcx wheel's .bc has to link through that reader's parseIRFile. Bitcode
+# written by any newer LLVM (measured: 22.1.8 ca7933e4) fails with "Unknown
+# attribute kind (105)" — so the builder's clang is pinned to the flagtree-embedded
+# snapshot, delivered as its own tarball, not to an official release.
+#
+# The tarball is assembled from the `mlir` wheel's llvm_artifact (the same clang
+# flagtree's own workflows name as CLANG=.../mlir/llvm_artifact/bin/clang-22),
+# plus a hand-verified resource-dir patch. See the git log for how it was made.
+LLVM_VERSION="${LLVM_VERSION:-f6ded0be}"
+LLVM_SHA256="${LLVM_SHA256:-a4af7fccbfcc578a06aa3d86be4afefe0342506304bdd683265caf1bd47353d1}"
 
 BACKENDS=()
 BUILD_ALL=0

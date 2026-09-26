@@ -92,14 +92,26 @@ it, which is how a compiler ends up shipped in delivery images with no consumer.
 CUDA wrapper included unconditionally through 21, and CUDA 13.2's `crt/math_functions.h` expects the
 compiler to define `_NV_RSQRT_SPECIFIER`; both fixes land in 22. Measured against CUDA 13.3: clang-20
 (Ubuntu 24.04) and clang-21 (apt.llvm.org) each fail to compile the device bitcode, clang-22
-succeeds. Only five binaries and clang's resource directory are taken from the 1.94 GB release
-tarball — 468 MB extracted, and clang-22 links no `libLLVM`. The tarball is fetched from the
-flagos filestore first and GitHub second, and **every build takes the second route today**: the
-filestore copy has not been uploaded (that needs the Nexus token, which is not this line's). Both
-routes are sha256-checked against the pin in `build-flagcx-builder.sh`, so the route taken does not
-change the artifact. The one package that is not the
+succeeds. Only five binaries and clang's resource directory are taken from the snapshot tarball
+(~72 MB), and clang-22 links no `libLLVM`. The tarball is fetched from the
+flagos filestore (this line's one route — the reader's own oaitriton bundle has no clang, so a
+fallback could not substitute), and the sha256 is checked against the pin in
+`build-flagcx-builder.sh`, so the route taken does not change the artifact. The one package that is not the
 compiler's own: clang's `__clang_cuda_runtime_wrapper.h` force-includes `curand_mtgp32_kernel.h`,
 which no `cuda-nvcc` package ships, though FlagCX never calls cuRAND.
+
+**The snapshot is f6ded0be, not an official release, because the reader is the binding.** The
+flagtree wheel's `libtriton.so` embeds LLVM `f6ded0be` (22.0.0git), and a `.bc` has to parse in that
+reader's `parseIRFile` — the wheel ships its `libflagcx_device.bc` for flagtree to link. Bitcode
+written by any newer LLVM fails there: measured with 22.1.8's `llvm-dis`, `Unknown attribute kind
+(105) (Producer: 'LLVM22.1.8' Reader: 'LLVM 22.0.0git')`, and the app image then reports
+`Failed to parse library` at the wheel's `.bc`. The tarball is therefore assembled from the flagtree
+`mlir` wheel's `llvm_artifact` (the same clang flagtree's workflows name as
+`CLANG=.../mlir/llvm_artifact/bin/clang-22`), with the `_NV_RSQRT_SPECIFIER` wrapper block
+back-ported (present in 22.1.8's resource dir, absent in f6ded0be's; without it CUDA 13's
+`crt/math_functions.hpp` fails to parse). `verify-flagcx-builder.sh` now asserts the reader's hash
+in `clang --version` so a future pin move fails loudly instead of shipping a `.bc` the reader
+rejects.
 
 **Two fields state the row's device bitcode** (`bitcode_arch` → `BITCODE_LIB_ARCH`,
 `bitcode_adaptor_flag` → `ADAPTOR_FLAG`), stated rather than derived because the only derivation

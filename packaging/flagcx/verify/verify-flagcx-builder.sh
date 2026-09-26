@@ -153,8 +153,14 @@ major="$(clang --version | sed -n 's/.*clang version \([0-9][0-9]*\).*/\1/p' | h
 # CUDA 13 removed texture_fetch_functions.h and CUDA 13.2's math_functions.h
 # expects the compiler to define _NV_RSQRT_SPECIFIER; both fixes land in LLVM 22.
 # Measured: clang-20 and clang-21 compile no device bitcode for CUDA 13.3.
+# The reader must also be the writer's equal: flagtree embeds LLVM f6ded0be, and
+# a .bc written by a newer clang fails its parseIRFile with "Unknown attribute
+# kind (105)". The image's clang --version must therefore name the f6ded0be
+# snapshot and nothing newer.
 [ "$major" -ge 22 ] \
     || fail "clang $major at $clang_bin — CUDA 13's device headers need 22 or newer"
+clang --version | grep -q 'f6ded0be' \
+    || fail "clang at $clang_bin is not the f6ded0be snapshot — its bitcode would not parse in flagtree's reader"
 
 # The row's own device root and CCL root, from the make_env every other FlagCX
 # build already takes. An unset DEVICE_HOME is not inert here: the Makefile's
