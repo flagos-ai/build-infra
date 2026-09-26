@@ -234,11 +234,6 @@ vendors:
           # (no runtime/errors.py), so its errors are outside the fallback set and
           # abort the operator instead of degrading. Verified on-node.
           USE_FLAGTUNE_COST_MODEL: "0"
-          # flagtree 0.7.0 links the flagcx wheel's libflagcx.so, which pulls the
-          # wheel's 2.0 MB libflagcx_device.bc into inductor extern-lib resolution —
-          # that .bc fails `llvm.link_extern_libs` (ValueError, on-node). Pin the
-          # bitcode back to flagtree's own bundled .bc, which parses.
-          FLAGCX_BITCODE_PATH: /opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc
         app:
           vllm:
             # vLLM 0.24.0 unconditionally imports flashinfer (sampler switch
