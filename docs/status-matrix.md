@@ -36,8 +36,9 @@ app 镜像的 tag 用**公开名**（`generic-12.8`，见 `scripts/app_public.py
 渲染器只重写 md 内的 marker 块，块外内容（已知事实、阻塞、验证顺序等）
 保持原样：
 
-- `<!-- status-matrix:verification -->`：验证矩阵表格（该组件全部 app 合为
-  一表）
+- `<!-- status-matrix:verification -->`：验证矩阵表格。**每个 app 版本一张表**
+  （megatron 0.17.1 / 0.18.2 分开；vllm 0.20.2 / 0.24.0 同样分开）——用户
+  2026-09-26 定案：不同版本不共享一张表
 - `<!-- status-matrix:facility:<app> -->`：单个 app 的设施清单
 
 marker 块缺失时渲染器报错退出（防止手删块后静默丢失）。

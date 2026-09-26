@@ -127,9 +127,8 @@ VENDOR_DISPLAY = {
 # Legend text lives in the mds' own 状态图例 section (outside the marker
 # blocks), so it stays single-authored with the rest of the human prose.
 
-# Scenario display order. Matrix columns follow this order across apps — the
-# megatron md interleaves the two apps' scenarios (训练, 强化学习, 后训练,
-# 推理), the vllm md groups by app version (0.20.2 then 0.24.0).
+# Scenario display order. Matrix columns follow this order within an app:
+# megatron scenarios order as 训练, 强化学习, 后训练, 推理.
 SCENARIO_ORDER = {
     "training": 0,
     "rl": 1,
@@ -333,16 +332,15 @@ def load_apps(comp: str) -> list[dict]:
     return sorted(apps, key=sort_key)
 
 
-def scenario_columns(apps: list[dict]) -> list[tuple[dict, str]]:
-    """(app, scenario-id) pairs in matrix column order: global scenario order,
-    then app version. Produces the exact megatron column sequence
-    (训练/强化学习/后训练/推理) and the vllm sequence (0.20.2 then 0.24.0)."""
-    cols = []
-    for app in apps:
-        for scid in app["scenarios"]:
-            cols.append((app, scid))
-    cols.sort(key=lambda t: (SCENARIO_ORDER[t[1]], version_key(t[0]["app"])))
-    return cols
+def scenario_columns(apps: list[dict]) -> list[list[tuple[dict, str]]]:
+    """Column groups, one list per table — one group per app, sorted by
+    version. Each app version renders as its own table: 0.17.1 and 0.18.2
+    (and vllm's 0.20.2 / 0.24.0) are not mixed into shared columns."""
+    groups = []
+    for app in sorted(apps, key=lambda a: version_key(a["app"])):
+        cols = [(app, scid) for scid in app["scenarios"]]
+        groups.append(cols)
+    return groups
 
 
 def matrix_header(cols: list[tuple[dict, str]]) -> list[str]:
@@ -553,8 +551,12 @@ def render_facility(app: dict, apps: list[dict]) -> str:
 
 def render_verification_block(apps: list[dict],
                               recorded: list[list[str]] | None = None) -> str:
-    cols = scenario_columns(apps)
-    parts = [render_table(matrix_header(cols), matrix_rows(cols))]
+    groups = scenario_columns(apps)
+    parts: list[str] = []
+    for i, cols in enumerate(groups):
+        if i:
+            parts.append("")
+        parts.append(render_table(matrix_header(cols), matrix_rows(cols)))
     tracked = collect_pr_urls(apps)
     states = resolve_pr_states(tracked + [row[3] for row in recorded or []])
     merged = sorted({u for u in tracked if states.get(u) == PR_STATE["MERGED"]})
