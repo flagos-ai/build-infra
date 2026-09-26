@@ -1,0 +1,62 @@
+type: megatron
+app: megatron_rl0.18.2
+description: Megatron RL app image — megatron-core[rl] single-step install on the
+  vendor runtime. 2026-09-23 起恢复发布：MLF PR 114 声明 [rl] extra、PR 116 把 flash-attn >=
+  2.7.3 的硬断言换成平台/DotProductAttention 门控，上游阻塞解除。 镜像按后端分批构建；RL 场景的 ✅ 待各后端实测后再标。 2026-09-24：paged
+  分派缺陷已由 MLF PR 188 修复（base=release/0.2）——原先 attention.py 的两处分派按字面量 device_name 判断，非
+  NPU 平台永远到不了 平台自带的 paged 实现；两个无 flash-attn 后端在容器内应用该补丁后 RL E2E 跑通（见 backends 备注）。该修复尚未进
+  wheel（当前 0.17.1+fl.0.2.3 早于 该 PR），故各格仍为 ⬜：待按 release/0.2 重建 wheel、重建 app 镜像后复验转
+  ✅。 0.18.2 第一批（nvidia×2/hygon/metax/cambricon）。
+last_updated: '2026-09-26'
+facility:
+  containerfile: true
+  workflow: true
+scenarios:
+  rl:
+    label: 强化学习
+    verification:
+      nvidia-cuda12.8:
+        T: ⬜
+        F: ⬜
+      nvidia-cuda13.3:
+        T: ⬜
+        F: ⬜
+      cambricon-neuware4.7.2:
+        T: ⬜
+        F: ⬜
+      hygon-dtk26.04:
+        T: ⬜
+        F: ⬜
+      metax-maca3.8.1.3:
+        T: ⬜
+        F: ⬜
+backends:
+  nvidia-cuda12.8:
+    deps_app: true
+    launch_docs: true
+    image_tag: 2.2.0-0.3.0
+    prs:
+    - https://github.com/NVIDIA/Megatron-LM/pull/6709
+    note: RL 场景未实测（本轮只过构建 + training gate）
+  nvidia-cuda13.3:
+    deps_app: true
+    launch_docs: true
+    image_tag: 2.2.0-0.3.0
+    prs:
+    - https://github.com/NVIDIA/Megatron-LM/pull/6709
+    note: RL 场景未实测（本轮只过构建 + training gate）
+  cambricon-neuware4.7.2:
+    deps_app: true
+    launch_docs: true
+    image_tag: 2.2.0-0.3.0
+    note: 'RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复'
+  hygon-dtk26.04:
+    deps_app: true
+    launch_docs: true
+    image_tag: 2.2.0-0.3.0
+    note: RL 场景未实测（本轮只过构建 + training gate）
+  metax-maca3.8.1.3:
+    deps_app: true
+    launch_docs: true
+    image_tag: 2.2.0-0.3.0
+    note: RL 场景未实测（本轮只过构建 + training gate）
