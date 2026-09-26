@@ -23,8 +23,8 @@
 #       --build-arg "BUILDER_APT=$BUILDER_APT" \
 #       --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
 #       --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
-#       --build-arg "LLVM_VERSION=22.1.8" \
-#       --build-arg "LLVM_SHA256=df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384" \
+#       --build-arg "LLVM_VERSION=f6ded0be" \
+#       --build-arg "LLVM_SHA256=a4af7fccbfcc578a06aa3d86be4afefe0342506304bdd683265caf1bd47353d1" \
 #       -f packaging/flagcx/Containerfile.builder -t "flagos-dev/flagcx-builder:$key" .
 #
 # packaging/flagcx/build-flagcx-builder.sh is that recipe with the bookkeeping
@@ -127,20 +127,28 @@ RUN set -eux; \
         test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
     done
 
-# clang/llvm comes from the official release tarball and not from apt, because
-# the floor is 22 and nothing on Ubuntu 24.04 reaches it (the archive stops at
-# clang-18/20 and apt.llvm.org at 21). The floor is real and not a preference:
-# CUDA 13 removed texture_fetch_functions.h, which clang's CUDA wrapper included
-# unconditionally up to 21, and crt/math_functions.h has expected the compiler to
-# define _NV_RSQRT_SPECIFIER since CUDA 13.2. Both fixes land in 22. Measured on
-# h20 against CUDA 13.3: clang-20 and clang-21 each fail to compile the device
+# clang/llvm comes from a snapshot tarball and not from apt, because the floor
+# is 22 and nothing on Ubuntu 24.04 reaches it (the archive stops at clang-18/20
+# and apt.llvm.org at 21). The floor is real and not a preference: CUDA 13
+# removed texture_fetch_functions.h, which clang's CUDA wrapper included
+# unconditionally up to 21, and crt/math_functions.h has expected the compiler
+# to define _NV_RSQRT_SPECIFIER since CUDA 13.2. Both fixes land in 22. Measured
+# on h20 against CUDA 13.3: clang-20 and clang-21 each fail to compile the device
 # bitcode, clang-22 compiles it.
 #
-# Only the five binaries and the resource directory are extracted — 468 MB
-# against roughly 10 GB for the whole tarball. clang-22 is statically linked
-# against LLVM (there is no libLLVM*.so to carry), so ldd leaves only system
-# libraries; lib/clang/<major>/include is the resource directory clang reads its
-# own headers from and is not optional.
+# The exact 22.0.0git snapshot f6ded0be (not an official release) is what the
+# reader is: flagtree embeds it, and the flagcx wheel's .bc must parse in that
+# reader's parseIRFile. Bitcode written by 22.1.8 fails with "Unknown attribute
+# kind (105)" (Producer: 'LLVM22.1.8' Reader: 'LLVM 22.0.0git'). The tarball is
+# the flagtree `mlir` wheel's llvm_artifact bin/{clang,llvm-as,llvm-dis,opt} plus
+# its resource dir, with the _NV_RSQRT_SPECIFIER block back-ported so CUDA 13.2+
+# headers compile (that block exists in 22.1.8's wrapper but not f6ded0be's;
+# without it, sm_90/cu13 crt/math_functions.hpp fails to parse).
+#
+# Only the five binaries and the resource directory are extracted. clang is
+# statically linked against LLVM (there is no libLLVM*.so to carry), so ldd
+# leaves only system libraries; lib/clang/<major>/include is the resource
+# directory clang reads its own headers from and is not optional.
 #
 # It lands in /opt/llvm and not in a version-suffixed directory: LLVM_VERSION is
 # the only place the version is stated, and a path like /opt/llvm-22 would be a
@@ -149,38 +157,36 @@ RUN set -eux; \
 # version is legible from `clang --version` and from the flagos.llvm.* labels, and
 # the interface a consumer uses is the image's PATH, not the directory name.
 #
-# The tarball is fetched from the filestore first and GitHub second, the same
-# order packaging/sglang/build-and-repack.sh uses for its Rust toolchain, and the
-# sha256 is checked on whichever route answered: the pin is what makes the
-# second route acceptable, and an artifact that does not match it must not reach
-# a compiler. The arch token is read from the image rather than passed in — it is
-# a fact about where this build runs. An arm64 builder would need its own
-# LLVM_SHA256, and the check above is what would say so.
+# The tarball is fetched from the filestore (no second route: the reader's own
+# oaitriton bundle carries no clang and a different layout, so a fallback could
+# not silently substitute — it would fail the sha256 check, which is the point).
+# The sha256 is checked: the pin is what makes the fetch acceptable, and an
+# artifact that does not match it must not reach a compiler. The arch token is
+# read from the image rather than passed in — it is a fact about where this
+# build runs. An arm64 builder would need its own tarball and LLVM_SHA256, and
+# the check above is what would say so.
 ARG LLVM_FILESTORE=https://resource.flagos.net/repository/flagos-filestore
 RUN set -eux; \
     case "$(uname -m)" in \
-        x86_64)  llvm_arch=X64 ;; \
-        aarch64) llvm_arch=ARM64 ;; \
-        *) echo "unsupported machine $(uname -m) for LLVM release tarballs" >&2; exit 1 ;; \
+        x86_64)  llvm_arch=x64 ;; \
+        aarch64) llvm_arch=arm64 ;; \
+        *) echo "unsupported machine $(uname -m) for the LLVM snapshot tarball" >&2; exit 1 ;; \
     esac; \
-    tarball="LLVM-${LLVM_VERSION}-Linux-${llvm_arch}.tar.xz"; \
+    tarball="llvm-${LLVM_VERSION}-clang-ubuntu-${llvm_arch}.tar.gz"; \
     export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"; \
-    curl -fsSL --retry 3 --connect-timeout 15 -o /tmp/llvm.tar.xz \
-        "${LLVM_FILESTORE}/llvm/${tarball}" \
-        || { echo ">>> ${tarball} is not on the filestore; falling back to github.com"; \
-             curl -fsSL --retry 3 --connect-timeout 15 -o /tmp/llvm.tar.xz \
-                 "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${tarball}"; }; \
-    echo "${LLVM_SHA256}  /tmp/llvm.tar.xz" | sha256sum -c -; \
-    major="${LLVM_VERSION%%.*}"; \
+    curl -fsSL --retry 3 --connect-timeout 15 -o /tmp/llvm.tar.gz \
+        "${LLVM_FILESTORE}/llvm/${tarball}"; \
+    echo "${LLVM_SHA256}  /tmp/llvm.tar.gz" | sha256sum -c -; \
     mkdir -p /opt/llvm; \
-    tar -xJf /tmp/llvm.tar.xz -C /opt/llvm --strip-components=1 \
-        "LLVM-${LLVM_VERSION}-Linux-${llvm_arch}/bin/clang" \
-        "LLVM-${LLVM_VERSION}-Linux-${llvm_arch}/bin/clang-${major}" \
-        "LLVM-${LLVM_VERSION}-Linux-${llvm_arch}/bin/llvm-as" \
-        "LLVM-${LLVM_VERSION}-Linux-${llvm_arch}/bin/llvm-dis" \
-        "LLVM-${LLVM_VERSION}-Linux-${llvm_arch}/bin/opt" \
-        "LLVM-${LLVM_VERSION}-Linux-${llvm_arch}/lib/clang/${major}/include"; \
-    rm -f /tmp/llvm.tar.xz
+    tar -xzf /tmp/llvm.tar.gz -C /opt/llvm --strip-components=1 \
+        "clangpkg/bin/clang" \
+        "clangpkg/bin/clang-22" \
+        "clangpkg/bin/clang++" \
+        "clangpkg/bin/llvm-as" \
+        "clangpkg/bin/llvm-dis" \
+        "clangpkg/bin/opt" \
+        "clangpkg/lib/clang/22/include"; \
+    rm -f /tmp/llvm.tar.gz
 
 # On PATH and not a set of absolute paths handed to make: the tarball's own
 # names are clang/opt/llvm-as/llvm-dis, which is exactly what
