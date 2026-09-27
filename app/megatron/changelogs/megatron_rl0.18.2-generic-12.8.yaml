@@ -33,6 +33,14 @@ image: megatron_rl0.18.2-generic-12.8
 tags:
 - tag: 2.2.0-0.3.0
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the re-pointed MLF v0.3.0 wheel (128dbd4f3), which now carries MLF
+      #194 (flag_gems paged fallback for CUDA-facing accelerator builds). The
+      0.18.2 wheel and app images installed the pre-#194 wheel; the fix
+      matters for this image because RL E2E on metax runs the flag_gems paged
+      kernel via the lifted flash-attn gate.
+    upstream_prs: []
   - date: '2026-09-27T09:47:03.549Z'
     reason: >-
       True rebuild on the re-tagged MLF v0.3.0 wheel (213d05856): the first round-2
