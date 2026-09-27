@@ -84,6 +84,10 @@ on:
         description: 'Run the on-node verification step (matrix + import check)'
         type: boolean
         default: true
+      no_cache:
+        description: 'Disable Docker build cache (use for rebuild wheels with same version)'
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -209,14 +213,13 @@ jobs:
           wheel_version='${{ inputs.megatron_wheel_version }}'
           [ -n "${wheel_version}" ] || wheel_version='${{ inputs.megatron_version }}'
           echo "MEGATRON_WHEEL_VERSION=${wheel_version}" >> "$GITHUB_ENV"
-          # --no-cache only on verify-only runs (push=false): the pip RUN layer
-          # caches by command string, so a re-uploaded wheel under the same
-          # ==0.17.1 spec is silently skipped — the verify must resolve the
-          # vendor index fresh. A push run reuses the layer the verify run just
-          # built (same command + parent image), which is much faster and
-          # replicates the verified build verbatim.
+          # The pip RUN layer caches by command string, so a re-uploaded wheel
+          # under the same =={version} spec is silently skipped: a rebuild whose
+          # whole point is to pick up a re-uploaded wheel must disable the
+          # cache, independently of push/verify (runtime-image.yaml input
+          # no_cache, same name and semantics).
           no_cache_arg=""
-          [[ "${{ inputs.push }}" != "true" ]] && no_cache_arg="--no-cache"
+          [[ "${{ inputs.no_cache }}" == "true" ]] && no_cache_arg="--no-cache"
           # Changelog gate: a push must be authorized by a pending changelog
           # entry for this tag (see vllm-app-image.yml). Debug builds skip it.
           if [[ "${{ inputs.push }}" == "true" ]]; then
