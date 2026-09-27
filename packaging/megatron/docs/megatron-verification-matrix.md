@@ -335,11 +335,11 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 | 后端 | deps_app 落库 | 启动文档 | 镜像发布 | 备注 |
 |---|---|---|---|---|
-| CUDA 12.8 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
-| CUDA 13.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
+| CUDA 12.8 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
+| CUDA 13.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
-| DTK 26.04 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
-| MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
+| DTK 26.04 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
+| MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
 
 
 <!-- /status-matrix:facility:megatron_rl0.18.2 -->
