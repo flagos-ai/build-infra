@@ -66,7 +66,7 @@ skill references; skills never duplicate them (agent-protocol layer 1).
 |---|---|---|
 | `node-ops` | ssh to a verify node, drive a debug container, repro a failed cell | `scripts/verify-nodes.example.yaml`, `docs/verify-orchestrator.md` §5 |
 | `reporting` | write a report / PR body / commit message / chat summary | `docs/agent-protocol.md` |
-| `add-backend` | add a new vendor/backend across base + configs + matrix | `configs.yaml`, `docs/status-matrix.md` |
+| `update-backend` | bump deps/compiler/SDK/version for a backend or across backends; add a new backend (rare) | `configs.yaml`, `scripts/base_image_status.py`, `docs/status-matrix.md` |
 | `verify-app-backend` | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
 
 Loading discipline: check the skill before acting; facts a skill references
@@ -220,8 +220,9 @@ Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in
 
 ### Adding a new backend
 
-The full flow lives in the `add-backend` skill (`.claude/skills/add-backend/`).
-Minimal shape: base Containerfile → configs.yaml `vendors.<vendor>.<backend>`
+The full flow (including the far more common update/upgrade path) lives in
+the `update-backend` skill (`.claude/skills/update-backend/`). Minimal shape
+for an add: base Containerfile → configs.yaml `vendors.<vendor>.<backend>`
 (deps/env/deps_app/compilers) → `build-config.yml` runner override + device
 flags → matrix smoke → status-matrix declaration → runtime F/T verify loop →
 app layer (`deps_app`). Verify-first, record-after: a backend's cells go ⬜
