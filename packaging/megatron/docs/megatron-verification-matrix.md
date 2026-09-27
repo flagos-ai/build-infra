@@ -73,8 +73,8 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 英伟达 | CUDA 12.8 | ✅ | ✅ |
 | 英伟达 | CUDA 13.3 | ✅ | ✅ |
 | 寒武纪 | NEUWARE 4.7.2 | ⬜ | ⬜ |
-| 海光 | DTK 26.04 | ⬜ | ⬜ |
-| 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ |
+| 海光 | DTK 26.04 | ✅ | ✅ |
+| 沐曦 | MACA 3.8.1.3 | ✅ | ✅ |
 
 #### megatron_training0.17.1
 
@@ -338,8 +338,8 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 12.8 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
 | CUDA 13.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
-| DTK 26.04 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
-| MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
+| DTK 26.04 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
+| MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，harness 垫片见 workbook §RL E2E） |
 
 
 <!-- /status-matrix:facility:megatron_rl0.18.2 -->
