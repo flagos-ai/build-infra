@@ -33,7 +33,7 @@ image: megatron_training0.18.2-hygon-dtk26.04
 tags:
 - tag: 2.2.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-09-27T08:37:39.809Z'
     reason: >-
       Rebuild on the re-tagged MLF v0.3.0 wheel, which now carries MLF #192
       (NullTokenizer bos / local-impl packed-seq guard) and #193 (capability-based
