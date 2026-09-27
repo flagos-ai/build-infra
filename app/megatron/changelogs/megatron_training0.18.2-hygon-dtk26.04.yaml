@@ -33,6 +33,14 @@ image: megatron_training0.18.2-hygon-dtk26.04
 tags:
 - tag: 2.2.0-0.3.0
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the re-tagged MLF v0.3.0 wheel, which now carries MLF #192
+      (NullTokenizer bos / local-impl packed-seq guard) and #193 (capability-based
+      paged-attention dispatch for non-NPU platforms). The 0.18.2 app images
+      installed the pre-#192/#193 wheel; the fix matters for this image because RL
+      E2E on the non-NPU backends runs the platform paged kernel.
+    upstream_prs: []
   - date: '2026-09-26T04:51:55.099Z'
     reason: >-
       First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built from the
