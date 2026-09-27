@@ -29,8 +29,8 @@
 | nvidia-cuda12.8 | ✅/✅ | ✅/✅ | ✅ 通过 | training 复验 2026-09-26，双编译器 E2E loss 一致；RL E2E 复验 2026-09-27（见 §RL E2E） |
 | nvidia-cuda13.3 | ✅/✅ | ✅/✅ | ❌ | training 成功配方：`FLAGCX_BITCODE_PATH=/opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc`（flagtree 自带 .bc），F/T 双路径 E2E 通过，loss 1.087099E+01 与 cuda12.8 一致；env 已固化 configs.yaml，rebuild 后默认可用（现推镜像未含 env，F 路径需显式注入）；RL E2E 复验 2026-09-27（见 §RL E2E） |
 | cambricon-neuware4.7.2 | ❌/— | ⬜/— | ❌ | on-node 复现：wheel(v0.3.0) 无 MLU 平台登记 → pp group 未初始化；须按 release/0.2 重建 wheel 后复验，否则下线 |
-| hygon-dtk26.04 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26；hy-smi 8× HCU DTK 26.04（github node v2.1.2 过旧 → `--stack-version 2.2.0`） |
-| metax-maca3.8.1.3 | ✅/✅ | ⬜/⬜ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 loss 逐位一致 |
+| hygon-dtk26.04 | ✅/✅ | ✅/✅ | ✅ 通过 | on-node 复验 2026-09-26；hy-smi 8× HCU DTK 26.04（github node v2.1.2 过旧 → `--stack-version 2.2.0`）；RL E2E 复验 2026-09-27（见 §RL E2E） |
+| metax-maca3.8.1.3 | ✅/✅ | ✅/✅ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 loss 逐位一致；RL E2E 复验 2026-09-27（见 §RL E2E） |
 
 CI verify = 构建时 workflow 内 pre-push 的 import check + mock-data pretrain_gpt 5 iters
 （仅 flagtree 默认编译器）；**不等于 on-node 双路径复验**。
@@ -73,6 +73,26 @@ RL 场景按 0.17.1 定案的双编译器 mock-data GRPO 配方复验
 确定性返回 1/0 → advantage 非退化，rollout→update 全链路通过。跑完无残留
 进程，测试容器已删。）
 
+### hygon / metax（2026-09-27）
+
+同配方、同 harness（`/private/tmp/rl-v030/`，block size 256 + NullTokenizer
+bos 垫片 + local-impl packed_seq guard 两处 + flag_gems 兜底 paged 分派）。
+镜像 `megatron_rl0.18.2-{hygon-dtk26.04,metax-maca3.8.1.3}:2.2.0-0.3.0`，
+单卡 GRPO 2 iterations × 8 rollouts，`--eval-iters 0`：
+
+| 后端 | 编译器 | 结果 | GRPO iteration 1 | iteration 2 |
+|---|---|---|---|---|
+| hygon-dtk26.04 | F（flagtree 3.6.0） | ✅ exit 0 | lm loss 1.119E-05, kl 1.119E-02 | lm loss 1.134E-05, kl 1.134E-02 |
+| hygon-dtk26.04 | T（triton 3.5.1） | ✅ exit 0 | lm loss 1.115E-05, kl 1.116E-02 | lm loss 1.109E-05, kl 1.109E-02 |
+| metax-maca3.8.1.3 | F（flagtree 3.6.0） | ✅ exit 0 | lm loss 1.184E-05, kl 1.185E-02 | lm loss 1.151E-05, kl 1.151E-02 |
+| metax-maca3.8.1.3 | T（triton 3.6.0） | ✅ exit 0 | lm loss 1.181E-05, kl 1.182E-02 | lm loss 1.148E-05, kl 1.149E-02 |
+
+两平台的 RL dynamic 引擎经 **flag_gems `flash_attn_varlen_func` 兜底 paged
+分派**跑通（flash_attn 缺失/版本不足的兜底路径，逐位数值对齐已在 0.17.1
+线实证）。hygon 的 `flash_attn 2.8.3` 实际未被分派到（`supports_paged_attention`
+True → 走 flag_gems）；metax `flash_attn 2.6.3` 因 v0.3.0 版本断言需 DOTP
+豁免（§RL E2E 已含）。
+
 ## 节点环境
 
 SSH 别名均经 `bastion.aiops.baai.ac.cn`（Port 2224）；Rule 22：登录后
@@ -91,7 +111,9 @@ SSH 别名均经 `bastion.aiops.baai.ac.cn`（Port 2224）；Rule 22：登录后
 2. 逐后端 on-node 复验：`packaging/megatron/verify/verify-megatron-backend.sh <backend>
    --app-image <tag> --megatron-version 0.18.2+0.3.0 --compiler <flagtree|triton>`，
    training + rl 双场景 × 双编译器。
-3. nvidia RL E2E 双路径已过（2026-09-27，见 §RL E2E）；cuda13.3 training 成功配方
-   已定（env 固化，待 rebuild）；cambricon 诊断完毕（wheel 无 MLU 登记）、
-   按 release/0.2 重建 wheel 后复验；修不了 → 下线对应镜像。
+3. nvidia×2 + hygon/metax 的 RL E2E 双路径已过（2026-09-27，见 §RL E2E）；
+   cuda13.3 training 成功配方已定（env 固化，待 rebuild）；cambricon 诊断完毕
+   （wheel 无 MLU 登记）、按 release/0.2 重建 wheel 后复验；修不了 → 下线对应镜像。
 4. 验证通过的后端：回填 changelog date（授权发布）+ 更新本工作簿 + 更新 status matrix。
+5. MLF #192 合并后按 0.3.0-rc2 重建 wheel（NullTokenizer bos + local-impl guard），
+   RL 垫片随之取消。
