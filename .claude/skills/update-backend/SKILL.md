@@ -146,9 +146,10 @@ compiler).
 - `changelog_gate.py <changelog> <tag>` — a pending (empty-date) entry must
   exist before the push is authorized; the app-image workflows backfill the
   date on push. A rebuilt tag with a changed commit needs a NEW pending entry
-  under the same tag block. Base/runtime pushes use the same gate where the
-  workflow applies it; app-image pushes gate on both changelog and the on-node
-  verify step.
+  under the same tag block. The gate exists only in the app-image workflows
+  today — base and runtime pushes have no changelog gate yet (a known gap,
+  not a design choice). App-image pushes gate on both changelog and the
+  on-node verify step.
 - On verified push: `record_app_image_tag.py` writes `image_tag` into the
   status matrix (published ⟺ image_tag present).
 - The status matrix cells move ⬜ → ✅ only after on-node dual-compiler
@@ -181,7 +182,8 @@ Follow `update-backend` for the shared steps, with these additions up front:
 
 - Backend spec contract + env split: `configs.yaml` header comment
 - Stale-image answer: `scripts/base_image_status.py` (OCI labels vs Containerfile)
-- Publish gate: `scripts/changelog_gate.py` + `docs/changelog.md`
+- Publish gate: `scripts/changelog_gate.py` + `docs/changelog.md` (app-image
+  workflows only — base/runtime not yet gated)
 - Record: `scripts/record_app_image_tag.py` + `docs/status-matrix.md`
 - Verify-cell flow: `.claude/skills/verify-app-backend/SKILL.md`
 - Node mechanics: `.claude/skills/node-ops/SKILL.md`
@@ -213,7 +215,8 @@ Follow `update-backend` for the shared steps, with these additions up front:
 - configs.yaml change + downstream audit in the same PR (rule 34).
 - Rebuild set decided by `base_image_status.py`, not guesswork.
 - Rebuilt images re-verified F/T on-node; cells ✅.
-- Pending changelog entry authorized the push; `image_tag` recorded.
+- Pending changelog entry authorized the push (app-image pushes; base/runtime
+  have no gate yet — trace the rebuild without one); `image_tag` recorded.
 - Docs regenerated through the gendoc PR, not hand-edited.
 
 ## Failure modes / escalate
@@ -248,5 +251,7 @@ Follow `update-backend` for the shared steps, with these additions up front:
       rebuild of an identical-named wheel)
 - [ ] F/T re-verified on the new image; affected app cells reopened and
       re-verified; cells updated
-- [ ] changelog pending entry gated the push; `image_tag` recorded
+- [ ] changelog pending entry gated the push (app-image pushes only; base/
+      runtime pushes have no gate — verify their rebuild by trace); `image_tag`
+      recorded
 - [ ] gendoc PR refreshed the generated pages (no hand-edits)
