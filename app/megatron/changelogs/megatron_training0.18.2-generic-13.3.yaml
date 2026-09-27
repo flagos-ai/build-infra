@@ -33,6 +33,14 @@ image: megatron_training0.18.2-generic-13.3
 tags:
 - tag: 2.2.0-0.3.0
   entries:
+  - date: ''
+    reason: >-
+      True rebuild on the re-tagged MLF v0.3.0 wheel (213d05856): the first round-2
+      push re-used the cached pip layer, so the image still carries the
+      pre-#192/#193 wheel. This build runs --no-cache (push=false verify pass
+      first), so the vendor index is resolved fresh and the installed wheel is the
+      post-merge one.
+    upstream_prs: []
   - date: '2026-09-27T08:36:23.195Z'
     reason: >-
       Rebuild on the re-tagged MLF v0.3.0 wheel, which now carries MLF #192
