@@ -73,25 +73,37 @@ RL 场景按 0.17.1 定案的双编译器 mock-data GRPO 配方复验
 确定性返回 1/0 → advantage 非退化，rollout→update 全链路通过。跑完无残留
 进程，测试容器已删。）
 
-### hygon / metax（2026-09-27）
+### hygon / metax（2026-09-27，重验：无 shim）
 
-同配方、同 harness（`/private/tmp/rl-v030/`，block size 256 + NullTokenizer
-bos 垫片 + local-impl packed_seq guard 两处 + flag_gems 兜底 paged 分派）。
-镜像 `megatron_rl0.18.2-{hygon-dtk26.04,metax-maca3.8.1.3}:2.2.0-0.3.0`，
-单卡 GRPO 2 iterations × 8 rollouts，`--eval-iters 0`：
+**2026-09-27 傍晚重验**：MLF v0.3.0 re-point（`128dbd4f3`）后，wheel
+`0.18.2+0.3.0` 重建（含 [MLF #194](https://github.com/flagos-ai/Megatron-LM-FL/pull/194)），
+app 镜像以 `no_cache` 重建并 push。本轮在**无任何容器垫片**（无 sitecustomize、
+无 packed_seq guard、无 flag_gems monkeypatch）下复跑双编译器 RL E2E——#192/#193/#194
+全部在 wheel 内。容器仅注入 `compiler` 环境（BASH_ENV 自动激活 flagtree；
+T 路径 `compiler triton` 切 `/opt/triton`），其余用镜像默认态。
+
+配方同 nvidia §RL E2E（`--transformer-impl local --attention-backend unfused
+--bf16` + NullTokenizer + `--inference-dynamic-batching-block-size 256`，
+单卡 GRPO 2 iterations × 4 rollouts，`--eval-iters 0`），harness
+`/tmp/rlrun-clean/`（dummy_agent + env.yaml + run_rl.sh / run_rl_triton.sh）。
+镜像 `megatron_rl0.18.2-{hygon-dtk26.04,metax-maca3.8.1.3}:2.2.0-0.3.0`：
 
 | 后端 | 编译器 | 结果 | GRPO iteration 1 | iteration 2 |
 |---|---|---|---|---|
-| hygon-dtk26.04 | F（flagtree 3.6.0） | ✅ exit 0 | lm loss 1.119E-05, kl 1.119E-02 | lm loss 1.134E-05, kl 1.134E-02 |
-| hygon-dtk26.04 | T（triton 3.5.1） | ✅ exit 0 | lm loss 1.115E-05, kl 1.116E-02 | lm loss 1.109E-05, kl 1.109E-02 |
-| metax-maca3.8.1.3 | F（flagtree 3.6.0） | ✅ exit 0 | lm loss 1.184E-05, kl 1.185E-02 | lm loss 1.151E-05, kl 1.151E-02 |
-| metax-maca3.8.1.3 | T（triton 3.6.0） | ✅ exit 0 | lm loss 1.181E-05, kl 1.182E-02 | lm loss 1.148E-05, kl 1.149E-02 |
+| hygon-dtk26.04 | F（flagtree 3.6.0） | ✅ exit 0 | lm loss 1.166814E-05, kl 1.167252E-02 | lm loss 1.158008E-05, kl 1.158392E-02 |
+| hygon-dtk26.04 | T（triton 3.5.1） | ✅ exit 0 | lm loss 1.139833E-05, kl 1.140286E-02 | lm loss 1.124493E-05, kl 1.124877E-02 |
+| metax-maca3.8.1.3 | F（flagtree 3.6.0） | ✅ exit 0 | lm loss 1.137987E-05, kl 1.137987E-02 | lm loss 1.130619E-05, kl 1.130619E-02 |
+| metax-maca3.8.1.3 | T（triton 3.6.0） | ✅ exit 0 | lm loss 1.183887E-05, kl 1.184202E-02 | lm loss 1.150694E-05, kl 1.151073E-02 |
 
-两平台的 RL dynamic 引擎经 **flag_gems `flash_attn_varlen_func` 兜底 paged
-分派**跑通（flash_attn 缺失/版本不足的兜底路径，逐位数值对齐已在 0.17.1
-线实证）。hygon 的 `flash_attn 2.8.3` 实际未被分派到（`supports_paged_attention`
-True → 走 flag_gems）；metax `flash_attn 2.6.3` 因 v0.3.0 版本断言需 DOTP
-豁免（§RL E2E 已含）。
+**metax 是 #194 的决定性验证**：其 flash_attn 为 2.6.3（< 2.7.3 门控线），旧 wheel
+上 `supports_paged_attention()` 返回 False → `attention.py:1105` 断言直接崩；#194
+将其改为「无可用 flash-attn 时回退 `flag_gems_paged_attention()`」，RL dynamic
+引擎经 flag_gems `flash_attn_varlen_func` paged 分派跑通。hygon flash_attn 2.8.3
+本就 ≥2.7.3，保持 varlen 路径，不受影响。两平台均无垫片、F/T 双路径 ✅。
+
+> 探针教训（node-ops §7b）：容器内一律经 `bash` 执行（BASH_ENV 自动激活默认
+> compiler）；裸 `python3`/`sh` 探针看不到 compiler side dir，`import triton` 失败
+> 是探针姿势问题，不是镜像缺陷。
 
 ## 节点环境
 

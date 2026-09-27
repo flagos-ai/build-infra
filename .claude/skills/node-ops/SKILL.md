@@ -158,6 +158,34 @@ To diagnose LD_LIBRARY_PATH-class issues, run two probes side by side:
 `docker run $I printenv LD_LIBRARY_PATH` (no shell = floor) vs
 `docker run $I bash -c 'echo $LD_LIBRARY_PATH'` (with vendor.sh = full).
 
+### 7b. BASH_ENV + `compiler`: bash-only, and *how* you exec decides everything
+
+The dual-compiler runtime (flagtree `/opt/flagtree`, vendor triton `/opt/triton`,
+neither in site-packages) activates its default compiler through
+`BASH_ENV=/etc/bash_env.sh` → sources `/etc/profile.d/*.sh` (zz-compiler.sh
+runs last, auto-`compiler flagtree` when no side dir is on PYTHONPATH). The
+compiler side dir is what makes `import triton` and `import flag_gems` work —
+flag_gems *requires* triton, and `supports_paged_attention()` degrades to the
+flash-attn version gate (assert fires, RL dies at `attention.py:1105`) when
+flag_gems can't import triton. This bit me as a *false negative* on a metax
+RL repro: I probed with `docker exec <c> python3 -c ...` (no shell = NO
+BASH_ENV → empty PYTHONPATH → `import triton` fails → asserted it was a
+wheel/env bug). Same container, `docker exec <c> bash -c '...'` or
+`bash /script.sh` → BASH_ENV applies → triton/flag_gems import fine → RL E2E
+passes. Rules:
+
+- **Probe through `bash` (or a `bash script.sh`), never a bare `python3`/
+  `sh`/`docker run <img> <binary>`** — that is the "vllm way" and it also
+  matches every docs launch command (they all end in `bash`).
+- `compiler` does NOT need explicit sourcing: BASH_ENV already sourced
+  zz-compiler.sh; `compiler flagtree >/dev/null` is only needed to *switch*.
+  A blank `PYTHONPATH` seen from a non-bash exec is a probe artifact, not the
+  image being broken.
+- Corollary: a RL/training repro that hangs at the flash-attn gate is
+  *first* an exec-rig question (bash vs not), *before* suspecting the wheel.
+  Non-login `bash script.sh` reads BASH_ENV (non-interactive bash does), so a
+  script run that way is fine — but an `sh`-invoked script is not.
+
 ### 8. Node disk full → check container json.log first, not images
 
 `docker system df`'s `containers` row counts only the writable layer (same for
