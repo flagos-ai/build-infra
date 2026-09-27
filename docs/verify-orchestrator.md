@@ -231,6 +231,8 @@ pr:        https://github.com/flagos-ai/.../pull/NNN   # 或 null
 - 同一 cell 重试才 `--resume`（增量），不重发历史。
 - debug-loop 只取 `--output-format json` 的 `result` 字段，永不读 subagent 的
   JSONL 全量 transcript（那是溢出源）。
+- 节点操作纪律（ssh 通道配方、持久容器、清残留、bash-not-sh 等）见
+  `.claude/skills/node-ops/SKILL.md`；worker 上节点前先读它。
 
 ### 5.5 No-idle-wait（空转防治）
 
