@@ -66,8 +66,8 @@ skill references; skills never duplicate them (agent-protocol layer 1).
 |---|---|---|
 | `node-ops` | ssh to a verify node, drive a debug container, repro a failed cell | `scripts/verify-nodes.example.yaml`, `docs/verify-orchestrator.md` §5 |
 | `reporting` | write a report / PR body / commit message / chat summary | `docs/agent-protocol.md` |
-| `add-backend` (follow-up PR) | add a new vendor/backend across base + configs + matrix | `configs.yaml`, `docs/status-matrix.md` |
-| `verify-app-backend` (follow-up PR) | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
+| `add-backend` | add a new vendor/backend across base + configs + matrix | `configs.yaml`, `docs/status-matrix.md` |
+| `verify-app-backend` | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
 
 Loading discipline: check the skill before acting; facts a skill references
 are read from the docs it names, never restated inside the skill.
@@ -220,10 +220,12 @@ Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in
 
 ### Adding a new backend
 
-1. Add the vendor SDK to a `base/<vendor>-<backend>` Containerfile
-2. Add the backend spec to `configs.yaml` under `vendors.<vendor>.<backend>`
-3. Add to `docs/data/images.yaml` (display metadata, launch commands)
-4. Add runner override in `build-config.yml` if needed (arch or GPU-specific)
+The full flow lives in the `add-backend` skill (`.claude/skills/add-backend/`).
+Minimal shape: base Containerfile → configs.yaml `vendors.<vendor>.<backend>`
+(deps/env/deps_app/compilers) → `build-config.yml` runner override + device
+flags → matrix smoke → status-matrix declaration → runtime F/T verify loop →
+app layer (`deps_app`). Verify-first, record-after: a backend's cells go ⬜
+until on-node dual-compiler verification passes.
 
 ## Conventions
 
