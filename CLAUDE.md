@@ -55,6 +55,23 @@ python docs/gen_descriptions.py                         # all backends → files
 python docs/gen_descriptions.py nvidia-cuda13.3          # one backend → stdout
 ```
 
+## Skills (flow templates + index; facts live in docs)
+
+Project skills live in `.claude/skills/<name>/SKILL.md` (loaded on demand).
+A skill is a judgment/iteration flow — what to do, in what order, when to stop
+and ask. Facts (per-backend records, versions, decisions) stay in the docs each
+skill references; skills never duplicate them (agent-protocol layer 1).
+
+| Skill | Trigger | Docs entry |
+|---|---|---|
+| `node-ops` | ssh to a verify node, drive a debug container, repro a failed cell | `scripts/verify-nodes.example.yaml`, `docs/verify-orchestrator.md` §5 |
+| `reporting` | write a report / PR body / commit message / chat summary | `docs/agent-protocol.md` |
+| `add-backend` (follow-up PR) | add a new vendor/backend across base + configs + matrix | `configs.yaml`, `docs/status-matrix.md` |
+| `verify-app-backend` (follow-up PR) | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
+
+Loading discipline: check the skill before acting; facts a skill references
+are read from the docs it names, never restated inside the skill.
+
 ## Architecture
 
 ### Data flow (config-driven, no duplication)

@@ -1,7 +1,9 @@
 __pycache__/
 *.pyc
 .mcp.json
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 .github/workflows/.runtime.yml.swp
 versions/
 versions-remote/
