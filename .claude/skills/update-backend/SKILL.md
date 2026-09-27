@@ -18,9 +18,11 @@ Updating a backend is the repo's most frequent agent operation. The shape is
 always the same: change a pinned version (compiler, torch, flag_gems, SDK,
 python) → audit downstream consumers → rebuild → re-verify → record. The flat
 tag means a rebuild OVERWRITES the same tag, so "is the pushed image stale"
-and "who must rebuild" are the two questions that gate everything. configs.yaml
-is the single source of truth; a change there never travels alone (rule 34:
-audit downstream in the same PR).
+and "who must rebuild" are the two questions that gate everything. The rebuild
+set is decided by the layer chain — base ← runtime ← app (§1) — not by the
+calendar: a compiler or flag_gems bump is a runtime-layer change however it
+arrives. configs.yaml is the single source of truth; a change there never
+travels alone (rule 34: audit downstream in the same PR).
 
 Adding a brand-new backend is the rare tail of the same flow — it shares the
 spec/verify/record steps; only the first two sections differ.
@@ -35,19 +37,57 @@ spec/verify/record steps; only the first two sections differ.
 
 ## Standard flow
 
-### 1. Classify the change (scope matrix)
+### 1. Classify the change (propagation scope)
 
-| Change | touches | rebuild set |
+Classify by **what the change touches**, never by when it happens: a compiler
+or flag_gems bump is a runtime-layer change whether it arrives in a release
+test window, as routine maintenance, or as an emergency upgrade mid-cycle.
+Every change has its own impact scope — there is no "default" set of images.
+
+The scope follows the build chain, base ← runtime ← app:
+
+- `runtime/Containerfile` does `FROM ${BASE_IMAGE}` — a runtime image **is** a
+  base image plus a wheel-installed venv. Any base change (SDK package,
+  `env.base`, base Containerfile, python) may change what the runtime builds
+  on and therefore needs the runtime **and every app on it** rebuilt +
+  re-verified.
+- app Containerfiles do `FROM ${RUNTIME_IMAGE}` — any runtime change (deps,
+  compiler, flag_gems, venv) is baked into every app image on that runtime,
+  so all of them must rebuild + re-verify.
+- Only a change that stops above the runtime (app Containerfile, `deps_app`,
+  `env.app`) is app-scoped and leaves base + runtime untouched.
+
+| Change touches | rebuild set | re-verify |
 |---|---|---|
-| one backend `deps:` / `triton` / `flagtree` / `python` / `env` | that `vendors.<v>.<b>` block | that backend's base+runtime (app if `deps_app`/`env.app` changed) |
-| cross-backend compiler bump (flagtree 0.7.0, flag_gems version) | N `vendors` blocks | all N backends (base unchanged unless SDK/deps moved) |
-| stack `version:` bump | one line in configs.yaml | ALL backends — every image must be rebuilt to carry the new tag |
+| base layer (SDK, `env.base`, base Containerfile, python) | base + runtime + all apps on it | F/T on the rebuilt runtime; app cells reopen (§4) |
+| runtime layer (deps, compiler, flag_gems, `env.runtime`) | runtime + all apps on it (base unchanged) | F/T on rebuilt runtime; app cells reopen |
+| app layer (`deps_app`, `env.app`, app Containerfile) | the app images only | that app's cells (its runtime is untouched) |
+| stack `version:` bump | **ALL backends** — every image rebuilt to carry the new tag | whole matrix, backend by backend |
+
+The stack version is what a release ships, and it lives as the flat tag on
+every image. Two contexts see the same truth, differently paced:
+
+- **During a release window** the bump is the opening act: the release version
+  is picked once, then each backend goes through base → runtime → app for that
+  version; after 定版, the whole repo gets a `vX.Y.Z` git tag and a release
+  branch for maintenance.
+- **Between releases** the same number is just the target version in
+  configs.yaml — and the moment it changes, the full stack (nearly every
+  image) must be rebuilt layer by layer, backend by backend, because the flat
+  tag would otherwise lie: only some backends carrying the new tag is a broken
+  publish.
+
+In both cases the rule is identical: the version changed ⇒ the whole stack
+rebuilds. Timing changes only the rhythm, never the scope.
 
 Flat-tag semantics: base and runtime share the flat `X.Y.Z` tag; a rebuilt
 image overwrites it. Which pushed images are behind HEAD is answered by
 `scripts/base_image_status.py` (reads `revision`/`version` OCI labels off
 Harbor, diffs since that commit) — run it before a selective rebuild to know
-the actual build set, don't guess from git alone.
+the actual build set, don't guess from git alone. **It only answers base
+staleness**: there is no runtime/app stale checker, so downstream rebuilds are
+traced manually along the FROM chain above — ask "which runtime is on this
+base, which apps are on that runtime" for every changed pin.
 
 ### 2. Apply the config change
 
@@ -81,30 +121,39 @@ python scripts/build_runtime.py <backend> --dry-run     # resolve build args
 python scripts/generate_matrix.py <backend>             # row + runner intact
 ```
 
-Then the manual workflows (`trigger.yml` base / `runtime.yml` runtime). When
-the changed image is a rebuilt wheel with the SAME version as one already
-pushed, pass the no-cache path (`runtime.yml no_cache=true` — forces a fresh
-download of a pre/daily wheel with an identical name; the version-CHANGED
-case rebuilds automatically, no cache flag needed). Flat tag overwrite is the
-intended publication model — a rebuilt image replaces the old tag.
+Then the manual workflows (`base-image.yaml` base / `runtime-image.yaml`
+runtime). When the changed image is a rebuilt wheel with the SAME version as
+one already pushed, pass the no-cache path (`runtime-image.yaml no_cache=true`
+— forces a fresh download of a pre/daily wheel with an identical name; the
+version-CHANGED case rebuilds automatically, no cache flag needed). Flat tag
+overwrite is the intended publication model — a rebuilt image replaces the old
+tag. Scope of the rebuild is §1's propagation set: a base or runtime change
+does not stop at the image you edited — its dependents go through this same
+build+push+verify cycle.
 
 ### 4. Verify (dual-compiler, same image)
 
 Rebuilt image → old verification records do NOT vouch for it. Re-verify F and
 T on the new image before anything records success (`verify-app-backend`).
+This includes the propagation case: a base or runtime rebuild changes the
+artifact beneath every app on it, so those app cells return to ⬜ and re-verify
+on the new runtime — the stale records were taken on a different image.
 Between paths, clear the flag_gems tuning db (fresh tuning under the current
 compiler).
 
 ### 5. Publish gate + record
 
 - `changelog_gate.py <changelog> <tag>` — a pending (empty-date) entry must
-  exist before the push is authorized; the app-image workflow backfills the
+  exist before the push is authorized; the app-image workflows backfill the
   date on push. A rebuilt tag with a changed commit needs a NEW pending entry
-  under the same tag block.
+  under the same tag block. Base/runtime pushes use the same gate where the
+  workflow applies it; app-image pushes gate on both changelog and the on-node
+  verify step.
 - On verified push: `record_app_image_tag.py` writes `image_tag` into the
   status matrix (published ⟺ image_tag present).
 - The status matrix cells move ⬜ → ✅ only after on-node dual-compiler
-  verification; cross-backend bumps touch every affected backend's cells.
+  verification; a base/runtime change reopens every app cell built on the
+  changed image (§1 propagation, §4 note).
 
 ### 6. Docs (generated, not hand-written)
 
@@ -146,11 +195,18 @@ Follow `update-backend` for the shared steps, with these additions up front:
   exists and must be run, not eyeballed from git.
 - Rebuilds overwrite the same tag by design — "is it stale" is answered by
   labels+diff, never by tag uniqueness.
+- The layer chain decides the rebuild set: base ← runtime ← app, and a change
+  anywhere below an image propagates up through everything built on it. There
+  is no runtime/app stale checker, so the trace is manual — but the FROM chain
+  makes it deterministic.
 - A config change is never a one-file edit: every consumer of the changed
   value (build args, docs pipeline, wheel pins) must be audited in the same
   PR, or two definitions drift (rule 34, PR #633 evidence).
 - Old records don't vouch for new images: a rebuild changes what the artifact
-  is, so dual-compiler verification restarts from ⬜.
+  is, so dual-compiler verification restarts from ⬜ — including the app cells
+  sitting on a rebuilt runtime.
+- The stack version names the release; its change re-tags nearly the whole
+  stack, so it is the widest-scope edit in the repo no matter when it lands.
 
 ## Done when
 
@@ -174,17 +230,23 @@ Follow `update-backend` for the shared steps, with these additions up front:
   workflow must `fromjson` it before `runs-on` (a label with no runner
   silently never schedules).
 - **Stack version bump without full rebuild**: the flat tag lies if only some
-  backends carry it — every backend must be rebuilt to the new version tag.
+  backends carry it — every backend must be rebuilt to the new version tag,
+  layer by layer (base → runtime → app), whatever the timing.
 - Two same-cause runner-restart cancellations → stop and ask (node-ops §11).
 
 ## Checklist
 
-- [ ] Scope classified (single / cross-backend / stack version)
+- [ ] Scope classified by what the change touches (base / runtime / app /
+      stack version), not by when it happened
+- [ ] Rebuild set traced along the FROM chain: everything on the changed
+      layer re-enters build+verify
 - [ ] configs.yaml edit + same-PR downstream audit (env/containerfile, build
       args, wheel pins, app layer as touched)
-- [ ] `base_image_status.py` → actual rebuild set
+- [ ] `base_image_status.py` → actual rebuild set (base staleness; runtime/app
+      traced manually)
 - [ ] base/runtime rebuilt + pushed (no_cache=true only for same-version
       rebuild of an identical-named wheel)
-- [ ] F/T re-verified on the new image; cells updated
+- [ ] F/T re-verified on the new image; affected app cells reopened and
+      re-verified; cells updated
 - [ ] changelog pending entry gated the push; `image_tag` recorded
 - [ ] gendoc PR refreshed the generated pages (no hand-edits)
