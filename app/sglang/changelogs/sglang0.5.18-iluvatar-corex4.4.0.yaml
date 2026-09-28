@@ -34,6 +34,13 @@ image: sglang0.5.18-iluvatar-corex4.4.0
 tags:
 - tag: 2.2.0-0.1.dev1_g4d44a24cd
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the 4.4.0 runtime with FlagTree downgraded to 0.6.1
+      (0.7.0 hard-loads libflagcx.so; the CoreX 4.4.0 SDK ships no libixccl,
+      so the runtime failed to import flag_gems). Same stack, sglang and
+      plugin pins as the 0.7.0-era image it replaces.
+    upstream_prs: []
   - date: '2026-09-23T11:33:14.951Z'
     reason: >-
       First rebuild since the stack moved to 2.2.0, so the tag leaves 2.1.2. The
