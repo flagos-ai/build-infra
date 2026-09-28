@@ -42,7 +42,7 @@ title: "vllm0.24.0-generic-12.8"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.3.0rc2.post2`
+`vllm-plugin-fl==0.3.0`
 
 ## Environment
 
@@ -50,12 +50,12 @@ title: "vllm0.24.0-generic-12.8"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.2.0-0.3.0rc2.post2`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.2.0-0.3.0`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.2.0-0.3.0rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.2.0-0.3.0
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
