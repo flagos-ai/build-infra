@@ -33,9 +33,13 @@ image: vllm0.24.0-tsingmicro-tsm260610
 tags:
 - tag: 2.2.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-09-28T14:41:28.668Z'
     reason: >-
-      The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit f105277). The plugin now ships as the release version (vllm-plugin-fl==0.3.0, one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2 image it replaces; the only delta is the formal release of the same code.
+      The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit
+      f105277). The plugin now ships as the release version (vllm-plugin-fl==0.3.0,
+      one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead
+      of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2
+      image it replaces; the only delta is the formal release of the same code.
     upstream_prs: []
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
