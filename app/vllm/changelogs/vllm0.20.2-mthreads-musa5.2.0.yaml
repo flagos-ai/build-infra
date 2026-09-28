@@ -32,6 +32,12 @@
 
 image: vllm0.20.2-mthreads-musa5.2.0
 tags:
+- tag: 2.2.0-0.2.2
+  entries:
+  - date: ''
+    reason: >-
+      Rebuild on the vllm-plugin-FL formal release v0.2.2 (tag = commit 675548ab, the head of 0.2.2-rc2). The plugin now ships as the release version (vllm-plugin-fl==0.2.2, one py3-none-any wheel, sha 90a4ba10...27fa2, on all 11 vendor indexes) instead of the v0.2.2-rc2.post2 delivery tag — the only delta is the backport of #553 (bounded/safe multiprocessing worker shutdown), which the 2.2.0 stack line now carries. App image rebuilt from that wheel, pinned exactly.
+    upstream_prs: []
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
   - date: '2026-09-20T10:57:37.814Z'
