@@ -42,16 +42,16 @@ title: "vllm0.20.2-ascend-cann9.0.0"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.2rc2.post2`
+`vllm-plugin-fl==0.2.2`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0:2.2.0-0.2.2rc2.post2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0:2.2.0-0.2.2`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0:2.2.0-0.2.2rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.20.2-ascend-cann9.0.0:2.2.0-0.2.2
 ```
 
 以下两种方式任选其一：
