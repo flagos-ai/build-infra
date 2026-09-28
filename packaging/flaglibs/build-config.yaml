@@ -1,0 +1,28 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Facts only, no logic (agent-protocol layer 2): the six pure-Python operator
+# libraries published by this line. The version each wheel carries is a pure
+# function of the ref it is built from — default_ref is the RELEASE TAG (the
+# rc2-branch head; see docs/decisions.md).
+#
+# scm: true -> setuptools_scm (git tags, needs full clone + tags)
+# scm: false -> static version in pyproject/setup.py (shallow tag clone enough)
+
+flag_attn:      {repo: FlagAttention,  default_ref: v0.4.0,  scm: true}
+flagsparse:     {repo: FlagSparse,     default_ref: v0.3.0,  scm: false}
+flag_blas:      {repo: FlagBLAS,       default_ref: v0.3.0,  scm: false}
+flag_audio:     {repo: FlagAudio,      default_ref: v0.3.0,  scm: false}
+flagfft-codegen: {repo: FlagFFT,        default_ref: v0.2.0,  scm: false}
+flaggems_vllm:  {repo: FlagGems-vllm,  default_ref: v0.2.0,  scm: false}

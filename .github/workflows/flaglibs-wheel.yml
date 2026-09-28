@@ -1,0 +1,111 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: FlagLibs wheel
+
+# Build the six pure-Python FlagOS operator-library wheels (FlagAttention /
+# FlagSparse / FlagBLAS / FlagAudio / FlagFFT / FlagGems-vllm) and optionally
+# upload them to the internal PyPI. Each wheel is built from its upstream
+# RELEASE TAG (see packaging/flaglibs/docs/decisions.md D2/D3), so the version
+# is a pure function of the ref — no build-infra-synthesized version.
+#
+# The wheels are py3-none-any (vendor-independent): one build, one publish to
+# the released repo flagos-pypi-hosted. All builds happen in CI; the build step
+# is plain `packaging/flaglibs/build.sh` (venv + `pip wheel --no-deps`), with a
+# py3-none-any gate so a silently-compiled C++ wheel fails loudly.
+#
+# No schedule: these libs publish when their upstream tags move. Manual only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      libs:
+        description: 'Libraries to build (space-separated package keys); blank = all six (flag_attn flagsparse flag_blas flag_audio flagfft-codegen flaggems_vllm)'
+        type: string
+        default: ''
+      upload:
+        description: 'upload the wheels to the internal PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI-hosted repo to upload to'
+        type: string
+        default: flagos-pypi-hosted
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    runs-on: ubuntu-latest
+    env:
+      FLAGLIBS: ${{ inputs.libs }}
+      PYPI_REPO: ${{ inputs.pypi_repo || 'flagos-pypi-hosted' }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+
+      - name: Build the wheels
+        run: OUTDIR="${GITHUB_WORKSPACE}/wheels" bash packaging/flaglibs/build.sh
+
+      - name: Verify the wheels
+        run: |
+          set -euo pipefail
+          ls -1 wheels/*.whl
+          # Every produced wheel must be py3-none-any (the build.sh gate already
+          # enforces it per-lib; this re-checks the set is exactly what upload
+          # will send).
+          for w in wheels/*.whl; do
+            case "$w" in
+              *-py3-none-any.whl) ;;
+              *) echo "ERROR: non-pure wheel would be uploaded: $(basename "$w")" >&2; exit 1 ;;
+            esac
+          done
+
+      # Upload to the internal PyPI only when manually requested (default
+      # upload=false so a trial build is safe). There is no schedule.
+      - name: Upload to internal PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          python3 -m pip install --quiet twine
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+          python3 -m twine upload \
+            --repository-url "https://resource.flagos.net/repository/${PYPI_REPO}/" \
+            --non-interactive \
+            wheels/*.whl
