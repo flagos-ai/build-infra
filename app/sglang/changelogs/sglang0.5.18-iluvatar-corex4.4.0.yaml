@@ -34,7 +34,7 @@ image: sglang0.5.18-iluvatar-corex4.4.0
 tags:
 - tag: 2.2.0-0.1.dev1_g4d44a24cd
   entries:
-  - date: ''
+  - date: '2026-09-28T13:20:50.519Z'
     reason: >-
       Rebuild on the 4.4.0 runtime with FlagTree downgraded to 0.6.1
       (0.7.0 hard-loads libflagcx.so; the CoreX 4.4.0 SDK ships no libixccl,
