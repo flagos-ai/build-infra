@@ -56,9 +56,9 @@ flagtree/flaggems 同纪律。CI 用 `check-trigger-author` 守门。
 
 ## 验证
 
-1. CI 构建：6 个 `*-py3-none-any.whl`。
-2. `unzip -l` 抽查包内容存在。
-3. 发布后 `pip download --index-url https://resource.flagos.net/repository/flagos-pypi-hosted/simple <pkg>` 能拉到对应版本。
+1. CI 构建：6 个 `*-py3-none-any.whl`。✅（run 36421841849 / 36425218655）
+2. `unzip -l` 抽查包内容存在。✅
+3. 发布后 `pip download --index-url https://resource.flagos.net/repository/flagos-pypi-hosted/simple <pkg>` 能拉到对应版本。✅（2026-09-28，6 个全拉到）
 
 ## 遗留
 

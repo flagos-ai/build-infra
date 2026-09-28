@@ -42,4 +42,4 @@ bash packaging/flaglibs/build.sh
 
 - 版本归一（动态 `__version__` + 去 scikit-build-core + changelog）已全数合入上游 main 与 rc2。
 - 6 个 release tag 已与各自 rc2 head 对齐。
-- `flaglibs-wheel.yml` 待首次触发（upload=false 验证构建，再 upload=true 发布）。
+- **6 个 wheel 已发布到 `flagos-pypi-hosted`**（2026-09-28，CI run 36425218655）：index 已确认各版本在列（`flag-attn 0.4.0` / `flagsparse 0.3.0` / `flag-blas 0.3.0` / `flag-audio 0.3.0` / `flagfft-codegen 0.2.0` / `flaggems_vllm 0.2.0`），`pip download` 全部可拉取。之后上游 tag 移动时重新触发 `flaglibs-wheel.yml`（upload=true）。
