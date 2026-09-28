@@ -33,6 +33,13 @@ image: vllm0.20.2-iluvatar-corex4.4.0
 tags:
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the 4.4.0 runtime with FlagTree downgraded to 0.6.1
+      (0.7.0 hard-loads libflagcx.so; the CoreX 4.4.0 SDK ships no libixccl,
+      so the runtime failed to import flag_gems). Same stack, plugin and
+      app pins as the 0.7.0-era image it replaces.
+    upstream_prs: []
   - date: '2026-09-23T11:00:43.433Z'
     reason: >-
       Rebuild on a corrected base image. The CoreX cmake installer was being

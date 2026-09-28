@@ -36,6 +36,15 @@ tags:
   entries:
   - date: ''
     reason: >-
+      Rebuild on the 4.4.0 runtime with FlagTree downgraded to 0.6.1
+      (0.7.0 hard-loads libflagcx.so; the CoreX 4.4.0 SDK ships no libixccl,
+      so the runtime failed to import flag_gems). Same stack, plugin and
+      app pins as the 0.7.0-era image it replaces. The T path stays
+      undeliverable on the vendor corex triton 3.1 defect (iluvatar backend
+      doc §14.4); this rebuild reruns the F path only.
+    upstream_prs: []
+  - date: ''
+    reason: >-
       The symmetric-memory stub (PR 491) is on the release line now, so this image
       leaves c9e2573, a commit of the main line. The F path stays the deliverable
       one; the T path remains undeliverable on the vendor corex triton 3.1 defect
