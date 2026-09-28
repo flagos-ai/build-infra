@@ -33,6 +33,10 @@ image: megatron_rl0.17.1-ascend-cann9.0.0-910c
 tags:
 - tag: 2.2.0-0.2.3
   entries:
+  - date: ''
+    reason: >-
+      Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+    upstream_prs: []
   - date: '2026-09-25T02:01:41.959Z'
     reason: >-
       megatron_rl image on the 910C twin of cann9.0.0. Built on the FlagOS
