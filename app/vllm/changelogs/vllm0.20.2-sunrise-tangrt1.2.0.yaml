@@ -34,9 +34,13 @@ image: vllm0.20.2-sunrise-tangrt1.2.0
 tags:
 - tag: 2.2.0-0.2.2
   entries:
-  - date: ''
+  - date: '2026-09-28T15:42:35.856Z'
     reason: >-
-      Rebuild on a rebuilt sunrise runtime. The FlagTree sunrise wheel was faulty (missing sunriseTritonPlugin.so, so flag_gems could not import triton) and has been re-uploaded; runtime v2 :2.2.0 and v1 :2.2.0-build were rebuilt on it (digests 38eec/8b6fc). This app image was built on the broken runtime and is redone on the fixed one. Same plugin and app pins as the image it replaces.
+      Rebuild on a rebuilt sunrise runtime. The FlagTree sunrise wheel was faulty
+      (missing sunriseTritonPlugin.so, so flag_gems could not import triton) and has
+      been re-uploaded; runtime v2 :2.2.0 and v1 :2.2.0-build were rebuilt on it (digests
+      38eec/8b6fc). This app image was built on the broken runtime and is redone on
+      the fixed one. Same plugin and app pins as the image it replaces.
     upstream_prs: []
   - date: '2026-09-28T07:23:30.065Z'
     reason: >-
