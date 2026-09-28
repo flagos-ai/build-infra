@@ -42,16 +42,16 @@ title: "vllm0.24.0-mthreads-musa4.3.6"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.3.0rc2.post2`
+`vllm-plugin-fl==0.3.0`
 
 ## 启动
 
-**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.2.0-0.3.0rc2.post2`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.2.0-0.3.0`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.2.0-0.3.0rc2.post2
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-mthreads-musa4.3.6:2.2.0-0.3.0
 ```
 
 以下两种方式任选其一：
