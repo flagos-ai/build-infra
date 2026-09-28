@@ -44,7 +44,7 @@ tags:
     upstream_prs: []
 - tag: 2.2.0-0.3.0rc2.post3
   entries:
-  - date: ''
+  - date: '2026-09-28T21:17:04Z'
     reason: >-
       The symmetric-memory stub on the release line catches ImportError now,
       not just ModuleNotFoundError (vllm-plugin-FL v0.3.0-rc2.post3): the
@@ -59,7 +59,7 @@ tags:
     upstream_prs: []
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-28T18:16:28Z'
     reason: >-
       Rebuild on the 4.4.0 runtime with FlagTree downgraded to 0.6.1
       (0.7.0 hard-loads libflagcx.so; the CoreX 4.4.0 SDK ships no libixccl,
@@ -68,7 +68,7 @@ tags:
       undeliverable on the vendor corex triton 3.1 defect (iluvatar backend
       doc §14.4); this rebuild reruns the F path only.
     upstream_prs: []
-  - date: ''
+  - date: '2026-09-20T17:43:35Z'
     reason: >-
       The symmetric-memory stub (PR 491) is on the release line now, so this image
       leaves c9e2573, a commit of the main line. The F path stays the deliverable
