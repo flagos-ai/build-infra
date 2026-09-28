@@ -528,10 +528,7 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
-      # Held at 0.6.0: 0.7.0rc2 emits enable_i64=true into --convert-gpu-to-gcu,
-      # which this toolkit's gcu-compiler-opt rejects (FlagTree #1233), so every
-      # kernel fails to compile. tops1.10.6 accepts the option and stays on rc2.
-      flagtree: flagtree==0.6.0+enflame3.6
+      flagtree: flagtree==0.7.0+enflame3.6
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
@@ -579,7 +576,7 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260722
-      flagtree: flagtree==0.7.0rc2+enflame3.6
+      flagtree: flagtree==0.7.0+enflame3.6
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
@@ -673,6 +670,12 @@ vendors:
           COREX_ROOT: /usr/local/corex
           PATH: /usr/local/corex/bin:$PATH
           LD_LIBRARY_PATH: /usr/local/corex/lib
+        runtime:
+          # flag_gems 5.4.0's FlagTune cost model probes flagtree's exception
+          # contract. The 0.6.x flagtree here ships a partial flagtune (no
+          # runtime/errors.py), so its errors are outside the fallback set and
+          # abort the operator instead of degrading. Verified on-node.
+          USE_FLAGTUNE_COST_MODEL: "0"
         app:
           sglang:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
@@ -1006,7 +1009,7 @@ vendors:
       driver: "0.24.0"
       python: "3.10"
       triton: triton==3.6.0.1+git0a5cfb35
-      flagtree: flagtree==0.6.0+sunrise3.6
+      flagtree: flagtree==0.7.0+sunrise3.6
       env:
         base:
           TANGRT_ROOT: /usr/local/tangrt
