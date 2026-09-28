@@ -32,6 +32,21 @@
 
 image: vllm0.24.0-iluvatar-corex4.4.0
 tags:
+- tag: 2.2.0-0.3.0rc2.post3
+  entries:
+  - date: ''
+    reason: >-
+      The symmetric-memory stub on the release line catches ImportError now,
+      not just ModuleNotFoundError (vllm-plugin-FL v0.3.0-rc2.post3): the
+      iluvatar corex torch 2.7.1 ships torch.distributed._symmetric_memory
+      whose import of torch._C._distributed_c10d._SymmetricMemory raises
+      ImportError (a torch 2.8 symbol), so the old stub never fired and the
+      plugin could not load. post3 is the first wheel with the fix and is on
+      the iluvatar index. Same stack (0.6.1 flagtree + USE_FLAGTUNE_COST_MODEL=0)
+      and app pins as the post2 image it replaces; the T path stays
+      undeliverable on the vendor corex triton 3.1 defect (iluvatar backend
+      doc §14.4).
+    upstream_prs: []
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
   - date: ''
