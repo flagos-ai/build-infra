@@ -53,7 +53,9 @@ py="$workdir/venv/bin/python"
 # four fields contain a space, so `set --` parses them portably (no awk/tab
 # tricks — macOS BSD awk treats -F'\t' as a literal backslash-t).
 lib_specs="$(
-  "$py" - <<PYEOF
+  CONFIG_PATH="$_here/build-config.yaml" "$py" - <<'PYEOF'
+import os
+cfg_path = os.environ["CONFIG_PATH"]
 try:
     import yaml
 except ImportError:
@@ -61,14 +63,14 @@ except ImportError:
     # is a key->inline-map sequence with no nested collections, so this is safe.
     yaml = None
 if yaml is not None:
-    with open(r"$_here/build-config.yaml") as f:
+    with open(cfg_path) as f:
         cfg = yaml.safe_load(f)
     for key, m in cfg.items():
         print(f"{key} {m['repo']} {m['default_ref']} {'scm' if m.get('scm') else 'static'}")
 else:
     import re
     key, vals = None, {}
-    for line in open(r"$_here/build-config.yaml"):
+    for line in open(cfg_path):
         line = line.rstrip("\n")
         if not line or line.lstrip().startswith("#"):
             continue
@@ -83,23 +85,24 @@ else:
             v = km.group(2).strip()
             vals[km.group(1).strip()] = v
         else:
-            # Inline map: `flag_attn:      {repo: FlagAttention, ...}`
+            # Inline map: key:      {repo: ..., ...}
             im = re.match(r"^(\S+):\s*\{(.*)\}\s*$", line)
-            if im and not key:
+            if im:
                 k, inner = im.group(1), im.group(2)
+                vals = {}
                 for kv in inner.split(","):
                     kk, _, vv = kv.strip().partition(":")
                     vals[kk.strip()] = vv.strip()
                 print(f"{k} {vals['repo']} {vals['default_ref']} {vals.get('scm','static')}")
-                key, vals = k, {}
-    if vals:
+                key = None  # let the next inline map match too (no not-key gate)
+    if vals and key:
         print(f"{key} {vals['repo']} {vals['default_ref']} {vals.get('scm','static')}")
 PYEOF
 )"
 
 # Resolve the selected lib list: default = all keys in build-config.yaml.
 if [ -z "$FLAGLIBS" ]; then
-  FLAGLIBS="$(printf '%s\n' "$lib_specs" | cut -d' ' -f1 | tr '\n' ' ')"
+  FLAGLIBS="$(printf '%s\n' "$lib_specs" | awk '{print $1}' | tr '\n' ' ')"
 fi
 
 mkdir -p "$OUTDIR"
@@ -127,6 +130,14 @@ for key in $FLAGLIBS; do
   echo ">>> flaglibs: $key @ $ref ($kind)"
   src="$workdir/$key"
   repo_url="https://github.com/flagos-ai/$repo.git"
+  # dev override: FLAGLIBS_REPO_PREFIX swaps in an alternate base URL (e.g.
+  # file:///tmp/clones for offline dry-runs; the prefix must point at the parent
+  # dir holding the clones — no .git suffix, matching the dir layout). Kept out
+  # of build-config.yaml: the config names the canonical upstream repo, the URL
+  # shape is a build detail.
+  if [ -n "${FLAGLIBS_REPO_PREFIX:-}" ]; then
+    repo_url="${FLAGLIBS_REPO_PREFIX}${repo}"
+  fi
   if [ "$kind" = "scm" ]; then
     # setuptools_scm reads git tags: needs the full history, not a shallow
     # branch. Checkout the ref after fetching all tags (same as flaggems).
