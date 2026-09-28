@@ -34,9 +34,11 @@ image: megatron_training0.17.1-cambricon-neuware4.4.3
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-28T05:14:18.391Z'
     reason: >-
-      Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+      Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with
+      the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the
+      0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
     upstream_prs: []
   - date: '2026-09-22T16:03:31.345Z'
     reason: >-
