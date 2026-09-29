@@ -33,7 +33,7 @@ image: megatron_rl0.17.1-enflame-tops1.9.10
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-29T02:27:05.044Z'
     reason: >-
       Rebuild on the enflame runtime rebuilt on FlagTree 0.7.0 (0.6.0/0.7.0rc2
       → 0.7.0+enflame3.6, 2026-09-28). Same wheel and app pins as the image
