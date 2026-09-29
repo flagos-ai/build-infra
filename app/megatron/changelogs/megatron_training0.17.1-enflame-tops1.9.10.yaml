@@ -34,6 +34,12 @@ image: megatron_training0.17.1-enflame-tops1.9.10
 tags:
 - tag: 2.2.0-0.2.3
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the enflame runtime rebuilt on FlagTree 0.7.0 (0.6.0/0.7.0rc2
+      → 0.7.0+enflame3.6, 2026-09-28). Same wheel and app pins as the image
+      it replaces.
+    upstream_prs: []
   - date: '2026-09-28T05:16:09.804Z'
     reason: >-
       Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with
