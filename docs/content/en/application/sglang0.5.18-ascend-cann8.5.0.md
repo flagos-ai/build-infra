@@ -31,7 +31,7 @@ title: "sglang0.5.18-ascend-cann8.5.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.1.2</code> <a href="../../runtime/ascend-cann8.5.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.2.0</code> <a href="../../runtime/ascend-cann8.5.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -53,12 +53,12 @@ title: "sglang0.5.18-ascend-cann8.5.0"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-ascend-cann8.5.0:2.1.2-0.1.dev1_g0f98ddc20`
+**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-ascend-cann8.5.0:2.2.0-0.1.dev1_g0f98ddc20`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-ascend-cann8.5.0:2.1.2-0.1.dev1_g0f98ddc20
+IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-ascend-cann8.5.0:2.2.0-0.1.dev1_g0f98ddc20
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:

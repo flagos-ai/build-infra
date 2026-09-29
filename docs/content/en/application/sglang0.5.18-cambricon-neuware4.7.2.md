@@ -30,7 +30,7 @@ title: "sglang0.5.18-cambricon-neuware4.7.2"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.2.0</code> <a href="../../runtime/cambricon-neuware4.7.2/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -53,12 +53,12 @@ title: "sglang0.5.18-cambricon-neuware4.7.2"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-cambricon-neuware4.7.2:2.1.2-0.1.dev1_g31528294e`
+**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-cambricon-neuware4.7.2:2.2.0-0.1.dev1_g31528294e`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-cambricon-neuware4.7.2:2.1.2-0.1.dev1_g31528294e
+IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-cambricon-neuware4.7.2:2.2.0-0.1.dev1_g31528294e
 ```
 
 ### Without a toolkit — plain docker / podman
