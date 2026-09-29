@@ -267,8 +267,28 @@ vendor_config = config.get('run', {}).get('vendors', {}).get(vendor, {})
 print(vendor_config.get('toolkit', '') or vendor_config.get('raw', ''))
 ")
 
+# Relay the runner proxy into the container. Nodes without direct egress
+# (the 910C ones) only reach the vendor PyPI through the runner proxy — the
+# megatron-app-image.yml build step passes the same proxy to `docker build`,
+# so the pip install inside the build works; the verify container's own
+# pip install (default mode) needs the same env, or it fails DNS before the
+# install. Env vars are deliberately NOT sourced: the runner's http_proxy /
+# https_proxy / no_proxy are already exported at this point.
+PROXY_ARGS=""
+http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
+if [[ -n "${http_proxy_val}" ]] || [[ -n "${https_proxy_val}" ]]; then
+    [[ -n "${http_proxy_val}" ]]  && PROXY_ARGS="${PROXY_ARGS} -e http_proxy=${http_proxy_val}"
+    [[ -n "${https_proxy_val}" ]] && PROXY_ARGS="${PROXY_ARGS} -e https_proxy=${https_proxy_val}"
+    # no_proxy goes verbatim — the host knows which endpoints are internal,
+    # and a value invented here overrides that (same as vllm-app-image.yml).
+    [[ -n "${no_proxy_val}" ]]    && PROXY_ARGS="${PROXY_ARGS} -e no_proxy=${no_proxy_val}"
+fi
+
 docker run -d --name "${CONTAINER}" \
     ${RUN_FLAGS} \
+    ${PROXY_ARGS} \
     --shm-size=8g \
     "${RUNTIME_IMAGE}" \
     sleep infinity
@@ -278,6 +298,7 @@ log_info "Container started: ${CONTAINER} (${RUNTIME_IMAGE})"
 if [[ -n "${APP_IMAGE}" ]]; then
     docker run -d --name "${APP_CONTAINER}" \
         ${RUN_FLAGS} \
+        ${PROXY_ARGS} \
         --shm-size=8g \
         "${APP_IMAGE}" \
         sleep infinity
