@@ -33,9 +33,10 @@ image: megatron_training0.18.2-ascend-cann8.5.0-910c
 tags:
 - tag: 2.2.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-09-29T08:57:15.764Z'
     reason: >-
-      First megatron-core 0.18.2 app image on ascend-cann8.5.0-910c. Built on the FlagOS 2.2.0
+      First megatron-core 0.18.2 app image on ascend-cann8.5.0-910c. Built on the
+      FlagOS 2.2.0
       stack from the MLF v0.3.0 wheel (0.18.2+0.3.0, 128dbd4f3). deps_app key +
       status-matrix rows landed via build-infra #1296 after the on-node F/T
       dual-compiler E2E passed (pretrain_gpt 5-iter exit 0, loss bit-identical).
