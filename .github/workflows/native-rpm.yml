@@ -63,6 +63,14 @@ on:
           into every suite this target was built and verified for.
         type: string
         default: ''
+      runner:
+        description: >-
+          machine to run on. ubuntu-latest reaches Nexus over the public
+          internet, where large uploads have been resetting; the
+          self-hosted runner reaches it over the internal network.
+        type: choice
+        default: ubuntu-latest
+        options: [ubuntu-latest, self-hosted]
       verify:
         description: 'install the .rpm in a clean container before uploading'
         type: boolean
@@ -77,7 +85,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == '' && 'self-hosted' || inputs.runner }}
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
       # Set by any matrix row that actually built. Empty means every row
@@ -386,7 +394,7 @@ jobs:
   verify:
     needs: build
     if: ${{ inputs.verify }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == '' && 'self-hosted' || inputs.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -494,7 +502,7 @@ jobs:
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == '' && 'self-hosted' || inputs.runner }}
     permissions:
       actions: read
     steps:
