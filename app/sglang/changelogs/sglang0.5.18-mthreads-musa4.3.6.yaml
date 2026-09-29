@@ -34,7 +34,7 @@ image: sglang0.5.18-mthreads-musa4.3.6
 tags:
 - tag: 2.2.0-0.1.dev1_g607b9672c
   entries:
-  - date: ''
+  - date: '2026-09-29T08:45:02.023Z'
     reason: >-
       Rebuild on the FlagOS 2.2.0 stack and the mthreads runtime rebuilt with
       the updated flagtree wheel (same 0.7.0+mthreads3.6 version, new contents,
@@ -46,7 +46,8 @@ tags:
   entries:
   - date: 2026-09-06T03:51:47Z
     reason: >-
-      sglang 0.5.18 on mthreads musa4.3.6. sglang-plugin-FL PR 92: make sglang 0.5.18 serve on the
+      sglang 0.5.18 on mthreads musa4.3.6. sglang-plugin-FL PR 92: make sglang 0.5.18
+      serve on the
       torch_musa runtime.
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/92
