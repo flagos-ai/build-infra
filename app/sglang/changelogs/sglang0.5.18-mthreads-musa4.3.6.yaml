@@ -32,6 +32,16 @@
 
 image: sglang0.5.18-mthreads-musa4.3.6
 tags:
+- tag: 2.2.0-0.1.dev1_g607b9672c
+  entries:
+  - date: ''
+    reason: >-
+      Rebuild on the FlagOS 2.2.0 stack and the mthreads runtime rebuilt with
+      the updated flagtree wheel (same 0.7.0+mthreads3.6 version, new contents,
+      2026-09-29). Same sglang and plugin pins as the 2.1.2 image it replaces
+      (PR 92 head, still open).
+    upstream_prs:
+    - https://github.com/flagos-ai/sglang-plugin-FL/pull/92
 - tag: 2.1.2-0.1.dev1_g607b9672c
   entries:
   - date: 2026-09-06T03:51:47Z
