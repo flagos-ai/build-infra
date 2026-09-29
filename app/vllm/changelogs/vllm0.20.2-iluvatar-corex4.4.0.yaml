@@ -44,7 +44,7 @@ tags:
     upstream_prs: []
 - tag: 2.2.0-0.2.2rc2.post2
   entries:
-  - date: ''
+  - date: '2026-09-28T10:16:28Z'
     reason: >-
       Rebuild on the 4.4.0 runtime with FlagTree downgraded to 0.6.1
       (0.7.0 hard-loads libflagcx.so; the CoreX 4.4.0 SDK ships no libixccl,
