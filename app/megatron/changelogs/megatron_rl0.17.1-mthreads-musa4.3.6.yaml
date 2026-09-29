@@ -33,7 +33,7 @@ image: megatron_rl0.17.1-mthreads-musa4.3.6
 tags:
 - tag: 2.2.0-0.2.3
   entries:
-  - date: ''
+  - date: '2026-09-29T09:15:52.215Z'
     reason: >-
       Rebuild on the mthreads runtime rebuilt with the updated flagtree wheel
       (same 0.7.0+mthreads3.6 version, new contents, 2026-09-29). Same wheel
