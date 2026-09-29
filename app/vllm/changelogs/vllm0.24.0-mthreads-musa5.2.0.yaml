@@ -34,6 +34,12 @@ image: vllm0.24.0-mthreads-musa5.2.0
 tags:
 - tag: 2.2.0-0.3.0
   entries:
+  - date: ''
+    reason: >-
+      Rebuild on the mthreads runtime rebuilt with the updated flagtree wheel
+      (same 0.7.0+mthreads3.6 version, new contents, 2026-09-29). Same plugin
+      and app pins as the image it replaces.
+    upstream_prs: []
   - date: '2026-09-28T14:18:59.200Z'
     reason: >-
       The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit
