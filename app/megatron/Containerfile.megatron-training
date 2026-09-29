@@ -71,7 +71,7 @@ ARG MEGATRON_VERSION=0.17.1
 ARG FLAGOS_PYPI=""
 
 # Fallback for all other dependencies.
-ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+ARG EXTRA_PYPI="https://mirrors.cloud.tencent.com/pypi/simple"
 
 # Vendor-conditional packages for this app (configs.yaml deps_app.{app}),
 # space-separated. Installed before the wheel from the vendor PyPI — index

@@ -43,7 +43,7 @@ ARG SGLANG_VERSION=0.5.18
 ARG FLAGOS_PYPI=""
 
 # Fallback for all other dependencies.
-ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+ARG EXTRA_PYPI="https://mirrors.cloud.tencent.com/pypi/simple"
 
 # sglang-plugin-FL wheel version (e.g. "0.2.0rc0.post2.dev11+gb9e835e85") —
 # the setuptools-scm tag+commit encoding, so wheel == exact plugin commit. The
