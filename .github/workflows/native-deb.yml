@@ -344,31 +344,13 @@ jobs:
             dpkg-deb -f "$d" Package Version Architecture Depends
           done
 
-      - name: Upload the .deb packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: ${{ inputs.target }}-deb
-          path: src/${{ steps.cfg.outputs.outdir }}/*.deb
-          retention-days: 7
-
-  verify:
-    needs: build
-    if: ${{ inputs.verify }}
-    runs-on: ${{ inputs.runner == '' && 'self-hosted' || inputs.runner }}
-    steps:
-      - name: Download the .deb packages
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: ${{ inputs.target }}-deb
-          path: pkg
-
-      - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
+      - name: Install and check in a clean ${{ steps.cfg.outputs.verify_image }}
         env:
-          FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
-          PPA: ${{ needs.build.outputs.ppa }}
+          FLAGOS_APT: ${{ steps.cfg.outputs.flagos_apt }}
+          PPA: ${{ steps.cfg.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e PPA ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "${{ github.workspace }}/src/${{ steps.cfg.outputs.outdir }}:/pkg:ro" -e FLAGOS_APT -e PPA ${{ steps.cfg.outputs.verify_image }} bash -c '
             set -e
             if [ -n "${PPA:-}" ]; then
               apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
@@ -436,8 +418,15 @@ jobs:
             echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
           '
 
+      - name: Upload the .deb packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ inputs.target }}-deb
+          path: src/${{ steps.cfg.outputs.outdir }}/*.deb
+          retention-days: 7
+
   publish:
-    needs: [build, verify]
+    needs: build
     if: ${{ inputs.publish }}
     runs-on: ${{ inputs.runner == '' && 'self-hosted' || inputs.runner }}
     steps:
