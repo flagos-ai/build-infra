@@ -233,7 +233,7 @@ jobs:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          rm -rf src && git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
