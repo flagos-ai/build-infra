@@ -23,7 +23,6 @@ title: "sglang0.5.11_empty-mthreads-musa4.3.5"
 - **Architecture:** x86_64
 - **Chip models:** MTT S5000
 - **Host driver:** 3.3.5-server (`musa` driver package)
-- **Container toolkit:** MUSA 4.3.5 (bundled in the image)
 
 ## Image contents
 
