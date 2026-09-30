@@ -101,7 +101,10 @@ jobs:
         # CUDA-on-RockyLinux image where FlagTree needs bare Fedora. The
         # target table below names the image per suite, and a target that has
         # none for a suite is skipped rather than built on the wrong base.
-        suite: [fedora43, openeuler24.03, rhel9]
+        # Filtered by the suites input: building rows nobody publishes wastes
+        # a machine for 40 minutes and a failed sibling row skips publishing
+        # for rows that succeeded.
+        suite: ${{ fromJSON(inputs.suites == '' && '["fedora43","openeuler24.03","rhel9"]' || format('["{0}"]', replace(inputs.suites, ' ', '","'))) }}
     steps:
       - name: Resolve the target
         id: cfg
