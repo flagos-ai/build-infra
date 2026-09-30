@@ -104,7 +104,7 @@ jobs:
         # Filtered by the suites input: building rows nobody publishes wastes
         # a machine for 40 minutes and a failed sibling row skips publishing
         # for rows that succeeded.
-        suite: ${{ fromJSON(inputs.suites == '' && '["fedora43","openeuler24.03","rhel9"]' || format('["{0}"]', replace(inputs.suites, ' ', '","'))) }}
+        suite: ${{ fromJSON(inputs.suites == '' && '["fedora43","openeuler24.03","rhel9"]' || format('["{0}"]', join(split(inputs.suites, ' '), '","'))) }}
     steps:
       - name: Resolve the target
         id: cfg
