@@ -164,7 +164,7 @@ jobs:
               ver=0.7.0rc2.post2
               image_fedora43=fedora:43
               image_openeuler2403=openeuler/openeuler:24.03-lts
-              image_rhel9= ;;
+              image_rhel9=rockylinux:9 ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/rpm/build-flag-dnn-rpm.sh
