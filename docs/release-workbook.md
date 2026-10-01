@@ -33,13 +33,13 @@ git push origin main
 > **手动触发**
 
 ```bash
-gh workflow run "Base Image Build (manual)" -f backend="all" -f push="true"
+gh workflow run base-image.yml -f backend="all" -f push="true"
 ```
 
 验证方式：
 ```bash
 # 获取 run ID
-gh run list -w "Base Image Build (manual)" --limit 1 --json databaseId -q '.[0].databaseId'
+gh run list -w base-image.yml --limit 1 --json databaseId -q '.[0].databaseId'
 
 # 检查所有 job 状态（替换 RUN_ID）
 gh run view <RUN_ID> --json jobs -q '
@@ -59,7 +59,7 @@ gh run view <RUN_ID> --json jobs -q '
 > **手动触发**
 
 ```bash
-gh workflow run "Base image descriptions"
+gh workflow run gendoc-base.yml
 ```
 
 工作流自动：
@@ -84,7 +84,7 @@ gh pr list --head auto/image-descriptions-*
 > **手动触发。** 产出不含 FlagGems 的运行时镜像（`:{version}-build`），用于步骤 5 的 FlagGems wheel 编译。
 
 ```bash
-gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true" -f flaggems="none"
+gh workflow run runtime-image.yml -f backend="all" -f push="true" -f flaggems="none"
 ```
 
 镜像 tag: `:{version}-build`（如 `:2.2.0-build`）。
@@ -92,7 +92,7 @@ gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true" -
 
 验证方式：
 ```bash
-gh run list -w "Runtime Image Build (manual)" --limit 1 --json databaseId -q '.[0].databaseId'
+gh run list -w runtime-image.yml --limit 1 --json databaseId -q '.[0].databaseId'
 gh run view <RUN_ID> --json jobs -q '...'  # 同步骤 2
 ```
 
@@ -100,8 +100,8 @@ gh run view <RUN_ID> --json jobs -q '...'  # 同步骤 2
 
 如果只有部分 backend 需要 runtime:v1（比如只验证 nvidia），可以只触发指定 backend：
 ```bash
-gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f flaggems="none"
-gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f push="true" -f flaggems="none"
+gh workflow run runtime-image.yml -f backend="nvidia-cuda13.3" -f flaggems="none"
+gh workflow run runtime-image.yml -f backend="nvidia-cuda13.3" -f push="true" -f flaggems="none"
 ```
 
 ## 5. FlagGems 构建 wheels
@@ -117,7 +117,7 @@ gh workflow run "Runtime Image Build (manual)" -f backend="nvidia-cuda13.3" -f p
 > **手动触发**
 
 ```bash
-gh workflow run "FlagGems Release Wheels" -f flaggems_ref="v5.3.1"
+gh workflow run flaggems-release.yml -f flaggems_ref="v5.3.1"
 ```
 
 工作流自动：
@@ -139,7 +139,7 @@ Review + merge。
 > **手动触发。** 基于 Harbor 上最新的 base 镜像 + PyPI 上最新的 wheel，产出最终 runtime 镜像并推 Harbor。
 
 ```bash
-gh workflow run "Runtime Image Build (manual)" -f backend="all" -f push="true"
+gh workflow run runtime-image.yml -f backend="all" -f push="true"
 ```
 
 `flaggems` 留空 — 自动读取 `configs.yaml` 中的版本。
@@ -169,7 +169,7 @@ docker run --gpus all harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cud
 > **手动触发。**
 
 ```bash
-gh workflow run "Runtime Image Descriptions"
+gh workflow run gendoc-runtime.yml
 ```
 
 生成 runtime 页面最终版本（含 `flag_gems` 版本号）。Review + merge PR。
