@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: FlagLibs wheel
+name: FlagLibs Wheel
 
 # Build the six pure-Python FlagOS operator-library wheels (FlagAttention /
 # FlagSparse / FlagBLAS / FlagAudio / FlagFFT / FlagGems-vllm) and optionally

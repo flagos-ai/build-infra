@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: flagcx wheel
+name: FlagCX Wheel
 
 # Build FlagCX wheels in the backend's runtime image, and (optionally) publish
 # them to that vendor's PyPI.

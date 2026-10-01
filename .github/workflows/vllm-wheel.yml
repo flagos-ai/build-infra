@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: vllm wheel
+name: VLLM Wheel
 
 # Build + repack vllm wheels for one (or all) backend(s), and optionally
 # upload them to the per-vendor PyPI. This is the CI consolidation of the

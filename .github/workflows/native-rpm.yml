@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: native rpm package
+name: Native RPM Package
 
 # Build .rpm packages containing compiled code from a component repository's
 # own packaging definition, and publish them to the FlagOS yum repositories.

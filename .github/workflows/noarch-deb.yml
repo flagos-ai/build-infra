@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: noarch deb package
+name: Noarch Deb Package
 
 # Build an Architecture: all .deb from a component repository's own packaging
 # definition, and publish it to the FlagOS apt repositories.

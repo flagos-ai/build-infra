@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Megatron wheel
+name: Megatron Wheel
 
 # Build megatron-core wheels from the Megatron-LM-FL fork, and (optionally)
 # upload them to the internal PyPI.

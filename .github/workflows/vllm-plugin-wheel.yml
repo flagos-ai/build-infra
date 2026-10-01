@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: vllm-plugin wheel
+name: VLLM Plugin Wheel
 
 # Build the vllm-plugin-FL wheel and (optionally) upload it to the per-vendor
 # PyPI.

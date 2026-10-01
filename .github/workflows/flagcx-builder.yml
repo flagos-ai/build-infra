@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: flagcx builder
+name: FlagCX Builder
 
 # Build and publish the FlagCX build-toolchain images, one backend per runner.
 #
