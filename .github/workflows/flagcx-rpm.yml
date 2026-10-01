@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: flagcx rpm packages
+name: FlagCX RPM Package
 
 # Build FlagCX .rpm packages and publish them to the FlagOS yum repositories.
 #

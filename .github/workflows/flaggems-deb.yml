@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: flaggems deb package
+name: FlagGems Deb Package
 
 # Build the python3-flag-gems .deb from the FlagGems repository's own packaging
 # definition, and publish it to the FlagOS apt repositories.

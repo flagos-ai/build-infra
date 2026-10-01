@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: sglang-plugin wheel
+name: SGLang Plugin Wheel
 
 # Build sglang-plugin-FL (sglang_fl) wheels in the backend's runtime image,
 # and (optionally) upload them to the per-vendor PyPI.

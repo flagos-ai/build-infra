@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: FlagTree builder
+name: FlagTree Builder
 
 # Builds packaging/flagtree/iluvatar: the FlagTree iluvatar wheel builder
 # (`--target builder`) and the flagtree image that stage 2 derives from it.

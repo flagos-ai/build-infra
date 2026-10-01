@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: FlagTree wheel
+name: FlagTree Wheel
 
 # Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
 # vendor PyPI. Two target families: self-contained Containerfiles (metax /

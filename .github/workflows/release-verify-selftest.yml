@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: release verify self-test
+name: Release Verify Self-test
 
 # The release workflows are dispatch-only, so a change to their verify step
 # otherwise reaches main without ever having run. This runs that step against

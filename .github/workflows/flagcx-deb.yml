@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: flagcx deb package
+name: FlagCX Deb Package
 
 # Build the FlagCX .deb packages, one backend per runner.
 #

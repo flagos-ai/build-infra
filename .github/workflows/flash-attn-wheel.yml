@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: flash-attn wheel
+name: Flash-Attn Wheel
 
 # Build source-compiled flash_attn wheels (nvidia backends only) and
 # (optionally) upload them to the internal PyPI.
