@@ -47,7 +47,7 @@ run-name: App Image · ${{ inputs.app || 'megatron_training' }}${{ inputs.megatr
 #
 # Backend matrix comes from scripts/generate_matrix.py --app {app}{app_version},
 # the versioned app key configs.yaml deps_app is keyed by (same
-# runtime fields as runtime-image.yaml plus the per-backend app env vars and
+# runtime fields as runtime-image.yml plus the per-backend app env vars and
 # vendor-conditional deps from configs.yaml deps_app.{app}{app_version}).
 # Per-vendor PyPI (flagos_pypi) is searched first; aliyun is the fallback.
 
@@ -217,7 +217,7 @@ jobs:
           # The pip RUN layer caches by command string, so a re-uploaded wheel
           # under the same =={version} spec is silently skipped: a rebuild whose
           # whole point is to pick up a re-uploaded wheel must disable the
-          # cache, independently of push/verify (runtime-image.yaml input
+          # cache, independently of push/verify (runtime-image.yml input
           # no_cache, same name and semantics).
           no_cache_arg=""
           [[ "${{ inputs.no_cache }}" == "true" ]] && no_cache_arg="--no-cache"
@@ -233,7 +233,7 @@ jobs:
           created="$(git show -s --format=%cI HEAD)"
           # Relay the runner proxy for the build; no_proxy goes verbatim — the
           # host knows which endpoints are internal, and a value invented here
-          # overrides that (same as vllm-app-image.yml / runtime-image.yaml).
+          # overrides that (same as vllm-app-image.yml / runtime-image.yml).
           # Some vendor nodes (e.g. the 910C ones) have no direct egress and
           # only reach the vendor PyPI through the runner proxy; without this,
           # the pip RUN layer fails to resolve the index.

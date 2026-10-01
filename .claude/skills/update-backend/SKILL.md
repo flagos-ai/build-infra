@@ -121,9 +121,9 @@ python scripts/build_runtime.py <backend> --dry-run     # resolve build args
 python scripts/generate_matrix.py <backend>             # row + runner intact
 ```
 
-Then the manual workflows (`base-image.yaml` base / `runtime-image.yaml`
+Then the manual workflows (`base-image.yml` base / `runtime-image.yml`
 runtime). When the changed image is a rebuilt wheel with the SAME version as
-one already pushed, pass the no-cache path (`runtime-image.yaml no_cache=true`
+one already pushed, pass the no-cache path (`runtime-image.yml no_cache=true`
 — forces a fresh download of a pre/daily wheel with an identical name; the
 version-CHANGED case rebuilds automatically, no cache flag needed). Flat tag
 overwrite is the intended publication model — a rebuilt image replaces the old

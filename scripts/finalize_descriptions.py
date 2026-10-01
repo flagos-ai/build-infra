@@ -24,7 +24,7 @@ Two modes, dispatched by ``--done``:
     ``main``. Clean up state + per-backend extract branches when done.
 
 **done=false (retry)**
-    Self-trigger the ``gendoc-base.yaml`` workflow with only the missing
+    Self-trigger the ``gendoc-base.yml`` workflow with only the missing
     backends (or exit with a warning if there are none). Clean up the
     per-backend extract branches that were already collected so they don't
     interfere with the next retry. If the retry cap is hit, exit with error.
@@ -62,7 +62,7 @@ MODE_CONFIG = {
             "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
         ),
         "commit_msg": "docs(base): refresh image descriptions for {label}",
-        "workflow": "gendoc-base.yaml",
+        "workflow": "gendoc-base.yml",
     },
     "runtime": {
         "add_paths": [
@@ -79,7 +79,7 @@ MODE_CONFIG = {
             "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
         ),
         "commit_msg": "docs(runtime): refresh image descriptions for {label}",
-        "workflow": "gendoc-runtime.yaml",
+        "workflow": "gendoc-runtime.yml",
     },
 }
 

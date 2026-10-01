@@ -35,7 +35,7 @@ runs:
           exit 0
         fi
         actor="${{ github.triggering_actor }}"
-        # gendoc-base.yaml re-dispatches itself (via gh workflow run with the
+        # gendoc-base.yml re-dispatches itself (via gh workflow run with the
         # repo GITHUB_TOKEN) to retry failed backends. Exempt that identity —
         # the bot token is only usable by workflows running in this repo.
         if [[ "$actor" == "github-actions[bot]" ]]; then

@@ -207,7 +207,7 @@ jobs:
 
           # Relay the runner proxy for the build; no_proxy goes verbatim — the
           # host knows which endpoints are internal, and a value invented here
-          # overrides that (see runtime-image.yaml).
+          # overrides that (see runtime-image.yml).
           proxy_args=""
           http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
           https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"

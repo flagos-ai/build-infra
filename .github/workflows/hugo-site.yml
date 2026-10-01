@@ -29,7 +29,7 @@ on:
       - 'configs.yaml'
       - 'base/**'
       - '.github/build-config.yml'
-      - '.github/workflows/hugo-site.yaml'
+      - '.github/workflows/hugo-site.yml'
   workflow_dispatch:
 
 permissions:

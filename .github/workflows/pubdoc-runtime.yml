@@ -17,7 +17,7 @@ name: Publish documentation for runtime images
 # Publication is gated on review+merge: when reviewed per-image descriptions
 # land on main (a runtime-descriptions PR merged), push them to the Harbor
 # repository. Nothing goes live until the description diff has been reviewed
-# and merged. Mirrors pubdoc-base.yaml for the runtime layer.
+# and merged. Mirrors pubdoc-base.yml for the runtime layer.
 
 on:
   # Whenever a runtime image description changes on main (usually a followup
