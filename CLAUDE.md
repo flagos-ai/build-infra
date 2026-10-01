@@ -141,77 +141,28 @@ switchable via the `compiler` shell function.
 
 ### CI workflows (manual trigger, not push-driven)
 
-- **`trigger.yml`** — Base Image Build (manual). `workflow_dispatch` with backend + push inputs.
-  Generates matrix via `generate_matrix.py`, calls reusable `imagebuild.yml` per backend.
+All `.github/workflows/*.yml`. Workflow names differ from filenames; the release
+playbook (`docs/release-workbook.md`) references the display names.
 
-- **`runtime.yml`** — Runtime Image Build (manual). Same pattern, additionally checks out FlagGems repo for version derivation.
+| Workflow file | Purpose |
+|---|---|
+| `base-image.yaml` + `imagebuild.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend |
+| `runtime-image.yaml` | Runtime Image Build (manual): base + FlagGems wheel (`flaggems=none` → `-build` tag) |
+| `gendoc-base.yaml` / `gendoc-runtime.yaml` | Extract system package versions from built images → review-gated description PR |
+| `pubdoc-base.yaml` / `pubdoc-runtime.yaml` | Publish descriptions to Harbor on the PR landing on `main` |
+| `hugo-site.yaml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**`) |
+| `megatron-wheel.yml` | Build megatron-core wheels in the backend's runtime image, upload to `flagos-pypi-hosted` |
+| `megatron-app-image.yml` / `vllm-app-image.yml` / `sglang-app-image.yml` | Build app images from the runtime + vendor wheel, verify on-node, push `flagos-app/...` |
+| `flagcx-*` (`deb.yml`, `wheel.yml`, `builder.yml`, `rpm.yml`) | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |
+| `flaggems-wheel.yml` | Daily (01:17 UTC) + manual FlagGems wheel build → `flagos-pypi-daily` |
+| `flaggems-release.yml` | FlagGems release wheels: python + cpp wheels → all vendor indexes, `update-config` PR |
+| `native-deb.yml` / `native-rpm.yml` / `noarch-deb.yml` / `noarch-rpm.yml` | Component repos' deb/rpm release paths to the Nexus repositories |
+| `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes |
+| `verify-runtime.yml` / `verify-driver.yml` / `verify-cpp-fixes.yml` / `status-matrix-consistency.yml` | Verify image content, driver reachability, cpp fixes, status-matrix drift |
+| `upload-nexus.yml`, `sync-to-remote.yaml`, `auto-approve.yaml`, `release-verify-selftest.yml`, `sdk-reminder.yaml`, `scheduled.yml.disabled` | Nexus upload, GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder, (disabled) |
 
-- **`flaggems-wheel.yml`** — Daily (01:17 UTC) + manual FlagGems wheel build + upload to `flagos-pypi-daily` via twine.
-
-- **`megatron-wheel.yml`** — Manual (no schedule; release repo).
-  Builds megatron-core wheels from Megatron-LM-FL (`MLF_REF` input), one per backend in the runtime matrix.
-  The build environment **is** the backend's runtime image (`BASE_IMAGE = flagos-runtime-{vendor}-{backend}:{version}`,
-  no toolchain image). Uploads to `flagos-pypi-hosted` via twine when `upload=true`.
-  All three cp-version wheels must be uploaded — the package ships a compiled `helpers_cpp` extension.
-  Whether one cpXXX wheel is shareable across the backends running that Python is decision 6, not yet validated.
-
-- **`megatron-app-image.yml`** — Manual.
-  Builds `flagos-app/{app}{app_version}-{app_name}:{version}`
-  (`{app}` = `megatron_training` | `megatron_rl`, app name; the app key is app + version,
-  e.g. `megatron_training0.17.1`, no separator — `configs.yaml deps_app`, the status matrix
-  filename and the workflow's `--app` all use the versioned key; `{app_name}` is the backend's
-  app-layer public name — see Image naming)
-  from `flagos-runtime-{vendor}-{backend}` by installing the megatron-core wheel single-step
-  (no `--no-deps`; the wheel keeps `torch>=2.6.0` and the vendor torch satisfies it),
-  selecting the app's Containerfile + wheel extra (`[training]` / `[rl]`) plus vendor-conditional deps
-  (configs.yaml `deps_app`), then verifies the built image on-node
-  (torch/triton/flag_gems matrix unchanged + megatron.core import) before push.
-  Never executed end-to-end yet; `megatron_rl` builds only from a wheel carrying the `[rl]` extra
-  ([MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114) pending — current wheels lack it), and the current `[training]` extra lacks modelopt/tqdm/datasets(+pyarrow),
-  so full-scope builds of both apps wait on that PR + a new wheel (see `packaging/megatron/docs/`).
-
-- **`gendoc-base.yaml`** — Triggered on base image build completion.
-  Extracts system package versions from built images (`dpkg-query`), runs `gen_data.py` + `gen_descriptions.py`,
-  opens a **review-gated PR** with the version diff.
-  Publication to Harbor (`pubdoc-base.yaml`) only happens when that PR lands on `main` (push to `base/*.md`).
-
-- **`gendoc-runtime.yaml`** — Runtime twin of `gendoc-base.yaml`
-  (manual trigger; runtime images rebuild often during FlagGems testing, so no auto `workflow_run`).
-  Opens a review-gated PR with `runtime/*.md`.
-  Publication to Harbor (`pubdoc-runtime.yaml`) happens when that PR lands on `main` (push to `runtime/*.md`).
-- **`hugo-site.yaml`** — Builds + deploys docs site to GitHub Pages (triggered on push to `main` when `docs/**`,
-  `configs.yaml`, or `base/**` changes).
-
-- **`flagcx-rpm.yml`** — FlagCX `.rpm` build and publish (manual). Drives the FlagCX
-  repository's *own* `packaging/rpm/` flow rather than the deb line's overlay: an rpm has to be
-  built on an RPM-family distribution, and whether a vendor SDK installs on one is a fact about
-  that vendor. Three rows — nvidia on openEuler 24.03 and Fedora 43, ascend on openEuler 24.03 —
-  which are the combinations that have a repository to land in. The upstream flow's default
-  `nvidia x rocky8` and its `metax x rocky8` produce `.el8` packages and there is no el8
-  repository, so they are left out rather than built with nowhere to go.
-
-- **`flagcx-deb.yml`** — FlagCX `.deb` build (manual, x86_64 + aarch64 runners).
-  Matrix comes from `flagcx-config.py --merge` over `generate_matrix.py --runtime`, which is what
-  joins the runtime matrix with the FlagCX packaging fields in `packaging/flagcx/backends.yaml`;
-  `--check` runs first so drift is a named failure rather than a silently filtered row.
-  Builds one backend per runner (`packaging/flagcx/build-flagcx-deb.sh`), then `verify` installs
-  the `.deb` from the artifact alone — into its base image (`full`) and into a plain Ubuntu
-  (`floor`) — before upload. Artifacts are uploaded, not published: shipping to the Nexus apt
-  repo is a separate decision.
-
-- **`flagcx-wheel.yml`** — FlagCX wheel build (manual).
-  The build environment is the backend's **runtime** image (the FlagCX build imports torch, so
-  build env == delivery env), and the matrix comes from `flagcx-config.py --merge --channel wheel`.
-  `verify` installs the wheel from the file into that image before `publish` uploads it to the
-  vendor PyPI, then reads the index back by pin and compares sha256.
-
-- **`flagcx-builder.yml`** — FlagCX build-toolchain images (manual).
-  Publishes `flagos-dev/flagcx-builder-{vendor}-{backend}:{version}` for the rows that declare a
-  `builder:` block — the runtime image plus the row's SDK packages and clang/llvm 22, not a vendor
-  `-devel` image (which ships no clang and no `/flagos`).
-  Verification is a **step** of the build job, not a job: a wheel is a file the verify job can
-  download onto another runner, an image is not. It compiles the row's device bitcode inside the
-  built image and gates the push, so no unverified image reaches the registry.
+`builders.txt` lists the GitHub accounts allowed to manually trigger the image
+build workflows (checked by `authorize` in each workflow).
 
 ### Runners
 

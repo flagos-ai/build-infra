@@ -188,3 +188,17 @@ git push -f origin vX.Y.Z
 ```
 
 tag 含义：**这个 commit 上的整套 FlagOS 软件栈（base → runtime:v1 → FlagGems → runtime:v2）已经过验证。**
+
+## 未决改进
+
+- [ ] **泛化自动重试机制** — `gendoc-base.yaml` 的 accumulate 已有自触发重试模式
+  （restore state branch → 合并 artifact → `missing_versions.py` 查漏 → `gh workflow run`
+  自触发，上限 50 次）。应泛化到所有多 backend 构建工作流
+  （`base-image.yaml`、`runtime-image.yaml`、`flaggems-release.yml`），避免个别
+  runner 因网络 / GitHub 连接波动失联导致整个 release 卡住。
+
+  **需应对的失败场景**（环境原因，重试可能恢复）：GitHub / resource.flagos.net
+  间歇性不可达；Harbor 连接暂时超时；runner 暂时离线。
+
+  **不重试的场景**（重试无意义）：runner 磁盘不足（需手动清理）；代码 / 配置错误、
+  SDK 安装失败、验证失败（需人介入修复）。
