@@ -137,7 +137,7 @@ jobs:
         run: |
           set -euo pipefail
           # Prefer the proxy the runner relays into this step (lowercase wins,
-          # as in runtime-image.yaml): the HTTP_PROXY secret is a different hop
+          # as in runtime-image.yml): the HTTP_PROXY secret is a different hop
           # that not every node group can reach — the cann850 nodes egress
           # through their own squid, where the secret's proxy is unreachable
           # and the clone dies after a 130s connect timeout. The secret stays

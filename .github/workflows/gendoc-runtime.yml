@@ -19,7 +19,7 @@ name: Generate docs for runtime images
 # runtime/<name>.md file, and the Harbor repository description), then
 # commit + upload.
 #
-# Aligned with gendoc-base.yaml: the runtime description refresh uses the same
+# Aligned with gendoc-base.yml: the runtime description refresh uses the same
 # upload-artifact transport, per-backend extract jobs on hardware runners, and
 # self-healing retry loop. Verify counts in the PR body come from the extract
 # jobs' real e2e verification (scripts/verify_runtime.py), not hand-entered

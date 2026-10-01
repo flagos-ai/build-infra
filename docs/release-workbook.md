@@ -77,7 +77,7 @@ gh pr list --head auto/image-descriptions-*
 - [ ] 系统包版本无意外大版本跳变（gcc、libc 等）
 - [ ] Review + merge PR
 
-合并后 `base-descriptions-publish.yml` + `hugo-site.yaml` 自动推送描述到 Harbor 和文档站。
+合并后 `base-descriptions-publish.yml` + `hugo-site.yml` 自动推送描述到 Harbor 和文档站。
 
 ## 4. 构建 runtime:v1（构建平台）
 
@@ -191,10 +191,10 @@ tag 含义：**这个 commit 上的整套 FlagOS 软件栈（base → runtime:v1
 
 ## 未决改进
 
-- [ ] **泛化自动重试机制** — `gendoc-base.yaml` 的 accumulate 已有自触发重试模式
+- [ ] **泛化自动重试机制** — `gendoc-base.yml` 的 accumulate 已有自触发重试模式
   （restore state branch → 合并 artifact → `missing_versions.py` 查漏 → `gh workflow run`
   自触发，上限 50 次）。应泛化到所有多 backend 构建工作流
-  （`base-image.yaml`、`runtime-image.yaml`、`flaggems-release.yml`），避免个别
+  （`base-image.yml`、`runtime-image.yml`、`flaggems-release.yml`），避免个别
   runner 因网络 / GitHub 连接波动失联导致整个 release 卡住。
 
   **需应对的失败场景**（环境原因，重试可能恢复）：GitHub / resource.flagos.net

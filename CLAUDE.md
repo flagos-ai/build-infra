@@ -146,11 +146,11 @@ playbook (`docs/release-workbook.md`) references the display names.
 
 | Workflow file | Purpose |
 |---|---|
-| `base-image.yaml` + `imagebuild.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend |
-| `runtime-image.yaml` | Runtime Image Build (manual): base + FlagGems wheel (`flaggems=none` → `-build` tag) |
-| `gendoc-base.yaml` / `gendoc-runtime.yaml` | Extract system package versions from built images → review-gated description PR |
-| `pubdoc-base.yaml` / `pubdoc-runtime.yaml` | Publish descriptions to Harbor on the PR landing on `main` |
-| `hugo-site.yaml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**`) |
+| `base-image.yml` + `imagebuild.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend |
+| `runtime-image.yml` | Runtime Image Build (manual): base + FlagGems wheel (`flaggems=none` → `-build` tag) |
+| `gendoc-base.yml` / `gendoc-runtime.yml` | Extract system package versions from built images → review-gated description PR |
+| `pubdoc-base.yml` / `pubdoc-runtime.yml` | Publish descriptions to Harbor on the PR landing on `main` |
+| `hugo-site.yml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**`) |
 | `megatron-wheel.yml` | Build megatron-core wheels in the backend's runtime image, upload to `flagos-pypi-hosted` |
 | `megatron-app-image.yml` / `vllm-app-image.yml` / `sglang-app-image.yml` | Build app images from the runtime + vendor wheel, verify on-node, push `flagos-app/...` |
 | `flagcx-*` (`deb.yml`, `wheel.yml`, `builder.yml`, `rpm.yml`) | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |
@@ -159,7 +159,7 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `native-deb.yml` / `native-rpm.yml` / `noarch-deb.yml` / `noarch-rpm.yml` | Component repos' deb/rpm release paths to the Nexus repositories |
 | `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes |
 | `verify-runtime.yml` / `verify-driver.yml` / `verify-cpp-fixes.yml` / `status-matrix-consistency.yml` | Verify image content, driver reachability, cpp fixes, status-matrix drift |
-| `upload-nexus.yml`, `sync-to-remote.yaml`, `auto-approve.yaml`, `release-verify-selftest.yml`, `sdk-reminder.yaml`, `scheduled.yml.disabled` | Nexus upload, GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder, (disabled) |
+| `upload-nexus.yml`, `sync-to-remote.yaml`, `auto-approve.yml`, `release-verify-selftest.yml`, `sdk-reminder.yml`, `scheduled.yml.disabled` | Nexus upload, GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder, (disabled) |
 
 `builders.txt` lists the GitHub accounts allowed to manually trigger the image
 build workflows (checked by `authorize` in each workflow).

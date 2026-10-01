@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Builid Runtime Image (manual)
+name: Build Runtime Image (manual)
 
 # The run title self-labels each dispatch so v1 (build, no flag_gems) and v2
 # (full, with flag_gems) are told apart at a glance in the Actions run list —
