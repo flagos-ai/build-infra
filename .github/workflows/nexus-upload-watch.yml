@@ -1,0 +1,76 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: nexus upload watch
+
+# The Nexus host has intermittently reset large uploads (curl 56 mid-body,
+# an HTTP 500, and a two-hour hang, all 2026-09-27..28), which blocked
+# publication of the biggest 2.2 packages. This uploads a real file of a
+# given size and then deletes it, and reports whether the transfer
+# completed, so publication can be retried the moment the host recovers
+# instead of someone polling by hand. It publishes nothing else: the file
+# is zeros under .probe/, outside what the repository indexes cover.
+#
+# Sizes chosen from the observed failures: every package under 10 MB
+# uploaded fine; the resets hit at 15.9 MB, 47 MB and 77.4 MB into
+# transfers. A 30 MB completion means the worst of it is over; 100 MB
+# means the FlagTree deb (263 MB) has a chance.
+
+on:
+  schedule:
+    - cron: '23 * * * *'   # hourly, off the :00 mark
+  workflow_dispatch:
+    inputs:
+      size_mb:
+        description: 'probe size in MB (default runs 30 and 100)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        size: ${{ fromJSON(github.event.inputs.size_mb == '' && '["30","100"]' || format('["{0}"]', github.event.inputs.size_mb)) }}
+    steps:
+      - name: Upload then delete a ${{ matrix.size }} MB probe
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          SIZE: ${{ matrix.size }}
+        run: |
+          set -uo pipefail
+          url="https://resource.flagos.net/repository/flagos-yum-rhel9/.probe/gha-${GITHUB_RUN_ID}-${SIZE}mb.bin"
+          head -c $(( SIZE * 1024 * 1024 )) /dev/zero > probe.bin
+          start=$(date +%s)
+          code=$(curl -sS -o /dev/null --max-time 1800 --speed-limit 10000 --speed-time 60 \
+                     -w '%{http_code}' -u "$NEXUS_TOKEN" \
+                     -X PUT --data-binary @probe.bin "$url" 2>curl.err)
+          rc=$?
+          secs=$(( $(date +%s) - start ))
+          if [ $rc -eq 0 ] && [ "$code" = 201 ]; then
+            # Leave no residue; a failure to delete is a warning, not a failed probe.
+            curl -sS -o /dev/null -u "$NEXUS_TOKEN" -X DELETE "$url" || true
+            verdict="HEALTHY — ${SIZE}MB uploaded in ${secs}s and deleted"
+          elif [ $rc -eq 56 ]; then
+            verdict="RESET — connection reset after ${secs}s"
+          else
+            verdict="UNHEALTHY — curl rc=$rc http=$code after ${secs}s: $(head -c 200 curl.err)"
+          fi
+          echo "${SIZE}MB: ${verdict}" | tee -a "$GITHUB_STEP_SUMMARY"
+          # The run conclusion carries the answer for anyone polling the API.
+          [[ $verdict == HEALTHY* ]]
