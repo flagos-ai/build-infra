@@ -99,7 +99,7 @@
 # Runtime images also pull the corresponding FlagGems wheel version below.
 #
 # At release: bump both fields → git tag v<VERSION> → done.
-version: "2.2.0"
+version: "2.3.0"
 flaggems: "5.4.0"
 
 # Versions of build tools needed to compile the cpp operator wheel inside the
