@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Release FlagGems wheels — RELEASE.md steps 5a + 5b.
+"""Release FlagGems wheels — docs/release-workbook.md steps 5a + 5b.
 
 Usage::
 
@@ -276,7 +276,7 @@ def cmd_update_config(args: argparse.Namespace) -> None:
 
     body = (
         f"Set FlagGems version to `{version}` in configs.yaml.\n\n"
-        f"Part of the release workflow (RELEASE.md step 5c)."
+        f"Part of the release workflow (docs/release-workbook.md step 5c)."
     )
     subprocess.run(
         [
