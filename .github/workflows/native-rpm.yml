@@ -63,6 +63,13 @@ on:
           into every suite this target was built and verified for.
         type: string
         default: ''
+      runner:
+        description: >-
+          machine to run on; the self-hosted pool reaches Nexus over the
+          internal network, where large uploads no longer reset.
+        type: choice
+        default: ubuntu-latest
+        options: [ubuntu-latest, self-hosted]
       verify:
         description: 'install the .rpm in a clean container before uploading'
         type: boolean
@@ -76,8 +83,26 @@ env:
   NEXUS_REPO_BASE: https://resource.flagos.net/repository
 
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      suites: ${{ steps.s.outputs.suites }}
+    steps:
+      - id: s
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUITES}" ]; then
+            echo 'suites=["fedora43","openeuler24.03","rhel9"]' >> "$GITHUB_OUTPUT"
+          else
+            json=$(printf '"%s",' $SUITES); json="[${json%,}]"
+            echo "suites=$json" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: prepare
+    runs-on: ${{ inputs.runner }}
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
       # Set by any matrix row that actually built. Empty means every row
@@ -93,7 +118,7 @@ jobs:
         # CUDA-on-RockyLinux image where FlagTree needs bare Fedora. The
         # target table below names the image per suite, and a target that has
         # none for a suite is skipped rather than built on the wrong base.
-        suite: [fedora43, openeuler24.03, rhel9]
+        suite: ${{ fromJSON(needs.prepare.outputs.suites) }}
     steps:
       - name: Resolve the target
         id: cfg
@@ -136,7 +161,7 @@ jobs:
               ver=0.7.0rc2.post2
               image_fedora43=fedora:43
               image_openeuler2403=openeuler/openeuler:24.03-lts
-              image_rhel9= ;;
+              image_rhel9=rockylinux:9 ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/rpm/build-flag-dnn-rpm.sh
@@ -231,7 +256,7 @@ jobs:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          rm -rf src && git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
@@ -398,7 +423,7 @@ jobs:
   verify:
     needs: build
     if: ${{ inputs.verify }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -507,7 +532,7 @@ jobs:
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       actions: read
     steps:

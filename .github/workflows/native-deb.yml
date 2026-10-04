@@ -69,6 +69,13 @@ on:
           compiled package belongs only where what it links against resolves.
         type: string
         default: ''
+      runner:
+        description: >-
+          machine to run on; the self-hosted pool reaches Nexus over the
+          internal network, where large uploads no longer reset.
+        type: choice
+        default: ubuntu-latest
+        options: [ubuntu-latest, self-hosted]
       verify:
         description: 'install the .deb in a clean container before uploading'
         type: boolean
@@ -83,7 +90,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
       suites: ${{ steps.cfg.outputs.suites }}
@@ -218,7 +225,7 @@ jobs:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          rm -rf src && git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
@@ -347,7 +354,7 @@ jobs:
   verify:
     needs: build
     if: ${{ inputs.verify }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
       - name: Download the .deb packages
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -433,7 +440,7 @@ jobs:
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
       - name: Download the .deb packages
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
