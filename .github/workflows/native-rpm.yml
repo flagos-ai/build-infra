@@ -161,6 +161,8 @@ jobs:
               ver=0.7.0rc2.post2
               image_fedora43=fedora:43
               image_openeuler2403=openeuler/openeuler:24.03-lts
+              # python3-wheel (in its Dockerfile) comes from EPEL/CRB on el9.
+              base_pkgs="python3-wheel"
               image_rhel9=rockylinux:9 ;;
             FlagDNN)
               repo=FlagDNN
@@ -389,7 +391,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${BASE_PKGS}" ]; then
-            printf 'FROM %s\nRUN dnf install -y %s && dnf clean all\n' "${BASE_IMAGE}" "${BASE_PKGS}" \
+            # epel-release where the base lacks it (rockylinux:9); harmless elsewhere.
+            printf 'FROM %s\nRUN dnf install -y epel-release || true; dnf config-manager --set-enabled crb 2>/dev/null || true; dnf install -y %s && dnf clean all\n' "${BASE_IMAGE}" "${BASE_PKGS}" \
               | docker build -t "flagos-base:${{ matrix.suite }}" -
             BASE_IMAGE="flagos-base:${{ matrix.suite }}"
           fi
