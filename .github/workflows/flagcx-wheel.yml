@@ -248,8 +248,17 @@ jobs:
               exit 1
             fi
           else
+            # An annotated tag advertises both refs/tags/X (the tag object) and
+            # refs/tags/X^{} (the commit it points at). The build checks out the
+            # commit and asserts HEAD == the resolved sha, so the tag object
+            # would fail that assert; the ^{} line is the commit. A branch or
+            # lightweight tag has no ^{} line and falls through to the plain
+            # match (the old spelling, kept for that reason).
             sha="$(awk -v head="refs/heads/${FLAGCX_REF}" -v tag="refs/tags/${FLAGCX_REF}" \
-              '$2 == head || $2 == tag { print $1; exit }' <<<"${refs}")"
+              '$2 == head { print $1; exit } $2 == tag "^{}" { print $1; exit }' <<<"${refs}")"
+            if [ -z "${sha}" ]; then
+              sha="$(awk -v tag="refs/tags/${FLAGCX_REF}" '$2 == tag { print $1; exit }' <<<"${refs}")"
+            fi
             if [ -z "${sha}" ]; then
               echo "::error::'${FLAGCX_REF}' is not a branch or tag in ${repo}"
               exit 1
