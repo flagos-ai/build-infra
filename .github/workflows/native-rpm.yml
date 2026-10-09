@@ -392,7 +392,7 @@ jobs:
           set -euo pipefail
           if [ -n "${BASE_PKGS}" ]; then
             # epel-release where the base lacks it (rockylinux:9); harmless elsewhere.
-            printf 'FROM %s\nRUN dnf install -y epel-release || true; dnf config-manager --set-enabled crb 2>/dev/null || true; dnf install -y %s && dnf clean all\n' "${BASE_IMAGE}" "${BASE_PKGS}" \
+            printf 'FROM %s\nRUN dnf install -y epel-release || true; dnf config-manager --set-enabled crb 2>/dev/null || true; dnf swap -y curl-minimal curl || true; dnf install -y %s && dnf clean all\n' "${BASE_IMAGE}" "${BASE_PKGS}" \
               | docker build -t "flagos-base:${{ matrix.suite }}" -
             BASE_IMAGE="flagos-base:${{ matrix.suite }}"
           fi
