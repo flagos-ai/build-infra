@@ -57,6 +57,8 @@ CI 在 `.github/workflows/flagcx-{deb,wheel,builder}.yml`。
 （FlagAttention/FlagSparse/FlagBLAS/FlagAudio/FlagFFT/FlagGems-vllm）的
 vendor 无关 wheel 发布线，入口是 `packaging/flaglibs/README.md`，CI 在
 `.github/workflows/flaglibs-wheel.yml`。
+`packaging/flagos-compressor/` 同理——单包纯 Python wheel（flagos-compressor，
+无 C 扩展），构建脚本 `build.sh`，CI 在 `.github/workflows/flagos-compressor-wheel.yml`。
 
 ## 引用维护清单
 
