@@ -186,6 +186,28 @@ jobs:
                 /work/output/*.whl
             '
 
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          for w in /tmp/sglang-repack-${vendor}-${backend}/output/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "sglang" "" "${pypi_repo}" "$(basename "$w")" \
+              >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ matrix.name }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
       - name: Clean up the build container and work dir
         if: ${{ always() }}
         run: |
@@ -319,3 +341,100 @@ jobs:
                 "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl
             done
           fi
+
+      # One line per (shim, index) actually uploaded — the same targets the
+      # upload above walked, including the vendor-scoped fan-outs.
+      - name: Record the publish events in the manifest
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          backend="${{ inputs.backend }}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          if [[ "${backend}" == "all" ]]; then
+            python3 -m pip install --quiet pyyaml
+            python3 scripts/generate_matrix.py --app "sglang${{ inputs.sglang_version }}" > app-matrix.json
+            mapfile -t targets < <(jq -r '.include[].name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
+            mapfile -t fi_targets < <(jq -r '.include[] | select((.app_deps // "") | contains("flashinfer-shim")) | .name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
+            mapfile -t tc_targets < <(jq -r '.include[] | select((.app_deps // "") | contains("torch-compat-shim")) | .name' app-matrix.json | sed 's/-.*//' | sort -u | sed 's/^/flagos-pypi-/')
+          else
+            vendor="${backend%%-*}"
+            targets=("${pypi_repo:-flagos-pypi-${vendor}}")
+            fi_targets=("${targets[@]}")
+            tc_targets=("${targets[@]}")
+          fi
+          for repo in "${targets[@]}"; do
+            for w in "${GITHUB_WORKSPACE}/wheels/sgl_kernel_shim"*.whl; do
+              printf '%s\t%s\t%s\t%s\n' "sgl-kernel-shim" "" "${repo}" "$(basename "$w")" \
+                >> .wheel-info/manifest.tsv
+            done
+          done
+          if compgen -G "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl > /dev/null; then
+            for repo in "${fi_targets[@]}"; do
+              for w in "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl; do
+                printf '%s\t%s\t%s\t%s\n' "flashinfer-shim" "" "${repo}" "$(basename "$w")" \
+                  >> .wheel-info/manifest.tsv
+              done
+            done
+          fi
+          if compgen -G "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl > /dev/null; then
+            for repo in "${tc_targets[@]}"; do
+              for w in "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl; do
+                printf '%s\t%s\t%s\t%s\n' "torch-compat-shim" "" "${repo}" "$(basename "$w")" \
+                  >> .wheel-info/manifest.tsv
+              done
+            done
+          fi
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ github.run_id }}-shim
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
+
+  # The publish step above leaves a manifest of what it uploaded; this job turns
+  # it into the catalog row(s) and opens the review-gated record PR. The publish
+  # step deliberately does not edit packaging/wheel-info.yaml itself — one
+  # committer per run is what keeps a fan-out dispatch from racing on it.
+  record-wheel-info:
+    needs: [build, shim]
+    # always(): a manifest is left whether or not the publish step ran, and a
+    # skipped needs-job must not read as success here. The gate then keeps this
+    # job off a run that published nothing.
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        # A run that uploaded nothing publishes no manifest, and that is not a
+        # failure of the record — the merge step below says so and skips.
+        continue-on-error: true
+        with:
+          pattern: wheel-info-manifest-*
+          path: .wheel-info-dl
+      - name: Merge the manifests
+        id: merge
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          if compgen -G ".wheel-info-dl/*/*.tsv" > /dev/null; then
+            cat .wheel-info-dl/*/*.tsv >> .wheel-info/manifest.tsv
+            echo ">>> publishing rows:"
+            cat .wheel-info/manifest.tsv
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo ">>> no publish manifest in this run — nothing to record"
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: ${{ steps.merge.outputs.have == 'true' }}
+        uses: ./.github/actions/record-wheel-info
+        with:
+          manifest: .wheel-info/manifest.tsv
+          workflow: sglang

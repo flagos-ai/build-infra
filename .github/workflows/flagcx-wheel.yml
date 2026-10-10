@@ -441,6 +441,31 @@ jobs:
                 --non-interactive \
                 /wheels/*.whl
             '
+
+      # The catalog version is the pin this workflow already validated
+      # (0.14.0+<row label>), and the filename carries it too.
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          : "${WHEEL_PIN:?the publish step recorded no pin}"
+          # The index is the row's own (`flagos_pypi`), the same one the
+          # read-back step below verifies against — never a second spelling of
+          # it, and never a value re-derived from the vendor name.
+          index=$(basename "$(dirname "${{ matrix.flagos_pypi }}")")
+          mkdir -p .wheel-info
+          for w in packaging/flagcx/dist/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "flagcx" "${WHEEL_PIN}" "${index}" \
+              "$(basename "$w")" >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ matrix.name }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
       # The upload's 2xx only says it was accepted. This reads the index the way a
       # user's pip does: download by pin, compare bytes, install, import.
       - name: Verify the wheel installs from the index
@@ -459,3 +484,48 @@ jobs:
             --index-url "${FLAGOS_PYPI}" \
             --pin "${WHEEL_PIN}" \
             --expect-sha256 "${WHEEL_SHA256}"
+
+  # The publish step above leaves a manifest of what it uploaded; this job turns
+  # it into the catalog row(s) and opens the review-gated record PR. The publish
+  # step deliberately does not edit packaging/wheel-info.yaml itself — one
+  # committer per run is what keeps a fan-out dispatch from racing on it.
+  record-wheel-info:
+    needs: verify
+    # always(): a manifest is left whether or not the publish step ran, and a
+    # skipped needs-job must not read as success here. The gate then keeps this
+    # job off a run that published nothing.
+    if: ${{ always() && inputs.publish && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        # A run that uploaded nothing publishes no manifest, and that is not a
+        # failure of the record — the merge step below says so and skips.
+        continue-on-error: true
+        with:
+          pattern: wheel-info-manifest-*
+          path: .wheel-info-dl
+      - name: Merge the manifests
+        id: merge
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          if compgen -G ".wheel-info-dl/*/*.tsv" > /dev/null; then
+            cat .wheel-info-dl/*/*.tsv >> .wheel-info/manifest.tsv
+            echo ">>> publishing rows:"
+            cat .wheel-info/manifest.tsv
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo ">>> no publish manifest in this run — nothing to record"
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: ${{ steps.merge.outputs.have == 'true' }}
+        uses: ./.github/actions/record-wheel-info
+        with:
+          manifest: .wheel-info/manifest.tsv
+          workflow: flagcx
