@@ -1,0 +1,96 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Record Wheel Info
+
+# Shared by every wheel workflow: the publish steps above leave a manifest of
+# what they uploaded, this job turns it into the catalog row(s) and opens the
+# review-gated record PR. The publish steps deliberately do not edit
+# packaging/wheel-info.yaml themselves — one committer per run is what keeps a
+# fan-out dispatch from racing on it.
+#
+# A caller keeps only what differs per workflow:
+#
+#   record-wheel-info:
+#     needs: build
+#     # The publish input is the caller's, and always() is what lets this job
+#     # run after a publish step that failed mid-way — the manifest the failed
+#     # step left is still the record of what did get uploaded.
+#     if: ${{ always() && inputs.upload && !cancelled() }}
+#     # The record commits and opens a PR as the run's token: contents: write
+#     # and pull-requests: write are granted here, and a called workflow can
+#     # only downgrade them, never elevate.
+#     permissions:
+#       contents: write
+#       pull-requests: write
+#     uses: ./.github/workflows/record-wheel-info.yml
+#     with:
+#       workflow: vllm   # → per-workflow branch auto/wheel-info-vllm
+#
+# needs:/if:/permissions: are the only job keywords a calling job may carry
+# (runs-on and steps are not among them), which is why the body and both gates
+# live here rather than at the call site.
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        description: 'Workflow name → per-workflow record branch auto/wheel-info-<name>'
+        required: true
+        type: string
+      base:
+        description: 'PR base ref (default: GITHUB_REF_NAME or main)'
+        required: false
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  record:
+    # A matrix fan-out uploads one manifest per leg under the same file name,
+    # so they stay one per directory — with merge-multiple they would collide
+    # and all but one would be dropped.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        # A run that uploaded nothing publishes no manifest, and that is not a
+        # failure of the record — the merge step below says so and skips.
+        continue-on-error: true
+        with:
+          pattern: wheel-info-manifest-*
+          path: .wheel-info-dl
+      - name: Merge the manifests
+        id: merge
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          if compgen -G ".wheel-info-dl/*/*.tsv" > /dev/null; then
+            cat .wheel-info-dl/*/*.tsv >> .wheel-info/manifest.tsv
+            echo ">>> publishing rows:"
+            cat .wheel-info/manifest.tsv
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo ">>> no publish manifest in this run — nothing to record"
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: ${{ steps.merge.outputs.have == 'true' }}
+        uses: ./.github/actions/record-wheel-info
+        with:
+          manifest: .wheel-info/manifest.tsv
+          workflow: ${{ inputs.workflow }}
+          base: ${{ inputs.base }}

@@ -207,47 +207,19 @@ jobs:
         if: ${{ always() }}
         run: docker rmi "$IMAGE" 2>/dev/null || true
 
-  # The publish step above leaves a manifest of what it uploaded; this job turns
-  # it into the catalog row(s) and opens the review-gated record PR. The publish
-  # step deliberately does not edit packaging/wheel-info.yaml itself — one
-  # committer per run is what keeps a fan-out dispatch from racing on it.
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
   record-wheel-info:
     needs: build
-    # always(): a manifest is left whether or not the publish step ran, and a
-    # skipped needs-job must not read as success here. The gate then keeps this
-    # job off a run that published nothing.
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
     if: ${{ always() && inputs.upload && !cancelled() }}
-    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        # A run that uploaded nothing publishes no manifest, and that is not a
-        # failure of the record — the merge step below says so and skips.
-        continue-on-error: true
-        with:
-          pattern: wheel-info-manifest-*
-          path: .wheel-info-dl
-      - name: Merge the manifests
-        id: merge
-        run: |
-          set -euo pipefail
-          mkdir -p .wheel-info
-          if compgen -G ".wheel-info-dl/*/*.tsv" > /dev/null; then
-            cat .wheel-info-dl/*/*.tsv >> .wheel-info/manifest.tsv
-            echo ">>> publishing rows:"
-            cat .wheel-info/manifest.tsv
-            echo "have=true" >> "$GITHUB_OUTPUT"
-          else
-            echo ">>> no publish manifest in this run — nothing to record"
-            echo "have=false" >> "$GITHUB_OUTPUT"
-          fi
-      - if: ${{ steps.merge.outputs.have == 'true' }}
-        uses: ./.github/actions/record-wheel-info
-        with:
-          manifest: .wheel-info/manifest.tsv
-          workflow: flash-attn
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: flash-attn
