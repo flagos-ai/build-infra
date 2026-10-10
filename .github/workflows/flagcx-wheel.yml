@@ -441,6 +441,31 @@ jobs:
                 --non-interactive \
                 /wheels/*.whl
             '
+
+      # The catalog version is the pin this workflow already validated
+      # (0.14.0+<row label>), and the filename carries it too.
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          : "${WHEEL_PIN:?the publish step recorded no pin}"
+          # The index is the row's own (`flagos_pypi`), the same one the
+          # read-back step below verifies against — never a second spelling of
+          # it, and never a value re-derived from the vendor name.
+          index=$(basename "$(dirname "${{ matrix.flagos_pypi }}")")
+          mkdir -p .wheel-info
+          for w in packaging/flagcx/dist/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "flagcx" "${WHEEL_PIN}" "${index}" \
+              "$(basename "$w")" >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.publish && steps.download.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ matrix.name }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
       # The upload's 2xx only says it was accepted. This reads the index the way a
       # user's pip does: download by pin, compare bytes, install, import.
       - name: Verify the wheel installs from the index
@@ -459,3 +484,20 @@ jobs:
             --index-url "${FLAGOS_PYPI}" \
             --pin "${WHEEL_PIN}" \
             --expect-sha256 "${WHEEL_SHA256}"
+
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
+  record-wheel-info:
+    needs: verify
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && inputs.publish && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: flagcx

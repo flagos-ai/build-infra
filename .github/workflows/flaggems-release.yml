@@ -77,6 +77,41 @@ jobs:
         run: |
           wheel=$(ls -t wheels/flag_gems-*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-python "$wheel"
+      - name: Record the publish events in the manifest
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          # One line per lane the upload above reached. That set is what
+          # scripts/release_flaggems.py itself uploads to — every vendor in
+          # configs.yaml plus the daily index — so it is asked of that module
+          # rather than listed here, and the two cannot drift.
+          mapfile -t lanes < <(python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          from release_flaggems import _load_configs, _pypi_urls
+          cfg = _load_configs()
+          urls = list(_pypi_urls(cfg).values())
+          if cfg.get("pypi_daily"):
+              urls.append(cfg["pypi_daily"])
+          for u in urls:
+              print(u.rstrip("/").removesuffix("/simple").rsplit("/", 1)[-1])
+          PY
+          )
+          echo ">>> publish lanes: ${lanes[*]}"
+          # The distribution name is the wheel's own, read off the file, and
+          # the version is spelled in the filename too — the record reads it.
+          for w in wheels/*.whl; do
+            for lane in "${lanes[@]}"; do
+              printf '%s\t%s\t%s\t%s\n' "$(basename "$w" | cut -d- -f1)" "" \
+                "${lane}" "$(basename "$w")" >> .wheel-info/manifest.tsv
+            done
+          done
+      - name: Upload the wheel-info manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ github.run_id }}-python
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
 
   # ── cpp operator wheels, inside runtime:v1 ───────────────────────────
   cpp-matrix:
@@ -138,6 +173,27 @@ jobs:
           wheel=$(ls -t wheels-cpp/flag_gems_cpp_*.whl 2>/dev/null | head -1)
           python3 scripts/release_flaggems.py upload-cpp "$BACKEND" "$wheel"
 
+      - name: Record the publish event in the manifest
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          # Same lane derivation as upload-cpp: the vendor is the backend's
+          # first segment, and its index is flagos-pypi-<vendor>.
+          vendor="${BACKEND%%-*}"
+          for w in wheels-cpp/*.whl; do
+            # One distribution per cmake backend, suffixed into the wheel name
+            # (flag_gems_cpp_cuda / _npu / _musa); the catalog name is the
+            # wheel's own stem, as for the other packages here.
+            printf '%s\t%s\t%s\t%s\n' "$(basename "$w" | cut -d- -f1)" "" \
+              "flagos-pypi-${vendor}" "$(basename "$w")" >> .wheel-info/manifest.tsv
+          done
+      - name: Upload the wheel-info manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ matrix.name }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
+
   # ── update configs.yaml ──────────────────────────────────────────────
   update-config:
     needs: [python-wheel, cpp-wheels]
@@ -153,3 +209,20 @@ jobs:
         run: python3 -m pip install --user pyyaml
       - name: Set FlagGems version + open PR
         run: python3 scripts/release_flaggems.py update-config "${{ inputs.flaggems_ref }}"
+
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
+  record-wheel-info:
+    needs: [python-wheel, cpp-wheels]
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && needs.python-wheel.result == 'success' && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: flaggems-release

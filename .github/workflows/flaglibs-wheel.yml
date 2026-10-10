@@ -109,3 +109,39 @@ jobs:
             --repository-url "https://resource.flagos.net/repository/${PYPI_REPO}/" \
             --non-interactive \
             wheels/*.whl
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          mkdir -p .wheel-info
+          # One package per wheel: the distribution name is the wheel's own
+          # name field, so it is read off the file rather than listed here
+          # (--libs selects any subset). Underscores are already how the
+          # catalog spells these six.
+          for w in wheels/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "$(basename "$w" | cut -d- -f1)" "" \
+              "${PYPI_REPO}" "$(basename "$w")" >> .wheel-info/manifest.tsv
+          done
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ github.run_id }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
+
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
+  record-wheel-info:
+    needs: build
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: flaglibs

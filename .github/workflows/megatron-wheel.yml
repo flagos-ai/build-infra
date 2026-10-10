@@ -228,6 +228,68 @@ jobs:
                 /wheels/*.whl
             '
 
+      # The catalog version is not the wheel's: a provenance build carries
+      # 0.17.1+fl.<date>.g<sha>, while the catalog row is the MLF release it
+      # belongs to (0.17.1+0.2.3) and only the dispatch knows that (mlf_version
+      # is what stamps it — the build cannot derive a branch version). A
+      # provenance build is therefore not a catalog version and records
+      # nothing; a release publish states mlf_version and records.
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          # Leave an (empty) manifest either way: the upload step below is
+          # gated on if-no-files-found: error, and "nothing to record" is a
+          # successful outcome, not a missing artifact.
+          : > .wheel-info/manifest.tsv
+          catalog_version="${{ inputs.mlf_version }}"
+          if [ -z "${catalog_version}" ]; then
+            echo ">>> mlf_version is blank: this is a provenance build, not a catalog version"
+            echo "    (its version carries +fl.<date>.g<sha>, which names no release)"
+            exit 0
+          fi
+          # Same derivation as the upload step's (that one's shell does not
+          # survive into this step).
+          pypi_repo="${{ inputs.pypi_repo }}"
+          if [ -z "${pypi_repo}" ]; then
+            matrix_name="${{ matrix.name }}"
+            vendor="${matrix_name%%-*}"
+            if [ -n "${vendor}" ]; then
+              pypi_repo="flagos-pypi-${vendor}"
+            else
+              pypi_repo="flagos-pypi-hosted"
+            fi
+          fi
+          for w in packaging/megatron/builder/wheels/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "megatron-core" "${catalog_version}" \
+              "${pypi_repo}" "$(basename "$w")" >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ matrix.name }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
       - name: Clean up the build image
         if: ${{ always() }}
         run: docker rmi "$IMAGE" 2>/dev/null || true
+
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
+  record-wheel-info:
+    needs: build
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: megatron

@@ -179,6 +179,31 @@ jobs:
                 /work/output/*.whl
             '
 
+      # The repack line's wheel version (e.g. 0.24.0+flagos) is the catalog
+      # version, and the filename spells it, so the version column is left
+      # empty and read from the file.
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          matrix_name="${{ matrix.name }}"
+          vendor="${matrix_name%%-*}"
+          backend="${matrix_name#*-}"
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          for w in /tmp/vllm-repack-${vendor}-${backend}/output/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "vllm" "" "${pypi_repo}" "$(basename "$w")" \
+              >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ matrix.name }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
       - name: Clean up the build container and work dir
         if: ${{ always() }}
         run: |
@@ -196,3 +221,20 @@ jobs:
           docker rm -f "vllm-build-${vendor}-${backend}" 2>/dev/null || true
           docker run --rm -v "/tmp/vllm-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
           rm -rf "/tmp/vllm-repack-${vendor}-${backend}" 2>/dev/null || true
+
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
+  record-wheel-info:
+    needs: build
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: vllm

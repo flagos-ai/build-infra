@@ -479,6 +479,27 @@ jobs:
                 || { echo "ERROR: upload failed for:${failed}" >&2; exit 1; }
             '
 
+      # The catalog's package name, not the wheel's: the wheel ships as
+      # vllm_plugin_fl (that is the name `import` and pip see), while the
+      # catalog lists it under its distribution spelling vllm-plugin-fl.
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          mkdir -p .wheel-info
+          for repo in ${PYPI_REPOS}; do
+            for w in "${WORK}"/out/*.whl; do
+              printf '%s\t%s\t%s\t%s\n' "vllm-plugin-fl" "" "${repo}" "$(basename "$w")" \
+                >> .wheel-info/manifest.tsv
+            done
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wheel-info-manifest-${{ github.run_id }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
       - name: Clean up the work dir
         if: ${{ always() }}
         run: |
@@ -490,3 +511,20 @@ jobs:
           # failed cleanup from failing the job — the work is already done.
           docker run --rm -v "${WORK}:/work" "${BASE_IMAGE}" rm -rf /work 2>/dev/null || true
           rm -rf "${WORK}" 2>/dev/null || true
+
+  # Records what the publish steps above uploaded; the job body is shared —
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/wheel-info.yaml.
+  record-wheel-info:
+    needs: build
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: vllm-plugin
