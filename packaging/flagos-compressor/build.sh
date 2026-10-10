@@ -35,6 +35,9 @@ src="$workdir/FlagOS-Compressor"
 python3 -m venv "$workdir/venv"
 py="$workdir/venv/bin/python"
 
+# The build backend (setuptools) must be present for --no-build-isolation.
+"$py" -m pip install --quiet "setuptools>=68" wheel
+
 echo ">>> cloning FlagOS-Compressor @ ${REF}"
 git clone --quiet --depth 1 --branch "$REF" "$REPO" "$src"
 
