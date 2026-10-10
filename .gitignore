@@ -13,6 +13,8 @@ scripts/verify-nodes.local.yaml
 # packaging/ build artifacts and working files
 packaging/**/*.whl
 packaging/*/WORKING-CONTEXT.md
+# per-run wheel-info publish manifests (transient, merged then discarded)
+.wheel-info/
 # rendered from debian/control.in by flagcx-config.py at build time
 packaging/flagcx/debian/control
 packaging/flagcx/dist/

@@ -664,7 +664,7 @@ wheels:
   short_name: FlagOS-Compressor
   versions:
   - version: 0.1.0
-    pypi_index: XXX
+    pypi_index: flagos-pypi-hosted
     desc_zh: FlagOS-Compressor 检查点转换与量化压缩工具。
     desc_en: FlagOS-Compressor checkpoint-conversion and quantization tool.
     notes: ''

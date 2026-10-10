@@ -1,0 +1,102 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Record wheel-info
+description: |-
+  Run scripts/gen_wheel_info.py record with an interpreter that can import
+  yaml (installing it if none can), and failing loudly when none can.
+
+  Why this is not just `python3 -m pip install`: the wheel workflows used to
+  assume the runner host has a `python3` with pip, and swallowed the install
+  failure behind `|| true`. On ix23 (iluvatar) `/usr/bin/python3` is 3.10
+  with no pip at all, so the install did nothing, the step carried on, and
+  the record died later and less legibly inside the script. Selecting the
+  interpreter here and checking the import keeps that from being silent.
+
+  Shared by every wheel workflow: the record job differs only in the manifest
+  path and workflow name, and three copies of this logic is how the drift
+  started.
+
+inputs:
+  manifest:
+    description: 'Path to the wheel-info manifest TSV (one publish event per line)'
+    required: true
+  workflow:
+    description: 'Workflow name → per-workflow record branch auto/wheel-info-<name>'
+    required: true
+  base:
+    description: 'PR base ref (default: GITHUB_REF_NAME or main)'
+    required: false
+  dry-run:
+    description: 'Print what would happen without writing or pushing anything'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Record wheel-info
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        # Candidates in preference order: whatever `python3` is, then the
+        # versioned names a distro may expose separately.
+        candidates="python3 python3.13 python3.12 python3.11 python3.10"
+
+        py=""
+        # 1. An interpreter that already imports yaml needs nothing installed.
+        for cand in ${candidates}; do
+          command -v "${cand}" >/dev/null 2>&1 || continue
+          if "${cand}" -c "import yaml" >/dev/null 2>&1; then
+            py="${cand}"
+            break
+          fi
+        done
+
+        # 2. Otherwise one that has pip and can install it. --break-system-packages
+        #    only exists on newer pip; the plain --user form is the fallback.
+        if [ -z "${py}" ]; then
+          for cand in ${candidates}; do
+            command -v "${cand}" >/dev/null 2>&1 || continue
+            "${cand}" -m pip --version >/dev/null 2>&1 || continue
+            if ! "${cand}" -m pip install --quiet --user pyyaml >/dev/null 2>&1; then
+              "${cand}" -m pip install --quiet --user --break-system-packages \
+                pyyaml >/dev/null 2>&1 || continue
+            fi
+            if "${cand}" -c "import yaml" >/dev/null 2>&1; then
+              py="${cand}"
+              break
+            fi
+          done
+        fi
+
+        if [ -z "${py}" ]; then
+          echo "::error::no runner interpreter can provide yaml (tried: ${candidates})." \
+               "The wheel-info record needs it; install pip for one of them on this runner."
+          exit 1
+        fi
+
+        dry_run=""
+        if [[ "${{ inputs.dry-run }}" == "true" ]]; then
+          dry_run="--dry-run"
+        fi
+        echo ">>> recording wheel-info with ${py} ($(${py} -V 2>&1))"
+        "${py}" scripts/gen_wheel_info.py record \
+          --manifest "${{ inputs.manifest }}" \
+          --workflow "${{ inputs.workflow }}" \
+          --base "${{ inputs.base }}" \
+          ${dry_run}
