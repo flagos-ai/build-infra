@@ -17,7 +17,7 @@ name: Docs site
 # Build the Hugo docs site and publish it to the flagos-ai/release-info repo,
 # which serves it at https://flagos-ai.github.io/release-info/ (release-info's
 # Pages is set to "Deploy from a branch" -> gh-pages). The catalog / per-image
-# tables are generated from configs.yaml + base/ by docs/gen_data.py before build,
+# tables are generated from configs.yaml + base/ by scripts/docs/gen_data.py before build,
 # so the published docs always match the source.
 
 on:
@@ -81,7 +81,7 @@ jobs:
         run: python3 -m pip install --user pyyaml
 
       - name: Generate docs data
-        run: python3 docs/gen_data.py
+        run: python3 scripts/docs/gen_data.py
 
       - name: Build the site
         run: |

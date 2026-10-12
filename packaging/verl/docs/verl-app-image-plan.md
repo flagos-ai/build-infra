@@ -154,8 +154,8 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 
 - **`scripts/render_status_matrix.py`**：`APP_TYPES` 加 `"verl"`；`COMPONENTS` 加 `"verl": {"yaml_dir": packaging/verl, "md": packaging/verl/docs/verl-verification-matrix.md}`；验证分支加 `type == "verl"`。
 - **新建 `packaging/verl/status_matrix.verl0.7.0.yaml`** + `packaging/verl/docs/verl-verification-matrix.md`（两个 marker 块 `status-matrix:verification` / `status-matrix:facility:verl0.7.0` 必须存在），schema 见 `docs/status-matrix.md` + megatron_rl 例。17 后端全部 `deps_app: true`（用户决策），scenario 格初始 ⬜，节点 F/T 双路径过了才转 ✅。
-- **`docs/gen_data.py`**：`APP_IMAGE_DEFAULTS` 加 `"verl": {...}`（app_version 0.7.0 + fork_version `0.2.0_rc2.post1_1_g45068d9e`）；`app_image_data()` 加 verl 分支（repo/tag/package）；`app_published_tag()` 与 app 过滤加 `startswith("verl")` 分支。
-- **`docs/gen_descriptions.py` + `scripts/generate_matrix.py`**：env_key 解析加 verl 分支（`env.app.verl` 是裸键）。`generate_matrix.py --app verl0.7.0` 按 `deps_app.verl0.7.0` 键位出 17 后端矩阵。
+- **`scripts/docs/gen_data.py`**：`APP_IMAGE_DEFAULTS` 加 `"verl": {...}`（app_version 0.7.0 + fork_version `0.2.0_rc2.post1_1_g45068d9e`）；`app_image_data()` 加 verl 分支（repo/tag/package）；`app_published_tag()` 与 app 过滤加 `startswith("verl")` 分支。
+- **`scripts/docs/gen_descriptions.py` + `scripts/generate_matrix.py`**：env_key 解析加 verl 分支（`env.app.verl` 是裸键）。`generate_matrix.py --app verl0.7.0` 按 `deps_app.verl0.7.0` 键位出 17 后端矩阵。
 - 无需改 `.githooks/pre-commit` 与 `status-matrix-consistency.yml`（glob `packaging/*/status_matrix.*.yaml` 通用）。
 
 ## 5. CI workflow — `.github/workflows/verl-app-image.yml`
@@ -202,7 +202,7 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 ## 验证方式
 
 1. `python3 scripts/generate_matrix.py --app verl0.7.0` — 确认 17 后端矩阵 + app_env/app_deps 序列化正确。
-2. `python3 docs/gen_data.py && python3 docs/gen_descriptions.py --app-only` + `render_status_matrix.py --component verl` — docs 管线无报错，marker 块渲染。
+2. `python3 scripts/docs/gen_data.py && python3 scripts/docs/gen_descriptions.py --app-only` + `render_status_matrix.py --component verl` — docs 管线无报错，marker 块渲染。
 3. 单后端 dry-run 构建：`docker build -f app/verl/Containerfile --build-arg RUNTIME_IMAGE=flagos-runtime-nvidia-cuda12.8:2.1.2 ...` 验证安装顺序与 triton 矩阵保护。
 4. 节点：`verify-verl-backend.sh nvidia-cuda12.8 --app-image ...`（先 --no-e2e import-only，后全量 F/T 双路径）。
 5. 全量矩阵 workflow 手动触发（backend=all, verify=true, push=false 先试）。
@@ -211,5 +211,5 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 
 - 新建：`app/verl/Containerfile`、`app/verl/verl-ppo`、`packaging/verl/builder/{Containerfile,stamp_version.py,README.md}`、`packaging/verl/verify/verify-verl-backend.sh`、`packaging/verl/status_matrix.verl0.7.0.yaml`、`packaging/verl/docs/verl-verification-matrix.md`、`.github/workflows/verl-wheel.yml`、`.github/workflows/verl-app-image.yml`
 - 新建（TE-FL wheel，§3.1 实证结论）：`packaging/transformer-engine-fl/builder/`、`.github/workflows/tefl-wheel.yml`
-- 修改：`configs.yaml`（deps_app.verl0.7.0 + env.app.verl + schema 注释）、`scripts/render_status_matrix.py`、`docs/gen_data.py`、`docs/gen_descriptions.py`、`scripts/generate_matrix.py`
+- 修改：`configs.yaml`（deps_app.verl0.7.0 + env.app.verl + schema 注释）、`scripts/render_status_matrix.py`、`scripts/docs/gen_data.py`、`scripts/docs/gen_descriptions.py`、`scripts/generate_matrix.py`
 - 模板（克隆参照，不改）：`app/megatron/Containerfile.rl`、`app/vllm/Containerfile`、`.github/workflows/megatron-app-image.yml`、`.github/workflows/megatron-wheel.yml`、`packaging/megatron/builder/`、`packaging/megatron/verify/verify-megatron-backend.sh`

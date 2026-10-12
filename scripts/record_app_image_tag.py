@@ -383,9 +383,9 @@ def main() -> None:
     branch = record_branch(matrix_rel, args.backend)
 
     # Refresh the pipeline so matrix, verification md, and app pages agree.
-    _run_py(REPO_ROOT / "docs" / "gen_data.py")
+    _run_py(REPO_ROOT / "scripts" / "docs" / "gen_data.py")
     _run_py(REPO_ROOT / "scripts" / "render_status_matrix.py", "--component", comp)
-    _run_py(REPO_ROOT / "docs" / "gen_descriptions.py", "--app-only")
+    _run_py(REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py", "--app-only")
 
     # Stage only the artifacts this record touches.
     patterns = [matrix_rel, "packaging/*/docs/*-verification-matrix.md",

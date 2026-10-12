@@ -16,16 +16,16 @@
 
 """Annotate an extracted version TSV with metadata headers before upload.
 
-The extract job runs this after ``docs/extract_versions.py`` and the verify
+The extract job runs this after ``scripts/docs/extract_versions.py`` and the verify
 step, then uploads the annotated ``<backend>.tsv`` as a GitHub artifact
 (``versions-<backend>``). The accumulate job's ``collect_version_tsvs.py``
 reads the ``# verify:`` header for its verify summary, and
-``docs/gen_descriptions.py`` reads ``# last_updated:`` / ``# revision:`` for
+``scripts/docs/gen_descriptions.py`` reads ``# last_updated:`` / ``# revision:`` for
 the "Last updated" line — so the headers must travel inside the TSV.
 
 Preconditions: ``GITHUB_RUN_ID`` is set; ``<tsv-dir>/<backend>.verify_outcome``
 exists (written by the workflow's "Record verify status" step); the optional
-``<tsv-dir>/<backend>.labels`` was written by ``docs/extract_versions.py``.
+``<tsv-dir>/<backend>.labels`` was written by ``scripts/docs/extract_versions.py``.
 
 Usage: python scripts/annotate_version_tsv.py <backend> <tsv-dir>
 """

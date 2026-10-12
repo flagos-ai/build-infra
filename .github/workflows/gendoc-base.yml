@@ -139,13 +139,13 @@ jobs:
         continue-on-error: true
         id: verify
         run: |
-          python3 docs/gen_data.py
+          python3 scripts/docs/gen_data.py
           python3 scripts/verify_base.py "${{ matrix.name }}"
 
       - name: Extract baked-in system-package versions
         run: |
-          python3 docs/gen_data.py
-          python3 docs/extract_versions.py "${{ matrix.name }}" versions
+          python3 scripts/docs/gen_data.py
+          python3 scripts/docs/extract_versions.py "${{ matrix.name }}" versions
 
       - name: Record verify status
         if: always()

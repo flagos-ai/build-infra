@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 # load version.py from sibling scripts/ directory
-_scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+_scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(_scripts_dir))
 from version import image_version
 from app_public import identity as app_public_identity, public_name
@@ -47,7 +47,7 @@ import yaml
 
 
 def find_repo_root() -> Path:
-    d = Path(__file__).resolve().parent.parent
+    d = Path(__file__).resolve().parents[2]
     if (d / "base").is_dir() and (d / "configs.yaml").is_file():
         return d
     sys.exit("Error: cannot locate repository root (base/ + configs.yaml)")

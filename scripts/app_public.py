@@ -25,7 +25,7 @@ runtime image it was built on verbatim.
 
 One resolver, shared by the build side (scripts/generate_matrix.py, which the
 app-image workflows read the tag segment from) and the docs side
-(docs/gen_data.py → docs/data/images.yaml → docs/gen_descriptions.py + the
+(scripts/docs/gen_data.py → docs/data/images.yaml → scripts/docs/gen_descriptions.py + the
 Hugo shortcodes), so the two can never disagree about what an app image is
 called. The real backend key stays the key everywhere else; a public name must
 never be fed back into ``name.split("-", 1)`` (generate_matrix.py) or into the

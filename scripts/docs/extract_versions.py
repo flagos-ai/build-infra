@@ -21,7 +21,7 @@ Writes <out-dir>/<name>.tsv with lines "package\tversion" (raw dpkg versions;
 gen_descriptions.py cleans them to upstream form). The image ref and the explicit
 package list both come from docs/data/images.yaml (run gen_data.py first).
 
-Usage: python docs/extract_versions.py <backend-name> <out-dir>
+Usage: python scripts/docs/extract_versions.py <backend-name> <out-dir>
 Requires: docker able to run the image (auto-pulls if logged in and not cached).
 """
 
@@ -60,7 +60,7 @@ def main():
     if len(sys.argv) != 3:
         sys.exit("usage: extract_versions.py <backend-name> <out-dir>")
     name, out_dir = sys.argv[1], Path(sys.argv[2])
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
     entry = next((b for b in images.get("backends", []) if b["name"] == name), None)
     if not entry:

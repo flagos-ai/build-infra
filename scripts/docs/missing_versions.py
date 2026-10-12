@@ -3,7 +3,7 @@
 expected backend list from ``scripts/generate_matrix.py`` and the collected TSV
 files in ``versions/``, then prints a markdown summary for the PR body.
 
-Usage: python3 docs/missing_versions.py
+Usage: python3 scripts/docs/missing_versions.py
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> None:

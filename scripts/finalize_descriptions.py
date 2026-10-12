@@ -128,7 +128,7 @@ def _finalize(args) -> None:
     env["VERSIONS_DIR"] = str(REPO_ROOT / "versions")
 
     subprocess.run(
-        [sys.executable, str(REPO_ROOT / "docs" / "gen_data.py")],
+        [sys.executable, str(REPO_ROOT / "scripts" / "docs" / "gen_data.py")],
         check=True, cwd=REPO_ROOT, env=env,
     )
 
@@ -141,7 +141,7 @@ def _finalize(args) -> None:
     versions_dir = REPO_ROOT / "versions"
     requested = sorted(f.stem for f in versions_dir.glob("*.tsv"))
     subprocess.run(
-        [sys.executable, str(REPO_ROOT / "docs" / "gen_descriptions.py"),
+        [sys.executable, str(REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py"),
          "--layer", cfg["layer"]] + requested,
         check=True, cwd=REPO_ROOT, env=env,
     )
