@@ -1,73 +1,81 @@
-# Wheel Info（wheel 目录自动记录）
+# Wheel Info（wheel 包目录的自动记录机制）
 
-> `packaging/wheel-info.yaml` 是 wheel 包目录。本文件说明它如何被自动维护：
-> 发布即记录，人只 review PR。**为什么这么设计**在这里，**怎么做**在代码里。
+> `packaging/wheel-info.yaml` 是全部 wheel 的包目录。本文件说明它如何被自动
+> 维护：发布步骤记录事实，人工只 review 由记录产生的 PR。本文件只描述机制与
+> 设计理由；具体实现见 `scripts/gen_wheel_info.py`、
+> `.github/actions/record-wheel-info/action.yml` 与
+> `.github/workflows/record-wheel-info.yml`。
 
 ## 问题
 
-目录里每一条事实（`pypi_index` / `python` / `os` / `arch`）都来自某一次发布，
-但过去靠人在发布 PR 里手改，于是目录与实际 index 上有的包持续漂移
-（#1325–#1327 就是手改字段的 PR）。唯一确定「某个 wheel 已经存在」的地方是
-**发布步骤本身**，所以记录点就在发布步骤。
+目录中每条事实（`pypi_index` / `python` / `os` / `arch`）都产生于某一次发布，
+但过去由人在发布 PR 中手工修改，因此目录与各 PyPI index 上实际存在的包持续
+不一致（#1325–#1327 即为手工修改字段的 PR）。判定「某个 wheel 已经发布」的
+唯一确切位置是发布步骤本身，因此记录动作放在发布步骤中。
 
-## 数据模型：目录即记录
+## 数据模型
 
-不存在第二个数据文件。`packaging/wheel-info.yaml` 一个文件承担两半：
+目录文件本身就是记录，不另设数据文件。`packaging/wheel-info.yaml` 同时承担
+两部分内容：
 
-| 字段 | 谁写 | 说明 |
+| 内容 | 维护者 | 说明 |
 |---|---|---|
-| `name` / `versions[].version` | 人（顺序也是） | 包与版本的排列顺序是人定的 |
-| `short_name` / `desc_zh` / `desc_en` / `notes` | 人 | 目录页文案，机器不碰 |
-| `pypi_index` / `python` / `os` / `arch` | **机器** | 由发布事件推导，`record` 只改这四个 |
+| `name`、`versions[].version`（含排列顺序） | 人工 | 包与版本的排列顺序由人工决定 |
+| `short_name`、`desc_zh`、`desc_en`、`notes` | 人工 | 目录页面文案，记录过程不修改 |
+| `pypi_index`、`python`、`os`、`arch` | 程序 | 由发布事件推导，`record` 仅修改这四个字段 |
 
-因此 `record` 是**外科式**的：只更新匹配 `(name, version)` 行的这四个字段。
-遇到目录里没有的包/版本，它会插入一行骨架（`short_name` = 包名，文案留空）并在
-PR 里打印提示——骨架行就是给 reviewer 的「这段文案还没写」信号。
+因此 `record` 的修改范围限于匹配 `(name, version)` 行的上述四个字段，属于
+局部更新。若目录中不存在该包或该版本，则插入一行骨架（`short_name` 取包名，
+文案字段留空），并在 PR 中输出提示：该骨架行表示文案仍需人工补写。
 
 其余约定：
 
-- **事件，不是重新校验**。一行是若干次发布的并集；事件已记录 ⇒ 无改动 ⇒
-  不产生 commit、不产生 PR。幂等性由「比对行本身」回答，没有事件日志。
-- **`py3` 事件替换而非合并**：一个 `py3-none-any` 事件把该行的 python/os/arch
-  整体替换为 `[py3]/[any]/[any]`；编译型事件落在 `py3` 行上同样替换。理由是
-  `cp312` 旁边并存的纯 wheel、`linux_x86_64` 旁边的 `any`，描述的是不可能存在的包。
-- **排序固定**：python `cp310→cp313, py3`；arch `linux_x86_64, linux_aarch64, any`。
-  `pypi_index` 单 lane 是字符串，多 lane 是列表且 `flagos-pypi-hosted` 排第一。
-- **manifest 的 `pkg` 是目录名，不是 wheel 文件名**。文件名不可信
-  （`vllm_plugin_fl` → 目录名 `vllm-plugin-fl`，`sglang_fl` → `sglang-fl`），
-  所以包名由 hook 显式给出。
+- **记录事件，不做重新校验。** 一行的内容是产生它的若干次发布的并集；某个
+  事件已记录时，比对结果无差异，因此不产生提交、不产生 PR。幂等性通过比对
+  行内容判断，不维护事件日志。
+- **`py3` 事件整体替换，而非合并。** 一个 `py3-none-any` 事件将所在行的
+  `python` / `os` / `arch` 整体替换为 `[py3]` / `[any]` / `[any]`；编译型事件
+  落在 `py3` 行上时同样整体替换。原因是与 `cp312` 并存的纯 Python wheel、
+  与 `linux_x86_64` 并存的 `any`，描述的都是不可能存在的产物。
+- **排序固定。** `python` 为 `cp310`→`cp313`→`py3`；`arch` 为
+  `linux_x86_64`、`linux_aarch64`、`any`。`pypi_index` 只有一个发布通道时为
+  字符串，多个通道时为列表且 `flagos-pypi-hosted` 排首位。
+- **manifest 中的 `pkg` 是目录中的包名，不是 wheel 文件名。** 文件名不足以
+  推出包名（`vllm_plugin_fl` 对应目录名 `vllm-plugin-fl`，`sglang_fl` 对应
+  `sglang-fl`），因此包名由各发布步骤显式给出。
 
-## 管线
+## 处理流程
 
 ```
-publish step（twine 成功后）
-  └─ 主机侧追加一行 → .wheel-info/manifest.tsv   (git-ignored)
-       列：pkg \t version \t index \t filename   （version 留空 = 从文件名推导）
-  └─ 作为 artifact wheel-info-manifest-* 上传
+发布步骤（twine 返回成功后）
+  ├─ 在主机侧追加一行到 .wheel-info/manifest.tsv（该路径已被 .gitignore 忽略）
+  │     每行四列（制表符分隔）：pkg、version、index、filename
+  │     version 留空表示由 wheel 文件名推导
+  └─ 作为 artifact 上传，artifact 名以 wheel-info-manifest- 开头
         │
         ▼
-record job（每次 run 一个）
-  ├─ download-artifact（pattern: wheel-info-manifest-*，**不加 merge-multiple**）
-  ├─ 合并全部 manifest → 一份
-  └─ ./.github/actions/record-wheel-info
+记录作业（每次 workflow run 仅一个）
+  ├─ 下载 artifact（pattern: wheel-info-manifest-*，不使用 merge-multiple）
+  ├─ 合并为一份 manifest
+  └─ 调用 ./.github/actions/record-wheel-info
        └─ scripts/gen_wheel_info.py record --manifest … --workflow …
-            └─ 改 packaging/wheel-info.yaml → 提交 → 开 review-gated PR
+            └─ 修改 packaging/wheel-info.yaml → 提交 → 创建待 review 的 PR
 ```
 
-两个非显然的决定，改动时最容易踩：
+以下两点改动时容易出错：
 
-- **一次 run 只有一个 committer。** 发布步骤自己不碰 `wheel-info.yaml`：
-  矩阵扇出（`backend: all`）会有 N 个 leg 同时发布，各自开 PR 会互相打架。
-  合并落在唯一的 record job 里，所以 N 路扇出仍然只有一个提交者。
-- **download-artifact 不能加 `merge-multiple`。** 每个 leg 上传的 artifact 里
-  文件名都是 `manifest.tsv`，展平到一个目录会互相覆盖，只剩一份。因此保持
-  「一个 artifact 一个目录」，用 `.wheel-info-dl/*/*.tsv` 收集。
+- **每次 run 只有一个提交者。** 发布步骤不修改 `wheel-info.yaml`。矩阵扇出
+  （`backend: all`）会产生多个并行作业同时发布，若各自提交并创建 PR 会互相
+  冲突；因此合并放在唯一的记录作业中，无论扇出多少路都只有一个提交者。
+- **下载 artifact 不能使用 `merge-multiple`。** 各作业上传的 artifact 内部
+  文件名相同（均为 `manifest.tsv`），展开到同一目录会互相覆盖，只剩一份。
+  因此保持「一个 artifact 一个目录」，按 `.wheel-info-dl/*/*.tsv` 收集。
 
-## 作业形态：reusable workflow + composite action
+## 作业形态
 
-record job 的 job 体在所有 wheel workflow 里是同一份，抽成
-`.github/workflows/record-wheel-info.yml`（`on: workflow_call`）。调用点只保留
-**每个 workflow 各不相同**的三样东西：
+记录作业的作业体在所有 wheel workflow 中内容相同，已抽为可复用工作流
+`.github/workflows/record-wheel-info.yml`（触发方式为 `on: workflow_call`）。
+调用点只保留各 workflow 互不相同的三项内容：
 
 ```yaml
   record-wheel-info:
@@ -78,51 +86,57 @@ record job 的 job 体在所有 wheel workflow 里是同一份，抽成
       pull-requests: write
     uses: ./.github/workflows/record-wheel-info.yml
     with:
-      workflow: vllm        # → 分支 auto/wheel-info-vllm，也是 PR 里的出处名
+      workflow: vllm        # 对应分支 auto/wheel-info-vllm，也是 PR 中的来源名称
 ```
 
-- **`runs-on` 和 `steps` 不能在调用点出现。** 调用 job 只允许
-  `name/uses/with/secrets/strategy/needs/if/concurrency/permissions/cache-mode`，
-  所以作业体（checkout / download-artifact / 合并 / 调 composite action）全在
-  called workflow 里。composite action `.github/actions/record-wheel-info/` 是
-  更内层的一步：挑一个能 `import yaml` 的解释器（挑不到就装，装不上就报错退出）。
-- **`permissions` 必须留在调用点。** 它是 record 能写仓库、能开 PR 的授权来源；
-  called workflow 只能降权不能提权。
-- **`if` 里的 `always()` 是必要的。** 中途失败的发布步骤留下的 manifest 仍然是
-  「哪些包确实传上去了」的记录；同时 `always()` 保证被 skip 的 `needs` job 不会
-  被误读成 success。真正的闸门是后半段的发布开关（`inputs.upload` / `inputs.publish`）。
-- **`workflow:` 是输入，不能从 context 读。** called workflow 看到的
-  `${{ github.workflow }}` 是**调用方**的名字；每个调用点显式传自己的出处名。
+- **调用作业不能出现 `runs-on` 与 `steps`。** 调用可复用工作流的作业仅允许
+  使用 `name`、`uses`、`with`、`secrets`、`strategy`、`needs`、`if`、
+  `concurrency`、`permissions`、`cache-mode` 这些键，因此作业体（checkout、
+  下载 artifact、合并、调用 composite action）全部位于被调用工作流中。
+  composite action `.github/actions/record-wheel-info/` 位于更内一层，负责
+  选择一个能 `import yaml` 的解释器（无法导入时尝试安装，安装失败则以错误
+  退出并给出提示）。
+- **`permissions` 必须保留在调用点。** 它是记录作业获得仓库写权限与创建 PR
+  权限的来源；被调用工作流只能降权，不能提权（未在调用作业指定
+  `permissions` 时，被调用工作流将使用 `GITHUB_TOKEN` 的默认权限）。
+- **`if` 中的 `always()` 是必要的。** 发布步骤中途失败时留下的 manifest 仍然
+  记录了「哪些包确实已上传」；同时 `always()` 可避免被跳过（skipped）的
+  `needs` 作业被误判为成功。真正的准入条件是后半段的发布开关
+  （`inputs.upload` 或 `inputs.publish`）。
+- **`workflow:` 必须作为输入传入，不能从上下文读取。** 被调用工作流中的
+  `${{ github.workflow }}` 是调用方的名称，因此每个调用点显式传入自己的名称。
 
-## 已接入 / 未接入
+## 已接入与未接入
 
-已接入（10 个）：`flagcx-wheel`、`flaggems-release`（python + cpp）、
-`flash-attn-wheel`、`flaglibs-wheel`、`vllm-wheel`、`vllm-plugin-wheel`、
-`sglang-wheel`（build + shim）、`sglang-plugin-wheel`、`megatron-wheel`、
-`flagos-compressor-wheel`。
+已接入，共 10 个 workflow：`flagcx-wheel`、`flaggems-release`（python 与 cpp
+两条构建线）、`flash-attn-wheel`、`flaglibs-wheel`、`vllm-wheel`、
+`vllm-plugin-wheel`、`sglang-wheel`（build 与 shim 两个作业）、
+`sglang-plugin-wheel`、`megatron-wheel`、`flagos-compressor-wheel`。
 
-未接入，且**有意如此**：
+未接入，且属于有意为之：
 
-- `flaggems-wheel`、`flagtree-wheel`、`flagtree-builder` —— 明确不接。
-- `megatron-wheel` 的 provenance 构建（版本含 `+fl.<date>.g<sha>`）不记录：
-  它不对应任何发布版本，只有带 `mlf_version` 的 release 发布才记。
-- `torch-fl` 的 7 行没有对应流水线，继续手写。
-- deb/rpm、`upload-nexus`、app 镜像、gendoc 各线不属本管线。
+- `flaggems-wheel`、`flagtree-wheel`、`flagtree-builder` 三个 workflow 明确不接入。
+- `megatron-wheel` 的 provenance 构建（版本号形如 `0.17.1+fl.<date>.g<sha>`）
+  不记录：该版本号不对应任何发布版本，只有传入 `mlf_version` 的正式发布才记录。
+- `torch-fl` 的 7 行没有对应的发布流水线，继续由人工维护。
+- deb/rpm 各线、`upload-nexus`、app 镜像各线、gendoc 各线均不属于本机制范围。
 
 ## 已知边界
 
-- 文件是经 YAML dumper 写回的，所以**布局**（键序、列表缩进）由 dumper 决定：
-  写在目录**内部**的注释撑不过一次 record，写在字段**值**上的文案能撑过。
-  当前文件能逐字节 round-trip，这是要维持的性质，不是预期中的 diff。
-- 没有 CI 漂移检查（原设计的 `render --check` 未做）。记录的触发点是发布，
+- 目录文件经 YAML dumper 写回，因此**文件布局**（键的顺序、列表缩进）由
+  dumper 决定：写在目录文件**内部**的注释无法在一次记录后保留，作为字段**值**
+  写入的文案可以保留。当前文件可以通过 dumper 逐字节往返，这是需要维持的
+  性质。
+- 没有 CI 一致性检查（原设计中的 `render --check` 未实现）。记录由发布触发，
   不是定时校验。
 
 ## 验证
 
-- `record --dry-run` 打印 unified diff 且不落盘（写之前不改任何东西）。
-- 手工核对过的行为：重复记录同一事件 ⇒ 无改动；真实合并 ⇒ 单个 `flagos-ci`
-  提交 + 分支 `auto/wheel-info-<workflow>`；手写 `desc_zh` 逐字节不变、只有目标
-  字段变化；`py3-none-any` 事件替换编译行的平台集。
-- 10 个 workflow 的 manifest 步骤各自被抽出来、渲染 env、在临时目录跑过：
-  15 个用例（含 megatron provenance 应记 0 行、flaggems-release 扇出 14 lane）
-  全部通过，行格式为 4 个 tab 字段且 `record --dry-run` 接受合并结果。
+- `record --dry-run` 输出 unified diff 且不写盘：写入前不修改任何文件。
+- 已人工核对的行为：重复记录同一事件不产生改动；实际合并产生单个由 `flagos-ci`
+  提交的提交，分支名为 `auto/wheel-info-<workflow>`；手写 `desc_zh` 逐字节
+  不变，仅目标字段发生变化；`py3-none-any` 事件整体替换编译型行的平台集合。
+- 10 个 workflow 的 manifest 步骤已分别抽取、渲染其环境变量并在临时目录中
+  执行：15 个用例（含 megatron provenance 应记录 0 行、flaggems-release 扇出
+  14 个发布通道）全部通过；每行均为 4 个制表符分隔字段，`record --dry-run`
+  接受其合并结果。
