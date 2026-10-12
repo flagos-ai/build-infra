@@ -50,6 +50,48 @@ deepin 的官方仓库，整条依赖闭包都必须是原生包；而隔离网�
 deb/rpm 从不取代 PyPI 渠道；两者并存。deb/rpm 一侧必须能独立安装：**不得有硬依赖指向 pip 层。**
 桥接是软的 —— 安装文档指向厂商 pip 索引，或者由某个元包的 `Recommends`/描述来指。
 
+## 源码包
+
+除 wheel 之外，目录中的每个包都提供源码包下载，即一个可直接下载的 `.tar.gz`
+地址。源码不另建分发仓库：**这些地址指向各上游 GitHub 仓库的 release tag**
+（`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`）。
+
+每个包的地址模板记录在 `packaging/wheel-info.yaml` 的 `sources:` 段（与
+`wheels:` 段同级的顶层键，包名一一对应），每条两个字段：
+
+| 字段 | 含义 |
+|---|---|
+| `url` | 下载地址模板，填入版本号即得下载地址 |
+| `notes` | 该包的地址与版本号不一致之处（仅有差异时写） |
+
+版本号是 PEP 440 形式，可带 `+` 本地段。`url` 模板可用三个占位符：
+
+| 占位符 | 含义 | 例（版本 `0.17.1+0.2.3`） |
+|---|---|---|
+| `{version}` | 版本号全文 | `0.17.1+0.2.3` |
+| `{version_base}` | `+` 之前的部分 | `0.17.1` |
+| `{version_local}` | `+` 之后的部分 | `0.2.3` |
+
+例如 `vllm` 的模板是
+`https://github.com/vllm-project/vllm/archive/refs/tags/v{version_base}.tar.gz`，
+版本 `0.24.0+flagos` 即得
+`https://github.com/vllm-project/vllm/archive/refs/tags/v0.24.0.tar.gz`。
+
+多数包的模板为 `.../tags/v{version}.tar.gz`（tag 与版本号只差一个 `v` 前缀）；
+其余情况的模板与原因写在各自的 `notes:` 中，例如 `flagcx` 的上游 tag 只到
+`v0.14.0`，wheel 版本里的 `+<backend>` 是构建时加的本地段，上游没有对应 tag。
+
+请求地址前把 tag 部分做百分号编码（`+` 写作 `%2B`），这是 URL 的正确写法；
+带字面量 `+` 的地址并不可靠。
+
+与 `wheels:` 不同，`sources:` 全部由人工维护：仓库不随发布变化，没有任何发布
+步骤能观察到它。（`wheels:` 的发布事实由发布步骤自动记录，见 `docs/wheel-info.md`。）
+
+构建过程实际使用的源码压缩包（如 `vllm-<version>.tar.gz`、
+`sglang-<version>.tar.gz`）另在内部 filestore
+（`https://resource.flagos.net/repository/flagos-filestore/<project>/`）留档，
+用于在同一份源码上重复构建。
+
 ## 仓库布局
 
 - **apt**：每个目标发行版版本一个 hosted 仓库

@@ -62,6 +62,55 @@ must stay installable on its own: **no hard dependency may point at the pip
 layer.** The bridge is soft — installation docs point to the vendor pip
 index, or a meta-package's `Recommends`/description does.
 
+## Source packages
+
+Besides wheels, every package in the catalog also has a source tarball download —
+a `.tar.gz` URL you can fetch directly. There is no separate source repository:
+**these URLs point at the release tags of the upstream GitHub repositories**
+(`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`).
+
+Each package's URL template is recorded in the `sources:` block of
+`packaging/wheel-info.yaml` — a top-level key alongside `wheels:`, matching it
+one package per entry. An entry carries two fields:
+
+| Field | Meaning |
+|---|---|
+| `url` | download-URL template; fill in the version to get the download URL |
+| `notes` | where the URL and the version differ (written only when they do) |
+
+Versions are PEP 440 and may carry a `+` local segment. A `url` template may use
+three placeholders:
+
+| Placeholder | Meaning | Example (version `0.17.1+0.2.3`) |
+|---|---|---|
+| `{version}` | the whole version | `0.17.1+0.2.3` |
+| `{version_base}` | the part before `+` | `0.17.1` |
+| `{version_local}` | the part after `+` | `0.2.3` |
+
+`vllm`'s template, for instance, is
+`https://github.com/vllm-project/vllm/archive/refs/tags/v{version_base}.tar.gz`,
+so version `0.24.0+flagos` gives
+`https://github.com/vllm-project/vllm/archive/refs/tags/v0.24.0.tar.gz`.
+
+Most packages' templates read `.../tags/v{version}.tar.gz` — the tag differs
+from the version only by a leading `v`. The remaining templates, and why they
+differ, are stated in each entry's `notes:` — `flagcx`, for example, has
+upstream tags only up to `v0.14.0`, while the `+<backend>` in the wheel version
+is a local segment added at build time and has no upstream tag.
+
+Percent-encode the tag segment before requesting the URL (write `+` as `%2B`) —
+that is the correct form of the URL, and a literal `+` there is not reliable.
+
+Unlike `wheels:`, `sources:` is maintained by hand in full: a repository does
+not change with a publish, and no publish step can observe it. (The publish
+facts under `wheels:` are recorded automatically by the publish steps — see
+`docs/wheel-info.md`.)
+
+The source tarballs the build actually consumes (`vllm-<version>.tar.gz`,
+`sglang-<version>.tar.gz`) are kept separately on the internal filestore
+(`https://resource.flagos.net/repository/flagos-filestore/<project>/`) so that
+the same source can be built again.
+
 ## Repository layout
 
 - **apt**: one hosted repository per target distro release

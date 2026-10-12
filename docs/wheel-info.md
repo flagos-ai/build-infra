@@ -1,9 +1,9 @@
 # Wheel Info（wheel 包目录的自动记录机制）
 
-> `packaging/wheel-info.yaml` 是全部 wheel 的包目录。本文件说明它如何被自动
-> 维护：发布步骤记录事实，人工只 review 由记录产生的 PR。本文件只描述机制与
-> 设计理由；具体实现见 `scripts/gen_wheel_info.py`、
-> `.github/actions/record-wheel-info/action.yml` 与
+> `packaging/wheel-info.yaml` 是全部 wheel 的包目录，并同时给出每个包的源码位置。
+> 本文件说明这两部分如何维护：wheel 的事实由发布步骤记录，源码位置由人工维护，
+> 人工只 review 由记录产生的 PR。本文件只描述机制与设计理由；具体实现见
+> `scripts/gen_wheel_info.py`、`.github/actions/record-wheel-info/action.yml` 与
 > `.github/workflows/record-wheel-info.yml`。
 
 ## 问题
@@ -15,8 +15,13 @@
 
 ## 数据模型
 
-目录文件本身就是记录，不另设数据文件。`packaging/wheel-info.yaml` 同时承担
-两部分内容：
+目录文件本身就是记录，不另设数据文件。`packaging/wheel-info.yaml` 有两个顶层键：
+
+- `wheels:` —— wheel 的下载信息。每个包一条，包内每个版本一行。
+- `sources:` —— 同一批包的源码位置。每个包一条，与 `wheels:` 的包名一一对应，
+  顺序一致。
+
+### `wheels:`
 
 | 内容 | 维护者 | 说明 |
 |---|---|---|
@@ -27,6 +32,51 @@
 因此 `record` 的修改范围限于匹配 `(name, version)` 行的上述四个字段，属于
 局部更新。若目录中不存在该包或该版本，则插入一行骨架（`short_name` 取包名，
 文案字段留空），并在 PR 中输出提示：该骨架行表示文案仍需人工补写。
+
+### `sources:`
+
+每个包一条，两个字段全部由人工维护：
+
+| 字段 | 说明 |
+|---|---|
+| `url` | 源码包下载地址的模板，见下 |
+| `notes` | 可选。说明该包的地址或 tag 与版本号不一致之处 |
+
+`sources:` 的记录粒度是「仓库」：它不随发布变化，也没有任何发布步骤能观察到它。
+因此 `record` 不写这一半——包括新包首次发布时——它在 `wheels:` 插入骨架行，
+`sources:` 仍由人工补写。
+
+#### 下载地址模板
+
+`url` 是**完整下载地址**的模板，用该包某个版本号填充占位符后即为一个可直接
+下载的 `.tar.gz` 地址。版本号是 PEP 440 形式，可带 `+` 本地段
+（`{version_base}+{version_local}`），三个占位符即由此定义：
+
+| 占位符 | 含义 | 例（版本 `0.17.1+0.2.3`） |
+|---|---|---|
+| `{version}` | 版本号全文 | `0.17.1+0.2.3` |
+| `{version_base}` | `+` 之前的部分 | `0.17.1` |
+| `{version_local}` | `+` 之后的部分 | `0.2.3` |
+
+例如 `vllm` 的模板是
+`https://github.com/vllm-project/vllm/archive/refs/tags/v{version_base}.tar.gz`，
+把 `0.24.0+flagos` 填入即得
+`https://github.com/vllm-project/vllm/archive/refs/tags/v0.24.0.tar.gz`。
+
+14 个包中有 9 个的地址形如
+`https://github.com/<repo>/archive/refs/tags/v{version}.tar.gz`，即 tag 与版本号
+只差一个 `v` 前缀。其余五个的模板与其原因写在各自的 `notes:` 中：
+
+| 包 | 地址中的 tag | 原因 |
+|---|---|---|
+| `flagtree` | `{version}` | 上游 tag 与版本号逐字相同，且**没有** `v` 前缀 |
+| `flagcx` | `v{version_base}` | 上游 tag 只到 `v0.14.0`，`+<backend>` 无对应 tag |
+| `vllm` | `v{version_base}` | 上游 vLLM 源码；`+flagos` 是 repack 后加的本地段 |
+| `torch-fl` | `v{version_base}` | 上游 tag 只到 `v2.10.0`，`+<backend>` 是本地段 |
+| `megatron-core` | `v{version_local}` | fork 自 NVIDIA/Megatron-LM，tag 取版本号的本地段 |
+
+地址中的 tag 部分应先做百分号编码（`+` 写成 `%2B`）再请求：这是 URL 的正确
+写法，实测按此编码的地址稳定返回 200，而同批测试中带字面量 `+` 的地址时好时坏。
 
 其余约定：
 
@@ -118,6 +168,8 @@
 - `flaggems-wheel`、`flagtree-wheel`、`flagtree-builder` 三个 workflow 明确不接入。
 - `megatron-wheel` 的 provenance 构建（版本号形如 `0.17.1+fl.<date>.g<sha>`）
   不记录：该版本号不对应任何发布版本，只有传入 `mlf_version` 的正式发布才记录。
+- `sources:` 不记录（原因见「数据模型」一节）；`sglang`、`sgl-kernel-shim` 等
+  已有发布步骤但 `wheels:` 中尚无条目的包，其 `sources:` 条目也待人工补写。
 - `torch-fl` 的 7 行没有对应的发布流水线，继续由人工维护。
 - deb/rpm 各线、`upload-nexus`、app 镜像各线、gendoc 各线均不属于本机制范围。
 
@@ -140,3 +192,6 @@
   执行：15 个用例（含 megatron provenance 应记录 0 行、flaggems-release 扇出
   14 个发布通道）全部通过；每行均为 4 个制表符分隔字段，`record --dry-run`
   接受其合并结果。
+- `sources:` 的 14 个 `url` 模板已按各包 `wheels:` 中的全部版本渲染，逐一对上游
+  仓库的 tag 列表求交：55/55 命中；每个包抽一个版本渲染出完整地址后实际请求，
+  14/14 返回 HTTP 200（tag 部分做百分号编码）。

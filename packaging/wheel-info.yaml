@@ -674,3 +674,37 @@ wheels:
     - any
     arch:
     - any
+sources:
+- name: flagtree
+  url: https://github.com/flagos-ai/FlagTree/archive/refs/tags/{version}.tar.gz
+  notes: 上游 tag 与 catalog 版本逐字相同（无 `v` 前缀），例如 0.7.0+triton3.6。
+- name: flag_gems
+  url: https://github.com/flagos-ai/FlagGems/archive/refs/tags/v{version}.tar.gz
+- name: flagcx
+  url: https://github.com/flagos-ai/FlagCX/archive/refs/tags/v{version_base}.tar.gz
+  notes: 上游 tag 只到 v0.14.0；版本号里的 +<backend> 是构建时加的本地段，上游没有对应 tag。
+- name: vllm
+  url: https://github.com/vllm-project/vllm/archive/refs/tags/v{version_base}.tar.gz
+  notes: 上游 vLLM 源码（wheel 由它 repack 而来）；+flagos 是 repack 后加的本地段。
+- name: vllm-plugin-fl
+  url: https://github.com/flagos-ai/vllm-plugin-FL/archive/refs/tags/v{version}.tar.gz
+- name: megatron-core
+  url: https://github.com/flagos-ai/Megatron-LM-FL/archive/refs/tags/v{version_local}.tar.gz
+  notes: fork 自 NVIDIA/Megatron-LM；tag 取版本号的本地段（0.17.1+0.2.3 → v0.2.3）。
+- name: torch-fl
+  url: https://github.com/flagos-ai/Torch-FL/archive/refs/tags/v{version_base}.tar.gz
+  notes: 上游 tag 只到 v2.10.0；+<backend> 是本地段。
+- name: flag_attn
+  url: https://github.com/flagos-ai/FlagAttention/archive/refs/tags/v{version}.tar.gz
+- name: flagsparse
+  url: https://github.com/flagos-ai/FlagSparse/archive/refs/tags/v{version}.tar.gz
+- name: flag_blas
+  url: https://github.com/flagos-ai/FlagBLAS/archive/refs/tags/v{version}.tar.gz
+- name: flag_audio
+  url: https://github.com/flagos-ai/FlagAudio/archive/refs/tags/v{version}.tar.gz
+- name: flagfft_codegen
+  url: https://github.com/flagos-ai/FlagFFT/archive/refs/tags/v{version}.tar.gz
+- name: flaggems_vllm
+  url: https://github.com/flagos-ai/FlagGems-vllm/archive/refs/tags/v{version}.tar.gz
+- name: flagos_compressor
+  url: https://github.com/flagos-ai/FlagOS-Compressor/archive/refs/tags/v{version}.tar.gz
