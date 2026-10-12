@@ -18,7 +18,8 @@
   wrap-cmd — wrap a long `docker run …` / wrapper-launcher command onto multiple
   lines (one flag or flag+value per continuation line, ending "<image> bash"), so
   the rendered code block does not scroll sideways. Mirrors the base-page
-  generator docs/gen_descriptions.py::wrap_cmd so runtime pages wrap identically.
+  generator scripts/docs/gen_descriptions.py::wrap_cmd so runtime pages wrap
+  identically.
 
   Call: {{ partial "wrap-cmd" $cmd }}  ->  returns the wrapped string.
   Short commands (<= 84 chars) are returned unchanged.
