@@ -180,16 +180,91 @@ jobs:
           PY
           head -1 packaging/debian/changelog
 
-      - name: Build the .deb
-        id: build
+      - name: Derive the wheel version from the changelog
+        id: wheel
         working-directory: src
         run: |
           set -euo pipefail
-          bash packaging/debian/build-helpers/build-flaggems.sh
+          # The deb carries two versions: the changelog's, which apt sees, and
+          # the wheel's, which setuptools_scm writes into dist-info and
+          # _version.py. The build context has no .git, so the Dockerfile
+          # takes the wheel version through ARG FLAGGEMS_VERSION (fed to
+          # SETUPTOOLS_SCM_PRETEND_VERSION); when nothing passes it, the ARG
+          # default ships. The two must say the same thing, so the wheel
+          # version is derived from the changelog version just stamped:
+          #   5.4.0~rc2.post4-1 -> 5.4.0rc2.post4   (Debian "~" is PEP 440 "")
+          head=$(head -1 packaging/debian/changelog)
+          deb_version=$(sed -E 's/^[^ ]+ \(([^)]+)\).*$/\1/' <<<"$head")
+          upstream=${deb_version%-*}
+          wheel_version=${upstream//\~/}
+          if ! grep -Eq '^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?(\.post[0-9]+)?(\.dev[0-9]+)?$' <<<"$wheel_version"; then
+            echo "::error::changelog version ${deb_version} does not map to a PEP 440 version (got ${wheel_version})"
+            exit 1
+          fi
+          echo "wheel_version=${wheel_version}" >> "$GITHUB_OUTPUT"
+          echo "changelog ${deb_version} -> wheel ${wheel_version}"
+
+      - name: Build the .deb
+        id: build
+        working-directory: src
+        env:
+          WHEEL_VERSION: ${{ steps.wheel.outputs.wheel_version }}
+        run: |
+          set -euo pipefail
+          # The upstream helper, packaging/debian/build-helpers/build-flaggems.sh,
+          # runs this same docker build but passes no --build-arg, so the
+          # Dockerfile's ARG default (a fixed older version) becomes the
+          # wheel's version whatever the changelog says: that is how the
+          # published 5.4.0~rc2.post4 came to contain a 5.3.5 wheel. Until the
+          # helper learns to pass the version, the build runs here with it.
+          dockerfile=packaging/debian/build-helpers/Dockerfile.deb
+          if ! grep -Eq '^ARG FLAGGEMS_VERSION' "$dockerfile"; then
+            echo "::error::${dockerfile} has no ARG FLAGGEMS_VERSION; the wheel version cannot be set from here"
+            exit 1
+          fi
+          mkdir -p dist debian-packages
+          docker build \
+            --network=host \
+            -f "$dockerfile" \
+            --target deb-output \
+            --build-arg "FLAGGEMS_VERSION=${WHEEL_VERSION}" \
+            --output "type=local,dest=${PWD}/dist" \
+            .
+          cp dist/output/*.deb debian-packages/
           deb=$(ls debian-packages/*.deb | head -1)
           echo "deb_name=$(basename "$deb")" >> "$GITHUB_OUTPUT"
           echo ">>> $(basename "$deb")"
           dpkg-deb -f "$deb" Package Version Architecture Depends
+
+      - name: Check the wheel inside the .deb matches the changelog
+        working-directory: src
+        env:
+          WHEEL_VERSION: ${{ steps.wheel.outputs.wheel_version }}
+        run: |
+          set -euo pipefail
+          # The build log proves nothing about what the deb holds; read the
+          # version back from the installed metadata. dist-info is what pip
+          # reports, _version.py is what flag_gems.__version__ reports.
+          deb=$(ls debian-packages/*.deb | head -1)
+          rm -rf unpacked && dpkg-deb -x "$deb" unpacked
+          distinfo=$(find unpacked -maxdepth 6 -type d -name 'flag_gems-*.dist-info' | head -1)
+          if [ -z "$distinfo" ]; then
+            echo "::error::no flag_gems-*.dist-info in $(basename "$deb")"
+            exit 1
+          fi
+          got=$(basename "$distinfo"); got=${got#flag_gems-}; got=${got%.dist-info}
+          if [ "$got" != "$WHEEL_VERSION" ]; then
+            echo "::error::$(basename "$deb") holds wheel ${got}, changelog says ${WHEEL_VERSION}"
+            exit 1
+          fi
+          version_py=$(find unpacked -path '*/flag_gems/_version.py' | head -1)
+          if [ -n "$version_py" ] && ! grep -Fq "'${WHEEL_VERSION}'" "$version_py" && ! grep -Fq "\"${WHEEL_VERSION}\"" "$version_py"; then
+            echo "::error::_version.py does not report ${WHEEL_VERSION}:"
+            grep -E "^(version|__version__)" "$version_py" || true
+            exit 1
+          fi
+          rm -rf unpacked
+          echo "OK: wheel ${got} matches changelog"
 
       - name: Upload the .deb
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
