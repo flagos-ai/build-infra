@@ -726,7 +726,7 @@ vendors:
       python: "3.12"
       cmake_backend: IX
       triton: triton==3.2.0+corex.4.5.0.20260804
-      flagtree: flagtree==0.7.0+iluvatar3.6
+      flagtree: flagtree==0.7.1a1+iluvatar3.6
       env:
         base:
           COREX_ROOT: /usr/local/corex
