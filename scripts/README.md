@@ -31,6 +31,14 @@
 | `release_flaggems.py` | FlagGems release workflow（勿当测试用） | ✅ |
 | `install-git-hooks.sh` | 安装 git hooks（status matrix pre-commit 用） | — |
 | `version.py` | `image_version()` — 从 configs.yaml 取 flat tag | — |
+| `docs/gen_data.py` | docs 管线第 1 步：解析 configs.yaml + Containerfile + build-config.yml → `docs/data/images.yaml` | ✅ |
+| `docs/gen_descriptions.py` | docs 管线第 2 步：images.yaml → Hugo 页 + 仓内 readme（含 `--check` 漂移比对） | ✅ |
+| `docs/extract_versions.py` | gendoc：在镜像内抽取系统包版本 → TSV | ✅ |
+| `docs/upload_descriptions.py` | pubdoc：把描述推到 Harbor | ✅ |
+| `docs/missing_versions.py` | 查漏：哪些后端缺版本 TSV | ✅ |
+
+`docs/` 子目录 = 文档/描述生成流水线（上方 `docs` 各线），与顶层 `docs/` 站点目录
+不是一回事：顶层放 Hugo 站点与人读文档，这里放生成它的脚本。
 
 ## 约定
 

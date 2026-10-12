@@ -87,7 +87,7 @@
 #                        the app's identity and is carried by the Containerfile
 #                        (e.g. MEGATRON_VERSION), not per-backend conditionality.
 #                        Key presence also gates which app launch pages are
-#                        generated (docs/gen_data.py) and which backends enter
+#                        generated (scripts/docs/gen_data.py) and which backends enter
 #                        the app build matrix (scripts/generate_matrix.py --app).
 #   "hardware:"        — chip models the image targets (rendered as a prerequisite).
 #   "driver:"          — minimum host driver version required on the node — a

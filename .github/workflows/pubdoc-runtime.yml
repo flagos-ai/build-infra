@@ -60,9 +60,9 @@ jobs:
           fetch-depth: 0
       - run: python3 -m pip install --user pyyaml
       - name: Build the image list
-        run: python3 docs/gen_data.py
+        run: python3 scripts/docs/gen_data.py
       - name: Upload descriptions to Harbor
-        run: python3 docs/upload_descriptions.py --layer runtime
+        run: python3 scripts/docs/upload_descriptions.py --layer runtime
 
       - name: Clean up description branch
         if: always()

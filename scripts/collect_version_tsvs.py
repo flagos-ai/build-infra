@@ -85,11 +85,11 @@ def _missing(versions_dir: Path, expected_backends: list[str] | None = None) -> 
 
     # Full run: discover expected backends from generate_matrix.py.
     subprocess.run(
-        [sys.executable, str(REPO_ROOT / "docs" / "gen_data.py")],
+        [sys.executable, str(REPO_ROOT / "scripts" / "docs" / "gen_data.py")],
         capture_output=True, cwd=REPO_ROOT,
     )
     r = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "docs" / "missing_versions.py")],
+        [sys.executable, str(REPO_ROOT / "scripts" / "docs" / "missing_versions.py")],
         capture_output=True, text=True, cwd=REPO_ROOT,
     )
     missing = []

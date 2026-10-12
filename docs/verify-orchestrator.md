@@ -168,7 +168,7 @@ PR 归属分流：plugin bug → `sglang-plugin-FL`；内核/扩展 bug → `ver
 yaml」，而是扩枚举，连带触碰：
 
 - `scripts/render_status_matrix.py`：type → 渲染目标 md 的映射。
-- `docs/gen_data.py` / `docs/gen_descriptions.py`：`app_published_tag()` 与
+- `scripts/docs/gen_data.py` / `scripts/docs/gen_descriptions.py`：`app_published_tag()` 与
   `plugin_package` 反推。
 - configs.yaml `deps_app.sglang` / `.verl`。
 - 渲染目标新增 `packaging/sglang/docs/sglang-verification-matrix.md`、

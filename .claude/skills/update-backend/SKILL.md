@@ -100,7 +100,7 @@ dependency change, not a text edit.
 change MUST check, in the same PR:
 
 - `env` change → the Containerfile ENV it documents and every consumer
-  (`docs/gen_data.py` → images.yaml → gen_descriptions pages; the build-args
+  (`scripts/docs/gen_data.py` → images.yaml → gen_descriptions pages; the build-args
   path in `scripts/build_runtime.py`).
 - `deps` / compiler pin change → does the runtime build arg derive from it
   (`DEPS`, `FLAGTREE_PKG`, `TRITON_PKG`, `CPP_EXTRA`)?
@@ -158,7 +158,7 @@ compiler).
 
 ### 6. Docs (generated, not hand-written)
 
-`docs/gen_data.py` → images.yaml → `gen_descriptions.py` (base/runtime pages).
+`scripts/docs/gen_data.py` → images.yaml → `gen_descriptions.py` (base/runtime pages).
 The gendoc workflows extract the versions from the built images and open a
 review-gated PR; package version bumps surface there. Don't hand-edit
 `base/*.md` / `runtime/*.md`.

@@ -33,7 +33,7 @@ name: Generate docs for runtime images
 # metadata headers (run id, verify outcome) via scripts/annotate_version_tsv.py,
 # then uploads it as a per-backend artifact (versions-<backend>) with
 # upload-artifact. The TSV is a metadata carrier only — the description CONTENT
-# is configs-driven: docs/gen_descriptions.py's render_runtime() does not read
+# is configs-driven: scripts/docs/gen_descriptions.py's render_runtime() does not read
 # TSV data, so finalize regenerates it fresh from configs.yaml via gen_data.py.
 # Accumulate downloads all matching artifacts with download-artifact, merges
 # them, and saves the cumulative set to a git state branch
@@ -146,7 +146,7 @@ jobs:
         continue-on-error: true
         id: verify
         run: |
-          python3 docs/gen_data.py
+          python3 scripts/docs/gen_data.py
           python3 scripts/verify_runtime.py "${{ matrix.name }}"
 
       # The TSV is a metadata transport only — description content is

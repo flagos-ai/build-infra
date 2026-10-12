@@ -48,11 +48,11 @@ python scripts/generate_matrix.py                          # all buildable backe
 python scripts/generate_matrix.py nvidia-cuda12.8 metax    # subset
 
 # Regenerate the intermediate data file from configs.yaml + Containerfiles
-python docs/gen_data.py                                 # → docs/data/images.yaml
+python scripts/docs/gen_data.py                                 # → docs/data/images.yaml
 
 # Generate docs pages + in-repo readmes (base/<name>.md, runtime/<name>.md)
-python docs/gen_descriptions.py                         # all backends → files
-python docs/gen_descriptions.py nvidia-cuda13.3          # one backend → stdout
+python scripts/docs/gen_descriptions.py                         # all backends → files
+python scripts/docs/gen_descriptions.py nvidia-cuda13.3          # one backend → stdout
 ```
 
 ## Skills (flow templates + index; facts live in docs)
@@ -80,7 +80,7 @@ are read from the docs it names, never restated inside the skill.
 configs.yaml + base/ Containerfiles + build-config.yml
         │
         ▼
-  docs/gen_data.py  ──→  docs/data/images.yaml  ──→  docs/gen_descriptions.py  ──→  Hugo pages + Harbor descriptions
+  scripts/docs/gen_data.py  ──→  docs/data/images.yaml  ──→  scripts/docs/gen_descriptions.py  ──→  Hugo pages + Harbor descriptions
         │
         ├──→  scripts/generate_matrix.py  ──→  CI matrix JSON  ──→  trigger.yml / runtime.yml
         └──→  scripts/build_runtime.py    ──→  --build-arg       ──→  runtime/Containerfile
@@ -90,10 +90,10 @@ configs.yaml + base/ Containerfiles + build-config.yml
 
 `build-config.yml` owns: registry host+prefixes, runner labels per backend, `docker run` flags per vendor, verify commands.
 
-`docs/gen_data.py` parses `configs.yaml` + `base/` Containerfiles (FROM, apt packages, env) + `build-config.yml`
+`scripts/docs/gen_data.py` parses `configs.yaml` + `base/` Containerfiles (FROM, apt packages, env) + `build-config.yml`
 to produce `docs/data/images.yaml` — the intermediate data file that feeds doc generation.
 
-`docs/gen_descriptions.py` renders `images.yaml` into per-image markdown (web flavor for Hugo, plain flavor for in-repo + Harbor).
+`scripts/docs/gen_descriptions.py` renders `images.yaml` into per-image markdown (web flavor for Hugo, plain flavor for in-repo + Harbor).
 
 ### Image naming
 
@@ -200,7 +200,7 @@ until on-node dual-compiler verification passes.
 - **Wheel-based install for runtime.** FlagGems is installed from PyPI wheels.
   `--flaggems` pins the exact wheel version.
 
-- **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `docs/gen_descriptions.py`.
+- **Docs are generated, not hand-written.** `base/<name>.md` and `runtime/<name>.md` are outputs of `scripts/docs/gen_descriptions.py`.
   Edit the generator or data files, not the markdown.
   Generated web pages carry a provenance marker, and the generator refuses to overwrite a page without one —
   hand-written pages live in the same directories (the app tree has several), and a name collision would

@@ -26,7 +26,7 @@ The layer (base or runtime) selects both the markdown directory and which image
 ref in images.yaml supplies the Harbor project.
 
 Env: HARBOR_HOST, HARBOR_USER, HARBOR_PW (basic auth).
-Usage: python docs/upload_descriptions.py [--layer base|runtime] [--dry-run]
+Usage: python scripts/docs/upload_descriptions.py [--layer base|runtime] [--dry-run]
 """
 
 import base64
@@ -67,7 +67,7 @@ def main():
     pw = os.environ.get("HARBOR_PW", "")
     auth = "Basic " + base64.b64encode(f"{user}:{pw}".encode()).decode()
 
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
     md_dir = root / layer
 
