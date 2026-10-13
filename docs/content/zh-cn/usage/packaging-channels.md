@@ -56,33 +56,31 @@ deb/rpm 从不取代 PyPI 渠道；两者并存。deb/rpm 一侧必须能独立�
 地址。源码不另建分发仓库：**这些地址指向各上游 GitHub 仓库的 release tag**
 （`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`）。
 
-每个包的地址模板记录在 `packaging/wheel-info.yaml` 的 `sources:` 段（与
-`wheels:` 段同级的顶层键，包名一一对应），每条两个字段：
+每个包的源码信息记录在 `packaging/wheel-info.yaml` 的 `sources:` 段（与
+`wheels:` 段同级的顶层键，包名一一对应），每条字段如下：
 
 | 字段 | 含义 |
 |---|---|
-| `url` | 下载地址模板，填入版本号即得下载地址 |
-| `notes` | 该包的地址与版本号不一致之处（仅有差异时写） |
+| `short_name`、`desc_zh`、`desc_en` | 站点上该源码条目的标题与描述文字 |
+| `url` | 下载地址模板，唯一占位符 `{version}` |
+| `versions[].version` | 该源码的版本号 |
+| `notes` | 该源码与同包 wheel 的差异（仅有差异时写） |
 
-版本号是 PEP 440 形式，可带 `+` 本地段。`url` 模板可用三个占位符：
+**源码版本独立于 wheel 版本**，两边只有包名对应。同一份源码可以产出一批平台
+构建变体（`flagcx` 的 20 个平台 wheel 对应 1 个源码版本 `0.14.0`，`torch-fl` 的
+7 个对应 1 个 `2.10.0`），也可以一个 wheel 版本一份源码（`flagtree` 的 14 个
+后端各一份）；`megatron-core` 的源码版本是 fork 分支号 `0.2.3`，与 wheel 的
+`0.17.1` 无关。因此源码不能由 wheel 版本推导，必须逐条记录——全部 14 个包
+合计 55 个 wheel 版本、30 个源码版本。
 
-| 占位符 | 含义 | 例（版本 `0.17.1+0.2.3`） |
-|---|---|---|
-| `{version}` | 版本号全文 | `0.17.1+0.2.3` |
-| `{version_base}` | `+` 之前的部分 | `0.17.1` |
-| `{version_local}` | `+` 之后的部分 | `0.2.3` |
-
-例如 `vllm` 的模板是
-`https://github.com/vllm-project/vllm/archive/refs/tags/v{version_base}.tar.gz`，
-版本 `0.24.0+flagos` 即得
+把 `versions[]` 里的版本填入 `{version}` 即得下载地址。例如 `vllm` 的模板是
+`https://github.com/vllm-project/vllm/archive/refs/tags/v{version}.tar.gz`，
+版本 `0.24.0` 即得
 `https://github.com/vllm-project/vllm/archive/refs/tags/v0.24.0.tar.gz`。
 
 多数包的模板为 `.../tags/v{version}.tar.gz`（tag 与版本号只差一个 `v` 前缀）；
-其余情况的模板与原因写在各自的 `notes:` 中，例如 `flagcx` 的上游 tag 只到
-`v0.14.0`，wheel 版本里的 `+<backend>` 是构建时加的本地段，上游没有对应 tag。
-
-请求地址前把 tag 部分做百分号编码（`+` 写作 `%2B`），这是 URL 的正确写法；
-带字面量 `+` 的地址并不可靠。
+`flagtree` 的上游 tag 没有 `v` 前缀。请求地址前把 tag 部分做百分号编码
+（`+` 写作 `%2B`）——`flagtree` 的版本号自带 `+`。
 
 与 `wheels:` 不同，`sources:` 全部由人工维护：仓库不随发布变化，没有任何发布
 步骤能观察到它。（`wheels:` 的发布事实由发布步骤自动记录，见 `docs/wheel-info.md`。）

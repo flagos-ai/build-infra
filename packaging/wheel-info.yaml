@@ -676,35 +676,126 @@ wheels:
     - any
 sources:
 - name: flagtree
+  short_name: FlagTree
+  desc_zh: FlagTree 编译器源代码；上游 tag 自带后端段，每个后端一份源码。
+  desc_en: FlagTree compiler source. Upstream tags carry the backend segment, so each
+    backend has its own source.
   url: https://github.com/flagos-ai/FlagTree/archive/refs/tags/{version}.tar.gz
-  notes: 上游 tag 与 catalog 版本逐字相同（无 `v` 前缀），例如 0.7.0+triton3.6。
+  versions:
+  - 0.7.0+triton3.6
+  - 0.7.0+triton3.5
+  - 0.6.0+ascend3.2
+  - 0.7.0+ascend3.5
+  - 0.7.0+enflame3.6
+  - 0.7.0+hcu3.6
+  - 0.6.1+iluvatar3.6
+  - 0.7.0+iluvatar3.6
+  - 0.7.0+metax3.6
+  - 0.7.0+mthreads3.6
+  - 0.7.0+ppu3.6
+  - 0.7.0+sunrise3.6
+  - 0.7.0+tsingmicro3.6
+  - 0.7.0+xpu3.6
 - name: flag_gems
+  short_name: FlagGems
+  desc_zh: FlagGems 高性能算子库源代码，纯 Python、跨后端通用。
+  desc_en: Source for the FlagGems operator library; pure Python, shared across backends.
   url: https://github.com/flagos-ai/FlagGems/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 5.4.0
 - name: flagcx
-  url: https://github.com/flagos-ai/FlagCX/archive/refs/tags/v{version_base}.tar.gz
-  notes: 上游 tag 只到 v0.14.0；版本号里的 +<backend> 是构建时加的本地段，上游没有对应 tag。
+  short_name: FlagCX
+  desc_zh: FlagCX 集合通信库源代码。
+  desc_en: Source for the FlagCX collective-communication library.
+  url: https://github.com/flagos-ai/FlagCX/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.14.0
+  notes: 各平台的 wheel 由同一份源码构建，因此只有一个源码版本。
 - name: vllm
-  url: https://github.com/vllm-project/vllm/archive/refs/tags/v{version_base}.tar.gz
-  notes: 上游 vLLM 源码（wheel 由它 repack 而来）；+flagos 是 repack 后加的本地段。
+  short_name: vLLM (repacked)
+  desc_zh: vLLM 推理部署框架的上游源代码。
+  desc_en: Upstream source for the vLLM inference and serving framework.
+  url: https://github.com/vllm-project/vllm/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.20.2
+  - 0.24.0
+  notes: 本站分发的 wheel 由该源码加本地补丁 repack 而成。
 - name: vllm-plugin-fl
+  short_name: vllm-plugin-FL
+  desc_zh: vllm-plugin-FL 插件源代码，为多后端推理补齐 vLLM 算子与服务能力。
+  desc_en: Source for the vllm-plugin-FL plugin, which adds multi-backend vLLM operators
+    and serving support.
   url: https://github.com/flagos-ai/vllm-plugin-FL/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.2.2
+  - 0.3.0
 - name: megatron-core
-  url: https://github.com/flagos-ai/Megatron-LM-FL/archive/refs/tags/v{version_local}.tar.gz
-  notes: fork 自 NVIDIA/Megatron-LM；tag 取版本号的本地段（0.17.1+0.2.3 → v0.2.3）。
+  short_name: Megatron-LM-FL
+  desc_zh: megatron-core 训练框架源代码。
+  desc_en: Source for the megatron-core training framework.
+  url: https://github.com/flagos-ai/Megatron-LM-FL/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.2.3
+  - 0.3.0
+  notes: 取自 FlagOS 维护的 NVIDIA/Megatron-LM fork；这里的版本号是 fork 分支号，与 wheel 版本号不同。
 - name: torch-fl
-  url: https://github.com/flagos-ai/Torch-FL/archive/refs/tags/v{version_base}.tar.gz
-  notes: 上游 tag 只到 v2.10.0；+<backend> 是本地段。
+  short_name: Torch-FL
+  desc_zh: Torch-FL 设备插件源代码。
+  desc_en: Source for the Torch-FL device plugin.
+  url: https://github.com/flagos-ai/Torch-FL/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 2.10.0
+  notes: 各平台的 wheel 由同一份源码构建，因此只有一个源码版本。
 - name: flag_attn
+  short_name: FlagAttention
+  desc_zh: FlagAttention 高性能注意力算子库源代码，用于模型训练与推理。
+  desc_en: Source for the FlagAttention operator library, used in model training and
+    inference.
   url: https://github.com/flagos-ai/FlagAttention/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.4.0
 - name: flagsparse
+  short_name: FlagSparse
+  desc_zh: FlagSparse GPU 稀疏算子库源代码，用于稀疏计算与跨平台移植。
+  desc_en: Source for the FlagSparse GPU sparse-operator library.
   url: https://github.com/flagos-ai/FlagSparse/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.3.0
 - name: flag_blas
+  short_name: FlagBLAS
+  desc_zh: FlagBLAS 高性能数值算子库源代码，提供标准 BLAS 接口的向量与矩阵计算。
+  desc_en: Source for the FlagBLAS numerical library, providing vector and matrix
+    routines behind the standard BLAS interface.
   url: https://github.com/flagos-ai/FlagBLAS/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.3.0
 - name: flag_audio
+  short_name: FlagAudio
+  desc_zh: FlagAudio 多后端音频计算库源代码，用于音频信号处理与语音 AI。
+  desc_en: Source for the FlagAudio multi-backend audio library.
   url: https://github.com/flagos-ai/FlagAudio/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.3.0
 - name: flagfft_codegen
+  short_name: FlagFFT
+  desc_zh: FlagFFT JIT 编译 GPU FFT 库源代码，运行时按后端生成 FFT 内核。
+  desc_en: Source for the FlagFFT JIT-compiled GPU FFT library, which generates kernels
+    per backend at runtime.
   url: https://github.com/flagos-ai/FlagFFT/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.2.0
 - name: flaggems_vllm
+  short_name: FlagGems-vllm
+  desc_zh: FlagGems-vllm 高性能算子库源代码，提供 vLLM 场景算子的优化实现。
+  desc_en: Source for FlagGems-vllm, optimized operators for vLLM workloads.
   url: https://github.com/flagos-ai/FlagGems-vllm/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.2.0
 - name: flagos_compressor
+  short_name: FlagOS-Compressor
+  desc_zh: FlagOS-Compressor 检查点转换与量化压缩工具源代码。
+  desc_en: Source for FlagOS-Compressor, the checkpoint conversion and quantization
+    tool.
   url: https://github.com/flagos-ai/FlagOS-Compressor/archive/refs/tags/v{version}.tar.gz
+  versions:
+  - 0.1.0
