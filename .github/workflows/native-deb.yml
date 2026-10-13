@@ -126,20 +126,18 @@ jobs:
             FlagTree)
               repo=FlagTree
               script=packaging/debian/build-helpers/build-flagtree.sh
-              # No FlagTree tag carries packaging/; the branch is
-              # 0.7.0rc2.post2 plus two XPU-only commits.
-              ref=0.7.0-rc2-triton3.6
-              ver=0.7.0rc2.post2
+              # GA tag at the tip of 0.7.0-rc2-triton3.6; the "+triton3.6"
+              # local label is not a package version, so ver is spelled out.
+              ref=0.7.0+triton3.6
+              ver=0.7.0
               outdir=dist/output
               suites=ubuntu24.04
               image=ubuntu:24.04 ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/debian/build-helpers/build-flag-dnn.sh
-              # The 24.04 build fixes (FlagDNN#17) are on the branch only;
-              # it is post2 plus packaging commits.
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post2
+              ref=v0.3.0
+              ver=v0.3.0
               # Depends on libpython3.12 and libtriton-jit-nvidia, both 24.04-only.
               base=nvidia/cuda:12.8.0-devel-ubuntu24.04
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
@@ -148,9 +146,11 @@ jobs:
             FlagTensor)
               repo=FlagTensor
               script=packaging/debian/build-helpers/build-flagtensor.sh
-              # As FlagDNN, with FlagTensor#25.
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post2
+              # The deb build image bootstraps pip with get-pip.py, which the
+              # deadsnakes python3.12 now refuses under PEP 668; no ref builds
+              # until FlagTensor#29 is in a release.
+              ref=v0.3.0
+              ver=v0.3.0
               base=nvidia/cuda:12.8.0-devel-ubuntu24.04
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
               suites=ubuntu24.04
@@ -158,9 +158,8 @@ jobs:
             FlagFFT)
               repo=FlagFFT
               script=packaging/debian/build-helpers/build-flagfft.sh
-              # 0.2.0-rc2 carries FlagFFT#25 and #27 on top of post2.
-              ref=0.2.0-rc2
-              ver=v0.2.0-rc2.post2
+              ref=v0.2.0
+              ver=v0.2.0
               # Depends on python3.12, which 22.04 gets from deadsnakes (its
               # control file says so).
               ppa=ppa:deadsnakes/ppa

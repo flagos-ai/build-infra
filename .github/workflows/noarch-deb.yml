@@ -91,22 +91,26 @@ jobs:
         run: |
           set -euo pipefail
           # Per component: build script, and the ref and version the current
-          # release manifest pins it to. `ver` is the manifest tag rewritten
-          # for Debian (v0.3.0-rc2.post1 -> 0.3.0~rc2.post1); it is applied
-          # only when this table's ref is used, so overriding `ref` on a
-          # dispatch does not silently ship the manifest's version number.
+          # release manifest (release-2.2) pins it to. `ver` is the manifest
+          # tag rewritten for Debian (v0.3.0-rc2.post1 -> 0.3.0~rc2.post1);
+          # it is applied only when this table's ref is used, so overriding
+          # `ref` on a dispatch does not silently ship the manifest's version
+          # number.
           #
-          # Where the manifest's tag predates packaging/, the pin is the newest
-          # tag whose code is what gets built, and the version follows it.
+          # post<N> tags are verification snapshots, not releases: the pins
+          # are the release tags.
           case "${COMPONENT}" in
             FlagAudio)
-              script=build-flag-audio.sh;     ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
+              script=build-flag-audio.sh;     ref=v0.3.0; ver=0.3.0 ;;
             FlagSparse)
+              # v0.3.0 declares its license in the PEP 639 string form, which
+              # the setuptools in ubuntu 22.04/24.04 rejects (FlagSparse#110);
+              # stay on the last tag that builds until a release carries the fix.
               script=build-flagsparse.sh;     ref=v0.3.0-rc2.post1; ver=0.3.0~rc2.post1 ;;
             FlagAttention)
-              script=build-flag-attention.sh; ref=v0.4.0-rc2.post1; ver=0.4.0~rc2.post1 ;;
+              script=build-flag-attention.sh; ref=v0.4.0; ver=0.4.0 ;;
             FlagBLAS)
-              script=build-flag-blas.sh;      ref=v0.3.0-rc2.post2; ver=0.3.0~rc2.post2 ;;
+              script=build-flag-blas.sh;      ref=v0.3.0; ver=0.3.0 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac

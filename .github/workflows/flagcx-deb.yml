@@ -49,7 +49,7 @@ on:
       flagcx_ref:
         description: 'FlagCX git ref to build (tag for a release, branch otherwise)'
         type: string
-        default: main
+        default: v0.14.0
       verify:
         description: 'install the .deb in its base image and in a plain Ubuntu before uploading'
         type: boolean
