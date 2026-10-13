@@ -167,9 +167,10 @@ jobs:
               base_arg=flag
               spec=packaging/rpm/specs/flagfft.spec
               outdir=rpm-packages
-              # openeuler24.03: the bundled libtriton_jit wants nlohmann_json
-              # >= 3.11.3 and openEuler ships 3.11.2 (FlagFFT#26 is the
-              # workaround on main); pass `suites="fedora43 rhel9"` to publish.
+              # openeuler24.03 is the only suite with an image, and this tag
+              # does not build there: the bundled libtriton_jit wants
+              # nlohmann_json >= 3.11.3 where openEuler ships 3.11.2 (FlagFFT#26
+              # is the workaround on main). No rpm until a release carries it.
               ref=v0.2.0
               ver=v0.2.0
               # The spec BuildRequires nlohmann-json-devel, which the
