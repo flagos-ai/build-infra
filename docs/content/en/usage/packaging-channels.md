@@ -62,6 +62,54 @@ must stay installable on its own: **no hard dependency may point at the pip
 layer.** The bridge is soft — installation docs point to the vendor pip
 index, or a meta-package's `Recommends`/description does.
 
+## Source packages
+
+Besides wheels, every package in the catalog also has a source tarball download —
+a `.tar.gz` URL you can fetch directly. There is no separate source repository:
+**these URLs point at the release tags of the upstream GitHub repositories**
+(`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`).
+
+Each package's source information is recorded in the `sources:` block of
+`packaging/wheel-info.yaml` — a top-level key alongside `wheels:`, matching it
+one package per entry. An entry carries:
+
+| Field | Meaning |
+|---|---|
+| `short_name`, `desc_zh`, `desc_en` | the source entry's title and description on the site |
+| `url` | download-URL template, with `{version}` as its only placeholder |
+| `versions[].version` | the source's own version |
+| `notes` | how this source differs from the package's wheels (written only when it does) |
+
+**Source versions are independent of wheel versions**; only the package names
+correspond. One source can produce a batch of platform build variants
+(`flagcx`'s 20 platform wheels come from one source version, `0.14.0`;
+`torch-fl`'s 7 come from one, `2.10.0`), and one wheel version can have its own
+source (`flagtree`'s 14 backends each have one). `megatron-core`'s source
+version is the fork branch number `0.2.3`, unrelated to the wheel's `0.17.1`.
+A source version therefore cannot be derived from a wheel version; it is
+recorded per entry — 14 packages, 55 wheel versions, 30 source versions in all.
+
+Fill a version from `versions[]` into `{version}` to get the download URL.
+`vllm`'s template, for instance, is
+`https://github.com/vllm-project/vllm/archive/refs/tags/v{version}.tar.gz`,
+so version `0.24.0` gives
+`https://github.com/vllm-project/vllm/archive/refs/tags/v0.24.0.tar.gz`.
+
+Most packages' templates read `.../tags/v{version}.tar.gz` — the tag differs
+from the version only by a leading `v`; `flagtree`'s upstream tags have no `v`
+prefix. Percent-encode the tag segment before requesting the URL (write `+` as
+`%2B`) — `flagtree`'s versions carry a `+`.
+
+Unlike `wheels:`, `sources:` is maintained by hand in full: a repository does
+not change with a publish, and no publish step can observe it. (The publish
+facts under `wheels:` are recorded automatically by the publish steps — see
+`docs/wheel-info.md`.)
+
+The source tarballs the build actually consumes (`vllm-<version>.tar.gz`,
+`sglang-<version>.tar.gz`) are kept separately on the internal filestore
+(`https://resource.flagos.net/repository/flagos-filestore/<project>/`) so that
+the same source can be built again.
+
 ## Repository layout
 
 - **apt**: one hosted repository per target distro release

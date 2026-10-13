@@ -34,6 +34,14 @@ so the record PR shows a reviewer what still needs writing.
 Events only, never full revalidation: a row is the union of the events that
 produced it, and an event that was later superseded is kept.
 
+The catalog's other top-level key, ``sources``, records where each package's
+source download lives: a ``url`` template, the source's own ``versions`` (which
+are independent of the wheel versions — a batch of platform wheels can share one
+source, and a source version can be a fork branch number unrelated to the wheel
+version), plus the package-level descriptions the site renders. A repository is
+a one-time fact no publish step can observe, so ``record`` never writes that
+half — not even for a package publishing for the first time.
+
 The file is written back through the YAML dumper, so its layout (key order, list
 indentation) is the dumper's and a comment written inside it does not survive a
 record. Hand-written field *values* do.

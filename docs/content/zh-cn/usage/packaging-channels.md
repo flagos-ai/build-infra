@@ -50,6 +50,46 @@ deepin 的官方仓库，整条依赖闭包都必须是原生包；而隔离网�
 deb/rpm 从不取代 PyPI 渠道；两者并存。deb/rpm 一侧必须能独立安装：**不得有硬依赖指向 pip 层。**
 桥接是软的 —— 安装文档指向厂商 pip 索引，或者由某个元包的 `Recommends`/描述来指。
 
+## 源码包
+
+除 wheel 之外，目录中的每个包都提供源码包下载，即一个可直接下载的 `.tar.gz`
+地址。源码不另建分发仓库：**这些地址指向各上游 GitHub 仓库的 release tag**
+（`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`）。
+
+每个包的源码信息记录在 `packaging/wheel-info.yaml` 的 `sources:` 段（与
+`wheels:` 段同级的顶层键，包名一一对应），每条字段如下：
+
+| 字段 | 含义 |
+|---|---|
+| `short_name`、`desc_zh`、`desc_en` | 站点上该源码条目的标题与描述文字 |
+| `url` | 下载地址模板，唯一占位符 `{version}` |
+| `versions[].version` | 该源码的版本号 |
+| `notes` | 该源码与同包 wheel 的差异（仅有差异时写） |
+
+**源码版本独立于 wheel 版本**，两边只有包名对应。同一份源码可以产出一批平台
+构建变体（`flagcx` 的 20 个平台 wheel 对应 1 个源码版本 `0.14.0`，`torch-fl` 的
+7 个对应 1 个 `2.10.0`），也可以一个 wheel 版本一份源码（`flagtree` 的 14 个
+后端各一份）；`megatron-core` 的源码版本是 fork 分支号 `0.2.3`，与 wheel 的
+`0.17.1` 无关。因此源码不能由 wheel 版本推导，必须逐条记录——全部 14 个包
+合计 55 个 wheel 版本、30 个源码版本。
+
+把 `versions[]` 里的版本填入 `{version}` 即得下载地址。例如 `vllm` 的模板是
+`https://github.com/vllm-project/vllm/archive/refs/tags/v{version}.tar.gz`，
+版本 `0.24.0` 即得
+`https://github.com/vllm-project/vllm/archive/refs/tags/v0.24.0.tar.gz`。
+
+多数包的模板为 `.../tags/v{version}.tar.gz`（tag 与版本号只差一个 `v` 前缀）；
+`flagtree` 的上游 tag 没有 `v` 前缀。请求地址前把 tag 部分做百分号编码
+（`+` 写作 `%2B`）——`flagtree` 的版本号自带 `+`。
+
+与 `wheels:` 不同，`sources:` 全部由人工维护：仓库不随发布变化，没有任何发布
+步骤能观察到它。（`wheels:` 的发布事实由发布步骤自动记录，见 `docs/wheel-info.md`。）
+
+构建过程实际使用的源码压缩包（如 `vllm-<version>.tar.gz`、
+`sglang-<version>.tar.gz`）另在内部 filestore
+（`https://resource.flagos.net/repository/flagos-filestore/<project>/`）留档，
+用于在同一份源码上重复构建。
+
 ## 仓库布局
 
 - **apt**：每个目标发行版版本一个 hosted 仓库
