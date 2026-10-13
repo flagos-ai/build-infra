@@ -143,9 +143,8 @@ jobs:
               base_arg=arg
               spec=packaging/rpm/specs/flag-dnn.spec
               outdir=rpm-packages
-              # Same ref as native-deb, which needs the branch for FlagDNN#17.
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post2
+              ref=v0.3.0
+              ver=v0.3.0
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-devel'
               image_fedora43=
               image_openeuler2403=
@@ -156,8 +155,8 @@ jobs:
               base_arg=arg
               spec=packaging/rpm/specs/flagtensor.spec
               outdir=rpm-packages
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post2
+              ref=v0.3.0
+              ver=v0.3.0
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-devel'
               image_fedora43=
               image_openeuler2403=
@@ -168,11 +167,13 @@ jobs:
               base_arg=flag
               spec=packaging/rpm/specs/flagfft.spec
               outdir=rpm-packages
-              # 0.2.0-rc2 carries FlagFFT#25 and #27 on top of post2.
-              ref=0.2.0-rc2
-              ver=v0.2.0-rc2.post2
-              # The spec BuildRequires nlohmann-json-devel; FlagFFT#27 dropped it
-              # from the Dockerfile. Until FlagFFT can change again, add it here.
+              # openeuler24.03: the bundled libtriton_jit wants nlohmann_json
+              # >= 3.11.3 and openEuler ships 3.11.2 (FlagFFT#26 is the
+              # workaround on main); pass `suites="fedora43 rhel9"` to publish.
+              ref=v0.2.0
+              ver=v0.2.0
+              # The spec BuildRequires nlohmann-json-devel, which the
+              # Dockerfile does not install; add it here.
               base_pkgs="nlohmann-json-devel python3-wheel"
               image_fedora43=
               image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts

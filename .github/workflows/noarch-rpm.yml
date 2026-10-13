@@ -109,35 +109,42 @@ jobs:
           # this table's ref is used, so overriding `ref` on a dispatch does
           # not silently ship the manifest's version number.
           #
-          # Release branches, not tags: the rpm fixes merged for 2.2 (the pip
-          # fallback, the dist-info glob) live on the branch, whose code is
-          # otherwise the tag `ver` names.
+          # The pins are the release-2.2 tags; post<N> tags and release
+          # branches are verification snapshots. Where a tag builds for
+          # fedora43 only, the note says why; pass `suites=fedora43` to publish
+          # it until a release carries the fix.
           case "${COMPONENT}" in
             FlagGems)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-gems.spec
-              ref=5.4.0-rc2
-              ver=v5.4.0-rc2.post4 ;;
+              # openeuler24.03: the spec's non-macro build path is on master
+              # only, so this tag is skipped there.
+              ref=v5.4.0
+              ver=v5.4.0 ;;
             FlagAudio)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-audio.spec
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post2 ;;
+              ref=v0.3.0
+              ver=v0.3.0 ;;
             FlagSparse)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flagsparse.spec
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post1 ;;
+              # openeuler24.03: its setuptools rejects the PEP 639 license
+              # string this tag declares (FlagSparse#110).
+              ref=v0.3.0
+              ver=v0.3.0 ;;
             FlagAttention)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-attention.spec
-              ref=0.4.0-rc2
-              ver=v0.4.0-rc2.post1 ;;
+              ref=v0.4.0
+              ver=v0.4.0 ;;
             FlagBLAS)
               dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
               spec=packaging/rpm/specs/flag-blas.spec
-              ref=0.3.0-rc2
-              ver=v0.3.0-rc2.post2 ;;
+              # openeuler24.03: pyproject still says 0.1.0, so %files does not
+              # find the 0.3.0 dist-info (FlagBLAS#120).
+              ref=v0.3.0
+              ver=v0.3.0 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac

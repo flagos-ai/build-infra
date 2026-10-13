@@ -58,7 +58,7 @@ on:
           FlagCX git ref to build. A tag is preferred: a branch head moves, so
           the same dispatch would not build the same source twice.
         type: string
-        default: 0.14.0-rc2
+        default: v0.14.0
       version:
         description: >-
           release version to stamp into the spec (e.g. v0.14.0-rc2.post2).
