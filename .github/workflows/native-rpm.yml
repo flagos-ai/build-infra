@@ -130,10 +130,10 @@ jobs:
               base_arg=env
               spec=packaging/rpm/specs/flagtree.spec
               outdir=dist-rpm/output
-              # No FlagTree tag carries packaging/; the branch is
-              # 0.7.0rc2.post2 plus two XPU-only commits.
-              ref=0.7.0-rc2-triton3.6
-              ver=0.7.0rc2.post2
+              # GA tag at the tip of 0.7.0-rc2-triton3.6; the "+triton3.6"
+              # local label is not a package version, so ver is spelled out.
+              ref=0.7.0+triton3.6
+              ver=0.7.0
               image_fedora43=fedora:43
               image_openeuler2403=openeuler/openeuler:24.03-lts
               image_rhel9= ;;
