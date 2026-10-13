@@ -14,9 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Record wheel publish events into ``packaging/wheel-info.yaml``.
+"""Record wheel publish events into ``packaging/packages.yaml``.
 
-``packaging/wheel-info.yaml`` is the wheel package catalog, and it is its own
+``packaging/packages.yaml`` is the wheel package catalog, and it is its own
 record of what was published: each version row's ``pypi_index`` / ``python`` /
 ``os`` / ``arch`` are the union of the publish events that produced it. The
 human copy — package order, ``short_name``, and the per-version ``desc_zh`` /
@@ -68,7 +68,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-CATALOG = REPO_ROOT / "packaging" / "wheel-info.yaml"
+CATALOG = REPO_ROOT / "packaging" / "packages.yaml"
 
 # A compiled wheel's filename carries the interpreter tag and the platform
 # tag; a pure-Python wheel is py3-none-any. ``version`` here is the wheel's
@@ -310,7 +310,7 @@ def cmd_record(args: argparse.Namespace) -> None:
         new = text.splitlines()
         sys.stdout.writelines(
             line + "\n" for line in difflib.unified_diff(
-                old, new, "packaging/wheel-info.yaml", "packaging/wheel-info.yaml",
+                old, new, "packaging/packages.yaml", "packaging/packages.yaml",
                 lineterm="", n=2,
             )
         )
@@ -323,7 +323,7 @@ def cmd_record(args: argparse.Namespace) -> None:
     workflow = args.workflow or "wheel"
     branch = f"auto/wheel-info-{workflow}"
     commit_msg = f"docs(wheel-info): record {workflow} wheel publish"
-    _git("add", "packaging/wheel-info.yaml", check=False)
+    _git("add", "packaging/packages.yaml", check=False)
     if _git("diff", "--cached", "--quiet", check=False).returncode == 0:
         print("no wheel-info changes after recording — nothing to PR")
         return
@@ -370,7 +370,7 @@ def cmd_record(args: argparse.Namespace) -> None:
         return
     body = (
         f"The `{workflow}` wheel workflow published wheels to the vendor PyPI and recorded "
-        "the publish events into the matching rows of `packaging/wheel-info.yaml` "
+        "the publish events into the matching rows of `packaging/packages.yaml` "
         "(`pypi_index` / `python` / `os` / `arch` only — the hand-written descriptions are "
         "left as they are). No functional changes; the publish step keeps the catalog "
         "current from now on — see scripts/gen_wheel_info.py.\n\n"

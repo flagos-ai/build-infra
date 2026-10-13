@@ -113,7 +113,7 @@ jobs:
 
   # Records what the publish steps above uploaded; the job body is shared —
   # see record-wheel-info.yml. One committer per run is what keeps a fan-out
-  # dispatch from racing on packaging/wheel-info.yaml.
+  # dispatch from racing on packaging/packages.yaml.
   record-wheel-info:
     needs: build
     # always(): the manifest left by a publish step that failed mid-way is

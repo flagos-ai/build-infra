@@ -1,6 +1,6 @@
 # Wheel Info（wheel 包目录的自动记录机制）
 
-> `packaging/wheel-info.yaml` 是全部 wheel 的包目录，并同时给出每个包的源码包
+> `packaging/packages.yaml` 是全部 wheel 的包目录，并同时给出每个包的源码包
 > 下载信息。本文件说明这两部分如何维护：wheel 的事实由发布步骤记录，源码包
 > 信息由人工维护，人工只 review 由记录产生的 PR。本文件只描述机制与设计理由；
 > 具体实现见 `scripts/gen_wheel_info.py`、
@@ -16,7 +16,7 @@
 
 ## 数据模型
 
-目录文件本身就是记录，不另设数据文件。`packaging/wheel-info.yaml` 有两个顶层键：
+目录文件本身就是记录，不另设数据文件。`packaging/packages.yaml` 有两个顶层键：
 
 - `wheels:` —— wheel 的下载信息。每个包一条，包内每个版本一行。
 - `sources:` —— 同一批包的源码包下载信息。每个包一条，与 `wheels:` 的包名一一
@@ -120,12 +120,12 @@
   ├─ 合并为一份 manifest
   └─ 调用 ./.github/actions/record-wheel-info
        └─ scripts/gen_wheel_info.py record --manifest … --workflow …
-            └─ 修改 packaging/wheel-info.yaml → 提交 → 创建待 review 的 PR
+            └─ 修改 packaging/packages.yaml → 提交 → 创建待 review 的 PR
 ```
 
 以下两点改动时容易出错：
 
-- **每次 run 只有一个提交者。** 发布步骤不修改 `wheel-info.yaml`。矩阵扇出
+- **每次 run 只有一个提交者。** 发布步骤不修改 `packages.yaml`。矩阵扇出
   （`backend: all`）会产生多个并行作业同时发布，若各自提交并创建 PR 会互相
   冲突；因此合并放在唯一的记录作业中，无论扇出多少路都只有一个提交者。
 - **下载 artifact 不能使用 `merge-multiple`。** 各作业上传的 artifact 内部
