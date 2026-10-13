@@ -59,7 +59,7 @@ vendor 无关 wheel 发布线，入口是 `packaging/flaglibs/README.md`，CI �
 `.github/workflows/flaglibs-wheel.yml`。
 `packaging/flagos-compressor/` 同理——单包纯 Python wheel（flagos-compressor，
 无 C 扩展），构建脚本 `build.sh`，CI 在 `.github/workflows/flagos-compressor-wheel.yml`。
-`packaging/wheel-info.yaml` 是全部 wheel 的包目录（跨上述各线），由发布步骤
+`packaging/packages.yaml` 是全部 wheel 的包目录（跨上述各线），由发布步骤
 自动记录、review-gated PR 落地——机制与设计理由见 `docs/wheel-info.md`。
 
 ## 引用维护清单

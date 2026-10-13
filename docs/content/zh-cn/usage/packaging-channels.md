@@ -56,7 +56,7 @@ deb/rpm 从不取代 PyPI 渠道；两者并存。deb/rpm 一侧必须能独立�
 地址。源码不另建分发仓库：**这些地址指向各上游 GitHub 仓库的 release tag**
 （`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`）。
 
-每个包的源码信息记录在 `packaging/wheel-info.yaml` 的 `sources:` 段（与
+每个包的源码信息记录在 `packaging/packages.yaml` 的 `sources:` 段（与
 `wheels:` 段同级的顶层键，包名一一对应），每条字段如下：
 
 | 字段 | 含义 |

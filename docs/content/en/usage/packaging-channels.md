@@ -70,7 +70,7 @@ a `.tar.gz` URL you can fetch directly. There is no separate source repository:
 (`https://github.com/<repo>/archive/refs/tags/<tag>.tar.gz`).
 
 Each package's source information is recorded in the `sources:` block of
-`packaging/wheel-info.yaml` — a top-level key alongside `wheels:`, matching it
+`packaging/packages.yaml` — a top-level key alongside `wheels:`, matching it
 one package per entry. An entry carries:
 
 | Field | Meaning |

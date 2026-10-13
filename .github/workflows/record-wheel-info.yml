@@ -17,7 +17,7 @@ name: Record Wheel Info
 # Shared by every wheel workflow: the publish steps above leave a manifest of
 # what they uploaded, this job turns it into the catalog row(s) and opens the
 # review-gated record PR. The publish steps deliberately do not edit
-# packaging/wheel-info.yaml themselves — one committer per run is what keeps a
+# packaging/packages.yaml themselves — one committer per run is what keeps a
 # fan-out dispatch from racing on it.
 #
 # A caller keeps only what differs per workflow:
