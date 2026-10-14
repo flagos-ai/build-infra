@@ -772,7 +772,7 @@ vendors:
       python: "3.10"
       triton: triton==3.6.0+gitcd2d6c1b
       # triton: triton==3.0.0+a48aedef
-      flagtree: flagtree==0.7.0+xpu3.6
+      flagtree: flagtree==0.7.1a1+xpu3.6
       env:
         base:
           PATH: /usr/local/xpu/bin:$PATH
