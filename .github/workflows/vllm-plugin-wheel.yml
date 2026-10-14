@@ -417,7 +417,7 @@ jobs:
       # deletes it along with the work dir, and a build-only dispatch
       # (upload=false) yields nothing that can be installed for an E2E run.
       - name: Upload the wheel as a run artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: vllm-plugin-wheel-${{ needs.resolve.outputs.backend }}
           path: ${{ env.WORK }}/out/*.whl
@@ -495,7 +495,7 @@ jobs:
 
       - name: Upload the wheel-info manifest
         if: ${{ inputs.upload }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: wheel-info-manifest-${{ github.run_id }}
           path: .wheel-info/manifest.tsv
