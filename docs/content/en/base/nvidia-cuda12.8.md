@@ -69,7 +69,7 @@ Explicitly installed; the version is the one baked into this image:
 ```bash
 docker run --rm -it \
   --gpus all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.3.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -82,7 +82,7 @@ docker run --rm -it \
   -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
   -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda12.8:2.3.0 bash
 ```
 
 ## Verify
@@ -93,4 +93,4 @@ Inside the container, confirm the accelerator is visible:
 nvidia-smi
 ```
 
-*Last updated: 2026-09-17 09:16:30 · `e1b5d08c99ef`*
+*Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*

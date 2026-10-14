@@ -82,7 +82,7 @@ title: "tsingmicro-tsm260610"
 docker run --rm -it \
   --runtime=tsingmicro \
   -e TSINGMICRO_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.3.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -91,7 +91,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/accel \
   --device /dev/accel_drv_mgr \
-  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm260610:2.3.0 bash
 ```
 
 ## 验证
@@ -102,4 +102,4 @@ docker run --rm -it \
 tsm_smi
 ```
 
-*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*
+*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*

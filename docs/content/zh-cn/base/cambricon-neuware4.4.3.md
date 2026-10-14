@@ -76,7 +76,7 @@ title: "cambricon-neuware4.4.3"
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.4.3:2.3.0 bash
 ```
 
 ## 验证
@@ -87,4 +87,4 @@ docker run --rm -it \
 cnmon
 ```
 
-*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*
+*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
