@@ -332,7 +332,9 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # Compiler switching: see runtime/zz-compiler.sh — baked to /etc/profile.d so
 # the default compiler (FlagTree at /opt/flagtree, else Triton at
 # /opt/triton) is active in every shell, and 'compiler flagtree|triton'
-# toggles between the side dirs.
+# toggles between the side dirs. The same file honours a version requested at
+# container start (FLAGTREE_VERSION), installing it into /opt/flagtree in place
+# so a FlagTree bump needs no image rebuild.
 #
 # The zz- prefix forces it to sort LAST among /etc/profile.d/*.sh (which are
 # sourced alphabetically). Some base images ship a vendor.sh (captured from
@@ -340,6 +342,16 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # which would clobber the compiler dir if compiler.sh sorted before it. Sorting
 # last means the compiler's PYTHONPATH export wins and triton stays importable.
 COPY zz-compiler.sh /etc/profile.d/zz-compiler.sh
+
+# ── FlagTree index for the in-container version override ────────
+# zz-compiler.sh installs a version requested at container start
+# (FLAGTREE_VERSION / `compiler flagtree <ver>`) from this image's own vendor
+# index, falling back to the shared lane. A file and not an ENV: configs.yaml
+# env.runtime is the documented source of this image's env, and an ENV set only
+# here would silently fall outside it.
+ARG FLAGOS_PYPI
+RUN mkdir -p /etc/flagos \
+    && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/flagtree-index; fi
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)

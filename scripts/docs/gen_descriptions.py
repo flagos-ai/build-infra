@@ -99,6 +99,8 @@ STRINGS = {
         "major_packages": "Major Python packages",
         "switch_compiler": "Switch compiler",
         "switch_compiler_note": "This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.",
+        "flagtree_version": "Choosing a FlagTree version",
+        "flagtree_version_note": "FlagTree is published frequently, and a version other than the one baked in above can be selected at container start — no image rebuild needed. Pass `-e FLAGTREE_VERSION=<version>` to `docker run`: the wheel is installed into `/opt/flagtree` before the application starts, and later shells reuse it. Requesting a release version such as `0.7.0` installs what this backend publishes for it — often a lane build like `0.7.0+<backend>3.6`. Write the full version to ask for a particular build. In a container that is already running, `compiler flagtree <version>` does the same.",
         "environment": "Environment",
         "launch": "Launch",
         "launch_toolkit_optional": "**With the container toolkit** *(optional)*:",
@@ -142,6 +144,8 @@ STRINGS = {
         "major_packages": "主要 Python 软件包",
         "switch_compiler": "切换编译器",
         "switch_compiler_note": "本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。",
+        "flagtree_version": "指定 FlagTree 版本",
+        "flagtree_version_note": "FlagTree 版本发布频繁。除上述内置版本外，可以在启动容器时指定其他版本，无需重建镜像：给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，该版本会在应用启动前安装到 `/opt/flagtree`，同一容器内的后续 shell 会直接复用。请求正式版本（如 `0.7.0`）会安装本后端发布的那一个——通常是带 `+<后端>3.6` 后缀的构建。写全带 `+` 后缀的版本号即可指定具体某个构建。容器已在运行时，也可以执行 `compiler flagtree <版本>` 达到同样效果。",
         "environment": "环境变量",
         "launch": "启动",
         "launch_toolkit_optional": "**使用容器工具包** *(可选)*：",
@@ -593,6 +597,9 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
         if has_muted:
             lines += ["", f"### {s['switch_compiler']}", ""]
             lines.append(s["switch_compiler_note"])
+        if any(p["pkg"].startswith("flagtree==") for p in packages):
+            lines += ["", f"### {s['flagtree_version']}", ""]
+            lines.append(s["flagtree_version_note"])
         lines.append("")
 
     # ── Environment (runtime env vars) ──
