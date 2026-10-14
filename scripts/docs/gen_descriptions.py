@@ -99,6 +99,8 @@ STRINGS = {
         "major_packages": "Major Python packages",
         "switch_compiler": "Switch compiler",
         "switch_compiler_note": "This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.",
+        "flagtree_version": "Choosing a FlagTree version",
+        "flagtree_version_note": "To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.",
         "environment": "Environment",
         "launch": "Launch",
         "launch_toolkit_optional": "**With the container toolkit** *(optional)*:",
@@ -142,6 +144,8 @@ STRINGS = {
         "major_packages": "主要 Python 软件包",
         "switch_compiler": "切换编译器",
         "switch_compiler_note": "本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。",
+        "flagtree_version": "指定 FlagTree 版本",
+        "flagtree_version_note": "如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。",
         "environment": "环境变量",
         "launch": "启动",
         "launch_toolkit_optional": "**使用容器工具包** *(可选)*：",
@@ -593,6 +597,9 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
         if has_muted:
             lines += ["", f"### {s['switch_compiler']}", ""]
             lines.append(s["switch_compiler_note"])
+        if any(p["pkg"].startswith("flagtree==") for p in packages):
+            lines += ["", f"### {s['flagtree_version']}", ""]
+            lines.append(s["flagtree_version_note"])
         lines.append("")
 
     # ── Environment (runtime env vars) ──

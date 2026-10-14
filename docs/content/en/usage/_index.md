@@ -37,6 +37,19 @@ vendor-specific variables) directly as `ENV` — you don't need to source any
 script. The exact variables, and a ready-to-copy `docker run` command, are on each
 image's page.
 
+## Choosing a FlagTree version
+
+FlagTree is the default compiler in the runtime and app images, and it is
+released frequently. Pick a version at container start instead of rebuilding:
+
+```bash
+docker run -e FLAGTREE_VERSION=0.7.0 <runtime-or-app-image> ...
+```
+
+The wheel is installed into `/opt/flagtree` before the application starts. In a
+running container, `compiler flagtree <version>` does the same; `compiler` alone
+prints the active version.
+
 ## Building on demand
 
 Base images are built manually, not on every change (vendor SDKs change rarely):

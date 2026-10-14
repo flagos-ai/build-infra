@@ -35,6 +35,18 @@ docker pull harbor.baai.ac.cn/flagbase/flagos-base-nvidia-cuda12.8:2.1.0-0
 厂商特有的变量）——你无需 source 任何脚本。具体变量以及一条可直接复制的
 `docker run` 命令，都在每个镜像的页面上。
 
+## 指定 FlagTree 版本
+
+FlagTree 是运行时镜像和 app 镜像的默认编译器，版本发布频繁。启动容器时即可
+指定版本，无需重建镜像：
+
+```bash
+docker run -e FLAGTREE_VERSION=0.7.0 <runtime 或 app 镜像> ...
+```
+
+指定的 wheel 会在应用启动前安装到 `/opt/flagtree`。容器运行中可执行
+`compiler flagtree <版本>` 达到同样效果；`compiler` 查看当前版本。
+
 ## 按需构建
 
 base 镜像是手动构建的，不会每次变更都触发（厂商 SDK 变更不频繁）：
