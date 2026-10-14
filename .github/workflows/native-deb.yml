@@ -90,6 +90,7 @@ jobs:
       verify_image: ${{ steps.cfg.outputs.verify_image }}
       flagos_apt: ${{ steps.cfg.outputs.flagos_apt }}
       ppa: ${{ steps.cfg.outputs.ppa }}
+      publish_runs_on: ${{ steps.cfg.outputs.publish_runs_on }}
     steps:
       - name: Resolve the target
         id: cfg
@@ -115,6 +116,11 @@ jobs:
           base=''
           deps=''
           ppa=''
+          # publish_runs_on: where the upload job runs. The hosted runners
+          # reach Nexus at tens of KB/s and the connection drops after about
+          # an hour, which a 263 MB FlagTree deb does not survive; the
+          # self-hosted runner already pushes FlagTree wheels there.
+          publish_runs_on='["ubuntu-latest"]'
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -132,7 +138,8 @@ jobs:
               ver=0.7.0
               outdir=dist/output
               suites=ubuntu24.04
-              image=ubuntu:24.04 ;;
+              image=ubuntu:24.04
+              publish_runs_on='["self-hosted", "h20"]' ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/debian/build-helpers/build-flag-dnn.sh
@@ -175,6 +182,7 @@ jobs:
             echo "base=${base}"
             echo "deps=${deps}"
             echo "ppa=${ppa}"
+            echo "publish_runs_on=${publish_runs_on}"
             if [ -n "${deps}" ]; then
               case "${suites}" in
                 ubuntu22.04) echo "flagos_apt=${NEXUS_REPO_BASE}/flagos-apt-${suites} jammy main" ;;
@@ -432,7 +440,7 @@ jobs:
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
       - name: Download the .deb packages
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
