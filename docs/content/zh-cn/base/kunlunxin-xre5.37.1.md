@@ -68,7 +68,7 @@ title: "kunlunxin-xre5.37.1"
 docker run --rm -it \
   --runtime xpu \
   -e CXPU_VISIBLE_DEVICES=0 \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.3.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -77,7 +77,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/xpu0 \
   --device /dev/xpuctrl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-kunlunxin-xre5.37.1:2.3.0 bash
 ```
 
 ## 验证
@@ -88,4 +88,4 @@ docker run --rm -it \
 xpu-smi
 ```
 
-*更新时间: 2026-09-22 15:02:49 · `9c7f640e27de`*
+*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*

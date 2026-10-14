@@ -66,7 +66,7 @@ title: "hygon-dtk26.04"
 ```bash
 docker run --rm -it \
   -e DCU_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.3.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -79,7 +79,7 @@ docker run --rm -it \
   --group-add video \
   -v /opt/hyhal:/opt/hyhal \
   --security-opt seccomp=unconfined \
-  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.3.0 bash
 ```
 
 ## 验证
@@ -90,4 +90,4 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-09-17 09:16:30 · `e1b5d08c99ef`*
+*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*

@@ -67,7 +67,7 @@ title: "iluvatar-corex4.5.0"
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.3.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -76,7 +76,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   --device /dev/itrctl \
-  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.5.0:2.3.0 bash
 ```
 
 ## 验证
@@ -87,4 +87,4 @@ docker run --rm -it \
 ixsmi
 ```
 
-*更新时间: 2026-09-23 15:32:20 · `4f19c8865ed3`*
+*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
