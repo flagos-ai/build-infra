@@ -37,19 +37,15 @@ docker pull harbor.baai.ac.cn/flagbase/flagos-base-nvidia-cuda12.8:2.1.0-0
 
 ## 指定 FlagTree 版本
 
-运行时镜像和 app 镜像默认使用 FlagTree 作为编译器（`/flagos` 是 Python 环境，
-FlagTree 位于 `/opt/flagtree`）。FlagTree 版本发布频繁，重建 runtime 意味着
-其上所有 app 镜像都要跟着重建——因此可以在启动容器时直接指定版本：
+FlagTree 是运行时镜像和 app 镜像的默认编译器，版本发布频繁。启动容器时即可
+指定版本，无需重建镜像：
 
 ```bash
 docker run -e FLAGTREE_VERSION=0.7.0 <runtime 或 app 镜像> ...
 ```
 
-指定的 wheel 会在应用启动前安装到 `/opt/flagtree`，同一容器内的后续 shell
-直接复用。`-e FLAGTREE_VERSION=0.7.0` 会安装本后端为该版本发布的那一个——
-通常是带 `+<后端>3.6` 后缀的构建。写全带 `+` 后缀的版本号即可指定具体某个构建。容器已在运行时，
-可以执行 `compiler flagtree <版本>` 达到同样效果。单独执行 `compiler` 查看当前
-版本，`compiler triton` 切换到厂商 Triton。
+指定的 wheel 会在应用启动前安装到 `/opt/flagtree`。容器运行中可执行
+`compiler flagtree <版本>` 达到同样效果；`compiler` 查看当前版本。
 
 ## 按需构建
 
