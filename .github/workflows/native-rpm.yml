@@ -84,6 +84,7 @@ jobs:
       # skipped, which is a configuration error rather than a clean run.
       any_built: ${{ steps.build.outputs.built }}
       deps: ${{ steps.cfg.outputs.deps }}
+      publish_runs_on: ${{ steps.cfg.outputs.publish_runs_on }}
     strategy:
       fail-fast: false
       matrix:
@@ -112,6 +113,11 @@ jobs:
           # each of them for the sake of uniformity.
           deps=''
           base_pkgs=''
+          # publish_runs_on: where the upload job runs. The hosted runners
+          # reach Nexus at tens of KB/s and the connection drops after about
+          # an hour, which the 80 MB FlagTree rpms survive only sometimes;
+          # the self-hosted runner already pushes FlagTree wheels there.
+          publish_runs_on='["ubuntu-latest"]'
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -136,7 +142,8 @@ jobs:
               ver=0.7.0
               image_fedora43=fedora:43
               image_openeuler2403=openeuler/openeuler:24.03-lts
-              image_rhel9= ;;
+              image_rhel9=
+              publish_runs_on='["self-hosted", "h20"]' ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/rpm/build-flag-dnn-rpm.sh
@@ -187,6 +194,7 @@ jobs:
             echo "script=${script}"
             echo "base_arg=${base_arg}"
             echo "deps=${deps}"
+            echo "publish_runs_on=${publish_runs_on}"
             echo "base_pkgs=${base_pkgs}"
             echo "spec=${spec}"
             echo "outdir=${outdir}"
@@ -509,14 +517,20 @@ jobs:
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
+    runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
+      # One directory per suite, named after the artifact. The action rather
+      # than `gh run download`: the self-hosted runners carry no gh CLI.
+      - name: Download the .rpm packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ${{ inputs.target }}-rpm-*
+          path: pkg
+          merge-multiple: false
+
       - name: Publish to the yum repositories
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
           SUITES: ${{ inputs.suites }}
           TARGET: ${{ inputs.target }}
         run: |
@@ -531,19 +545,15 @@ jobs:
           # Empty means every suite this target was built for, not every
           # suite there is: most targets have no image for some of them.
           if [ -z "${SUITES:-}" ]; then
-            SUITES=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
-              -q ".artifacts[].name | select(startswith(\"${TARGET}-rpm-\")) | ltrimstr(\"${TARGET}-rpm-\")" | tr '\n' ' ')
+            SUITES=$(find pkg -mindepth 1 -maxdepth 1 -type d -name "${TARGET}-rpm-*" -printf '%f\n' \
+              | sed "s/^${TARGET}-rpm-//" | sort | tr '\n' ' ')
           fi
           for suite in ${SUITES}; do
             # Each suite gets the rpm built for that distribution and no other:
             # the Release field carries the distribution tag, and a native
             # package links against that distribution's libraries.
-            # By name, one suite at a time: download-artifact unpacks a lone
-            # match straight into its path, so the layout depended on how many
-            # suites had built.
-            dir="pkg/${suite}"
-            if ! gh run download "${GITHUB_RUN_ID}" -R "${GITHUB_REPOSITORY}" \
-                   -n "${TARGET}-rpm-${suite}" -D "${dir}"; then
+            dir="pkg/${TARGET}-rpm-${suite}"
+            if [ ! -d "${dir}" ]; then
               echo "::error::nothing was built for '${suite}' - it failed or was skipped"
               exit 1
             fi
