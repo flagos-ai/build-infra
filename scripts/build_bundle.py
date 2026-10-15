@@ -320,8 +320,8 @@ def main() -> None:
     # Hermetic CPython + uv FIRST: the download venv must be the backend's own
     # CPython version, so `pip download` fetches that version's wheels.
     print("==> staging hermetic CPython + uv")
-    uv = stage_uv(stage)
-    cpython_dir, cpython_tarball = stage_cpython(uv, python_version, stage)
+    uv = stage_uv(stage_root)
+    cpython_dir, cpython_tarball = stage_cpython(uv, python_version, stage_root)
     pip = build_venv(uv, cpython_dir, extra_pypi)
 
     reports: list[Path] = []
@@ -393,7 +393,7 @@ def main() -> None:
     print(f"==> assembling {tarball}")
     with tarfile.open(tarball, "w:gz") as tf:
         tf.add(stage_root, arcname=bundle_name)
-    shutil.rmtree(stage)
+    shutil.rmtree(stage_root.parent)
 
     print(f"Done: {tarball} ({tarball.stat().st_size / 1e6:.0f} MB)")
 
