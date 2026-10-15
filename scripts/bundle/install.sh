@@ -14,19 +14,17 @@
 # limitations under the License.
 
 # ============================================================================
-# install.sh — offline one-click installer for the FlagOS runtime + app layer.
+# install.sh — one-click installer for the FlagOS runtime + app layer.
 #
-# TEMPLATE: this file is a template filled by scripts/build_offline_bundle.py.
-# The @PLACEHOLDER@ tokens are substituted at bundle build time; the shipped
-# install.sh has none left. It is the ONLY entry point of the bundle and never
-# touches the network — every package is installed from the sibling wheelhouse/
-# with `pip install --no-index --find-links`.
+# TEMPLATE: the placeholder tokens are filled by scripts/build_bundle.py at
+# bundle build time; the shipped install.sh has none left. Every package is
+# installed from the sibling wheelhouse/ with `pip install --no-index
+# --find-links`, so the install never needs a network.
 #
-#   sudo ./install.sh --prefix /opt/flagos --vllm-version 0.24.0
+#   sudo ./install.sh --prefix /opt/flagos --app-version 0.24.0
 #
-# The same bundle installs any bundled app version; --vllm-version selects
-# which requirements-<version>.txt the install consumes. One install installs
-# exactly one version.
+# One bundle carries every version in the app's app-versions.yaml;
+# --app-version selects which requirements-<version>.txt to install.
 # ============================================================================
 
 set -euo pipefail
@@ -38,31 +36,33 @@ BACKEND="@BACKEND@"
 VERSION="@VERSION@"
 PYTHON_VERSION="@PYTHON_VERSION@"
 CPYTHON_TARBALL="@CPYTHON_TARBALL@"
-DEFAULT_COMPILER="@DEFAULT_COMPILER@"     # flagtree | triton | none
 FLAGTREE_PIN="@FLAGTREE_PIN@"             # "flagtree==0.7.0" or ""
 TRITON_PIN="@TRITON_PIN@"                 # "triton==3.6.0" or ""
 TRITON_EXTRA="@TRITON_EXTRA@"             # space-separated overlay wheels or ""
 APP_ENV="@APP_ENV@"                       # raw "KEY=value" lines (may be empty)
 RUNTIME_ENV="@RUNTIME_ENV@"               # raw "KEY=value" lines (may be empty)
-SDK_NOTE="@SDK_NOTE@"                     # human note printed on smoke-test failure
+SDK_NOTE="@SDK_NOTE@"                     # host prerequisite, printed on smoke failure
+LAUNCHER="@LAUNCHER@"                     # bin/<launcher> name (e.g. vllm-serve)
+ENTRYPOINT="@ENTRYPOINT@"                 # module the launcher execs, or "" (none)
+SMOKE_IMPORTS="@SMOKE_IMPORTS@"           # "import a; import b" or ""
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WHEELHOUSE="$SELF_DIR/wheelhouse"
 PYTHON_DIR="$SELF_DIR/python"
 
 PREFIX="${FLAGOS_PREFIX:-/opt/flagos}"
-VLLM_VERSION=""
+APP_VERSION=""
 
 usage() {
     cat <<EOF
-Usage: $0 --vllm-version <ver> [--prefix <dir>]
+Usage: $0 --app-version <ver> [--prefix <dir>]
 
-Install the FlagOS runtime + ${APP} Python layer OFFLINE into <dir>
-(default /opt/flagos). ${APP} versions bundled: see the sibling
+Install the FlagOS runtime + ${APP} Python layer into <dir>
+(default /opt/flagos). Bundled ${APP} versions are listed in the sibling
 requirements-<ver>.txt files.
 
   --prefix <dir>         install prefix (default /opt/flagos)
-  --vllm-version <ver>   which bundled ${APP} version to install (required)
+  --app-version <ver>    which bundled ${APP} version to install (required)
   -h, --help             this help
 EOF
 }
@@ -72,22 +72,22 @@ while [ $# -gt 0 ]; do
         --prefix)
             [ $# -ge 2 ] || { echo "error: --prefix needs a value" >&2; exit 2; }
             PREFIX="$2"; shift 2 ;;
-        --vllm-version)
-            [ $# -ge 2 ] || { echo "error: --vllm-version needs a value" >&2; exit 2; }
-            VLLM_VERSION="$2"; shift 2 ;;
+        --app-version)
+            [ $# -ge 2 ] || { echo "error: --app-version needs a value" >&2; exit 2; }
+            APP_VERSION="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
-if [ -z "$VLLM_VERSION" ]; then
-    echo "error: --vllm-version is required (bundled: $(ls "$SELF_DIR"/requirements-*.txt 2>/dev/null | sed -n 's/.*requirements-\(.*\)\.txt/\1/p' | tr '\n' ' '))" >&2
+if [ -z "$APP_VERSION" ]; then
+    echo "error: --app-version is required (bundled: $(ls "$SELF_DIR"/requirements-*.txt 2>/dev/null | sed -n 's/.*requirements-\(.*\)\.txt/\1/p' | tr '\n' ' '))" >&2
     exit 2
 fi
 
-REQ_DELTA="$SELF_DIR/requirements-$VLLM_VERSION.txt"
+REQ_DELTA="$SELF_DIR/requirements-$APP_VERSION.txt"
 if [ ! -r "$REQ_DELTA" ]; then
-    echo "error: ${APP} version '$VLLM_VERSION' is not bundled." >&2
+    echo "error: ${APP} version '$APP_VERSION' is not bundled." >&2
     echo "  bundled: $(ls "$SELF_DIR"/requirements-*.txt 2>/dev/null | sed -n 's/.*requirements-\(.*\)\.txt/\1/p' | tr '\n' ' ')" >&2
     exit 2
 fi
@@ -98,14 +98,12 @@ if [ "$(id -u)" -ne 0 ] && [ ! -w "$(dirname "$PREFIX")" ]; then
 fi
 
 echo "==> installing FlagOS ${APP} ${VERSION} (backend ${VENDOR}-${BACKEND})"
-echo "    prefix: ${PREFIX}   ${APP} version: ${VLLM_VERSION}   (offline)"
+echo "    prefix: ${PREFIX}   ${APP} version: ${APP_VERSION}"
 
 # ── 1. Hermetic CPython + venv ──────────────────────────────────────────────
-# The bundle ships the uv-managed standalone CPython for the backend's Python
-# version and a relocatable uv. No host Python is required or touched. The
-# standalone tree lands in ~/.local/share/uv/python/ — the exact path the
-# runtime image uses (uv venv --relocatable symlinks the venv's interpreter
-# back to it), so a bare-metal install and the image share one layout.
+# The standalone CPython lands in ~/.local/share/uv/python/ — the exact path
+# the runtime image uses, because `uv venv --relocatable` symlinks the venv's
+# interpreter back to it. A bare-metal install and the image share one layout.
 mkdir -p "$PREFIX"
 echo "==> extracting standalone CPython ${PYTHON_VERSION}"
 mkdir -p "$HOME/.local/share/uv/python"
@@ -119,9 +117,7 @@ fi
 echo "==> creating venv at ${PREFIX}"
 "$PYTHON_DIR/uv" venv "$PREFIX" --python "$PY_BIN" --relocatable
 
-# Seed pip/setuptools/wheel from the wheelhouse via uv (uv needs no pip to
-# install pip, and --no-index keeps the seed offline) so the rest of the
-# install runs the same `pip` the images use.
+# uv needs no pip to install pip; --no-index keeps the seed local.
 "$PYTHON_DIR/uv" pip install --python "$PREFIX/bin/python" \
     --no-index --find-links "$WHEELHOUSE" pip setuptools wheel
 
@@ -129,39 +125,37 @@ echo "==> creating venv at ${PREFIX}"
     || { echo "error: venv python does not match ${PYTHON_VERSION}" >&2; exit 1; }
 
 # ── 2. Runtime closure + selected app delta ─────────────────────────────────
-echo "==> installing runtime layer + ${APP} ${VLLM_VERSION} (--no-index)"
+echo "==> installing runtime layer + ${APP} ${APP_VERSION} (--no-index)"
 "$PREFIX/bin/pip" install --no-index --find-links "$WHEELHOUSE" \
     -r "$SELF_DIR/requirements.txt" \
     -r "$REQ_DELTA"
 
-# ── 3. Compilers to their side dirs (mirror the runtime image layout) ──────
-# Compilers live OUT of site-packages in $PREFIX/opt/<compiler>; the `compiler`
-# shim toggles them via PYTHONPATH. Installed WITH deps, exactly as the
-# runtime Containerfile installs them (flagtree bundles triton/; the vendor
-# triton side dir carries triton-*.dist-info so a bare `triton` dep resolves).
+# ── 3. Compilers to their side dirs ────────────────────────────────────────
+# Compilers live OUT of site-packages in $PREFIX/<compiler>; the `compiler`
+# shim toggles them via PYTHONPATH. (Candidate layout — the image still uses
+# /opt/flagtree, /opt/triton; if this proves cleaner, the image can follow.)
+# The vendor triton overlay wheels ship a full triton tree and must be unzipped
+# OVER the side dir — `pip install --target` cannot extend an existing
+# top-level triton/ dir.
 if [ -n "$FLAGTREE_PIN" ]; then
-    echo "==> installing FlagTree to ${PREFIX}/opt/flagtree"
-    mkdir -p "$PREFIX/opt/flagtree"
+    echo "==> installing FlagTree to ${PREFIX}/flagtree"
+    mkdir -p "$PREFIX/flagtree"
     "$PREFIX/bin/pip" install --no-index --find-links "$WHEELHOUSE" \
-        --target "$PREFIX/opt/flagtree" "$FLAGTREE_PIN"
+        --target "$PREFIX/flagtree" "$FLAGTREE_PIN"
 fi
 
 if [ -n "$TRITON_PIN" ]; then
-    echo "==> installing Triton to ${PREFIX}/opt/triton"
-    mkdir -p "$PREFIX/opt/triton"
+    echo "==> installing Triton to ${PREFIX}/triton"
+    mkdir -p "$PREFIX/triton"
     "$PREFIX/bin/pip" install --no-index --find-links "$WHEELHOUSE" \
-        --target "$PREFIX/opt/triton" "$TRITON_PIN"
-    # Backend overlay wheels (triton_ascend, triton-gcu, ...) ship a full
-    # triton tree and must be unzipped OVER the side dir — `pip install
-    # --target` cannot extend an existing top-level triton/ dir (same rule the
-    # runtime Containerfile follows).
+        --target "$PREFIX/triton" "$TRITON_PIN"
     if [ -n "$TRITON_EXTRA" ]; then
         for spec in $TRITON_EXTRA; do
-            echo "==> overlaying ${spec} onto ${PREFIX}/opt/triton"
+            echo "==> overlaying ${spec} onto ${PREFIX}/triton"
             _tmp="$(mktemp -d)"
             "$PREFIX/bin/pip" download --no-index --find-links "$WHEELHOUSE" \
                 --no-deps -d "$_tmp" "$spec" >/dev/null
-            (cd "$PREFIX/opt/triton" && unzip -qo "$_tmp"/*.whl)
+            (cd "$PREFIX/triton" && unzip -qo "$_tmp"/*.whl)
             rm -rf "$_tmp"
         done
     fi
@@ -170,17 +164,17 @@ fi
 # ── 4. Vendor env, compiler shim, launcher ─────────────────────────────────
 mkdir -p "$PREFIX/etc/profile.d" "$PREFIX/bin" "$PREFIX/etc/flagos"
 
-# runtime_env.sh / app_env.sh — 'export'-prefixed so the vars survive an exec
-# (a bare KEY=value assignment dies with the sourcing shell).
+# 'export'-prefixed so the vars survive an exec (a bare KEY=value assignment
+# dies with the sourcing shell).
 printf '%s\n' "$RUNTIME_ENV" | sed '/^$/d; s/^/export /' > "$PREFIX/etc/profile.d/runtime_env.sh"
 printf '%s\n' "$APP_ENV"     | sed '/^$/d; s/^/export /' > "$PREFIX/etc/profile.d/app_env.sh"
 
-# zz-compiler.sh — the compiler switcher, adapted from runtime/zz-compiler.sh
-# for a $PREFIX tree. zz- sorts last so its PYTHONPATH export wins over any
-# vendor env file.
+# zz-compiler.sh — the compiler switcher, the same shape runtime/zz-compiler.sh
+# bakes into every runtime image, re-rooted at $PREFIX. zz- sorts last so its
+# PYTHONPATH export wins over any vendor env file.
 cat > "$PREFIX/etc/profile.d/zz-compiler.sh" <<EOF
-# Generated by install.sh — do not edit. See runtime/zz-compiler.sh upstream.
-_compiler_side_dirs="${PREFIX}/opt/flagtree ${PREFIX}/opt/triton"
+# Generated by install.sh — do not edit. Mirrors runtime/zz-compiler.sh.
+_compiler_side_dirs="${PREFIX}/flagtree ${PREFIX}/triton"
 _compiler_active_dir() {
     for d in \$_compiler_side_dirs; do
         case ":\${PYTHONPATH:-}:" in
@@ -204,18 +198,18 @@ compiler() {
     local dir=""
     case "\${1:-}" in
         flagtree)
-            [ -d "${PREFIX}/opt/flagtree/triton" ] || { echo "flagtree: not available on this backend" >&2; return 1; }
-            dir="${PREFIX}/opt/flagtree" ;;
+            [ -d "${PREFIX}/flagtree/triton" ] || { echo "flagtree: not available on this backend" >&2; return 1; }
+            dir="${PREFIX}/flagtree" ;;
         triton)
-            [ -d "${PREFIX}/opt/triton/triton" ] || { echo "triton: not available on this backend" >&2; return 1; }
-            dir="${PREFIX}/opt/triton" ;;
+            [ -d "${PREFIX}/triton/triton" ] || { echo "triton: not available on this backend" >&2; return 1; }
+            dir="${PREFIX}/triton" ;;
         ""|status|help)
             echo "available compilers:"
-            [ -d "${PREFIX}/opt/flagtree/triton" ] && echo "  flagtree  (default)"
-            [ -d "${PREFIX}/opt/triton/triton" ] && echo "  triton"
+            [ -d "${PREFIX}/flagtree/triton" ] && echo "  flagtree  (default)"
+            [ -d "${PREFIX}/triton/triton" ] && echo "  triton"
             if ! _compiler_active_dir >/dev/null; then
-                if [ -d "${PREFIX}/opt/flagtree/triton" ]; then dir="${PREFIX}/opt/flagtree"
-                elif [ -d "${PREFIX}/opt/triton/triton" ]; then dir="${PREFIX}/opt/triton"; fi
+                if [ -d "${PREFIX}/flagtree/triton" ]; then dir="${PREFIX}/flagtree"
+                elif [ -d "${PREFIX}/triton/triton" ]; then dir="${PREFIX}/triton"; fi
             fi
             ;;
         *) echo "Usage: compiler [flagtree|triton]" >&2; return 1 ;;
@@ -233,10 +227,10 @@ compiler() {
 }
 # Default compiler active in every shell.
 if ! _compiler_active_dir >/dev/null; then
-    if [ -d "${PREFIX}/opt/flagtree/triton" ]; then
-        export PYTHONPATH="${PREFIX}/opt/flagtree\${PYTHONPATH:+:}\${PYTHONPATH:-}"
-    elif [ -d "${PREFIX}/opt/triton/triton" ]; then
-        export PYTHONPATH="${PREFIX}/opt/triton\${PYTHONPATH:+:}\${PYTHONPATH:-}"
+    if [ -d "${PREFIX}/flagtree/triton" ]; then
+        export PYTHONPATH="${PREFIX}/flagtree\${PYTHONPATH:+:}\${PYTHONPATH:-}"
+    elif [ -d "${PREFIX}/triton/triton" ]; then
+        export PYTHONPATH="${PREFIX}/triton\${PYTHONPATH:+:}\${PYTHONPATH:-}"
     fi
 fi
 EOF
@@ -250,39 +244,51 @@ compiler "\$@"
 EOF
 chmod +x "$PREFIX/bin/compiler"
 
-# vllm-serve — the single serve command, mirroring app/vllm/vllm-serve for a
-# bare-metal prefix: source the profile.d env, then exec the API server.
-cat > "$PREFIX/bin/vllm-serve" <<EOF
+# Launcher — sources the profile.d env, then execs the app entry, mirroring
+# app/<app>/<launcher> for a bare-metal prefix.
+if [ -n "$ENTRYPOINT" ]; then
+    cat > "$PREFIX/bin/$LAUNCHER" <<EOF
 #!/bin/bash
 set -euo pipefail
 for f in "${PREFIX}"/etc/profile.d/*.sh; do [ -r "\$f" ] && . "\$f"; done
-exec "${PREFIX}/bin/python" -m vllm.entrypoints.openai.api_server "\$@"
+exec "${PREFIX}/bin/python" -m ${ENTRYPOINT} "\$@"
 EOF
-chmod +x "$PREFIX/bin/vllm-serve"
+    chmod +x "$PREFIX/bin/$LAUNCHER"
+fi
 
 # ── 5. Smoke test ───────────────────────────────────────────────────────────
-echo "==> smoke test (import torch, flag_gems, triton, vllm, vllm_fl)"
-. "$PREFIX/etc/profile.d/zz-compiler.sh"
-if ! "$PREFIX/bin/python" -c \
-    "import torch; import flag_gems; import triton; import vllm; import vllm_fl" 2> "$SELF_DIR/smoke.err"; then
-    echo "error: import smoke test failed — the preinstalled SDK/driver may be missing or mismatched." >&2
-    echo "  backend requirement: ${SDK_NOTE}" >&2
-    sed 's/^/  | /' "$SELF_DIR/smoke.err" >&2
-    exit 1
+if [ -n "$SMOKE_IMPORTS" ]; then
+    echo "==> smoke test (${SMOKE_IMPORTS})"
+    . "$PREFIX/etc/profile.d/zz-compiler.sh"
+    if ! "$PREFIX/bin/python" -c \
+        "${SMOKE_IMPORTS}" 2> "$SELF_DIR/smoke.err"; then
+        echo "error: import smoke test failed — the preinstalled SDK/driver may be missing or mismatched." >&2
+        echo "  backend requirement: ${SDK_NOTE}" >&2
+        sed 's/^/  | /' "$SELF_DIR/smoke.err" >&2
+        exit 1
+    fi
+    rm -f "$SELF_DIR/smoke.err"
 fi
-rm -f "$SELF_DIR/smoke.err"
 
 cat <<EOF
 
-Done. FlagOS ${APP} ${VLLM_VERSION} installed offline to ${PREFIX}.
+Done. FlagOS ${APP} ${VERSION} installed to ${PREFIX}.
 
 To use it in a shell:
     source ${PREFIX}/etc/profile.d/zz-compiler.sh   # compiler + PYTHONPATH
     source ${PREFIX}/etc/profile.d/runtime_env.sh
     source ${PREFIX}/etc/profile.d/app_env.sh
+EOF
+
+if [ -n "$ENTRYPOINT" ]; then
+    cat <<EOF
 
 Serve:
-    ${PREFIX}/bin/vllm-serve --model <path> --port 8031
+    ${PREFIX}/bin/${LAUNCHER} --help
+EOF
+fi
+
+cat <<EOF
 
 Switch compiler:  ${PREFIX}/bin/compiler flagtree|triton
 EOF

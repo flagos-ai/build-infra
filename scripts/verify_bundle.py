@@ -16,19 +16,13 @@
 
 from __future__ import annotations
 
-"""Offline-bundle verify helpers (FEP-0139 closure equality).
+"""Bundle verify helpers (FEP-0139 closure equality).
 
-Called by scripts/verify_offline_bundle.sh with --check-wheels: re-derives the
+Called by scripts/verify_bundle.sh with --check-wheels: re-derives the
 expected wheel set from configs.yaml + packaging/<app>/app-versions.yaml using
-the SAME resolver build_offline_bundle.py uses, then asserts the bundle's
-wheelhouse covers it. Because the resolver is shared, this is a structural
-check — the build cannot silently omit a runtime or app pin.
-
-The filename de-dup contract (MANIFEST's) is what makes this cheap: two
-versions of the same distribution need not both be present when only one is
-referenced, but every distribution NAME a requirements file references must be
-present at least once. Pinned versions are matched exactly; unpinned
-(setuptools-scm>=8,<10) only by name.
+the SAME resolver build_bundle.py uses, then asserts the bundle's wheelhouse
+covers it. Because the resolver is shared, the build cannot silently omit a
+runtime or app pin.
 """
 
 import argparse
@@ -37,10 +31,8 @@ import sys
 import tarfile
 from pathlib import Path
 
-import yaml
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_offline_bundle import load_app_versions, repo_root
+from build_bundle import load_app_manifest, repo_root
 from build_runtime import load_yaml, resolve_backend, resolve_build_args
 
 
@@ -70,12 +62,12 @@ def expected_reqs(bundle_name: str) -> tuple[list[str], dict[str, list[str]]]:
         + [f"flag_gems=={flaggems}"]
     deltas: dict[str, list[str]] = {}
     app_deps = backend_info.get("deps_app") or {}
-    for ver, pins in load_app_versions(app).items():
+    versions = load_app_manifest(app).get("versions") or {}
+    for ver, pins in versions.items():
         key = f"{app}{ver}"
         if key not in app_deps:
             continue
-        deltas[ver] = [f"vllm=={pins['vllm']}", f"vllm-plugin-fl=={pins['plugin']}"] \
-            + list(app_deps[key])
+        deltas[ver] = list(pins) + list(app_deps[key])
     return runtime_top, deltas
 
 

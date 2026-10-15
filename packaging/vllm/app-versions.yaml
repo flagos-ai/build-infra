@@ -12,30 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Per-vllm-version install pins.
-#
-# Source of truth for the (vllm wheel, plugin wheel) pair each supported vllm
-# line installs. The app image (app/vllm/Containerfile) and the offline bundle
-# (scripts/build_offline_bundle.py) both read these, so the two can no longer
-# drift the way a manual workflow_dispatch input could.
-#
-# vllm +flagos and vllm-plugin-fl are vendor-neutral wheels (py3-none-any or
-# per-python linux wheels published to flagos-pypi-hosted and mirrored to every
-# vendor index), so there is no per-backend field here — the backend's vendor
-# index is where the install finds them, whichever backend the bundle targets.
-#
-# Keyed by the bare version; the app key ("vllm0.24.0") is app + version.
-# Keys are quoted: an unquoted "0.20.2" survives YAML float parsing only because
-# it has two dots, but the quoting makes the intent explicit and future-proof.
-#
-# flagcx is deliberately absent: on the generic/NVIDIA backend it is a runtime
-# layer wheel (configs.yaml deps: flagcx==...), not an app-layer delta. For
-# backends where flagcx rides the app layer (built per backend by
-# flagcx-wheel.yml), it will be added here once those backends enter the bundle.
+# Per-version app-layer requirements the bundle installs, on top of the shared
+# runtime layer. Read by scripts/build_bundle.py.
+# flagcx is absent: on generic/NVIDIA it is a runtime-layer wheel
+# (configs.yaml deps:), not an app-layer delta.
 versions:
   "0.20.2":
-    vllm: "0.20.2+flagos"
-    plugin: "0.2.2"
+    - vllm==0.20.2+flagos
+    - vllm-plugin-fl==0.2.2
   "0.24.0":
-    vllm: "0.24.0+flagos"
-    plugin: "0.3.0"
+    - vllm==0.24.0+flagos
+    - vllm-plugin-fl==0.3.0

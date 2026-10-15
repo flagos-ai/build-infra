@@ -16,30 +16,21 @@
 
 from __future__ import annotations
 
-"""Build the FlagOS offline one-click installer bundle (FEP-0139).
+"""Build the FlagOS one-click installer bundle (FEP-0139).
 
-Reads configs.yaml (runtime layer) and packaging/<app>/app-versions.yaml (app
-layer) — the same resolution logic scripts/build_runtime.py and the app
-Containerfile use — then gathers the full wheel closure with `pip download`
-against the internal indexes, stages a hermetic CPython + uv, and assembles a
-self-contained tarball that installs offline:
+Resolves the runtime layer from configs.yaml and the app layer from
+packaging/<app>/app-versions.yaml — the same resolution the runtime and app
+Containerfiles use — then gathers the full wheel closure, stages a hermetic
+CPython + uv, and assembles a self-contained tarball that installs with
+`pip install --no-index --find-links` (no network):
 
-    python scripts/build_offline_bundle.py vllm nvidia-cuda12.8
-    python scripts/build_offline_bundle.py vllm nvidia-cuda12.8 --push
+    python scripts/build_bundle.py vllm nvidia-cuda12.8
+    python scripts/build_bundle.py vllm nvidia-cuda12.8 --push
 
-The tarball (dist/flagos-vllm-nvidia-cuda12.8-2.3.0.tar.gz) contains
-scripts/offline/install.sh (filled) plus the payload. The install never touches
-the network: `pip install --no-index --find-links wheelhouse/`. One bundle
-carries every version in app-versions.yaml; `install.sh --vllm-version <ver>`
-installs exactly one.
-
-The downloads run under the backend's own CPython (the same managed
-standalone CPython the runtime Containerfile installs), NOT the build host's
-interpreter: a host python 3.10 would otherwise fetch cp310 wheels for a
-backend pinned to 3.12. Index order per step mirrors the Containerfile
-(vendor last for runtime deps/compilers, vendor first for flag_gems and the
-app layer), so the wheel set — and the MANIFEST source per wheel — matches
-what the images install.
+One bundle carries every version in app-versions.yaml; `install.sh
+--app-version <ver>` installs exactly one. The downloads run under the
+backend's own managed CPython (not the build host's interpreter), so a host
+python 3.10 cannot fetch cp310 wheels for a 3.12 backend.
 """
 
 import argparse
@@ -47,6 +38,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -54,16 +46,14 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-import yaml
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_runtime import load_yaml, resolve_backend, resolve_build_args
 
 FILESTORE = "https://resource.flagos.net/repository/flagos-filestore"
 UV_VERSION = "0.11.30"
 UV_PYTHON_MIRROR = f"{FILESTORE}/uv-python"
-# Seed packages the venv needs before any requirements file can install
-# (mirrors `uv venv --seed` in the runtime Containerfile).
+# The venv needs these before any requirements file can install (mirrors
+# `uv venv --seed` in the runtime Containerfile).
 SEED_REQS = ["pip", "setuptools", "wheel"]
 
 
@@ -72,23 +62,18 @@ def repo_root() -> Path:
 
 
 def host_arch() -> str:
-    """uname -m spelling the filestore uv tarball uses (x86_64 / aarch64).
-
-    The bundle build runs on the target-platform runner (self-hosted, on the
-    vendor hardware — same assumption every image build in this repo makes), so
-    the host arch IS the target arch; `pip download` resolves natively.
-    """
+    # uname -m as the filestore uv tarball spells it. The build runs on the
+    # target runner, so host arch == target arch.
     m = platform.machine()
     return {"x86_64": "x86_64", "amd64": "x86_64",
             "aarch64": "aarch64", "arm64": "aarch64"}.get(m, m)
 
 
-def load_app_versions(app: str) -> dict:
-    """packaging/<app>/app-versions.yaml → {"0.24.0": {"vllm": ..., "plugin": ...}}."""
+def load_app_manifest(app: str) -> dict:
     path = repo_root() / "packaging" / app / "app-versions.yaml"
     if not path.exists():
         sys.exit(f"Error: {path} not found (the recorded app-version pins)")
-    return (load_yaml(path) or {}).get("versions") or {}
+    return load_yaml(path) or {}
 
 
 def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
@@ -105,13 +90,11 @@ def download(url: str, dest: Path, name: str) -> None:
 
 
 def stage_uv(stage: Path) -> Path:
-    """Download the filestore uv, extract to stage/python/, return the uv binary."""
     pydir = stage / "python"
     pydir.mkdir(parents=True, exist_ok=True)
     tarball = stage / f"uv-{host_arch()}-{UV_VERSION}-linux-gnu.tar.gz"
     download(f"{FILESTORE}/utils/uv-{host_arch()}-{UV_VERSION}-linux-gnu.tar.gz",
              tarball, "uv")
-    # --strip-components=1: the tarball's top dir holds `uv` (+ LICENSE).
     run(["tar", "xzf", str(tarball), "-C", str(pydir), "--strip-components=1"])
     tarball.unlink()
     uv = pydir / "uv"
@@ -121,12 +104,8 @@ def stage_uv(stage: Path) -> Path:
 
 
 def stage_cpython(uv: Path, python_version: str, stage: Path) -> tuple[Path, str]:
-    """uv-install the standalone CPython, tar it into stage/python/.
-
-    Returns (cpython_dir, tarball_name). The tree is also used to create the
-    download venv (build_venv), so the wheels fetched are for the backend's
-    own CPython version.
-    """
+    # The same tree also backs the download venv (build_venv), so the wheels
+    # fetched are for the backend's own CPython version.
     env = dict(os.environ)
     env["UV_PYTHON_INSTALL_MIRROR"] = UV_PYTHON_MIRROR
     run([str(uv), "python", "install", python_version,
@@ -147,7 +126,6 @@ def stage_cpython(uv: Path, python_version: str, stage: Path) -> tuple[Path, str
 
 
 def build_venv(uv: Path, cpython_dir: Path, mirror: str) -> Path:
-    """Create a throwaway download venv from the managed CPython; return its pip."""
     bv = Path(tempfile.mkdtemp(prefix="flagos-bldvenv-"))
     env = dict(os.environ)
     env["UV_DEFAULT_INDEX"] = mirror
@@ -162,13 +140,9 @@ def build_venv(uv: Path, cpython_dir: Path, mirror: str) -> Path:
 
 def pip_download(pip: Path, reqs: list[str], dest: Path, report: Path,
                  index: str, extras: list[str], *, pre: bool) -> None:
-    """pip download one closure into dest; --report captures per-wheel source.
-
-    index is the primary --index-url; extras become --extra-index-url entries
-    AFTER it (so `extras` listed last win exact-version ties, matching the
-    Containerfile's "vendor last" rule where the Containerfile puts the vendor
-    last).
-    """
+    # `index` is the primary --index-url; extras follow as --extra-index-url,
+    # so a primary-listed package wins exact-version ties (the Containerfile's
+    # vendor-first vs mirror-first ordering, applied per step by the caller).
     if not reqs:
         return
     cmd = [str(pip), "download", "--no-cache-dir", "--dest", str(dest),
@@ -184,7 +158,6 @@ def pip_download(pip: Path, reqs: list[str], dest: Path, report: Path,
 
 
 def merge_reports(reports: list[Path]) -> dict:
-    """filename -> source index URL, merged from several pip download reports."""
     merged: dict[str, str] = {}
     for rep in reports:
         if not rep.exists():
@@ -200,7 +173,6 @@ def merge_reports(reports: list[Path]) -> dict:
 
 
 def source_index(url: str) -> str:
-    """Turn a concrete file URL into the repository name it came from."""
     if "repository/" not in url:
         return url.split("/")[2] if "://" in url else url
     return url.split("repository/", 1)[1].split("/", 1)[0]
@@ -208,7 +180,7 @@ def source_index(url: str) -> str:
 
 def write_manifest(dest: Path, wheels: list[Path], sources: dict[str, str]) -> None:
     lines = [
-        "# Offline bundle MANIFEST — wheel filename, sha256, source index.",
+        "# Bundle MANIFEST — wheel filename, sha256, source index.",
         f"# {len(wheels)} wheels.",
     ]
     for whl in sorted(wheels):
@@ -222,33 +194,25 @@ def fill_template(template: Path, dest: Path, mapping: dict) -> None:
     text = template.read_text()
     for key, val in mapping.items():
         text = text.replace(f"@{key}@", val)
-    leftover = [line for line in text.splitlines() if "@" in line]
+    leftover = re.findall(r"@[A-Z][A-Z0-9_]*@", text)
     if leftover:
-        sys.exit("Error: unreplaced @TOKEN@ in install.sh:\n" + "\n".join(leftover))
+        sys.exit("Error: unreplaced placeholder in install.sh: "
+                 + ", ".join(sorted(set(leftover))))
     out = dest / "install.sh"
     out.write_text(text)
     out.chmod(0o755)
 
 
-def serialize_env(env_lines: str, extra: list[str]) -> str:
-    """Join RUNTIME_ENV/APP_ENV lines with any extra KEY=value pairs."""
-    lines = [ln for ln in env_lines.splitlines() if ln.strip()]
-    lines += [ln for ln in extra if ln.strip()]
-    return "\n".join(lines)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build the FlagOS offline one-click installer bundle",
+        description="Build the FlagOS one-click installer bundle",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
     parser.add_argument("app", help="App name (vllm)")
     parser.add_argument("backend", help="Backend key (nvidia-cuda12.8)")
     parser.add_argument("--push", action="store_true",
-                        help="Upload the tarball to flagos-filestore/offline/")
-    parser.add_argument("--flaggems", default="",
-                        help="FlagGems wheel version override (default: configs.yaml)")
+                        help="Upload the tarball to flagos-filestore/bundle/")
     parser.add_argument("--out-dir", default=str(repo_root() / "dist"),
                         help="Where to write the tarball")
     parser.add_argument("--dry-run", action="store_true",
@@ -271,25 +235,26 @@ def main() -> None:
     extra_pypi = build_args["EXTRA_PYPI"]
     python_version = build_args["PYTHON_VERSION"]
     runtime_env = build_args["RUNTIME_ENV"]
-    flaggems = args.flaggems or configs.get("flaggems", "")
+    flaggems = configs.get("flaggems", "")
     version = configs["version"]
 
     # App layer — recorded pins (packaging/<app>/app-versions.yaml).
-    versions = load_app_versions(args.app)
-    app_deps = backend_info.get("deps_app") or {}
-    # env.app keys are the bare app name (vllm), not the versioned key.
-    app_env_map = ((backend_info.get("env") or {}).get("app") or {}).get(args.app, {})
+    manifest = load_app_manifest(args.app)
+    versions = manifest.get("versions") or {}
+    launcher = manifest.get("launcher", f"{args.app}-serve")
+    entrypoint = manifest.get("entrypoint", "")
+    smoke = manifest.get("smoke", [])
+    # App env the image sets outside configs.yaml (e.g. vllm's VLLM_PLUGINS=fl
+    # in app/vllm/Containerfile) merged under the per-backend env.app.<app>.
+    app_env_map = dict(manifest.get("env") or {})
+    app_env_map.update((backend_info.get("env") or {}).get("app", {}).get(args.app, {}))
     app_env = "\n".join(f"{k}={v}" for k, v in app_env_map.items())
-    # The app image sets VLLM_PLUGINS=fl as image ENV; bare metal gets it in
-    # app_env.sh so a plain `vllm-serve` works identically.
-    app_env = serialize_env(app_env, ["VLLM_PLUGINS=fl"])
+    app_deps = backend_info.get("deps_app") or {}
 
-    # Runtime top-level pins (requirements.txt) — the shared layer, installed
-    # into site-packages. Compilers are NOT here: install.sh puts them in side
-    # dirs via the compiler pins below.
+    # Runtime top-level pins (requirements.txt) — installed into site-packages.
+    # Compilers are NOT here: install.sh puts them in side dirs via the pins
+    # below, mirroring the runtime Containerfile layout.
     runtime_top = deps + prereqs + [f"flag_gems=={flaggems}"]
-    # Compiler side-dir pins (downloaded for the wheelhouse, installed to
-    # $PREFIX/opt/*, never into site-packages).
     compiler_reqs = ([flagtree_pkg] if flagtree_pkg else []) + \
                     ([triton_pkg] if triton_pkg else []) + triton_extra
 
@@ -301,8 +266,7 @@ def main() -> None:
             print(f"note: backend {args.backend} has no deps_app key '{key}' — "
                   f"skipping {args.app} {ver} (key presence = supported)")
             continue
-        deltas[ver] = [f"vllm=={pins['vllm']}", f"vllm-plugin-fl=={pins['plugin']}"] \
-            + list(app_deps[key])
+        deltas[ver] = list(pins) + list(app_deps[key])
     if not deltas:
         sys.exit(f"Error: no supported {args.app} versions for backend {args.backend}")
 
@@ -311,13 +275,19 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     tarball = out_dir / f"{bundle_name}.tar.gz"
 
+    # SDK/driver prerequisite, printed when the smoke test can't import (the
+    # SDK is preinstalled on the host, not shipped in the bundle).
+    sdk_note_parts = list(backend_info.get("sdk", []))
+    driver = backend_info.get("driver", "")
+    if driver:
+        sdk_note_parts.append(f"driver >= {driver}")
+    sdk_note = "; ".join(sdk_note_parts)
+    smoke_imports = "; ".join(f"import {m}" for m in smoke)
+
     if args.dry_run:
         print(f"bundle:    {bundle_name}")
         print(f"tarball:   {tarball}")
-        print(f"backend:   {vendor}-{backend}  python {python_version}  "
-              f"(downloads resolve natively on the target runner)")
-        print(f"indexes:   primary/extra per step (mirror-first for deps/compilers, "
-              f"vendor-first for flag_gems + app)")
+        print(f"backend:   {vendor}-{backend}  python {python_version}")
         print(f"  flagos:  {flagos_pypi}")
         print(f"  daily:   {daily_pypi}")
         print(f"  mirror:  {extra_pypi}")
@@ -373,18 +343,20 @@ def main() -> None:
         pip_download(pip, deltas[ver], wheelhouse, rep, flagos_pypi, [extra_pypi], pre=False)
         reports.append(rep)
 
-    # ── requirements files ──────────────────────────────────────────────────
+    # ── requirements files + metadata ───────────────────────────────────────
     (stage_root / "requirements.txt").write_text("\n".join(runtime_top) + "\n")
     for ver in sorted(deltas):
         (stage_root / f"requirements-{ver}.txt").write_text("\n".join(deltas[ver]) + "\n")
+    # Read by verify_bundle.sh for the app/launcher it must smoke-test.
+    (stage_root / "meta.env").write_text(
+        f"APP={args.app}\nVERSION={version}\nLAUNCHER={launcher}\n")
 
     # ── MANIFEST ────────────────────────────────────────────────────────────
     sources = merge_reports(reports)
     write_manifest(stage_root, sorted(wheelhouse.glob("*.whl")), sources)
 
     # ── install.sh (filled template) ────────────────────────────────────────
-    template = Path(__file__).resolve().parent / "offline" / "install.sh"
-    default_compiler = "flagtree" if flagtree_pkg else ("triton" if triton_pkg else "none")
+    template = Path(__file__).resolve().parent / "bundle" / "install.sh"
     fill_template(template, stage_root, {
         "APP": args.app,
         "VENDOR": vendor,
@@ -392,13 +364,15 @@ def main() -> None:
         "VERSION": version,
         "PYTHON_VERSION": python_version,
         "CPYTHON_TARBALL": cpython_tarball,
-        "DEFAULT_COMPILER": default_compiler,
         "FLAGTREE_PIN": flagtree_pkg,
         "TRITON_PIN": triton_pkg,
         "TRITON_EXTRA": " ".join(triton_extra),
         "APP_ENV": app_env,
         "RUNTIME_ENV": runtime_env,
-        "SDK_NOTE": "NVIDIA driver only — torch+cu128 bundles the CUDA runtime",
+        "SDK_NOTE": sdk_note,
+        "LAUNCHER": launcher,
+        "ENTRYPOINT": entrypoint,
+        "SMOKE_IMPORTS": smoke_imports,
     })
 
     # ── assemble the tarball ────────────────────────────────────────────────
@@ -413,7 +387,7 @@ def main() -> None:
         token = os.environ.get("NEXUS_TOKEN", "")
         if not token:
             sys.exit("Error: --push needs NEXUS_TOKEN in the environment")
-        url = f"{FILESTORE}/offline/{tarball.name}"
+        url = f"{FILESTORE}/bundle/{tarball.name}"
         print(f"==> uploading to {url}")
         run(["curl", "-f", "-u", token, "--upload-file", str(tarball), url])
 
