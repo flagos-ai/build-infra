@@ -45,6 +45,7 @@ import sys
 import tarfile
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_runtime import load_yaml, resolve_backend, resolve_build_args
@@ -170,6 +171,15 @@ def pip_download(pip: Path, reqs: list[str], dest: Path, report: Path,
         if not url:
             continue
         name = url.split("#", 1)[0].rsplit("/", 1)[-1]
+        # Wheel filenames come back URL-encoded (torch-2.10.0%2Bcu128-...): the
+        # report URLs and the vendored index dirs both store '+' as %2B, but pip
+        # install --find-links parses the filename literally, so an encoded name
+        # is invisible to it. Decode before saving: the bundle then carries the
+        # canonical '+' spelling pip expects.
+        if name.endswith(".whl"):
+            decoded = unquote(name)
+            if decoded != name:
+                name = decoded
         target = dest / name
         if target.exists():
             continue
@@ -187,7 +197,7 @@ def merge_reports(reports: list[Path]) -> dict:
             url = info.get("url") or ""
             if not url.endswith(".whl"):
                 continue
-            merged[url.rsplit("/", 1)[-1]] = url
+            merged[unquote(url.rsplit("/", 1)[-1])] = url
     return merged
 
 
