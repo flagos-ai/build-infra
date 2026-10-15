@@ -78,7 +78,7 @@ one package per entry. An entry carries:
 | `short_name`, `desc_zh`, `desc_en` | the source entry's title and description on the site |
 | `url` | download-URL template, with `{version}` as its only placeholder |
 | `versions[].version` | the source's own version |
-| `notes` | how this source differs from the package's wheels (written only when it does) |
+| `notes`, `notes_en` | how this source differs from the package's wheels (written only when it does; `notes` in Chinese, `notes_en` in English) |
 
 **Source versions are independent of wheel versions**; only the package names
 correspond. One source can produce a batch of platform build variants
