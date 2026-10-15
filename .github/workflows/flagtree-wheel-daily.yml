@@ -1,0 +1,314 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: FlagTree Daily Wheel
+
+# The daily NVIDIA FlagTree build, published to flagos-pypi-daily as the
+# distribution `flagtree-nvidia`. The release line (flagtree-wheel.yml, manual)
+# keeps publishing plain `flagtree` to the vendor indexes; this file never
+# touches those.
+#
+# The point of the separate distribution name is the consumer's command: with
+# the backend in the name, the public version segment can carry the date and
+# `pip install --pre flagtree-nvidia` resolves to the newest daily on its own.
+# A backend token in the local segment cannot do that — a `==` specifier with a
+# local label matches the whole segment exactly, so `flagtree==0.7.1+nvidia3.6`
+# would never match `0.7.1.dev<date>+nvidia3.6.git<sha>`. Measured, and written
+# up with the rest of the scheme in packaging/flagtree/README.md.
+#
+# Like the release file, this builds inside docker so the wheel is self-owned
+# and reproducible. No GPU is needed: the build compiles LLVM/Triton and only
+# the smoke test imports the result.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flagtree_version:
+        description: 'FlagTree ref to build (blank = main)'
+        type: string
+        default: ''
+      upload:
+        description: 'upload the wheel to flagos-pypi-daily'
+        type: boolean
+        default: false
+      builder_image:
+        description: 'FlagTree nvidia builder image (blank = the published one from configs.yaml; `ubuntu:22.04` builds cold)'
+        type: string
+        default: ''
+  schedule:
+    # Daily at 01:37 UTC, after the FlagGems daily at 01:17.
+    - cron: '37 1 * * *'
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # The daily version, declared rather than derived. `flagtree_` is what the
+  # wheel filename uses; the dist name is `flagtree-nvidia`.
+  #
+  # FLAGTREE_VERSION_BASE is the release line this daily leads: bump it when
+  # configs.yaml moves to the next FlagTree release, so a daily keeps sorting
+  # above the release it precedes and below the next one.
+  #
+  # FlagTree appends `.git<sha8>` to the version itself (no FLAGTREE_PYPI_KEY
+  # exists in this repo), which is what makes a build traceable to a commit.
+  FLAGTREE_DIST_NAME: flagtree-nvidia
+  FLAGTREE_VERSION_BASE: 0.7.1
+  FLAGTREE_BACKEND_TOKEN: nvidia3.6
+  FLAGTREE_REPO: https://github.com/flagos-ai/flagtree
+  PYPI_REPO: flagos-pypi-daily
+  NEXUS_BASE: https://resource.flagos.net/repository
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually. checkout lets the local composite action resolve from the
+    # workspace; check-trigger-author short-circuits on a schedule, so the
+    # cron path is not gated.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  resolve:
+    needs: authorize
+    # On ubuntu-latest, not the build runner: this job only reads github and the
+    # index, and it is what decides whether the build runner is occupied at all.
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.version.outputs.skip }}
+      version: ${{ steps.version.outputs.version }}
+      wheel: ${{ steps.version.outputs.wheel }}
+      builder_image: ${{ steps.version.outputs.builder_image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Resolve the version
+        id: version
+        env:
+          FLAGTREE_REF: ${{ inputs.flagtree_version || 'main' }}
+          BUILDER_IMAGE_OVERRIDE: ${{ inputs.builder_image }}
+        run: |
+          set -euo pipefail
+          version="${FLAGTREE_VERSION_BASE}.dev$(date -u +%Y%m%d)+${FLAGTREE_BACKEND_TOKEN}"
+          # flagtree_<backend> is the filename form of flagtree-<backend>.
+          wheel="flagtree_${FLAGTREE_DIST_NAME#flagtree-}-${version}"
+          echo ">>> version ${version}"
+
+          # FlagTree appends `.git<sha8>` to the version itself, so the wheel this
+          # run would produce is not known until the commit is. Resolve it here
+          # and the whole build can be skipped on a day `main` has not moved --
+          # which, at a few commits a week, is most days. Skipping is what keeps
+          # a no-op day from occupying the build runner and failing in Nexus.
+          #
+          # A bare ref name would be ambiguous -- `main` also matches
+          # refs/remotes/old/main on this repo -- so ask each namespace
+          # explicitly. The sha wanted is the commit, not the ref: `^{}` peels an
+          # annotated tag to the commit the clone would check out, which is what
+          # FlagTree puts in the version. A lightweight tag has no peeled entry
+          # (that query returns nothing at all) but needs no peeling either, hence
+          # the fallback; a branch is already a commit. One query per namespace,
+          # because ls-remote prints every refspec that matched and its output
+          # order is not ours to rely on.
+          sha=$(git ls-remote "${FLAGTREE_REPO}" "refs/heads/${FLAGTREE_REF}" \
+                | cut -f1)
+          if [ -z "$sha" ]; then
+            sha=$(git ls-remote "${FLAGTREE_REPO}" "refs/tags/${FLAGTREE_REF}^{}" \
+                  | cut -f1)
+          fi
+          if [ -z "$sha" ]; then
+            sha=$(git ls-remote "${FLAGTREE_REPO}" "refs/tags/${FLAGTREE_REF}" \
+                  | cut -f1)
+          fi
+          if [ -z "$sha" ]; then
+            echo "ERROR: ${FLAGTREE_REPO} has no branch or tag named ${FLAGTREE_REF}" >&2
+            exit 1
+          fi
+          sha8=$(printf '%s' "$sha" | cut -c1-8)
+          filename="${wheel}.git${sha8}-cp312-cp312-linux_x86_64.whl"
+          echo ">>> ${FLAGTREE_REF} is ${sha8}; would publish ${filename}"
+
+          skip=false
+          # Same 404 tolerance as the upload step: before the first upload the
+          # project does not exist, and Nexus creates it on first push.
+          if curl -fsS --max-time 60 "${NEXUS_BASE}/${PYPI_REPO}/simple/${FLAGTREE_DIST_NAME}/" \
+               | grep -Fq "${filename}"; then
+            skip=true
+            echo ">>> already published — the build is skipped"
+          fi
+
+          # The published builder stage, derived the same way every other image
+          # ref is: registry host and prefix from build-config.yml, tag from
+          # configs.yaml. A blank override means "the published one"; the
+          # literal `ubuntu:22.04` builds the stage cold, which is what an
+          # unpublished builder falls back to.
+          builder_image="${BUILDER_IMAGE_OVERRIDE}"
+          if [ -z "$builder_image" ]; then
+            host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
+            prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['builder'])")
+            stack=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
+            builder_image="${host}/${prefix}/flagtree-builder-nvidia-cuda:${stack}"
+          fi
+          echo ">>> building on ${builder_image}"
+          {
+            echo "version=${version}"
+            echo "wheel=${wheel}"
+            echo "skip=${skip}"
+            echo "builder_image=${builder_image}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [authorize, resolve]
+    if: ${{ needs.resolve.outputs.skip != 'true' }}
+    # Self-hosted, like every other FlagTree build: the same image build, and
+    # the label flagtree-wheel.yml uses for the same Containerfile.
+    runs-on: [self-hosted, h20]
+    env:
+      IMAGE: flagtree-wheel-daily:${{ github.run_id }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Harbor login
+        # Only to pull the builder stage. A bare docker-hub ref (`ubuntu:22.04`,
+        # what the cold path uses) carries no registry host to log in to.
+        env:
+          BUILDER_IMAGE: ${{ needs.resolve.outputs.builder_image }}
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          set -euo pipefail
+          case "$BUILDER_IMAGE" in
+            */*) host="${BUILDER_IMAGE%%/*}" ;;
+            *)   echo ">>> ${BUILDER_IMAGE} needs no registry login"; exit 0 ;;
+          esac
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
+      - name: Build the FlagTree wheel image
+        working-directory: packaging/flagtree
+        env:
+          FLAGTREE_REF: ${{ inputs.flagtree_version || 'main' }}
+          FLAGTREE_WHEEL_VERSION: ${{ needs.resolve.outputs.version }}
+          FLAGTREE_WHEEL_NAME: ${{ env.FLAGTREE_DIST_NAME }}
+          BUILDER_IMAGE: ${{ needs.resolve.outputs.builder_image }}
+          HTTP_PROXY_SECRET: ${{ secrets.HTTP_PROXY }}
+        run: |
+          set -euo pipefail
+          # Proxy: the runner's own, else the secret. Relay the value and nothing
+          # else — a NO_PROXY invented here would bypass the tunnel for hosts the
+          # container cannot resolve on its own. Uppercase because these are
+          # Docker's predefined proxy args, which reach every RUN without the
+          # Containerfile declaring them (flagtree-wheel.yml relays the same set).
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          proxy_url="${proxy_url:-${HTTP_PROXY_SECRET}}"
+          build_args=(
+            --build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}"
+            --build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}"
+            --build-arg "FLAGTREE_WHEEL_NAME=${FLAGTREE_WHEEL_NAME}"
+            --build-arg "BUILDER_IMAGE=${BUILDER_IMAGE}"
+          )
+          if [ -n "${proxy_url}" ]; then
+            build_args+=(--build-arg "HTTPS_PROXY=${proxy_url}")
+            build_args+=(--build-arg "HTTP_PROXY=${proxy_url}")
+            build_args+=(--build-arg "no_proxy=${no_proxy:-}")
+            build_args+=(--build-arg "NO_PROXY=${NO_PROXY:-}")
+          fi
+          # --no-cache is kept even with a builder image: the clone layer is keyed
+          # on the ref NAME, not its content, so a cached `main` would rebuild an
+          # old commit under today's version.
+          docker build --no-cache "${build_args[@]}" -t "$IMAGE" -f nvidia-cuda .
+
+      - name: Extract the wheel
+        working-directory: packaging/flagtree
+        run: |
+          set -euo pipefail
+          rm -rf wheels && mkdir -p wheels
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/wheels/." wheels/
+          docker rm "$cid" >/dev/null
+          ls -la wheels/*.whl
+
+      - name: Gate the version
+        working-directory: packaging/flagtree
+        env:
+          EXPECTED: ${{ needs.resolve.outputs.wheel }}
+          DIST: ${{ env.FLAGTREE_DIST_NAME }}
+        run: |
+          set -euo pipefail
+          # FlagTree owns the version rule; this asserts it still produces what
+          # this workflow asked for, so a change upstream fails the build instead
+          # of publishing an unexpected version.
+          whl="$(ls wheels/*.whl)"
+          echo ">>> $whl"
+          case "$(basename "$whl")" in
+            "${EXPECTED}".git*) ;;
+            *) echo "ERROR: expected ${EXPECTED}.git<sha8>, got $whl" >&2; exit 1 ;;
+          esac
+          python3 - "$whl" "$DIST" <<'PY'
+          import re
+          import sys
+          import zipfile
+
+          whl, dist = sys.argv[1], sys.argv[2]
+          with zipfile.ZipFile(whl) as zf:
+              meta = next(n for n in zf.namelist() if n.endswith(".dist-info/METADATA"))
+              lines = zf.read(meta).decode().splitlines()[:10]
+          fields = dict(line.split(": ", 1) for line in lines if ": " in line)
+          print(">>> Name:", fields.get("Name"), "Version:", fields.get("Version"))
+          assert fields.get("Name") == dist, fields
+          assert re.fullmatch(r".+\.git[0-9a-f]{8}", fields.get("Version", "")), fields
+          PY
+
+      # Publishing as-is: the build gates already vetted the wheel.
+      - name: Upload to the daily PyPI
+        if: ${{ github.event_name == 'schedule' || inputs.upload }}
+        working-directory: packaging/flagtree
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          whl="$(ls wheels/*.whl)"
+          echo ">>> uploading $(basename "$whl") to ${PYPI_REPO}"
+          # Upgrade pkginfo with twine: setuptools >=77 (PEP 639) stamps
+          # Metadata-Version 2.4, which older pkginfo cannot parse and twine then
+          # aborts before upload (>=1.11 reads it).
+          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
+            || python3 -m pip install --quiet --upgrade twine pkginfo
+          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+          python3 -m twine upload \
+            --repository-url "${NEXUS_BASE}/${PYPI_REPO}/" \
+            --non-interactive \
+            "$whl"
+
+      - name: Clean up the build image
+        if: ${{ always() }}
+        run: docker rmi "$IMAGE" 2>/dev/null || true

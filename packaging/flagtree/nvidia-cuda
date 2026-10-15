@@ -12,40 +12,85 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build a FlagTree 0.6.0 wheel on Ubuntu 22.04 (glibc 2.35) so the resulting
-# libtriton.so links against an older glibc and loads on older-glibc nodes
-# (e.g. the h100 CI runner, ubuntu 22.04 / glibc 2.35). Output wheel -> /wheels.
+# Build a FlagTree wheel for the NVIDIA backend on Ubuntu 22.04 (glibc 2.35) so
+# the resulting libtriton.so links against an older glibc and loads on
+# older-glibc nodes (e.g. the h20 CI runner, ubuntu 22.04 / glibc 2.35).
+#
+# TWO STAGES, ONE FILE. `--target builder` is the build machine -- apt toolchain,
+# python 3.12 and the prebuilt LLVM, everything that does not depend on the
+# FlagTree ref -- and is published to the builder prefix by
+# flagtree-builder-nvidia.yml. The default target is the wheel build on top of
+# it, writing to /wheels. Passing that published image as BUILDER_IMAGE turns
+# stage 1 into a no-op, so a build pays for the clone and the compile and nothing
+# else; stage 1 says so with a marker file (see the guard below).
 #
 # Build:
-#   podman build -t flagtree-build:0.6.0 -f nvidia-cuda .
+#   podman build -t flagtree-build:0.7.0 -f nvidia-cuda .
 #   # behind a proxy:
 #   podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
-#                -t flagtree-build:0.6.0 -f nvidia-cuda .
+#                -t flagtree-build:0.7.0 -f nvidia-cuda .
+#   # the build machine on its own:
+#   docker build --target builder -t flagtree-builder-nvidia-cuda:ci -f nvidia-cuda .
 #
 # Extract the wheel:
-#   id=$(podman create flagtree-build:0.6.0); podman cp $id:/wheels ./wheels; podman rm $id
-FROM ubuntu:22.04
+#   id=$(podman create flagtree-build:0.7.0); podman cp $id:/wheels ./wheels; podman rm $id
+
+# The build machine, and the one knob that distinguishes a cold build from a warm
+# one: pointing this at the published builder stage turns everything below it into
+# a no-op. It is a plain image ref, so a registry pull needs no login of its own.
+ARG BUILDER_IMAGE=ubuntu:22.04
+FROM ${BUILDER_IMAGE} AS builder
 
 # Proxy is only consumed during build (predefined ARG, not persisted in the image).
 ARG http_proxy=
 ARG https_proxy=
-# FlagTree git tag/ref to build (the single version knob).
-ARG FLAGTREE_VERSION=0.6.0
-# Clean version + lean build, matching FlagTree's official nv-delivery CI:
-#  - FLAGTREE_WHEEL_VERSION is the env var FlagTree's setup.py reads for the wheel
-#    version; it defaults to FLAGTREE_VERSION so one arg drives both. A clean
-#    (no +git<sha>) version also requires the secret FLAGTREE_PYPI_KEY (md5-gated
-#    in setup.py). Without the key you get "<ver>.git<sha>"; with nothing set you
-#    get "0.6.0+git<sha>".
-#  - Release build type strips the .so and drops asserts (fixes the ~840 MB
-#    unstripped libtriton.so -> ~150 MB).
-ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
-ARG FLAGTREE_PYPI_KEY=
+# Prebuilt LLVM. FlagTree's cmake wants an LLVM install tree and otherwise fetches
+# 1.2 GB from Azure at build time -- on a CN runner the slowest and least reliable
+# step of the whole build. The same tree is mirrored in the internal filestore, so
+# stage it here and hand it to FlagTree via LLVM_SYSPATH, the knob FlagTree
+# documents for a pre-installed LLVM (its own CI drives the thrive backend the
+# same way).
+#
+# LLVM_HASH is the first 8 characters of FlagTree's cmake/llvm-hash.txt, which is
+# both the tarball's name and the revision the tree is. FlagTree validates nothing
+# about LLVM_SYSPATH -- a staged tree is trusted and used silently -- so the stage
+# records the hash it staged and the wheel build compares that record against the
+# source it just cloned. Bumping this hash means republishing the builder.
+ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
+ARG LLVM_HASH=f6ded0be
+ARG LLVM_TARBALL=llvm-${LLVM_HASH}-ubuntu-x64.tar.gz
+ARG LLVM_DIR=/opt/llvm-${LLVM_HASH}-ubuntu-x64
+
+# LLVM_SYSPATH alone is the contract: get_thirdparty_packages() reads it, skips
+# both the download and its own version.txt check, and derives the include and
+# library flags from it. LLVM_INCLUDE_DIRS / LLVM_LIBRARY_DIR are deliberately not
+# set as well -- they add nothing once the syspath is there, and any of the three
+# trips LLVMDetector into aborting the build if an mlir wheel is ever installed
+# beside them. ENV rather than ARG because stage 2 is where it is consumed and ENV
+# is what crosses FROM.
+#
+# TRITON_OFFLINE_BUILD is deliberately NOT set. On the default (nvidia) backend it
+# demands eight CUDA toolkit directories under ~/.triton plus an offline directory
+# holding FlagPrism and flagcx, and fails the build without them. The other
+# builders can set it because their backends stage that cache; nvidia has none.
+ENV LLVM_SYSPATH=${LLVM_DIR}
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
 # gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+#
+# THE MARKER IS THE WHOLE POINT OF THE FIRST LINE. Built on top of a published
+# builder, this stage's earlier work is already in the image's layers, but the
+# instruction still runs -- so without the guard every warm build would reinstall
+# the same apt packages and re-fetch the same 1.2 GB tarball before reaching the
+# clone. The marker is written last, so a build that died halfway is retried
+# rather than trusted.
+RUN set -eu; \
+    if [ -f /opt/flagtree-build-env.ready ]; then \
+        echo ">>> build environment already staged in the base image"; \
+        exit 0; \
+    fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common ca-certificates gnupg dirmngr \
         git wget curl \
     && add-apt-repository -y ppa:deadsnakes/ppa \
@@ -56,16 +101,56 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
         libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
         python3.12 python3.12-venv python3.12-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && cd /tmp \
+    && for i in 1 2 3 4 5; do \
+         wget -q --tries=3 --timeout=120 "${FILESTORE}/llvm/${LLVM_TARBALL}" -O "${LLVM_TARBALL}" && break; \
+         echo ">>> download ${LLVM_TARBALL} attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && mkdir -p "${LLVM_DIR}" \
+    && tar -xzf "${LLVM_TARBALL}" -C "${LLVM_DIR}" --strip-components=1 \
+    && rm -f "${LLVM_TARBALL}" \
+    && test -d "${LLVM_DIR}/lib/cmake/mlir" \
+    && printf '%s\n' "${LLVM_HASH}" > /opt/flagtree-build-env.llvm \
+    && touch /opt/flagtree-build-env.ready
 
-# pip for python3.12 (deadsnakes ships ensurepip via the python3.12-venv package).
-RUN python3.12 -m ensurepip --upgrade \
-    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools
+# Make print(flagtree.__version__) answer "which FlagTree is this?" instead of
+# echoing the forked Triton line. Idempotent; fails the build if upstream's
+# python/flagtree/__init__.py moved on (see the script's docstring).
+COPY patch-flagtree-version.py /usr/local/bin/patch-flagtree-version.py
+
+FROM builder AS flagtree
+
+# Stage-scoped, so every arg the wheel build reads is declared again: ARGs do not
+# carry across FROM, while the stage's filesystem and ENV do.
+ARG FLAGTREE_VERSION=0.7.0
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
+#  - FLAGTREE_WHEEL_VERSION is the env var FlagTree's setup.py reads for the wheel
+#    version; it defaults to FLAGTREE_VERSION so one arg drives both. A clean
+#    (no +git<sha>) version also requires the secret FLAGTREE_PYPI_KEY (md5-gated
+#    in setup.py). Without the key you get "<ver>.git<sha>"; with nothing set you
+#    get "0.7.0+git<sha>". The appended sha is why this builder keeps .git (the
+#    metax/sunrise/ascend builders delete it to get a clean version instead).
+#  - FLAGTREE_WHEEL_NAME is the distribution name, read by setup.py the same way.
+#    The release line publishes plain "flagtree"; the daily line publishes
+#    "flagtree-nvidia" so a consumer can name the backend and let pip pick the
+#    newest build (see packaging/flagtree/README.md).
+ARG FLAGTREE_WHEEL_NAME=flagtree
+ARG FLAGTREE_PYPI_KEY=
 
 # Build the FlagTree wheel from source.
 # Unconditionally use the proxy (passed as build-args, applied to every RUN,
 # not persisted in the image). Force HTTP/1.1 for git, and retry the flaky
 # network-heavy steps.
+#
+# THE FIRST CHECK IS THE STALENESS GATE. LLVM_SYSPATH points FlagTree at whatever
+# tree stage 1 staged, and FlagTree asks that tree nothing -- a build against the
+# wrong revision fails deep in triton's cmake, or worse, succeeds and produces a
+# wheel nobody can attribute. Two things can go wrong, and both are decidable
+# here: the record stage 1 left can name a different revision than the source
+# just cloned, or LLVM_SYSPATH can name a tree that is not in this image at all.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -74,10 +159,33 @@ RUN git config --global http.version HTTP/1.1 \
          rm -rf /opt/flagtree; sleep 5; \
        done \
     && test -d /opt/flagtree/.git \
+    && staged_hash="$(cat /opt/flagtree-build-env.llvm 2>/dev/null || true)" \
+    && if [ -z "${staged_hash}" ]; then \
+         echo "ERROR: no staged-LLVM record -- the base image was not produced by" >&2; \
+         echo "       this file's builder stage. Republish it, or build cold with" >&2; \
+         echo "       --build-arg BUILDER_IMAGE=ubuntu:22.04." >&2; \
+         exit 1; \
+       fi \
+    && if [ ! -f "${LLVM_SYSPATH}/lib/cmake/mlir/MLIRConfig.cmake" ]; then \
+         echo "ERROR: ${LLVM_SYSPATH} carries no LLVM install tree, but the builder" >&2; \
+         echo "       staged LLVM ${staged_hash}. LLVM_HASH was bumped here without" >&2; \
+         echo "       republishing, or BUILDER_IMAGE is not a builder image at all." >&2; \
+         exit 1; \
+       fi \
+    && source_hash="$(head -c 8 /opt/flagtree/cmake/llvm-hash.txt)" \
+    && if [ "${source_hash}" != "${staged_hash}" ]; then \
+         echo "ERROR: the builder staged LLVM ${staged_hash}, FlagTree is on ${source_hash}" >&2; \
+         echo "       Republish it: flagtree-builder-nvidia.yml." >&2; \
+         exit 1; \
+       fi \
+    && echo ">>> LLVM ${staged_hash} matches the staged tree" \
+    && python3.12 /usr/local/bin/patch-flagtree-version.py /opt/flagtree \
+    && grep -q '_metadata.version("' /opt/flagtree/python/flagtree/__init__.py \
     && cd /opt/flagtree \
     && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
     && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
     && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
     && for i in 1 2 3 4 5; do \
          python3.12 -m pip wheel . --no-build-isolation -w /wheels -v && break; \
@@ -85,6 +193,11 @@ RUN git config --global http.version HTTP/1.1 \
        done \
     && ls -la /wheels/*.whl
 
-# Smoke test: install the freshly built wheel and import it (fails the build if broken).
+# Smoke test: install the freshly built wheel and import it (fails the build if
+# broken). The installed __version__ is the distribution's own version, so this
+# asserts both the import and that the patch survived into the installed tree.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
-    && python3.12 -c "import triton; print('OK triton', triton.__version__)"
+    && python3.12 -c "\
+import importlib.metadata as md, flagtree, triton;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__);\
+assert flagtree.__version__ == md.version('${FLAGTREE_WHEEL_NAME}'), flagtree.__version__"
