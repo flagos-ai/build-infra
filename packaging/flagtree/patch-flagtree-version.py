@@ -20,10 +20,14 @@ Upstream ships ``python/flagtree/__init__.py`` as::
     from triton import __version__
 
 so ``print(flagtree.__version__)`` always prints the Triton line the build is
-forked from (e.g. ``3.6.0``) — never the wheel's own version, and never the git
-sha. A FlagTree wheel built by this repo carries both in its version
-(``0.7.1.dev20261015+nvidia3.6.git03122362``), so the answer to "which FlagTree
-is this?" is already in the dist-info; this patch just points the module at it.
+forked from (e.g. ``3.6.0``) — never the wheel's own version. A FlagTree wheel
+built by this repo carries that version (``0.7.1.dev20261015``), so the answer
+to "which FlagTree is this?" is already in the dist-info; this patch just points
+the module at it.
+
+The commit a build came from is a separate fact and lives in the same dist-info
+as a ``Project-URL: Source-Commit`` line (``pip show -v``); this patch does not
+read it, so there is one place to look for it rather than two.
 
 Applied to the clone inside the build, before ``pip wheel`` — the fork is not
 modified. Reading dist-info at import (rather than stamping a version file at

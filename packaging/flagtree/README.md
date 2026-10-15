@@ -78,9 +78,9 @@ ubuntu:22.04 ──> builder   apt toolchain + python 3.12 + prebuilt LLVM
 deadsnakes python, then pulls the LLVM bundle — 1.23 GB, the flakiest network
 step of the run — unpacks it, and only then reaches the clone. Built on the
 published stage, none of that runs again: the layer is already in the base image
-and the marker guard makes the instruction a no-op. On the days `main` has not
-moved there is nothing to build at all, and the run stops before occupying the
-runner (see the skip below).
+and the marker guard makes the instruction a no-op. On a day whose wheel is
+already published there is nothing to build at all, and the run stops before
+occupying the runner (see the skip below).
 
 **It does not make the build fast.** The wall is compiling triton/MLIR against
 that LLVM, not fetching it, and nothing here removes it. What the split buys is
@@ -121,6 +121,28 @@ build) defaults to `ubuntu:22.04` and stages the environment from scratch — th
 same image, just without the pre-staged layers. The daily's `builder_image` input
 takes either spelling, so the cold path is available on the runner too, without
 waiting for a republished builder.
+
+**The source commit is recorded, not encoded.** After the clone, before `.git`
+is removed, the build reads the commit with `git rev-parse --short=8` and writes
+a `setup.cfg` into the clone carrying it as a `Project-URL`:
+
+```ini
+[metadata]
+project_urls =
+    Source-Commit = https://github.com/flagos-ai/flagtree/commit/87918b76
+```
+
+FlagTree ships no `setup.cfg` of its own — the build **fails** if one ever
+appears, rather than silently overwriting it — and setuptools merges the file
+into the `setup()` call on its own, so this reaches the wheel METADATA without
+changing a line of FlagTree source. The alternatives were measured and rejected:
+a hand-written `PKG-INFO` does not survive into METADATA, and appending to the
+`egg_info` output does not either.
+
+Removing `.git` is also what makes the version clean: FlagTree's
+`get_git_commit_hash()` appends `+git<sha8>` whenever `git rev-parse` answers,
+which is why the sha has to be read *before* the removal. Read it back with
+`pip show -v`, not from the version.
 
 ## Iluvatar builder (`iluvatar`)
 
@@ -292,16 +314,16 @@ Useful build args (see the Containerfile for the full list):
   string (default `0.7.0` for `nvidia-cuda`, `0.6.1+metax3.6` for `metax`). This
   is the single version knob.
 - `FLAGTREE_WHEEL_VERSION` — wheel version string; defaults to `FLAGTREE_VERSION`,
-  so you normally only set `FLAGTREE_VERSION`. A clean version (no `+git<sha>`)
-  also needs `FLAGTREE_PYPI_KEY`; otherwise the wheel is versioned `<ver>.git<sha>`
-  (the `metax` builder gets a clean version without the key by dropping `.git`;
-  `nvidia-cuda` keeps `.git` precisely so the sha is there).
+  so you normally only set `FLAGTREE_VERSION`. Every builder here ends up with a
+  clean version (no `+git<sha>`): `metax`/`sunrise`/`nvidia-cuda` and the ascend
+  pair all drop `.git` before `pip wheel`, and `FLAGTREE_PYPI_KEY` (md5-gated in
+  FlagTree's `setup.py`) is the other route for a caller that holds the secret.
   On the ascend pair it defaults to `FLAGTREE_BASE_VERSION.<UTC date>` instead
   (the ref and the wheel label are two separate knobs there).
 - `FLAGTREE_WHEEL_NAME` — the distribution name FlagTree's `setup.py` publishes
   under. Default `flagtree`; the daily line sets `flagtree-nvidia` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
-  `setup.py`).
+  `setup.py`). Set by no caller in this repo.
 - `BUILDER_IMAGE` — `nvidia-cuda` only. The image stage 1 builds on; defaults to
   `ubuntu:22.04` (the cold build). Pointing it at the published builder stage
   makes stage 1 a no-op — see the builder section above.
@@ -309,7 +331,8 @@ Useful build args (see the Containerfile for the full list):
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
 `triton`, failing the build if the wheel is broken. `nvidia-cuda` additionally
-patches `python/flagtree/__init__.py` after the clone (see below).
+patches `python/flagtree/__init__.py` and records the source commit after the
+clone (see below).
 
 ## Daily builds (`nvidia-cuda`)
 
@@ -318,12 +341,12 @@ publishes it to `flagos-pypi-daily` under the distribution **`flagtree-nvidia`**
 The release line (`flagtree-wheel.yml`, manual) is untouched: it keeps
 publishing plain `flagtree` to the vendor indexes.
 
-The version is a date plus the backend plus the commit:
+The version is a date, and nothing else:
 
 ```
-flagtree_nvidia-0.7.1.dev20261015+nvidia3.6.git03122362-cp312-cp312-linux_x86_64.whl
-^^^^^^^^^^^^^^^ ^^^^^^^^ ^^^^^^^^ ^^^^^^^^^^^^^ ^^^^^^^^^^^
-distribution    release  .dev date  backend       git sha
+flagtree_nvidia-0.7.1.dev20261015-cp312-cp312-linux_x86_64.whl
+^^^^^^^^^^^^^^^ ^^^^^^^^ ^^^^^^^^
+distribution    release  .dev date
 ```
 
 **Consumer command.** With the backend in the distribution name, pip does the
@@ -342,6 +365,16 @@ one is ever published, would flip the no-`--pre` form over to it. What a plain
 `pip install flagtree` gets is unaffected either way: dailies live under a
 different name.
 
+**Which commit is this?** Not from the version — from the wheel's metadata:
+
+```sh
+pip show -v flagtree-nvidia | grep Source-Commit
+# Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/87918b76
+
+python -c "import importlib.metadata as m; \
+           print(m.metadata('flagtree-nvidia').get_all('Project-URL'))"
+```
+
 Why the pieces sit where they do:
 
 - **The date goes in the public segment, as `.dev`.** That is the only placement
@@ -351,43 +384,36 @@ Why the pieces sit where they do:
   segment (`0.7.0.20261015`) is not a pre-release and would be picked by a plain
   `pip install flagtree`, shadowing the release; `0.7.0.dev<date>` sorts *below*
   `0.7.0`.
-- **The backend is in the name, not in the version's local segment.** A `==`
+- **Nothing else is in the version.** The backend is the distribution name, and
+  a backend token in the local segment cannot be matched anyway: a `==`
   specifier carrying a local label matches that whole segment exactly, and `dev`
   inside a local label compares as text — measured: `==0.7.1+nvidia3.6` matches
   neither `0.7.1+nvidia3.6.dev20261015` nor `0.7.1.dev20261015+nvidia3.6`, and
-  `==0.7.1.*+nvidia3.6` is not even a valid specifier. Backends sharing one
-  index would also tie-break alphabetically. Each backend being its own project
-  removes both problems.
-- **The backend token stays in the version too** (`+nvidia3.6`), because FlagTree
-  appends `.git<sha>` to whatever version string it is handed, and
-  `0.7.1.dev<date>.git<sha>` — the bare-nvidia result — is not valid PEP 440.
-  The `+` must be there.
-- **The sha is not ours to add.** FlagTree's `setup.py`
-  (`python/setup_tools/setup_helper.py`) appends `.git<sha8>` whenever
-  `FLAGTREE_PYPI_KEY` is absent, which is the case in this repo. The daily
-  workflow therefore keeps `.git` in the clone — deleting it, as the
-  `metax`/`sunrise`/`ascend` builders do, would drop the sha.
+  `==0.7.1.*+nvidia3.6` is not even a valid specifier. With each backend its own
+  project, `+nvidia3.6` repeats what the name already says.
+- **The commit is metadata, not a filename.** FlagTree appends `+git<sha8>` to
+  whatever version it is handed, so the only way to a date-only version is the
+  `metax`/`sunrise`/`ascend` route: drop `.git` before `pip wheel`. The sha is
+  read from `.git` first and written into the clone's `setup.cfg`, which
+  setuptools merges into `setup()` on its own — that is what puts
+  `Project-URL: Source-Commit, …` in the METADATA, with no line of FlagTree
+  source changed (see the NVIDIA build section above).
 
-Two knobs to bump in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release
-this daily leads — move it when `configs.yaml` moves on) and
-`FLAGTREE_BACKEND_TOKEN`. Adding a backend is a second job with its own pair;
-`FLAGTREE_DIST_NAME` names the wheel.
+Two knobs in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release this
+daily leads — move it when `configs.yaml` moves on) and `FLAGTREE_DIST_NAME`
+(names the wheel). Adding a backend is a second job with its own pair.
 
-**The run resolves the commit before it builds anything.** `resolve` (on
-`ubuntu-latest`) reads the ref with `git ls-remote`, composes the wheel filename
-that sha implies, and asks the index whether it is already there. When it is,
-`build` never starts — on a runner that is otherwise busy for half an hour, and
-with nothing for Nexus to reject. The check moved ahead of the build because the
-version is knowable without one: FlagTree appends `.git<sha8>` itself and the sha
-is a network read.
+**`resolve` skips a day that has already been published**, before the build
+runner is occupied at all and with nothing for Nexus to reject. The version is
+known without a build — it is the UTC date — so the probe is just the index
+listing for today's filename. A same-day re-run is skipped; a new UTC day always
+builds, even when `main` has not moved, because the wheel for a new date is a
+new wheel. What it was built from is in its METADATA, not in its name.
 
-The refspec asks for the ref in each namespace explicitly, and takes the first
-that answers: `refs/heads/<ref>`, then `refs/tags/<ref>^{}`, then
-`refs/tags/<ref>`. A bare `main` is ambiguous — it matches `refs/remotes/old/main`
-on this repo — and the sha wanted is the commit, not the ref: `^{}` peels an
-annotated tag to the commit the clone checks out, which is the sha FlagTree
-writes into the version. A lightweight tag has no peeled entry (a query for one
-returns nothing at all) and needs no peeling, hence the last fallback.
+That skip does not know which ref was asked for, which is worth stating plainly:
+a manual dispatch overriding `flagtree_version` on a day the cron has already
+published is skipped as well. To build another ref the same day, point
+`flagtree-wheel.yml` at `nvidia-cuda` — or wait for the next UTC date.
 
 **And it builds on the published builder stage** (see the NVIDIA builder section
 above): the `builder_image` input takes an override, and blank means the ref
@@ -409,6 +435,10 @@ build, after the clone and before `pip wheel`, with a grep gate so the build
 fails loudly if upstream's module moves on — to read
 `importlib.metadata.version("flagtree-nvidia")`, falling back to the Triton line
 when the distribution is not installed. The fork is not modified.
+
+The source commit is deliberately not added a second time here: it lives in
+`Project-URL: Source-Commit` in the same dist-info the module already reads its
+version from, so one lookup answers both "which FlagTree" and "which commit".
 
 ## Extract the wheel
 
