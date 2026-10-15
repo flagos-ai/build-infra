@@ -365,20 +365,24 @@ jobs:
       - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
         env:
           FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
+          FLAGOS_APT_KEY: https://resource.flagos.net/repository/apt-keys/pub/flagos-apt-public-key.asc
           PPA: ${{ needs.build.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
             set -e
             if [ -n "${PPA:-}" ]; then
               apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
               add-apt-repository -y "${PPA}" > /dev/null
             fi
             # A package that depends on another FlagOS package gets the FlagOS
-            # repository it will be published to, and nothing else.
+            # repository it will be published to, and nothing else -- added the
+            # way a user adds it, signature checked against the published key.
             if [ -n "${FLAGOS_APT:-}" ]; then
-              apt-get update -qq && apt-get install -y -qq ca-certificates > /dev/null
-              echo "deb [trusted=yes] ${FLAGOS_APT}" > /etc/apt/sources.list.d/flagos.list
+              apt-get update -qq && apt-get install -y -qq ca-certificates curl > /dev/null
+              install -d -m 0755 /etc/apt/keyrings
+              curl -fsSL "${FLAGOS_APT_KEY}" -o /etc/apt/keyrings/flagos.asc
+              echo "deb [signed-by=/etc/apt/keyrings/flagos.asc] ${FLAGOS_APT}" > /etc/apt/sources.list.d/flagos.list
             fi
             apt-get update -qq
             # Installing the files themselves is the test: apt has to satisfy
