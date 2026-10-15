@@ -12,34 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build a FlagTree 0.6.0 wheel on Ubuntu 22.04 (glibc 2.35) so the resulting
+# Build a FlagTree wheel on Ubuntu 22.04 (glibc 2.35) so the resulting
 # libtriton.so links against an older glibc and loads on older-glibc nodes
 # (e.g. the h100 CI runner, ubuntu 22.04 / glibc 2.35). Output wheel -> /wheels.
 #
 # Build:
-#   podman build -t flagtree-build:0.6.0 -f nvidia-cuda .
+#   podman build -t flagtree-build:0.7.0 -f nvidia-cuda .
 #   # behind a proxy:
 #   podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
-#                -t flagtree-build:0.6.0 -f nvidia-cuda .
+#                -t flagtree-build:0.7.0 -f nvidia-cuda .
 #
 # Extract the wheel:
-#   id=$(podman create flagtree-build:0.6.0); podman cp $id:/wheels ./wheels; podman rm $id
+#   id=$(podman create flagtree-build:0.7.0); podman cp $id:/wheels ./wheels; podman rm $id
 FROM ubuntu:22.04
 
 # Proxy is only consumed during build (predefined ARG, not persisted in the image).
 ARG http_proxy=
 ARG https_proxy=
-# FlagTree git tag/ref to build (the single version knob).
-ARG FLAGTREE_VERSION=0.6.0
+# FlagTree git tag/ref to build.
+ARG FLAGTREE_VERSION=0.7.0
 # Clean version + lean build, matching FlagTree's official nv-delivery CI:
 #  - FLAGTREE_WHEEL_VERSION is the env var FlagTree's setup.py reads for the wheel
 #    version; it defaults to FLAGTREE_VERSION so one arg drives both. A clean
 #    (no +git<sha>) version also requires the secret FLAGTREE_PYPI_KEY (md5-gated
 #    in setup.py). Without the key you get "<ver>.git<sha>"; with nothing set you
-#    get "0.6.0+git<sha>".
+#    get "0.7.0+git<sha>". The appended sha is why this builder keeps .git (the
+#    metax/sunrise/ascend builders delete it to get a clean version instead).
+#  - FLAGTREE_WHEEL_NAME is the distribution name, read by setup.py the same way.
+#    The release line publishes plain "flagtree"; the daily line publishes
+#    "flagtree-nvidia" so a consumer can name the backend and let pip pick the
+#    newest build (see packaging/flagtree/README.md).
 #  - Release build type strips the .so and drops asserts (fixes the ~840 MB
 #    unstripped libtriton.so -> ~150 MB).
 ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
+ARG FLAGTREE_WHEEL_NAME=flagtree
 ARG FLAGTREE_PYPI_KEY=
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -62,6 +68,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3.12 -m ensurepip --upgrade \
     && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools
 
+# Make print(flagtree.__version__) answer "which FlagTree is this?" instead of
+# echoing the forked Triton line. Idempotent; fails the build if upstream's
+# python/flagtree/__init__.py moved on (see the script's docstring).
+COPY patch-flagtree-version.py /usr/local/bin/patch-flagtree-version.py
+
 # Build the FlagTree wheel from source.
 # Unconditionally use the proxy (passed as build-args, applied to every RUN,
 # not persisted in the image). Force HTTP/1.1 for git, and retry the flaky
@@ -74,10 +85,13 @@ RUN git config --global http.version HTTP/1.1 \
          rm -rf /opt/flagtree; sleep 5; \
        done \
     && test -d /opt/flagtree/.git \
+    && python3.12 /usr/local/bin/patch-flagtree-version.py /opt/flagtree \
+    && grep -q '_metadata.version("' /opt/flagtree/python/flagtree/__init__.py \
     && cd /opt/flagtree \
     && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
     && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
     && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
     && for i in 1 2 3 4 5; do \
          python3.12 -m pip wheel . --no-build-isolation -w /wheels -v && break; \
@@ -85,6 +99,11 @@ RUN git config --global http.version HTTP/1.1 \
        done \
     && ls -la /wheels/*.whl
 
-# Smoke test: install the freshly built wheel and import it (fails the build if broken).
+# Smoke test: install the freshly built wheel and import it (fails the build if
+# broken). The installed __version__ is the distribution's own version, so this
+# asserts both the import and that the patch survived into the installed tree.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
-    && python3.12 -c "import triton; print('OK triton', triton.__version__)"
+    && python3.12 -c "\
+import importlib.metadata as md, flagtree, triton;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__);\
+assert flagtree.__version__ == md.version('${FLAGTREE_WHEEL_NAME}'), flagtree.__version__"

@@ -206,11 +206,11 @@ Notes that apply only here:
 Run from inside this folder:
 
 ```sh
-podman build -t flagtree-build:0.6.0 -f nvidia-cuda .
+podman build -t flagtree-build:0.7.0 -f nvidia-cuda .
 
 # behind a proxy:
 podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
-             -t flagtree-build:0.6.0 -f nvidia-cuda .
+             -t flagtree-build:0.7.0 -f nvidia-cuda .
 
 # ascend pair: aarch64 only, and the FROM image is the backend's runtime image
 # (pulled from the registry if absent). The build itself clones github.com, so
@@ -222,27 +222,109 @@ docker build -t flagtree-ascend-cann9.0.0:0.7.0rc2 -f ascend-cann9.0.0 .
 Useful build args (see the Containerfile for the full list):
 
 - `FLAGTREE_VERSION` — FlagTree git branch/tag/sha to build; also the wheel version
-  string (default `0.6.0` for `nvidia-cuda`, `0.6.1+metax3.6` for `metax`). This
+  string (default `0.7.0` for `nvidia-cuda`, `0.6.1+metax3.6` for `metax`). This
   is the single version knob.
 - `FLAGTREE_WHEEL_VERSION` — wheel version string; defaults to `FLAGTREE_VERSION`,
   so you normally only set `FLAGTREE_VERSION`. A clean version (no `+git<sha>`)
   also needs `FLAGTREE_PYPI_KEY`; otherwise the wheel is versioned `<ver>.git<sha>`
-  (the `metax` builder gets a clean version without the key by dropping `.git`).
+  (the `metax` builder gets a clean version without the key by dropping `.git`;
+  `nvidia-cuda` keeps `.git` precisely so the sha is there).
   On the ascend pair it defaults to `FLAGTREE_BASE_VERSION.<UTC date>` instead
   (the ref and the wheel label are two separate knobs there).
+- `FLAGTREE_WHEEL_NAME` — the distribution name FlagTree's `setup.py` publishes
+  under. Default `flagtree`; the daily line sets `flagtree-nvidia` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`).
 
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
-`triton`, failing the build if the wheel is broken.
+`triton`, failing the build if the wheel is broken. `nvidia-cuda` additionally
+patches `python/flagtree/__init__.py` after the clone (see below).
+
+## Daily builds (`nvidia-cuda`)
+
+`.github/workflows/flagtree-wheel-daily.yml` builds FlagTree `main` every day and
+publishes it to `flagos-pypi-daily` under the distribution **`flagtree-nvidia`**.
+The release line (`flagtree-wheel.yml`, manual) is untouched: it keeps
+publishing plain `flagtree` to the vendor indexes.
+
+The version is a date plus the backend plus the commit:
+
+```
+flagtree_nvidia-0.7.1.dev20261015+nvidia3.6.git03122362-cp312-cp312-linux_x86_64.whl
+^^^^^^^^^^^^^^^ ^^^^^^^^ ^^^^^^^^ ^^^^^^^^^^^^^ ^^^^^^^^^^^
+distribution    release  .dev date  backend       git sha
+```
+
+**Consumer command.** With the backend in the distribution name, pip does the
+ranking:
+
+```sh
+pip install --pre flagtree-nvidia   # newest daily, always
+pip install flagtree-nvidia         # same thing today: no stable version of this name exists
+pip uninstall flagtree-nvidia       # before switching back to the release name
+```
+
+`--pre` is the safe form — without it pip accepts pre-releases only while no
+stable version of the name exists. Nothing under `flagtree-nvidia` is stable, so
+both spellings resolve to the newest daily; a stable release of that name, if
+one is ever published, would flip the no-`--pre` form over to it. What a plain
+`pip install flagtree` gets is unaffected either way: dailies live under a
+different name.
+
+Why the pieces sit where they do:
+
+- **The date goes in the public segment, as `.dev`.** That is the only placement
+  that is both a pre-release (so a plain `pip install flagtree` keeps resolving
+  to the release) and numerically *above* the release it leads, so "newest
+  daily" is version comparison rather than date-eyeballing. A dated release
+  segment (`0.7.0.20261015`) is not a pre-release and would be picked by a plain
+  `pip install flagtree`, shadowing the release; `0.7.0.dev<date>` sorts *below*
+  `0.7.0`.
+- **The backend is in the name, not in the version's local segment.** A `==`
+  specifier carrying a local label matches that whole segment exactly, and `dev`
+  inside a local label compares as text — measured: `==0.7.1+nvidia3.6` matches
+  neither `0.7.1+nvidia3.6.dev20261015` nor `0.7.1.dev20261015+nvidia3.6`, and
+  `==0.7.1.*+nvidia3.6` is not even a valid specifier. Backends sharing one
+  index would also tie-break alphabetically. Each backend being its own project
+  removes both problems.
+- **The backend token stays in the version too** (`+nvidia3.6`), because FlagTree
+  appends `.git<sha>` to whatever version string it is handed, and
+  `0.7.1.dev<date>.git<sha>` — the bare-nvidia result — is not valid PEP 440.
+  The `+` must be there.
+- **The sha is not ours to add.** FlagTree's `setup.py`
+  (`python/setup_tools/setup_helper.py`) appends `.git<sha8>` whenever
+  `FLAGTREE_PYPI_KEY` is absent, which is the case in this repo. The daily
+  workflow therefore keeps `.git` in the clone — deleting it, as the
+  `metax`/`sunrise`/`ascend` builders do, would drop the sha.
+
+Two knobs to bump in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release
+this daily leads — move it when `configs.yaml` moves on) and
+`FLAGTREE_BACKEND_TOKEN`. Adding a backend is a second job with its own pair;
+`FLAGTREE_DIST_NAME` names the wheel.
+
+**Caveat for consumers.** `flagtree` and `flagtree-nvidia` both install the
+top-level `triton/` and `flagtree/` packages, and neither declares
+`Obsoletes`/`Provides`, so pip treats them as unrelated projects and installing
+one over the other clobbers files rather than replacing. Uninstall the old name
+first.
+
+### `print(flagtree.__version__)`
+
+Upstream's `python/flagtree/__init__.py` is `from triton import __version__`, so
+it reports the Triton line the build forked (`3.6.0`) and never the wheel's own
+version. `packaging/flagtree/patch-flagtree-version.py` rewrites it — inside the
+build, after the clone and before `pip wheel`, with a grep gate so the build
+fails loudly if upstream's module moves on — to read
+`importlib.metadata.version("flagtree-nvidia")`, falling back to the Triton line
+when the distribution is not installed. The fork is not modified.
 
 ## Extract the wheel
 
 The wheel is written to `/wheels` in the image:
 
 ```sh
-id=$(podman create flagtree-build:0.6.0)
+id=$(podman create flagtree-build:0.7.0)
 podman cp $id:/wheels ./wheels
 podman rm $id
 ```

@@ -176,7 +176,9 @@
 
 未接入，且属于有意为之：
 
-- `flaggems-wheel`、`flagtree-wheel`、`flagtree-builder` 三个 workflow 明确不接入。
+- `flaggems-wheel`、`flagtree-wheel`、`flagtree-wheel-daily`、`flagtree-builder`
+  四个 workflow 明确不接入。前三个的版本号带日期/<sha>（如
+  `0.7.1.dev<date>+nvidia3.6.git<sha8>`），与上面 megatron 的情形同构。
 - `megatron-wheel` 的 provenance 构建（版本号形如 `0.17.1+fl.<date>.g<sha>`）
   不记录：该版本号不对应任何发布版本，只有传入 `mlf_version` 的正式发布才记录。
 - `sources:` 不记录（原因见「数据模型」一节）；`sglang`、`sgl-kernel-shim` 等
