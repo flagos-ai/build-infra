@@ -30,6 +30,7 @@ import re
 import sys
 import tarfile
 from pathlib import Path
+from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_bundle import load_app_manifest, repo_root
@@ -80,6 +81,23 @@ def norm_spec(spec: str) -> tuple[str, str | None]:
     return name, None
 
 
+def wheel_name_and_version(fname: str) -> tuple[str, str]:
+    """Return (canonical-dist-name, version) from a PEP 427 wheel filename.
+
+    Local-version wheels (torch-2.10.0+cu128) URL-encode the '+' as %2B in the
+    filename — as both the report URLs and the wheelhouse store them — so the
+    raw split-by-'-' name/version would compare "2.10.0%2Bcu128" against the
+    pin's "2.10.0+cu128" and report every vendor wheel missing. Unquote first,
+    then match version on the decoded segment that carries the build tag.
+    """
+    stem = unquote(fname[:-len(".whl")])
+    parts = stem.split("-")
+    name = parts[0].lower().replace("_", "-")
+    # version is the segment after the name, up to the next '-' (build/python).
+    version = parts[1] if len(parts) > 1 else ""
+    return name, version
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("tarball")
@@ -97,17 +115,17 @@ def main() -> None:
             print(f"  {ver}:", " ".join(deltas[ver]))
         return
 
-    # Map wheel filenames → distribution name (PEP 427) inside the archive.
+    # Map wheel filenames → (distribution name, version) inside the archive.
     wheel_names: dict[str, str] = {}
+    wheel_versions: dict[str, str] = {}
     with tarfile.open(tarball) as tf:
         for member in tf.getmembers():
             if not member.name.endswith(".whl"):
                 continue
             fname = member.name.rsplit("/", 1)[-1]
-            # dist-version(-build)(-python)(-abi)(-platform).whl
-            stem = fname[:-len(".whl")]
-            parts = stem.split("-")
-            wheel_names[fname] = parts[0].lower().replace("_", "-")
+            name, version = wheel_name_and_version(fname)
+            wheel_names[fname] = name
+            wheel_versions[fname] = version
 
     # A wheel matching spec s is present iff some wheel's dist name == s's dist
     # name AND (s has no exact pin, or any wheel of that name carries s's
@@ -116,23 +134,22 @@ def main() -> None:
     for fname, dist in wheel_names.items():
         by_name.setdefault(dist, []).append(fname)
 
+    def has_version(filenames: list[str], want: str) -> bool:
+        return any(wheel_versions[f] == want for f in filenames)
+
     missing: list[str] = []
     for spec in runtime_top:
         name, ver = norm_spec(spec)
         if name not in by_name:
             missing.append(f"{spec} (runtime)")
-        elif ver is not None and not any(
-                fname.startswith(f"{name.replace('-', '_')}-") and ver in fname
-                for fname in by_name[name]):
+        elif ver is not None and not has_version(by_name[name], ver):
             missing.append(f"{spec} (runtime, version {ver})")
     for ver, reqs in deltas.items():
         for spec in reqs:
             name, v = norm_spec(spec)
             if name not in by_name:
                 missing.append(f"{spec} ({ver})")
-            elif v is not None and not any(
-                    fname.startswith(f"{name.replace('-', '_')}-") and v in fname
-                    for fname in by_name[name]):
+            elif v is not None and not has_version(by_name[name], v):
                 missing.append(f"{spec} ({ver}, version {v})")
 
     if missing:
