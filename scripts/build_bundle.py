@@ -85,7 +85,7 @@ def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
 
 
 def download(url: str, dest: Path, name: str) -> None:
-    print(f"==> fetching {name} from filestore")
+    print(f"==> downloading {name}")
     run(["curl", "-fsSL", "--retry", "3", "-o", str(dest), url])
 
 
@@ -140,12 +140,16 @@ def build_venv(uv: Path, cpython_dir: Path, mirror: str) -> Path:
 
 def pip_download(pip: Path, reqs: list[str], dest: Path, report: Path,
                  index: str, extras: list[str], *, pre: bool) -> None:
-    # `index` is the primary --index-url; extras follow as --extra-index-url,
-    # so a primary-listed package wins exact-version ties (the Containerfile's
+    # Resolve + fetch one closure into dest, and keep the per-wheel source URL
+    # report (merge_reports reads it). `pip download` lost --report in pip 26,
+    # so resolve with `pip install --dry-run --ignore-installed --report` — the
+    # same resolver pip download uses — then curl the recorded URLs. The
+    # primary --index-url is `index`; extras follow as --extra-index-url, so a
+    # primary-listed package wins exact-version ties (the Containerfile's
     # vendor-first vs mirror-first ordering, applied per step by the caller).
     if not reqs:
         return
-    cmd = [str(pip), "download", "--no-cache-dir", "--dest", str(dest),
+    cmd = [str(pip), "install", "--dry-run", "--ignore-installed",
            "--report", str(report)]
     if pre:
         cmd.append("--pre")
@@ -155,6 +159,16 @@ def pip_download(pip: Path, reqs: list[str], dest: Path, report: Path,
     cmd += ["--trusted-host", "resource.flagos.net"]
     cmd += reqs
     run(cmd)
+
+    for item in json.loads(report.read_text()).get("install", []):
+        url = (item.get("download_info") or {}).get("url") or ""
+        if not url:
+            continue
+        name = url.split("#", 1)[0].rsplit("/", 1)[-1]
+        target = dest / name
+        if target.exists():
+            continue
+        download(url, target, name)
 
 
 def merge_reports(reports: list[Path]) -> dict:
