@@ -25,7 +25,9 @@
 #      denied at the docker layer, not merely unobserved).
 #   3. Smoke test, same container (the venv references the standalone CPython
 #      staged in $HOME, so install + smoke must share one container): import
-#      the app's smoke modules, toggle `compiler`, run `<launcher> --help`.
+#      the app's smoke modules, run scripts/bundle/smoke.py (device +
+#      compiler JIT/execute probe), toggle `compiler`, run
+#      `<launcher> --help`.
 #
 # The smoke container mounts the NVIDIA driver (torch+cu128 bundles the CUDA
 # runtime) via .github/build-config.yml run.vendors.nvidia.raw, exactly as a
@@ -69,6 +71,7 @@ python3 "$REPO_ROOT/scripts/verify_bundle.py" "$TARBALL" --check-wheels
 echo "==> install + smoke test under --network none"
 mkdir -p "$WORK_DIR/bundle" "$WORK_DIR/prefix"
 tar xzf "$TARBALL" -C "$WORK_DIR/bundle"
+cp "$REPO_ROOT/scripts/bundle/smoke.py" "$WORK_DIR/smoke.py"
 
 # The install runs as root in the container, so the standalone CPython lands in
 # /root/.local/share/uv/python and the venv references it — which is why
@@ -84,11 +87,17 @@ LAUNCHER="$(sed -n 's/^LAUNCHER=//p' meta.env)"
 ./install.sh --prefix /verify/prefix --app-version "${APP_VERSION}"
 
 PREFIX="/verify/prefix"
-. "$PREFIX/etc/profile.d/zz-compiler.sh"
+# Source the full profile.d env (runtime vendor LD_LIBRARY_PATH + app env +
+# compiler), exactly as the launcher and every real shell would — torch needs
+# the vendor runtime libs for the device probe, not just the compiler path.
+for f in "$PREFIX"/etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done
 
 echo "==> compiler toggle"
 "$PREFIX/bin/compiler" triton
 "$PREFIX/bin/compiler" flagtree
+
+echo "==> deep smoke (device + compiler JIT/execute) — flagtree active"
+"$PREFIX/bin/python" /verify/smoke.py
 
 if [ -x "$PREFIX/bin/$LAUNCHER" ]; then
     echo "==> $LAUNCHER --help"
