@@ -182,7 +182,7 @@
 - `sources:` 不记录（原因见「数据模型」一节）；`sglang`、`sgl-kernel-shim` 等
   已有发布步骤但 `wheels:` 中尚无条目的包，其 `sources:` 条目也待人工补写。
 - `torch-fl` 的 7 行没有对应的发布流水线，继续由人工维护。
-- deb/rpm 各线、`upload-nexus`、app 镜像各线、gendoc 各线均不属于本机制范围。
+- deb/rpm 各线、app 镜像各线、gendoc 各线均不属于本机制范围。
 
 ## 已知边界
 
