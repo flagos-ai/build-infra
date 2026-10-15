@@ -1,0 +1,124 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Offline Bundle (manual)
+
+# Builds the FEP-0139 offline one-click installer bundle for one (app, backend):
+# a self-extracting tarball that installs the runtime + app Python layer with no
+# network. One bundle carries every app version in
+# packaging/<app>/app-versions.yaml; `install.sh --vllm-version <ver>` installs
+# exactly one. See scripts/build_offline_bundle.py.
+#
+# Steps:
+#   build    — pip download the runtime + app wheel closure from the internal
+#              indexes (configs.yaml pins), stage hermetic CPython + uv,
+#              assemble the tarball + MANIFEST.
+#   verify   — offline install in a `--network none` container + import smoke
+#              test + closure-equality check (scripts/verify_offline_bundle.sh).
+#   upload   — curl the tarball to flagos-filestore/offline/ (--push only).
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'App to bundle (vllm)'
+        type: string
+        default: vllm
+      backend:
+        description: 'Backend key (e.g. nvidia-cuda12.8)'
+        type: string
+        default: nvidia-cuda12.8
+      flaggems:
+        description: 'FlagGems wheel version override. Empty = configs.yaml pin.'
+        type: string
+        default: ''
+      push:
+        description: 'Upload the tarball to flagos-filestore/offline/'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    runs-on: [self-hosted, h20]
+    env:
+      NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install PyYAML
+        run: python3 -m pip install --user pyyaml
+
+      - name: Build the offline bundle
+        env:
+          FLAGGEMS: ${{ inputs.flaggems }}
+        run: |
+          set -euo pipefail
+          flaggems_arg=""
+          [ -n "$FLAGGEMS" ] && flaggems_arg="--flaggems $FLAGGEMS"
+          # pip download / curl / uv inherit the runner's proxy env verbatim
+          # (the same relay the image builds use); the script adds nothing.
+          python3 scripts/build_offline_bundle.py \
+            "${{ inputs.app }}" "${{ inputs.backend }}" ${flaggems_arg}
+
+      - name: Locate the bundle
+        id: locate
+        run: |
+          tarball="$(ls dist/flagos-${{ inputs.app }}-${{ inputs.backend }}-*.tar.gz)"
+          echo ">>> $tarball"
+          echo "path=$(realpath "$tarball")" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$tarball")" >> "$GITHUB_OUTPUT"
+
+      - name: Offline verify (network denied)
+        run: |
+          set -euo pipefail
+          bash scripts/verify_offline_bundle.sh "${{ steps.locate.outputs.path }}"
+
+      - name: Upload to flagos-filestore/offline
+        if: ${{ inputs.push }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "::error::NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          url="https://resource.flagos.net/repository/flagos-filestore/offline/${{ steps.locate.outputs.name }}"
+          echo "==> uploading ${{ steps.locate.outputs.name }} to ${url}"
+          curl -f -u "${NEXUS_TOKEN}" --upload-file "${{ steps.locate.outputs.path }}" "$url"
+
+      - name: Upload tarball as an artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.locate.outputs.name }}
+          path: ${{ steps.locate.outputs.path }}
+          if-no-files-found: error

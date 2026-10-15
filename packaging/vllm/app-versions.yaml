@@ -1,0 +1,41 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Per-vllm-version install pins.
+#
+# Source of truth for the (vllm wheel, plugin wheel) pair each supported vllm
+# line installs. The app image (app/vllm/Containerfile) and the offline bundle
+# (scripts/build_offline_bundle.py) both read these, so the two can no longer
+# drift the way a manual workflow_dispatch input could.
+#
+# vllm +flagos and vllm-plugin-fl are vendor-neutral wheels (py3-none-any or
+# per-python linux wheels published to flagos-pypi-hosted and mirrored to every
+# vendor index), so there is no per-backend field here — the backend's vendor
+# index is where the install finds them, whichever backend the bundle targets.
+#
+# Keyed by the bare version; the app key ("vllm0.24.0") is app + version.
+# Keys are quoted: an unquoted "0.20.2" survives YAML float parsing only because
+# it has two dots, but the quoting makes the intent explicit and future-proof.
+#
+# flagcx is deliberately absent: on the generic/NVIDIA backend it is a runtime
+# layer wheel (configs.yaml deps: flagcx==...), not an app-layer delta. For
+# backends where flagcx rides the app layer (built per backend by
+# flagcx-wheel.yml), it will be added here once those backends enter the bundle.
+versions:
+  "0.20.2":
+    vllm: "0.20.2+flagos"
+    plugin: "0.2.2"
+  "0.24.0":
+    vllm: "0.24.0+flagos"
+    plugin: "0.3.0"
