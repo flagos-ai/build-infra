@@ -77,7 +77,15 @@ ENV LLVM_SYSPATH=${LLVM_DIR}
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System build deps for the LLVM/Triton native build + Python 3.12 (deadsnakes).
-# gnupg/dirmngr are needed by add-apt-repository to import the PPA key.
+#
+# THE DEADSNAKES PPA IS WIRED UP BY HAND, NOT WITH add-apt-repository. That
+# command resolves the PPA through Launchpad's REST API, and the CI runner's
+# proxy answers the CONNECT to api.launchpad.net with 500 -- the build dies in
+# under a minute, before anything else runs. The two hosts actually needed, the
+# key server and the package archive, are both reachable from that runner, so
+# the key is fetched and the source line written directly. The codename is
+# jammy because this stage is ubuntu:22.04 by design (see the file header);
+# moving to another base means moving it here too.
 #
 # THE MARKER IS THE WHOLE POINT OF THE FIRST LINE. Built on top of a published
 # builder, this stage's earlier work is already in the image's layers, but the
@@ -91,9 +99,13 @@ RUN set -eu; \
         exit 0; \
     fi; \
     apt-get update && apt-get install -y --no-install-recommends \
-        software-properties-common ca-certificates gnupg dirmngr \
-        git wget curl \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
+        ca-certificates gnupg curl \
+        git wget \
+    && curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg \
+    && echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build \
         zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
