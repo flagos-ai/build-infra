@@ -403,17 +403,21 @@ Two knobs in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release this
 daily leads — move it when `configs.yaml` moves on) and `FLAGTREE_DIST_NAME`
 (names the wheel). Adding a backend is a second job with its own pair.
 
-**`resolve` skips a day that has already been published**, before the build
-runner is occupied at all and with nothing for Nexus to reject. The version is
-known without a build — it is the UTC date — so the probe is just the index
-listing for today's filename. A same-day re-run is skipped; a new UTC day always
-builds, even when `main` has not moved, because the wheel for a new date is a
-new wheel. What it was built from is in its METADATA, not in its name.
+**The cron skips a day that has already been published; a manual run never
+does.** The version is known without a build — it is the UTC date — so `resolve`
+probes the index listing for today's filename and stops there, before the build
+runner is occupied at all and with nothing for Nexus to reject. A same-day cron
+re-run is skipped; a new UTC day always builds, even when `main` has not moved,
+because the wheel for a new date is a new wheel. What it was built from is in its
+METADATA, not in its name.
 
-That skip does not know which ref was asked for, which is worth stating plainly:
-a manual dispatch overriding `flagtree_version` on a day the cron has already
-published is skipped as well. To build another ref the same day, point
-`flagtree-wheel.yml` at `nvidia-cuda` — or wait for the next UTC date.
+The manual dispatch is the escape hatch for a fix merged after 01:37, so skipping
+it would defeat the only reason it exists. It publishes the same version the cron
+did, and the upload replaces the file — Nexus on this server has redeploy
+enabled, so a duplicate is a replacement rather than a 400. A second manual run
+that day replaces the first the same way. One consequence to know about rather
+than discover: a consumer holding the already-fetched wheel in a warm pip cache
+keeps it, since neither the version nor the URL changed.
 
 **And it builds on the published builder stage** (see the NVIDIA builder section
 above): the `builder_image` input takes an override, and blank means the ref
