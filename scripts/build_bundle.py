@@ -311,7 +311,14 @@ def main() -> None:
     if driver:
         sdk_note_parts.append(f"driver >= {driver}")
     sdk_note = "; ".join(sdk_note_parts)
-    smoke_imports = "; ".join(f"import {m}" for m in smoke)
+    # Fixed stack-wide smoke imports. These are the layers every bundle ships
+    # regardless of app (the app's own modules are the app manifest's job),
+    # and they are the minimum that must import on a bare-metal host with the
+    # SDK/driver preinstalled — so the import-only smoke in install.sh runs
+    # even for a manifest with no `smoke:` list (the deep device+compiler
+    # probe is a separate stage in scripts/bundle/smoke.py).
+    smoke_imports = "; ".join(
+        f"import {m}" for m in (smoke or ["torch", "flag_gems", "vllm"]))
 
     if args.dry_run:
         print(f"bundle:    {bundle_name}")

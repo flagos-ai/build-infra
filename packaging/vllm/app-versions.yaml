@@ -16,6 +16,11 @@
 # runtime layer. Read by scripts/build_bundle.py.
 # flagcx is absent: on generic/NVIDIA it is a runtime-layer wheel
 # (configs.yaml deps:), not an app-layer delta.
+# `entrypoint`/`launcher` let the bundle install a bare-metal `vllm-serve` the
+# same way app/vllm/Containerfile does (python -m <entrypoint>); the verify
+# smoke then exercises the real launcher instead of skipping it.
+entrypoint: vllm.entrypoints.openai.api_server
+launcher: vllm-serve
 versions:
   "0.20.2":
     - vllm==0.20.2+flagos
