@@ -155,7 +155,8 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `megatron-app-image.yml` / `vllm-app-image.yml` / `sglang-app-image.yml` | Build app images from the runtime + vendor wheel, verify on-node, push `flagos-app/...` |
 | `flagcx-*` (`deb.yml`, `wheel.yml`, `builder.yml`, `rpm.yml`) | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |
 | `flaggems-wheel.yml` | Daily (01:17 UTC) + manual FlagGems wheel build → `flagos-pypi-daily` |
-| `flagtree-wheel-daily.yml` | Daily (01:37 UTC) + manual FlagTree `main` wheel → `flagos-pypi-daily` as `flagtree-nvidia` (see `packaging/flagtree/README.md`) |
+| `flagtree-wheel-daily.yml` | Daily (01:37 UTC) + manual FlagTree `main` wheel → `flagos-pypi-daily` as `flagtree-nvidia`, built on the published nvidia builder stage (see `packaging/flagtree/README.md`) |
+| `flagtree-builder-nvidia.yml` | Publishes `--target builder` of `packaging/flagtree/nvidia-cuda` (apt/python + prebuilt LLVM) to the builder prefix; the daily builds the wheel on top of it |
 | `flaggems-release.yml` | FlagGems release wheels: python + cpp wheels → all vendor indexes, `update-config` PR |
 | `native-deb.yml` / `native-rpm.yml` / `noarch-deb.yml` / `noarch-rpm.yml` | Component repos' deb/rpm release paths to the Nexus repositories |
 | `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes (`flagtree-wheel.yml` is manual-only; the daily line is its own file) |

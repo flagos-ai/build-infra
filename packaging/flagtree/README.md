@@ -20,18 +20,18 @@ Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
 The `nvidia-cuda` / `metax` / `sunrise` builders start from a plain Ubuntu 22.04
-(old glibc: the resulting `libtriton.so` must load on 22.04 nodes) and pre-stage
-the backend's prebuilt deps into FlagTree's offline cache. The
+(old glibc: the resulting `libtriton.so` must load on 22.04 nodes). The
 `ascend-cann9.0.0` / `ascend-cann8.5.0` pair instead builds **inside the
 backend's runtime image**, because FlagTree's Ascend build needs CANN on the
 build machine — see the section below. `iluvatar` is the odd one out: its
 builder stage is a plain 22.04 like the first group, but the file carries a
 **second stage** that installs CoreX on top and produces a flagtree image — see
-below.
+below. `nvidia-cuda` also has two stages, for a different reason: see its own
+section.
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
-| `nvidia-cuda`| FlagTree for NVIDIA| Ubuntu 22.04 (glibc 2.35)   |
+| `nvidia-cuda`| FlagTree for NVIDIA, builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `metax`      | FlagTree for MetaX (MACA) | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU) | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + image | Ubuntu 22.04 (glibc 2.35) + CoreX 4.5.0 |
@@ -59,6 +59,68 @@ imports fine but fails on real MetaX hardware at kernel-compile time with
 CI smoke test (`import triton`) runs on a GPU-less box and cannot catch this, so
 the gate additionally **asserts libtriton's pybind11 internals are v11**
 (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
+
+## NVIDIA builder (`nvidia-cuda`)
+
+`nvidia-cuda` is the only builder whose **build machine** is published, and it
+has two stages for a reason the others do not have: nothing it stages up front
+depends on the FlagTree ref being built.
+
+```
+ubuntu:22.04 ──> builder   apt toolchain + python 3.12 + prebuilt LLVM
+                   │        published to flagos-dev by flagtree-builder-nvidia.yml
+                   ▼
+                flagtree   clone the ref, compile triton, /wheels/*.whl
+                           flagtree-wheel-daily.yml builds this on the published stage
+```
+
+**What the split removes.** A cold build spends its first minutes on `apt-get` +
+deadsnakes python, then pulls the LLVM bundle — 1.23 GB, the flakiest network
+step of the run — unpacks it, and only then reaches the clone. Built on the
+published stage, none of that runs again: the layer is already in the base image
+and the marker guard makes the instruction a no-op. On the days `main` has not
+moved there is nothing to build at all, and the run stops before occupying the
+runner (see the skip below).
+
+**It does not make the build fast.** The wall is compiling triton/MLIR against
+that LLVM, not fetching it, and nothing here removes it. What the split buys is
+that the apt/python/LLVM cost is paid when *it* changes rather than on every
+build, and that a warm build's failure surface is the network clone and the
+compiler.
+
+**The LLVM comes from the filestore, not upstream.** The same tarball is mirrored
+at `flagos-filestore/llvm/` (the route `iluvatar` already uses for its own
+snapshot); `FILESTORE`, `LLVM_HASH` and the tarball and directory names derived
+from it are one `ARG` block. FlagTree consumes it through **`LLVM_SYSPATH`** —
+the documented knob for a pre-installed LLVM, which its own CI uses for the
+thrive backend. This is *not* the offline-cache mechanism `metax` / `sunrise` /
+`iluvatar` use: those stage into `~/.flagtree/<backend>/` and rely on a
+`register_cache` hook in FlagTree's per-backend module, and the default (nvidia)
+backend has no such hook. It follows that **`TRITON_OFFLINE_BUILD` must stay
+unset here** — on this backend it demands eight CUDA toolkit directories that
+nothing stages, plus an offline directory holding FlagPrism and flagcx, and the
+build fails without them.
+
+**Nothing validates `LLVM_SYSPATH`.** A staged tree is trusted and used silently,
+so a tree of the wrong revision would surface — at best — as a cmake error deep
+in triton. The builder stage therefore leaves the hash it staged at
+`/opt/flagtree-build-env.llvm`, and the wheel build checks three things against
+it before compiling anything: that a record exists at all (a base image without
+one did not come from the builder stage), that `LLVM_SYSPATH` really holds an
+LLVM install tree (which is what catches `LLVM_HASH` being bumped here without a
+republish), and that the record equals the `cmake/llvm-hash.txt` of the source
+just cloned. Bumping `LLVM_HASH` means republishing the builder; the pin has
+moved twice in the last six months upstream, so this is a real gate rather than
+decoration.
+
+**The two ways to build.** `flagtree-wheel-daily.yml` passes the published stage
+as `BUILDER_IMAGE`, and the stage's marker file (`/opt/flagtree-build-env.ready`,
+written last) turns its own earlier work into a no-op. A `docker build` with no
+`--build-arg BUILDER_IMAGE` (the `flagtree-wheel.yml` sequence, and every local
+build) defaults to `ubuntu:22.04` and stages the environment from scratch — the
+same image, just without the pre-staged layers. The daily's `builder_image` input
+takes either spelling, so the cold path is available on the runner too, without
+waiting for a republished builder.
 
 ## Iluvatar builder (`iluvatar`)
 
@@ -212,6 +274,11 @@ podman build -t flagtree-build:0.7.0 -f nvidia-cuda .
 podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
              -t flagtree-build:0.7.0 -f nvidia-cuda .
 
+# nvidia-cuda's build machine on its own, and then a wheel build on top of it:
+docker build --target builder -t flagtree-builder-nvidia-cuda:ci -f nvidia-cuda .
+docker build --build-arg BUILDER_IMAGE=flagtree-builder-nvidia-cuda:ci \
+             -t flagtree-build:0.7.0 -f nvidia-cuda .
+
 # ascend pair: aarch64 only, and the FROM image is the backend's runtime image
 # (pulled from the registry if absent). The build itself clones github.com, so
 # the proxy args matter here too; --build-arg no_proxy=... is relayed verbatim
@@ -235,6 +302,9 @@ Useful build args (see the Containerfile for the full list):
   under. Default `flagtree`; the daily line sets `flagtree-nvidia` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`).
+- `BUILDER_IMAGE` — `nvidia-cuda` only. The image stage 1 builds on; defaults to
+  `ubuntu:22.04` (the cold build). Pointing it at the published builder stage
+  makes stage 1 a no-op — see the builder section above.
 
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
@@ -302,6 +372,27 @@ Two knobs to bump in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release
 this daily leads — move it when `configs.yaml` moves on) and
 `FLAGTREE_BACKEND_TOKEN`. Adding a backend is a second job with its own pair;
 `FLAGTREE_DIST_NAME` names the wheel.
+
+**The run resolves the commit before it builds anything.** `resolve` (on
+`ubuntu-latest`) reads the ref with `git ls-remote`, composes the wheel filename
+that sha implies, and asks the index whether it is already there. When it is,
+`build` never starts — on a runner that is otherwise busy for half an hour, and
+with nothing for Nexus to reject. The check moved ahead of the build because the
+version is knowable without one: FlagTree appends `.git<sha8>` itself and the sha
+is a network read.
+
+The refspec asks for the ref in each namespace explicitly, and takes the first
+that answers: `refs/heads/<ref>`, then `refs/tags/<ref>^{}`, then
+`refs/tags/<ref>`. A bare `main` is ambiguous — it matches `refs/remotes/old/main`
+on this repo — and the sha wanted is the commit, not the ref: `^{}` peels an
+annotated tag to the commit the clone checks out, which is the sha FlagTree
+writes into the version. A lightweight tag has no peeled entry (a query for one
+returns nothing at all) and needs no peeling, hence the last fallback.
+
+**And it builds on the published builder stage** (see the NVIDIA builder section
+above): the `builder_image` input takes an override, and blank means the ref
+derived from `build-config.yml` + `configs.yaml`. `ubuntu:22.04` is the cold path
+and the fallback for before the builder has been published.
 
 **Caveat for consumers.** `flagtree` and `flagtree-nvidia` both install the
 top-level `triton/` and `flagtree/` packages, and neither declares
