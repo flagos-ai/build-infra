@@ -6,9 +6,11 @@
 > 使用者在 runtime 镜像内 `pip install --index-url ...` 覆盖即可，不影响发版流程。
 >
 > FlagTree 同样有一条每日线（`flagtree-wheel-daily.yml`），以 `flagtree-nvidia`
-> 为发行名推送到 `flagos-pypi-daily`，版本形如
-> `0.7.1.dev20261015+nvidia3.6.git<sha8>`；`pip install --pre flagtree-nvidia`
-> 即取最新。它与发版线（`flagtree-wheel.yml` → 各 vendor index 的 `flagtree`）
+> 为发行名推送到 `flagos-pypi-daily`，版本形如 `0.7.1.dev20261015`（只有日期，
+> 无 local 段）；`pip install --pre flagtree-nvidia` 即取最新。构建所用的 commit
+> 不在版本号里，而在 wheel 元数据中：`pip show -v flagtree-nvidia` 会打印
+> `Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/<sha8>`。
+> 它与发版线（`flagtree-wheel.yml` → 各 vendor index 的 `flagtree`）
 > 互不影响。
 
 ## 前置检查

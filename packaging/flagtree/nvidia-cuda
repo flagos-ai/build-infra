@@ -143,11 +143,15 @@ FROM builder AS flagtree
 ARG FLAGTREE_VERSION=0.7.0
 ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 #  - FLAGTREE_WHEEL_VERSION is the env var FlagTree's setup.py reads for the wheel
-#    version; it defaults to FLAGTREE_VERSION so one arg drives both. A clean
-#    (no +git<sha>) version also requires the secret FLAGTREE_PYPI_KEY (md5-gated
-#    in setup.py). Without the key you get "<ver>.git<sha>"; with nothing set you
-#    get "0.7.0+git<sha>". The appended sha is why this builder keeps .git (the
-#    metax/sunrise/ascend builders delete it to get a clean version instead).
+#    version; it defaults to FLAGTREE_VERSION so one arg drives both.
+#    The version comes out clean (no +git<sha>) because .git is removed before
+#    `pip wheel` -- the metax/sunrise/ascend route. FlagTree appends the sha in
+#    get_git_commit_hash() whenever `git rev-parse` answers, and that is the only
+#    thing .git is still needed for here (the sha itself, read a few lines above
+#    the removal, goes into the wheel metadata instead -- see the build RUN).
+#    FLAGTREE_PYPI_KEY, the other way to a clean version, is not used: its value
+#    is a secret this repo does not hold, and the ARG below stays for callers
+#    that do.
 #  - FLAGTREE_WHEEL_NAME is the distribution name, read by setup.py the same way.
 #    The release line publishes plain "flagtree"; the daily line publishes
 #    "flagtree-nvidia" so a consumer can name the backend and let pip pick the
@@ -166,6 +170,22 @@ ARG FLAGTREE_PYPI_KEY=
 # wheel nobody can attribute. Two things can go wrong, and both are decidable
 # here: the record stage 1 left can name a different revision than the source
 # just cloned, or LLVM_SYSPATH can name a tree that is not in this image at all.
+#
+# THE SHA IS READ BEFORE .git GOES, AND BOTH COME BEFORE `pip wheel`. Deleting
+# .git is what makes the version clean: FlagTree appends "+git<sha>" in
+# get_git_commit_hash() whenever `git rev-parse` answers, and `git` is not
+# installed in the wheel's runtime anyway. The commit id it would have appended
+# is instead written into setup.cfg as a Project-URL -- see that step below.
+# Order is the whole trick: read the sha, write the carrier, only then delete.
+#
+# WHY setup.cfg, AND WHY NOTHING IS PATCHED. FlagTree has no setup.cfg of its own
+# (hence the guard), and setuptools merges one into the setup() call on its own,
+# so this reaches the METADATA as `Project-URL: Source-Commit, <url>` without a
+# single line of FlagTree source changing -- not setup.py, not pyproject.toml.
+# The alternatives were measured and rejected: a hand-written PKG-INFO does not
+# survive into METADATA, and appending to the egg_info output does not either.
+# The guard is a hard failure rather than a merge because upstream shipping one
+# would silently change what this line means.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -196,6 +216,15 @@ RUN git config --global http.version HTTP/1.1 \
     && echo ">>> LLVM ${staged_hash} matches the staged tree" \
     && python3.12 /usr/local/bin/patch-flagtree-version.py /opt/flagtree \
     && grep -q '_metadata.version("' /opt/flagtree/python/flagtree/__init__.py \
+    && sha8="$(git -C /opt/flagtree rev-parse --short=8 HEAD)" \
+    && if [ -e /opt/flagtree/setup.cfg ]; then \
+         echo "ERROR: FlagTree now ships its own setup.cfg, which would be" >&2; \
+         echo "       overwritten below. Move the carrier to that file instead." >&2; \
+         exit 1; \
+       fi \
+    && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
+         "${sha8}" > /opt/flagtree/setup.cfg \
+    && rm -rf /opt/flagtree/.git \
     && cd /opt/flagtree \
     && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
     && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
@@ -211,8 +240,17 @@ RUN git config --global http.version HTTP/1.1 \
 # Smoke test: install the freshly built wheel and import it (fails the build if
 # broken). The installed __version__ is the distribution's own version, so this
 # asserts both the import and that the patch survived into the installed tree.
+#
+# The last two assertions are what make the .git removal and the setup.cfg
+# carrier worth trusting: a version string is easy to eyeball, but a local
+# segment creeping back in, or a Project-URL that stopped being emitted, would
+# only be noticed by whoever went looking for the commit id later.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
     && python3.12 -c "\
 import importlib.metadata as md, flagtree, triton;\
 print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__);\
-assert flagtree.__version__ == md.version('${FLAGTREE_WHEEL_NAME}'), flagtree.__version__"
+assert flagtree.__version__ == md.version('${FLAGTREE_WHEEL_NAME}'), flagtree.__version__;\
+urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
+print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
+assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
+assert not md.version('${FLAGTREE_WHEEL_NAME}').split('+', 1)[1:], md.version('${FLAGTREE_WHEEL_NAME}')"

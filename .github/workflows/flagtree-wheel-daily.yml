@@ -20,12 +20,18 @@ name: FlagTree Daily Wheel
 # touches those.
 #
 # The point of the separate distribution name is the consumer's command: with
-# the backend in the name, the public version segment can carry the date and
+# the backend in the name, the public version segment carries the date alone and
 # `pip install --pre flagtree-nvidia` resolves to the newest daily on its own.
 # A backend token in the local segment cannot do that — a `==` specifier with a
 # local label matches the whole segment exactly, so `flagtree==0.7.1+nvidia3.6`
-# would never match `0.7.1.dev<date>+nvidia3.6.git<sha>`. Measured, and written
-# up with the rest of the scheme in packaging/flagtree/README.md.
+# would never match `0.7.1.dev<date>+nvidia3.6`. Since every backend is already
+# its own project, the daily publishes the date alone: `0.7.1.dev20261015`.
+# Measured, and written up with the rest of the scheme in
+# packaging/flagtree/README.md.
+#
+# The commit a wheel was built from is not in the version -- it is a
+# `Project-URL: Source-Commit` line in the wheel's METADATA, written into the
+# clone by the Containerfile. `pip show -v flagtree-nvidia` reads it back.
 #
 # Like the release file, this builds inside docker so the wheel is self-owned
 # and reproducible. No GPU is needed: the build compiles LLVM/Triton and only
@@ -61,13 +67,8 @@ env:
   # FLAGTREE_VERSION_BASE is the release line this daily leads: bump it when
   # configs.yaml moves to the next FlagTree release, so a daily keeps sorting
   # above the release it precedes and below the next one.
-  #
-  # FlagTree appends `.git<sha8>` to the version itself (no FLAGTREE_PYPI_KEY
-  # exists in this repo), which is what makes a build traceable to a commit.
   FLAGTREE_DIST_NAME: flagtree-nvidia
   FLAGTREE_VERSION_BASE: 0.7.1
-  FLAGTREE_BACKEND_TOKEN: nvidia3.6
-  FLAGTREE_REPO: https://github.com/flagos-ai/flagtree
   PYPI_REPO: flagos-pypi-daily
   NEXUS_BASE: https://resource.flagos.net/repository
 
@@ -102,51 +103,33 @@ jobs:
       - name: Resolve the version
         id: version
         env:
-          FLAGTREE_REF: ${{ inputs.flagtree_version || 'main' }}
           BUILDER_IMAGE_OVERRIDE: ${{ inputs.builder_image }}
         run: |
           set -euo pipefail
-          version="${FLAGTREE_VERSION_BASE}.dev$(date -u +%Y%m%d)+${FLAGTREE_BACKEND_TOKEN}"
+          version="${FLAGTREE_VERSION_BASE}.dev$(date -u +%Y%m%d)"
           # flagtree_<backend> is the filename form of flagtree-<backend>.
           wheel="flagtree_${FLAGTREE_DIST_NAME#flagtree-}-${version}"
-          echo ">>> version ${version}"
+          filename="${wheel}-cp312-cp312-linux_x86_64.whl"
+          echo ">>> version ${version}; would publish ${filename}"
 
-          # FlagTree appends `.git<sha8>` to the version itself, so the wheel this
-          # run would produce is not known until the commit is. Resolve it here
-          # and the whole build can be skipped on a day `main` has not moved --
-          # which, at a few commits a week, is most days. Skipping is what keeps
-          # a no-op day from occupying the build runner and failing in Nexus.
+          # The whole version is known without a build, so a day that has already
+          # been published can be skipped before the build runner is occupied at
+          # all -- and before Nexus is handed a duplicate to reject.
           #
-          # A bare ref name would be ambiguous -- `main` also matches
-          # refs/remotes/old/main on this repo -- so ask each namespace
-          # explicitly. The sha wanted is the commit, not the ref: `^{}` peels an
-          # annotated tag to the commit the clone would check out, which is what
-          # FlagTree puts in the version. A lightweight tag has no peeled entry
-          # (that query returns nothing at all) but needs no peeling either, hence
-          # the fallback; a branch is already a commit. One query per namespace,
-          # because ls-remote prints every refspec that matched and its output
-          # order is not ours to rely on.
-          sha=$(git ls-remote "${FLAGTREE_REPO}" "refs/heads/${FLAGTREE_REF}" \
-                | cut -f1)
-          if [ -z "$sha" ]; then
-            sha=$(git ls-remote "${FLAGTREE_REPO}" "refs/tags/${FLAGTREE_REF}^{}" \
-                  | cut -f1)
-          fi
-          if [ -z "$sha" ]; then
-            sha=$(git ls-remote "${FLAGTREE_REPO}" "refs/tags/${FLAGTREE_REF}" \
-                  | cut -f1)
-          fi
-          if [ -z "$sha" ]; then
-            echo "ERROR: ${FLAGTREE_REPO} has no branch or tag named ${FLAGTREE_REF}" >&2
-            exit 1
-          fi
-          sha8=$(printf '%s' "$sha" | cut -c1-8)
-          filename="${wheel}.git${sha8}-cp312-cp312-linux_x86_64.whl"
-          echo ">>> ${FLAGTREE_REF} is ${sha8}; would publish ${filename}"
-
-          skip=false
+          # What that means now: a same-day re-run is skipped, but a new UTC day
+          # always builds. The commit is no longer in the version, so "main has
+          # not moved" is not something this probe can see; the wheel for a new
+          # date is a new wheel even when it is the same source. Where it was
+          # built from is in the wheel's METADATA, not in its name.
+          #
+          # Note the one case that follows: a manual dispatch that overrides
+          # `flagtree_version` to test another ref on a day the cron has already
+          # published is skipped too, because the filename is still today's. Say
+          # so here rather than let it read as a broken build.
+          #
           # Same 404 tolerance as the upload step: before the first upload the
           # project does not exist, and Nexus creates it on first push.
+          skip=false
           if curl -fsS --max-time 60 "${NEXUS_BASE}/${PYPI_REPO}/simple/${FLAGTREE_DIST_NAME}/" \
                | grep -Fq "${filename}"; then
             skip=true
@@ -239,7 +222,9 @@ jobs:
           fi
           # --no-cache is kept even with a builder image: the clone layer is keyed
           # on the ref NAME, not its content, so a cached `main` would rebuild an
-          # old commit under today's version.
+          # old commit under today's version. It matters more now than it did:
+          # the version no longer moves with the commit, so only a real rebuild
+          # can change what a given date's wheel contains.
           docker build --no-cache "${build_args[@]}" -t "$IMAGE" -f nvidia-cuda .
 
       - name: Extract the wheel
@@ -256,6 +241,7 @@ jobs:
         working-directory: packaging/flagtree
         env:
           EXPECTED: ${{ needs.resolve.outputs.wheel }}
+          EXPECTED_VERSION: ${{ needs.resolve.outputs.version }}
           DIST: ${{ env.FLAGTREE_DIST_NAME }}
         run: |
           set -euo pipefail
@@ -265,22 +251,32 @@ jobs:
           whl="$(ls wheels/*.whl)"
           echo ">>> $whl"
           case "$(basename "$whl")" in
-            "${EXPECTED}".git*) ;;
-            *) echo "ERROR: expected ${EXPECTED}.git<sha8>, got $whl" >&2; exit 1 ;;
+            "${EXPECTED}-cp312-cp312-linux_x86_64.whl") ;;
+            *) echo "ERROR: expected ${EXPECTED}-cp312-cp312-linux_x86_64.whl, got $whl" >&2; exit 1 ;;
           esac
-          python3 - "$whl" "$DIST" <<'PY'
-          import re
+          python3 - "$whl" "$DIST" "$EXPECTED_VERSION" <<'PY'
           import sys
           import zipfile
 
-          whl, dist = sys.argv[1], sys.argv[2]
+          whl, dist, expected = sys.argv[1], sys.argv[2], sys.argv[3]
           with zipfile.ZipFile(whl) as zf:
               meta = next(n for n in zf.namelist() if n.endswith(".dist-info/METADATA"))
-              lines = zf.read(meta).decode().splitlines()[:10]
+              lines = zf.read(meta).decode().splitlines()
           fields = dict(line.split(": ", 1) for line in lines if ": " in line)
-          print(">>> Name:", fields.get("Name"), "Version:", fields.get("Version"))
+          version = fields.get("Version", "")
+          print(">>> Name:", fields.get("Name"), "Version:", version)
           assert fields.get("Name") == dist, fields
-          assert re.fullmatch(r".+\.git[0-9a-f]{8}", fields.get("Version", "")), fields
+          # The local segment is what this line exists to keep out: it is the
+          # backend token and the sha, both of which the distribution name and
+          # the Source-Commit below now carry.
+          assert "+" not in version, version
+          assert version == expected, (version, expected)
+          source_commits = [l for l in lines if l.startswith("Project-URL: Source-Commit, ")]
+          print(">>>", *source_commits)
+          assert len(source_commits) == 1, source_commits
+          assert source_commits[0].startswith(
+              "Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/"
+          ), source_commits
           PY
 
       # Publishing as-is: the build gates already vetted the wheel.
