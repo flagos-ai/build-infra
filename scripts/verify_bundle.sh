@@ -50,7 +50,11 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_NAME="$(basename "$TARBALL" .tar.gz)"
 WORK_DIR="$(mktemp -d)"
-trap 'rm -rf "$WORK_DIR"' EXIT
+# The venv is built with `uv venv --relocatable`, which (via the managed
+# CPython in $HOME) materializes files as read-only; a plain `rm -rf` of the
+# prefix would chmod them but still cannot unlink them as non-root. chmod -R
+# u+w first so the cleanup trap can always remove the dir, root or not.
+trap 'chmod -R u+w "$WORK_DIR" 2>/dev/null; rm -rf "$WORK_DIR"' EXIT
 
 # ── 1. Closure equality ─────────────────────────────────────────────────────
 echo "==> closure equality: wheelhouse vs images (configs.yaml + app-versions.yaml)"
