@@ -70,7 +70,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install PyYAML
-        run: python3 -m pip install --user pyyaml
+        # Self-hosted runners (h20) have an externally-managed system Python
+        # (PEP 668) that rejects `pip install`. Skip if PyYAML is already
+        # importable; otherwise install to the user site with the override.
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Build the bundle
         run: |
