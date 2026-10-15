@@ -20,7 +20,7 @@
 record of what was published: each version row's ``pypi_index`` / ``python`` /
 ``os`` / ``arch`` are the union of the publish events that produced it. The
 human copy — package order, ``short_name``, and the per-version ``desc_zh`` /
-``desc_en`` / ``notes`` — is hand-written, edited in place.
+``desc_en`` / ``notes`` / ``notes_en`` — is hand-written, edited in place.
 
 So the publish step of every wheel workflow (the single source of truth for what
 exists) appends one line to a manifest, and ``record`` merges those lines into
@@ -103,7 +103,7 @@ GIT_IDENTITY = {
 
 # A version row's key order. A row created here has to match what a hand-written
 # one looks like, or the merge would silently reformat the file around it.
-_ROW_KEYS = ("version", "pypi_index", "desc_zh", "desc_en", "notes",
+_ROW_KEYS = ("version", "pypi_index", "desc_zh", "desc_en", "notes", "notes_en",
              "python", "os", "arch")
 _MACHINE_FIELDS = ("pypi_index", "python", "os", "arch")
 
@@ -243,7 +243,7 @@ def _find_version(pkg_block: dict, version: str) -> dict | None:
 def _new_row(version: str) -> dict:
     row = {k: None for k in _ROW_KEYS}
     row["version"] = version
-    for k in ("desc_zh", "desc_en", "notes"):
+    for k in ("desc_zh", "desc_en", "notes", "notes_en"):
         row[k] = ""
     for k in ("python", "os", "arch"):
         row[k] = []

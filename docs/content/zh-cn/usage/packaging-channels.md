@@ -64,7 +64,7 @@ deb/rpm 从不取代 PyPI 渠道；两者并存。deb/rpm 一侧必须能独立�
 | `short_name`、`desc_zh`、`desc_en` | 站点上该源码条目的标题与描述文字 |
 | `url` | 下载地址模板，唯一占位符 `{version}` |
 | `versions[].version` | 该源码的版本号 |
-| `notes` | 该源码与同包 wheel 的差异（仅有差异时写） |
+| `notes`、`notes_en` | 该源码与同包 wheel 的差异（仅有差异时写；`notes` 中文、`notes_en` 英文） |
 
 **源码版本独立于 wheel 版本**，两边只有包名对应。同一份源码可以产出一批平台
 构建变体（`flagcx` 的 20 个平台 wheel 对应 1 个源码版本 `0.14.0`，`torch-fl` 的

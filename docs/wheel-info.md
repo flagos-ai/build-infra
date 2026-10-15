@@ -27,7 +27,7 @@
 | 内容 | 维护者 | 说明 |
 |---|---|---|
 | `name`、`versions[].version`（含排列顺序） | 人工 | 包与版本的排列顺序由人工决定 |
-| `short_name`、`desc_zh`、`desc_en`、`notes` | 人工 | 目录页面文案，记录过程不修改 |
+| `short_name`、`desc_zh`、`desc_en`、`notes`、`notes_en` | 人工 | 目录页面文案，记录过程不修改 |
 | `pypi_index`、`python`、`os`、`arch` | 程序 | 由发布事件推导，`record` 仅修改这四个字段 |
 
 因此 `record` 的修改范围限于匹配 `(name, version)` 行的上述四个字段，属于
@@ -45,7 +45,7 @@
 | `desc_zh`、`desc_en` | 包级一句话：这个包是什么。站点上源码条目的描述文字 |
 | `url` | 下载地址模板，唯一占位符 `{version}` |
 | `versions[].version` | 源码版本，见下 |
-| `notes` | 可选，面向下载者的一句话，只写与同包 wheel 的差异 |
+| `notes`、`notes_en` | 可选，面向下载者的一句话，只写与同包 wheel 的差异；`notes` 为中文、`notes_en` 为英文 |
 
 `sources:` 的记录粒度是「仓库」：它不随发布变化，也没有任何发布步骤能观察到它。
 因此 `record` 不写这一半——包括新包首次发布时——它在 `wheels:` 插入骨架行，
