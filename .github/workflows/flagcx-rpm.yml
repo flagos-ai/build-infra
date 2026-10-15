@@ -56,7 +56,10 @@ on:
       ref:
         description: >-
           FlagCX git ref to build. A tag is preferred: a branch head moves, so
-          the same dispatch would not build the same source twice.
+          the same dispatch would not build the same source twice. Or
+          `pull/<N>`: the head of that pull request, to run a packaging change
+          through this workflow before it is merged (verify only; such a build
+          can not be published).
         type: string
         default: v0.14.0
       version:
@@ -127,11 +130,24 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
     steps:
+      # Only for scripts/clone-ref.sh; the FlagCX source goes under src/.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/clone-ref.sh
+          sparse-checkout-cone-mode: false
+
       - name: Clone FlagCX at ${{ inputs.ref }}
         id: clone
+        env:
+          REF: ${{ inputs.ref }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --branch "${{ inputs.ref }}" "${FLAGCX_REPO}" src
+          if [[ "${REF}" == pull/* && "${PUBLISH}" == "true" ]]; then
+            echo "::error::${REF} is a pull request head; it can be built and verified but not published"
+            exit 1
+          fi
+          scripts/clone-ref.sh "${FLAGCX_REPO}" "${REF}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"

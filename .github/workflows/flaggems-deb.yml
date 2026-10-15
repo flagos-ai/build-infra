@@ -39,7 +39,11 @@ on:
   workflow_dispatch:
     inputs:
       flaggems_ref:
-        description: 'FlagGems git ref to build (tag for a release, branch otherwise)'
+        description: >-
+          FlagGems git ref to build (tag for a release, branch otherwise). Or
+          `pull/<N>`: the head of that pull request, to run a packaging change
+          through this workflow before it is merged (verify only; such a build
+          can not be published).
         type: string
         default: master
       version:
@@ -100,12 +104,24 @@ jobs:
           done
           echo "Publish targets are all covered by verification: ${SUITES}"
 
+      # Only for scripts/clone-ref.sh; the FlagGems source goes under src/.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/clone-ref.sh
+          sparse-checkout-cone-mode: false
+
       - name: Clone FlagGems at ${{ inputs.flaggems_ref }}
         id: clone
+        env:
+          REF: ${{ inputs.flaggems_ref }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --branch "${{ inputs.flaggems_ref }}" \
-            "${FLAGGEMS_REPO}" src
+          if [[ "${REF}" == pull/* && "${PUBLISH}" == "true" ]]; then
+            echo "::error::${REF} is a pull request head; it can be built and verified but not published"
+            exit 1
+          fi
+          scripts/clone-ref.sh "${FLAGGEMS_REPO}" "${REF}" src
           cd src
           echo "Building $(git rev-parse --short HEAD) of ${{ inputs.flaggems_ref }}"
           echo "ref=${{ inputs.flaggems_ref }}" >> "$GITHUB_OUTPUT"
