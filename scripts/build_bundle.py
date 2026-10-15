@@ -115,7 +115,12 @@ def stage_cpython(uv: Path, python_version: str, stage: Path) -> tuple[Path, str
     matches = sorted(share.glob(f"cpython-{python_version}-linux-*-gnu"))
     if not matches:
         sys.exit(f"Error: uv installed no cpython-{python_version} tree under {share}")
-    cpython_dir = matches[0]
+    # uv lays the tree at cpython-<ver>.<patch>-<arch> AND a version-only
+    # symlink cpython-<ver>-linux-*-gnu -> it; the glob matches the symlink,
+    # and tar would archive the dangling link (pointing at the build host's
+    # $HOME) instead of the interpreter tree. Resolve to the real directory so
+    # the bundle ships the tree itself.
+    cpython_dir = matches[0].resolve()
 
     tarball_name = f"{cpython_dir.name}.tar.gz"
     pydir = stage / "python"

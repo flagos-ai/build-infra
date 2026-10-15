@@ -108,7 +108,9 @@ mkdir -p "$PREFIX"
 echo "==> extracting standalone CPython ${PYTHON_VERSION}"
 mkdir -p "$HOME/.local/share/uv/python"
 tar xzf "$PYTHON_DIR/$CPYTHON_TARBALL" -C "$HOME/.local/share/uv/python"
-PY_BIN="$(find "$HOME/.local/share/uv/python" -maxdepth 3 \( -type f -o -type l \) -path '*/bin/python3' | head -n1)"
+# The tarball ships one top-level dir cpython-<ver>.<patch>-<arch>; pick its
+# python3. `uv venv --relocatable` then symlinks the venv interpreter to it.
+PY_BIN="$(find "$HOME/.local/share/uv/python" -maxdepth 3 -path '*/bin/python3' | head -n1)"
 if [ -z "$PY_BIN" ]; then
     echo "error: standalone CPython not found after extraction" >&2
     exit 1
