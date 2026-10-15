@@ -54,7 +54,12 @@ WORK_DIR="$(mktemp -d)"
 # CPython in $HOME) materializes files as read-only; a plain `rm -rf` of the
 # prefix would chmod them but still cannot unlink them as non-root. chmod -R
 # u+w first so the cleanup trap can always remove the dir, root or not.
-trap 'chmod -R u+w "$WORK_DIR" 2>/dev/null; rm -rf "$WORK_DIR"' EXIT
+# Each command is `|| true`-guarded: under `set -e`, a command in the EXIT
+# trap that fails — even one silenced with 2>/dev/null, e.g. chmod on a
+# root-owned file left by the smoke container — overrides the script's exit
+# status, turning a green "verify passed" into a step failure (and, before
+# the artifact step was failure-gated, a 4 GB re-upload).
+trap 'chmod -R u+w "$WORK_DIR" 2>/dev/null || true; rm -rf "$WORK_DIR" || true' EXIT
 
 # ── 1. Closure equality ─────────────────────────────────────────────────────
 echo "==> closure equality: wheelhouse vs images (configs.yaml + app-versions.yaml)"
@@ -89,6 +94,13 @@ if [ -x "$PREFIX/bin/$LAUNCHER" ]; then
     echo "==> $LAUNCHER --help"
     "$PREFIX/bin/$LAUNCHER" --help >/dev/null && echo "$LAUNCHER --help OK"
 fi
+
+# Remove our own prefix before exiting: install.sh ran as root in this
+# container, so these files are root-owned on the host and the host-side
+# cleanup trap (non-root) cannot unlink them. Doing it here, only on the
+# success path, leaves just host-owned files for the trap and keeps the
+# runner from leaking a multi-GB root-owned venv per run.
+rm -rf /verify/prefix
 
 echo "==> verify passed"
 SMOKE
