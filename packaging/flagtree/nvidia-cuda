@@ -42,8 +42,11 @@ ARG BUILDER_IMAGE=ubuntu:22.04
 FROM ${BUILDER_IMAGE} AS builder
 
 # Proxy is only consumed during build (predefined ARG, not persisted in the image).
+# no_proxy rides along because the LLVM tarball below is fetched from the internal
+# filestore, which the CI runner reaches directly -- proxied, that fetch is refused.
 ARG http_proxy=
 ARG https_proxy=
+ARG no_proxy=
 # Prebuilt LLVM. FlagTree's cmake wants an LLVM install tree and otherwise fetches
 # 1.2 GB from Azure at build time -- on a CN runner the slowest and least reliable
 # step of the whole build. The same tree is mirrored in the internal filestore, so
