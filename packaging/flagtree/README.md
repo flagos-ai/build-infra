@@ -139,24 +139,13 @@ changing a line of FlagTree source. The alternatives were measured and rejected:
 a hand-written `PKG-INFO` does not survive into METADATA, and appending to the
 `egg_info` output does not either.
 
-**FlagCX is built out, not in.** The build exports `USE_FLAGCX=OFF`, upstream's
-own switch, and then asserts the wheel carries no flagcx at all. Left on,
-`setup.py` clones FlagCX and copies what it compiles into the wheel — a 21 MB
-`triton/_C/libflagcx.so`, its `libflagcx_device.bc`, the generated
-`flagcx_wrapper.py` in two places, and six headers: the release wheel is 388 MB
-against this one's 124 MB. The runtime installs the `flagcx` package and
-FlagTree prefers that library over the vendored copy, so what ships in the wheel
-is dead weight. It is absent today only because the compile fails — the flagcx
-Makefile calls `clang`, which this builder does not install, and
-`utils/default.py` swallows the error — so the assertion, not the coincidence, is
-what keeps it out. The FlagCx strings left inside `libtriton.so` are CMake's
-`FLAGCX_ENABLED` compile-time ops and stay: they are support for the dialect, not
-a linked library.
+**FlagCX is built out, not in.** The build exports `USE_FLAGCX=OFF` to make sure that
+the wheel carries no flagcx at all. The runtime installs the `flagcx` package and
+FlagTree prefers that library over the vendored copy.
 
-Removing `.git` is also what makes the version clean: FlagTree's
-`get_git_commit_hash()` appends `+git<sha8>` whenever `git rev-parse` answers,
-which is why the sha has to be read *before* the removal. Read it back with
-`pip show -v`, not from the version.
+Removing `.git` to make the version clean: FlagTree's `get_git_commit_hash()` appends
+`+git<sha8>` whenever `git rev-parse` answers, which is why the SHA has to be read
+*before* the removal. Read it back with `pip show -v`, not from the version.
 
 ## Iluvatar builder (`iluvatar`)
 
