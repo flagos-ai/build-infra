@@ -402,28 +402,16 @@ for key in "${BACKENDS[@]}"; do
         tag="flagcx-wheel:$key"
         echo ">>> $key: $WHEEL_NAME ($WHEEL_ARCH, $WHEEL_PYTHON_TAG) from $FLAGCX_REF"
 
-        # A runtime rebuilt after its builder leaves the builder describing an
-        # environment that is no longer the delivery one, and the wheel would be
-        # compiled in it with nothing failing until an import elsewhere.
-        #
-        # The builder records which runtime it was built on (`flagos.base_digest`)
-        # and the registry is asked what that tag resolves to now. Both sides are
-        # index digests; a platform manifest digest would call every builder stale.
-        if [ "$WHEEL_BASE_IMAGE" != "$WHEEL_IMAGE_TAG" ]; then
-            docker image inspect "$WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
-                || docker pull "$WHEEL_BASE_IMAGE" >&2
-            built_on="$(docker image inspect \
-                -f '{{index .Config.Labels "flagos.base_digest"}}' "$WHEEL_BASE_IMAGE")"
-            built_on="${built_on##*@}"
-            [ -n "$built_on" ] \
-                || { echo "$WHEEL_BASE_IMAGE carries no flagos.base_digest label — it was not built by build-flagcx-builder.sh, so which runtime it describes cannot be checked" >&2; exit 1; }
-            now="$(docker buildx imagetools inspect "$WHEEL_IMAGE_TAG" 2>/dev/null \
-                | awk '/^Digest:/ {print $2; exit}')"
-            [ -n "$now" ] \
-                || { echo "the registry states no digest for $WHEEL_IMAGE_TAG, so whether $WHEEL_BASE_IMAGE is stale cannot be checked" >&2; exit 1; }
-            [ "$built_on" = "$now" ] \
-                || { echo "$WHEEL_BASE_IMAGE was built on $built_on, and $WHEEL_IMAGE_TAG is now $now — rebuild the builder before building the wheel in it" >&2; exit 1; }
-        fi
+        # The wheel builds in $WHEEL_BASE_IMAGE — the runtime image, or the
+        # builder image on a row that publishes one. The builder is
+        # self-contained (ubuntu:22.04) rather than layered on the runtime, so
+        # there is no base-digest staleness to check against the runtime's
+        # moving flat tag: the builder records no runtime it was built on, and
+        # the floor it guarantees (glibc 2.35) is what the wheel's own .so gate
+        # in wheel-build-in-container.sh asserts against, at the artifact rather
+        # than at an image digest.
+        docker image inspect "$WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
+            || docker pull "$WHEEL_BASE_IMAGE" >&2
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
 

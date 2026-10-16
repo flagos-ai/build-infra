@@ -59,8 +59,11 @@ plus the backend's `apt:` packages — no runtime image is involved.
 
 Some rows' runtime images carry no device toolchain at all — the two nvidia rows have no nvcc, no
 `cuda_runtime.h`, no `nccl.h` and no clang — and the wheel line builds *in* the runtime image. For
-those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`: the
-runtime image plus the row's own SDK packages, `builder.extra_apt`, and clang/llvm 22.
+those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`.
+It is **self-contained on ubuntu:22.04**: it installs its own interpreter and torch pin, the row's
+SDK packages, `builder.extra_apt`, and clang/llvm 22, rather than layering on the runtime image.
+The 22.04 base is what lowers the wheel's glibc floor to 2.35 — the reason a wheel built here
+installs on physical 22.04 hosts, not only in 24.04 containers.
 
 ```bash
 packaging/flagcx/build-flagcx-builder.sh --list
@@ -78,9 +81,10 @@ The verification is the acceptance test, not the image existing. `verify-flagcx-
 compiles that row's device bitcode inside the built image and asserts the artifact: which
 comm-traits branch it landed in (the two differ by a factor of seven in size), that it is
 `nvptx64-nvidia-cuda` bitcode, and that the wrapper header came with it. In CI,
-`.github/workflows/flagcx-builder.yml` runs that before pushing, and the image is stale whenever
-the runtime image it was built on has been rebuilt — `flagos.base_digest` records which one that
-was, so the staleness is detectable rather than remembered.
+`.github/workflows/flagcx-builder.yml` runs that before pushing. Nothing goes stale the way the
+runtime-based builder did — a self-contained image records no runtime digest — and the glibc floor
+the wheel carries is asserted at the artifact, by the `.so` gate in `wheel-build-in-container.sh`,
+not remembered here as an image digest.
 
 Both rows are built, verified and published; the acceptance test was run on h20 against `21f8b5f`:
 

@@ -195,7 +195,7 @@ vendors:
         # flagtree-bundled one) is the fallback, and that is not the library a
         # runtime should run collectives with. The +cuda12.8 wheel links
         # libcudart.so.12, present in this image.
-        - flagcx==0.14.0rc2.post2+cuda12.8
+        - flagcx==0.14.0+cuda12.8
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -224,7 +224,7 @@ vendors:
       triton: triton==3.6.0
       # 0.7.0 links its flagcx against the flagcx wheel's libflagcx.so (PR
       # #1266), not triton/_C/libflagcx.so (libcudart.so.12, absent on CUDA 13) —
-      # the flagcx wheel for cuda13.3 (flagcx-0.14.0rc2.post2+cuda13.3) is a dep.
+      # the flagcx wheel for cuda13.3 (flagcx-0.14.0+cuda13.3) is a dep.
       flagtree: flagtree==0.7.0
       env:
         base:
@@ -256,7 +256,7 @@ vendors:
         # links libcudart.so.12, absent here) is the fallback and the TLE
         # import OSError from #1234 returns. The +cuda13.3 wheel links
         # libcudart.so.13, present in this image.
-        - flagcx==0.14.0rc2.post2+cuda13.3
+        - flagcx==0.14.0+cuda13.3
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []

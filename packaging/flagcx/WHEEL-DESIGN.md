@@ -57,21 +57,25 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
 A wheel is built *inside* the backend's runtime image, and on the nvidia rows that image carries no
 device toolchain at all — measured on `flagos-runtime-nvidia-cuda13.3:2.2.0`: no nvcc, no
 `cuda_runtime.h`, no `include/cccl`, no `nccl.h`, no clang. Those rows therefore publish one more
-artifact beside the wheel: an image that can be the wheel build's environment, under the prefix
+artifact beside the wheel: an image that can be the wheel build's environment, self-contained on
+ubuntu:22.04 (so the wheel's glibc floor is 2.35, not the runtime's 2.38), under the prefix
 `build-config.yml` already reserved for builder images (`registry.prefixes.builder` = `flagos-dev`,
 unconsumed until now).
 
 | Question | Decision |
 |---|---|
-| Base | The row's own **runtime** image — never a vendor `-devel` tag |
-| Contents | The row's `apt:` list + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers |
+| Base | **ubuntu:22.04, self-contained** — never the runtime image, never a vendor `-devel` tag |
+| Contents | python 3.12 + torch pin + the row's SDK + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers |
 | Which rows | Only those declaring `builder.enabled`; a runtime image that already carries the toolchain needs none |
 | Acceptance | Compiling that row's device bitcode inside the built image, in CI, before the push |
 
 This is not the pre-built builder the megatron line declined. That decision's reason was that its
-runtime image was already sufficient; here it is not, and the invariant that keeps the shape honest
-is the same one the wheel line already runs on — **build env == delivery env**, so the builder is a
-superset of the row's runtime image and nothing else.
+runtime image was already sufficient; here it is not. The builder was once the runtime image plus a
+toolchain — build env == delivery env, a superset of the runtime and nothing else — but that made
+the wheel's glibc floor the runtime's (24.04 → glibc 2.38), which aborts on the physical 22.04
+hosts the bundle installs to. The builder is therefore self-contained on ubuntu:22.04 instead: it
+installs the interpreter and torch the runtime used to provide, so the floor drops to glibc 2.35 —
+forward-compatible with 24.04 — without touching the runtime or flagtree.
 
 **Why the runtime image and not `nvcr.io/nvidia/cuda:*-devel`.** Measured on h20:
 
@@ -83,10 +87,24 @@ superset of the row's runtime image and nothing else.
 | `cuda:12.8.0-devel-ubuntu24.04` | 14.6 GB | ✓ | **✗** | ✓ (held) | ✓ |
 
 Neither `-devel` tag ships any clang/llvm, so the LLVM pin below is unavoidable on any base, and
-13.3's `-devel` carries no NCCL either — that apt step would not go away. A `-devel` base also has
-no `/flagos`, so on its own it could not be the wheel's `BASE_IMAGE` at all. The alternative — moving
-the flagos base itself onto `-devel` — costs +6.9 GB (13.3) / +9.0 GB (12.8) on every layer above
-it, which is how a compiler ends up shipped in delivery images with no consumer.
+13.3's `-devel` carries no NCCL either — that apt step would not go away. The comparison above is
+the old one, against the runtime image as a base; the builder is now self-contained on
+ubuntu:22.04 instead, so the `-devel` question is answered the same way but for a stronger reason:
+a `-devel` base (22.04 or 24.04) still has no `/flagos` and no clang, and 24.04 would reintroduce
+the glibc 2.38 floor this change removes.
+
+**The SDK, NCCL and the cccl/math headers are three separate installs.** The row's nvcc plus
+`builder.extra_apt` come from the CUDA repo's ubuntu2204 suite; `builder.extra_apt` is this
+channel's build-time-only increment — `libcurand-dev` (clang's `__clang_cuda_runtime_wrapper.h`
+force-includes `curand_mtgp32_kernel.h`, no `cuda-nvcc` package ships it, FlagCX never calls
+cuRAND), `cccl` (cub/thrust/`cooperative_groups.h`/`libcudacxx`, reached by NCCL 2.31's
+`nccl_device.h` on the CCL comm-traits branch), and the four CUDA math `-dev` packages torch's ATen
+headers reach at build time. The math `-dev` packages are installed unversioned — a fresh 22.04 has
+nothing preinstalled to protect from an upgrade, and the wheel's `.so` links no math lib, so the
+headers are consumed only for torch's transitive includes. NCCL is *not* apt at all: the exact pins
+exist only in the 2404 suite (2204 carries 2.32.3), whose control block demands libc6 >= 2.38, so
+the two `.debs` are `dpkg-deb -x`ed instead — the 2404-built `libnccl.so` itself links GLIBC_2.38
+but is only ever linked against, never run.
 
 **LLVM 22 is a floor, not a preference.** CUDA 13 removed `texture_fetch_functions.h`, which clang's
 CUDA wrapper included unconditionally through 21, and CUDA 13.2's `crt/math_functions.h` expects the
@@ -96,8 +114,12 @@ succeeds. Only five binaries and clang's resource directory are taken from the s
 (~72 MB), and clang-22 links no `libLLVM`. The tarball is fetched from the
 flagos filestore (this line's one route — the reader's own oaitriton bundle has no clang, so a
 fallback could not substitute), and the sha256 is checked against the pin in
-`build-flagcx-builder.sh`, so the route taken does not change the artifact. The one package that is not the
-compiler's own: clang's `__clang_cuda_runtime_wrapper.h` force-includes `curand_mtgp32_kernel.h`,
+`build-flagcx-builder.sh`, so the route taken does not change the artifact. The snapshot is the
+flagtree `mlir` wheel's `llvm_artifact` `bin/{clang,llvm-as,llvm-dis,opt}` plus its resource dir,
+with the `_NV_RSQRT_SPECIFIER` block back-ported, **rebuilt on ubuntu:22.04** (the `-2204` suffix in
+the tarball name) so the compiler itself links nothing past glibc 2.34 — the 24.04-built original
+linked GLIBC_2.38 and could not run on the 22.04 image the builder now is. One package that is not
+the compiler's own: clang's `__clang_cuda_runtime_wrapper.h` force-includes `curand_mtgp32_kernel.h`,
 which no `cuda-nvcc` package ships, though FlagCX never calls cuRAND.
 
 **The snapshot is f6ded0be, not an official release, because the reader is the binding.** The
@@ -109,9 +131,15 @@ written by any newer LLVM fails there: measured with 22.1.8's `llvm-dis`, `Unkno
 `mlir` wheel's `llvm_artifact` (the same clang flagtree's workflows name as
 `CLANG=.../mlir/llvm_artifact/bin/clang-22`), with the `_NV_RSQRT_SPECIFIER` wrapper block
 back-ported (present in 22.1.8's resource dir, absent in f6ded0be's; without it CUDA 13's
-`crt/math_functions.hpp` fails to parse). `verify-flagcx-builder.sh` now asserts the reader's hash
+`crt/math_functions.hpp` fails to parse). `verify-flagcx-builder.sh` asserts the reader's hash
 in `clang --version` so a future pin move fails loudly instead of shipping a `.bc` the reader
 rejects.
+
+The two tarballs live on the filestore under `llvm/` — `llvm-f6ded0be-clang-ubuntu-x64.tar.gz` is
+the original 24.04-built one, and `llvm-f6ded0be-clang-ubuntu-x64-2204.tar.gz` is the 22.04 rebuild
+this line now pins (same snapshot, same members, different build host). The `-2204` suffix is what
+distinguishes them, so a pin that moved but kept the 24.04 tarball would fail the sha256 rather
+than silently relink a GLIBC_2.38 compiler.
 
 **Two fields state the row's device bitcode** (`bitcode_arch` → `BITCODE_LIB_ARCH`,
 `bitcode_adaptor_flag` → `ADAPTOR_FLAG`), stated rather than derived because the only derivation
@@ -120,14 +148,12 @@ available is `makefiles/nvidia_gencode.mk`'s table, and a second copy of it here
 file picks for the `.so` by reading `nccl.h` can reach the `.bc` only as a value passed in — without
 it the two artifacts disagree about `DeviceAPI::Window`/`Multimem`.
 
-**Staleness is real.** The runtime image is a mutable flat tag, so rebuilding a runtime makes every
-builder built on the previous one stale; the order is runtime first, builder second. The image
-records `flagos.base_digest` so the comparison can be mechanical — that check belongs in the wheel
-build, which is where a stale builder would be consumed, and it compares **index** digests: the
-label is written from the runtime image's `RepoDigests` and the registry is asked through
-`imagetools`, while the platform manifest digest is a different value (measured on h20 for
-`nvidia-cuda13.3`: index `8094e543…`, amd64 manifest `4581c63e…`), so pairing the two would report
-every builder as stale.
+**Nothing goes stale.** The builder is self-contained, so a rebuilt runtime does not stale it the
+way it staled the runtime-based builder — the image records no runtime digest. The floor the wheel
+carries (glibc 2.35) is asserted at the artifact: `wheel-build-in-container.sh` unpacks the built
+wheel and `objdump -T`s `libflagcx.so` and every `_C*.so`, failing on `GLIBC_2.38`, `GLIBCXX_3.4.31`
+or higher, or any `__isoc23_*` symbol, and on a max `GLIBC_*` above 2.35. That is where a drift back
+to 24.04 would surface, at the wheel, rather than on a user's host.
 
 Pointing the wheel build at one of these images also makes part of `Containerfile.wheel` redundant:
 its build-only apt list (`libgflags-dev`, `libgoogle-glog-dev`) is what the builder now carries, and
@@ -225,11 +251,11 @@ and every row that wanted a `.bc` depended on the build system carrying a copy o
 packaging knowledge.
 
 **Which image the wheel is built in is derived** (`flagcx-config.py`'s `wheel_base_image`): the
-runtime image, or the builder image on a row that publishes one. The builder is the runtime image
-plus a toolchain, so the environment the extension is compiled in stays a superset of the one that
-installs it, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a
-builder — the build would otherwise run where there is no clang and fail one stage later, at the
-make.
+runtime image, or the builder image on a row that publishes one. The builder is self-contained on
+ubuntu:22.04 — the interpreter and torch pin the runtime used to provide — so the environment the
+extension is compiled in still carries what the wheel needs without inheriting the runtime's glibc
+floor, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a builder —
+the build would otherwise run where there is no clang and fail one stage later, at the make.
 
 ## Mechanics
 
