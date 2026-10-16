@@ -14,10 +14,11 @@
 
 name: FlagTree Daily Wheel
 
-# The daily NVIDIA FlagTree build, published to flagos-pypi-daily as the
-# distribution `flagtree-nvidia`. The release line (flagtree-wheel.yml, manual)
-# keeps publishing plain `flagtree` to the vendor indexes; this file never
-# touches those.
+# The daily FlagTree build, published to flagos-pypi-daily as one distribution
+# per backend (`flagtree-nvidia`, `flagtree-iluvatar`, ...). The release line
+# (flagtree-wheel.yml, manual) keeps publishing plain `flagtree` to the vendor
+# indexes; this file never touches those. One row per backend that has a
+# `daily:` block in packaging/flagtree/backends.yaml.
 #
 # The point of the separate distribution name is the consumer's command: with
 # the backend in the name, the public version segment carries the date alone and
@@ -41,6 +42,9 @@ name: FlagTree Daily Wheel
 # know about rather than discover: a consumer on a warm pip cache may keep the
 # wheel it already fetched, since neither the version nor the URL changed.
 #
+# The skip is decided per row, in the plan job, so a backend already published
+# today neither occupies its runner nor holds up another backend's row.
+#
 # Like the release file, this builds inside docker so the wheel is self-owned
 # and reproducible. No GPU is needed: the build compiles LLVM/Triton and only
 # the smoke test imports the result.
@@ -49,15 +53,15 @@ on:
   workflow_dispatch:
     inputs:
       flagtree_version:
-        description: 'FlagTree ref to build (blank = main)'
+        description: 'FlagTree ref to build (blank = each row default)'
         type: string
         default: ''
       upload:
-        description: 'upload the wheel to flagos-pypi-daily'
+        description: 'upload the wheels to flagos-pypi-daily'
         type: boolean
         default: false
       builder_image:
-        description: 'FlagTree nvidia builder image (blank = the published one from configs.yaml; `ubuntu:22.04` builds cold)'
+        description: 'per-backend builder image override, space-separated backend=ref (blank = the published one; backend=ubuntu:22.04 builds that row cold)'
         type: string
         default: ''
   schedule:
@@ -68,15 +72,10 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: read
+
 env:
-  # The daily version, declared rather than derived. `flagtree_` is what the
-  # wheel filename uses; the dist name is `flagtree-nvidia`.
-  #
-  # FLAGTREE_VERSION_BASE is the release line this daily leads: bump it when
-  # configs.yaml moves to the next FlagTree release, so a daily keeps sorting
-  # above the release it precedes and below the next one.
-  FLAGTREE_DIST_NAME: flagtree-nvidia
-  FLAGTREE_VERSION_BASE: 0.7.1
   PYPI_REPO: flagos-pypi-daily
   NEXUS_BASE: https://resource.flagos.net/repository
 
@@ -91,16 +90,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
-  resolve:
+  plan:
     needs: authorize
-    # On ubuntu-latest, not the build runner: this job only reads github and the
-    # index, and it is what decides whether the build runner is occupied at all.
+    # On ubuntu-latest, not a build runner: this job only reads github and the
+    # index, and it is what decides whether any build runner is occupied at all.
     runs-on: ubuntu-latest
     outputs:
-      skip: ${{ steps.version.outputs.skip }}
-      version: ${{ steps.version.outputs.version }}
-      wheel: ${{ steps.version.outputs.wheel }}
-      builder_image: ${{ steps.version.outputs.builder_image }}
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
@@ -108,77 +104,141 @@ jobs:
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
 
-      - name: Resolve the version
-        id: version
+      - name: Plan the rows
+        id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
+          REF_OVERRIDE: ${{ inputs.flagtree_version }}
           BUILDER_IMAGE_OVERRIDE: ${{ inputs.builder_image }}
         run: |
           set -euo pipefail
-          version="${FLAGTREE_VERSION_BASE}.dev$(date -u +%Y%m%d)"
-          # flagtree_<backend> is the filename form of flagtree-<backend>.
-          wheel="flagtree_${FLAGTREE_DIST_NAME#flagtree-}-${version}"
-          filename="${wheel}-cp312-cp312-linux_x86_64.whl"
-          echo ">>> version ${version}; would publish ${filename}"
+          python3 - <<'PY' > matrix.json
+          import json, os, sys, urllib.request, yaml
+          from datetime import datetime, timezone
 
-          # THE SCHEDULE SKIPS A DAY ALREADY PUBLISHED; A MANUAL RUN NEVER DOES.
-          # The version is known without a build, so the cron can stop before the
-          # build runner is occupied -- and before Nexus is handed a duplicate to
-          # reject. A new UTC day always builds, even when `main` has not moved,
-          # because the wheel for a new date is a new wheel; where it was built
-          # from is in its METADATA, not in its name.
-          #
-          # The manual dispatch is the escape hatch for a fix merged after 01:37,
-          # and skipping it would defeat the only reason it exists. It publishes
-          # the same version the cron did; the upload below replaces the file.
-          #
-          # Same 404 tolerance as the upload step: before the first upload the
-          # project does not exist, and Nexus creates it on first push.
-          skip=false
-          if [ "${EVENT_NAME}" = "schedule" ] \
-             && curl -fsS --max-time 60 "${NEXUS_BASE}/${PYPI_REPO}/simple/${FLAGTREE_DIST_NAME}/" \
-                  | grep -Fq "${filename}"; then
-            skip=true
-            echo ">>> already published — the build is skipped"
-          fi
+          # The published builder stage is derived the way every other image ref
+          # is: registry host and prefix from build-config.yml, tag from
+          # configs.yaml. A backend's own override wins; the literal
+          # `ubuntu:22.04` builds that row cold, which is what an unpublished
+          # builder falls back to.
+          host = yaml.safe_load(open(".github/build-config.yml"))["registry"]["host"]
+          prefix = yaml.safe_load(open(".github/build-config.yml"))["registry"]["prefixes"]["builder"]
+          stack = yaml.safe_load(open("configs.yaml"))["version"]
 
-          # The published builder stage, derived the same way every other image
-          # ref is: registry host and prefix from build-config.yml, tag from
-          # configs.yaml. A blank override means "the published one"; the
-          # literal `ubuntu:22.04` builds the stage cold, which is what an
-          # unpublished builder falls back to.
-          builder_image="${BUILDER_IMAGE_OVERRIDE}"
-          if [ -z "$builder_image" ]; then
-            host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
-            prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['builder'])")
-            stack=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
-            builder_image="${host}/${prefix}/flagtree-builder-nvidia-cuda:${stack}"
-          fi
-          echo ">>> building on ${builder_image}"
-          {
-            echo "version=${version}"
-            echo "wheel=${wheel}"
-            echo "skip=${skip}"
-            echo "builder_image=${builder_image}"
-          } >> "$GITHUB_OUTPUT"
+          overrides = {}
+          for pair in (os.environ.get("BUILDER_IMAGE_OVERRIDE") or "").split():
+              name, _, ref = pair.partition("=")
+              if not ref:
+                  print(f"builder_image: '{pair}' is not backend=ref", file=sys.stderr)
+                  sys.exit(1)
+              overrides[name] = ref
+
+          backends = yaml.safe_load(open("packaging/flagtree/backends.yaml"))["backends"]
+          date = datetime.now(timezone.utc).strftime("%Y%m%d")
+          repo = os.environ["PYPI_REPO"]
+          nexus = os.environ["NEXUS_BASE"]
+          on_schedule = os.environ["EVENT_NAME"] == "schedule"
+
+          rows = []
+          for name, cfg in backends.items():
+              d = cfg.get("daily")
+              if not d or not d.get("enabled"):
+                  continue
+
+              version = f"{d['version_base']}.dev{date}"
+              # flagtree_<backend> is the filename form of flagtree-<backend>.
+              wheel = f"flagtree_{d['dist_name'].removeprefix('flagtree-')}-{version}"
+              filename = f"{wheel}-{d['wheel_tag']}.whl"
+
+              # THE SCHEDULE SKIPS A DAY ALREADY PUBLISHED; A MANUAL RUN NEVER
+              # DOES. The version is known without a build, so the cron can stop
+              # before a build runner is occupied -- and before Nexus is handed a
+              # duplicate to reject. A new UTC day always builds, even when the
+              # ref has not moved, because the wheel for a new date is a new
+              # wheel; where it was built from is in its METADATA, not its name.
+              #
+              # The manual dispatch is the escape hatch for a fix merged after
+              # 01:37, and skipping it would defeat the only reason it exists. It
+              # publishes the same version the cron did; the upload replaces the
+              # file.
+              #
+              # Same 404 tolerance as the upload step: before the first upload
+              # the project does not exist, and Nexus creates it on first push.
+              skip = False
+              if on_schedule:
+                  url = f"{nexus}/{repo}/simple/{d['dist_name']}/"
+                  try:
+                      with urllib.request.urlopen(url, timeout=60) as r:
+                          skip = filename.encode() in r.read()
+                  except Exception as e:
+                      print(f">>> {name}: index not readable ({e}) -- building")
+              if skip:
+                  print(f">>> {name}: {filename} already published -- row skipped")
+                  continue
+
+              builder = overrides.get(name) or f"{host}/{prefix}/{cfg['builder_image']}:{stack}"
+              print(f">>> {name}: {filename} on {builder}")
+              rows.append({
+                  "name": name,
+                  "containerfile": cfg["containerfile"],
+                  "builder_image": builder,
+                  # JSON string: a bare `runs-on: matrix.runson` queues forever.
+                  "runson": json.dumps(cfg["runson"]),
+                  "disk_min_gb": cfg["disk_min_gb"],
+                  "dist_name": d["dist_name"],
+                  "version": version,
+                  "wheel": wheel,
+                  "wheel_tag": d["wheel_tag"],
+                  "ref": os.environ.get("REF_OVERRIDE") or d.get("ref", "main"),
+              })
+
+          unknown = set(overrides) - set(backends)
+          if unknown:
+              print(f"builder_image names unknown backend(s): {' '.join(sorted(unknown))}", file=sys.stderr)
+              sys.exit(1)
+          # An empty matrix is not a failure here -- every row may be published
+          # already -- so the build job is skipped on emptiness instead.
+          print(json.dumps({"include": rows}))
+          PY
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 
   build:
-    needs: [authorize, resolve]
-    if: ${{ needs.resolve.outputs.skip != 'true' }}
-    # Self-hosted, like every other FlagTree build: the same image build, and
-    # the label flagtree-wheel.yml uses for the same Containerfile.
-    runs-on: [self-hosted, h20]
+    needs: [authorize, plan]
+    # Every row may have been skipped as already published.
+    if: ${{ fromJSON(needs.plan.outputs.matrix).include[0] != null }}
+    strategy:
+      # One backend's failure must not cancel the others; and one at a time,
+      # because these are a small pool of self-hosted runners each pulling a
+      # builder image and compiling for tens of minutes.
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
     env:
-      IMAGE: flagtree-wheel-daily:${{ github.run_id }}
+      TARGET: ${{ matrix.containerfile }}
+      IMAGE: flagtree-daily-${{ matrix.name }}:${{ github.run_id }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check disk space
+        run: |
+          set -euo pipefail
+          FREE_KB=$(df -P . | awk 'NR==2{print $4}')
+          FREE_GB=$((FREE_KB / 1024 / 1024))
+          echo "Free disk space: ${FREE_GB}G (this row wants ${{ matrix.disk_min_gb }}G)"
+          if [ "$FREE_GB" -lt "${{ matrix.disk_min_gb }}" ]; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < ${{ matrix.disk_min_gb }}G). Docker needs cleanup."
+            df -h .
+            exit 1
+          fi
 
       - name: Harbor login
         # Only to pull the builder stage. A bare docker-hub ref (`ubuntu:22.04`,
         # what the cold path uses) carries no registry host to log in to.
         env:
-          BUILDER_IMAGE: ${{ needs.resolve.outputs.builder_image }}
+          BUILDER_IMAGE: ${{ matrix.builder_image }}
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
         run: |
@@ -200,12 +260,14 @@ jobs:
       - name: Build the FlagTree wheel image
         working-directory: packaging/flagtree
         env:
-          FLAGTREE_REF: ${{ inputs.flagtree_version || 'main' }}
-          FLAGTREE_WHEEL_VERSION: ${{ needs.resolve.outputs.version }}
-          FLAGTREE_WHEEL_NAME: ${{ env.FLAGTREE_DIST_NAME }}
-          BUILDER_IMAGE: ${{ needs.resolve.outputs.builder_image }}
+          FLAGTREE_REF: ${{ matrix.ref }}
+          FLAGTREE_WHEEL_VERSION: ${{ matrix.version }}
+          FLAGTREE_WHEEL_NAME: ${{ matrix.dist_name }}
+          BUILDER_IMAGE: ${{ matrix.builder_image }}
         run: |
           set -euo pipefail
+          # FLAGTREE_VERSION unconditionally: the daily builds the Containerfile's
+          # default (wheel) target, and every backend's wheel stage takes the ref.
           build_args=(
             --build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}"
             --build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}"
@@ -225,11 +287,11 @@ jobs:
           [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
           [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
           # --no-cache is kept even with a builder image: the clone layer is keyed
-          # on the ref NAME, not its content, so a cached `main` would rebuild an
-          # old commit under today's version. It matters more now than it did:
-          # the version no longer moves with the commit, so only a real rebuild
-          # can change what a given date's wheel contains.
-          docker build --no-cache "${build_args[@]}" -t "$IMAGE" -f nvidia-cuda .
+          # on the ref NAME, not its content, so a cached default ref would
+          # rebuild an old commit under today's version. It matters more now than
+          # it did: the version no longer moves with the commit, so only a real
+          # rebuild can change what a given date's wheel contains.
+          docker build --no-cache "${build_args[@]}" -t "$IMAGE" -f "$TARGET" .
 
       - name: Extract the wheel
         working-directory: packaging/flagtree
@@ -244,9 +306,10 @@ jobs:
       - name: Gate the version
         working-directory: packaging/flagtree
         env:
-          EXPECTED: ${{ needs.resolve.outputs.wheel }}
-          EXPECTED_VERSION: ${{ needs.resolve.outputs.version }}
-          DIST: ${{ env.FLAGTREE_DIST_NAME }}
+          EXPECTED: ${{ matrix.wheel }}
+          EXPECTED_VERSION: ${{ matrix.version }}
+          WHEEL_TAG: ${{ matrix.wheel_tag }}
+          DIST: ${{ matrix.dist_name }}
         run: |
           set -euo pipefail
           # FlagTree owns the version rule; this asserts it still produces what
@@ -255,8 +318,8 @@ jobs:
           whl="$(ls wheels/*.whl)"
           echo ">>> $whl"
           case "$(basename "$whl")" in
-            "${EXPECTED}-cp312-cp312-linux_x86_64.whl") ;;
-            *) echo "ERROR: expected ${EXPECTED}-cp312-cp312-linux_x86_64.whl, got $whl" >&2; exit 1 ;;
+            "${EXPECTED}-${WHEEL_TAG}.whl") ;;
+            *) echo "ERROR: expected ${EXPECTED}-${WHEEL_TAG}.whl, got $whl" >&2; exit 1 ;;
           esac
           python3 - "$whl" "$DIST" "$EXPECTED_VERSION" <<'PY'
           import sys
@@ -273,7 +336,7 @@ jobs:
           # The version is the date, and nothing else. The sha and the backend
           # token used to live in the local segment; the distribution name and
           # the Source-Commit below carry them now. `expected` is composed by
-          # `resolve`, so agreeing with it is the whole assertion.
+          # the plan job, so agreeing with it is the whole assertion.
           assert version == expected, (version, expected)
           source_commits = [l for l in lines if l.startswith("Project-URL: Source-Commit, ")]
           print(">>>", *source_commits)

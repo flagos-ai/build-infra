@@ -47,6 +47,11 @@
 #   daily.version_base
 #                   the release the daily leads: `<version_base>.dev<UTC date>`.
 #                   Bump it with configs.yaml's flagtree pin.
+#   daily.ref       the FlagTree ref the daily tracks. Declared rather than taken
+#                   from the Containerfile's own default, which is the VENDOR
+#                   release a local build reproduces: the daily tracks the line
+#                   the backend is being fixed on, which for nvidia is upstream's
+#                   main. Overridable per dispatch.
 #   daily.wheel_tag the interpreter + platform tag the wheel wears; a container
 #                   change that moves the interpreter fails the run rather than
 #                   publishing an uninstallable wheel.
@@ -65,6 +70,7 @@ backends:
       enabled: true
       dist_name: flagtree-nvidia
       version_base: "0.7.1"
+      ref: main
       wheel_tag: cp312-cp312-linux_x86_64
 
   iluvatar:
