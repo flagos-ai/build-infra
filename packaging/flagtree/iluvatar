@@ -33,9 +33,13 @@
 # ════════════════════════════════════════════════════════════════
 FROM ubuntu:22.04 AS builder
 
-# Proxy is only consumed during build (predefined ARG, not persisted).
+# Proxy, consumed only during build (predefined ARG, not persisted). no_proxy is
+# declared so the runner's value survives: an undeclared ARG of that name is not
+# inherited, and the prebuilt deps below come off a bucket the host may well have
+# listed as internal.
 ARG http_proxy=
 ARG https_proxy=
+ARG no_proxy=
 # FlagTree ref to build; the iluvatar 3.6 backend lives on this branch. A moving
 # branch -- pin a sha via --build-arg for a byte-exact rebuild.
 ARG FLAGTREE_VERSION=0.7.0-rc2-triton3.6
@@ -209,6 +213,13 @@ RUN pip install --no-cache-dir /wheels/*.whl \
 # produced. CoreX 4.5.0 on top, as base/iluvatar-corex4.5.0 does it. No
 # flag_gems: this is the flagtree build platform, not a runtime image.
 FROM ubuntu:22.04 AS flagtree
+
+# Proxy again, for the same reason as stage 1: ARGs do not carry across FROM.
+# The four CoreX artifacts below come off the internal filestore, so no_proxy is
+# the one that decides whether they are fetched directly or through the tunnel.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
 
 # ── CoreX 4.5.0 ────────────────────────────────────────────────
 # The four SDK artifacts and their install steps mirror

@@ -60,15 +60,32 @@ CI smoke test (`import triton`) runs on a GPU-less box and cannot catch this, so
 the gate additionally **asserts libtriton's pybind11 internals are v11**
 (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
 
+## Builders
+
+Some of these Containerfiles split their build environment into a `--target
+builder` stage: everything that does not depend on the FlagTree ref being built
+(apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
+into FlagTree's offline cache). `nvidia-cuda` and `iluvatar` have one;
+`metax`, `sunrise` and the ascend pair are still single-stage.
+
+`.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
+one job per entry in `backends.yaml`, which is where a backend's builder facts
+live: its Containerfile, the image repository the stage is published under, the
+runner labels, the disk budget, and which extra proof the stage needs. Adding a
+backend there is one entry, not a new workflow.
+
+The stage is tagged with the stack version (`configs.yaml` `version:`), so it is
+flat: a rebuild overwrites it. The wheel lines build on top of it.
+
 ## NVIDIA builder (`nvidia-cuda`)
 
-`nvidia-cuda` is the only builder whose **build machine** is published, and it
-has two stages for a reason the others do not have: nothing it stages up front
-depends on the FlagTree ref being built.
+`nvidia-cuda` has two stages, like `iluvatar`, for a reason the single-stage
+builders do not have: nothing it stages up front depends on the FlagTree ref
+being built, so that half is worth paying for once and publishing.
 
 ```
 ubuntu:22.04 ──> builder   apt toolchain + python 3.12 + prebuilt LLVM
-                   │        published to flagos-dev by flagtree-builder-nvidia.yml
+                   │        published to flagos-dev by flagtree-builder.yml
                    ▼
                 flagtree   clone the ref, compile triton, /wheels/*.whl
                            flagtree-wheel-daily.yml builds this on the published stage
@@ -169,9 +186,13 @@ by `flagtree-builder.yml` to
 the default target is a flagtree image that takes that stage's venv and wheel.
 The file is self-contained — `docker build -f iluvatar .` needs no script or
 sibling file from this repo, which is what lets the published builder be the
-whole recipe for reproducing the wheel. `iluvatar` is deliberately **not** a
-`flagtree-wheel.yml` target: the wheel keeps the vendor's version string, so a
-second workflow able to upload it would be a second uploader of one version.
+whole recipe for reproducing the wheel.
+
+**The wheel leaves this line.** The builder line keeps the wheel it extracts as a
+run artifact and has no upload step: a wheel published to an index belongs to a
+wheel line, where the artifact is the deliverable, so one version never has two
+uploaders. `iluvatar` is not a `flagtree-wheel.yml` target today, and giving it
+one is that workflow's call rather than this line's.
 
 **The plugin is linked in, not shipped.** The 3.6 branch builds
 `triton_iluvatar.cc` as an object and links it into `libtriton.so`
@@ -404,7 +425,7 @@ Why the pieces sit where they do:
 
 Two knobs in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release this
 daily leads — move it when `configs.yaml` moves on) and `FLAGTREE_DIST_NAME`
-(names the wheel). Adding a backend is a second job with its own pair.
+(names the wheel).
 
 **The cron skips a day that has already been published; a manual run never
 does.** The version is known without a build — it is the UTC date — so `resolve`

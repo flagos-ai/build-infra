@@ -1,0 +1,93 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# FlagTree build-line facts, one entry per backend that has a Containerfile beside
+# this file. flagtree-builder.yml reads this; flagtree-wheel-daily.yml takes the
+# `daily:` block once its line is generalized.
+#
+# Not a second configs.yaml: the image tag, the stack version and the vendor PyPI
+# index stay in configs.yaml / build-config.yml and are derived at run time.
+#
+#   containerfile   file in this directory, also docker build's `-f`.
+#   builder_image   image REPOSITORY the `--target builder` stage is published
+#                   under. Not derived from `containerfile`: iluvatar's carries
+#                   the CoreX line, because the builder is tied to the SDK it
+#                   stages.
+#   runson          runner labels for the build. Here rather than in
+#                   build-config.yml because these builds need no device --
+#                   that file's overrides label the runtime/app builds, which do.
+#                   Emitted as a JSON string, so a consumer must fromJSON it.
+#   disk_min_gb     free space checked before the build starts.
+#   builder         the publishable build environment. Its PRESENCE is what says
+#                   the Containerfile has a `--target builder` stage; a backend
+#                   without one cannot have its environment published yet.
+#     verify_stage  assert the stage carries what the wheel build reads from it.
+#     image_target  the default target is a flagtree image on top of the stage;
+#                   build it and keep the wheel it yields as proof.
+#     image_tag     local tag for that image; only with image_target.
+#     ref_arg       whether the stage consumes --build-arg FLAGTREE_VERSION.
+#                   True where the stage compiles the ref itself (iluvatar builds
+#                   its wheel inside `builder`), false where it is ref-independent.
+#   daily.enabled   whether the daily line builds this backend. False = the
+#                   Containerfile does not take FLAGTREE_WHEEL_NAME or write the
+#                   `Source-Commit` carrier that line's gate asserts.
+#   daily.dist_name one project per backend, so `pip install --pre <name>` ranks
+#                   without a backend token in the version.
+#   daily.version_base
+#                   the release the daily leads: `<version_base>.dev<UTC date>`.
+#                   Bump it with configs.yaml's flagtree pin.
+#   daily.wheel_tag the interpreter + platform tag the wheel wears; a container
+#                   change that moves the interpreter fails the run rather than
+#                   publishing an uninstallable wheel.
+
+backends:
+  nvidia:
+    containerfile: nvidia-cuda
+    builder_image: flagtree-builder-nvidia-cuda
+    runson: ["self-hosted", "h20"]
+    disk_min_gb: 15
+    builder:
+      verify_stage: true
+      image_target: false
+      ref_arg: false
+    daily:
+      enabled: true
+      dist_name: flagtree-nvidia
+      version_base: "0.7.1"
+      wheel_tag: cp312-cp312-linux_x86_64
+
+  iluvatar:
+    containerfile: iluvatar
+    builder_image: flagtree-builder-iluvatar-corex4.5.0
+    # A plain x86_64 runner, NOT the corex-labeled ones: this build needs Docker
+    # Hub for ubuntu:22.04, which the CoreX nodes cannot reach
+    # (registry-1.docker.io resets), and it touches no iluvatar hardware. Device
+    # checks belong to the iluvatar verify line, which runs on those nodes.
+    runson: ["self-hosted", "h20"]
+    disk_min_gb: 60
+    builder:
+      verify_stage: false
+      image_target: true
+      image_tag: flagtree-iluvatar
+      ref_arg: true
+    daily:
+      enabled: false
+      dist_name: flagtree-iluvatar
+      version_base: "0.7.1"
+      wheel_tag: cp312-cp312-linux_x86_64
+
+  # metax / sunrise / ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles
+  # here but no entry: their build environment is not separated into a
+  # publishable stage yet. Their rows arrive with that restructure, one backend
+  # per change -- see packaging/flagtree/README.md.
