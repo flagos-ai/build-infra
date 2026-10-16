@@ -186,6 +186,19 @@ ARG FLAGTREE_PYPI_KEY=
 # survive into METADATA, and appending to the egg_info output does not either.
 # The guard is a hard failure rather than a merge because upstream shipping one
 # would silently change what this line means.
+#
+# FLAGCX IS SWITCHED OFF, AND ITS ABSENCE IS ASSERTED. Left on, setup.py clones
+# FlagCX and copies what it builds into the wheel -- a 21 MB
+# triton/_C/libflagcx.so, its .bc, the wrapper and six headers (the release wheel
+# is 388 MB; this one is 124 MB). The runtime installs the flagcx package and
+# FlagTree prefers that library, so the copy is dead weight. USE_FLAGCX is
+# upstream's own switch (download_flagtree_third_party reads USE_<NAME>). Today
+# the copy is absent only because the compile fails -- the flagcx Makefile calls
+# `clang`, which this builder does not install, and utils/default.py swallows the
+# error -- so install one and 21 MB appears with nothing to notice it.
+#
+# The ~300 FlagCx strings left in libtriton.so are CMake's FLAGCX_ENABLED
+# compile-time ops, not a linked library, and are deliberately kept.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -231,26 +244,33 @@ RUN git config --global http.version HTTP/1.1 \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
     && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
     && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
+    && export USE_FLAGCX=OFF \
     && for i in 1 2 3 4 5; do \
          python3.12 -m pip wheel . --no-build-isolation -w /wheels -v && break; \
          echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
        done \
+    && test ! -d /opt/flagtree/third_party/tle/third_party/flagcx \
     && ls -la /wheels/*.whl
 
 # Smoke test: install the freshly built wheel and import it (fails the build if
 # broken). The installed __version__ is the distribution's own version, so this
 # asserts both the import and that the patch survived into the installed tree.
 #
-# The last two assertions are what make the .git removal and the setup.cfg
-# carrier worth trusting: a version string is easy to eyeball, but a local
-# segment creeping back in, or a Project-URL that stopped being emitted, would
-# only be noticed by whoever went looking for the commit id later.
+# The remaining assertions are what make the .git removal, the setup.cfg carrier
+# and USE_FLAGCX worth trusting: those are all silent when they stop working. A
+# local segment creeping back in, a Project-URL that stopped being emitted, or
+# flagcx reappearing in the wheel would otherwise only be noticed later, by
+# whoever went looking.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
     && python3.12 -c "\
-import importlib.metadata as md, flagtree, triton;\
+import glob, importlib.metadata as md, zipfile, flagtree, triton;\
 print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__);\
 assert flagtree.__version__ == md.version('${FLAGTREE_WHEEL_NAME}'), flagtree.__version__;\
 urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
 print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
 assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
-assert not md.version('${FLAGTREE_WHEEL_NAME}').split('+', 1)[1:], md.version('${FLAGTREE_WHEEL_NAME}')"
+assert not md.version('${FLAGTREE_WHEEL_NAME}').split('+', 1)[1:], md.version('${FLAGTREE_WHEEL_NAME}');\
+whl = glob.glob('/wheels/*.whl')[0];\
+stray = [n for n in zipfile.ZipFile(whl).namelist() if 'flagcx' in n.lower()];\
+assert not stray, stray;\
+print('OK no flagcx in', whl)"
