@@ -14,40 +14,31 @@
 
 name: FlagTree Builder
 
-# Builds packaging/flagtree/iluvatar: the FlagTree iluvatar wheel builder
-# (`--target builder`) and the flagtree image that stage 2 derives from it.
+# Publishes the `--target builder` stage of the flagtree Containerfiles that have
+# one: the build machine, holding everything that does not depend on the FlagTree
+# ref (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits). The
+# wheel lines build on top of those images. One entry per backend in
+# packaging/flagtree/backends.yaml; a row's fields say which extra proof its stage
+# gets (nvidia's content assertions, iluvatar's flagtree image + wheel).
 #
-# WHY A BUILDER: the vendor wheel (flagtree==0.7.0rc2+iluvatar3.6) is built on
-# Ubuntu 24.04, so its libtriton.so needs GLIBC_2.38 -- a 22.04 client aborts
-# before main(). Rebuilding it on 22.04 is what the builder stage is for, and
-# the stage is published so the same wheel can be reproduced (and the image
-# rebuilt) without this repo: the Containerfile is self-contained.
-#
-# THE IMAGE IS NOT PUSHED: this line publishes the builder image; the flagtree
-# image is built and smoke-tested here so the builder is proven to deliver one.
-#
-# THE WHEEL IS A FILE, so `upload` puts it on the vendor index via twine -- the
-# same gate shape as flagtree-wheel.yml, whose gates run inside `docker build`.
+# Not a wheel publisher: iluvatar's wheel is kept as a run artifact and uploaded
+# by a wheel line, so one version never has two uploaders.
 
 on:
   workflow_dispatch:
     inputs:
+      backends:
+        description: 'space-separated backend keys to build (blank = every row in backends.yaml)'
+        type: string
+        default: ''
       flagtree_version:
-        description: 'FlagTree ref to build (blank = Containerfile default: the 0.7.0-rc2-triton3.6 branch)'
+        description: 'FlagTree ref, for the rows whose stage compiles it (blank = Containerfile default)'
         type: string
         default: ''
       push:
-        description: 'push the builder image to Harbor'
+        description: 'push the builder images to Harbor'
         type: boolean
         default: false
-      upload:
-        description: 'upload the wheel to the vendor PyPI'
-        type: boolean
-        default: false
-      pypi_repo:
-        description: 'Nexus PyPI repo (blank = flagos-pypi-iluvatar)'
-        type: string
-        default: ''
 
 defaults:
   run:
@@ -58,37 +49,96 @@ permissions:
 
 jobs:
   authorize:
-    # Only accounts listed in .github/builders.txt may trigger this workflow
-    # manually; checkout lets the local composite action resolve.
+    # Only accounts listed in .github/builders.txt may trigger this manually.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/check-trigger-author
 
-  build:
+  set-matrix:
     needs: authorize
-    # A plain x86_64 runner, NOT the corex-labeled ones: the build needs Docker
-    # Hub for ubuntu:22.04, which the CoreX nodes cannot reach (registry-1.docker.io
-    # resets), and no iluvatar hardware. Device checks belong to the iluvatar
-    # verify line, which runs on those nodes.
-    runs-on: [self-hosted, h20]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Build the matrix from backends.yaml
+        id: build
+        env:
+          SELECTED: ${{ inputs.backends }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > matrix.json
+          import json, os, sys, yaml
+
+          want = (os.environ.get("SELECTED") or "").split()
+          data = yaml.safe_load(open("packaging/flagtree/backends.yaml"))["backends"]
+
+          rows = []
+          for name, cfg in data.items():
+              if want and name not in want:
+                  continue
+              # A `builder:` block's presence is what says a publishable stage
+              # exists; a backend with only `daily:` has none yet.
+              b = cfg.get("builder")
+              if not b:
+                  continue
+              rows.append({
+                  "name": name,
+                  "containerfile": cfg["containerfile"],
+                  "builder_image": cfg["builder_image"],
+                  # JSON string: a bare `runs-on: matrix.runson` queues forever.
+                  "runson": json.dumps(cfg["runson"]),
+                  "disk_min_gb": cfg["disk_min_gb"],
+                  "verify_stage": bool(b.get("verify_stage")),
+                  "image_target": bool(b.get("image_target")),
+                  "image_tag": b.get("image_tag", ""),
+                  "ref_arg": bool(b.get("ref_arg")),
+              })
+
+          unknown = [w for w in want if w not in data]
+          if unknown:
+              print(f"unknown backend(s): {' '.join(unknown)}", file=sys.stderr)
+              sys.exit(1)
+          # An empty matrix is not a no-op -- GitHub rejects it as malformed.
+          if not rows:
+              selected = " ".join(want) if want else "(every entry)"
+              print(f"no publishable builder stage for {selected}", file=sys.stderr)
+              sys.exit(1)
+          print(json.dumps({"include": rows}))
+          PY
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: set-matrix
+    strategy:
+      # One backend's failure must not cancel the others.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
     env:
-      TARGET: iluvatar
-      BUILDER_IMAGE: flagtree-builder-iluvatar:ci
-      APP_IMAGE: flagtree-iluvatar:ci
+      TARGET: ${{ matrix.containerfile }}
+      BUILDER_IMAGE: ${{ matrix.builder_image }}:ci
+      APP_IMAGE: ${{ matrix.image_tag }}:ci
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Check disk space
         run: |
-          # The build holds a 1.7 GB LLVM bundle, a 385 MB toolkit tarball and
-          # ~60 GB of intermediate triton objects while it compiles.
+          set -euo pipefail
           FREE_KB=$(df -P . | awk 'NR==2{print $4}')
           FREE_GB=$((FREE_KB / 1024 / 1024))
-          echo "Free disk space: ${FREE_GB}G"
-          if [ "$FREE_GB" -lt 60 ]; then
-            echo "ERROR: insufficient disk space (${FREE_GB}G < 60G). Docker needs cleanup."
+          echo "Free disk space: ${FREE_GB}G (this row wants ${{ matrix.disk_min_gb }}G)"
+          if [ "$FREE_GB" -lt "${{ matrix.disk_min_gb }}" ]; then
+            echo "ERROR: insufficient disk space (${FREE_GB}G < ${{ matrix.disk_min_gb }}G). Docker needs cleanup."
             df -h .
             exit 1
           fi
@@ -97,10 +147,11 @@ jobs:
         id: ref
         run: |
           set -euo pipefail
+          # The same ref the wheel lines derive.
           version=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
           host=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['host'])")
           prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['builder'])")
-          echo "image=${host}/${prefix}/flagtree-builder-iluvatar-corex4.5.0:${version}" >> "$GITHUB_OUTPUT"
+          echo "image=${host}/${prefix}/${{ matrix.builder_image }}:${version}" >> "$GITHUB_OUTPUT"
 
       - name: Harbor login (push only)
         if: ${{ inputs.push }}
@@ -109,6 +160,7 @@ jobs:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
         run: |
+          set -euo pipefail
           host="${IMAGE_REF%%/*}"
           for i in 1 2 3; do
             if printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin; then
@@ -122,27 +174,85 @@ jobs:
 
       - name: Build the builder stage
         working-directory: packaging/flagtree
+        env:
+          REF_ARG: ${{ matrix.ref_arg }}
+          FLAGTREE_REF: ${{ inputs.flagtree_version }}
         run: |
           set -euo pipefail
+          # The runner's proxy, relayed verbatim: all three, never a value
+          # invented here, and never gated on one of the others being set. The
+          # Containerfiles declare them as ARGs, which is what keeps them to the
+          # build -- an ARG is not persisted in the image config. no_proxy matters
+          # as much as the other two: the host knows which endpoints are internal,
+          # and a value invented here is what sends an internal fetch through the
+          # tunnel.
           build_args=()
-          if [ -n "${{ inputs.flagtree_version }}" ]; then
-            build_args+=(--build-arg "FLAGTREE_VERSION=${{ inputs.flagtree_version }}")
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
+          [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
+          [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
+          [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
+          # Only a stage that compiles the ref itself declares the arg.
+          if [ "${REF_ARG}" = "true" ] && [ -n "${FLAGTREE_REF}" ]; then
+            build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}")
           fi
-          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
-          if [ -n "${proxy_url}" ]; then
-            build_args+=(--build-arg "https_proxy=${proxy_url}")
-            build_args+=(--build-arg "http_proxy=${proxy_url}")
-          fi
+          # No --build-arg BUILDER_IMAGE: the Containerfile's own default base is
+          # what makes this a cold build, cached by the apt list and tarball args.
           docker build --target builder "${build_args[@]}" -t "$BUILDER_IMAGE" -f "$TARGET" .
           docker tag "$BUILDER_IMAGE" "${{ steps.ref.outputs.image }}"
 
-      - name: Build the flagtree image
-        working-directory: packaging/flagtree
+      # The wheel build reads from this stage, so assert what it reads.
+      # `lib/cmake/mlir` is the contract, not `bin/clang`: this is the oaitriton
+      # tree that ships no clang (packaging/flagcx/WHEEL-DESIGN.md) and FlagTree
+      # consumes it as an MLIR install tree.
+      - name: Verify the stage carries what the wheel build reads
+        if: ${{ matrix.verify_stage }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
         run: |
           set -euo pipefail
-          docker build -t "$APP_IMAGE" -f "$TARGET" .
+          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+            test -f /opt/flagtree-build-env.ready
+            command -v git cmake ninja make wget curl >/dev/null
+            python3.12 -c "import sys; assert sys.version_info[:2] == (3, 12)"
+            python3.12 -m pip --version
+            test -f /usr/local/bin/patch-flagtree-version.py
+            test -d "${LLVM_SYSPATH}/lib/cmake/mlir"
+            ls "${LLVM_SYSPATH}"/lib/cmake/mlir/*Config.cmake >/dev/null
+            # The staleness gate in the wheel build reads this.
+            test -s /opt/flagtree-build-env.llvm
+            echo ">>> LLVM_SYSPATH=${LLVM_SYSPATH}, staged $(cat /opt/flagtree-build-env.llvm)"
+          '
+
+      # The default target is an image on top of the stage: building it proves
+      # the stage delivers what the image needs, and its wheel is evidence of
+      # that. The ref arg IS passed: this rebuilds the stage on the way, so a
+      # different ref here would make the wheel below someone else's.
+      - name: Build the flagtree image
+        if: ${{ matrix.image_target }}
+        working-directory: packaging/flagtree
+        env:
+          REF_ARG: ${{ matrix.ref_arg }}
+          FLAGTREE_REF: ${{ inputs.flagtree_version }}
+        run: |
+          set -euo pipefail
+          # Same relay as the builder stage, for the same reason: ARGs do not
+          # carry across FROM, so this stage declares its own.
+          build_args=()
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
+          [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
+          [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
+          [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
+          if [ "${REF_ARG}" = "true" ] && [ -n "${FLAGTREE_REF}" ]; then
+            build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}")
+          fi
+          docker build "${build_args[@]}" -t "$APP_IMAGE" -f "$TARGET" .
 
       - name: Extract the wheel
+        if: ${{ matrix.image_target }}
         working-directory: packaging/flagtree
         run: |
           set -euo pipefail
@@ -152,28 +262,13 @@ jobs:
           docker rm "$cid" >/dev/null
           ls -la wheels/*.whl
 
-      - name: Upload to vendor PyPI
-        if: ${{ inputs.upload }}
-        working-directory: packaging/flagtree
-        env:
-          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${NEXUS_TOKEN:-}" ]; then
-            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
-            exit 1
-          fi
-          pypi_repo="${{ inputs.pypi_repo }}"
-          pypi_repo="${pypi_repo:-flagos-pypi-iluvatar}"
-          echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
-          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
-            || python3 -m pip install --quiet --upgrade twine pkginfo
-          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-          python3 -m twine upload \
-            --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
-            --non-interactive \
-            wheels/*.whl
+      - name: Keep the wheel
+        if: ${{ matrix.image_target }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: flagtree-wheel-${{ matrix.name }}
+          path: packaging/flagtree/wheels/*.whl
+          if-no-files-found: error
 
       - name: Push the builder image
         if: ${{ inputs.push }}
@@ -183,8 +278,7 @@ jobs:
           set -euo pipefail
           docker push "$IMAGE_REF"
 
-      # The push is only accepted, not served: read the tag back the way a
-      # consumer does, and compare what the registry serves with what was built.
+      # A push is accepted, not served: read the tag back as a consumer would.
       - name: Verify the pushed image reads back
         if: ${{ inputs.push }}
         env:
@@ -203,4 +297,8 @@ jobs:
       - name: Clean up
         if: ${{ always() }}
         run: |
-          docker rmi "$BUILDER_IMAGE" "$APP_IMAGE" 2>/dev/null || true
+          docker rmi "$BUILDER_IMAGE" 2>/dev/null || true
+          # APP_IMAGE only exists where the row has an image target.
+          if [ -n "${{ matrix.image_tag }}" ]; then
+            docker rmi "$APP_IMAGE" 2>/dev/null || true
+          fi

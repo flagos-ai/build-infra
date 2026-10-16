@@ -19,7 +19,7 @@
 # TWO STAGES, ONE FILE. `--target builder` is the build machine -- apt toolchain,
 # python 3.12 and the prebuilt LLVM, everything that does not depend on the
 # FlagTree ref -- and is published to the builder prefix by
-# flagtree-builder-nvidia.yml. The default target is the wheel build on top of
+# flagtree-builder.yml. The default target is the wheel build on top of
 # it, writing to /wheels. Passing that published image as BUILDER_IMAGE turns
 # stage 1 into a no-op, so a build pays for the clone and the compile and nothing
 # else; stage 1 says so with a marker file (see the guard below).
@@ -205,7 +205,7 @@ RUN git config --global http.version HTTP/1.1 \
     && source_hash="$(head -c 8 /opt/flagtree/cmake/llvm-hash.txt)" \
     && if [ "${source_hash}" != "${staged_hash}" ]; then \
          echo "ERROR: the builder staged LLVM ${staged_hash}, FlagTree is on ${source_hash}" >&2; \
-         echo "       Republish it: flagtree-builder-nvidia.yml." >&2; \
+         echo "       Republish it: flagtree-builder.yml." >&2; \
          exit 1; \
        fi \
     && echo ">>> LLVM ${staged_hash} matches the staged tree" \
