@@ -90,7 +90,7 @@ wheels:
     - linux_x86_64
   - version: 0.7.0+iluvatar3.6
     pypi_index: flagos-pypi-iluvatar
-    desc_zh: 面向天数智芯（Iluvatar）的 FlagTree 编译器安装包，基于 Triton 3.6。。
+    desc_zh: 面向天数智芯（Iluvatar）的 FlagTree 编译器安装包，基于 Triton 3.6。
     desc_en: FlagTree compiler wheel for Iluvatar, built against Triton 3.6.
     notes: 适用于 CoreX 4.5.0 环境。
     notes_en: For CoreX 4.5.0 environments.
@@ -102,7 +102,7 @@ wheels:
     - linux_x86_64
   - version: 0.7.0+metax3.6
     pypi_index: flagos-pypi-metax
-    desc_zh: 面向沐曦（MetaX）的 FlagTree 编译器安装包，基于 Triton 3.6 。
+    desc_zh: 面向沐曦（MetaX）的 FlagTree 编译器安装包，基于 Triton 3.6。
     desc_en: FlagTree compiler wheel for MetaX, built against Triton 3.6.
     notes: 适用于 MACA 3.7.x 和 3.8.x 环境。
     notes_en: For MACA 3.7.x and 3.8.x environments.
