@@ -292,18 +292,18 @@ Notes that apply only here:
   published, `flagtree-wheel.yml`'s `base_image` input takes another tag of the
   same CANN line (e.g. `:2.2.0-build`). Blank = the derived runtime image, which is
   what a real build must use.
-- **The proxy is applied per step, not per build.** Direct github access from the
-  CANN nodes is not stable, so `flagtree-wheel.yml` relays it as `PROXY_URL` (never
-  as `http_proxy`, which would be in the environment from the start) and the clone
-  / build steps probe first, falling back only when the direct call fails. The
-  prebuilt-deps download never uses it: the proxy answers HTTP 500 for that bucket
-  while it is reachable directly.
+- **The proxy is the runner's, like every other builder.** The targets declare
+  `http_proxy` / `https_proxy` / `no_proxy` and `flagtree-wheel.yml` relays all
+  three verbatim; git, curl and pip read them on their own, and nothing in the
+  build probes reachability or decides for the runner which endpoints are direct.
+  A host a build must reach directly is therefore named in the runner's
+  `no_proxy`, not in this tree.
 - Both builders share `verify_ascend_wheel.py`, COPYed into the build rather than
   a heredoc: the CANN nodes still run Docker's legacy builder.
 - Build cost on the CANN nodes: ~26 min for `ascend-cann9.0.0` and ~14 min for
   `ascend-cann8.5.0`, most of it compiling AscendNPU-IR and triton at `MAX_JOBS=32`.
   The github clone is the variable part — when it retries, the run is that much
-  longer, whatever the proxy probe said.
+  longer, whatever the egress was doing.
 - `upload=true` works from the CANN nodes (exercised 2026-09-17: both wheels are in
   `flagos-pypi-ascend`, beside the vendor's). Those runners run pip 22.0.2, which
   has no `--break-system-packages`, so the plain `pip install --upgrade twine
@@ -318,6 +318,7 @@ podman build -t flagtree-build:0.7.0 -f nvidia-cuda .
 
 # behind a proxy:
 podman build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
+             --build-arg no_proxy=$no_proxy \
              -t flagtree-build:0.7.0 -f nvidia-cuda .
 
 # nvidia-cuda's build machine on its own, and then a wheel build on top of it:
@@ -326,9 +327,8 @@ docker build --build-arg BUILDER_IMAGE=flagtree-builder-nvidia-cuda:ci \
              -t flagtree-build:0.7.0 -f nvidia-cuda .
 
 # ascend pair: aarch64 only, and the FROM image is the backend's runtime image
-# (pulled from the registry if absent). The build itself clones github.com, so
-# the proxy args matter here too; --build-arg no_proxy=... is relayed verbatim
-# and never invented inside the Containerfile.
+# (pulled from the registry if absent). The build clones github.com and fetches
+# prebuilt deps, so the same three proxy args apply.
 docker build -t flagtree-ascend-cann9.0.0:0.7.0rc2 -f ascend-cann9.0.0 .
 ```
 

@@ -41,9 +41,9 @@
 ARG BUILDER_IMAGE=ubuntu:22.04
 FROM ${BUILDER_IMAGE} AS builder
 
-# Proxy is only consumed during build (predefined ARG, not persisted in the image).
-# no_proxy rides along because the LLVM tarball below is fetched from the internal
-# filestore, which the CI runner reaches directly -- proxied, that fetch is refused.
+# Proxy, consumed only during build (not persisted in the image). All three are
+# declared: an undeclared ARG of that name is not inherited, and no_proxy is the
+# one that keeps the internal-filestore LLVM fetch below off the tunnel.
 ARG http_proxy=
 ARG https_proxy=
 ARG no_proxy=
@@ -138,7 +138,11 @@ COPY patch-flagtree-version.py /usr/local/bin/patch-flagtree-version.py
 FROM builder AS flagtree
 
 # Stage-scoped, so every arg the wheel build reads is declared again: ARGs do not
-# carry across FROM, while the stage's filesystem and ENV do.
+# carry across FROM, while the stage's filesystem and ENV do. The proxy args are
+# here for that reason too -- this stage clones the source and pip-installs.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
 ARG FLAGTREE_VERSION=0.7.0
 ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 #  - FLAGTREE_WHEEL_VERSION is the env var FlagTree's setup.py reads for the wheel

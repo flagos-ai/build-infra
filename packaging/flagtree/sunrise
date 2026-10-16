@@ -56,9 +56,12 @@
 #   id=$(docker create flagtree-sunrise:0.6.0); docker cp $id:/wheels ./wheels; docker rm $id
 FROM ubuntu:22.04
 
-# Proxy is only consumed during build (predefined ARG, not persisted in the image).
+# Proxy is only consumed during build (not persisted in the image). All three are
+# declared: an undeclared ARG of that name is not inherited, and no_proxy is the
+# one that keeps the deps tarball below off the tunnel.
 ARG http_proxy=
 ARG https_proxy=
+ARG no_proxy=
 # FlagTree git ref to build. The sunrise fix (FlagTree PR 978) exists only on main -- the
 # vendor tag 0.6.0+sunrise3.6 is pre-978. Default main; pass a commit sha for
 # reproducible builds.
