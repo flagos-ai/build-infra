@@ -80,6 +80,12 @@ cat > "$WORK_DIR/smoke.sh" <<'SMOKE'
 set -euo pipefail
 cd "/verify/bundle/${BUNDLE_NAME}"
 
+# We run as root in this container; the prefix install.sh creates is root-
+# owned on the host, so the host-side cleanup trap (non-root) cannot unlink
+# it. Remove it here in an EXIT trap so it fires on the failure path too —
+# without it a failed smoke leaks a multi-GB root-owned venv per run.
+trap 'rm -rf /verify/prefix 2>/dev/null || true' EXIT
+
 # meta.env (written by build_bundle.py) tells us the launcher to smoke-test.
 LAUNCHER="$(sed -n 's/^LAUNCHER=//p' meta.env)"
 [ -n "$LAUNCHER" ] || LAUNCHER="${BUNDLE_NAME%-*}" # fallback: never expected
@@ -106,9 +112,9 @@ fi
 
 # Remove our own prefix before exiting: install.sh ran as root in this
 # container, so these files are root-owned on the host and the host-side
-# cleanup trap (non-root) cannot unlink them. Doing it here, only on the
-# success path, leaves just host-owned files for the trap and keeps the
-# runner from leaking a multi-GB root-owned venv per run.
+# cleanup trap (non-root) cannot unlink them. Doing it here on the success
+# path (the EXIT trap above also covers the failure path) leaves just
+# host-owned files for the host trap.
 rm -rf /verify/prefix
 
 echo "==> verify passed"
@@ -124,6 +130,6 @@ docker run --rm --network none \
     -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
     -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
     -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-    ubuntu:22.04 bash /verify/smoke.sh
+    ubuntu:24.04 bash /verify/smoke.sh
 
 echo "==> verify passed: bundle installs and imports with the network denied"
