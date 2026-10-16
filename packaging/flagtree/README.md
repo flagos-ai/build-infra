@@ -139,10 +139,13 @@ changing a line of FlagTree source. The alternatives were measured and rejected:
 a hand-written `PKG-INFO` does not survive into METADATA, and appending to the
 `egg_info` output does not either.
 
-Removing `.git` is also what makes the version clean: FlagTree's
-`get_git_commit_hash()` appends `+git<sha8>` whenever `git rev-parse` answers,
-which is why the sha has to be read *before* the removal. Read it back with
-`pip show -v`, not from the version.
+**FlagCX is built out, not in.** The build exports `USE_FLAGCX=OFF` to make sure that
+the wheel carries no flagcx at all. The runtime installs the `flagcx` package and
+FlagTree prefers that library over the vendored copy.
+
+Removing `.git` to make the version clean: FlagTree's `get_git_commit_hash()` appends
+`+git<sha8>` whenever `git rev-parse` answers, which is why the SHA has to be read
+*before* the removal. Read it back with `pip show -v`, not from the version.
 
 ## Iluvatar builder (`iluvatar`)
 
