@@ -532,9 +532,8 @@ wheels:
     desc_zh: 面向通用 GPU 环境 13.3 的 torch-fl 设备插件安装包，提供统一的 flagos 设备。
     desc_en: torch-fl device-plugin wheel for generic GPU 13.3, exposing the unified
       flagos device.
-    notes: local 段 = SDK 构建变体（wheel_local），发布到唯一 lane flagos-pypi-nvidia。
-    notes_en: The local segment is an SDK build variant (wheel_local), published to
-      the single lane flagos-pypi-nvidia.
+    notes: ""
+    notes_en: ""
     python:
     - cp312
     os:
@@ -796,8 +795,8 @@ sources:
   versions:
   - 0.2.3
   - 0.3.0
-  notes: 取自 FlagOS 维护的 NVIDIA/Megatron-LM fork；这里的版本号是 fork 分支号，与 wheel 版本号不同。
-  notes_en: Taken from the NVIDIA/Megatron-LM fork maintained by FlagOS; the version
+  notes: 取自 FlagOS 维护的 Megatron-LM fork；这里的版本号是 fork 分支号，与 wheel 版本号不同。
+  notes_en: Taken from the Megatron-LM fork maintained by FlagOS; the version
     here is the fork branch number and differs from the wheel version.
 - name: torch-fl
   short_name: Torch-FL
