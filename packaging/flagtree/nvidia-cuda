@@ -131,9 +131,8 @@ RUN set -eu; \
     && printf '%s\n' "${LLVM_HASH}" > /opt/flagtree-build-env.llvm \
     && touch /opt/flagtree-build-env.ready
 
-# Make print(flagtree.__version__) answer "which FlagTree is this?" instead of
-# echoing the forked Triton line. Idempotent; fails the build if upstream's
-# python/flagtree/__init__.py moved on (see the script's docstring).
+# Make print(flagtree.__version__) answer "which FlagTree is this?". Idempotent.
+# Fails the build if upstream's python/flagtree/__init__.py is changed.
 COPY patch-flagtree-version.py /usr/local/bin/patch-flagtree-version.py
 
 FROM builder AS flagtree
@@ -156,13 +155,12 @@ ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 #    The release line publishes plain "flagtree"; the daily line publishes
 #    "flagtree-nvidia" so a consumer can name the backend and let pip pick the
 #    newest build (see packaging/flagtree/README.md).
+
 ARG FLAGTREE_WHEEL_NAME=flagtree
 ARG FLAGTREE_PYPI_KEY=
 
 # Build the FlagTree wheel from source.
-# Unconditionally use the proxy (passed as build-args, applied to every RUN,
-# not persisted in the image). Force HTTP/1.1 for git, and retry the flaky
-# network-heavy steps.
+# Unconditionally use the proxy (as build-args). Force HTTP/1.1 for git.
 #
 # THE FIRST CHECK IS THE STALENESS GATE. LLVM_SYSPATH points FlagTree at whatever
 # tree stage 1 staged, and FlagTree asks that tree nothing -- a build against the
@@ -172,33 +170,17 @@ ARG FLAGTREE_PYPI_KEY=
 # just cloned, or LLVM_SYSPATH can name a tree that is not in this image at all.
 #
 # THE SHA IS READ BEFORE .git GOES, AND BOTH COME BEFORE `pip wheel`. Deleting
-# .git is what makes the version clean: FlagTree appends "+git<sha>" in
+# .git so that the version clean: FlagTree appends "+git<sha>" in
 # get_git_commit_hash() whenever `git rev-parse` answers, and `git` is not
-# installed in the wheel's runtime anyway. The commit id it would have appended
-# is instead written into setup.cfg as a Project-URL -- see that step below.
+# installed in the wheel's runtime anyway.
 # Order is the whole trick: read the sha, write the carrier, only then delete.
 #
-# WHY setup.cfg, AND WHY NOTHING IS PATCHED. FlagTree has no setup.cfg of its own
-# (hence the guard), and setuptools merges one into the setup() call on its own,
-# so this reaches the METADATA as `Project-URL: Source-Commit, <url>` without a
-# single line of FlagTree source changing -- not setup.py, not pyproject.toml.
-# The alternatives were measured and rejected: a hand-written PKG-INFO does not
-# survive into METADATA, and appending to the egg_info output does not either.
-# The guard is a hard failure rather than a merge because upstream shipping one
-# would silently change what this line means.
-#
-# FLAGCX IS SWITCHED OFF, AND ITS ABSENCE IS ASSERTED. Left on, setup.py clones
-# FlagCX and copies what it builds into the wheel -- a 21 MB
-# triton/_C/libflagcx.so, its .bc, the wrapper and six headers (the release wheel
-# is 388 MB; this one is 124 MB). The runtime installs the flagcx package and
-# FlagTree prefers that library, so the copy is dead weight. USE_FLAGCX is
-# upstream's own switch (download_flagtree_third_party reads USE_<NAME>). Today
-# the copy is absent only because the compile fails -- the flagcx Makefile calls
-# `clang`, which this builder does not install, and utils/default.py swallows the
-# error -- so install one and 21 MB appears with nothing to notice it.
-#
-# The ~300 FlagCx strings left in libtriton.so are CMake's FLAGCX_ENABLED
-# compile-time ops, not a linked library, and are deliberately kept.
+# FlagTree has no setup.cfg of its own, and setuptools merges one into the setup()
+# call on its own. With setup.cfg, the METADATA `Project-URL: Source-Commit, <url>`
+# can provide git commit ID information. The guard is a hard failure rather than a
+# merge because upstream shipping one would silently change what this line means.
+# FLAGCX IS SWITCHED OFF. When turned on, a FlagCX distribution is embedded into
+# the release wheel. The runtime already installs the flagcx package.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -255,12 +237,7 @@ RUN git config --global http.version HTTP/1.1 \
 # Smoke test: install the freshly built wheel and import it (fails the build if
 # broken). The installed __version__ is the distribution's own version, so this
 # asserts both the import and that the patch survived into the installed tree.
-#
-# The remaining assertions are what make the .git removal, the setup.cfg carrier
-# and USE_FLAGCX worth trusting: those are all silent when they stop working. A
-# local segment creeping back in, a Project-URL that stopped being emitted, or
-# flagcx reappearing in the wheel would otherwise only be noticed later, by
-# whoever went looking.
+# The remaining assertions are what make the .git removal, the setup.cfg carrier.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
     && python3.12 -c "\
 import glob, importlib.metadata as md, zipfile, flagtree, triton;\
