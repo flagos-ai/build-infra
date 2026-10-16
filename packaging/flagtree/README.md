@@ -69,10 +69,11 @@ into FlagTree's offline cache). `nvidia-cuda` and `iluvatar` have one;
 `metax`, `sunrise` and the ascend pair are still single-stage.
 
 `.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
-one job per entry in `backends.yaml`, which is where a backend's builder facts
+one job per entry in `backends.yaml`, which is where a backend's build-line facts
 live: its Containerfile, the image repository the stage is published under, the
-runner labels, the disk budget, and which extra proof the stage needs. Adding a
-backend there is one entry, not a new workflow.
+runner labels, the disk budget, and which extra proof the stage needs.
+`flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
+one entry, not a new workflow and not a second job.
 
 The stage is tagged with the stack version (`configs.yaml` `version:`), so it is
 flat: a rebuild overwrites it. The wheel lines build on top of it.
@@ -423,17 +424,22 @@ Why the pieces sit where they do:
   `Project-URL: Source-Commit, …` in the METADATA, with no line of FlagTree
   source changed (see the NVIDIA build section above).
 
-Two knobs in the workflow's `env:`: `FLAGTREE_VERSION_BASE` (the release this
-daily leads — move it when `configs.yaml` moves on) and `FLAGTREE_DIST_NAME`
-(names the wheel).
+Two knobs per backend, both in `packaging/flagtree/backends.yaml`'s `daily:`
+block: `version_base` (the release this daily leads — move it when `configs.yaml`
+moves on) and `dist_name` (names the wheel). `ref` is the FlagTree line that row
+tracks — upstream's `main` for `nvidia`, declared rather than taken from the
+Containerfile's own default, which is the vendor release a local build
+reproduces.
 
 **The cron skips a day that has already been published; a manual run never
-does.** The version is known without a build — it is the UTC date — so `resolve`
-probes the index listing for today's filename and stops there, before the build
-runner is occupied at all and with nothing for Nexus to reject. A same-day cron
-re-run is skipped; a new UTC day always builds, even when `main` has not moved,
-because the wheel for a new date is a new wheel. What it was built from is in its
-METADATA, not in its name.
+does.** The version is known without a build — it is the UTC date — so the plan
+job probes that row's index listing for today's filename and drops the row
+before any build runner is occupied, with nothing for Nexus to reject. A
+same-day cron re-run is skipped; a new UTC day always builds, even when the ref
+has not moved, because the wheel for a new date is a new wheel. What it was
+built from is in its METADATA, not in its name. The decision is per row, so a
+backend already published today neither occupies its runner nor holds up another
+backend.
 
 The manual dispatch is the escape hatch for a fix merged after 01:37, so skipping
 it would defeat the only reason it exists. It publishes the same version the cron
