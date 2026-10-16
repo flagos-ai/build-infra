@@ -204,28 +204,26 @@ jobs:
           FLAGTREE_WHEEL_VERSION: ${{ needs.resolve.outputs.version }}
           FLAGTREE_WHEEL_NAME: ${{ env.FLAGTREE_DIST_NAME }}
           BUILDER_IMAGE: ${{ needs.resolve.outputs.builder_image }}
-          HTTP_PROXY_SECRET: ${{ secrets.HTTP_PROXY }}
         run: |
           set -euo pipefail
-          # Proxy: the runner's own, else the secret. Relay the value and nothing
-          # else — a NO_PROXY invented here would bypass the tunnel for hosts the
-          # container cannot resolve on its own. Uppercase because these are
-          # Docker's predefined proxy args, which reach every RUN without the
-          # Containerfile declaring them (flagtree-wheel.yml relays the same set).
-          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
-          proxy_url="${proxy_url:-${HTTP_PROXY_SECRET}}"
           build_args=(
             --build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}"
             --build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}"
             --build-arg "FLAGTREE_WHEEL_NAME=${FLAGTREE_WHEEL_NAME}"
             --build-arg "BUILDER_IMAGE=${BUILDER_IMAGE}"
           )
-          if [ -n "${proxy_url}" ]; then
-            build_args+=(--build-arg "HTTPS_PROXY=${proxy_url}")
-            build_args+=(--build-arg "HTTP_PROXY=${proxy_url}")
-            build_args+=(--build-arg "no_proxy=${no_proxy:-}")
-            build_args+=(--build-arg "NO_PROXY=${NO_PROXY:-}")
-          fi
+          # The runner's proxy, relayed verbatim: all three, never a value
+          # invented here, and never gated on one of the others being set. The
+          # Containerfile declares them as ARGs, which is what keeps them to the
+          # build -- an ARG is not persisted in the image config. no_proxy matters
+          # as much as the other two: a value invented here is what sends an
+          # internal fetch through the tunnel.
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
+          [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
+          [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
+          [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
           # --no-cache is kept even with a builder image: the clone layer is keyed
           # on the ref NAME, not its content, so a cached `main` would rebuild an
           # old commit under today's version. It matters more now than it did:

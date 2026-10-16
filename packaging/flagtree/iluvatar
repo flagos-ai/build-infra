@@ -33,10 +33,9 @@
 # ════════════════════════════════════════════════════════════════
 FROM ubuntu:22.04 AS builder
 
-# Proxy, consumed only during build (predefined ARG, not persisted). no_proxy is
-# declared so the runner's value survives: an undeclared ARG of that name is not
-# inherited, and the prebuilt deps below come off a bucket the host may well have
-# listed as internal.
+# Proxy, consumed only during build (not persisted in the image). All three are
+# declared: an undeclared ARG of that name is not inherited, and no_proxy is the
+# one that keeps the prebuilt-deps download below off the tunnel.
 ARG http_proxy=
 ARG https_proxy=
 ARG no_proxy=

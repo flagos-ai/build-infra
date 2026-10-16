@@ -30,10 +30,12 @@
 ARG BASE_IMAGE=flagos-runtime-ascend-cann8.5.0:2.2.0
 FROM ${BASE_IMAGE}
 
-# Fallback for github traffic, applied only after a direct call fails: direct
-# access from the CANN nodes is not stable. PROXY_NO_PROXY is relayed verbatim.
-ARG PROXY_URL=
-ARG PROXY_NO_PROXY=
+# The runner's proxy, relayed as build args like every other builder. git, curl
+# and pip all read these on their own -- the build never probes, never guesses,
+# and never decides for the runner which endpoints are reachable directly.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
 
 # FlagTree ref to build: branch, tag or sha. Pin a sha for a release.
 ARG FLAGTREE_VERSION=triton_v3.2.x
@@ -65,12 +67,14 @@ ARG MAX_JOBS=32
 SHELL ["/bin/bash", "-c"]
 
 # Stage the prebuilt deps into FlagTree's own offline caches (upstream's
-# unpack_triton_build_deps.sh, non-interactively). --noproxy: the proxy 500s here.
+# unpack_triton_build_deps.sh, non-interactively). No --noproxy carve-out: curl
+# reads the relayed proxy args, and this bucket being reached directly is the
+# CANN runners' no_proxy to say -- not a value to invent here.
 RUN mkdir -p /root/.flagtree/ascend /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
          for i in 1 2 3 4 5; do \
-           curl -fsSL --noproxy '*' --retry 3 --retry-delay 5 --connect-timeout 30 \
+           curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 \
              "${DEPS_BASE}/${f}" -o "${f}" && break; \
            echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
          done; \
@@ -84,16 +88,6 @@ RUN mkdir -p /root/.flagtree/ascend /root/.triton \
 # FETCH_HEAD takes branch/tag/sha alike. /opt/flagtree-src, never the vendor /opt/flagtree.
 RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
     && git config --global http.version HTTP/1.1 \
-    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
-    && if timeout 30 git ls-remote https://github.com/flagos-ai/flagtree HEAD >/dev/null 2>&1; then \
-         echo ">>> github reachable directly, no proxy"; \
-       elif [ -n "${PROXY_URL}" ]; then \
-         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
-                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
-         echo ">>> github not directly reachable, using the relayed proxy"; \
-       else \
-         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
-       fi \
     && for i in 1 2 3 4 5 6 7 8; do \
          rm -rf /opt/flagtree-src && git init -q /opt/flagtree-src \
            && git -C /opt/flagtree-src remote add origin https://github.com/flagos-ai/flagtree \
@@ -109,20 +103,9 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
 # TRITON_APPEND_CMAKE_ARGS disables -Wdangling-assignment-gsl, which this bundle's
 # clang 21 raises on the bundle's OWN MLIR headers (35205978277); the -Werror that
 # promotes it is flagtree's own (CMakeLists.txt:196), and setup.py passes the value on
-# cmake's command line, where a bare -W flag is an error (35208551871). The proxy probe
-# repeats here: this step fetches flir / AscendNPU-IR.
+# cmake's command line, where a bare -W flag is an error (35208551871).
 RUN unset PYTHONPATH \
     && cd /opt/flagtree-src/python \
-    && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY \
-    && if timeout 30 git ls-remote https://github.com/flagos-ai/flagtree HEAD >/dev/null 2>&1; then \
-         echo ">>> github reachable directly, no proxy"; \
-       elif [ -n "${PROXY_URL}" ]; then \
-         export http_proxy="${PROXY_URL}" https_proxy="${PROXY_URL}" \
-                no_proxy="${PROXY_NO_PROXY}" NO_PROXY="${PROXY_NO_PROXY}"; \
-         echo ">>> github not directly reachable, using the relayed proxy"; \
-       else \
-         echo ">>> github not directly reachable and no proxy was relayed" >&2; exit 1; \
-       fi \
     && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" "nanobind==${NANOBIND_VERSION}" \
     && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
