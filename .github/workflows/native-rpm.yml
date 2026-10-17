@@ -73,6 +73,14 @@ on:
         description: 'push the verified .rpm to the yum repositories (requires verify)'
         type: boolean
         default: false
+      channel:
+        description: >-
+          where publish puts the package: "release" is flagos-yum-<suite>, what
+          users install from; "daily" is flagos-yum-<suite>-daily, the snapshot
+          channel packages-daily.yml feeds from the default branches.
+        type: choice
+        options: [release, daily]
+        default: release
 
 env:
   NEXUS_REPO_BASE: https://resource.flagos.net/repository
@@ -307,11 +315,12 @@ jobs:
                     " Pass `version` to stamp a release version explicitly.")
               sys.exit(0)
 
-          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
+          # A daily snapshot, 0.4.0.dev20261017, is a pre-release of 0.4.0 too.
+          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:\.(dev\d+))?(?:[-.]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
                        release)
           if not m:
               sys.exit(f"::error::cannot parse a release version out of '{release}'")
-          upstream, rc, post = m.group(1), m.group(2), m.group(3)
+          upstream, dev, rc, post = m.group(1), m.group(2), m.group(3), m.group(4)
 
           # A pre-release qualifier cannot go in Version: "~" orders correctly
           # for rpm but breaks any consumer that reads the field as a Python
@@ -320,10 +329,14 @@ jobs:
           # The packaging guidelines' answer is to keep Version at the upstream
           # number and put the qualifier in Release: behind a leading 0 for a
           # pre-release, which sorts below the 1 a final release carries, and
-          # behind that 1 for a post-release, which must sort above it.
+          # behind that 1 for a post-release, which must sort above it. A daily
+          # goes behind the same leading 0: "dev" sorts below "rc", so a
+          # snapshot never shadows an rc of the release it precedes.
           version = upstream
           qualifier = ".".join(x for x in (rc, post) if x)
-          if rc:
+          if dev:
+              relval = f"0.{dev}%{{?dist}}"
+          elif rc:
               relval = f"0.{qualifier}%{{?dist}}"
           elif post:
               relval = f"1.{post}%{{?dist}}"
@@ -546,6 +559,7 @@ jobs:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
           SUITES: ${{ inputs.suites }}
           TARGET: ${{ inputs.target }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
           if [ -z "${NEXUS_TOKEN:-}" ]; then
@@ -553,6 +567,10 @@ jobs:
             exit 1
           fi
           echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
+          # The daily channel is a separate repository per suite, so a user
+          # who has not added it is never upgraded onto a snapshot.
+          suffix=''
+          [ "${CHANNEL:-release}" = daily ] && suffix=-daily
           uploaded=0
           attempted=0
           # Empty means every suite this target was built for, not every
@@ -572,7 +590,7 @@ jobs:
             fi
             mapfile -t rpms < <(find "${dir}" -name '*.rpm' ! -name '*.src.rpm' | sort)
             [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
-            repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
+            repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}${suffix}/"
             for r in "${rpms[@]}"; do
               attempted=$((attempted + 1))
               echo ">>> ${suite}: $(basename "$r")"

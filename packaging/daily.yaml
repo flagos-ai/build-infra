@@ -1,0 +1,176 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Rows of the deb/rpm daily (.github/workflows/packages-daily.yml). One row is
+# one dispatch of a release workflow at a component's default branch, stamped
+# <version_base>.dev<date> and published into the -daily repositories.
+#
+# Representative suites only -- one apt and one yum suite per component, the
+# ones its packaging is most likely to break on. The daily is a smoke test of
+# the packaging definitions at the head of development, not a release matrix;
+# the release matrix is what the pinned tables in the workflows describe.
+#
+#   workflow      release workflow file to dispatch
+#   inputs        its workflow_dispatch inputs. The daily adds version,
+#                 channel=daily, verify=true and publish.
+#   version_base  the number of the next release of the component. The stamp
+#                 is <version_base>.dev<date>, which orders above every build
+#                 of the current release and below the next one, rc included.
+#                 Bump it when the component tags that release.
+#   package       one binary package of the row, looked up in the daily
+#                 repository to skip a row already published for the day
+#   suite         where that lookup goes: flagos-apt-<suite>-daily or
+#                 flagos-yum-<suite>-daily
+#   dist          rpm rows only: the %{?dist} tag of that suite
+#   enabled       false keeps a row out of the plan (reason in a comment)
+
+rows:
+  # ---- deb, ubuntu24.04 -----------------------------------------------------
+  - name: FlagGems-deb
+    workflow: flaggems-deb.yml
+    inputs: {flaggems_ref: master, suites: ubuntu24.04}
+    version_base: "5.5.0"
+    package: python3-flag-gems
+    suite: ubuntu24.04
+  - name: FlagAttention-deb
+    workflow: noarch-deb.yml
+    inputs: {component: FlagAttention, ref: main, suites: ubuntu24.04}
+    version_base: "0.4.1"
+    package: python3-flag-attention
+    suite: ubuntu24.04
+  - name: FlagAudio-deb
+    workflow: noarch-deb.yml
+    inputs: {component: FlagAudio, ref: main, suites: ubuntu24.04}
+    version_base: "0.4.0"
+    package: python3-flag-audio
+    suite: ubuntu24.04
+  - name: FlagSparse-deb
+    workflow: noarch-deb.yml
+    inputs: {component: FlagSparse, ref: main, suites: ubuntu24.04}
+    version_base: "0.4.0"
+    package: python3-flagsparse
+    suite: ubuntu24.04
+  - name: FlagBLAS-deb
+    workflow: noarch-deb.yml
+    inputs: {component: FlagBLAS, ref: master, suites: ubuntu24.04}
+    version_base: "0.4.0"
+    package: python3-flag-blas
+    suite: ubuntu24.04
+  - name: libtriton_jit-deb
+    workflow: native-deb.yml
+    inputs: {target: libtriton_jit, ref: master, suites: ubuntu24.04}
+    version_base: "0.2.0"
+    package: libtriton-jit-nvidia
+    suite: ubuntu24.04
+  - name: FlagTree-deb
+    workflow: native-deb.yml
+    inputs: {target: FlagTree, ref: main, suites: ubuntu24.04}
+    version_base: "0.7.1"
+    package: python3-flagtree-nvidia
+    suite: ubuntu24.04
+  - name: FlagDNN-deb
+    workflow: native-deb.yml
+    inputs: {target: FlagDNN, ref: master, suites: ubuntu24.04}
+    version_base: "0.4.0"
+    package: libflagdnn-nvidia
+    suite: ubuntu24.04
+  - name: FlagTensor-deb
+    workflow: native-deb.yml
+    inputs: {target: FlagTensor, ref: main, suites: ubuntu24.04}
+    version_base: "0.4.0"
+    package: libflagtensor-nvidia
+    suite: ubuntu24.04
+  - name: FlagFFT-deb
+    # FlagFFT's deb only builds for ubuntu22.04 (python3.10 via the deadsnakes
+    # PPA), and there is no flagos-apt-ubuntu22.04-daily yet.
+    enabled: false
+    workflow: native-deb.yml
+    inputs: {target: FlagFFT, ref: main, suites: ubuntu22.04}
+    version_base: "0.3.0"
+    package: libflagfft-nvidia
+    suite: ubuntu22.04
+
+  # ---- rpm, openeuler24.03 ---------------------------------------------------
+  - name: FlagGems-rpm
+    workflow: noarch-rpm.yml
+    inputs: {component: FlagGems, ref: master, suites: openeuler24.03}
+    version_base: "5.5.0"
+    package: python3-flag-gems
+    suite: openeuler24.03
+    dist: oe2403
+  - name: FlagAttention-rpm
+    workflow: noarch-rpm.yml
+    inputs: {component: FlagAttention, ref: main, suites: openeuler24.03}
+    version_base: "0.4.1"
+    package: python3-flag-attention
+    suite: openeuler24.03
+    dist: oe2403
+  - name: FlagAudio-rpm
+    workflow: noarch-rpm.yml
+    inputs: {component: FlagAudio, ref: main, suites: openeuler24.03}
+    version_base: "0.4.0"
+    package: python3-flag-audio
+    suite: openeuler24.03
+    dist: oe2403
+  - name: FlagSparse-rpm
+    workflow: noarch-rpm.yml
+    inputs: {component: FlagSparse, ref: main, suites: openeuler24.03}
+    version_base: "0.4.0"
+    package: python3-flagsparse
+    suite: openeuler24.03
+    dist: oe2403
+  - name: FlagBLAS-rpm
+    workflow: noarch-rpm.yml
+    inputs: {component: FlagBLAS, ref: master, suites: openeuler24.03}
+    version_base: "0.4.0"
+    package: python3-flag-blas
+    suite: openeuler24.03
+    dist: oe2403
+  - name: FlagTree-rpm
+    workflow: native-rpm.yml
+    inputs: {target: FlagTree, ref: main, suites: openeuler24.03}
+    version_base: "0.7.1"
+    package: python3-flagtree-nvidia
+    suite: openeuler24.03
+    dist: oe2403
+  - name: FlagFFT-rpm
+    workflow: native-rpm.yml
+    inputs: {target: FlagFFT, ref: main, suites: openeuler24.03}
+    version_base: "0.3.0"
+    package: libflagfft-nvidia
+    suite: openeuler24.03
+    dist: oe2403
+
+  # ---- rpm, rhel9 (the only suite these targets have an image for) ----------
+  - name: libtriton_jit-rpm
+    workflow: native-rpm.yml
+    inputs: {target: libtriton_jit, ref: master, suites: rhel9}
+    version_base: "0.2.0"
+    package: libtriton-jit-nvidia
+    suite: rhel9
+    dist: el9
+  - name: FlagDNN-rpm
+    workflow: native-rpm.yml
+    inputs: {target: FlagDNN, ref: master, suites: rhel9}
+    version_base: "0.4.0"
+    package: libflagdnn-nvidia
+    suite: rhel9
+    dist: el9
+  - name: FlagTensor-rpm
+    workflow: native-rpm.yml
+    inputs: {target: FlagTensor, ref: main, suites: rhel9}
+    version_base: "0.4.0"
+    package: libflagtensor-nvidia
+    suite: rhel9
+    dist: el9
