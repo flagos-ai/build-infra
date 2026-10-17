@@ -212,6 +212,7 @@ for key in "${BACKENDS[@]}"; do
             --network host \
             --build-arg "BUILDER_APT=$BUILDER_APT" \
             --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
+            --build-arg "BUILDER_SDK_VERSION=$BUILDER_SDK_VERSION" \
             --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
             --build-arg "TORCH_PIN=$BUILDER_TORCH" \
             --build-arg "TORCH_MLU_PIN=$BUILDER_TORCH_MLU" \
