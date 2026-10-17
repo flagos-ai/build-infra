@@ -45,7 +45,9 @@ on:
           git ref to build. Leave empty to use the ref this target is pinned to
           below. A tag is preferred: a branch head moves under later
           cherry-picks, so the same dispatch would not build the same source
-          twice.
+          twice. Or `pull/<N>`: the head of that pull request, to run a
+          packaging change through this workflow before it is merged (verify
+          only; such a build can not be published).
         type: string
         default: ''
       version:
@@ -235,13 +237,24 @@ jobs:
           done
           echo "Publish targets: ${SUITES:-${BUILT}}"
 
+      # Only for scripts/clone-ref.sh; the component source goes under src/.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/clone-ref.sh
+          sparse-checkout-cone-mode: false
+
       - name: Clone ${{ inputs.target }}
         id: clone
         env:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
-          git clone --depth 50 --recurse-submodules --shallow-submodules --branch "${REF}" "${{ steps.cfg.outputs.repo_url }}" src
+          if [[ "${REF}" == pull/* && "${PUBLISH}" == "true" ]]; then
+            echo "::error::${REF} is a pull request head; it can be built and verified but not published"
+            exit 1
+          fi
+          scripts/clone-ref.sh --submodules "${{ steps.cfg.outputs.repo_url }}" "${REF}" src
           cd src
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
