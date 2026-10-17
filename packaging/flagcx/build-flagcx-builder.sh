@@ -214,6 +214,8 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
             --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
             --build-arg "TORCH_PIN=$BUILDER_TORCH" \
+            --build-arg "TORCH_MLU_PIN=$BUILDER_TORCH_MLU" \
+            --build-arg "TORCH_MLU_OPS_PIN=$BUILDER_TORCH_MLU_OPS" \
             --build-arg "NUMPY_PIN=$BUILDER_NUMPY" \
             --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \
             --build-arg "PYTHON_VERSION=$BUILDER_PYTHON_VERSION" \

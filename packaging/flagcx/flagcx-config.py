@@ -123,7 +123,8 @@ WHEEL_BUILD_INPUT_FIELDS = (
 BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
     "builder_apt", "builder_extra_apt", "assert", "make_env",
-    "builder_torch", "builder_numpy", "builder_runtime_prereqs",
+    "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
+    "builder_numpy", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
     "builder_nccl_dev_sha256", "builder_nccl_lib_sha256",
@@ -627,6 +628,13 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
                 configs.get("runtime_prereqs") or []
             )
             entry["builder_torch"] = torch_pin(entry["deps"])
+            # The torch-mlu bridge pin: the vendor torch import alone is not the
+            # SDK-floor proof — torch_mlu's _MLUC binds libcncl/libcnrt. Not all
+            # rows carry one (hygon's du torch has none), so it may be empty.
+            entry["builder_torch_mlu"] = _deps_pin(entry["deps"], "torch-mlu")
+            entry["builder_torch_mlu_ops"] = _deps_pin(
+                entry["deps"], "torch-mlu-ops"
+            )
             entry["builder_numpy"] = numpy_pin(entry["deps"])
             entry["builder_python_version"] = entry["python_version"]
             # The two pip indexes the self-contained install needs are already on

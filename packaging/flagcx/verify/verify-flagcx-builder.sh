@@ -146,6 +146,7 @@ docker exec -i \
     -e BACKEND="$BUILDER_NAME" -e IMAGE="$IMAGE" \
     -e FLAGCX_REPO="$OPT_REPO" -e FLAGCX_REF="$OPT_REF" \
     -e HAS_BITCODE="$HAS_BITCODE" \
+    -e TORCH_MLU_PIN="$BUILDER_TORCH_MLU" \
     -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
     -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
     -e MAKE_ENV="$BUILDER_MAKE_ENV" \
@@ -160,6 +161,13 @@ fail() { echo "$BACKEND: $*" >&2; exit 1; }
 if [ "$HAS_BITCODE" != "1" ]; then
     if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi
     TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch; print(">>> torch %s imports against the vendor SDK" % torch.__version__)'
+    # A row that pins a torch bridge (torch-mlu) needs the bridge import too:
+    # `import torch` is pure-CPU there and never dlopens the SDK, while the
+    # bridge does — it is what binds the wheel to libcncl/libcnrt, so it is the
+    # SDK-floor proof the plain torch import is not.
+    if [ -n "$TORCH_MLU_PIN" ]; then
+        TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_mlu; print(">>> torch_mlu imports against the vendor SDK (floor proof)")'
+    fi
     echo ">>> ok: $BACKEND (vendor row, no device bitcode)"
     exit 0
 fi

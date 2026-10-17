@@ -286,6 +286,13 @@ cambricon-neuware4.7.2:
   assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
   deb: {enabled: true, default_for_vendor: true}
   wheel: {enabled: true}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
+  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
+  # that. The SDK is 4.7.2's own ubuntu22.04 debs (filestore cambricon/u2204),
+  # whose libcncl links GLIBC_2.34 — the 24.04 SDK would link GLIBC_2.38.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-cambricon
 
 enflame-tops1.9.10:
   vendor: enflame
