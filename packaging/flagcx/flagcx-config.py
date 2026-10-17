@@ -122,7 +122,7 @@ WHEEL_BUILD_INPUT_FIELDS = (
 # to an index.
 BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
-    "builder_apt", "builder_extra_apt", "assert", "make_env",
+    "builder_apt", "builder_extra_apt", "builder_sdk_version", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
@@ -598,6 +598,16 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["builder_extra_apt"] = " ".join(
                 (spec.get("builder") or {}).get("extra_apt") or []
             )
+            # The metax vendor recipe extracts one of two SDK tarballs whose
+            # versions disagree with the key (3.7.2.1 -> sdk 3.7.2.0, 3.8.1.3 ->
+            # 3.8.1.3) — base/<key> carries the SDK version, and the recipe takes
+            # it rather than deriving from `key`, which would need the same
+            # "3.7.2.1 is not 3.7.2.0" exception restated. Only the metax recipe
+            # reads it; every other row leaves it "" and the shared/nvidia recipe
+            # installs its SDK through apt instead.
+            entry["builder_sdk_version"] = (spec.get("builder") or {}).get(
+                "sdk_version"
+            ) or ""
             # Not under `builder:` in the registry: nothing in the image depends
             # on either, so a block that also holds what the image installs would
             # read as if they were installed too. They are the row's device

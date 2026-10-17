@@ -96,18 +96,28 @@
 #                 make_env.DEVICE_HOME hands the `.mk`.
 #   builder.enabled
 #                 true = this row also publishes a build-toolchain image,
-#                 `flagos-dev/flagcx-builder-<key>`, on top of its *runtime*
-#                 image. Only rows whose runtime image lacks what the FlagCX
-#                 build needs carry one — the vendor-SDK rows build their wheel
-#                 straight in the runtime image, so absent is the ordinary
-#                 state, not drift. The image is the runtime image plus
-#                 build-time tools and nothing else: the wheel build imports
-#                 torch, so build env == delivery env, and a builder that could
-#                 not be the wheel's BASE_IMAGE would be the wrong artifact.
+#                 `flagos-dev/flagcx-builder-<key>`. Only rows whose runtime image
+#                 lacks what the FlagCX build needs (nvidia: no clang) or whose
+#                 wheel must link at most glibc 2.35 (the vendor rows) carry one,
+#                 so absent is the ordinary state, not drift. The image is
+#                 self-contained on ubuntu:22.04 — it installs its own interpreter
+#                 and torch and the row's SDK, rather than layering on the runtime
+#                 image, so build env == delivery env and a builder that could not
+#                 be the wheel's BASE_IMAGE would be the wrong artifact.
+#   builder.containerfile
+#                 the recipe, for a vendor row whose SDK installs from a tarball
+#                 into /opt rather than the CUDA apt repo. Rows on the shared
+#                 nvidia recipe (Containerfile.builder) leave it out.
 #   builder.apt   packages installed on top of the row's own `apt` list, which
 #                 the builder installs too (it is the same SDK fact, and a
 #                 second copy here could disagree with it). Build-time only —
 #                 nothing here needs to exist at run time.
+#   builder.sdk_version
+#                 the SDK tarball's own version spelling, for a vendor recipe
+#                 whose tarball name does not match the key (metax 3.7.2.1 ->
+#                 3.7.2.0). Only that recipe reads it; the key is not a source
+#                 for it because the mismatch is exactly what must not be
+#                 re-derived at build time.
 #   bitcode_arch  BITCODE_LIB_ARCH for the device-bitcode build, stated and not
 #                 derived. The only derivation available is the gencode table in
 #                 FlagCX's makefiles/nvidia_gencode.mk, and copying that table
@@ -242,6 +252,16 @@ metax-maca3.7.2.1:
   # MACA's cu-bridge toolchain sits beside the device root, not inside it —
   # see wheel.cuda_path above.
   wheel: {enabled: true, torch_backend: vendor, cuda_path: /opt/maca/tools/cu-bridge}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
+  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
+  # that. The SDK and the pinned torch are all glibc <= 2.28, so only the 24.04
+  # build toolchain was the problem. sdk_version is the tarball's own spelling,
+  # not the key's (3.7.2.1 -> 3.7.2.0) — the recipe extracts deb/*.amd64.deb
+  # into /opt/maca-<sdk_version without patch> and symlinks /opt/maca.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-metax
+    sdk_version: 3.7.2.0
 
 metax-maca3.8.1.3:
   vendor: metax
@@ -254,6 +274,13 @@ metax-maca3.8.1.3:
   assert: [/opt/maca/include/mccl.h, /opt/maca/include/mcr/mc_runtime.h]
   deb: {enabled: true, default_for_vendor: true}
   wheel: {enabled: true, torch_backend: vendor, cuda_path: /opt/maca/tools/cu-bridge}
+  # Same 22.04 builder as the 3.7.2.1 row, for the same reason: the wheel must
+  # link at most glibc 2.35 for the bundle's physical 22.04 hosts. sdk_version
+  # is the tarball's own spelling (3.8.1.3, matching the key here).
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-metax
+    sdk_version: 3.8.1.3
 
 cambricon-neuware4.4.3:
   vendor: cambricon
