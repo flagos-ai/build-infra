@@ -492,7 +492,6 @@ kunlunxin-xre5.37.1:
   deb: {enabled: false, default_for_vendor: true}
   rpm: {enabled: false, blocked_by: mixed-run-and-deb}
   wheel: {enabled: true}
-  rpm: {enabled: false, blocked_by: mixed-run-and-deb}
 
 mthreads-musa4.3.6:
   vendor: musa
