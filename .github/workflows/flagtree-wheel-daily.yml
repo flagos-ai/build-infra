@@ -363,23 +363,12 @@ jobs:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NEXUS_TOKEN:-}" ]; then
-            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
-            exit 1
-          fi
-          whl="$(ls wheels/*.whl)"
-          echo ">>> uploading $(basename "$whl") to ${PYPI_REPO}"
-          # Upgrade pkginfo with twine: setuptools >=77 (PEP 639) stamps
-          # Metadata-Version 2.4, which older pkginfo cannot parse and twine then
-          # aborts before upload (>=1.11 reads it).
-          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
-            || python3 -m pip install --quiet --upgrade twine pkginfo
-          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-          python3 -m twine upload \
-            --repository-url "${NEXUS_BASE}/${PYPI_REPO}/" \
-            --non-interactive \
-            "$whl"
+          # `-v wheels` is the job's packaging/flagtree/wheels, the same directory
+          # GITHUB_WORKSPACE would not name inside the container.
+          WHEEL_UPLOAD_REPO="$PYPI_REPO" \
+          WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
+          WHEEL_UPLOAD_MOUNT="wheels:/wheels:ro" \
+          bash ../../packaging/upload/upload-wheels.sh
 
       - name: Clean up the build image
         if: ${{ always() }}

@@ -1,0 +1,100 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Wheel Uploader Image
+
+# Publishes packaging/upload/ (twine + pkginfo, nothing else) to the builder
+# prefix. Every wheel line's upload step runs `docker run --rm` on this image
+# instead of installing twine into the runner's own python -- see the
+# Containerfile for why that dependency had to go.
+#
+# Manual trigger only: this image changes when the upload tooling changes, not
+# on a cadence. The release tag is configs.yaml's stack version, the same tag
+# every other tool image in the builder prefix carries.
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'push the uploader image to Harbor'
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    runs-on: [self-hosted, h20]
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Resolve the image ref
+        id: ref
+        run: |
+          set -euo pipefail
+          echo "image=$(packaging/upload/image-ref.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Build the uploader image
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          build_args=()
+          # The runner's proxy, relayed verbatim: all three, never a value
+          # invented here. The runner reaches an internal mirror directly, and
+          # no_proxy is what keeps it off the tunnel.
+          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
+          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
+          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
+          [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
+          [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
+          [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
+          docker build "${build_args[@]}" -t "$IMAGE" packaging/upload
+          docker run --rm "$IMAGE" --version
+
+      - name: Harbor login
+        if: ${{ inputs.push }}
+        env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          host="${IMAGE%%/*}"
+          printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin
+
+      - name: Push the uploader image
+        if: ${{ inputs.push }}
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: docker push "$IMAGE"
+
+      - name: Clean up
+        if: ${{ always() }}
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: docker rmi "$IMAGE" 2>/dev/null || true
