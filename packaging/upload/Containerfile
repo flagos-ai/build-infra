@@ -1,0 +1,53 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The wheel uploader: twine and nothing else, so that publishing a wheel does
+# not depend on the node the build ran on.
+#
+# WHY THIS EXISTS. Every wheel line used to run twine from the runner's own
+# python. That works until a node's release is older than what pip pulls into
+# it: `pip install --user --upgrade twine` on metax124 (Ubuntu 22.04, python3.10)
+# raises urllib3 past the `requests.packages.urllib3.contrib.appengine` import
+# that the system requests-toolbelt 0.9.1 still makes, and twine dies with an
+# ImportError before it sends anything -- after the wheel is already built and
+# gated. The failure is a property of the node, not of the wheel, and it also
+# leaves the node's python broken for the next run.
+#
+# Built on ubuntu:24.04, not 22.04: nothing here links against the host, and the
+# newer release's requests-toolbelt (1.0.0) is the one that does not make the
+# removed import. Pinned rather than floating -- an uploader that changes under
+# the release line is one more thing that can break a publish.
+
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        python3 \
+        python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bound, not pinned: twine 7 / pkginfo 1.13 are the versions the lines already
+# install, and the bounds keep a future major from landing unannounced. pkginfo
+# >= 1.11 is the floor that reads Metadata-Version 2.4, which setuptools >= 77
+# (PEP 639) stamps into the wheels these lines build.
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+        "twine>=7,<8" \
+        "pkginfo>=1.11,<2"
+
+# No ENTRYPOINT: the call sites pass the whole twine command, so a call that
+# wants to check versions first can use the same image with `python3 -c`.
+RUN python3 -m twine --version
