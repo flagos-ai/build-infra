@@ -172,12 +172,15 @@ jobs:
                           skip = filename.encode() in r.read()
                   except Exception as e:
                       print(f">>> {name}: index not readable ({e}) -- building")
+              # Progress to stderr, never stdout: this script is redirected into
+              # matrix.json, and one line of prose ahead of the JSON makes jq
+              # fail and takes the row's output with it.
               if skip:
-                  print(f">>> {name}: {filename} already published -- row skipped")
+                  print(f">>> {name}: {filename} already published -- row skipped", file=sys.stderr)
                   continue
 
               builder = overrides.get(name) or f"{host}/{prefix}/{cfg['builder_image']}:{stack}"
-              print(f">>> {name}: {filename} on {builder}")
+              print(f">>> {name}: {filename} on {builder}", file=sys.stderr)
               rows.append({
                   "name": name,
                   "containerfile": cfg["containerfile"],
