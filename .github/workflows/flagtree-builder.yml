@@ -19,7 +19,8 @@ name: FlagTree Builder
 # ref (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits). The
 # wheel lines build on top of those images. One entry per backend in
 # packaging/flagtree/backends.yaml; a row's fields say which extra proof its stage
-# gets (nvidia's content assertions, iluvatar's flagtree image + wheel).
+# gets (nvidia's and metax's content assertions, iluvatar's flagtree image +
+# wheel).
 #
 # Not a wheel publisher: iluvatar's wheel is kept as a run artifact and uploaded
 # by a wheel line, so one version never has two uploaders.
@@ -96,7 +97,9 @@ jobs:
                   # JSON string: a bare `runs-on: matrix.runson` queues forever.
                   "runson": json.dumps(cfg["runson"]),
                   "disk_min_gb": cfg["disk_min_gb"],
-                  "verify_stage": bool(b.get("verify_stage")),
+                  # A name, not a flag: each backend stages different things, so
+                  # each has its own assertions. "" = the build is the proof.
+                  "verify_stage": b.get("verify_stage") or "",
                   "image_target": bool(b.get("image_target")),
                   "image_tag": b.get("image_tag", ""),
                   "ref_arg": bool(b.get("ref_arg")),
@@ -206,8 +209,8 @@ jobs:
       # `lib/cmake/mlir` is the contract, not `bin/clang`: this is the oaitriton
       # tree that ships no clang (packaging/flagcx/WHEEL-DESIGN.md) and FlagTree
       # consumes it as an MLIR install tree.
-      - name: Verify the stage carries what the wheel build reads
-        if: ${{ matrix.verify_stage }}
+      - name: Verify the stage carries what the wheel build reads (nvidia)
+        if: ${{ matrix.verify_stage == 'nvidia' }}
         env:
           IMAGE_REF: ${{ steps.ref.outputs.image }}
         run: |
@@ -223,6 +226,32 @@ jobs:
             # The staleness gate in the wheel build reads this.
             test -s /opt/flagtree-build-env.llvm
             echo ">>> LLVM_SYSPATH=${LLVM_SYSPATH}, staged $(cat /opt/flagtree-build-env.llvm)"
+          '
+
+      # The metax stage's own contract: the three prebuilt inputs are what the
+      # wheel build consumes instead of fetching. Their NAMES are the coupling
+      # that matters -- FlagTree declares the URLs it wants in
+      # python/setup_tools/utils/metax.py and re-downloads anything it does not
+      # recognize, so a stage whose plugin version has fallen behind still
+      # builds, and does so over the network. Nothing here can decide that
+      # offline, so this asserts the cache is wired and reports the plugin's md5
+      # prefix, which is the value metax.py's md5_digest is compared against.
+      - name: Verify the stage carries what the wheel build reads (metax)
+        if: ${{ matrix.verify_stage == 'metax' }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+            test -f /opt/flagtree-build-env.ready
+            command -v git cmake ninja make wget curl >/dev/null
+            python3.12 -c "import sys; assert sys.version_info[:2] == (3, 12)"
+            python3.12 -m pip --version
+            test -d /root/.flagtree/metax/metax-llvm19
+            test -f /root/.flagtree/metax/metaxTritonPlugin.so
+            test -f /root/.triton/json/include/nlohmann/json.hpp
+            # FlagTree compares only the first 8 characters (setup_helper.py).
+            echo ">>> staged metax deps; plugin md5 prefix $(md5sum /root/.flagtree/metax/metaxTritonPlugin.so | cut -c1-8)"
           '
 
       # The default target is an image on top of the stage: building it proves

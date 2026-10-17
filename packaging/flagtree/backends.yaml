@@ -32,7 +32,10 @@
 #   builder         the publishable build environment. Its PRESENCE is what says
 #                   the Containerfile has a `--target builder` stage; a backend
 #                   without one cannot have its environment published yet.
-#     verify_stage  assert the stage carries what the wheel build reads from it.
+#     verify_stage  which proof the stage gets, by name: each backend stages
+#                   different things, so the assertions differ. Omitted = the
+#                   build itself is the proof. The names are the workflow's step
+#                   names, not a second registry.
 #     image_target  the default target is a flagtree image on top of the stage;
 #                   build it and keep the wheel it yields as proof.
 #     image_tag     local tag for that image; only with image_target.
@@ -63,7 +66,7 @@ backends:
     runson: ["self-hosted", "h20"]
     disk_min_gb: 15
     builder:
-      verify_stage: true
+      verify_stage: nvidia
       image_target: false
       ref_arg: false
     daily:
@@ -83,7 +86,6 @@ backends:
     runson: ["self-hosted", "h20"]
     disk_min_gb: 60
     builder:
-      verify_stage: false
       image_target: true
       image_tag: flagtree-iluvatar
       ref_arg: true
@@ -93,7 +95,22 @@ backends:
       version_base: "0.7.1"
       wheel_tag: cp312-cp312-linux_x86_64
 
-  # metax / sunrise / ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles
-  # here but no entry: their build environment is not separated into a
-  # publishable stage yet. Their rows arrive with that restructure, one backend
-  # per change -- see packaging/flagtree/README.md.
+  metax:
+    containerfile: metax
+    builder_image: flagtree-builder-metax
+    runson: ["self-hosted", "h20"]
+    disk_min_gb: 60
+    builder:
+      verify_stage: metax
+      image_target: false
+      ref_arg: false
+    daily:
+      enabled: false
+      dist_name: flagtree-metax
+      version_base: "0.7.1"
+      wheel_tag: cp312-cp312-linux_x86_64
+
+  # sunrise / ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles here but no
+  # entry: their build environment is not separated into a publishable stage yet.
+  # Their rows arrive with that restructure, one backend per change -- see
+  # packaging/flagtree/README.md.
