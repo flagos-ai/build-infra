@@ -32,41 +32,62 @@ section.
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA, builder + wheel | Ubuntu 22.04 (glibc 2.35) |
-| `metax`      | FlagTree for MetaX (MACA) | Ubuntu 22.04 (glibc 2.35) |
+| `metax`      | FlagTree for MetaX (MACA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU) | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + image | Ubuntu 22.04 (glibc 2.35) + CoreX 4.5.0 |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
 
-The `metax` builder exists because MetaX's own wheel (`flagtree==0.6.1+metax3.6`)
-is built on Ubuntu 24.04 and links `libtriton.so` against `GLIBC_2.38` +
-`GLIBCXX_3.4.32`, which do not exist on 22.04 — the client aborts before
-`main()` with `version 'GLIBC_2.38' not found`. The MetaX LLVM and
-`metaxTritonPlugin.so` are themselves clean, so a plain 22.04 rebuild is enough
-(no symbol patching, no static libstdc++). It pre-stages the prebuilt MetaX deps
-(LLVM, plugin, triton toolkits) into FlagTree's offline cache, and a post-build
-**objdump gate fails the build** if any 22.04-incompatible symbol
-(`GLIBC_2.38`, `GLIBCXX_3.4.31/32`, `__isoc23_*`) reappears in `libtriton.so`.
+The `metax` builder was written because MetaX's own wheel
+(`flagtree==0.6.1+metax3.6` on the host index) is built on Ubuntu 24.04 and links
+`libtriton.so` against `GLIBC_2.38` + `GLIBCXX_3.4.32`, which do not exist on
+22.04 — the client aborts before `main()` with `version 'GLIBC_2.38' not
+found`. The MetaX LLVM and `metaxTritonPlugin.so` are themselves clean, so a
+plain 22.04 rebuild is enough (no symbol patching, no static libstdc++).
 
-It also **pins pybind11** (`PYBIND11_SPEC`, default `>=3.0,<3.1`) because that is
-an ABI contract, not just a dependency. The prebuilt `metaxTritonPlugin.so` is
+The vendor's current wheel no longer has that problem — `0.7.0+metax3.6` peaks at
+`GLIBC_2.34` — but it is still built with debug info: `libtriton.so` is 793.7 MB
+with all eight `.debug_*` sections, against 218.6 MB for the Release build here,
+which is the whole of the 425.2 MB vs 204.6 MB wheel difference. It also carries
+no `Source-Commit`. So the two things this builder now buys are **size** and
+**provenance**, and both are gated: a post-build **objdump gate fails the build**
+if any 22.04-incompatible symbol (`GLIBC_2.38`, `GLIBCXX_3.4.31/32`,
+`__isoc23_*`) reappears in `libtriton.so`, and the smoke test fails without the
+`Source-Commit` carrier in the wheel metadata. It pre-stages the prebuilt MetaX
+deps (LLVM, plugin, triton toolkits) into FlagTree's offline cache so the build
+wires its own inputs instead of fetching them.
+
+The file is split the way `nvidia-cuda` is: `--target builder` is the build
+machine (apt toolchain, python 3.12, the three prebuilt inputs) and is published
+by `flagtree-builder.yml` to the builder prefix, while the default target clones
+the ref and compiles on top of it. Passing the published stage as
+`BUILDER_IMAGE` turns the first half into a no-op through the marker guard, so a
+warm build pays for the clone and the compile only.
+
+It also **pins pybind11** (`PYBIND11_SPEC`, default `pybind11==3.0.1`) because that
+is an ABI contract, not just a dependency. The prebuilt `metaxTritonPlugin.so` is
 compiled against pybind11 internals **v11**; `libtriton.so` and the plugin share
 pybind11 type registries only when their internals versions match. FlagTree
 requires only `pybind11>=2.13.1` (no upper bound), so an unpinned build pulls
 pybind11 3.1.0 — which bumped the internals version to **v12** — and the wheel
 imports fine but fails on real MetaX hardware at kernel-compile time with
 `metax.load_dialects(ctx)` → `TypeError: incompatible function arguments`. The
-CI smoke test (`import triton`) runs on a GPU-less box and cannot catch this, so
-the gate additionally **asserts libtriton's pybind11 internals are v11**
-(verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
+internals version alone is not enough either: 3.0.1 and 3.0.4 both report v11,
+but 3.0.4 changed the internals constructor, which crashes the prebuilt bindings
+in the pybind11 dispatcher. FlagTree's own `_PYBIND11_INTERNALS_TO_PIP` maps v11
+to exactly `pybind11==3.0.1` on `main` and on the `0.7.0` tag (the wider
+`>=3.0,<3.1` was the `0.6.1` line's), so this pin is the project's own rule, not
+ours. The CI smoke test (`import triton`) runs on a GPU-less box and cannot catch
+any of it, so the gate additionally **asserts libtriton's pybind11 internals are
+v11** (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
 
 ## Builders
 
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). `nvidia-cuda` and `iluvatar` have one;
-`metax`, `sunrise` and the ascend pair are still single-stage.
+into FlagTree's offline cache). `nvidia-cuda`, `metax` and `iluvatar` have one;
+`sunrise` and the ascend pair are still single-stage.
 
 `.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
 one job per entry in `backends.yaml`, which is where a backend's build-line facts
@@ -336,8 +357,10 @@ docker build -t flagtree-ascend-cann9.0.0:0.7.0rc2 -f ascend-cann9.0.0 .
 Useful build args (see the Containerfile for the full list):
 
 - `FLAGTREE_VERSION` — FlagTree git branch/tag/sha to build; also the wheel version
-  string (default `0.7.0` for `nvidia-cuda`, `0.6.1+metax3.6` for `metax`). This
-  is the single version knob.
+  string (default `0.7.0` for `nvidia-cuda`, `0.7.0+metax3.6` for `metax`). This
+  is the single version knob, and each default is the release the stack pins in
+  `configs.yaml`: the wheel's version is what a client's `pip` ends up with, so
+  the two are meant to agree.
 - `FLAGTREE_WHEEL_VERSION` — wheel version string; defaults to `FLAGTREE_VERSION`,
   so you normally only set `FLAGTREE_VERSION`. Every builder here ends up with a
   clean version (no `+git<sha>`): `metax`/`sunrise`/`nvidia-cuda` and the ascend
@@ -349,9 +372,10 @@ Useful build args (see the Containerfile for the full list):
   under. Default `flagtree`; the daily line sets `flagtree-nvidia` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`). Set by no caller in this repo.
-- `BUILDER_IMAGE` — `nvidia-cuda` only. The image stage 1 builds on; defaults to
-  `ubuntu:22.04` (the cold build). Pointing it at the published builder stage
-  makes stage 1 a no-op — see the builder section above.
+- `BUILDER_IMAGE` — the staged builders (`nvidia-cuda`, `metax`). The image
+  stage 1 builds on; defaults to `ubuntu:22.04` (the cold build). Pointing it at
+  the published builder stage makes stage 1 a no-op — see the builder sections
+  above.
 
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
