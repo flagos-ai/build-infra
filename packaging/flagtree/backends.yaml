@@ -79,10 +79,9 @@ backends:
   iluvatar:
     containerfile: iluvatar
     builder_image: flagtree-builder-iluvatar-corex4.5.0
-    # A plain x86_64 runner, NOT the corex-labeled ones: this build needs Docker
-    # Hub for ubuntu:22.04, which the CoreX nodes cannot reach
-    # (registry-1.docker.io resets), and it touches no iluvatar hardware. Device
-    # checks belong to the iluvatar verify line, which runs on those nodes.
+    # The shared runner: this build touches no iluvatar hardware, so nothing
+    # pulls it onto the corex nodes. Device checks belong to the iluvatar verify
+    # line, which runs on those nodes.
     runson: ["self-hosted", "h20"]
     disk_min_gb: 60
     builder:
@@ -98,7 +97,10 @@ backends:
   metax:
     containerfile: metax
     builder_image: flagtree-builder-metax
-    runson: ["self-hosted", "h20"]
+    # The backend's own nodes, though the build touches no metax hardware: the
+    # daily is meant to be dispatched for every backend at once, and one shared
+    # runner would serialize that.
+    runson: ["self-hosted", "maca381"]
     disk_min_gb: 60
     builder:
       verify_stage: metax
