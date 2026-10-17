@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: App Image
+name: Megatron App Image
 run-name: App Image · ${{ inputs.app || 'megatron_training' }}${{ inputs.megatron_version || '?' }} · ${{ inputs.backend || 'all' }}
 
 # Builds flagos-app/{app}{app_version}-{app_name}:{stack_version}-{mlf_version}

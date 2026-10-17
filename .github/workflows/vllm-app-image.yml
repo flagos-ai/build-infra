@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: App Image
+name: vLLM App Image
 run-name: App Image · vllm${{ inputs.vllm_version || '?' }} · ${{ inputs.backend || 'all' }}
 
 # Builds flagos-app/vllm{vllm_version}-{app_name}:{version}[-{plugin}]
