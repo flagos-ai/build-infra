@@ -123,6 +123,26 @@ the same source can be built again.
   per-suite dependency floors (e.g. a different sqlalchemy minimum) stay
   expressible.
 
+## Daily snapshots
+
+- Every component's default branch is packaged once a day into
+  `flagos-apt-<suite>-daily` / `flagos-yum-<suite>-daily`. These are separate
+  from the release repositories: a user who has not added a daily source is
+  never upgraded onto a snapshot.
+- The version is `<next release>.dev<YYYYMMDD>`, spelled as the wheels in
+  `flagos-pypi-daily` are. It lands as `0.4.0~dev20261017-1` for deb and
+  `0.4.0-0.dev20261017.oe2403` for rpm, both above every build of the current
+  release and below the next one, rc included. Only the date is in the
+  version; the commit is in the build log, and a same-day re-run replaces the
+  day's package.
+- Representative suites only (apt ubuntu24.04; yum openEuler 24.03, or rhel9
+  for the components that only have an image there). The daily is a smoke
+  test of the packaging definitions at the head of development, not a release
+  matrix.
+- Rows live in `packaging/daily.yaml`; `packages-daily.yml` (02:07 UTC, also
+  manual) dispatches them, and the release workflows build, verify and upload
+  as they do for a release, with `channel=daily`.
+
 ## Versioning
 
 - deb: a distro suffix on the Debian revision, `+<distro><ver>`

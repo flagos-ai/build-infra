@@ -1,0 +1,208 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The deb/rpm daily: every row of packaging/daily.yaml is one release workflow
+# dispatched at a component's default branch, stamped <version_base>.dev<date>
+# and published into the -daily repositories (channel=daily). The release
+# workflows do the building, verifying and uploading exactly as they do for a
+# release; this file only decides what to dispatch today.
+#
+# WHAT A DAILY IS FOR. A packaging definition that no longer builds at the
+# head of development is found the day it breaks, not at the next release
+# tag -- which is how release-2.2 came to have GA tags whose deb or rpm could
+# not be built. The packages are usable snapshots for whoever adds the daily
+# repository, and nobody else sees them: the release repositories are
+# separate.
+#
+# THE VERSION. <version_base>.dev<date>, the way the pypi daily spells it.
+# The deb line writes it as <base>~dev<date>, the rpm line as
+# <base>-0.dev<date>.<dist>; both order above every build of the current
+# release and below the next one, rc included. The date alone is in the
+# version: the commit is in the build log and the dispatched run, and a date
+# re-run replaces the day's package rather than adding one beside it.
+#
+# THE SKIP. A row whose version is already in its daily repository is not
+# dispatched again, so the cron is idempotent for the day; `force` overrides
+# that for a manual re-run. The lookup is by the row's `package`, one binary
+# package of the build.
+#
+# THE DISPATCH. Rows are started with workflow_dispatch under the repository
+# token; check-trigger-author lets github-actions[bot] through, so the cron
+# needs no entry in builders.txt. Each row is its own run with its own
+# red/green under the release workflow's name; this run's summary lists what
+# was dispatched and what was skipped.
+
+name: Packages Daily
+
+on:
+  workflow_dispatch:
+    inputs:
+      rows:
+        description: >-
+          rows to dispatch, space-separated names from packaging/daily.yaml
+          (blank = every enabled row)
+        type: string
+        default: ''
+      date:
+        description: 'YYYYMMDD to stamp (blank = today, UTC)'
+        type: string
+        default: ''
+      publish:
+        description: 'publish into the -daily repositories (off = build and verify only)'
+        type: boolean
+        default: true
+      force:
+        description: 'dispatch rows already published for the day (the upload replaces them)'
+        type: boolean
+        default: false
+  schedule:
+    # After the wheel dailies (01:17 and 01:37 UTC), before the Beijing morning.
+    - cron: '7 2 * * *'
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  NEXUS_BASE: https://resource.flagos.net
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  dispatch:
+    needs: authorize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Plan the day
+        id: plan
+        env:
+          ROWS: ${{ inputs.rows }}
+          DATE: ${{ inputs.date }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys, urllib.parse, urllib.request
+          from datetime import datetime, timezone
+
+          import yaml
+
+          rows = yaml.safe_load(open("packaging/daily.yaml"))["rows"]
+          wanted = set(os.environ["ROWS"].split())
+          date = os.environ["DATE"].strip() or datetime.now(timezone.utc).strftime("%Y%m%d")
+          force = os.environ["FORCE"] == "true"
+          nexus = os.environ["NEXUS_BASE"]
+
+          unknown = wanted - {r["name"] for r in rows}
+          if unknown:
+              sys.exit(f"::error::no such row(s) in packaging/daily.yaml: {sorted(unknown)}")
+
+          def published(row, version):
+              # The repository may not exist yet, or the row may never have
+              # been published: both read as "not published" and the dispatch
+              # goes ahead, where the upload step reports the real state.
+              if "dist" in row:
+                  repo = f"flagos-yum-{row['suite']}-daily"
+                  spelled = f"{row['version_base']}-0.dev{date}.{row['dist']}"
+              else:
+                  repo = f"flagos-apt-{row['suite']}-daily"
+                  spelled = f"{row['version_base']}~dev{date}-1"
+              query = urllib.parse.urlencode(
+                  {"repository": repo, "name": row["package"], "version": spelled})
+              try:
+                  with urllib.request.urlopen(
+                          f"{nexus}/service/rest/v1/search?{query}", timeout=30) as resp:
+                      items = json.load(resp).get("items", [])
+              except Exception as exc:  # noqa: BLE001 - any failure means "unknown"
+                  print(f"::warning::{row['name']}: lookup in {repo} failed ({exc}); dispatching",
+                        file=sys.stderr)
+                  return False
+              return bool(items)
+
+          plan, skipped = [], []
+          for row in rows:
+              if wanted and row["name"] not in wanted:
+                  continue
+              if not row.get("enabled", True) and not wanted:
+                  continue
+              version = f"{row['version_base']}.dev{date}"
+              if not force and published(row, version):
+                  skipped.append((row["name"], version))
+                  continue
+              plan.append({
+                  "name": row["name"],
+                  "workflow": row["workflow"],
+                  "version": version,
+                  "inputs": {str(k): str(v) for k, v in row["inputs"].items()},
+              })
+
+          for name, version in skipped:
+              print(f">>> {name}: {version} already published -- skipped", file=sys.stderr)
+          for p in plan:
+              print(f">>> {p['name']}: {p['workflow']} {p['version']} {p['inputs']}", file=sys.stderr)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"date={date}\n")
+              out.write(f"plan={json.dumps(plan)}\n")
+              out.write(f"skipped={json.dumps(skipped)}\n")
+          PY
+
+      - name: Dispatch the rows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLAN: ${{ steps.plan.outputs.plan }}
+          SKIPPED: ${{ steps.plan.outputs.skipped }}
+          DATE: ${{ steps.plan.outputs.date }}
+          # The cron has no inputs; it publishes.
+          PUBLISH: ${{ github.event_name == 'schedule' && 'true' || inputs.publish }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Packages daily ${DATE}"
+            echo
+            echo "| row | workflow | version | result |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          failed=0
+          while IFS=$'\t' read -r name workflow version args; do
+            [ -n "$name" ] || continue
+            # shellcheck disable=SC2086 -- args are "-f key=value" pairs
+            if gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
+                 -f "version=$version" -f channel=daily -f verify=true -f "publish=$PUBLISH" $args; then
+              echo "| $name | $workflow | $version | dispatched |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $name | $workflow | $version | dispatch failed |" >> "$GITHUB_STEP_SUMMARY"
+              failed=$((failed + 1))
+            fi
+          done < <(jq -r '.[] | [.name, .workflow, .version,
+                     ([.inputs | to_entries[] | "-f " + .key + "=" + .value] | join(" "))] | @tsv' <<<"$PLAN")
+          jq -r '.[] | "| \(.[0]) | | \(.[1]) | already published |"' <<<"$SKIPPED" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::${failed} row(s) could not be dispatched"
+            exit 1
+          fi

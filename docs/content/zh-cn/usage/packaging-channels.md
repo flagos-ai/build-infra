@@ -101,6 +101,18 @@ deb/rpm 从不取代 PyPI 渠道；两者并存。deb/rpm 一侧必须能独立�
 - **arch:all / noarch 包会被复制进它适用的每一个 suite** —— 不存在单独的 "shared" 仓库。
   用户只需一行 sources，而各 suite 的依赖下限（例如不同的 sqlalchemy 最低版本）仍然可表达。
 
+## 每日快照
+
+- 每个组件的默认分支每天出一次 deb/rpm，进 `flagos-apt-<suite>-daily` /
+  `flagos-yum-<suite>-daily`。与正式仓分开：没有加 daily 源的用户不会被升到快照。
+- 版本是 `<下一版本>.dev<YYYYMMDD>`，与 `flagos-pypi-daily` 的 wheel 同一写法。deb 落成
+  `0.4.0~dev20261017-1`，rpm 落成 `0.4.0-0.dev20261017.oe2403`，都排在当前正式版之上、
+  下一正式版（含其 rc）之下。版本只带日期；提交号在构建日志里，同一天重跑覆盖当天的包。
+- 只做代表发行版（apt ubuntu24.04；yum openEuler 24.03，只在 rhel9 有镜像的组件用 rhel9）。
+  每日线是打包定义在开发头上的冒烟，不是发布矩阵。
+- 行表在 `packaging/daily.yaml`，调度在 `packages-daily.yml`（每日 02:07 UTC，也可手动），
+  真正的构建、验证、上传仍由各发布 workflow 以 `channel=daily` 完成。
+
 ## 版本
 
 - deb：在 Debian revision 上加发行版后缀 `+<distro><ver>`
