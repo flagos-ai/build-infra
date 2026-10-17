@@ -19,6 +19,12 @@ name: Wheel Uploader Image
 # instead of installing twine into the runner's own python -- see the
 # Containerfile for why that dependency had to go.
 #
+# ONE IMAGE, BOTH ARCHITECTURES. Upload steps run wherever their wheel line
+# runs, and that includes the ascend pair on aarch64 CANN nodes. Each arch is
+# built natively on a node that has it and the two are combined into one tag:
+# Docker Hub is unreachable from every node, so a cross-arch build has no base
+# image to resolve and no emulator is installed to run one.
+#
 # Manual trigger only: this image changes when the upload tooling changes, not
 # on a cadence. The release tag is configs.yaml's stack version, the same tag
 # every other tool image in the builder prefix carries.
@@ -47,7 +53,15 @@ jobs:
 
   build:
     needs: authorize
-    runs-on: [self-hosted, h20]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runson: '["self-hosted", "h20"]'
+          - arch: arm64
+            runson: '["self-hosted", "cann850"]'
+    runs-on: ${{ fromJSON(matrix.runson) }}
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -56,13 +70,26 @@ jobs:
         id: ref
         run: |
           set -euo pipefail
-          echo "image=$(packaging/upload/image-ref.sh)" >> "$GITHUB_OUTPUT"
+          echo "image=$(packaging/upload/image-ref.sh)-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
 
       - name: Build the uploader image
         env:
           IMAGE: ${{ steps.ref.outputs.image }}
         run: |
           set -euo pipefail
+          # The node that took this job must be the architecture the tag claims.
+          # A mislabelled runner would publish an `arm64` tag holding amd64
+          # layers, and nothing would notice until the other architecture's
+          # node failed to pull it.
+          case "$(uname -m)" in
+            x86_64)  actual=amd64 ;;
+            aarch64) actual=arm64 ;;
+            *) echo "ERROR: unknown machine $(uname -m)" >&2; exit 1 ;;
+          esac
+          if [ "$actual" != "${{ matrix.arch }}" ]; then
+            echo "ERROR: the ${{ matrix.arch }} row landed on a $actual node" >&2
+            exit 1
+          fi
           build_args=()
           # The runner's proxy, relayed verbatim: all three, never a value
           # invented here. The runner reaches an internal mirror directly, and
@@ -73,6 +100,14 @@ jobs:
           [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
           [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
           [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
+          # Attestations off where the builder offers them: an attestation is an
+          # extra manifest, which makes this arch tag an INDEX, and an index
+          # cannot be a member of the list `publish` builds. The nodes do not
+          # agree on their docker version, so probe rather than pass a flag the
+          # other node's builder would reject.
+          if docker build --help 2>&1 | grep -q -- '--provenance'; then
+            build_args+=(--provenance=false --sbom=false)
+          fi
           # -f is required: the directory holds more than the Containerfile, and
           # a build context with no `Dockerfile` is not a Containerfile build.
           docker build "${build_args[@]}" -f packaging/upload/Containerfile -t "$IMAGE" packaging/upload
@@ -90,7 +125,7 @@ jobs:
           host="${IMAGE%%/*}"
           printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin
 
-      - name: Push the uploader image
+      - name: Push the architecture tag
         if: ${{ inputs.push }}
         env:
           IMAGE: ${{ steps.ref.outputs.image }}
@@ -101,3 +136,51 @@ jobs:
         env:
           IMAGE: ${{ steps.ref.outputs.image }}
         run: docker rmi "$IMAGE" 2>/dev/null || true
+
+  # The tag every call site pulls. Kept separate from `build` because the list
+  # can only be assembled once both architectures are in the registry, and
+  # because it is the only step that has to touch both.
+  publish:
+    needs: build
+    if: ${{ inputs.push }}
+    runs-on: [self-hosted, h20]
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Resolve the image ref
+        id: ref
+        run: |
+          set -euo pipefail
+          echo "image=$(packaging/upload/image-ref.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Harbor login
+        env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          host="${IMAGE%%/*}"
+          printf '%s' "$HARBOR_PW" | docker login "$host" -u "$HARBOR_USER" --password-stdin
+
+      - name: Publish the multi-architecture tag
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          # --amend, so a re-run after one arch was re-pushed replaces its entry
+          # instead of being refused for a duplicate platform.
+          docker manifest create --amend "$IMAGE" "$IMAGE-amd64" "$IMAGE-arm64"
+          docker manifest push "$IMAGE"
+          docker manifest rm "$IMAGE" 2>/dev/null || true
+          # Read the list back and assert both platforms are on it: a manifest
+          # that silently kept one architecture would only show up as a pull
+          # failure on the other node's next upload.
+          docker manifest inspect "$IMAGE" \
+            | python3 -c '
+          import json, sys
+          arch = sorted(m["platform"]["architecture"] for m in json.load(sys.stdin)["manifests"])
+          print(">>> platforms:", " ".join(arch))
+          assert arch == ["amd64", "arm64"], arch
+          '

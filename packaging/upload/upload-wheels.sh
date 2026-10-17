@@ -26,14 +26,20 @@
 #
 # The call site must provide:
 #   NEXUS_TOKEN         required. "user:password", as the lines already carry it.
-#   WHEEL_UPLOAD_REPO   required. The Nexus repository to publish to.
+#   WHEEL_UPLOAD_REPO   required. The Nexus repository, or several whitespace
+#                       separated: the same wheel set goes to each. The sglang
+#                       shim job fans one shim out over the vendor indexes.
 #   WHEEL_UPLOAD_PATHS  required. What to hand twine, already absolute inside the
 #                       container if the call site bind-mounted at a set path, or
 #                       relative to the bind-mounted directory. Whitespace
 #                       separated; each entry is passed through unquoted so a
 #                       glob expands in the container.
-#   WHEEL_UPLOAD_MOUNT  optional, default "/wheels:ro". Comma-separated
-#                       "host-path(:container-path)(:ro|rw)" for each -v.
+#   WHEEL_UPLOAD_MOUNT  optional, default "wheels:/wheels:ro". Comma-separated
+#                       "host-path(:container-path)(:ro|rw)" for each -v. The
+#                       host side resolves against the calling step's directory,
+#                       so a call site in packaging/<line> writes `wheels` and
+#                       not `$PWD/wheels` -- GITHUB_WORKSPACE is not a path the
+#                       container has. See the volume-name guard below.
 #   WHEEL_UPLOAD_INDEX  optional. The index root; defaults to the internal Nexus.
 #                       The CANN lines upload to a vendor index over a different
 #                       route and pass their own.
@@ -58,25 +64,37 @@ image="${WHEEL_UPLOAD_IMAGE:-$("$here/image-ref.sh")}"
 index="${WHEEL_UPLOAD_INDEX:-https://resource.flagos.net/repository}"
 
 mounts=()
-IFS=',' read -r -a specs <<< "${WHEEL_UPLOAD_MOUNT:-/wheels:ro}"
+IFS=',' read -r -a specs <<< "${WHEEL_UPLOAD_MOUNT:-wheels:/wheels:ro}"
 for spec in "${specs[@]}"; do
+  [ -n "$spec" ] || continue
+  host="${spec%%:*}"
+  # A `-v` source with no slash in it is a VOLUME NAME to docker, not a path:
+  # `-v wheels:/wheels:ro` mounts an empty volume and the upload then fails with
+  # the wheel pattern reported as missing. A slash-free relative source can only
+  # ever mean a directory under the caller's own, so make it one.
+  case "$host" in
+    */*|.|..) ;;
+    *) spec="./${spec}" ;;
+  esac
   mounts+=(-v "$spec")
 done
 
 echo ">>> uploading ${WHEEL_UPLOAD_PATHS} to ${WHEEL_UPLOAD_REPO}"
 
-docker run --rm \
-  -e NEXUS_TOKEN \
-  -e WHEEL_UPLOAD_REPO \
-  -e WHEEL_UPLOAD_PATHS \
-  -e WHEEL_UPLOAD_INDEX="$index" \
-  "${mounts[@]}" \
-  "$image" \
-  bash -euo pipefail -c '
-    export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-    export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-    python3 -m twine upload \
-      --repository-url "${WHEEL_UPLOAD_INDEX}/${WHEEL_UPLOAD_REPO}/" \
-      --non-interactive \
-      ${WHEEL_UPLOAD_PATHS}
-  '
+for repo in $WHEEL_UPLOAD_REPO; do
+  docker run --rm \
+    -e NEXUS_TOKEN \
+    -e WHEEL_UPLOAD_PATHS \
+    -e WHEEL_UPLOAD_INDEX="$index" \
+    -e WHEEL_UPLOAD_REPO="$repo" \
+    "${mounts[@]}" \
+    "$image" \
+    bash -euo pipefail -c '
+      export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+      export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+      python3 -m twine upload \
+        --repository-url "${WHEEL_UPLOAD_INDEX}/${WHEEL_UPLOAD_REPO}/" \
+        --non-interactive \
+        ${WHEEL_UPLOAD_PATHS}
+    '
+done

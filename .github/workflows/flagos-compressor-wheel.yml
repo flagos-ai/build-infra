@@ -84,17 +84,11 @@ jobs:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NEXUS_TOKEN:-}" ]; then
-            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
-            exit 1
-          fi
-          python3 -m pip install --quiet twine
-          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-          python3 -m twine upload \
-            --repository-url "https://resource.flagos.net/repository/${PYPI_REPO}/" \
-            --non-interactive \
-            wheels/*.whl
+          # The default mount is `wheels:/wheels:ro`, relative to this step's
+          # own directory, which is the repo root.
+          WHEEL_UPLOAD_REPO="$PYPI_REPO" \
+          WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
+          bash packaging/upload/upload-wheels.sh
       - name: Record the publish event in the manifest
         if: ${{ inputs.upload }}
         run: |

@@ -282,10 +282,6 @@ jobs:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NEXUS_TOKEN:-}" ]; then
-            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
-            exit 1
-          fi
           # ${{ inputs.backend }} cannot expand inside ${...} — use a local var.
           backend="${{ inputs.backend }}"
           pypi_repo="${{ inputs.pypi_repo }}"
@@ -309,37 +305,28 @@ jobs:
             fi_targets=("${targets[@]}")
             tc_targets=("${targets[@]}")
           fi
-          python3 -m pip install --quiet twine
-          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-          for repo in "${targets[@]}"; do
-            echo ">>> uploading sgl-kernel shim to ${repo}"
-            python3 -m twine upload \
-              --repository-url "https://resource.flagos.net/repository/${repo}/" \
-              --non-interactive \
-              "${GITHUB_WORKSPACE}/wheels/sgl_kernel_shim"*.whl
-          done
+          # One twine run per index, on the uploader image: the repos are the
+          # script's WHEEL_UPLOAD_REPO list, and the wheels are bind-mounted
+          # from this job's own `wheels/`.
+          WHEEL_UPLOAD_REPO="${targets[*]}" \
+          WHEEL_UPLOAD_PATHS="/wheels/sgl_kernel_shim*.whl" \
+          WHEEL_UPLOAD_MOUNT="wheels:/wheels:ro" \
+          bash packaging/upload/upload-wheels.sh
           if ! compgen -G "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl > /dev/null; then
             echo "no flashinfer shim wheel on this ref — nothing to upload"
           else
-            for repo in "${fi_targets[@]}"; do
-              echo ">>> uploading flashinfer shim to ${repo}"
-              python3 -m twine upload \
-                --repository-url "https://resource.flagos.net/repository/${repo}/" \
-                --non-interactive \
-                "${GITHUB_WORKSPACE}/wheels/flashinfer_shim"*.whl
-            done
+            WHEEL_UPLOAD_REPO="${fi_targets[*]}" \
+            WHEEL_UPLOAD_PATHS="/wheels/flashinfer_shim*.whl" \
+            WHEEL_UPLOAD_MOUNT="wheels:/wheels:ro" \
+            bash packaging/upload/upload-wheels.sh
           fi
           if ! compgen -G "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl > /dev/null; then
             echo "no torch-compat shim wheel on this ref — nothing to upload"
           else
-            for repo in "${tc_targets[@]}"; do
-              echo ">>> uploading torch-compat shim to ${repo}"
-              python3 -m twine upload \
-                --repository-url "https://resource.flagos.net/repository/${repo}/" \
-                --non-interactive \
-                "${GITHUB_WORKSPACE}/wheels/torch_compat_shim"*.whl
-            done
+            WHEEL_UPLOAD_REPO="${tc_targets[*]}" \
+            WHEEL_UPLOAD_PATHS="/wheels/torch_compat_shim*.whl" \
+            WHEEL_UPLOAD_MOUNT="wheels:/wheels:ro" \
+            bash packaging/upload/upload-wheels.sh
           fi
 
       # One line per (shim, index) actually uploaded — the same targets the
