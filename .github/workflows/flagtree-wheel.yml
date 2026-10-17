@@ -179,29 +179,19 @@ jobs:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NEXUS_TOKEN:-}" ]; then
-            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
-            exit 1
-          fi
           # vendor = first segment of the target (nvidia-cuda -> nvidia); the ascend
           # targets get their repo from `prepare` instead.
           vendor="${TARGET%%-*}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-${{ needs.prepare.outputs.pypi_repo }}}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
-          echo ">>> uploading $(ls wheels/*.whl) to ${pypi_repo}"
-          # Upgrade pkginfo with twine: setuptools >=77 (PEP 639) stamps
-          # Metadata-Version 2.4, which older pkginfo can't parse and twine then
-          # aborts before upload (>=1.11 reads it). The plain fallback is for the CANN
-          # runners' pip 22, which has no --break-system-packages.
-          python3 -m pip install --user --break-system-packages --quiet --upgrade twine pkginfo \
-            || python3 -m pip install --quiet --upgrade twine pkginfo
-          export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-          export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-          python3 -m twine upload \
-            --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
-            --non-interactive \
-            wheels/*.whl
+          # The uploader image carries twine and pkginfo at versions that read
+          # PEP 639 metadata (2.4), which the runner's own python is not
+          # guaranteed to have; see packaging/upload/.
+          WHEEL_UPLOAD_REPO="$pypi_repo" \
+          WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
+          WHEEL_UPLOAD_MOUNT="wheels:/wheels:ro" \
+          bash ../../packaging/upload/upload-wheels.sh
 
       - name: Clean up the build image
         if: ${{ always() }}
