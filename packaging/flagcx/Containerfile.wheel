@@ -68,8 +68,10 @@
 # the interpreter that will install the result. Build env == delivery env.
 #
 # A row that publishes a builder image builds in *that* instead (flagcx-config.py's
-# `wheel_base_image`): the builder is the runtime image plus a toolchain, so the
-# environment stays a superset of the one that installs it — and has a clang.
+# `wheel_base_image`): the builder is self-contained on ubuntu:22.04 — it installs
+# its own interpreter and torch pin — so the environment still carries the torch,
+# setuptools_scm and Python.h this probe asserts, and has a clang, without
+# inheriting the runtime image's glibc floor.
 #
 # Nothing in here reads backends.yaml.
 

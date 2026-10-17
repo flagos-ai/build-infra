@@ -169,15 +169,27 @@ nvidia-cuda12.8:
   # runtime image carries no clang, and the bitcode below is compiled by it.
   # flagcx-config.py derives that (`wheel_base_image`) rather than repeating it.
   wheel: {enabled: true, torch_backend: vendor}
-  # The device-bitcode build needs clang/llvm >= 22 and curand's mtgp32 kernel
-  # header — clang's __clang_cuda_runtime_wrapper.h force-includes it, and no
-  # cuda-nvcc package ships it on 12.8 or 13.3 (measured). FlagCX never calls
-  # cuRAND; the header is a compiler-side requirement, so it is build-time only
-  # and belongs here rather than in `apt` above. clang/llvm is the builder's own
-  # pin and not a field: both NVIDIA rows take the same one, in the Containerfile.
+  # The device-bitcode build needs clang/llvm >= 22 (the builder's own pin, both
+  # NVIDIA rows take the same one, in the Containerfile) and three sets of
+  # build-time-only headers that no cuda-nvcc package ships on 12.8/13.3, so they
+  # live here rather than in `apt` above:
+  #   - curand's mtgp32 kernel header: clang's __clang_cuda_runtime_wrapper.h
+  #     force-includes it. FlagCX never calls cuRAND; the header is a compiler-
+  #     side requirement only.
+  #   - the four CUDA math -dev packages: torch's ATen headers reach
+  #     cublas/cusparse/cusolver/cufft at build time (CUDAContextLight.h includes
+  #     <cusparse.h>). The wheel's .so links no math lib, so these are consumed
+  #     only for torch's transitive includes; installed unversioned because the
+  #     package name already pins the track and a fresh 22.04 has nothing
+  #     preinstalled to protect from an upgrade.
+  #   - cuda-cccl (cub/thrust/cooperative_groups/libcudacxx): reached by the CCL
+  #     comm-traits branch through NCCL's nccl_device.h (<cuda/atomic>,
+  #     <cooperative_groups.h>) and by clang's CUDA wrapper in C++20 mode. This
+  #     row takes the Default branch but still compiles C++20, so it keeps the
+  #     package too — header-only, and identical SDK surface across the two rows.
   builder:
     enabled: true
-    extra_apt: [libcurand-dev-12-8]
+    extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8]
   # This row's .so is built against NCCL 2.25, so its .bc takes the same Default
   # branch — the two have to agree, and nothing in the bitcode Makefile reads
   # nccl.h to find that out.
@@ -203,10 +215,13 @@ nvidia-cuda13.3:
   deb: {enabled: true, default_for_vendor: false}
   # Same builder-built wheel as the 12.8 row, for the same reason.
   wheel: {enabled: true, torch_backend: vendor}
-  # Same two build-time gaps as the 12.8 row, and the same one-line answer.
+  # Same build-time gaps as the 12.8 row, and the same answer — plus cccl, which
+  # this row genuinely needs: it takes the CCL comm-traits branch, whose
+  # nccl_device.h (NCCL 2.31) reaches <cuda/atomic>, <cooperative_groups.h> and
+  # <cuda_fp8.h>, all provided by cccl-13-3 (it Provides cuda-cccl-13-3).
   builder:
     enabled: true
-    extra_apt: [libcurand-dev-13-3]
+    extra_apt: [libcurand-dev-13-3, cccl-13-3, libcublas-dev-13-3, libcusparse-dev-13-3, libcusolver-dev-13-3, libcufft-dev-13-3]
   # NCCL 2.31 here, so CCL — the branch that needs BITCODE_CXX_STD=gnu++17 (the
   # device headers under nccl_device/ use `typeof`). Both values are the ones the
   # recipe was measured at; whether one .bc covers this row's whole gencode range

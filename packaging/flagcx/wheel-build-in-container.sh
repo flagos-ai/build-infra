@@ -116,3 +116,57 @@ set -- /output/flagcx-*.whl
 test "$#" -eq 1 -a -e "$1" \
     || { ls -1 /output >&2; echo "assert: $# wheels in /output, expected exactly 1" >&2; exit 1; }
 ls -1 /output/flagcx-*.whl
+
+# The glibc floor, asserted on the artifact and not on the image that built it.
+# This image is ubuntu:22.04 on purpose (see Containerfile.builder): a wheel
+# built here links at most glibc 2.35, which is what lets the bundle install it
+# on physical 22.04 hosts. The 24.04-built wheel this replaces linked GLIBC_2.38
+# and its __isoc23_* family — all tagged 2.38 — and aborted on import there. A
+# future build that drifts back (a base bumped under this file, or a header
+# picked up from a wrong SDK) fails here, at the wheel, rather than on a user's
+# host. The forbidden list and the max-version check mirror packaging/flagtree's
+# iluvatar gate; libstdc++ is covered by forbidding GLIBCXX_3.4.31/32, which is
+# all a 22.04 toolchain could not have produced.
+/flagos/bin/python - "$1" <<'PY'
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import zipfile
+
+wheel = sys.argv[1]
+tmp = tempfile.mkdtemp()
+zipfile.ZipFile(wheel).extractall(tmp)
+
+so_files = []
+for pat in ("flagcx/lib/libflagcx.so", "flagcx/_C*.so"):
+    import glob
+    so_files += glob.glob(os.path.join(tmp, pat))
+so_files.sort()
+if not so_files:
+    print("FAIL: the wheel carries no libflagcx.so and no _C*.so", file=sys.stderr)
+    sys.exit(1)
+
+forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]
+
+for so in so_files:
+    syms = subprocess.check_output(["objdump", "-T", so], text=True)
+    hits = [f for f in forbidden if f in syms]
+    if hits:
+        print("FAIL: 22.04-incompatible symbols in %s: %s"
+              % (os.path.basename(so), hits), file=sys.stderr)
+        sys.exit(1)
+    versions = re.findall(r"GLIBC_[0-9.]+", syms)
+    if versions:
+        maxv = max(versions, key=lambda v: [int(x) for x in v[6:].split(".")])
+    else:
+        maxv = "GLIBC_<none>"
+    want = [2, 35]
+    if versions and [int(x) for x in maxv[6:].split(".")] > want:
+        print("FAIL: %s links %s, above the 2.35 this 22.04 build guarantees"
+              % (os.path.basename(so), maxv), file=sys.stderr)
+        sys.exit(1)
+    print("OK: %s is 22.04-clean (max %s, no forbidden symbols)"
+          % (os.path.basename(so), maxv))
+PY

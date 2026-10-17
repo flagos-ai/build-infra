@@ -23,36 +23,39 @@ name: FlagCX Builder
 # Rows whose runtime image already carries what the build needs have no builder;
 # the matrix says which do (`builder.enabled` in packaging/flagcx/backends.yaml).
 #
-# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE: BASE_IMAGE =
-# flagos-runtime-{vendor}-{backend}:{version}, plus the vendor SDK and clang.
-# Never a vendor `-devel` image: the wheel build imports torch and asserts
-# Python.h, so one environment has to carry torch and the toolchain at once, and
-# a builder that could not be the wheel's BASE_IMAGE would be the wrong artifact.
-# Measured: neither nvidia `-devel` tag ships any clang/llvm, so the LLVM 22 pin
-# is unavoidable on any base, and swapping the flagos base for a `-devel` one
-# would add 6.9 GB (13.3) / 9.0 GB (12.8) to every layer above it.
+# THE BUILD ENVIRONMENT IS UBUNTU 22.04, SELF-CONTAINED. The image installs its
+# own interpreter and torch rather than layering on the backend's runtime image,
+# so the wheel it produces links at most glibc 2.35 — which is what lets the
+# bundle install that wheel on physical 22.04 hosts, not only in 24.04
+# containers. The runtime image was the previous base; a wheel built on it linked
+# GLIBC_2.38 and aborted on import on those hosts. Never a vendor `-devel` image:
+# the wheel build imports torch and asserts Python.h, so one environment has to
+# carry torch and the toolchain at once, and a builder that could not be the
+# wheel's BASE_IMAGE would be the wrong artifact. Measured: neither nvidia
+# `-devel` tag ships any clang/llvm, so the LLVM 22 pin is unavoidable on any
+# base.
 #
 # VERIFICATION IS A STEP AND NOT A JOB, unlike flagcx-wheel.yml. The two lines
 # verify different things and only one of them can travel: the wheel is a file,
 # so the verify job can download it onto another runner and install it into a
-# fresh container, while a builder image is 17 GB and cannot be uploaded at all.
-# Verification therefore runs in the job that has the image, and still gates the
-# push — which is the property that matters, that no unverified image reaches the
-# registry. What it asserts is the row's own acceptance test in
+# fresh container, while a builder image is tens of GB and cannot be uploaded at
+# all. Verification therefore runs in the job that has the image, and still gates
+# the push — which is the property that matters, that no unverified image reaches
+# the registry. What it asserts is the row's own acceptance test in
 # packaging/flagcx/verify/verify-flagcx-builder.sh: compile that row's device
 # bitcode, at that row's arch and comm-traits branch, inside the built image.
 #
 # THE MATRIX COMES FROM `flagcx-config.py --merge --channel builder`, not from
 # `generate_matrix.py` directly: the merge joins the runtime matrix with the row's
-# builder fields (the extra apt list, the bitcode arch and adaptor flag) and with
-# the image ref this line publishes, which is derived there so that the build, the
-# verification and the push all arrive at one spelling of it.
+# builder fields (the extra apt list, the torch/numpy/NCCL pins, the bitcode arch
+# and adaptor flag) and with the image ref this line publishes, which is derived
+# there so that the build, the verification and the push all arrive at one
+# spelling of it.
 #
-# A BUILDER GOES STALE: its base is the runtime image's mutable flat tag, so a
-# rebuilt runtime makes every builder built on the previous one stale. The order
-# is runtime first, builder second, and the image carries flagos.base_digest so
-# the staleness can be detected rather than remembered — the wheel build is where
-# that check belongs, since that is where a stale builder would be consumed.
+# NOTHING GOES STALE HERE: the image is self-contained, so a rebuilt runtime does
+# not stale it the way it staled the runtime-based builder. The floor the wheel
+# carries (glibc 2.35) is asserted at the artifact, in wheel-build-in-container.sh,
+# not remembered here as a digest.
 
 on:
   workflow_dispatch:
@@ -159,9 +162,9 @@ jobs:
           # /var/lib/docker because some runners don't have it or use a different
           # data-root; checking . is universal.
           #
-          # 30 GB and not flagcx-wheel.yml's 10: this build pulls the runtime
-          # image (~15 GB), adds a layer on top of it (~2.5 GB), and holds the
-          # 1.94 GB LLVM tarball in the build container while it unpacks.
+          # 30 GB: this build stages the CUDA SDK, python and torch from scratch
+          # (no runtime base), and holds the LLVM tarball and the two NCCL .debs
+          # in the build container while it unpacks them.
           FREE_KB=$(df -P . | awk 'NR==2{print $4}')
           FREE_GB=$((FREE_KB / 1024 / 1024))
           echo "Free disk space: ${FREE_GB}G"
@@ -186,14 +189,6 @@ jobs:
           done
           echo "::error::Harbor login failed after 3 attempts"
           exit 1
-      - name: Pull the runtime image
-        run: |
-          # Pulled here rather than left to the build: the image is the builder's
-          # FROM, so a registry problem should be one named failure and not a
-          # build that runs for a while first. It is also what puts a RepoDigest
-          # on it, which is the flagos.base_digest label the build records.
-          docker pull "${{ matrix.image_tag }}" \
-            || { echo "::error::Failed to pull ${{ matrix.image_tag }}"; exit 1; }
       - name: Build the builder image
         env:
           MATRIX_NAME: ${{ matrix.name }}
@@ -236,8 +231,9 @@ jobs:
           echo ">>> $MATRIX_BUILDER_IMAGE reads back as $served"
       - name: Remove the builder image
         if: ${{ always() }}
-        # The image is reproducible from the script and 17 GB of layers per run
-        # is how the disk check above starts failing on a shared runner. `|| true`
-        # so a build that failed before tagging cannot turn a finished job into a
-        # second failure. The build cache stays, so a rebuild is not a cold one.
+        # The image is reproducible from the script and tens of GB of layers per
+        # run is how the disk check above starts failing on a shared runner.
+        # `|| true` so a build that failed before tagging cannot turn a finished
+        # job into a second failure. The build cache stays, so a rebuild is not a
+        # cold one.
         run: docker rmi "${{ matrix.builder_image }}" 2>/dev/null || true

@@ -112,16 +112,21 @@ WHEEL_BUILD_INPUT_FIELDS = (
     "bitcode_arch", "bitcode_adaptor_flag",
 )
 
-# The builder channel's own set. It builds an image rather than an artifact, so
-# it reads the row's runtime image (`image_tag`, the same one the wheel builds
-# in) and the two lists the image has to install. `arch`, `vendor` and `version`
-# are carried for the image tag and the labels; `make_env` and the bitcode pair
-# are not inputs to the image at all — they are what the verification rebuilds
-# the device bitcode with, which is the row's acceptance test. The wheel_*
-# identity fields are absent because nothing here is published to an index.
+# The builder channel's own set. It builds an image rather than an artifact, and
+# that image is self-contained on ubuntu:22.04 — it installs its own interpreter
+# and torch, so it no longer reads the row's runtime image at all. `arch`,
+# `vendor` and `version` are carried for the image tag and the labels; `make_env`
+# and the bitcode pair are not inputs to the image at all — they are what the
+# verification rebuilds the device bitcode with, which is the row's acceptance
+# test. The wheel_* identity fields are absent because nothing here is published
+# to an index.
 BUILDER_BUILD_INPUT_FIELDS = (
-    "name", "version", "image_tag", "builder_image", "arch", "vendor",
-    "apt", "builder_extra_apt", "assert", "make_env",
+    "name", "version", "builder_image", "arch", "vendor",
+    "builder_apt", "builder_extra_apt", "assert", "make_env",
+    "builder_torch", "builder_numpy", "builder_runtime_prereqs",
+    "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
+    "builder_nccl_dev_deb", "builder_nccl_lib_deb",
+    "builder_nccl_dev_sha256", "builder_nccl_lib_sha256",
     "bitcode_arch", "bitcode_adaptor_flag",
 )
 
@@ -259,6 +264,82 @@ def builder_image(key: str, entry: dict) -> str:
     if not host or not prefix:
         return ""
     return f"{host}/{prefix}/flagcx-builder-{key}:{entry.get('version', '')}"
+
+
+def load_configs() -> dict:
+    """configs.yaml, read only for the facts no matrix row carries.
+
+    The builder image is self-contained, so it installs the interpreter and
+    torch that the runtime image used to provide. `runtime_prereqs` and the
+    per-row `deps` are both configs.yaml facts; the matrix row carries `deps`
+    verbatim but not `runtime_prereqs`, so that one is read here rather than
+    duplicated into backends.yaml (which is FlagCX's registry and must not grow
+    a copy of a stack-wide list).
+    """
+    with (REPO / "configs.yaml").open() as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def _deps_pin(deps: str, name: str) -> str:
+    """The `<name>==<version>` pin out of a space-separated `deps` list, or "".
+
+    A matrix row's `deps` is `torch==… torchaudio==… numpy==… flagcx==…`, so the
+    pin is picked out by its leading `<name>==` rather than derived: two of those
+    tokens also start with `torch` (torchaudio, torchvision).
+    """
+    for token in (deps or "").split():
+        if token.startswith(name + "=="):
+            return token
+    return ""
+
+
+def torch_pin(deps: str) -> str:
+    return _deps_pin(deps, "torch")
+
+
+def numpy_pin(deps: str) -> str:
+    return _deps_pin(deps, "numpy")
+
+
+def sdk_apt_and_nccl(apt: list[str]) -> tuple[list[str], tuple[str, str]]:
+    """Split the row's apt list into (SDK packages, the two NCCL .deb names).
+
+    The builder installs the SDK through apt (nvcc and friends) but extracts the
+    NCCL pins from .debs instead: the exact versions exist only in the ubuntu2404
+    suite, whose control block demands libc6 >= 2.38, so apt on a 22.04 image
+    refuses them. The two .deb filenames are derived from the one pin the row
+    states (`libnccl-dev=<version>`): NVIDIA's repo names a .deb
+    `pkg_version_amd64.deb`, and the runtime lib rides at the same version as the
+    -dev one, so stating both pins would be a second copy of one version.
+    """
+    sdk = [p for p in apt if not p.startswith("libnccl")]
+    dev_pin = next((p for p in apt if p.startswith("libnccl-dev=")), "")
+    if not dev_pin:
+        return sdk, ("", "")
+    version = dev_pin.split("=", 1)[1]
+    return sdk, (f"libnccl-dev_{version}_amd64.deb", f"libnccl2_{version}_amd64.deb")
+
+
+# The sha256 of each NCCL .deb the builder extracts, keyed by filename. Pinned
+# next to the derivation that names the file: a .deb fetched over the node's
+# network must not reach a linker without being the bytes the pin names, and the
+# pin is a property of NVIDIA's published artifact — the same class of constant
+# as LLVM_SHA256 — not of the FlagCX row, so it lives here rather than in
+# backends.yaml, which states only the version (the row's own decision).
+NCCL_DEB_SHA256 = {
+    "libnccl-dev_2.25.1-1+cuda12.8_amd64.deb":
+        "a2dfab17dccccf73dac3d7ccf3b888e2507aa2cb37c7cc48f087d646f639e9f5",
+    "libnccl2_2.25.1-1+cuda12.8_amd64.deb":
+        "6f5e4ae46de66133bc9699338b5a60871f3e42e0ad1601563a7612d96812eb3f",
+    "libnccl-dev_2.31.2-1+cuda13.3_amd64.deb":
+        "5c3d903e1f4a0174b28f02ed714b7ccd2ddd1c23a686e93afa0dedcacdf95643",
+    "libnccl2_2.31.2-1+cuda13.3_amd64.deb":
+        "e1c743dc848afb697d8311c575e4a728e0fff84ad2d4aa73b7c8b82d9ae83868",
+}
+
+
+def nccl_deb_sha256(deb: str) -> str:
+    return NCCL_DEB_SHA256.get(deb, "")
 
 
 def version_label(key: str) -> str:
@@ -525,6 +606,37 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["bitcode_arch"] = spec.get("bitcode_arch", "")
             entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
             entry["builder_image"] = builder_image(key, entry)
+            # The self-contained builder installs the interpreter and torch that
+            # the runtime image used to provide, so it needs the pins the row's
+            # matrix entry does not carry: the stack-wide runtime_prereqs list,
+            # and numpy, which the wheel build's `import torch` warns about when
+            # it is absent. torch itself is read out of `deps` (already on the
+            # entry) so the two cannot disagree; numpy rides the same source.
+            configs = load_configs()
+            entry["builder_runtime_prereqs"] = " ".join(
+                configs.get("runtime_prereqs") or []
+            )
+            entry["builder_torch"] = torch_pin(entry["deps"])
+            entry["builder_numpy"] = numpy_pin(entry["deps"])
+            entry["builder_python_version"] = entry["python_version"]
+            # The two pip indexes the self-contained install needs are already on
+            # the matrix row, under the names the other channels use — re-exported
+            # under the builder prefix rather than read under a second spelling.
+            entry["builder_flagos_pypi"] = entry.get("flagos_pypi", "")
+            entry["builder_extra_pypi"] = entry.get("extra_pypi", "")
+            # The row's SDK split out from its NCCL pin, and the two .deb
+            # filenames the pin implies. These are builder-only: the deb and
+            # wheel channels install NCCL through apt, but this image has no
+            # runtime base whose glibc satisfies the 2404 pin, so it extracts.
+            sdk, nccl_debs = sdk_apt_and_nccl(spec.get("apt") or [])
+            entry["builder_apt"] = " ".join(sdk)
+            entry["builder_nccl_dev_deb"], entry["builder_nccl_lib_deb"] = nccl_debs
+            entry["builder_nccl_dev_sha256"] = nccl_deb_sha256(
+                entry["builder_nccl_dev_deb"]
+            )
+            entry["builder_nccl_lib_sha256"] = nccl_deb_sha256(
+                entry["builder_nccl_lib_deb"]
+            )
         joined.append(entry)
     return joined
 

@@ -47,6 +47,13 @@
 # for CUDA 13 device bitcode (see Containerfile.builder), so moving it is a
 # decision rather than a parameter, and both NVIDIA rows take the same one.
 # Overridable from the environment for the day the pin moves.
+#
+# The tarball is REBUILT ON UBUNTU 22.04 (the "-2204" suffix) so the compiler
+# itself links nothing past glibc 2.34: the previous tarball was 24.04-built and
+# linked GLIBC_2.38, which aborts on the 22.04 image the builder now IS. Same
+# clang 22.0.0git f6ded0be snapshot, same five binaries and resource dir, only
+# the host that built it changed — so a 22.04-clean builder needed no flagtree
+# change, only a new tarball.
 
 set -euo pipefail
 
@@ -63,7 +70,7 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 # flagtree's own workflows name as CLANG=.../mlir/llvm_artifact/bin/clang-22),
 # plus a hand-verified resource-dir patch. See the git log for how it was made.
 LLVM_VERSION="${LLVM_VERSION:-f6ded0be}"
-LLVM_SHA256="${LLVM_SHA256:-a4af7fccbfcc578a06aa3d86be4afefe0342506304bdd683265caf1bd47353d1}"
+LLVM_SHA256="${LLVM_SHA256:-3cd1d576a5a8e90454905cab83e6c15cac8e8c711a33d148e4bf8e319fa72d44}"
 
 BACKENDS=()
 BUILD_ALL=0
@@ -130,32 +137,24 @@ for key in "${BACKENDS[@]}"; do
 
         ref="${OPT_TAG:-$BUILDER_IMAGE}"
         [[ -n "$ref" ]] || { echo "$key: no image ref (see --check)" >&2; exit 1; }
-        echo ">>> $key: $ref (from $BUILDER_IMAGE_TAG)"
+        echo ">>> $key: $ref"
 
-        # The runtime image this is built on is a moving flat tag, so the ref
-        # alone does not say which runtime the toolchain was laid over. The
-        # digest does, and it is what the wheel build will compare against when
-        # the staleness question becomes its own (see WHEEL-DESIGN.md).
-        # Absent rather than wrong for a locally built runtime image, which has
-        # no RepoDigests at all.
-        base_digest="$(docker image inspect \
-            --format '{{range .RepoDigests}}{{println .}}{{end}}' "$BUILDER_IMAGE_TAG" \
-            2>/dev/null | head -n1 || true)"
-
+        # The image is self-contained (FROM ubuntu:22.04), so there is no base
+        # image to record a digest of. Its provenance is the recipe: the labels
+        # below name the backend, the stack version and the LLVM pin, and the
+        # revision/created labels carry which commit the recipe came from.
         labels=(
             --label "org.opencontainers.image.version=$BUILDER_VERSION"
             --label "org.opencontainers.image.source=https://github.com/flagos-ai/build-infra"
             # Which row this toolchain was assembled for. Two builders for the
-            # same vendor are near-identical 17 GB images, and the runtime ref
-            # alone does not say which row's SDK apt list went in.
+            # same vendor are near-identical images, and the version tag alone
+            # does not say which row's SDK apt list went in.
             --label "flagos.backend=$key"
-            --label "flagos.base=$BUILDER_IMAGE_TAG"
             --label "flagos.llvm.version=$LLVM_VERSION"
             --label "flagos.llvm.sha256=$LLVM_SHA256"
         )
         [[ -n "$revision" ]] && labels+=(--label "org.opencontainers.image.revision=$revision")
         [[ -n "$created" ]] && labels+=(--label "org.opencontainers.image.created=$created")
-        [[ -n "$base_digest" ]] && labels+=(--label "flagos.base_digest=$base_digest")
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
 
@@ -175,11 +174,11 @@ for key in "${BACKENDS[@]}"; do
             fi
         done
 
-        # --network host: the build's only network use is the LLVM download, and
-        # the default bridge on the runners intermittently cannot open a TCP
-        # connection to github.com while the host can (measured on metax124 for
-        # the wheel line's clone: 1 of 2 bridge attempts failed, 2 of 2 host
-        # attempts succeeded).
+        # --network host: the build's network use is the LLVM tarball, the two
+        # NCCL .debs and the pip installs, and the default bridge on the runners
+        # intermittently cannot open a TCP connection to github.com while the
+        # host can (measured on metax124 for the wheel line's clone: 1 of 2
+        # bridge attempts failed, 2 of 2 host attempts succeeded).
         #
         # A failing step makes BuildKit echo the resolved RUN command, so the
         # relayed proxy's userinfo would land in whatever captures this stdout.
@@ -189,10 +188,19 @@ for key in "${BACKENDS[@]}"; do
             "${proxy_arg[@]}" \
             "${labels[@]}" \
             --network host \
-            --build-arg "BASE_IMAGE=$BUILDER_IMAGE_TAG" \
             --build-arg "BUILDER_APT=$BUILDER_APT" \
             --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
             --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
+            --build-arg "TORCH_PIN=$BUILDER_TORCH" \
+            --build-arg "NUMPY_PIN=$BUILDER_NUMPY" \
+            --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \
+            --build-arg "PYTHON_VERSION=$BUILDER_PYTHON_VERSION" \
+            --build-arg "VENDOR_PYPI=$BUILDER_FLAGOS_PYPI" \
+            --build-arg "EXTRA_PYPI=$BUILDER_EXTRA_PYPI" \
+            --build-arg "NCCL_DEV_DEB=$BUILDER_NCCL_DEV_DEB" \
+            --build-arg "NCCL_DEV_SHA256=$BUILDER_NCCL_DEV_SHA256" \
+            --build-arg "NCCL_LIB_DEB=$BUILDER_NCCL_LIB_DEB" \
+            --build-arg "NCCL_LIB_SHA256=$BUILDER_NCCL_LIB_SHA256" \
             --build-arg "LLVM_VERSION=$LLVM_VERSION" \
             --build-arg "LLVM_SHA256=$LLVM_SHA256" \
             -t "$ref" \
