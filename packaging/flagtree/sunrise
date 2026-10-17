@@ -78,7 +78,9 @@ ARG FLAGTREE_WHEEL_VERSION=0.6.0+sunrise3.6
 #  - sunriseTritonPlugin_v0.6.0.4: prebuilt sunrise codegen (FlagTree PR 978 version,
 #    .so md5 4c77b8c0; compiled against pybind11 internals v12).
 #  - build-deps-triton: triton origin toolkits (nvidia nvcc/cudart + json/gtest).
-ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+# Staged on our own filestore, not the public bucket: ks3 answers the CI
+# proxy with 500 and is in no runner's no_proxy.
+ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
 ARG LLVM_TARBALL=llvm-71bd243f-triton-v3.6.x.tar.gz
 ARG PLUGIN_TARBALL=sunriseTritonPlugin_v0.6.0.4.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
