@@ -124,7 +124,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
     "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
-    "builder_numpy", "builder_runtime_prereqs",
+    "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
     "builder_nccl_dev_sha256", "builder_nccl_lib_sha256",
@@ -636,6 +636,11 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
                 entry["deps"], "torch-mlu-ops"
             )
             entry["builder_numpy"] = numpy_pin(entry["deps"])
+            # Read from deps rather than hardcoded in the Containerfile: torch_mlu
+            # imports pandas at autoload (profiler/analysis/kernel_parser.py), but
+            # the builder installs only torch/torch-mlu/torch-mlu-ops — not the
+            # row's full DEPS — so pandas must be installed alongside them.
+            entry["builder_pandas"] = _deps_pin(entry["deps"], "pandas")
             entry["builder_python_version"] = entry["python_version"]
             # The two pip indexes the self-contained install needs are already on
             # the matrix row, under the names the other channels use — re-exported
