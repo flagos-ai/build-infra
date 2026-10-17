@@ -94,6 +94,10 @@ backends:
       dist_name: flagtree-iluvatar
       version_base: "0.7.1"
       wheel_tag: cp312-cp312-linux_x86_64
+      # No `ref:` yet. Unlike metax, this Containerfile writes no `Source-Commit`
+      # carrier and does not take FLAGTREE_WHEEL_NAME, and the daily's gate
+      # asserts both unconditionally -- so the first daily for iluvatar needs that
+      # landing here first, not a ref line.
 
   metax:
     containerfile: metax
