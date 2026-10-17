@@ -20,8 +20,10 @@ name: FlagCX Builder
 # the nvidia rows that image carries no device toolchain at all — no nvcc, no
 # cuda_runtime.h, no nccl.h, no clang. This line produces the image the wheel
 # build can then be pointed at, and the FlagCX wheel work is what consumes it.
-# Rows whose runtime image already carries what the build needs have no builder;
-# the matrix says which do (`builder.enabled` in packaging/flagcx/backends.yaml).
+# Rows whose runtime image already carries what the build needs and whose wheel
+# need not drop its glibc floor have no builder; the matrix says which do
+# (`builder.enabled` in packaging/flagcx/backends.yaml). A vendor-SDK row
+# (hygon, …) declares one for the floor alone.
 #
 # THE BUILD ENVIRONMENT IS UBUNTU 22.04, SELF-CONTAINED. The image installs its
 # own interpreter and torch rather than layering on the backend's runtime image,
@@ -43,7 +45,10 @@ name: FlagCX Builder
 # the push — which is the property that matters, that no unverified image reaches
 # the registry. What it asserts is the row's own acceptance test in
 # packaging/flagcx/verify/verify-flagcx-builder.sh: compile that row's device
-# bitcode, at that row's arch and comm-traits branch, inside the built image.
+# bitcode, at that row's arch and comm-traits branch, inside the built image —
+# or, on a vendor row (which publishes no bitcode), import the pinned torch
+# against the SDK the image carries, which is the step the wheel build stands in
+# for.
 #
 # THE MATRIX COMES FROM `flagcx-config.py --merge --channel builder`, not from
 # `generate_matrix.py` directly: the merge joins the runtime matrix with the row's
@@ -65,11 +70,11 @@ on:
         type: string
         default: all
       flagcx_ref:
-        description: 'FlagCX ref the verification compiles the device bitcode from (a branch/tag name resolves to its tip at dispatch time)'
+        description: 'FlagCX ref the nvidia rows compile the device bitcode from (a branch/tag name resolves to its tip at dispatch time; a vendor row ignores it)'
         type: string
         default: 21f8b5f541bf589ecde9b3633de2cd585d6eaf56
       verify:
-        description: 'compile the row device bitcode inside the built image before pushing'
+        description: 'verify the row inside the built image before pushing (device bitcode on nvidia rows, the torch/SDK import on vendor rows)'
         type: boolean
         default: true
       push:

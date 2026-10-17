@@ -121,7 +121,7 @@ WHEEL_BUILD_INPUT_FIELDS = (
 # test. The wheel_* identity fields are absent because nothing here is published
 # to an index.
 BUILDER_BUILD_INPUT_FIELDS = (
-    "name", "version", "builder_image", "arch", "vendor",
+    "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
     "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_numpy", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
@@ -606,6 +606,16 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["bitcode_arch"] = spec.get("bitcode_arch", "")
             entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
             entry["builder_image"] = builder_image(key, entry)
+            # The image's recipe: nvidia's Containerfile.builder is not the one
+            # a vendor-SDK row builds from — the vendor row's builder installs a
+            # tarball/run SDK into /opt rather than the CUDA apt repo, so each
+            # declares its own file. Stated in the registry rather than derived
+            # from `key` because the derivation (which file serves which row) is
+            # exactly the fact that must not be a second copy. Rows on the shared
+            # file leave it out; the build falls back to it.
+            entry["builder_containerfile"] = (
+                (spec.get("builder") or {}).get("containerfile") or ""
+            )
             # The self-contained builder installs the interpreter and torch that
             # the runtime image used to provide, so it needs the pins the row's
             # matrix entry does not carry: the stack-wide runtime_prereqs list,
@@ -736,15 +746,20 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
             )
         # A builder that cannot be shown to compile the row's device bitcode is
         # a large base image and nothing more: the verification is what the row
-        # is published on, and without these two it would rebuild at the
-        # Makefile's own defaults and answer a question about some other row.
-        if builder and not (
-            spec.get("bitcode_arch") and spec.get("bitcode_adaptor_flag")
-        ):
-            problems.append(
-                where + "no bitcode_arch/bitcode_adaptor_flag — nothing would "
-                "state which device bitcode this row is verified on"
-            )
+        # is published on. The nvidia rows publish on compiling theirs, so they
+        # must state the arch/flags it compiles at. A vendor row publishes no
+        # bitcode — its proof is the torch/SDK import, and its recipe is its own
+        # `builder.containerfile` — so the requirement is that one or the other
+        # hold, never that a vendor row state an nvidia-only fact.
+        if builder:
+            has_bitcode = bool(spec.get("bitcode_arch") and spec.get("bitcode_adaptor_flag"))
+            has_vendor_recipe = bool((spec.get("builder") or {}).get("containerfile"))
+            if not (has_bitcode or has_vendor_recipe):
+                problems.append(
+                    where + "no bitcode_arch/bitcode_adaptor_flag and no "
+                    "builder.containerfile — nothing states whether this row is "
+                    "verified by its device bitcode or by the torch/SDK import"
+                )
         # The wheel channel reads the same pair from the other end: one of the two
         # without the other would compile the `.bc` at the Makefile's default,
         # which is some other row's answer.

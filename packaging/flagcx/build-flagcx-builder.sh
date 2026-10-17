@@ -139,6 +139,15 @@ for key in "${BACKENDS[@]}"; do
         [[ -n "$ref" ]] || { echo "$key: no image ref (see --check)" >&2; exit 1; }
         echo ">>> $key: $ref"
 
+        # The recipe to build from: the nvidia rows share Containerfile.builder,
+        # a vendor-SDK row declares its own (the SDK is a tarball/run into /opt,
+        # not the CUDA apt repo). The empty string is the shared file.
+        containerfile="${BUILDER_CONTAINERFILE:-Containerfile.builder}"
+        nvidia_builder=0
+        [[ "$containerfile" == "Containerfile.builder" ]] && nvidia_builder=1
+        [[ -f "$HERE/$containerfile" ]] \
+            || { echo "$key: $containerfile is not in packaging/flagcx" >&2; exit 1; }
+
         # The image is self-contained (FROM ubuntu:22.04), so there is no base
         # image to record a digest of. Its provenance is the recipe: the labels
         # below name the backend, the stack version and the LLVM pin, and the
@@ -150,9 +159,15 @@ for key in "${BACKENDS[@]}"; do
             # same vendor are near-identical images, and the version tag alone
             # does not say which row's SDK apt list went in.
             --label "flagos.backend=$key"
-            --label "flagos.llvm.version=$LLVM_VERSION"
-            --label "flagos.llvm.sha256=$LLVM_SHA256"
         )
+        # The LLVM pin only says anything about the nvidia recipe; on a vendor
+        # row it would record a compiler the image never installs.
+        if (( nvidia_builder )); then
+            labels+=(
+                --label "flagos.llvm.version=$LLVM_VERSION"
+                --label "flagos.llvm.sha256=$LLVM_SHA256"
+            )
+        fi
         [[ -n "$revision" ]] && labels+=(--label "org.opencontainers.image.revision=$revision")
         [[ -n "$created" ]] && labels+=(--label "org.opencontainers.image.created=$created")
 
@@ -174,11 +189,18 @@ for key in "${BACKENDS[@]}"; do
             fi
         done
 
-        # --network host: the build's network use is the LLVM tarball, the two
-        # NCCL .debs and the pip installs, and the default bridge on the runners
-        # intermittently cannot open a TCP connection to github.com while the
-        # host can (measured on metax124 for the wheel line's clone: 1 of 2
-        # bridge attempts failed, 2 of 2 host attempts succeeded).
+        # The nvidia-only build args (nvcc/SDK apt split, NCCL .deb extraction,
+        # LLVM pin) are handed to the shared recipe; a vendor recipe declares its
+        # own SDK install and reads none of them. The nvidia set is a fixed list
+        # in the shared file, so the build fails with an unused-arg warning on a
+        # vendor row rather than silently if the two drift.
+        #
+        # --network host: the build's network use is the LLVM tarball, the NCCL
+        # .debs (nvidia) or the DTK tarball (hygon), and the pip installs, and
+        # the default bridge on the runners intermittently cannot open a TCP
+        # connection to github.com while the host can (measured on metax124 for
+        # the wheel line's clone: 1 of 2 bridge attempts failed, 2 of 2 host
+        # attempts succeeded).
         #
         # A failing step makes BuildKit echo the resolved RUN command, so the
         # relayed proxy's userinfo would land in whatever captures this stdout.
@@ -204,7 +226,7 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "LLVM_VERSION=$LLVM_VERSION" \
             --build-arg "LLVM_SHA256=$LLVM_SHA256" \
             -t "$ref" \
-            -f "$HERE/Containerfile.builder" \
+            -f "$HERE/$containerfile" \
             "$REPO_ROOT" 2>&1 \
             | awk '{gsub(/:\/\/[^@\/ ]+:[^@\/ ]+@/, "://[redacted]@"); print; fflush()}'
 
