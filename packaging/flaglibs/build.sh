@@ -26,7 +26,7 @@
 # for flag_attn. We build exactly the tag, so the wheel carries the release
 # version (`v0.3.0` -> `0.3.0`). No build-infra-synthesized version number.
 #
-# Selection:   FLAGLIBS="flag_attn flagsparse"   (default: all six)
+# Selection:   FLAGLIBS="flag_attn flagsparse"   (default: all seven)
 # Output:      OUTDIR=/tmp/wheels                 (default: ./wheels)
 # Ref override: REF_flag_attn=v0.4.0 per lib       (default: build-config.yaml)
 #

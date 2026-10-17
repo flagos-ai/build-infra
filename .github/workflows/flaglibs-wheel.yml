@@ -31,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       libs:
-        description: 'Libraries to build (space-separated package keys); blank = all six (flag_attn flagsparse flag_blas flag_audio flagfft-codegen flaggems_vllm)'
+        description: 'Libraries to build (space-separated package keys); blank = all seven (flag_attn flagsparse flag_blas flag_audio flagfft-codegen flaggems_vllm flaggems_sglang)'
         type: string
         default: ''
       upload:

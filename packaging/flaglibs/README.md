@@ -1,6 +1,6 @@
 # packaging/flaglibs/ — FlagOS 算子库 wheel 发布
 
-发布 6 个纯 Python FlagOS 算子库的可安装 wheel 到 `flagos-pypi-hosted`。
+发布 7 个纯 Python FlagOS 算子库的可安装 wheel 到 `flagos-pypi-hosted`。
 
 ## 覆盖范围
 
@@ -12,6 +12,7 @@
 | `flag_audio` | FlagAudio | v0.3.0 | pyproject 静态 |
 | `flagfft-codegen` | FlagFFT | v0.2.0 | pyproject 静态 |
 | `flaggems_vllm` | FlagGems-vllm | v0.2.0 | pyproject 静态 |
+| `flaggems_sglang` | FlagGems-sglang | v0.1.0 | pyproject 静态 |
 
 不在范围：FlagDNN（无 Python 打包）、FlagTensor（csrc 未接入 setuptools）——
 上游改造后按本骨架扩展。
@@ -19,7 +20,7 @@
 ## 使用
 
 ```bash
-# 全部 6 库构建到 ./wheels
+# 全部 7 库构建到 ./wheels
 bash packaging/flaglibs/build.sh
 
 # 指定子集 + 输出目录 + 单库 ref 覆盖
@@ -34,8 +35,8 @@ bash packaging/flaglibs/build.sh
 
 ## 文件
 
-- `build.sh` — 6 库构建（clone → venv → `pip wheel --no-deps`），py3-none-any 门禁
-- `build-config.yaml` — 6 库清单（repo / default_ref / scm 标记）
+- `build.sh` — 7 库构建（clone → venv → `pip wheel --no-deps`），py3-none-any 门禁
+- `build-config.yaml` — 7 库清单（repo / default_ref / scm 标记）
 - `docs/decisions.md` — 决策记录（版本来源、hosted 而非 per-vendor、tag-vs-pyproject 不一致）
 
 ## 现状
