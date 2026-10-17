@@ -208,11 +208,10 @@ jobs:
     # Every row may have been skipped as already published.
     if: ${{ fromJSON(needs.plan.outputs.matrix).include[0] != null }}
     strategy:
-      # One backend's failure must not cancel the others; and one at a time,
-      # because these are a small pool of self-hosted runners each pulling a
-      # builder image and compiling for tens of minutes.
+      # One backend's failure must not cancel the others. No serialization: each
+      # row runs on its own backend's nodes, so a concurrent refresh of every
+      # backend does not queue behind one machine.
       fail-fast: false
-      max-parallel: 1
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ fromJSON(matrix.runson) }}
     env:
