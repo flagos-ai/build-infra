@@ -105,9 +105,10 @@ backends:
       image_target: false
       ref_arg: false
     daily:
-      enabled: false
+      enabled: true
       dist_name: flagtree-metax
       version_base: "0.7.1"
+      ref: main
       wheel_tag: cp312-cp312-linux_x86_64
 
   # sunrise / ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles here but no

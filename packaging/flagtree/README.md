@@ -101,9 +101,9 @@ flat: a rebuild overwrites it. The wheel lines build on top of it.
 
 ## NVIDIA builder (`nvidia-cuda`)
 
-`nvidia-cuda` has two stages, like `iluvatar`, for a reason the single-stage
-builders do not have: nothing it stages up front depends on the FlagTree ref
-being built, so that half is worth paying for once and publishing.
+`nvidia-cuda` splits its build environment from the ref the way `metax` does.
+For this backend there is a second reason: it is also the row the daily builds,
+so the split is what lets a daily run pay for the clone and the compile only.
 
 ```
 ubuntu:22.04 ──> builder   apt toolchain + python 3.12 + prebuilt LLVM
@@ -383,12 +383,13 @@ and drops asserts. A smoke test installs the freshly built wheel and imports
 patches `python/flagtree/__init__.py` and records the source commit after the
 clone (see below).
 
-## Daily builds (`nvidia-cuda`)
+## Daily builds
 
 `.github/workflows/flagtree-wheel-daily.yml` builds FlagTree `main` every day and
-publishes it to `flagos-pypi-daily` under the distribution **`flagtree-nvidia`**.
-The release line (`flagtree-wheel.yml`, manual) is untouched: it keeps
-publishing plain `flagtree` to the vendor indexes.
+publishes it to `flagos-pypi-daily`, one distribution per backend that has an
+enabled `daily:` row — `flagtree-nvidia` and `flagtree-metax` today. The release
+line (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
+`flagtree` to the vendor indexes.
 
 The version is a date, and nothing else:
 
@@ -402,7 +403,8 @@ distribution    release  .dev date
 ranking:
 
 ```sh
-pip install --pre flagtree-nvidia   # newest daily, always
+pip install --pre flagtree-nvidia   # newest nvidia daily, always
+pip install --pre flagtree-metax    # newest metax daily, always
 pip install flagtree-nvidia         # same thing today: no stable version of this name exists
 pip uninstall flagtree-nvidia       # before switching back to the release name
 ```
@@ -451,8 +453,8 @@ Why the pieces sit where they do:
 Two knobs per backend, both in `packaging/flagtree/backends.yaml`'s `daily:`
 block: `version_base` (the release this daily leads — move it when `configs.yaml`
 moves on) and `dist_name` (names the wheel). `ref` is the FlagTree line that row
-tracks — upstream's `main` for `nvidia`, declared rather than taken from the
-Containerfile's own default, which is the vendor release a local build
+tracks — upstream's `main` for `nvidia` and `metax`, declared rather than taken
+from the Containerfile's own default, which is the vendor release a local build
 reproduces.
 
 **The cron skips a day that has already been published; a manual run never
@@ -478,8 +480,8 @@ above): the `builder_image` input takes an override, and blank means the ref
 derived from `build-config.yml` + `configs.yaml`. `ubuntu:22.04` is the cold path
 and the fallback for before the builder has been published.
 
-**Caveat for consumers.** `flagtree` and `flagtree-nvidia` both install the
-top-level `triton/` and `flagtree/` packages, and neither declares
+**Caveat for consumers.** `flagtree`, `flagtree-nvidia` and `flagtree-metax` all
+install the top-level `triton/` and `flagtree/` packages, and none declares
 `Obsoletes`/`Provides`, so pip treats them as unrelated projects and installing
 one over the other clobbers files rather than replacing. Uninstall the old name
 first.
