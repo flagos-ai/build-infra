@@ -156,7 +156,7 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `ascend-cann9.0.0` | 2026-10-10 | `0.14.0+cann9.0.0` |
 | `ascend-cann9.0.0-910c` | 2026-10-09 | `0.14.0+cann9.0.0.910c` |
 | `cambricon-neuware4.4.3` | 2026-10-09 | `0.14.0+neuware4.4.3` |
-| `cambricon-neuware4.7.2` | 2026-10-09 | `0.14.0+neuware4.7.2` |
+| `cambricon-neuware4.7.2` | 2026-10-17 | `0.14.0+neuware4.7.2` |
 | `enflame-tops1.9.10` | 2026-10-09 | `0.14.0+tops1.9.10` |
 | `enflame-tops1.10.6` | 2026-10-09 | `0.14.0+tops1.10.6` |
 | `hygon-dtk26.04` | 2026-10-17 | `0.14.0+dtk2604` |
@@ -180,7 +180,8 @@ publish-only failures on their nodes (the docker `~/.docker/config.json` proxies
 left tencent/PyPI on the proxy path, which answered CONNECT 500; removing the proxies entry let
 those nodes reach the tencent mirror directly). hygon's pin was re-published on 2026-10-17 after
 its wheel moved onto the 22.04 builder (PR #1380) — same pin, now 22.04-clean — which is why its
-date differs from the other nineteen.
+date differs from the other nineteen. cambricon-neuware4.7.2's pin was re-published the same way
+on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clean.
 
 `kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
 the node, while the wheel channel was being enabled for it (#1000).
