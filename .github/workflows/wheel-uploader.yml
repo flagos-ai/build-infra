@@ -73,8 +73,11 @@ jobs:
           [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
           [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
           [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
-          docker build "${build_args[@]}" -t "$IMAGE" packaging/upload
-          docker run --rm "$IMAGE" --version
+          # -f is required: the directory holds more than the Containerfile, and
+          # a build context with no `Dockerfile` is not a Containerfile build.
+          docker build "${build_args[@]}" -f packaging/upload/Containerfile -t "$IMAGE" packaging/upload
+          # ENTRYPOINT is empty by design, so this is `python3 -m twine --version`.
+          docker run --rm "$IMAGE" python3 -m twine --version
 
       - name: Harbor login
         if: ${{ inputs.push }}
