@@ -59,21 +59,24 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # The SDK tarball's every deb payloads to /opt/maca-<ver>/ (3.8.1.3 -> maca-3.8.1,
-# 3.7.2.0 -> maca-3.7.2), so all of them can be dpkg -x'd straight into the same
-# tree. dpkg -x rather than dpkg -i: -i runs postinst, which would fire each
-# deb's EULA prompt under a build shell that has no tty, while -x skips it — the
-# two things postinst does for the SDK root (the /opt/maca symlink and the
-# lib64 -> lib symlink) are replicated below. Extracting every deb instead of the
-# vendor's own -i list is deliberate: the pinned torch's libs NEED libmxomp,
-# libmxc-runtime64 and libmpi, which no single minimal set carries.
+# 3.7.2.0 -> maca-3.7.2). dpkg -x rather than dpkg -i: -i runs postinst, which
+# would fire each deb's EULA prompt under a build shell that has no tty, while -x
+# skips it — the two things postinst does for the SDK root (the /opt/maca symlink
+# and the lib64 -> lib symlink) are replicated below. Extraction is to `/` so each
+# deb lands in its own declared path, then the patch-level symlink collapses it to
+# /opt/maca — never `dpkg -x <deb> /opt/maca-<ver>`, which would NEST the payload
+# (dpkg -x's argument is the root the deb's own /opt/maca-<ver> paths hang under,
+# not a rename of it). Extracting every deb instead of the vendor's own -i list is
+# deliberate: the pinned torch's libs NEED libmxomp, libmxc-runtime64 and libmpi,
+# which no single minimal set carries.
 RUN set -eux; \
     curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
         -o /maca-sdk.tar.xz "${FILE_STORE}/maca-sdk-${SDK_VERSION}-deb-x86_64.tar.xz"; \
     tar xf /maca-sdk.tar.xz -C /tmp; \
     cd "/tmp/maca-sdk-${SDK_VERSION}"; \
-    for deb in deb/*.amd64.deb; do dpkg -x "$deb" /opt/maca-${SDK_VERSION%.*}; done; \
-    ln -s -T /opt/maca-${SDK_VERSION%.*} /opt/maca; \
-    ln -s -T lib /opt/maca/lib64; \
+    for deb in deb/*.amd64.deb; do dpkg -x "$deb" /; done; \
+    ln -s -T "/opt/maca-${SDK_VERSION%.*}" /opt/maca; \
+    ln -s -T lib "/opt/maca/lib64"; \
     rm -f /maca-sdk.tar.xz; \
     rm -rf "/tmp/maca-sdk-${SDK_VERSION}"
 
