@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: App Image
+name: SGLang App Image
 run-name: App Image · sglang${{ inputs.sglang_version || '?' }} · ${{ inputs.backend || 'all' }}
 
 # Builds flagos-app/sglang{sglang_version}-{app_name}:{version}[-{plugin}]
