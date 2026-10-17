@@ -13,14 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Verify a FlagCX builder image by compiling one backend's device bitcode in it.
+# Verify a FlagCX builder image. On an nvidia row the proof is compiling the
+# row's device bitcode in it; on a vendor row (which publishes no bitcode) the
+# proof is the torch/SDK probe — the image must import the pinned torch against
+# the SDK it carries, which is the exact step the wheel build stands in for.
 #
 # Usage:
 #   verify-flagcx-builder.sh --backend nvidia-cuda13.3 --ref <sha>
+#   verify-flagcx-builder.sh --backend hygon-dtk26.04 --ref <sha>
 #
 # Options:
 #   --backend KEY   backend from backends.yaml (required)
-#   --ref REF       FlagCX git ref to build the device bitcode from (required)
+#   --ref REF       FlagCX git ref the nvidia rows build the device bitcode from
+#                   (required there; a vendor row ignores it — its proof is the
+#                   torch import, and the full make is the wheel line's own job)
 #   --repo URL      FlagCX repository to clone from
 #   --image REF     image to verify (default: the ref the row publishes)
 #   --keep          leave the container behind for inspection
@@ -72,9 +78,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -n "$OPT_BACKEND" ]] || fail "--backend is required: the row is what names the arch and the comm-traits branch"
-[[ -n "$OPT_REF" ]] \
-    || fail "--ref is required: the bitcode is built from a FlagCX checkout, and a moving ref would make the artifact unverifiable"
+[[ -n "$OPT_BACKEND" ]] || fail "--backend is required: the row is what names the image and the proof"
 
 cd "$REPO_ROOT"
 
@@ -89,8 +93,17 @@ set +a
 IMAGE="${OPT_IMAGE:-$BUILDER_IMAGE}"
 [[ -n "$IMAGE" ]] \
     || fail "$OPT_BACKEND: the row publishes no builder image ref; see flagcx-config.py --check --channel builder"
-[[ -n "$BUILDER_BITCODE_ARCH" && -n "$BUILDER_BITCODE_ADAPTOR_FLAG" ]] \
-    || fail "$OPT_BACKEND: no bitcode_arch/bitcode_adaptor_flag, so there is no device bitcode to verify"
+
+# The proof branches on whether the row publishes device bitcode: the nvidia rows
+# are published for compiling theirs (clang + the CUDA headers), a vendor row for
+# importing the pinned torch against the SDK it carries. The bitcode pair is what
+# distinguishes them — it is stated for the nvidia rows and absent for hygon.
+HAS_BITCODE=0
+[[ -n "$BUILDER_BITCODE_ARCH" && -n "$BUILDER_BITCODE_ADAPTOR_FLAG" ]] && HAS_BITCODE=1
+if [[ $HAS_BITCODE -eq 1 ]]; then
+    [[ -n "$OPT_REF" ]] \
+        || fail "--ref is required on an nvidia row: the bitcode is built from a FlagCX checkout, and a moving ref would make the artifact unverifiable"
+fi
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE" \
     || fail "$IMAGE: not built here and not pullable"
@@ -122,7 +135,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo ">>> $OPT_BACKEND: $IMAGE at $BUILDER_BITCODE_ARCH, $BUILDER_BITCODE_ADAPTOR_FLAG"
+echo ">>> $OPT_BACKEND: $IMAGE (bitcode: $([[ $HAS_BITCODE -eq 1 ]] && echo "$BUILDER_BITCODE_ARCH, $BUILDER_BITCODE_ADAPTOR_FLAG" || echo none))"
 docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
 # --network host: the clone is the container's only network use, and the default
 # bridge on the runners intermittently cannot open a TCP connection to github.com
@@ -132,11 +145,24 @@ docker run -d --name "$CONTAINER" --network host "${PROXY_ENV[@]}" "$IMAGE" slee
 docker exec -i \
     -e BACKEND="$BUILDER_NAME" -e IMAGE="$IMAGE" \
     -e FLAGCX_REPO="$OPT_REPO" -e FLAGCX_REF="$OPT_REF" \
+    -e HAS_BITCODE="$HAS_BITCODE" \
     -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
     -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
     -e MAKE_ENV="$BUILDER_MAKE_ENV" \
     "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
 fail() { echo "$BACKEND: $*" >&2; exit 1; }
+
+# The vendor-row proof: import the pinned torch against the SDK the image
+# carries. This is the exact step the wheel build stands in for — the reason the
+# image exists is that this import must succeed on 22.04 without the runtime's
+# glibc floor, and it is what the bitcode-proof rows take for granted before
+# they compile anything. A vendor row (no bitcode) stops here.
+if [ "$HAS_BITCODE" != "1" ]; then
+    if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi
+    TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch; print(">>> torch %s imports against the vendor SDK" % torch.__version__)'
+    echo ">>> ok: $BACKEND (vendor row, no device bitcode)"
+    exit 0
+fi
 
 # Resolved from PATH because that is how the Makefile resolves it (`CLANG ?=
 # clang`, and the other three the same way). An absolute path here would verify a

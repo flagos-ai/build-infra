@@ -14,16 +14,20 @@
 
 name: FlagCX Wheel
 
-# Build FlagCX wheels in the backend's runtime image, and (optionally) publish
+# Build FlagCX wheels in the backend's runtime image — or in its build-toolchain
+# builder image where the row publishes one — and (optionally) publish
 # them to that vendor's PyPI.
 #
 # THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE, or the build-toolchain
-# image published beside it where the row carries device bitcode: BASE_IMAGE =
-# flagcx-config.py's `wheel_base_image`, the vllm-plugin-wheel.yml model.
+# image published beside it: BASE_IMAGE =
+# flagcx-config.py's `wheel_base_image`, the vllm-plugin-wheel.yml model. A row
+# that publishes a builder builds in that instead (nvidia: no clang; hygon:
+# glibc 2.35 floor).
 #
 # The FlagCX build imports torch while it configures itself, so one environment
 # has to carry torch, setuptools_scm and Python.h at once — only /flagos does.
-# Build env == delivery env: a builder is the runtime image plus a toolchain.
+# Build env == delivery env: a builder is the runtime image plus a toolchain, or
+# the same interpreter+torch+SDK on a 22.04 floor.
 #
 # The matrix comes from `flagcx-config.py --merge --channel wheel` rather than from
 # `generate_matrix.py` directly: the merge is what joins the runtime matrix with
@@ -73,7 +77,7 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend(s) whose runtime image builds the wheel: a space-separated list, or "all"'
+        description: 'Backend(s) to build the wheel for: a space-separated list, or "all"'
         type: string
         default: all
       flagcx_ref:

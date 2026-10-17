@@ -56,18 +56,37 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
 
 A wheel is built *inside* the backend's runtime image, and on the nvidia rows that image carries no
 device toolchain at all — measured on `flagos-runtime-nvidia-cuda13.3:2.2.0`: no nvcc, no
-`cuda_runtime.h`, no `include/cccl`, no `nccl.h`, no clang. Those rows therefore publish one more
+`cuda_runtime.h`, no `include/cccl`, no `nccl.h`, no clang. A row whose wheel must install on
+physical 22.04 hosts therefore publishes one more
 artifact beside the wheel: an image that can be the wheel build's environment, self-contained on
 ubuntu:22.04 (so the wheel's glibc floor is 2.35, not the runtime's 2.38), under the prefix
 `build-config.yml` already reserved for builder images (`registry.prefixes.builder` = `flagos-dev`,
-unconsumed until now).
+unconsumed until now). The nvidia rows are the ones that *need* it for the toolchain; the vendor
+rows need it for the floor alone — their runtime image carries the SDK already, but is 24.04, so
+their wheel would link GLIBC_2.38 without a 22.04 build.
 
 | Question | Decision |
 |---|---|
 | Base | **ubuntu:22.04, self-contained** — never the runtime image, never a vendor `-devel` tag |
-| Contents | python 3.12 + torch pin + the row's SDK + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers |
-| Which rows | Only those declaring `builder.enabled`; a runtime image that already carries the toolchain needs none |
-| Acceptance | Compiling that row's device bitcode inside the built image, in CI, before the push |
+| Contents | python + torch pin + the row's SDK + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers (nvidia rows); python + torch pin + the vendor SDK tarball, no clang/LLVM/NCCL (vendor rows) |
+| Which rows | Only those declaring `builder.enabled` — the nvidia rows because their runtime image lacks the toolchain, a vendor row because its wheel needs the 22.04 floor; a runtime image that already carries both the toolchain and a 22.04 floor needs none |
+| Recipe | `Containerfile.builder` for the nvidia rows; a vendor row names its own via `builder.containerfile` (`Containerfile.builder-vendor-hygon` is the first) — the SDK is a tarball/run into `/opt`, not the CUDA apt repo, so the install steps are not shareable |
+| Acceptance | Compiling that row's device bitcode inside the built image (nvidia rows), or importing the pinned torch against the carried SDK (vendor rows — they publish no bitcode, so the torch import is the proof the wheel build stands in for), in CI, before the push |
+
+A vendor-SDK row (hygon, metax, …) that publishes a builder gets the same
+self-contained 22.04 environment, but its recipe is its own file rather than
+`Containerfile.builder`: the SDK is a tarball or a `.run` unpacked into `/opt`,
+and the interpreter is the row's own (hygon is python 3.10 from jammy itself, no
+deadsnakes PPA), so the shared file's CUDA-apt + NCCL-extract + LLVM steps do not
+apply and its nvidia-3.12 python does not either. The builder channel's *inputs*
+are unchanged — `flagcx-config.py` hands the vendor row the same `BUILDER_*`
+names, and `build-flagcx-builder.sh` picks the recipe from `builder.containerfile`
+(empty = the shared nvidia file) — but the vendor row carries no device bitcode,
+so its verification is the torch import (see `verify-flagcx-builder.sh`) rather
+than the `make` the nvidia rows run. hygon is the ideal first vendor: DTK 26.04
+has no 24.04 build at all (the 24.04 base image runs the 22.04 tarball forward),
+so its SDK is 22.04-clean by construction and the builder costs nothing the SDK
+cannot already provide.
 
 This is not the pre-built builder the megatron line declined. That decision's reason was that its
 runtime image was already sufficient; here it is not. The builder was once the runtime image plus a
@@ -158,8 +177,8 @@ to 24.04 would surface, at the wheel, rather than on a user's host.
 Pointing the wheel build at one of these images also makes part of `Containerfile.wheel` redundant:
 its build-only apt list (`libgflags-dev`, `libgoogle-glog-dev`) is what the builder now carries, and
 that step is paid on every `FLAGCX_REF` change today. It stays because the rows without a builder
-still need it — the vendor SDK rows build their wheel in the runtime image, which carries neither
-header — so removing it would trade one build's copy for another's.
+still need it — the vendor SDK rows that have no builder yet build their wheel in the runtime
+image, which carries neither header — so removing it would trade one build's copy for another's.
 
 The builder also carries the CUDA math libraries' headers (`libcublas-dev-*`, `libcusparse-dev-*`,
 `libcusolver-dev-*`, `libcufft-dev-*`), which the wheel build needs for a reason unrelated to

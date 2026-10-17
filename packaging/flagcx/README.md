@@ -57,41 +57,50 @@ plus the backend's `apt:` packages — no runtime image is involved.
 
 ## Builder images
 
-Some rows' runtime images carry no device toolchain at all — the two nvidia rows have no nvcc, no
-`cuda_runtime.h`, no `nccl.h` and no clang — and the wheel line builds *in* the runtime image. For
-those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`.
-It is **self-contained on ubuntu:22.04**: it installs its own interpreter and torch pin, the row's
-SDK packages, `builder.extra_apt`, and clang/llvm 22, rather than layering on the runtime image.
-The 22.04 base is what lowers the wheel's glibc floor to 2.35 — the reason a wheel built here
-installs on physical 22.04 hosts, not only in 24.04 containers.
+The wheel line builds in the row's `wheel_base_image`. Some rows' runtime images carry no device
+toolchain at all — the two nvidia rows have no nvcc, no `cuda_runtime.h`, no `nccl.h` and no
+clang — and some rows' wheels must link at most glibc 2.35, which a 24.04 runtime cannot produce.
+For those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`.
+It is **self-contained on ubuntu:22.04**: it installs its own interpreter and torch pin and the
+row's SDK, rather than layering on the runtime image. The 22.04 base is what lowers the wheel's
+glibc floor to 2.35 — the reason a wheel built here installs on physical 22.04 hosts, not only
+in 24.04 containers.
 
 ```bash
 packaging/flagcx/build-flagcx-builder.sh --list
 packaging/flagcx/build-flagcx-builder.sh --backend nvidia-cuda13.3
+packaging/flagcx/build-flagcx-builder.sh --backend hygon-dtk26.04
 packaging/flagcx/verify/verify-flagcx-builder.sh --backend nvidia-cuda13.3 --ref <sha>
+packaging/flagcx/verify/verify-flagcx-builder.sh --backend hygon-dtk26.04
 ```
 
-Only rows with a `builder:` block have one. A row whose runtime image already carries what the
-build needs — every vendor-SDK row, whose base image brings the toolchain with it — builds its
-wheel straight from the runtime image and has none, which is the ordinary state and not drift.
-The image is arch-agnostic: `bitcode_arch` is the arch the verification compiles at, not a
-property of the image.
+Only rows with a `builder:` block have one, and they declare it for two different reasons. The
+nvidia rows need the toolchain the runtime lacks — so their recipe (`Containerfile.builder`) adds
+the SDK apt packages, NCCL and clang/llvm 22 — while a vendor-SDK row such as hygon needs only the
+floor: its runtime image already carries the toolchain but is 24.04, so its own recipe
+(`Containerfile.builder-vendor-hygon`, named by `builder.containerfile`) installs the same SDK
+tarball and interpreter but no clang, bitcode or NCCL. A row whose runtime image already carries
+the toolchain and whose wheel need not drop its glibc floor builds straight from the runtime image
+and has none, which is the ordinary state and not drift.
 
 The verification is the acceptance test, not the image existing. `verify-flagcx-builder.sh`
 compiles that row's device bitcode inside the built image and asserts the artifact: which
 comm-traits branch it landed in (the two differ by a factor of seven in size), that it is
-`nvptx64-nvidia-cuda` bitcode, and that the wrapper header came with it. In CI,
-`.github/workflows/flagcx-builder.yml` runs that before pushing. Nothing goes stale the way the
-runtime-based builder did — a self-contained image records no runtime digest — and the glibc floor
-the wheel carries is asserted at the artifact, by the `.so` gate in `wheel-build-in-container.sh`,
-not remembered here as an image digest.
+`nvptx64-nvidia-cuda` bitcode, and that the wrapper header came with it — or, on a vendor row
+(which publishes no bitcode), imports the pinned torch against the SDK the image carries, which
+is the step the wheel build stands in for. In CI, `.github/workflows/flagcx-builder.yml` runs that
+before pushing. Nothing goes stale the way the runtime-based builder did — a self-contained image
+records no runtime digest — and the glibc floor the wheel carries is asserted at the artifact, by
+the `.so` gate in `wheel-build-in-container.sh`, not remembered here as an image digest.
 
-Both rows are built, verified and published; the acceptance test was run on h20 against `21f8b5f`:
+The three rows are built, verified and published; the nvidia acceptance test was run on h20
+against `21f8b5f`, the hygon one on hygon25:
 
 | Row | At | Acceptance |
 |---|---|---|
 | `nvidia-cuda13.3` | h20 | clang 22, `sm_120`, CCL branch — 2,021,740 B of bitcode |
 | `nvidia-cuda12.8` | h20 | clang 22, `sm_90`, Default branch — 274,820 B |
+| `hygon-dtk26.04` | hygon25 | torch 2.9.0+das.opt1.dtk2604 imports against DTK 26.04 (no bitcode) |
 
 The two sizes are the band's calibration as well as the record: the CCL branch pulls in
 `nccl_device`'s device-side implementation, which is what separates them by a factor of seven, and
@@ -100,7 +109,8 @@ the numbers do not move with the compiler.
 ## Wheels
 
 One wheel per backend, built in the backend's runtime image — or, on a row that publishes a builder
-image, in that image instead, because the runtime image has no clang.
+image, in that image instead (the nvidia rows, which have no clang; hygon, whose wheel needs the
+22.04 floor).
 
 ```bash
 packaging/flagcx/build-flagcx-wheel.sh --list

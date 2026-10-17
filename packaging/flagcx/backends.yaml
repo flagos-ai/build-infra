@@ -389,6 +389,12 @@ hygon-dtk26.04:
   # the du adaptor's build consults, and it falls back to /usr/local/cuda, which
   # DTK does not have.
   wheel: {enabled: true, torch_backend: vendor}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
+  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
+  # that. No clang/bitcode/NCCL — du.mk compiles .cu through DTK's nvcc.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-hygon
 
 iluvatar-corex4.4.0:
   vendor: iluvatar_corex
