@@ -430,6 +430,30 @@ wheels:
     - linux
     arch:
     - linux_x86_64
+  - version: flagcx==0.14.0+cuda12.8
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.0+cuda13.3
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
@@ -532,8 +556,8 @@ wheels:
     desc_zh: 面向通用 GPU 环境 13.3 的 torch-fl 设备插件安装包，提供统一的 flagos 设备。
     desc_en: torch-fl device-plugin wheel for generic GPU 13.3, exposing the unified
       flagos device.
-    notes: ""
-    notes_en: ""
+    notes: ''
+    notes_en: ''
     python:
     - cp312
     os:
@@ -796,8 +820,8 @@ sources:
   - 0.2.3
   - 0.3.0
   notes: 取自 FlagOS 维护的 Megatron-LM fork；这里的版本号是 fork 分支号，与 wheel 版本号不同。
-  notes_en: Taken from the Megatron-LM fork maintained by FlagOS; the version
-    here is the fork branch number and differs from the wheel version.
+  notes_en: Taken from the Megatron-LM fork maintained by FlagOS; the version here
+    is the fork branch number and differs from the wheel version.
 - name: torch-fl
   short_name: Torch-FL
   desc_zh: Torch-FL 设备插件源代码。
