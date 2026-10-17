@@ -18,22 +18,17 @@ name: FlagTree Builder
 # one: the build machine, holding everything that does not depend on the FlagTree
 # ref (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits). The
 # wheel lines build on top of those images. One entry per backend in
-# packaging/flagtree/backends.yaml; a row's fields say which extra proof its stage
-# gets (nvidia's and metax's content assertions, iluvatar's flagtree image +
-# wheel).
+# packaging/flagtree/backends.yaml; a row's `verify_stage` names the extra
+# assertions its stage gets.
 #
-# Not a wheel publisher: iluvatar's wheel is kept as a run artifact and uploaded
-# by a wheel line, so one version never has two uploaders.
+# Not a wheel publisher: no stage here compiles the ref, so nothing on this line
+# produces a wheel. Wheel lines own that.
 
 on:
   workflow_dispatch:
     inputs:
       backends:
         description: 'space-separated backend keys to build (blank = every row in backends.yaml)'
-        type: string
-        default: ''
-      flagtree_version:
-        description: 'FlagTree ref, for the rows whose stage compiles it (blank = Containerfile default)'
         type: string
         default: ''
       push:
@@ -100,9 +95,6 @@ jobs:
                   # A name, not a flag: each backend stages different things, so
                   # each has its own assertions. "" = the build is the proof.
                   "verify_stage": b.get("verify_stage") or "",
-                  "image_target": bool(b.get("image_target")),
-                  "image_tag": b.get("image_tag", ""),
-                  "ref_arg": bool(b.get("ref_arg")),
               })
 
           unknown = [w for w in want if w not in data]
@@ -129,7 +121,6 @@ jobs:
     env:
       TARGET: ${{ matrix.containerfile }}
       BUILDER_IMAGE: ${{ matrix.builder_image }}:ci
-      APP_IMAGE: ${{ matrix.image_tag }}:ci
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -177,9 +168,6 @@ jobs:
 
       - name: Build the builder stage
         working-directory: packaging/flagtree
-        env:
-          REF_ARG: ${{ matrix.ref_arg }}
-          FLAGTREE_REF: ${{ inputs.flagtree_version }}
         run: |
           set -euo pipefail
           # The runner's proxy, relayed verbatim: all three, never a value
@@ -196,12 +184,9 @@ jobs:
           [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
           [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
           [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
-          # Only a stage that compiles the ref itself declares the arg.
-          if [ "${REF_ARG}" = "true" ] && [ -n "${FLAGTREE_REF}" ]; then
-            build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}")
-          fi
-          # No --build-arg BUILDER_IMAGE: the Containerfile's own default base is
-          # what makes this a cold build, cached by the apt list and tarball args.
+          # No --build-arg FLAGTREE_VERSION: this stage is ref-independent by
+          # definition, and no --build-arg BUILDER_IMAGE: the Containerfile's own
+          # default base is what makes this a cold build.
           docker build --target builder "${build_args[@]}" -t "$BUILDER_IMAGE" -f "$TARGET" .
           docker tag "$BUILDER_IMAGE" "${{ steps.ref.outputs.image }}"
 
@@ -254,50 +239,23 @@ jobs:
             echo ">>> staged metax deps; plugin md5 prefix $(md5sum /root/.flagtree/metax/metaxTritonPlugin.so | cut -c1-8)"
           '
 
-      # The default target is an image on top of the stage: building it proves
-      # the stage delivers what the image needs, and its wheel is evidence of
-      # that. The ref arg IS passed: this rebuilds the stage on the way, so a
-      # different ref here would make the wheel below someone else's.
-      - name: Build the flagtree image
-        if: ${{ matrix.image_target }}
-        working-directory: packaging/flagtree
+      # The iluvatar stage's own contract: that the wheel build's inputs are
+      # where iluvatar.py looks for them.
+      - name: Verify the stage carries what the wheel build reads (iluvatar)
+        if: ${{ matrix.verify_stage == 'iluvatar' }}
         env:
-          REF_ARG: ${{ matrix.ref_arg }}
-          FLAGTREE_REF: ${{ inputs.flagtree_version }}
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
         run: |
           set -euo pipefail
-          # Same relay as the builder stage, for the same reason: ARGs do not
-          # carry across FROM, so this stage declares its own.
-          build_args=()
-          http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
-          https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
-          no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
-          [ -n "${http_proxy_val}" ] && build_args+=(--build-arg "http_proxy=${http_proxy_val}")
-          [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
-          [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
-          if [ "${REF_ARG}" = "true" ] && [ -n "${FLAGTREE_REF}" ]; then
-            build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}")
-          fi
-          docker build "${build_args[@]}" -t "$APP_IMAGE" -f "$TARGET" .
-
-      - name: Extract the wheel
-        if: ${{ matrix.image_target }}
-        working-directory: packaging/flagtree
-        run: |
-          set -euo pipefail
-          rm -rf wheels && mkdir -p wheels
-          cid=$(docker create "$APP_IMAGE")
-          docker cp "$cid:/wheels/." wheels/
-          docker rm "$cid" >/dev/null
-          ls -la wheels/*.whl
-
-      - name: Keep the wheel
-        if: ${{ matrix.image_target }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: flagtree-wheel-${{ matrix.name }}
-          path: packaging/flagtree/wheels/*.whl
-          if-no-files-found: error
+          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+            test -f /opt/flagtree-build-env.ready
+            command -v git cmake ninja make wget curl >/dev/null
+            python -c "import sys; assert sys.version_info[:2] == (3, 12)"
+            python -m pip --version
+            test -f /root/.flagtree/iluvatar/iluvatar-llvm22-x86_64/lib/cmake/mlir/MLIRConfig.cmake
+            test -f /root/.triton/json/include/nlohmann/json.hpp
+            echo ">>> staged iluvatar deps"
+          '
 
       - name: Push the builder image
         if: ${{ inputs.push }}
@@ -325,9 +283,4 @@ jobs:
 
       - name: Clean up
         if: ${{ always() }}
-        run: |
-          docker rmi "$BUILDER_IMAGE" 2>/dev/null || true
-          # APP_IMAGE only exists where the row has an image target.
-          if [ -n "${{ matrix.image_tag }}" ]; then
-            docker rmi "$APP_IMAGE" 2>/dev/null || true
-          fi
+        run: docker rmi "$BUILDER_IMAGE" 2>/dev/null || true
