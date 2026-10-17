@@ -75,10 +75,10 @@ backends:
     builder:
       verify_stage: iluvatar
     daily:
-      # Off until a build here is verified on the backend's own nodes.
-      enabled: false
+      enabled: true
       dist_name: flagtree-iluvatar
       version_base: "0.7.1"
+      ref: main
       wheel_tag: cp312-cp312-linux_x86_64
 
   metax:
