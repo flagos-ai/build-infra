@@ -32,6 +32,13 @@
 # The smoke container mounts the NVIDIA driver (torch+cu128 bundles the CUDA
 # runtime) via .github/build-config.yml run.vendors.nvidia.raw, exactly as a
 # bare-metal host would expose it.
+#
+# The container is ubuntu:22.04 because that is the bundle's glibc floor: the
+# nvidia flagcx wheel is built self-contained on 22.04 (#1372), so it links at
+# most glibc 2.35, and the smoke running at the floor is what proves a
+# 22.04 host can install and import it. It was briefly pinned to 24.04 while
+# the wheels were still 24.04-built (5eb9ce02); the floor test is the point,
+# not the matching.
 # ============================================================================
 
 set -euo pipefail
@@ -130,6 +137,6 @@ docker run --rm --network none \
     -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
     -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
     -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
-    ubuntu:24.04 bash /verify/smoke.sh
+    ubuntu:22.04 bash /verify/smoke.sh
 
 echo "==> verify passed: bundle installs and imports with the network denied"
