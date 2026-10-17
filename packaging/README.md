@@ -53,8 +53,8 @@ runtime 层/编译器 wheel（非四 app，不适用本骨架）；`packaging/sc
 产物都不是应用镜像，入口是 `packaging/flagcx/README.md`，设计档是
 `packaging/flagcx/DESIGN.md`（deb）与 `WHEEL-DESIGN.md`（wheel + builder），
 CI 在 `.github/workflows/flagcx-{deb,wheel,builder}.yml`。
-`packaging/flaglibs/` 也不适用本骨架——它是 6 个纯 Python 算子库
-（FlagAttention/FlagSparse/FlagBLAS/FlagAudio/FlagFFT/FlagGems-vllm）的
+`packaging/flaglibs/` 也不适用本骨架——它是 7 个纯 Python 算子库
+（FlagAttention/FlagSparse/FlagBLAS/FlagAudio/FlagFFT/FlagGems-vllm/FlagGems-sglang）的
 vendor 无关 wheel 发布线，入口是 `packaging/flaglibs/README.md`，CI 在
 `.github/workflows/flaglibs-wheel.yml`。
 `packaging/flagos-compressor/` 同理——单包纯 Python wheel（flagos-compressor，

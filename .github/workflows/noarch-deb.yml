@@ -39,7 +39,7 @@ on:
         description: 'component to build'
         type: choice
         required: true
-        options: [FlagAudio, FlagSparse, FlagAttention, FlagBLAS]
+        options: [FlagAudio, FlagSparse, FlagAttention, FlagBLAS, FlagGems-sglang]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this component is
@@ -114,6 +114,11 @@ jobs:
               script=build-flag-attention.sh; ref=v0.4.0; ver=0.4.0 ;;
             FlagBLAS)
               script=build-flag-blas.sh;      ref=v0.3.0; ver=0.3.0 ;;
+            FlagGems-sglang)
+              # The packaging definition landed after v0.1.0, so the pinned
+              # release tag does not build yet; the first release tag cut
+              # from master after it does. Until then dispatch with `ref`.
+              script=build-flaggems-sglang.sh; ref=v0.1.0; ver=0.1.0 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac

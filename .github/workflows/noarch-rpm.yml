@@ -37,7 +37,7 @@ on:
         description: 'component to build'
         type: choice
         required: true
-        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention, FlagBLAS]
+        options: [FlagGems, FlagAudio, FlagSparse, FlagAttention, FlagBLAS, FlagGems-sglang]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this component is
@@ -148,6 +148,14 @@ jobs:
               # find the 0.3.0 dist-info (FlagBLAS#120).
               ref=v0.3.0
               ver=v0.3.0 ;;
+            FlagGems-sglang)
+              # Same caveat as in noarch-deb.yml: v0.1.0 predates the
+              # packaging definition; the next release tag is the first
+              # that builds from the pin.
+              dockerfile=packaging/rpm/dockerfiles/Dockerfile.rpm
+              spec=packaging/rpm/specs/flaggems-sglang.spec
+              ref=v0.1.0
+              ver=v0.1.0 ;;
             *)
               echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
           esac

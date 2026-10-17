@@ -26,3 +26,4 @@ flag_blas:      {repo: FlagBLAS,       default_ref: v0.3.0,  scm: false}
 flag_audio:     {repo: FlagAudio,      default_ref: v0.3.0,  scm: false}
 flagfft-codegen: {repo: FlagFFT,        default_ref: v0.2.0,  scm: false}
 flaggems_vllm:  {repo: FlagGems-vllm,  default_ref: v0.2.0,  scm: false}
+flaggems_sglang: {repo: FlagGems-sglang, default_ref: v0.1.0, scm: false}
