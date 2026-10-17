@@ -159,7 +159,7 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `cambricon-neuware4.7.2` | 2026-10-09 | `0.14.0+neuware4.7.2` |
 | `enflame-tops1.9.10` | 2026-10-09 | `0.14.0+tops1.9.10` |
 | `enflame-tops1.10.6` | 2026-10-09 | `0.14.0+tops1.10.6` |
-| `hygon-dtk26.04` | 2026-10-09 | `0.14.0+dtk2604` |
+| `hygon-dtk26.04` | 2026-10-17 | `0.14.0+dtk2604` |
 | `iluvatar-corex4.4.0` | 2026-10-09 | `0.14.0+corex4.4.0` |
 | `iluvatar-corex4.5.0` | 2026-10-09 | `0.14.0+corex4.5.0` |
 | `kunlunxin-xre5.37.1` | 2026-10-09 | `0.14.0+xre5.37.1` |
@@ -178,7 +178,9 @@ built, verified and published off that tag; eighteen of them in a single dispatc
 and the two remaining ascend rows (`cann8.5.0`, `cann9.0.0`) finished on 2026-10-10 after the
 publish-only failures on their nodes (the docker `~/.docker/config.json` proxies stale `noProxy`
 left tencent/PyPI on the proxy path, which answered CONNECT 500; removing the proxies entry let
-those nodes reach the tencent mirror directly).
+those nodes reach the tencent mirror directly). hygon's pin was re-published on 2026-10-17 after
+its wheel moved onto the 22.04 builder (PR #1380) — same pin, now 22.04-clean — which is why its
+date differs from the other nineteen.
 
 `kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
 the node, while the wheel channel was being enabled for it (#1000).
