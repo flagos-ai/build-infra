@@ -403,7 +403,11 @@ hygon-dtk26.04:
   # bash-only profile script: an unadorned `sh` resolves none of them.
   vendor_lib_dirs: [/opt/dtk/cuda/cuda-12/lib64, /opt/dtk/lib, /opt/hyhal/lib]
   deb: {enabled: true, default_for_vendor: true}
-  rpm: {enabled: false, blocked_by: unverified-tarball-sdk}
+  # The tarball name says Ubuntu22.04, but nothing in it is: the image only
+  # untars it into /opt, and of the 141 shared objects it ships the highest
+  # requirement is GLIBC_2.29 -- librccl 2.17, libamdhip64 2.29 -- so el9's
+  # 2.34 already covers it. Checked 2026-10-17 off the tarball itself.
+  rpm: {enabled: true, sdk: filestore}
   # The wheel channel reads DEVICE_HOME a third time, as CUDA_PATH: that is what
   # the du adaptor's build consults, and it falls back to /usr/local/cuda, which
   # DTK does not have.
@@ -429,7 +433,12 @@ iluvatar-corex4.4.0:
   assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
   vendor_lib_dirs: [/usr/local/corex/lib]
   deb: {enabled: true, default_for_vendor: false}
-  rpm: {enabled: false, blocked_by: unverified-run-installer}
+  # Probed 2026-10-17 off the installer and its payload: the 83 shared objects
+  # it ships need at most GLIBC_2.17 (libnccl and libcudart 2.16), so every rpm
+  # target covers them, and the toolkit installer is a self-contained ELF with
+  # no dpkg, apt, rpm or yum call in it. It does read /etc/os-release, so
+  # whether it accepts fedora or openEuler is the one thing left to try.
+  rpm: {enabled: false, blocked_by: installer-reads-os-release}
   wheel: {enabled: true}
 
 iluvatar-corex4.5.0:
@@ -444,7 +453,12 @@ iluvatar-corex4.5.0:
   assert: [/usr/local/corex/include/cuda_runtime.h, /usr/local/corex/include/nccl.h]
   vendor_lib_dirs: [/usr/local/corex/lib]
   deb: {enabled: true, default_for_vendor: true}
-  rpm: {enabled: false, blocked_by: unverified-run-installer}
+  # Probed 2026-10-17 off the installer and its payload: the 83 shared objects
+  # it ships need at most GLIBC_2.17 (libnccl and libcudart 2.16), so every rpm
+  # target covers them, and the toolkit installer is a self-contained ELF with
+  # no dpkg, apt, rpm or yum call in it. It does read /etc/os-release, so
+  # whether it accepts fedora or openEuler is the one thing left to try.
+  rpm: {enabled: false, blocked_by: installer-reads-os-release}
   wheel: {enabled: true}
 
 kunlunxin-xre5.37.1:
