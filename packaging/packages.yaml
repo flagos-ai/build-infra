@@ -430,30 +430,6 @@ wheels:
     - linux
     arch:
     - linux_x86_64
-  - version: flagcx==0.14.0+cuda12.8
-    pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
-    python:
-    - cp312
-    os:
-    - linux
-    arch:
-    - linux_x86_64
-  - version: flagcx==0.14.0+cuda13.3
-    pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
-    python:
-    - cp312
-    os:
-    - linux
-    arch:
-    - linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
