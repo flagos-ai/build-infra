@@ -217,6 +217,7 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "TORCH_MLU_PIN=$BUILDER_TORCH_MLU" \
             --build-arg "TORCH_MLU_OPS_PIN=$BUILDER_TORCH_MLU_OPS" \
             --build-arg "NUMPY_PIN=$BUILDER_NUMPY" \
+            --build-arg "PANDAS_PIN=$BUILDER_PANDAS" \
             --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \
             --build-arg "PYTHON_VERSION=$BUILDER_PYTHON_VERSION" \
             --build-arg "VENDOR_PYPI=$BUILDER_FLAGOS_PYPI" \

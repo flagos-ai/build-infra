@@ -28,6 +28,7 @@ ARG TORCH_PIN
 ARG TORCH_MLU_PIN
 ARG TORCH_MLU_OPS_PIN
 ARG NUMPY_PIN
+ARG PANDAS_PIN
 ARG VENDOR_PYPI
 ARG EXTRA_PYPI
 ARG PYTHON_VERSION=3.12
@@ -100,10 +101,12 @@ ENV NEUWARE_HOME="/usr/local/neuware" \
     LD_LIBRARY_PATH="/usr/local/neuware/lib64"
 
 # Interpreter and torch stack, the things the runtime image used to provide.
-# prereqs+numpy from the general mirror, torch/torch-mlu/torch-mlu-ops from the
-# vendor index LAST so +cpu/+torch2.11.0 resolves there while their own deps
-# resolve on the mirror. torch-mlu is the bridge torch_mlu import loads, which
-# is the step that binds the wheel to the SDK's libcncl/libcnrt.
+# prereqs+numpy+pandas from the general mirror, torch/torch-mlu/torch-mlu-ops
+# from the vendor index LAST so +cpu/+torch2.11.0 resolves there while their own
+# deps resolve on the mirror. torch-mlu is the bridge torch_mlu import loads,
+# which is the step that binds the wheel to the SDK's libcncl/libcnrt; pandas
+# rides along because torch_mlu's autoload pulls a profiler module that imports
+# it but the vendor wheel does not declare it.
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 RUN set -eux; \
@@ -112,7 +115,7 @@ RUN set -eux; \
     python3.12 -m venv /flagos; \
     /flagos/bin/pip install --no-cache-dir --upgrade pip; \
     /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
-        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} ${PANDAS_PIN} wheel packaging; \
     for i in 1 2 3; do \
         PIP_INDEX_URL="${EXTRA_PYPI}" \
         PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
