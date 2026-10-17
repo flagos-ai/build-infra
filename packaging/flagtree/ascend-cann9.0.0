@@ -41,7 +41,9 @@ ARG FLAGTREE_WHEEL_VERSION=
 # A wrong BASE_IMAGE must fail here, not pair the wheel with another bishengir.
 ARG CANN_VERSION=9.0.0
 # Prebuilt deps, same bucket as metax / sunrise: the build's clang and the toolkits.
-ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+# Staged on our own filestore, not the public bucket: ks3 answers the CI
+# proxy with 500 and is in no runner's no_proxy.
+ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
 ARG LLVM_TARBALL=llvm-7d5de303-ubuntu-aarch64-python311-compat_v0.6.0.tar.gz
 ARG LLVM_DIR=llvm-7d5de303-ubuntu-aarch64-python311-compat
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.5.x-linux-aarch64.tar.gz

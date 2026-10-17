@@ -51,7 +51,9 @@ ARG FLAGTREE_WHEEL_VERSION=0.7.0rc2+iluvatar3.6
 ARG FLAGPRISM_COMMIT=7a0838c7897f5e9bb440dbd2d59ace6dd86210c4
 # Prebuilt deps staged into FlagTree's offline cache: iluvatar-llvm22 (also the
 # LLD the plugin links against) and the triton origin toolkits.
-ARG DEPS_BASE=https://baai-cp-web.ks3-cn-beijing.ksyuncs.com/trans
+# Staged on our own filestore, not the public bucket: ks3 answers the CI
+# proxy with 500 and is in no runner's no_proxy.
+ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
 ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
 ARG LLVM_TARBALL=iluvatar-llvm22-x86_64_v0.6.1.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
