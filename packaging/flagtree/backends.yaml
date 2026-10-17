@@ -13,38 +13,27 @@
 # limitations under the License.
 
 # FlagTree build-line facts, one entry per backend that has a Containerfile beside
-# this file. flagtree-builder.yml reads this; flagtree-wheel-daily.yml takes the
-# `daily:` block once its line is generalized.
+# this file. flagtree-builder.yml and flagtree-wheel-daily.yml both read it.
 #
 # Not a second configs.yaml: the image tag, the stack version and the vendor PyPI
 # index stay in configs.yaml / build-config.yml and are derived at run time.
 #
 #   containerfile   file in this directory, also docker build's `-f`.
 #   builder_image   image REPOSITORY the `--target builder` stage is published
-#                   under. Not derived from `containerfile`: iluvatar's carries
-#                   the CoreX line, because the builder is tied to the SDK it
-#                   stages.
-#   runson          runner labels for the build. Here rather than in
-#                   build-config.yml because these builds need no device --
-#                   that file's overrides label the runtime/app builds, which do.
-#                   Emitted as a JSON string, so a consumer must fromJSON it.
+#                   under.
+#   runson          runner labels for the build; JSON string, so fromJSON it.
+#                   Here rather than in build-config.yml because these builds
+#                   need no device -- that file's overrides label the runtime and
+#                   app builds, which do.
 #   disk_min_gb     free space checked before the build starts.
 #   builder         the publishable build environment. Its PRESENCE is what says
-#                   the Containerfile has a `--target builder` stage; a backend
-#                   without one cannot have its environment published yet.
-#     verify_stage  which proof the stage gets, by name: each backend stages
-#                   different things, so the assertions differ. Omitted = the
-#                   build itself is the proof. The names are the workflow's step
-#                   names, not a second registry.
-#     image_target  the default target is a flagtree image on top of the stage;
-#                   build it and keep the wheel it yields as proof.
-#     image_tag     local tag for that image; only with image_target.
-#     ref_arg       whether the stage consumes --build-arg FLAGTREE_VERSION.
-#                   True where the stage compiles the ref itself (iluvatar builds
-#                   its wheel inside `builder`), false where it is ref-independent.
-#   daily.enabled   whether the daily line builds this backend. False = the
-#                   Containerfile does not take FLAGTREE_WHEEL_NAME or write the
-#                   `Source-Commit` carrier that line's gate asserts.
+#                   the Containerfile has a `--target builder` stage.
+#     verify_stage  which stage assertions to run, by name -- each backend stages
+#                   different things. The names are flagtree-builder.yml's step
+#                   names, not a second registry. Omitted = the build is the
+#                   proof.
+#   daily.enabled   whether the daily line builds this backend. False until a
+#                   build here has been verified on the backend's own nodes.
 #   daily.dist_name one project per backend, so `pip install --pre <name>` ranks
 #                   without a backend token in the version.
 #   daily.version_base
@@ -67,8 +56,6 @@ backends:
     disk_min_gb: 15
     builder:
       verify_stage: nvidia
-      image_target: false
-      ref_arg: false
     daily:
       enabled: true
       dist_name: flagtree-nvidia
@@ -86,18 +73,13 @@ backends:
     runson: ["self-hosted", "corex450"]
     disk_min_gb: 60
     builder:
-      image_target: true
-      image_tag: flagtree-iluvatar
-      ref_arg: true
+      verify_stage: iluvatar
     daily:
+      # Off until a build here is verified on the backend's own nodes.
       enabled: false
       dist_name: flagtree-iluvatar
       version_base: "0.7.1"
       wheel_tag: cp312-cp312-linux_x86_64
-      # No `ref:` yet. Unlike metax, this Containerfile writes no `Source-Commit`
-      # carrier and does not take FLAGTREE_WHEEL_NAME, and the daily's gate
-      # asserts both unconditionally -- so the first daily for iluvatar needs that
-      # landing here first, not a ref line.
 
   metax:
     containerfile: metax
@@ -109,8 +91,6 @@ backends:
     disk_min_gb: 60
     builder:
       verify_stage: metax
-      image_target: false
-      ref_arg: false
     daily:
       enabled: true
       dist_name: flagtree-metax

@@ -19,22 +19,18 @@
 Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
-The `nvidia-cuda` / `metax` / `sunrise` builders start from a plain Ubuntu 22.04
-(old glibc: the resulting `libtriton.so` must load on 22.04 nodes). The
-`ascend-cann9.0.0` / `ascend-cann8.5.0` pair instead builds **inside the
+The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` builders start from a plain
+Ubuntu 22.04 (old glibc: the resulting `libtriton.so` must load on 22.04 nodes).
+The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair instead builds **inside the
 backend's runtime image**, because FlagTree's Ascend build needs CANN on the
-build machine — see the section below. `iluvatar` is the odd one out: its
-builder stage is a plain 22.04 like the first group, but the file carries a
-**second stage** that installs CoreX on top and produces a flagtree image — see
-below. `nvidia-cuda` also has two stages, for a different reason: see its own
-section.
+build machine — see the section below.
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA, builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `metax`      | FlagTree for MetaX (MACA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU) | Ubuntu 22.04 + clang/lld 14 |
-| `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + image | Ubuntu 22.04 (glibc 2.35) + CoreX 4.5.0 |
+| `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
 
@@ -197,35 +193,50 @@ on `flagos-pypi-hosted`'s `flagtree==0.7.0rc2+iluvatar3.6` (cp312):
 | `triton/_C/iluvatarTritonPlugin.so` | 2.29 | 3.4.26 | 0 |
 
 22.04 is glibc 2.35 / gcc 11.4 (GLIBCXX 3.4.30), so a 22.04 client aborts before
-`main()`. Rebuilt here from the `0.7.0-rc2-triton3.6` branch, `libtriton.so` comes
-out at **GLIBC 2.34 / GLIBCXX 3.4.30 / no `__isoc23_`**, which is what the gate
-asserts. pybind11 is pinned to the vendor's internals **v12**
-(`PYBIND11_SPEC=>=3.1,<3.2`), for the ABI reason described under `metax`.
+`main()`. Rebuilt here, `libtriton.so` comes out at **GLIBC 2.34 / GLIBCXX
+3.4.30 / no `__isoc23_`**, which is what the gate asserts. pybind11 is pinned to
+the vendor's internals **v12** (`PYBIND11_SPEC=>=3.1,<3.2`), for the ABI reason
+described under `metax`.
 
-**Two stages, one file.** `--target builder` is the publishable artifact, pushed
-by `flagtree-builder.yml` to
+**Two stages, one file.** `--target builder` is the build machine — apt
+toolchain, python 3.12, the pre-staged iluvatar LLVM and triton toolkits — and is
+what `flagtree-builder.yml` publishes to
 `harbor.baai.ac.cn/flagos-dev/flagtree-builder-iluvatar-corex4.5.0:{version}`;
-the default target is a flagtree image that takes that stage's venv and wheel.
-The file is self-contained — `docker build -f iluvatar .` needs no script or
-sibling file from this repo, which is what lets the published builder be the
-whole recipe for reproducing the wheel.
+the default target is the wheel build on top of it. No stage of this file
+installs CoreX: a plain 22.04 toolchain is what produces the wheel, and the
+vendor SDK belongs to the runtime images.
 
-**The wheel leaves this line.** The builder line keeps the wheel it extracts as a
-run artifact and has no upload step: a wheel published to an index belongs to a
-wheel line, where the artifact is the deliverable, so one version never has two
+**The wheel leaves this line.** The builder line publishes the stage and nothing
+else: a wheel is a wheel line's deliverable, so one version never has two
 uploaders. The upload path for this backend is `flagtree-wheel.yml` with
 `target=iluvatar`, where `prepare` maps the target to the `iluvatar-corex4.5.0`
 runtime row for its runner labels and vendor index while still passing no
-`BASE_IMAGE` — this file builds from plain `ubuntu:22.04`, not from that image.
+`BASE_IMAGE`.
 
-**The plugin is linked in, not shipped.** The 3.6 branch builds
-`triton_iluvatar.cc` as an object and links it into `libtriton.so`
-(`add_triton_plugin` in `third_party/iluvatar/CMakeLists.txt`), so there is no
-separate `iluvatarTritonPlugin.so` as the vendor wheel has. The gate therefore
-asserts the plugin's symbol (`translateLLVMIRToILUVATAR`) is *in* `libtriton.so`
-rather than asserting a second file. LLVM, the triton toolkits and a pinned
-`FlagPrism` clone are staged into FlagTree's offline cache first, as the other
-plain-22.04 builders do.
+**The plugin is linked in, not shipped.** This backend builds `triton_iluvatar.cc`
+as an object and links it into `libtriton.so` (`add_triton_plugin` in
+`third_party/iluvatar/CMakeLists.txt`), so there is no separate
+`iluvatarTritonPlugin.so` as the vendor wheel has. The gate therefore asserts the
+plugin's symbol (`translateLLVMIRToILUVATAR`) is *in* `libtriton.so` rather than
+asserting a second file.
+
+**Only binary artifacts are pre-staged.** `iluvatar-llvm22` (which the backend's
+`register_cache` hook wires up as `LLVM_SYSPATH`) and the triton toolkits (where
+FlagPrism finds json) come off our own filestore. Third-party **source** trees —
+FlagPrism here, flagcx elsewhere — are not staged at all: FlagTree's own resolver
+clones them during the build, so there is nothing for this file to pin and
+nothing to go stale when upstream moves. `TRITON_OFFLINE_BUILD=1` is the vendor's
+own setting for this backend and is what makes setup.py reject a dependency whose
+syspath is unset — the check that keeps the staging honest.
+
+The tarballs are staged **under the names upstream asks for**, and that name is
+the only coupling: the LLVM version moves with the ref — FlagTree declares it in
+`python/setup_tools/utils/iluvatar.py` and its own cache check adopts whatever is
+at `~/.flagtree/iluvatar/iluvatar-llvm22-x86_64` — so a version bump is a rename
+here and a republish, with the definition and the usage in the same snippet.
+Nothing asserts the tarball's bytes: what the artifact *is* follows from its
+name, and an md5 here would only fail after the fact, on an artifact nobody
+chose.
 
 **The gate is a file, not a heredoc.** It was written `RUN python - <<'PY'`,
 which on Docker's **legacy builder** — what the CoreX nodes run — never reaches
@@ -235,15 +246,9 @@ itself to `/tmp/gate.py` with `printf` and runs that, which behaves the same on
 both builders. Anything meant to fail a build has to be exercised on the builder
 the job actually runs on.
 
-**No `flag_gems`.** The image is the flagtree build platform — the shape of
-`runtime:v1` (`NO_FLAGGEMS`), where a source build or a triton test runs — not a
-runtime image. `flag_gems` depends on triton, so shipping it would also hide
-whether the triton in the image works.
-
-**CoreX's cmake installer takes only `--prefix=dir`** and unpacks into the
-current directory for any other spelling. Here that is `/`, so the image stage
-moves the modules from `/share` to `/usr/share` and asserts `cmake --version`.
-The iluvatar bases carried the same defect; they now pass `--prefix` (#1011).
+**The commit rides in the metadata.** As for `metax`: `.git` is removed before
+`pip wheel` so the version comes out clean, and the commit read just before that
+is carried as a `Project-URL: Source-Commit` line (mechanism above).
 
 ## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
 
@@ -359,25 +364,27 @@ docker build -t flagtree-ascend-cann9.0.0:0.7.0rc2 -f ascend-cann9.0.0 .
 Useful build args (see the Containerfile for the full list):
 
 - `FLAGTREE_VERSION` — FlagTree git branch/tag/sha to build; also the wheel version
-  string (default `0.7.0` for `nvidia-cuda`, `0.7.0+metax3.6` for `metax`). This
+  string (default `0.7.0` for `nvidia-cuda`, `0.7.0+metax3.6` for `metax`,
+  `0.7.1a1+iluvatar3.6` for `iluvatar`). This
   is the single version knob, and each default is the release the stack pins in
   `configs.yaml`: the wheel's version is what a client's `pip` ends up with, so
   the two are meant to agree.
 - `FLAGTREE_WHEEL_VERSION` — wheel version string; defaults to `FLAGTREE_VERSION`,
   so you normally only set `FLAGTREE_VERSION`. Every builder here ends up with a
-  clean version (no `+git<sha>`): `metax`/`sunrise`/`nvidia-cuda` and the ascend
-  pair all drop `.git` before `pip wheel`, and `FLAGTREE_PYPI_KEY` (md5-gated in
-  FlagTree's `setup.py`) is the other route for a caller that holds the secret.
+  clean version (no `+git<sha>`): `metax`/`sunrise`/`iluvatar`/`nvidia-cuda` and
+  the ascend pair all drop `.git` before `pip wheel`, and `FLAGTREE_PYPI_KEY`
+  (md5-gated in FlagTree's `setup.py`) is the other route for a caller that holds
+  the secret.
   On the ascend pair it defaults to `FLAGTREE_BASE_VERSION.<UTC date>` instead
   (the ref and the wheel label are two separate knobs there).
 - `FLAGTREE_WHEEL_NAME` — the distribution name FlagTree's `setup.py` publishes
   under. Default `flagtree`; the daily line sets `flagtree-nvidia` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`). Set by no caller in this repo.
-- `BUILDER_IMAGE` — the staged builders (`nvidia-cuda`, `metax`). The image
-  stage 1 builds on; defaults to `ubuntu:22.04` (the cold build). Pointing it at
-  the published builder stage makes stage 1 a no-op — see the builder sections
-  above.
+- `BUILDER_IMAGE` — the staged builders (`nvidia-cuda`, `metax`, `iluvatar`). The
+  image stage 1 builds on; defaults to `ubuntu:22.04` (the cold build). Pointing
+  it at the published builder stage makes stage 1 a no-op — see the builder
+  sections above.
 
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
