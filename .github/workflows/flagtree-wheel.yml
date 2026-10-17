@@ -16,11 +16,13 @@ name: FlagTree Wheel
 
 # Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
 # vendor PyPI. Two target families: self-contained Containerfiles (metax /
-# nvidia-cuda / sunrise), and the ascend pair, which builds INSIDE its backend's
-# runtime image and is therefore named after that backend — the Containerfile, this
-# workflow's target and generate_matrix.py's backend name are the same string.
-# `prepare` resolves what that difference implies. The Containerfile's gates fail
-# `docker build` on an unusable wheel, so a bad wheel never reaches extract/upload.
+# nvidia-cuda / iluvatar / sunrise), and the ascend pair, which builds INSIDE its
+# backend's runtime image and is therefore named after that backend — the
+# Containerfile, this workflow's target and generate_matrix.py's backend name are
+# the same string. `prepare` resolves what that difference implies: the runner
+# labels and the vendor index, and — for the ascend pair only — the base image.
+# The Containerfile's gates fail `docker build` on an unusable wheel, so a bad
+# wheel never reaches extract/upload.
 
 on:
   workflow_dispatch:
@@ -31,6 +33,7 @@ on:
         options:
           - metax
           - nvidia-cuda
+          - iluvatar
           - sunrise
           - ascend-cann9.0.0
           - ascend-cann8.5.0
@@ -90,11 +93,18 @@ jobs:
           BASE_IMAGE_OVERRIDE: ${{ inputs.base_image }}
         run: |
           set -euo pipefail
-          # The ascend targets ARE the backend names, so there is no mapping to keep
-          # in sync with configs.yaml.
+          # Which configs.yaml backend a target belongs to, when it has one. The
+          # ascend targets ARE the backend names, so they need no mapping; the
+          # iluvatar target is the plain vendor name, and which CoreX line it
+          # means is the runtime image's business, not a guess from the string.
+          #
+          # `in_base` marks the targets that build INSIDE that backend's runtime
+          # image. The others are self-contained Containerfiles that take no
+          # BASE_IMAGE at all, so passing one would be an unused build arg.
+          backend=""; in_base=no
           case "$TARGET" in
-            ascend-cann*) backend="$TARGET" ;;
-            *)            backend="" ;;
+            ascend-cann*) backend="$TARGET";                in_base=yes ;;
+            iluvatar)     backend="iluvatar-corex4.5.0";    in_base=no  ;;
           esac
           if [ -z "$backend" ]; then
             echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
@@ -106,10 +116,15 @@ jobs:
           python3 scripts/generate_matrix.py --runtime "$backend" > matrix.json
           cat matrix.json
           echo "runson=$(jq -c '.include[0].runson | fromjson' matrix.json)" >> "$GITHUB_OUTPUT"
-          # A version bump reaches the runtime images later than configs.yaml: until
-          # then the build takes another tag of the same CANN line (e.g. -build).
-          echo "base_image=${BASE_IMAGE_OVERRIDE:-$(jq -r '.include[0].image_tag' matrix.json)}" >> "$GITHUB_OUTPUT"
-          echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
+          if [ "$in_base" = yes ]; then
+            # A version bump reaches the runtime images later than configs.yaml: until
+            # then the build takes another tag of the same CANN line (e.g. -build).
+            echo "base_image=${BASE_IMAGE_OVERRIDE:-$(jq -r '.include[0].image_tag' matrix.json)}" >> "$GITHUB_OUTPUT"
+            echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_image=" >> "$GITHUB_OUTPUT"
+            echo "extra_pypi=" >> "$GITHUB_OUTPUT"
+          fi
           # Off the matrix's vendor index, not the target name: it is the field the
           # runtime images are built from.
           flagos_pypi=$(jq -r '.include[0].flagos_pypi' matrix.json)

@@ -213,8 +213,10 @@ whole recipe for reproducing the wheel.
 **The wheel leaves this line.** The builder line keeps the wheel it extracts as a
 run artifact and has no upload step: a wheel published to an index belongs to a
 wheel line, where the artifact is the deliverable, so one version never has two
-uploaders. `iluvatar` is not a `flagtree-wheel.yml` target today, and giving it
-one is that workflow's call rather than this line's.
+uploaders. The upload path for this backend is `flagtree-wheel.yml` with
+`target=iluvatar`, where `prepare` maps the target to the `iluvatar-corex4.5.0`
+runtime row for its runner labels and vendor index while still passing no
+`BASE_IMAGE` — this file builds from plain `ubuntu:22.04`, not from that image.
 
 **The plugin is linked in, not shipped.** The 3.6 branch builds
 `triton_iluvatar.cc` as an object and links it into `libtriton.so`
