@@ -157,8 +157,8 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `ascend-cann9.0.0-910c` | 2026-10-09 | `0.14.0+cann9.0.0.910c` |
 | `cambricon-neuware4.4.3` | 2026-10-09 | `0.14.0+neuware4.4.3` |
 | `cambricon-neuware4.7.2` | 2026-10-17 | `0.14.0+neuware4.7.2` |
-| `enflame-tops1.9.10` | 2026-10-09 | `0.14.0+tops1.9.10` |
-| `enflame-tops1.10.6` | 2026-10-09 | `0.14.0+tops1.10.6` |
+| `enflame-tops1.9.10` | 2026-10-18 | `0.14.0+tops1.9.10` |
+| `enflame-tops1.10.6` | 2026-10-18 | `0.14.0+tops1.10.6` |
 | `hygon-dtk26.04` | 2026-10-17 | `0.14.0+dtk2604` |
 | `iluvatar-corex4.4.0` | 2026-10-09 | `0.14.0+corex4.4.0` |
 | `iluvatar-corex4.5.0` | 2026-10-09 | `0.14.0+corex4.5.0` |
@@ -183,7 +183,9 @@ its wheel moved onto the 22.04 builder (PR #1380) — same pin, now 22.04-clean 
 date differs from the other nineteen. cambricon-neuware4.7.2's pin was re-published the same way
 on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clean. The two metax pins
 were re-published on 2026-10-18 off the shared metax 22.04 builder (PR #1394) — same pins, now
-22.04-clean.
+22.04-clean. The two enflame pins were re-published the same way on 2026-10-18, off the shared
+enflame 22.04 builder (PR #1398) — same pins, now 22.04-clean (max GLIBC_2.34, no forbidden
+symbols).
 
 `kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
 the node, while the wheel channel was being enabled for it (#1000).
