@@ -12,94 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build a FlagTree sunrise (PTPU) wheel on Ubuntu 22.04 (glibc 2.35 / clang 14)
-# so the resulting libtriton.so links against an older glibc and loads on the
-# standard client bases. Sunrise runtime wheels are built on Ubuntu 24.04 and
-# drag in GLIBC_2.38 + GLIBCXX_3.4.32 (same defect class as the metax wheel).
-#
-# Source: FLAGTREE_BACKEND=sunrise from FlagTree main. The published vendor tag
-# 0.6.0+sunrise3.6 predates FlagTree PR 978 ("update sunrise backend plugin"),
-# which rewrote the sunrise backend pass pipeline and dropped add_split_dot --
-# the suspected fix for the flash_varlen_fwd_kernel decode+GQA non-terminating
-# kernel (vllm plugin reports report-vllm-0.20.2.md §2.9 / report-vllm-0.24.0.md
-# §11; A/B compile-only IR dumps show identical TTGIR between old flagtree and
-# stock triton, locating the defect downstream in the backend post-passes).
-# Building from main (default FLAGTREE_VERSION=main) captures FlagTree PR 978 + any later
-# fix; pin a specific commit sha for reproducible releases.
-#
-# The prebuilt sunrise deps are staged into FlagTree's offline cache so the
-# build wires them itself (same pattern as the metax builder):
-#   - llvm-71bd243f -> ~/.flagtree/sunrise/sunrise_llvm22_dev_release
-#     (cache key "sunrise_llvm22_dev_release", post_hook configure_llvm copies
-#     stpu/bitcode/*.bc into third_party/sunrise/backend/lib)
-#   - sunriseTritonPlugin_v0.6.0.4 -> ~/.flagtree/sunrise/sunriseTritonPlugin.so
-#     (cache key "sunriseTritonPlugin.so"; md5 gate below pins 4c77b8c0)
-#   - build-deps-triton -> ~/.triton (triton origin toolkits)
-#
-# pybind11 is pinned OPPOSITE to the metax builder: the sunrise plugin v0.6.0.4
-# is compiled against pybind11 internals v12 (verified: embedded symbol
-# __pybind11_internals_v12), while metaxTritonPlugin is v11. FlagTree's own
-# _PYBIND11_INTERNALS_TO_PIP maps only up to v11, so for sunrise we pin the v12
-# range explicitly; the gate below asserts libtriton exposes v12, because a
-# mismatch makes sunrise.load_dialects(ctx) raise "TypeError: incompatible
-# function arguments" at kernel-compile time on real hardware (CI smoke import
-# on a GPU-less box cannot catch it).
-#
-# Build:
-#   docker build -t flagtree-sunrise:0.6.0 -f sunrise .
-#   # behind a proxy:
-#   docker build --build-arg http_proxy=$http_proxy --build-arg https_proxy=$https_proxy \
-#                -t flagtree-sunrise:0.6.0 -f sunrise .
-#   # via CI: dispatch flagtree-wheel.yml with target=sunrise.
-#
-# Extract the wheel:
-#   id=$(docker create flagtree-sunrise:0.6.0); docker cp $id:/wheels ./wheels; docker rm $id
-FROM ubuntu:22.04
+# Build a FlagTree sunrise (PTPU) wheel on Ubuntu 22.04 (glibc 2.35 / clang 14):
+# the vendor's wheel is built on 24.04 and drags GLIBC_2.38 + GLIBCXX_3.4.32 into
+# libtriton.so, which a 22.04 client cannot load. Build:
+#   docker build -t flagtree-sunrise:0.7.0 -f sunrise .
+# Extract: id=$(docker create flagtree-sunrise:0.7.0); docker cp $id:/wheels ./wheels
 
-# Proxy is only consumed during build (not persisted in the image). All three are
-# declared: an undeclared ARG of that name is not inherited, and no_proxy is the
-# one that keeps the deps tarball below off the tunnel.
+# TWO STAGES, ONE FILE. `--target builder` is the build machine (apt toolchain,
+# python 3.10, the three prebuilt sunrise inputs), published by
+# flagtree-builder.yml; the default target builds the wheel on top of it. It is
+# also the one knob that separates a cold build from a warm one -- pointing this
+# at the published stage turns everything below it into a no-op, via its marker.
+ARG BUILDER_IMAGE=ubuntu:22.04
+FROM ${BUILDER_IMAGE} AS builder
+
+# Proxy is consumed during build only -- an ARG is not persisted in the image.
+# no_proxy is declared too: an undeclared ARG of that name is not inherited.
 ARG http_proxy=
 ARG https_proxy=
 ARG no_proxy=
-# FlagTree git ref to build. The sunrise fix (FlagTree PR 978) exists only on main -- the
-# vendor tag 0.6.0+sunrise3.6 is pre-978. Default main; pass a commit sha for
-# reproducible builds.
-ARG FLAGTREE_VERSION=main
-# Wheel version string. FlagTree's setup.py (get_flagtree_version) appends a
-# dirty "+git<sha>" / ".git<sha>" suffix unless the build removes .git (git
-# rev-parse then fails and the suffix resolves empty). We don't have the vendor
-# FLAGTREE_PYPI_KEY, so we remove .git before `pip wheel` -> clean version, used
-# as-is. Default matches the vendor wheel label so this is a drop-in replacement;
-# append a suffix (e.g. 0.6.0+sunrise3.6.20260819) to distinguish a rebuild.
-ARG FLAGTREE_WHEEL_VERSION=0.6.0+sunrise3.6
-# Prebuilt sunrise deps, pinned by URL. These are backend inputs, not source:
-#  - llvm-71bd243f: prebuilt LLVM 22 (configure_llvm post_hook wires LLVM_SYSPATH).
-#  - sunriseTritonPlugin_v0.6.0.4: prebuilt sunrise codegen (FlagTree PR 978 version,
-#    .so md5 4c77b8c0; compiled against pybind11 internals v12).
-#  - build-deps-triton: triton origin toolkits (nvidia nvcc/cudart + json/gtest).
-# Staged on our own filestore, not the public bucket: ks3 answers the CI
-# proxy with 500 and is in no runner's no_proxy.
+
+# The prebuilt backend inputs, staged on our own filestore: ks3 answers the CI
+# proxy with 500. The names are upstream's -- FlagTree declares them in
+# python/setup_tools/utils/sunrise.py and re-downloads what it does not recognize
+# -- and the plugin .so is md5-gated below.
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
 ARG LLVM_TARBALL=llvm-71bd243f-triton-v3.6.x.tar.gz
 ARG PLUGIN_TARBALL=sunriseTritonPlugin_v0.6.0.4.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
-# pybind11 version spec, pinned. The prebuilt sunriseTritonPlugin.so is compiled
-# against internals v12 (pybind11 >=3.1); libtriton must expose the same version
-# or kernel-compile fails on-device (see header comment). <3.2 guards against an
-# unknown future internals bump. The gate below asserts v12.
-ARG PYBIND11_SPEC=>=3.1,<3.2
+# The LLVM/plugin tarballs unpack to /root/.flagtree/sunrise/<cache key>, which is
+# how FlagTree's cache resolves them by name; the triton toolkits tarball is rooted
+# at `.triton/` and needs the --strip-components=1 below.
+
 ENV DEBIAN_FRONTEND=noninteractive
 
-# System build deps for the LLVM/Triton native build + Python 3.10 (22.04 system).
-# Sunrise builds with clang/lld (not gcc) -- see the build-RUN comment below.
-# Symlinks expose the unversioned names setup.py and clang's -fuse-ld=lld expect:
-# clang/clang++ for CMAKE_C/CXX_COMPILER, lld for CMAKE_LINKER, ld.lld for the
-# -fuse-ld=lld linker lookup. The bare `lld` driver only prints a usage message
-# and exits 1 on --version (multi-flavor dispatch by argv[0]); ld.lld is the ELF
-# flavor and is the one that actually links, so the version check uses it.
-# python3.10-venv is what provides `python3.10 -m ensurepip` on Ubuntu.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# The marker is written last: on top of a published builder every line below is
+# already in the image, and the guard is what skips it. clang/lld 14 with the
+# unversioned symlinks setup.py and -fuse-ld=lld look for -- the bare `lld` driver
+# only prints usage and exits 1 on --version, so ld.lld is the one worth checking.
+RUN set -eu; \
+    if [ -f /opt/flagtree-build-env.ready ]; then \
+        echo ">>> build environment already staged in the base image"; \
+        exit 0; \
+    fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         git wget curl binutils \
         build-essential cmake ninja-build \
@@ -114,20 +70,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -sf /usr/bin/lld-14 /usr/bin/lld \
     && ln -sf /usr/bin/ld.lld-14 /usr/bin/ld.lld \
     && clang++ --version && ld.lld --version \
-    && rm -rf /var/lib/apt/lists/*
-
-# pip for python3.10 (ensurepip is disabled for Ubuntu system python).
-# Index = aliyun mirror: pypi.org is unreachable from the build runners.
-RUN printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
-    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools
-
-# Pre-stage the prebuilt sunrise deps into FlagTree's offline cache dirs so the
-# build wires them itself: LLVM -> sunrise_llvm22_dev_release (post_hook),
-# plugin -> sunriseTritonPlugin.so, triton toolkits -> ~/.triton. The plugin .so
-# is md5-gated to the FlagTree PR 978 build (4c77b8c0); a drifted plugin fails the build
-# instead of silently pairing the new compiler.py with the old codegen. Retry the
-# large downloads (LLVM ~1 GB) since the runner's link to the bucket is flaky.
-RUN mkdir -p /root/.flagtree/sunrise /root/.triton \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
+    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && mkdir -p /root/.flagtree/sunrise /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${PLUGIN_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
          for i in 1 2 3 4 5; do \
@@ -137,32 +83,51 @@ RUN mkdir -p /root/.flagtree/sunrise /root/.triton \
        done \
     && tar -xzf "${LLVM_TARBALL}"    -C /root/.flagtree/sunrise \
     && tar -xzf "${PLUGIN_TARBALL}"  -C /root/.flagtree/sunrise \
-    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
     && rm -f /tmp/*.tar.gz \
-    && test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release \
+    && test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release/stpu/bitcode \
     && test -f /root/.flagtree/sunrise/sunriseTritonPlugin.so \
-    && echo "4c77b8c0a71ddc377bbcfb1024114fc1  /root/.flagtree/sunrise/sunriseTritonPlugin.so" | md5sum -c -
+    && echo "4c77b8c0a71ddc377bbcfb1024114fc1  /root/.flagtree/sunrise/sunriseTritonPlugin.so" | md5sum -c - \
+    && test -f /root/.triton/json/include/nlohmann/json.hpp \
+    && touch /opt/flagtree-build-env.ready
 
-# Build the FlagTree sunrise wheel from source on this 22.04 toolchain.
-# FLAGTREE_BACKEND=sunrise selects the backend. Proxy (if any) is applied to every
-# RUN but not persisted. Force HTTP/1.1 for git and retry the flaky network steps.
-# FLAGTREE_VERSION may be a branch, tag, or commit sha (--branch clone can't take
-# a sha, so fetch + checkout FETCH_HEAD handles all three).
-# Sunrise builds with clang/lld (not gcc), mirroring upstream's sunrise delivery
-# workflow (.github/workflows/sunrise3.4-delivery.yml: TRITON_BUILD_WITH_CLANG_LLD=1
-# TRITON_OFFLINE_BUILD=1 TRITON_BUILD_PROTON=OFF). clang is required, not cosmetic:
-# cmake/FlagTreeOptions.cmake's flagtree_configure_backend_cxx_flags() lists the
-# gluon-compiling backends (enflame|hcu|rpu|thrive|metax|xpu|tileir|ppu|spacemit) for
-# "-Werror -Wno-attributes -Wno-comment -Wno-error=odr" but omits sunrise, which lands
-# in the else-branch "-Werror -Wno-covered-switch-default" -- a clang-only option. Under
-# gcc-11 (22.04) that option is unrecognized and suppresses nothing, so -Werror is fully
-# armed and gluon_ir.cc's GluonLayouts (py::handle fields of hidden visibility) fails
-# with -Werror=attributes. Upstream never sees this because their sunrise delivery
-# always builds with clang. TRITON_BUILD_WITH_CLANG_LLD makes setup.py pass
-# -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_LINKER=lld -fuse-ld=lld
-# (setup.py:533-541), so the else-branch flags are understood, the visibility diagnostic
-# never fires, and no -Wno-* injection is needed. The metax builder keeps gcc (older
-# triton without gluon_ir.cc, and its backend flags are gcc-compatible).
+FROM builder AS flagtree
+
+# Stage-scoped, so every arg the wheel build reads is declared again: ARGs do not
+# carry across FROM, while the stage's filesystem and ENV do. The proxy args are
+# here because this stage clones the source and pip-installs.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# FlagTree ref, the single version knob, defaulting to the release configs.yaml
+# pins so a client's version cannot drift from it. Branch, tag or sha: the fetch
+# below is not `clone --branch`, which cannot take a sha.
+ARG FLAGTREE_VERSION=0.7.0+sunrise3.6
+
+# Wheel version, defaulting to the ref so one arg drives both. .git is removed
+# before `pip wheel` because FlagTree appends a dirty "+git<sha>" otherwise.
+# FLAGTREE_WHEEL_NAME is the distribution name and FLAGTREE_PYPI_KEY the other
+# route to a clean version; the daily line sets the name.
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
+ARG FLAGTREE_WHEEL_NAME=flagtree
+ARG FLAGTREE_PYPI_KEY=
+# Upstream's own rule, sunrise.py's _PYBIND11_INTERNALS_TO_PIP: the prebuilt
+# plugin's pybind11 internals map to exactly pybind11==3.1.0, so the pin is read
+# off upstream's table. Declared in this stage, not the builder -- on Docker's
+# legacy builder a parent stage's ARG does not carry.
+ARG PYBIND11_SPEC=pybind11==3.1.0
+ARG MAX_JOBS=32
+
+# clang/lld + proton off + offline are upstream's own settings for this backend,
+# and clang is load-bearing rather than cosmetic: cmake's backend flag list omits
+# sunrise, so it lands on "-Wno-covered-switch-default" -- clang-only -- and under
+# gcc -Werror is fully armed, which gluon_ir.cc's hidden-visibility fields fail.
+
+# THE SHA IS READ BEFORE .git GOES, AND BOTH BEFORE `pip wheel`: the version has
+# to come out clean, so .git must not exist when setup.py asks, while the commit
+# id is worth keeping, so it goes into a setup.cfg that setuptools merges into
+# setup() on its own.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          rm -rf /opt/flagtree && git init -q /opt/flagtree \
@@ -173,16 +138,22 @@ RUN git config --global http.version HTTP/1.1 \
          sleep 5; \
        done \
     && test -d /opt/flagtree/.git \
+    && sha8="$(git -C /opt/flagtree rev-parse --short=8 HEAD)" \
+    && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
+         "${sha8}" > /opt/flagtree/setup.cfg \
     && cd /opt/flagtree \
     && python3.10 -m pip install --no-cache-dir -r python/requirements.txt \
-    && python3.10 -m pip install --no-cache-dir "pybind11${PYBIND11_SPEC}" \
+    && python3.10 -m pip install --no-cache-dir "${PYBIND11_SPEC}" \
+    && ln -sfn ptpu third_party/sunrise/language/tang \
     && export FLAGTREE_BACKEND=sunrise \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
+    && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
     && export TRITON_BUILD_WITH_CLANG_LLD=1 \
     && export TRITON_OFFLINE_BUILD=1 \
     && export TRITON_BUILD_PROTON=OFF \
     && export TRITON_APPEND_CMAKE_ARGS='-DCMAKE_INSTALL_RPATH=$ORIGIN -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON' \
-    && ln -sfn ptpu third_party/sunrise/language/tang \
+    && export MAX_JOBS="${MAX_JOBS}" \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
          python3.10 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
@@ -190,73 +161,63 @@ RUN git config --global http.version HTTP/1.1 \
        done \
     && ls -la /wheels/*.whl
 
-# Gate: the reason this builder exists. Fail the build if the freshly built
-# libtriton.so reintroduces any symbol a 22.04 client cannot satisfy
-# (GLIBC_2.38, GLIBCXX_3.4.31/32, or the gcc-13/glibc-2.38 __isoc23_* family),
-# or if its pybind11 internals drift from v12 (the sunrise plugin's ABI).
-RUN python3.10 - <<'PY'
-import glob, subprocess, zipfile, tempfile, os, sys, re
-whl = glob.glob("/wheels/*.whl")[0]
-# Version gate: the wheel must carry the clean version, not FlagTree's dirty
-# "<ver>.git<sha>" / "+git<sha>" fallback (means the .git-removal didn't take).
-ver = os.path.basename(whl).split("-")[1]
-if "git" in ver:
-    print(f"FAIL: dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
-    sys.exit(1)
-print(f"OK: clean wheel version '{ver}'")
-# cp310 gate: fail if the toolchain drifted to a different interpreter.
-if "-cp310-" not in os.path.basename(whl):
-    print(f"FAIL: wheel '{os.path.basename(whl)}' not tagged cp310 (wrong interpreter)")
-    sys.exit(1)
-print("OK: wheel tagged cp310")
-d = tempfile.mkdtemp()
-zipfile.ZipFile(whl).extractall(d)
-so = next(p for p in glob.glob(d + "/**/libtriton.so", recursive=True))
-syms = subprocess.check_output(["objdump", "-T", so], text=True)
-forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]
-hits = {f: syms.count(f) for f in forbidden if f in syms}
-if hits:
-    print("FAIL: 22.04-incompatible symbols in libtriton.so:", hits)
-    sys.exit(1)
-maxglibc = max(sorted(set(re.findall(r"GLIBC_[0-9.]+", syms))))
-print(f"OK: libtriton.so is 22.04-clean (max {maxglibc}, no forbidden symbols)")
-# pybind11 ABI gate: the prebuilt sunriseTritonPlugin_v0.6.0.4.so is compiled
-# against internals v12 (opposite of the metax plugin, which is v11). libtriton
-# MUST expose v12 or sunrise.load_dialects(ctx) fails on-device with a pybind11
-# type mismatch. The PYBIND11_SPEC pin above holds this; assert it here so a
-# future drift fails the build instead of shipping a wheel that only breaks on
-# hardware.
-with open(so, "rb") as f:
-    blob = f.read()
-internals = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", blob)))
-if internals != [b"12"]:
-    print(f"FAIL: libtriton.so pybind11 internals {internals} (expected [b'12']; "
-          "sunrise plugin v0.6.0.4 needs v12 -- adjust PYBIND11_SPEC)")
-    sys.exit(1)
-print("OK: libtriton.so pybind11 internals v12 (matches sunriseTritonPlugin_v0.6.0.4)")
-# extra-alias gate: flag_gems <=5.3.4 imports triton.language.extra.tang; upstream
-# main renamed it to ptpu, so the build symlinks ptpu -> tang. Assert both shipped.
-extra_dir = os.path.join(d, "triton", "language", "extra")
-missing = [name for name in ("ptpu", "tang") if not os.path.isdir(os.path.join(extra_dir, name))]
-if missing:
-    print(f"FAIL: wheel missing triton.language.extra.{missing} (tang symlink not picked up)")
-    sys.exit(1)
-print("OK: wheel ships triton.language.extra ptpu + tang")
-# RUNPATH gate: upstream main dropped INSTALL_RPATH, so the default is an absolute
-# /usr/local/... path that breaks when the wheel installs to /opt/flagtree.
-# TRITON_APPEND_CMAKE_ARGS injects -DCMAKE_INSTALL_RPATH=$ORIGIN plus
-# -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON (the wheel ships the build-tree .so, so
-# INSTALL_RPATH alone never applies); assert the token landed.
-rp = subprocess.check_output(["readelf", "-d", so], text=True)
-m = re.search(r"Library runpath: \[([^\]]*)\]", rp)
-if not m or "$ORIGIN" not in m.group(1) or "/usr/local" in m.group(1):
-    print(f"FAIL: libtriton.so RUNPATH '{m.group(1) if m else '<none>'}' (expected $ORIGIN)")
-    sys.exit(1)
-print("OK: libtriton.so RUNPATH contains $ORIGIN")
-PY
+# What this build exists for: the cp310 tag its builder was set up for, and a
+# libtriton.so a 22.04 client can load. printf to a file, not `python - <<'PY'`:
+# on Docker's legacy builder a heredoc never reaches python's stdin and the step
+# passes having asserted nothing.
+RUN printf '%s\n' \
+      'import glob, os, re, subprocess, sys, tempfile, zipfile' \
+      '' \
+      'whl = glob.glob("/wheels/*.whl")[0]' \
+      'name = os.path.basename(whl)' \
+      'ver = name.split("-")[1]' \
+      'if not name.endswith("-cp310-cp310-linux_x86_64.whl"):' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp310)")' \
+      '    sys.exit(1)' \
+      'print("OK: wheel " + name + " version " + ver)' \
+      '' \
+      'd = tempfile.mkdtemp()' \
+      'zipfile.ZipFile(whl).extractall(d)' \
+      'so = next(p for p in glob.glob(d + "/**/libtriton.so", recursive=True))' \
+      'syms = subprocess.check_output(["objdump", "-T", so], text=True)' \
+      'glibc = max(tuple(int(x) for x in m) for m in re.findall(r"GLIBC_(\d+)\.(\d+)", syms))' \
+      'glibcxx = max(tuple(int(x) for x in m) for m in re.findall(r"GLIBCXX_(\d+)\.(\d+)\.(\d+)", syms))' \
+      'if glibc > (2, 35) or glibcxx > (3, 4, 30):' \
+      '    print("FAIL: libtriton.so needs GLIBC " + ".".join(map(str, glibc)) + " / GLIBCXX " + ".".join(map(str, glibcxx)) + ", past 22.04")' \
+      '    sys.exit(1)' \
+      'print("OK: libtriton.so fits 22.04 (max GLIBC " + ".".join(map(str, glibc)) + ", max GLIBCXX " + ".".join(map(str, glibcxx)) + ")")' \
+      '' \
+      'plugin = "/root/.flagtree/sunrise/sunriseTritonPlugin.so"' \
+      'want = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", open(plugin, "rb").read())))' \
+      'got = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", open(so, "rb").read())))' \
+      'if got != want:' \
+      '    print("FAIL: libtriton.so pybind11 internals " + str(got) + ", the prebuilt plugin is " + str(want))' \
+      '    sys.exit(1)' \
+      'print("OK: libtriton.so and sunriseTritonPlugin_v0.6.0.4 share pybind11 internals " + str(got))' \
+      '' \
+      'extra = os.path.join(d, "triton", "language", "extra")' \
+      'missing = [n for n in ("ptpu", "tang") if not os.path.isdir(os.path.join(extra, n))]' \
+      'if missing:' \
+      '    print("FAIL: wheel missing triton.language.extra." + str(missing) + " (tang alias not picked up)")' \
+      '    sys.exit(1)' \
+      'print("OK: wheel ships triton.language.extra ptpu + tang")' \
+      '' \
+      'rp = re.search(r"Library runpath: \[([^\]]*)\]", subprocess.check_output(["readelf", "-d", so], text=True))' \
+      'if not (rp and "$ORIGIN" in rp.group(1)):' \
+      '    print("FAIL: libtriton.so RUNPATH " + (rp.group(1) if rp else "<none>") + " (expected $ORIGIN)")' \
+      '    sys.exit(1)' \
+      'print("OK: libtriton.so RUNPATH " + rp.group(1))' \
+    > /tmp/gate.py \
+    && python3.10 /tmp/gate.py
 
-# Smoke test: install the freshly built wheel and import it (fails the build
-# if the libpython3.10 linkage is wrong).
+# Smoke test: install the freshly built wheel, import it, and assert the two
+# things the version pin and the setup.cfg carrier are for.
 RUN python3.10 -m pip install --no-cache-dir /wheels/*.whl \
-    && python3.10 -c "import triton; from triton.backends import backends; \
-         print('OK triton', triton.__version__, 'backends', list(backends.keys()))"
+    && python3.10 -c "\
+import importlib.metadata as md, triton;\
+from triton.backends import backends;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', list(backends.keys()));\
+urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
+print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
+assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
+assert md.version('${FLAGTREE_WHEEL_NAME}') == '${FLAGTREE_WHEEL_VERSION}', md.version('${FLAGTREE_WHEEL_NAME}')"

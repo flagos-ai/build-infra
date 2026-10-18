@@ -257,6 +257,30 @@ jobs:
             echo ">>> staged iluvatar deps"
           '
 
+      # The sunrise stage's own contract. Unlike metax/iluvatar, the prebuilt LLVM
+      # here is a full clang install (it supplies the compiler the backend builds
+      # with), and its stpu/bitcode is what the cache post_hook copies into the
+      # backend's lib -- so both are asserted, not just the plugin.
+      - name: Verify the stage carries what the wheel build reads (sunrise)
+        if: ${{ matrix.verify_stage == 'sunrise' }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+            test -f /opt/flagtree-build-env.ready
+            command -v git cmake ninja make wget curl clang clang++ >/dev/null
+            python3.10 -c "import sys; assert sys.version_info[:2] == (3, 10)"
+            python3.10 -m pip --version
+            test -x /root/.flagtree/sunrise/sunrise_llvm22_dev_release/bin/clang
+            test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release/lib/cmake/mlir
+            test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release/stpu/bitcode
+            test -f /root/.flagtree/sunrise/sunriseTritonPlugin.so
+            test -f /root/.triton/json/include/nlohmann/json.hpp
+            # FlagTree compares only the first 8 characters (setup_helper.py).
+            echo ">>> staged sunrise deps; plugin md5 prefix $(md5sum /root/.flagtree/sunrise/sunriseTritonPlugin.so | cut -c1-8)"
+          '
+
       - name: Push the builder image
         if: ${{ inputs.push }}
         env:

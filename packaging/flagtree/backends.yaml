@@ -98,7 +98,25 @@ backends:
       ref: main
       wheel_tag: cp312-cp312-linux_x86_64
 
-  # sunrise / ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles here but no
-  # entry: their build environment is not separated into a publishable stage yet.
-  # Their rows arrive with that restructure, one backend per change -- see
-  # packaging/flagtree/README.md.
+  sunrise:
+    containerfile: sunrise
+    builder_image: flagtree-builder-sunrise
+    # The backend's own nodes, the label its runtime/app builds use -- same
+    # reason as metax and iluvatar. The build touches no PTPU hardware.
+    runson: ["self-hosted", "sunrise"]
+    disk_min_gb: 60
+    builder:
+      verify_stage: sunrise
+    daily:
+      # Off until a build here is verified on the backend's own nodes.
+      enabled: false
+      dist_name: flagtree-sunrise
+      version_base: "0.7.1"
+      ref: main
+      # cp310: this backend builds with the 22.04 system interpreter, not a
+      # deadsnakes 3.12 -- see the Containerfile's builder stage.
+      wheel_tag: cp310-cp310-linux_x86_64
+
+  # ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles here but no entry:
+  # their build environment is not separated into a publishable stage yet. Their
+  # rows arrive with that restructure -- see packaging/flagtree/README.md.
