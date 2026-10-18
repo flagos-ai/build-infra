@@ -16,11 +16,11 @@ name: FlagTree Wheel
 
 # Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
 # vendor PyPI. Two target families: self-contained Containerfiles (metax /
-# nvidia-cuda / iluvatar / sunrise), and the ascend pair, which builds INSIDE its
-# backend's runtime image and is therefore named after that backend — the
-# Containerfile, this workflow's target and generate_matrix.py's backend name are
-# the same string. `prepare` resolves what that difference implies: the runner
-# labels and the vendor index, and — for the ascend pair only — the base image.
+# nvidia-cuda / iluvatar / sunrise), and the ascend pair, whose build machine is
+# its backend's runtime image and which is therefore named after that backend —
+# the Containerfile, this workflow's target and generate_matrix.py's backend name
+# are the same string. `prepare` resolves what that difference implies: the runner
+# labels and the vendor index, and — for the ascend pair only — the cold base.
 # The Containerfile's gates fail `docker build` on an unusable wheel, so a bad
 # wheel never reaches extract/upload.
 
@@ -51,7 +51,7 @@ on:
         type: boolean
         default: false
       base_image:
-        description: 'base image override for the ascend targets (blank = the backend runtime image from configs.yaml)'
+        description: 'cold-base override for the ascend targets, i.e. their builder stage''s base (blank = the backend runtime image from configs.yaml)'
         type: string
         default: ''
       pypi_repo:
@@ -98,9 +98,11 @@ jobs:
           # iluvatar target is the plain vendor name, and which CoreX line it
           # means is the runtime image's business, not a guess from the string.
           #
-          # `in_base` marks the targets that build INSIDE that backend's runtime
-          # image. The others are self-contained Containerfiles that take no
-          # BASE_IMAGE at all, so passing one would be an unused build arg.
+          # `in_base` marks the targets whose build machine IS that backend's
+          # runtime image. They take the same `BUILDER_IMAGE` arg every other
+          # backend does -- it is the builder stage's base -- but for them the cold
+          # value is a registry ref rather than a bare ubuntu, so it has to be
+          # passed rather than left to the Containerfile's default.
           backend=""; in_base=no
           case "$TARGET" in
             ascend-cann*) backend="$TARGET";                in_base=yes ;;
@@ -145,7 +147,7 @@ jobs:
         env:
           FLAGTREE_VERSION: ${{ inputs.flagtree_version }}
           FLAGTREE_WHEEL_VERSION: ${{ inputs.flagtree_wheel_version }}
-          BASE_IMAGE: ${{ needs.prepare.outputs.base_image }}
+          COLD_BASE: ${{ needs.prepare.outputs.base_image }}
           EXTRA_PYPI: ${{ needs.prepare.outputs.extra_pypi }}
         run: |
           set -euo pipefail
@@ -157,8 +159,11 @@ jobs:
           if [ -n "${FLAGTREE_WHEEL_VERSION:-}" ]; then
             build_args+=(--build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}")
           fi
-          if [ -n "${BASE_IMAGE:-}" ]; then
-            build_args+=(--build-arg "BASE_IMAGE=${BASE_IMAGE}")
+          if [ -n "${COLD_BASE:-}" ]; then
+            # The ascend pair's build machine IS the backend's runtime image, so
+            # their Containerfile's cold base arg is BUILDER_IMAGE -- the same
+            # name the daily line points at a published stage.
+            build_args+=(--build-arg "BUILDER_IMAGE=${COLD_BASE}")
             build_args+=(--build-arg "EXTRA_PYPI=${EXTRA_PYPI}")
           fi
           # The runner's proxy, relayed verbatim: all three, never a value

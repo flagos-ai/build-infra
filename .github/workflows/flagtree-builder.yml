@@ -71,10 +71,18 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY' > matrix.json
-          import json, os, sys, yaml
+          import json, os, subprocess, sys, yaml
 
           want = (os.environ.get("SELECTED") or "").split()
           data = yaml.safe_load(open("packaging/flagtree/backends.yaml"))["backends"]
+
+          def runtime_image(backend):
+              # The same matrix the runtime images are built from, so the tag
+              # cannot drift from the image it names.
+              out = subprocess.run(["python3", "scripts/generate_matrix.py",
+                                    "--runtime", backend],
+                                   capture_output=True, text=True, check=True)
+              return json.loads(out.stdout)["include"][0]["image_tag"]
 
           rows = []
           for name, cfg in data.items():
@@ -85,6 +93,13 @@ jobs:
               b = cfg.get("builder")
               if not b:
                   continue
+              # "" = the Containerfile's own cold base. "runtime" = the cold base
+              # is this backend's runtime image (the ascend pair: their build
+              # machine IS the runtime image). Resolved here, on ubuntu-latest,
+              # rather than on the build runner.
+              cold_base = ""
+              if (b.get("base_image") or "") == "runtime":
+                  cold_base = runtime_image(name)
               rows.append({
                   "name": name,
                   "containerfile": cfg["containerfile"],
@@ -95,6 +110,7 @@ jobs:
                   # A name, not a flag: each backend stages different things, so
                   # each has its own assertions. "" = the build is the proof.
                   "verify_stage": b.get("verify_stage") or "",
+                  "cold_base": cold_base,
               })
 
           unknown = [w for w in want if w not in data]
@@ -147,8 +163,11 @@ jobs:
           prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['builder'])")
           echo "image=${host}/${prefix}/${{ matrix.builder_image }}:${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Harbor login (push only)
-        if: ${{ inputs.push }}
+      - name: Harbor login
+        # Also when the cold base is a registry ref: a row whose build machine is
+        # its backend's runtime image pulls that from Harbor even on a push-less
+        # run.
+        if: ${{ inputs.push || matrix.cold_base != '' }}
         env:
           IMAGE_REF: ${{ steps.ref.outputs.image }}
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
@@ -168,6 +187,8 @@ jobs:
 
       - name: Build the builder stage
         working-directory: packaging/flagtree
+        env:
+          COLD_BASE: ${{ matrix.cold_base }}
         run: |
           set -euo pipefail
           # The runner's proxy, relayed verbatim: all three, never a value
@@ -178,6 +199,12 @@ jobs:
           # and a value invented here is what sends an internal fetch through the
           # tunnel.
           build_args=()
+          # A row whose cold base is a registry ref (the ascend pair, whose build
+          # machine IS their backend's runtime image) has to be handed it: the
+          # Containerfile's own default is a literal of the same tag, and only
+          # the matrix knows the stack version. Every other row leaves it unset,
+          # so the Containerfile's bare-ubuntu default is what cold-builds.
+          [ -n "${COLD_BASE}" ] && build_args+=(--build-arg "BUILDER_IMAGE=${COLD_BASE}")
           http_proxy_val="${http_proxy:-${HTTP_PROXY:-}}"
           https_proxy_val="${https_proxy:-${HTTPS_PROXY:-}}"
           no_proxy_val="${no_proxy:-${NO_PROXY:-}}"
@@ -185,8 +212,7 @@ jobs:
           [ -n "${https_proxy_val}" ] && build_args+=(--build-arg "https_proxy=${https_proxy_val}")
           [ -n "${no_proxy_val}" ] && build_args+=(--build-arg "no_proxy=${no_proxy_val}")
           # No --build-arg FLAGTREE_VERSION: this stage is ref-independent by
-          # definition, and no --build-arg BUILDER_IMAGE: the Containerfile's own
-          # default base is what makes this a cold build.
+          # definition.
           docker build --target builder "${build_args[@]}" -t "$BUILDER_IMAGE" -f "$TARGET" .
           docker tag "$BUILDER_IMAGE" "${{ steps.ref.outputs.image }}"
 
@@ -279,6 +305,36 @@ jobs:
             test -f /root/.triton/json/include/nlohmann/json.hpp
             # FlagTree compares only the first 8 characters (setup_helper.py).
             echo ">>> staged sunrise deps; plugin md5 prefix $(md5sum /root/.flagtree/sunrise/sunriseTritonPlugin.so | cut -c1-8)"
+          '
+
+      # The ascend stage's own contract: not a bare machine we staged, but the
+      # backend's runtime image plus the two prebuilt caches. The CANN line and
+      # version printed here are what the gate pairs the wheel against.
+      - name: Verify the stage carries what the wheel build reads (ascend)
+        if: ${{ matrix.verify_stage == 'ascend' }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+            test -f /opt/flagtree-build-env.ready
+            python3 -c "import sys; assert sys.version_info[:2] == (3, 11)"
+            python3 -m pip --version
+            command -v git >/dev/null
+            test -d "$ASCEND_HOME"
+            # Both install-info names, because the two CANN lines do not ship the
+            # same one -- the same pair verify_ascend_wheel.py probes.
+            info=$(find "$ASCEND_HOME" -maxdepth 2 -name "ascend_*install.info" -print -quit)
+            test -n "$info"
+            test -f /root/.triton/json/include/nlohmann/json.hpp
+            # The staged LLVM tree, wherever this CANN line names it: the wheel
+            # build puts it on PATH by directory name, so what matters is that a
+            # clang is in there at all. -x, not a plain -f: the tarball may ship
+            # it as a symlink.
+            llvm_clang=$(find /root/.flagtree/ascend -maxdepth 3 -name clang -print -quit)
+            test -n "$llvm_clang" && test -x "$llvm_clang"
+            "$llvm_clang" --version
+            echo ">>> staged ascend deps; $(grep -m1 ^version= "$info") at $ASCEND_HOME, clang $llvm_clang"
           '
 
       - name: Push the builder image

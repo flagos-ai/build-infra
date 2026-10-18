@@ -116,6 +116,31 @@ backends:
       # deadsnakes 3.12 -- see the Containerfile's builder stage.
       wheel_tag: cp310-cp310-linux_x86_64
 
-  # ascend-cann8.5.0 / ascend-cann9.0.0 have Containerfiles here but no entry:
-  # their build environment is not separated into a publishable stage yet. Their
-  # rows arrive with that restructure -- see packaging/flagtree/README.md.
+  ascend-cann9.0.0:
+    containerfile: ascend-cann9.0.0
+    builder_image: flagtree-builder-ascend-cann9.0.0
+    # The CANN nodes: this one is aarch64, and the build machine is the backend's
+    # own runtime image, so the runner has to be one that can pull it.
+    runson: ["self-hosted", "cann900", "910b"]
+    disk_min_gb: 60
+    builder:
+      verify_stage: ascend
+      # The one row family whose cold build is NOT a bare ubuntu: the ascend build
+      # machine IS the backend's runtime image (FlagTree pins AscendNPU-IR by the
+      # CANN it finds there). `runtime` tells the builder line to resolve that tag
+      # from configs.yaml rather than take the Containerfile's default.
+      base_image: runtime
+
+  ascend-cann8.5.0:
+    containerfile: ascend-cann8.5.0
+    builder_image: flagtree-builder-ascend-cann8.5.0
+    runson: ["self-hosted", "cann850", "910b"]
+    disk_min_gb: 60
+    builder:
+      verify_stage: ascend
+      base_image: runtime
+
+  # Neither ascend row has a `daily:` block. Their refs are the vendor's own
+  # release branches, not a line this repo fixes day to day, so a date-stamped
+  # daily would publish the same content over and over. Their wheels come from
+  # flagtree-wheel.yml, which is where the vendor's own version string belongs.
