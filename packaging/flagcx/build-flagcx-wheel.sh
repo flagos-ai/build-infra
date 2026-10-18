@@ -33,6 +33,13 @@
 #   --expect-version V  fail unless the built wheel is version V
 #   --print-pin WHL     print the pin for a wheel already built, then exit
 #   --no-cache      pass --no-cache to docker build
+#   --no-bitcode    build without the row's device bitcode even when the row
+#                   states bitcode_arch — for a ref that predates the row's
+#                   bindings/ir Makefile (v0.14.0 has no iluvatar one, and its
+#                   setup.py raises on FLAGCX_BITCODE_ARCH for a non-nvidia
+#                   adaptor). The row's backends.yaml entry is untouched: the
+#                   bitcode is a fact of the ref, decided at dispatch, not of
+#                   the row.
 #
 # Why this is a script and not a workflow step: the same recipe has to run on a
 # runner and on a developer's machine, and the only difference is whether there
@@ -61,6 +68,7 @@ OPT_OUT="$PWD/dist"
 WHEEL_EXPECT_VERSION=""
 PIN_WHEELS=()
 NO_CACHE=0
+NO_BITCODE=0
 FALLBACK_REF="main"
 
 usage() { sed -n '16,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
@@ -81,6 +89,7 @@ while [[ $# -gt 0 ]]; do
         # step runs on a host with no checkout, no docker and no --ref.
         --print-pin) PRINT_PIN=1; shift; PIN_WHEELS+=("$@"); break ;;
         --no-cache) NO_CACHE=1; shift ;;
+        --no-bitcode) NO_BITCODE=1; shift ;;
         -h|--help)  usage; exit 0 ;;
         *)          echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -398,6 +407,11 @@ for key in "${BACKENDS[@]}"; do
         INPUTS="$(python3 "$HERE/flagcx-config.py" --build-inputs "$key" --channel wheel)"
         eval "$INPUTS"
         set +a
+        # The ref decides whether the row's bitcode can be built, so the flag
+        # belongs at the dispatch and not in backends.yaml: a ref that predates
+        # the row's bindings/ir Makefile must not reach setup.py as
+        # FLAGCX_BITCODE_ARCH (v0.14.0 raises on it for a non-nvidia adaptor).
+        (( NO_BITCODE )) && WHEEL_BITCODE_ARCH=""
 
         tag="flagcx-wheel:$key"
         echo ">>> $key: $WHEEL_NAME ($WHEEL_ARCH, $WHEEL_PYTHON_TAG) from $FLAGCX_REF"
