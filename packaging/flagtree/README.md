@@ -460,10 +460,10 @@ clone (see below).
 
 `.github/workflows/flagtree-wheel-daily.yml` builds FlagTree `main` every day and
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
-enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax` and
-`flagtree-iluvatar` today; sunrise's row is written but off until a build here is
-verified on its own nodes. The release line (`flagtree-wheel.yml`, manual) is
-untouched: it keeps publishing plain `flagtree` to the vendor indexes.
+enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
+`flagtree-iluvatar` and `flagtree-sunrise` today. The release line
+(`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
+`flagtree` to the vendor indexes.
 
 The version is a date, and nothing else:
 
