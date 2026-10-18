@@ -29,7 +29,7 @@ build machine — see the section below.
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA, builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `metax`      | FlagTree for MetaX (MACA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
-| `sunrise`    | FlagTree for Sunrise (PTPU) | Ubuntu 22.04 + clang/lld 14 |
+| `sunrise`    | FlagTree for Sunrise (PTPU), builder + wheel | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
@@ -82,8 +82,8 @@ v11** (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fai
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). `nvidia-cuda`, `metax` and `iluvatar` have one;
-`sunrise` and the ascend pair are still single-stage.
+into FlagTree's offline cache). `nvidia-cuda`, `metax`, `iluvatar` and `sunrise`
+have one; the ascend pair is still single-stage.
 
 `.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
 one job per entry in `backends.yaml`, which is where a backend's build-line facts
@@ -253,6 +253,67 @@ the job actually runs on.
 `pip wheel` so the version comes out clean, and the commit read just before that
 is carried as a `Project-URL: Source-Commit` line (mechanism above).
 
+## Sunrise builder (`sunrise`)
+
+Same reason as `metax` and `iluvatar`: the vendor's sunrise wheel is built on
+Ubuntu 24.04 and drags `GLIBC_2.38` + `GLIBCXX_3.4.32` into `libtriton.so`, which
+a 22.04 client cannot load. It is also the only builder here whose interpreter is
+the base's own python 3.10 — sunrise builds against clang/lld 14 and ships a
+`cp310` wheel — so its gate and smoke test are written for `python3.10`.
+
+**clang/lld is a correctness requirement, not a preference.** Upstream builds
+this backend with `TRITON_BUILD_WITH_CLANG_LLD=1` and it is load-bearing:
+`cmake/FlagTreeOptions.cmake` lists the gluon-compiling backends for
+`-Werror -Wno-attributes -Wno-comment -Wno-error=odr` but omits sunrise, which
+falls into the else-branch `-Werror -Wno-covered-switch-default` — a clang-only
+option. Under gcc-11 that option is unrecognized, so `-Werror` is fully armed and
+`gluon_ir.cc`'s `GluonLayouts` (pybind11 `handle` fields of hidden visibility)
+fails with `-Werror=attributes`. Upstream never sees it because its own sunrise
+recipes always build with clang, which is also why this file stages clang/lld 14
+with the unversioned symlinks `setup.py` and `-fuse-ld=lld` look for.
+
+**Two stages, one file**, the `metax` shape: `--target builder` is the build
+machine (apt toolchain, python 3.10, the prebuilt sunrise LLVM + plugin + triton
+toolkits) and is what `flagtree-builder.yml` publishes to
+`harbor.baai.ac.cn/flagos-dev/flagtree-builder-sunrise:{version}`; the default
+target clones the ref and compiles on top of it.
+
+**Three prebuilt inputs, staged by the names upstream asks for.** Unlike
+`nvidia-cuda`, this backend has a `register_cache` hook
+(`python/setup_tools/utils/sunrise.py`) that resolves its inputs out of
+`~/.flagtree/sunrise/` — so the stage unpacks the LLVM and plugin tarballs there
+under the cache keys `sunrise_llvm22_dev_release` / `sunriseTritonPlugin.so`, and
+the triton toolkits into `~/.triton`. The plugin `.so` is md5-gated to
+`4c77b8c0`, the digest upstream itself declares; the LLVM tarball is not, for the
+reason `iluvatar`'s is not.
+
+**The LLVM tree is a full clang install.** `sunrise_llvm22_dev_release` carries
+`bin/clang` **and** `lib/cmake/mlir`, and its `stpu/bitcode/*.bc` is what the
+cache's `post_hook` copies into `third_party/sunrise/backend/lib` — all three are
+asserted by the builder line's `sunrise` stage check, because a stage missing any
+of them builds a different wheel rather than failing.
+
+**pybind11 is pinned to `==3.1.0`, not to a range.** The prebuilt
+`sunriseTritonPlugin_v0.6.0.4.so` embeds pybind11 internals **v12**, and upstream
+maps v12 to exactly `pybind11==3.1.0`; `check_pybind11_abi()` compares the patch
+release, not just the internals version. So the pin is the project's own rule
+rather than a range this repo picked — the opposite of `metax`, whose plugin is
+v11. The `0.7.0` tag predates that hook (its `sunrise.py` has only
+`register_cache`), which is why the gate asserts the match itself: it reads the
+internals out of both the prebuilt plugin and the freshly built `libtriton.so`
+and fails if they differ.
+
+**The wheel ships the `tang` alias.** Upstream renamed `triton.language.extra.tang`
+to `ptpu`; `flag_gems <=5.3.4` still imports the old spelling, so the build
+symlinks `ptpu -> tang` inside the backend's `language/` tree and the gate asserts
+both directories are in the wheel.
+
+**Two settings that are the vendor's, not ours.** `TRITON_BUILD_PROTON=OFF` (the
+backend has no profiler) and `TRITON_OFFLINE_BUILD=1`, which makes `setup.py`
+abort on a third-party package whose `*_SYSPATH` is unset — the check that keeps
+the staging honest. What is staged for `~/.triton` is the triton-deps tarball,
+rooted at `.triton/` and therefore unpacked with `--strip-components=1`.
+
 ## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
 
 The Ascend pair differs from the builders above in one structural way: **the build
@@ -368,7 +429,7 @@ Useful build args (see the Containerfile for the full list):
 
 - `FLAGTREE_VERSION` — FlagTree git branch/tag/sha to build; also the wheel version
   string (default `0.7.0` for `nvidia-cuda`, `0.7.0+metax3.6` for `metax`,
-  `0.7.1a1+iluvatar3.6` for `iluvatar`). This
+  `0.7.1a1+iluvatar3.6` for `iluvatar`, `0.7.0+sunrise3.6` for `sunrise`). This
   is the single version knob, and each default is the release the stack pins in
   `configs.yaml`: the wheel's version is what a client's `pip` ends up with, so
   the two are meant to agree.
@@ -381,13 +442,13 @@ Useful build args (see the Containerfile for the full list):
   On the ascend pair it defaults to `FLAGTREE_BASE_VERSION.<UTC date>` instead
   (the ref and the wheel label are two separate knobs there).
 - `FLAGTREE_WHEEL_NAME` — the distribution name FlagTree's `setup.py` publishes
-  under. Default `flagtree`; the daily line sets `flagtree-nvidia` (see below).
+  under. Default `flagtree`; the daily line sets `flagtree-<backend>` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`). Set by no caller in this repo.
-- `BUILDER_IMAGE` — the staged builders (`nvidia-cuda`, `metax`, `iluvatar`). The
-  image stage 1 builds on; defaults to `ubuntu:22.04` (the cold build). Pointing
-  it at the published builder stage makes stage 1 a no-op — see the builder
-  sections above.
+- `BUILDER_IMAGE` — the staged builders (`nvidia-cuda`, `metax`, `iluvatar`,
+  `sunrise`). The image stage 1 builds on; defaults to `ubuntu:22.04` (the cold
+  build). Pointing it at the published builder stage makes stage 1 a no-op — see
+  the builder sections above.
 
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
@@ -399,9 +460,10 @@ clone (see below).
 
 `.github/workflows/flagtree-wheel-daily.yml` builds FlagTree `main` every day and
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
-enabled `daily:` row — `flagtree-nvidia` and `flagtree-metax` today. The release
-line (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
-`flagtree` to the vendor indexes.
+enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax` and
+`flagtree-iluvatar` today; sunrise's row is written but off until a build here is
+verified on its own nodes. The release line (`flagtree-wheel.yml`, manual) is
+untouched: it keeps publishing plain `flagtree` to the vendor indexes.
 
 The version is a date, and nothing else:
 
@@ -467,7 +529,8 @@ block: `version_base` (the release this daily leads — move it when `configs.ya
 moves on) and `dist_name` (names the wheel). `ref` is the FlagTree line that row
 tracks — upstream's `main` for `nvidia` and `metax`, declared rather than taken
 from the Containerfile's own default, which is the vendor release a local build
-reproduces.
+reproduces. `wheel_tag` is the interpreter and platform the wheel wears; sunrise's
+is `cp310`, the third place its 22.04-python-3.10 shape shows up.
 
 **The cron skips a day that has already been published; a manual run never
 does.** The version is known without a build — it is the UTC date — so the plan
