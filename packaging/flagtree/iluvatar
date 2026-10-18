@@ -94,8 +94,10 @@ ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 ARG FLAGTREE_WHEEL_NAME=flagtree
 ARG FLAGTREE_PYPI_KEY=
 
-# libtriton and the plugin it links share pybind11 type registries only when
-# their internals versions match; the vendor wheel is v12, asserted below.
+# pybind11 ABI parity with the vendor wheel, whose libtriton.so is internals v12
+# (measured on flagtree==0.7.0rc2+iluvatar3.6). No prebuilt .so is an ABI
+# counterparty here -- the plugin is compiled from source and linked in -- so the
+# gate compares libtriton against the pybind11 this build actually installed.
 ARG PYBIND11_SPEC=>=3.1,<3.2
 ARG MAX_JOBS=32
 
@@ -183,15 +185,21 @@ RUN printf '%s\n' \
       'print("OK: no FlagCX in the wheel")' \
       '' \
       'blob = open(so, "rb").read()' \
-      'internals = re.findall(rb"pybind11_internals_v[0-9]+", blob)' \
-      'if not internals:' \
+      'got = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", blob)))' \
+      'if not got:' \
       '    print("FAIL: libtriton.so carries no pybind11 internals tag")' \
       '    sys.exit(1)' \
-      'tag = sorted(set(internals))[-1].decode()' \
-      'if tag != "pybind11_internals_v12":' \
-      '    print("FAIL: libtriton.so is " + tag + ", the vendor wheel is v12")' \
+      'import pybind11' \
+      'hdr = os.path.join(pybind11.get_include(), "pybind11", "detail", "internals.h")' \
+      'm = re.search(r"#\s*define\s+PYBIND11_INTERNALS_VERSION\s+(\d+)", open(hdr).read())' \
+      'if not m:' \
+      '    print("FAIL: no PYBIND11_INTERNALS_VERSION in " + hdr)' \
       '    sys.exit(1)' \
-      'print("OK: pybind11 internals " + tag + " (matches the vendor wheel)")' \
+      'want = m.group(1).encode()' \
+      'if got != [want]:' \
+      '    print("FAIL: libtriton.so pybind11 internals " + str(got) + ", the pybind11 this build installed (" + pybind11.__version__ + ") provides [" + repr(want) + "]")' \
+      '    sys.exit(1)' \
+      'print("OK: libtriton.so carries pybind11 internals v" + want.decode() + ", matching the build pybind11 " + pybind11.__version__)' \
     > /tmp/gate.py \
     && python /tmp/gate.py
 

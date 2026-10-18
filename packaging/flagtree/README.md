@@ -68,14 +68,22 @@ requires only `pybind11>=2.13.1` (no upper bound), so an unpinned build pulls
 pybind11 3.1.0 — which bumped the internals version to **v12** — and the wheel
 imports fine but fails on real MetaX hardware at kernel-compile time with
 `metax.load_dialects(ctx)` → `TypeError: incompatible function arguments`. The
-internals version alone is not enough either: 3.0.1 and 3.0.4 both report v11,
-but 3.0.4 changed the internals constructor, which crashes the prebuilt bindings
-in the pybind11 dispatcher. FlagTree's own `_PYBIND11_INTERNALS_TO_PIP` maps v11
-to exactly `pybind11==3.0.1` on `main` and on the `0.7.0` tag (the wider
-`>=3.0,<3.1` was the `0.6.1` line's), so this pin is the project's own rule, not
-ours. The CI smoke test (`import triton`) runs on a GPU-less box and cannot catch
-any of it, so the gate additionally **asserts libtriton's pybind11 internals are
-v11** (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
+internals version alone is not enough either: 3.0.1, 3.0.3 and 3.0.4 all declare
+v11, but 3.0.4 changed the internals constructor, which crashes the prebuilt
+bindings in the pybind11 dispatcher. That last fact is upstream's, recorded in
+**`xpu.py`**'s `_PYBIND11_INTERNALS_TO_PIP` (`11: pybind11==3.0.1`) — a table
+about xpu's own prebuilt SDNN objects, not about metax: `metax.py` has no
+pybind11 table at all, so the exact release here is read off *our* measurement of
+the plugin (v11) plus that constructor note. The CI smoke test (`import triton`)
+runs on a GPU-less box and cannot catch any of it, so the gate additionally
+**compares libtriton's pybind11 internals against the plugin's** (verified on
+metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fail).
+
+Both the pin and the gate live in the wheel stage, not the builder: a child
+stage inherits a parent's `ARG` under BuildKit but not under Docker's legacy
+builder, so an arg declared only above is empty on the runners that use the
+latter. The gate compares rather than asserting a literal — the plugin is the
+contract, and reading it back means the pin and the gate cannot drift apart.
 
 ## Builders
 
@@ -204,8 +212,14 @@ on `flagos-pypi-hosted`'s `flagtree==0.7.0rc2+iluvatar3.6` (cp312):
 22.04 is glibc 2.35 / gcc 11.4 (GLIBCXX 3.4.30), so a 22.04 client aborts before
 `main()`. Rebuilt here, `libtriton.so` comes out at **GLIBC 2.34 / GLIBCXX
 3.4.30 / no `__isoc23_`**, which is what the gate asserts. pybind11 is pinned to
-the vendor's internals **v12** (`PYBIND11_SPEC=>=3.1,<3.2`), for the ABI reason
-described under `metax`.
+internals **v12** (`PYBIND11_SPEC=>=3.1,<3.2`, resolving to 3.1.0) because this
+wheel replaces the vendor's and must stay on the ABI the vendor's other objects
+carry — the vendor wheel's `libtriton.so`, `flagtree/debugger/_native` and
+`flagtree/profiler/_native` all embed v12. Unlike `metax` and `sunrise` there is
+no prebuilt `.so` in *this* build to compare against (the plugin is compiled from
+source in the same pass, and neither the staged LLVM nor the triton toolkits
+carry a pybind11 tag), so the gate reads `PYBIND11_INTERNALS_VERSION` out of the
+*installed* pybind11 and compares — the pattern `verify_ascend_wheel.py` uses.
 
 **Two stages, one file.** `--target builder` is the build machine — apt
 toolchain, python 3.12, the pre-staged iluvatar LLVM and triton toolkits — and is
@@ -300,14 +314,15 @@ asserted by the builder line's `sunrise` stage check, because a stage missing an
 of them builds a different wheel rather than failing.
 
 **pybind11 is pinned to `==3.1.0`, not to a range.** The prebuilt
-`sunriseTritonPlugin_v0.6.0.4.so` embeds pybind11 internals **v12**, and upstream
-maps v12 to exactly `pybind11==3.1.0`; `check_pybind11_abi()` compares the patch
-release, not just the internals version. So the pin is the project's own rule
-rather than a range this repo picked — the opposite of `metax`, whose plugin is
-v11. The `0.7.0` tag predates that hook (its `sunrise.py` has only
-`register_cache`), which is why the gate asserts the match itself: it reads the
-internals out of both the prebuilt plugin and the freshly built `libtriton.so`
-and fails if they differ.
+`sunriseTritonPlugin_v0.6.0.4.so` embeds pybind11 internals **v12**, and
+upstream's `sunrise.py` maps v12 to exactly `pybind11==3.1.0` — its
+`check_pybind11_abi()` compares the patch release, not just the internals
+version, for the same reason `xpu.py` does. That table is on `main`; the ref this
+file builds (`0.7.0+sunrise3.6`) predates the hook — its `sunrise.py` has only
+`register_cache` — so the value reaches this build from upstream's rule while the
+enforcement is ours: the gate reads the internals out of both the prebuilt plugin
+and the freshly built `libtriton.so` and fails if they differ. Same v12 as
+`iluvatar`, opposite of `metax`, whose plugin is v11.
 
 **The wheel ships the `tang` alias.** Upstream renamed `triton.language.extra.tang`
 to `ptpu`; `flag_gems <=5.3.4` still imports the old spelling, so the build
