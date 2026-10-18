@@ -43,11 +43,6 @@ ARG LLVM_TARBALL=metax-llvm19-3.8.0.6-x86_64_v0.6.0.tar.gz
 ARG PLUGIN_TARBALL=metaxTritonPlugin-cpython3.12-x86_64_v0.6.2.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 
-# pybind11, pinned to the exact release the prebuilt plugin was built against.
-# FlagTree's _PYBIND11_INTERNALS_TO_PIP maps internals v11 to 3.0.1 on main and
-# on the 0.7.0 tag; 3.0.4 also reports v11 but changed the internals constructor
-# and crashes the prebuilt bindings. The gate below asserts v11.
-ARG PYBIND11_SPEC=pybind11==3.0.1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Python 3.12 comes from the deadsnakes PPA, wired by hand: add-apt-repository
@@ -108,9 +103,10 @@ RUN set -eu; \
 
 FROM builder AS flagtree
 
-# Stage-scoped, so every arg the wheel build reads is declared again: ARGs do not
-# carry across FROM, while the stage's filesystem and ENV do. The proxy args are
-# here because this stage clones the source and pip-installs.
+# Stage-scoped, so every arg the wheel build reads is declared again. BuildKit
+# inherits a parent stage's ARGs into a `FROM parent` child and the legacy
+# builder does not, so an ARG declared only above is empty on half the runners.
+# The proxy args are here because this stage clones the source and pip-installs.
 ARG http_proxy=
 ARG https_proxy=
 ARG no_proxy=
@@ -133,6 +129,13 @@ ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
 # publishing plain `flagtree`.
 ARG FLAGTREE_WHEEL_NAME=flagtree
 ARG FLAGTREE_PYPI_KEY=
+
+# pybind11 is an ABI contract with the prebuilt plugin, which embeds internals
+# v11 (measured, and the gate reads it back off the shipped .so). Exact release,
+# not a range: 3.0.4 also provides v11 but changed the internals constructor and
+# crashes prebuilt bindings (flagtree's xpu.py, upstream PR #5870). metax.py
+# ships no pybind11 table of its own, so this pin is our measurement.
+ARG PYBIND11_SPEC=pybind11==3.0.1
 
 # Build the FlagTree metax wheel from source on this 22.04 toolchain
 # (FLAGTREE_BACKEND=metax). Force HTTP/1.1 for git and retry the network steps.
@@ -175,10 +178,17 @@ RUN git config --global http.version HTTP/1.1 \
 
 # Gate: fail on a 22.04-incompatible symbol in libtriton.so (GLIBC_2.38,
 # GLIBCXX_3.4.31/32, __isoc23_*), a dirty wheel version, or pybind11 internals
-# other than the plugin's v11 -- which imports fine here and only breaks on
-# hardware.
+# that disagree with the prebuilt plugin -- which imports fine here and only
+# breaks on hardware.
 RUN python3.12 - <<'PY'
 import glob, re, subprocess, zipfile, tempfile, os, sys
+
+
+def internals(path):
+    with open(path, "rb") as f:
+        return sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", f.read())))
+
+
 whl = glob.glob("/wheels/*.whl")[0]
 ver = os.path.basename(whl).split("-")[1]
 if "git" in ver:
@@ -198,17 +208,25 @@ if hits:
 maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)),
                key=lambda v: [int(x) for x in v[6:].split(".")])
 print(f"OK: libtriton.so is 22.04-clean (max {maxglibc}, no forbidden symbols)")
-# The prebuilt plugin is compiled against internals v11 and libtriton must match
-# or `metax.load_dialects(ctx)` fails on-device (metax124: v11 -> test_abs 36/36
-# pass; v12 -> 36/36 fail).
-with open(so, "rb") as f:
-    blob = f.read()
-internals = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", blob)))
-if internals != [b"11"]:
-    print(f"FAIL: libtriton.so pybind11 internals {internals} (expected [b'11']; "
-          "plugin needs v11 -- adjust PYBIND11_SPEC)")
+# The comparison, not a literal: libtriton and the plugin it ships share pybind11
+# type registries only at the same internals version, and a mismatch imports fine
+# here and fails on hardware at kernel-compile time (metax124: v11 -> test_abs
+# 36/36 pass; v12 -> 36/36 fail). The shipped plugin is the contract, so read it.
+plugins = glob.glob(d + "/**/metaxTritonPlugin.so", recursive=True)
+if not plugins:
+    print("FAIL: the wheel ships no metaxTritonPlugin.so")
     sys.exit(1)
-print("OK: libtriton.so pybind11 internals v11 (matches metaxTritonPlugin.so)")
+want = internals(plugins[0])
+if not want:
+    print(f"FAIL: {os.path.basename(plugins[0])} carries no pybind11 internals tag")
+    sys.exit(1)
+got = internals(so)
+if got != want:
+    print(f"FAIL: libtriton.so pybind11 internals {got}, the shipped plugin is "
+          f"{want} -- adjust PYBIND11_SPEC")
+    sys.exit(1)
+print(f"OK: libtriton.so and metaxTritonPlugin.so share pybind11 internals "
+      f"v{want[0].decode()}")
 PY
 
 # Smoke test: install the freshly built wheel and import it, then assert the two
