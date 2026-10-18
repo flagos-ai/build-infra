@@ -115,9 +115,15 @@
 #   builder.sdk_version
 #                 the SDK tarball's own version spelling, for a vendor recipe
 #                 whose tarball name does not match the key (metax 3.7.2.1 ->
-#                 3.7.2.0). Only that recipe reads it; the key is not a source
-#                 for it because the mismatch is exactly what must not be
-#                 re-derived at build time.
+#                 3.7.2.0). The enflame recipe also reads it — to name its
+#                 topsruntime/topscc/... debs from one value the two rows share.
+#                 The key is not a source for it because the mismatch is exactly
+#                 what must not be re-derived at build time.
+#   builder.aten_version
+#                 the topsaten deb's version, enflame only: it is not the SDK
+#                 version and not derivable from it (1.10.6 -> 3.8.20260710,
+#                 1.9.10 -> 3.7.20260514), and libtorch_gcu.so NEEDs
+#                 libtopsaten.so.3, so the deb is part of the SDK-floor import.
 #   bitcode_arch  BITCODE_LIB_ARCH for the device-bitcode build, stated and not
 #                 derived. The only derivation available is the gencode table in
 #                 FlagCX's makefiles/nvidia_gencode.mk, and copying that table
@@ -332,6 +338,16 @@ enflame-tops1.9.10:
   assert: [/opt/tops/include/tops_runtime.h, /usr/include/eccl.h]
   deb: {enabled: true, default_for_vendor: false}
   wheel: {enabled: true}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
+  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
+  # that. The same 24.04 debs base/<key> installs link at most GLIBC_2.16
+  # (libtopsrt/libtopsaten/libeccl), so they need no 22.04 variant — only the
+  # build toolchain did.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-enflame
+    sdk_version: "1.9.10"
+    aten_version: "3.7.20260514"
 
 enflame-tops1.10.6:
   vendor: enflame
@@ -344,6 +360,12 @@ enflame-tops1.10.6:
   assert: [/opt/tops/include/tops_runtime.h, /usr/include/eccl.h]
   deb: {enabled: true, default_for_vendor: true}
   wheel: {enabled: true}
+  # Same 22.04 builder as the 1.9.10 row, for the same reason.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-enflame
+    sdk_version: "1.10.6"
+    aten_version: "3.8.20260710"
 
 ascend-cann8.5.0:
   vendor: ascend

@@ -213,10 +213,12 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "BUILDER_APT=$BUILDER_APT" \
             --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
             --build-arg "SDK_VERSION=$BUILDER_SDK_VERSION" \
+            --build-arg "ATEN_VERSION=$BUILDER_ATEN_VERSION" \
             --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
             --build-arg "TORCH_PIN=$BUILDER_TORCH" \
             --build-arg "TORCH_MLU_PIN=$BUILDER_TORCH_MLU" \
             --build-arg "TORCH_MLU_OPS_PIN=$BUILDER_TORCH_MLU_OPS" \
+            --build-arg "TORCH_GCU_PIN=$BUILDER_TORCH_GCU" \
             --build-arg "NUMPY_PIN=$BUILDER_NUMPY" \
             --build-arg "PANDAS_PIN=$BUILDER_PANDAS" \
             --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \

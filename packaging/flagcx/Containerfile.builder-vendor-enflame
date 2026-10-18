@@ -1,0 +1,155 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX build-toolchain image for the two enflame rows' wheels: the vendor-SDK
+# twin of Containerfile.builder, self-contained on ubuntu:22.04 so the wheel's
+# glibc floor is 2.35 and it installs on the bundle's physical 22.04 hosts. No
+# clang/bitcode — enflame.mk compiles nothing device-side, and the SDK's own
+# debs (24.04-built) link at most GLIBC_2.16.
+
+FROM ubuntu:22.04
+
+# After FROM: a pre-FROM ARG is not in scope for the RUNs below.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/enflame
+ARG SDK_VERSION
+ARG ATEN_VERSION
+ARG BUILDER_ASSERT
+ARG TORCH_PIN
+ARG TORCH_GCU_PIN
+ARG NUMPY_PIN
+ARG VENDOR_PYPI
+ARG EXTRA_PYPI
+ARG PYTHON_VERSION=3.12
+ARG RUNTIME_PREREQS
+
+# Never baked as ENV: the proxy is a build-time fact of one RUN.
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+# The node's own value, not a second copy here that could silently win.
+ARG no_proxy=
+
+# python 3.12 comes from deadsnakes on jammy, the way the cambricon and metax
+# recipes do it. libgflags/libgoogle-glog are the build-only headers torch's
+# c10/util headers reach; libelf1 is a topsruntime NEEDED.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl wget git unzip \
+        build-essential gcc g++ cmake; \
+    curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg; \
+    echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        python3.12 python3.12-venv python3.12-dev \
+        libgflags-dev libgoogle-glog-dev \
+        libnuma1 libgomp1 libgfortran5 libelf1; \
+    rm -rf /var/lib/apt/lists/*
+
+# The SDK, the same debs base/<key> installs, one per row's SDK_VERSION so the
+# two rows share the recipe while each extracts its own versions. `dpkg -x` and
+# not `dpkg -i`: -i runs postinst, and the enflame one runs ldconfig against
+# /opt/tops/lib — harmless, but topsruntime's postinst is what writes the
+# ld.so.conf.d/tops.so.conf entry the loader needs, and -x skips all postinst,
+# so the .conf is written here instead. topspti/topsaten ship the libtopspti/
+# libtopsaten libs torch-gcu's libtorch_gcu_python/libtorch_gcu NEED, so they
+# are extracted too even though FlagCX's own link (-ltopsrt -leccl) names none
+# of them. topsaten's version is not the SDK version, so it is its own arg.
+ENV DEBS="topsruntime_${SDK_VERSION}-1_amd64.deb \
+  topscc_${SDK_VERSION}-1_amd64.deb \
+  efml_${SDK_VERSION}-1_amd64.deb \
+  eccl_3.6.3.11-1_amd64.deb \
+  topspti_${SDK_VERSION}-1_amd64.deb \
+  topstx_${SDK_VERSION}-1_amd64.deb \
+  topsaten_${ATEN_VERSION}-1_amd64.deb"
+RUN set -eux; \
+    for deb in ${DEBS}; do \
+        curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+            -o "${deb}" "${FILE_STORE}/${deb}"; \
+        dpkg -x "${deb}" /; \
+        rm -f "${deb}"; \
+    done; \
+    printf '%s\n' '/opt/tops/lib' > /etc/ld.so.conf.d/tops.so.conf; \
+    ldconfig
+
+# The row's SDK assert, checked here rather than as an unresolved symbol later.
+RUN set -eux; \
+    for path in ${BUILDER_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# Interpreter and torch, the things the runtime image used to provide. prereqs+
+# numpy from the general mirror, torch/torch-gcu from the vendor index LAST so
+# +cpu/+3.8.x resolves there while their own deps resolve on the mirror. The
+# bridge import is what makes `import torch` the SDK-floor proof on this row:
+# libtorch_gcu_python NEEDs libtopspti, so the import fails unless the SDK is
+# there.
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN set -eux; \
+    python3.12 -m ensurepip --upgrade; \
+    python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
+    python3.12 -m venv /flagos; \
+    /flagos/bin/pip install --no-cache-dir --upgrade pip; \
+    /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    for i in 1 2 3; do \
+        PIP_INDEX_URL="${EXTRA_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+        PIP_TRUSTED_HOST=resource.flagos.net \
+        /flagos/bin/pip install --no-cache-dir --pre \
+            "${TORCH_PIN}" ${TORCH_GCU_PIN} && break; \
+        echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
+    done
+
+# The probe the wheel build stands in for: import the pinned torch against the
+# SDK. torch_gcu is asserted against importlib.metadata, not __version__ —
+# `import torch_gcu` prints "Cannot import torch_gcu or triton_gcu.triton" even
+# on success (its triton_gcu side is optional), so the metadata pin is the only
+# signal that does not read like a failure.
+RUN set -eu; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'assert os.path.exists(header), "no Python.h under %s" % header' \
+      '' \
+      'want_minor = int(os.environ["PYTHON_VERSION"].split(".", 1)[1])' \
+      'assert sys.version_info[:2] == (3, want_minor), "the venv is %s, the row says %s" % (sys.version_info[:2], os.environ["PYTHON_VERSION"])' \
+      '' \
+      'import torch' \
+      'want_torch = os.environ["TORCH_PIN"].split("==", 1)[1]' \
+      'have_torch = importlib.metadata.version("torch")' \
+      'assert have_torch == want_torch, "torch %s, the row pins %s" % (have_torch, want_torch)' \
+      '' \
+      'import torch_gcu' \
+      'want_gcu = os.environ["TORCH_GCU_PIN"].split("==", 1)[1]' \
+      'have_gcu = importlib.metadata.version("torch-gcu")' \
+      'assert have_gcu == want_gcu, "torch-gcu %s, the row pins %s" % (have_gcu, want_gcu)' \
+      'print(">>> build env: %s, cp3%d, torch %s (metadata %s), torch-gcu %s"' \
+      '      % (sys.executable, want_minor, torch.__version__,' \
+      '         have_torch, have_gcu))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 PYTHON_VERSION="${PYTHON_VERSION}" \
+      TORCH_PIN="${TORCH_PIN}" TORCH_GCU_PIN="${TORCH_GCU_PIN}" /flagos/bin/python -
