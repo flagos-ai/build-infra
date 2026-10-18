@@ -374,8 +374,8 @@ wheels:
     pypi_index: flagos-pypi-iluvatar
     desc_zh: 面向天数智芯（Iluvatar）Corex 4.4.0 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for Iluvatar Corex 4.4.0.
-    notes: ''
-    notes_en: ''
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -386,8 +386,8 @@ wheels:
     pypi_index: flagos-pypi-iluvatar
     desc_zh: 面向天数智芯（Iluvatar）Corex 4.5.0 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for Iluvatar Corex 4.5.0.
-    notes: ''
-    notes_en: ''
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -426,30 +426,6 @@ wheels:
     notes_en: ''
     python:
     - cp310
-    os:
-    - linux
-    arch:
-    - linux_x86_64
-  - version: flagcx==0.14.0+corex4.4.0
-    pypi_index: flagos-pypi-iluvatar
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
-    python:
-    - cp312
-    os:
-    - linux
-    arch:
-    - linux_x86_64
-  - version: flagcx==0.14.0+corex4.5.0
-    pypi_index: flagos-pypi-iluvatar
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
-    python:
-    - cp312
     os:
     - linux
     arch:
