@@ -349,6 +349,18 @@ arg every other backend uses — pointed at the published stage, the staging bel
 the marker guard is a no-op, which is what spares a warm build the ~2.4 GB of
 prebuilt deps (LLVM 2198.6 MiB + triton deps 238.0 MiB on the 9.0.0 line).
 
+Both stages are **published** (2026-10-18, `flagtree-builder.yml` run
+39130538293 with `push: true`). Manifest digests, as the registry reported them
+on push:
+
+```
+flagos-dev/flagtree-builder-ascend-cann9.0.0:2.3.0  sha256:c8ec13f3b309902bbfddcbc02929e93b81d9de863da325af033d8f5cfe7a006c
+flagos-dev/flagtree-builder-ascend-cann8.5.0:2.3.0  sha256:26398afb000b13ec24e9418b5722deafcb1ada244dc31d29906be7ac59efe6fa
+```
+
+The push step then reads each ref back and compares the served image against the
+local one, so what a wheel line pulls is the image this repo built.
+
 | | `ascend-cann9.0.0` | `ascend-cann8.5.0` |
 |---|---|---|
 | Base image | `flagos-runtime-ascend-cann9.0.0:{version}` | `flagos-runtime-ascend-cann8.5.0:{version}` |
@@ -427,6 +439,13 @@ Notes that apply only here:
   build probes reachability or decides for the runner which endpoints are direct.
   A host a build must reach directly is therefore named in the runner's
   `no_proxy`, not in this tree.
+- **`$ASCEND_HOME` is a symlink.** It resolves to
+  `/usr/local/Ascend/ascend-toolkit/latest -> /usr/local/Ascend/cann`, and the
+  install-info files sit two levels below it under `aarch64-linux/`. A `find`
+  starting at it needs `-H`: without it `find` reports the link and stops, so a
+  probe silently finds nothing (the builder line's `ascend` stage check failed
+  this way in 39125616448). `verify_ascend_wheel.py` is unaffected — Python's
+  `open` follows symlinks on its own.
 - Both builders share `verify_ascend_wheel.py`, COPYed into the build rather than
   a heredoc: the CANN nodes still run Docker's legacy builder.
 - Build cost on the CANN nodes: ~26 min for `ascend-cann9.0.0` and ~14 min for
