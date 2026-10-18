@@ -108,8 +108,7 @@ backends:
     builder:
       verify_stage: sunrise
     daily:
-      # Off until a build here is verified on the backend's own nodes.
-      enabled: false
+      enabled: true
       dist_name: flagtree-sunrise
       version_base: "0.7.1"
       ref: main
