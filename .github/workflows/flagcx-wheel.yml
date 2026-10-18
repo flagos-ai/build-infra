@@ -88,6 +88,10 @@ on:
         description: 'Exact version to publish as flagcx==<this>, e.g. 0.14.0.dev14+dtk2604.20260915.g08ab373. Required only for a non-tag ref — a release tag names its own version, and nothing has to be typed.'
         type: string
         default: ''
+      bitcode:
+        description: 'build the row''s device bitcode when the row states bitcode_arch. false for a ref that predates the row''s bindings/ir Makefile (v0.14.0 has no iluvatar one)'
+        type: boolean
+        default: true
       verify:
         description: 'install the wheel from the file into its runtime image before publishing'
         type: boolean
@@ -282,7 +286,8 @@ jobs:
           packaging/flagcx/build-flagcx-wheel.sh \
             --backend "$MATRIX_NAME" \
             --ref "$FLAGCX_SHA" \
-            --out packaging/flagcx/dist
+            --out packaging/flagcx/dist \
+            ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       - name: Upload the wheel
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -342,7 +347,8 @@ jobs:
         run: |
           set -euo pipefail
           packaging/flagcx/verify/verify-flagcx-wheel.sh \
-            --wheel packaging/flagcx/dist/*.whl
+            --wheel packaging/flagcx/dist/*.whl \
+            ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       # The same critical list vllm-plugin-wheel.yml audits: these images bake a
       # pinned matrix and the app installs single-step. A flagcx wheel declares
       # no Requires-Dist at all, so a clean run here is nearly vacuous — which is
@@ -487,7 +493,8 @@ jobs:
           packaging/flagcx/verify/verify-flagcx-wheel.sh \
             --index-url "${FLAGOS_PYPI}" \
             --pin "${WHEEL_PIN}" \
-            --expect-sha256 "${WHEEL_SHA256}"
+            --expect-sha256 "${WHEEL_SHA256}" \
+            ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
 
   # Records what the publish steps above uploaded; the job body is shared —
   # see record-wheel-info.yml. One committer per run is what keeps a fan-out

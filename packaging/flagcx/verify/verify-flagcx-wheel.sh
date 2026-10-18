@@ -28,6 +28,10 @@
 #   --expect-sha256 H  sha256 of the wheel that was built, the hash alone
 #   --backend KEY      backend from backends.yaml; read off the artifact when
 #                      this is absent
+#   --no-bitcode       the wheel under test carries no device bitcode even though
+#                      the row states bitcode_arch, so skip the .bc assertions —
+#                      the twin of build-flagcx-wheel.sh's flag, for a ref that
+#                      predates the row's bindings/ir Makefile
 #   --keep             leave the container behind for inspection
 #   -h, --help         this text
 #
@@ -50,6 +54,7 @@ OPT_EXPECT_SHA256=""
 OPT_BACKEND=""
 LOCAL_MODE=0
 KEEP=0
+NO_BITCODE=0
 WHEELS=()
 
 usage() { sed -n '16,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
@@ -66,6 +71,7 @@ while [[ $# -gt 0 ]]; do
         --pin)            OPT_PIN="${2:?--pin needs a value}"; shift 2 ;;
         --expect-sha256)  OPT_EXPECT_SHA256="${2:?--expect-sha256 needs a hash}"; shift 2 ;;
         --backend)        OPT_BACKEND="${2:?--backend needs a key}"; shift 2 ;;
+        --no-bitcode)     NO_BITCODE=1; shift ;;
         --keep)           KEEP=1; shift ;;
         -h|--help)        usage; exit 0 ;;
         -*)               echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -188,6 +194,11 @@ INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$KEY" --chan
 set -a
 eval "$INPUTS"
 set +a
+# The ref the wheel was built from decides whether the row's bitcode is in it,
+# so the flag is the dispatch's, mirroring build-flagcx-wheel.sh: a release
+# built off v0.14.0 has no iluvatar .bc, and asserting one here would fail a
+# wheel that is correct for that ref.
+(( NO_BITCODE )) && WHEEL_BITCODE_ARCH=""
 
 # A row's label heads the local part of every wheel it builds, so a wheel whose
 # label does not is a wheel of another row: the image below is the wrong one, and

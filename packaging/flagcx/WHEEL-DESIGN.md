@@ -366,6 +366,14 @@ tag build: set-matrix derives each row's pin from the tag and that row's label, 
 publish twenty rows. Publishing a branch build still needs `wheel_version`, because the distance is
 something only the build knows.
 
+**Bitcode follows the ref, not the row.** `backends.yaml` states `bitcode_arch` as a fact of the row,
+but whether a given ref has the row's `bindings/ir` Makefile is a fact of the ref — iluvatar's landed
+in `main` (FlagCX #668) after `v0.14.0` was tagged. So the `bitcode` dispatch input (default `true`)
+feeds `--no-bitcode` through build and verify: a release re-publish off `v0.14.0` runs with
+`bitcode=false` and ships no `libflagcx_device.bc` (v0.14.0's setup.py raises on `FLAGCX_BITCODE_ARCH`
+for a non-nvidia adaptor), while the `main` dev-pin daily runs with `bitcode=true` and ships it. The
+flag lives at the dispatch because it is the one place the ref is known.
+
 The local label composes with the backend label from Mechanics, backend first
 (`0.13.0+cann9.0.0.20260814.g<sha>`): PEP 440 compares local segments left to right, so leading with
 the backend is what stops a range from crossing into another backend's variants. And note

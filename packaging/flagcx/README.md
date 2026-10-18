@@ -185,7 +185,14 @@ on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clea
 were re-published on 2026-10-18 off the shared metax 22.04 builder (PR #1394) — same pins, now
 22.04-clean. The two enflame pins were re-published the same way on 2026-10-18, off the shared
 enflame 22.04 builder (PR #1398) — same pins, now 22.04-clean (max GLIBC_2.34, no forbidden
-symbols).
+symbols). The two iluvatar pins were re-published the same way, off the shared iluvatar 22.04
+builder, on the same day — same pins, now 22.04-clean. The release re-publish builds with
+`bitcode=false`: iluvatar's `bindings/ir` Makefile (FlagCX #668) is not in the `v0.14.0` tag, so a
+release wheel carries no `libflagcx_device.bc`; the bitcode ships in the daily dev-pin build off
+`main`, which is what the `bitcode` input defaults to `true` for (see `--no-bitcode` in
+build-flagcx-wheel.sh). A `main` build is versioned `0.15.0.dev<distance>+<label>.<date>.<node>`
+and published to `flagos-pypi-iluvatar` with `wheel_version` typed, one row per dispatch — the
+dev pin's date/node moves with `main`, so it is re-derived each time rather than recorded here.
 
 `kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
 the node, while the wheel channel was being enabled for it (#1000).
