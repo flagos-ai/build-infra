@@ -278,8 +278,8 @@ wheels:
     pypi_index: flagos-pypi-enflame
     desc_zh: 面向燧原（Enflame）TopsRider 1.9.10 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for Enflame TopsRider 1.9.10.
-    notes: ''
-    notes_en: ''
+    notes: '适用于 Ubuntu 22.04 及以上版本。'
+    notes_en: 'Ubuntu 22.04 and above is supported.'
     python:
     - cp312
     os:
@@ -290,8 +290,8 @@ wheels:
     pypi_index: flagos-pypi-enflame
     desc_zh: 面向燧原（Enflame）TopsRider 1.10.6 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for Enflame TopsRider 1.10.6.
-    notes: ''
-    notes_en: ''
+    notes: '适用于 Ubuntu 22.04 及以上版本。'
+    notes_en: 'Ubuntu 22.04 and above is supported.'
     python:
     - cp312
     os:
@@ -326,8 +326,8 @@ wheels:
     pypi_index: flagos-pypi-metax
     desc_zh: 面向沐曦（MetaX）MACA 3.7.2.1 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for MetaX MACA 3.7.2.1.
-    notes: '支持 Ubuntu 22.04 及以上版本。'
-    notes_en: 'Ubuntu 22.04 and above is supported.'
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -338,8 +338,8 @@ wheels:
     pypi_index: flagos-pypi-metax
     desc_zh: 面向沐曦（MetaX）MACA 3.8.1.3 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for MetaX MACA 3.8.1.3.
-    notes: '支持 Ubuntu 22.04 及以上版本。'
-    notes_en: 'Ubuntu 22.04 and above is supported.'
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
