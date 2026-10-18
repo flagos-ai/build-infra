@@ -278,8 +278,8 @@ wheels:
     pypi_index: flagos-pypi-enflame
     desc_zh: 面向燧原（Enflame）TopsRider 1.9.10 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for Enflame TopsRider 1.9.10.
-    notes: '适用于 Ubuntu 22.04 及以上版本。'
-    notes_en: 'Ubuntu 22.04 and above is supported.'
+    notes: 适用于 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -290,8 +290,8 @@ wheels:
     pypi_index: flagos-pypi-enflame
     desc_zh: 面向燧原（Enflame）TopsRider 1.10.6 的 FlagCX 集合通信安装包。
     desc_en: FlagCX collective-communication wheel for Enflame TopsRider 1.10.6.
-    notes: '适用于 Ubuntu 22.04 及以上版本。'
-    notes_en: 'Ubuntu 22.04 and above is supported.'
+    notes: 适用于 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -426,6 +426,30 @@ wheels:
     notes_en: ''
     python:
     - cp310
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.0+corex4.4.0
+    pypi_index: flagos-pypi-iluvatar
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.0+corex4.5.0
+    pypi_index: flagos-pypi-iluvatar
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
     os:
     - linux
     arch:
