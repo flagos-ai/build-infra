@@ -323,8 +323,10 @@ jobs:
             command -v git >/dev/null
             test -d "$ASCEND_HOME"
             # Both install-info names, because the two CANN lines do not ship the
-            # same one -- the same pair verify_ascend_wheel.py probes.
-            info=$(find "$ASCEND_HOME" -maxdepth 2 -name "ascend_*install.info" -print -quit)
+            # same one -- the same pair verify_ascend_wheel.py probes. -H, because
+            # $ASCEND_HOME is a symlink to the real CANN root and find does not
+            # descend into a starting point that is one.
+            info=$(find -H "$ASCEND_HOME" -maxdepth 2 -name "ascend_*install.info" -print -quit)
             test -n "$info"
             test -f /root/.triton/json/include/nlohmann/json.hpp
             # The staged LLVM tree, wherever this CANN line names it: the wheel
