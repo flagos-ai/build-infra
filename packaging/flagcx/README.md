@@ -160,8 +160,8 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `enflame-tops1.9.10` | 2026-10-18 | `0.14.0+tops1.9.10` |
 | `enflame-tops1.10.6` | 2026-10-18 | `0.14.0+tops1.10.6` |
 | `hygon-dtk26.04` | 2026-10-17 | `0.14.0+dtk2604` |
-| `iluvatar-corex4.4.0` | 2026-10-09 | `0.14.0+corex4.4.0` |
-| `iluvatar-corex4.5.0` | 2026-10-09 | `0.14.0+corex4.5.0` |
+| `iluvatar-corex4.4.0` | 2026-10-18 | `0.14.0+corex4.4.0` |
+| `iluvatar-corex4.5.0` | 2026-10-18 | `0.14.0+corex4.5.0` |
 | `kunlunxin-xre5.37.1` | 2026-10-09 | `0.14.0+xre5.37.1` |
 | `metax-maca3.7.2.1` | 2026-10-18 | `0.14.0+maca3.7.2.1` |
 | `metax-maca3.8.1.3` | 2026-10-18 | `0.14.0+maca3.8.1.3` |
