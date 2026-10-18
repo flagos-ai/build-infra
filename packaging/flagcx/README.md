@@ -163,8 +163,8 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `iluvatar-corex4.4.0` | 2026-10-09 | `0.14.0+corex4.4.0` |
 | `iluvatar-corex4.5.0` | 2026-10-09 | `0.14.0+corex4.5.0` |
 | `kunlunxin-xre5.37.1` | 2026-10-09 | `0.14.0+xre5.37.1` |
-| `metax-maca3.7.2.1` | 2026-10-09 | `0.14.0+maca3.7.2.1` |
-| `metax-maca3.8.1.3` | 2026-10-09 | `0.14.0+maca3.8.1.3` |
+| `metax-maca3.7.2.1` | 2026-10-18 | `0.14.0+maca3.7.2.1` |
+| `metax-maca3.8.1.3` | 2026-10-18 | `0.14.0+maca3.8.1.3` |
 | `mthreads-musa4.3.6` | 2026-10-09 | `0.14.0+musa4.3.6` |
 | `mthreads-musa5.2.0` | 2026-10-09 | `0.14.0+musa5.2.0` |
 | `nvidia-cuda12.8` | 2026-10-09 | `0.14.0+cuda12.8` |
@@ -181,7 +181,9 @@ left tencent/PyPI on the proxy path, which answered CONNECT 500; removing the pr
 those nodes reach the tencent mirror directly). hygon's pin was re-published on 2026-10-17 after
 its wheel moved onto the 22.04 builder (PR #1380) — same pin, now 22.04-clean — which is why its
 date differs from the other nineteen. cambricon-neuware4.7.2's pin was re-published the same way
-on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clean.
+on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clean. The two metax pins
+were re-published on 2026-10-18 off the shared metax 22.04 builder (PR #1394) — same pins, now
+22.04-clean.
 
 `kunlunxin-xre5.37.1` carries a CI record now (2026-09-22); before that the row had passed only on
 the node, while the wheel channel was being enabled for it (#1000).
