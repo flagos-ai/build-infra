@@ -14,9 +14,14 @@
 # limitations under the License.
 #
 # Verify a FlagCX builder image. On an nvidia row the proof is compiling the
-# row's device bitcode in it; on a vendor row (which publishes no bitcode) the
-# proof is the torch/SDK probe — the image must import the pinned torch against
-# the SDK it carries, which is the exact step the wheel build stands in for.
+# row's device bitcode in it; on a vendor row the proof is the torch/SDK probe
+# — the image must import the pinned torch against the SDK it carries, which is
+# the exact step the wheel build stands in for. iluvatar is the vendor-row
+# exception: it publishes device bitcode (bitcode_arch: ivcore11) yet still
+# verifies here by the torch import, because its bitcode is compiled and
+# validated by the SDK's own clang/llvm tools rather than an image-provided
+# LLVM 22 — the probe proves the 22.04 floor, and the full make is the wheel
+# line's own job.
 #
 # Usage:
 #   verify-flagcx-builder.sh --backend nvidia-cuda13.3 --ref <sha>

@@ -1,0 +1,181 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX build-toolchain image for the two iluvatar rows' wheels: the vendor-SDK
+# twin of Containerfile.builder, self-contained on ubuntu:22.04 so the wheel's
+# glibc floor is 2.35 and it installs on the bundle's physical 22.04 hosts.
+# Unlike the other vendor rows this one also ships device bitcode — the
+# iluvatar adaptor has a bindings/ir Makefile (FlagCX #668) and its device
+# compiler is the SDK's own clang, so the SDK's clang + llvm tools (opt,
+# llvm-dis, llvm-as, llvm-nm) produce and validate the .bc. The .bc triple is
+# bi-iluvatar-ilurt, not nvptx64, so the nvidia f6ded0be clang constraint does
+# not apply; the SDK's clang (18.1.8 on 4.4.0, 22.1.0git on 4.5.0) and its llvm
+# tools link at most GLIBC_2.16, so the whole toolchain is 22.04-safe.
+
+FROM ubuntu:22.04
+
+# After FROM: a pre-FROM ARG is not in scope for the RUNs below.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/iluvatar
+ARG SDK_VERSION
+ARG BUILDER_ASSERT
+ARG TORCH_PIN
+ARG NUMPY_PIN
+ARG VENDOR_PYPI
+ARG EXTRA_PYPI
+ARG PYTHON_VERSION=3.12
+ARG RUNTIME_PREREQS
+
+# Never baked as ENV: the proxy is a build-time fact of one RUN.
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+# The node's own value, not a second copy here that could silently win.
+ARG no_proxy=
+
+# python 3.12 via deadsnakes on jammy (jammy's own is 3.10), the way the other
+# vendor recipes do it. libgflags/libgoogle-glog are the build-only headers
+# torch's c10/util headers reach. libopenmpi3 is 4.5.0-only: its SDK ships
+# libnvshmem_host.so (NEEDs libmpi.so.40) but no OpenMPI, and torch's
+# torch_nvshmem links it — without libmpi.so.40 `import torch` fails there.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl wget git unzip \
+        build-essential gcc g++ cmake libopenmpi3; \
+    curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg; \
+    echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        python3.12 python3.12-venv python3.12-dev \
+        libgflags-dev libgoogle-glog-dev \
+        libnuma1 libgomp1 libgfortran5; \
+    rm -rf /var/lib/apt/lists/*
+
+# The CUDA header has to land BEFORE the SDK installer runs: the Corex .run
+# bails with "CUDA header file not found" (its own error code 11, no files
+# installed) when /usr/include/cuda does not exist first — which is exactly the
+# order base/<key> uses, kept here rather than re-ordered.
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /cuda-header.zip "${FILE_STORE}/cuda-header-260604.zip"; \
+    unzip /cuda-header.zip -d /tmp; \
+    bash /tmp/partial_install_cuda_header/install-cuda-header.sh; \
+    rm -rf /tmp/partial_install_cuda_header /cuda-header.zip
+
+# The SDK, one .run installer per row. sdk_version is the installer's own
+# spelling (4.4.0, or 4.5.0.20260804) rather than the key's, so the two rows
+# share the recipe while each fetches its own filenames.
+ENV SDK_INSTALLER="corex-installer-linux64-${SDK_VERSION}_x86_64_10.2.run" \
+    CMAKE_PKG="cmake-3.31.8+corex.${SDK_VERSION}-linux-x86_64.sh" \
+    DRIVER_INSTALLER="corex-driver-linux64-${SDK_VERSION}_x86_64.run"
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /corex-installer.run "${FILE_STORE}/${SDK_INSTALLER}"; \
+    bash /corex-installer.run --silent --toolkit; \
+    rm -f /corex-installer.run; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /cmake.sh "${FILE_STORE}/${CMAKE_PKG}"; \
+    mkdir -p /opt/cmake-corex; \
+    bash /cmake.sh --skip-license --prefix=/opt/cmake-corex; \
+    rm -f /cmake.sh; \
+    /opt/cmake-corex/bin/cmake --version
+
+# The driver step is gated on the toolkit's own answer rather than a version
+# string: 4.4.0's toolkit ships libcuda.so.1, 4.5.0's does not (it lives in
+# the driver installer) — which is why base/iluvatar-corex4.5.0 extracts the
+# driver's userspace (libcuda/libixml/ixsmi) while base/iluvatar-corex4.4.0
+# has no such step. The builder mirrors that: it fetches and extracts the
+# driver only when the SDK just installed came without libcuda.so.1, so the
+# image's libcuda comes from the same place base/<key>'s does either way.
+RUN set -eux; \
+    if [ ! -e /usr/local/corex/lib/libcuda.so.1 ]; then \
+        curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+            -o /corex-driver.run "${FILE_STORE}/${DRIVER_INSTALLER}"; \
+        bash /corex-driver.run --noexec --target /tmp/drv >/dev/null; \
+        mkdir -p /usr/local/corex/lib /usr/local/corex/bin; \
+        cp /tmp/drv/corex/lib64/libcuda.so.1 /usr/local/corex/lib/; \
+        cp /tmp/drv/corex/lib64/libixml.so /usr/local/corex/lib/; \
+        cp /tmp/drv/corex/bin/ixsmi /usr/local/corex/bin/; \
+        ln -s libcuda.so.1 /usr/local/corex/lib/libcuda.so; \
+        rm -rf /tmp/drv /corex-driver.run; \
+    fi
+
+# The row's SDK assert, checked here rather than as an unresolved symbol later.
+RUN set -eux; \
+    for path in ${BUILDER_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# The same env base/<key> bakes; Corex has no profile.d script, so ENV is the
+# whole of it. /usr/local/corex/bin carries the SDK's clang and llvm tools,
+# which the bitcode make resolves from PATH.
+ENV COREX_ROOT=/usr/local/corex \
+    PATH="/usr/local/corex/bin:/opt/cmake-corex/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/corex/lib"
+
+# Interpreter and torch, the things the runtime image used to provide. prereqs+
+# numpy from the general mirror, torch from the vendor index LAST so
+# +corex.4.x resolves there while its own deps resolve on the mirror.
+# `import torch` IS the SDK-floor proof on this row: its libtorch_cuda.so NEEDs
+# libcudart.so.10.2/libcuda.so.1/libnccl.so.2/libixattnbkd.so.1, so the import
+# fails unless the SDK is there.
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN set -eux; \
+    python3.12 -m ensurepip --upgrade; \
+    python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
+    python3.12 -m venv /flagos; \
+    /flagos/bin/pip install --no-cache-dir --upgrade pip; \
+    /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    for i in 1 2 3; do \
+        PIP_INDEX_URL="${EXTRA_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+        PIP_TRUSTED_HOST=resource.flagos.net \
+        /flagos/bin/pip install --no-cache-dir --pre "${TORCH_PIN}" && break; \
+        echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
+    done
+
+# The probe the wheel build stands in for: import the pinned torch against the
+# SDK. The pin is asserted against importlib.metadata, not __version__,
+# because a vendor torch may drop the local segment.
+RUN set -eu; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'assert os.path.exists(header), "no Python.h under %s" % header' \
+      '' \
+      'want_minor = int(os.environ["PYTHON_VERSION"].split(".", 1)[1])' \
+      'assert sys.version_info[:2] == (3, want_minor), "the venv is %s, the row says %s" % (sys.version_info[:2], os.environ["PYTHON_VERSION"])' \
+      '' \
+      'import torch' \
+      'want_torch = os.environ["TORCH_PIN"].split("==", 1)[1]' \
+      'have_torch = importlib.metadata.version("torch")' \
+      'assert have_torch == want_torch, "torch %s, the row pins %s" % (have_torch, want_torch)' \
+      'print(">>> build env: %s, cp3%d, torch %s (metadata %s)"' \
+      '      % (sys.executable, want_minor, torch.__version__, have_torch))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 PYTHON_VERSION="${PYTHON_VERSION}" \
+      TORCH_PIN="${TORCH_PIN}" /flagos/bin/python -

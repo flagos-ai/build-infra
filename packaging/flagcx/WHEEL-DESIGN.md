@@ -68,10 +68,10 @@ their wheel would link GLIBC_2.38 without a 22.04 build.
 | Question | Decision |
 |---|---|
 | Base | **ubuntu:22.04, self-contained** — never the runtime image, never a vendor `-devel` tag |
-| Contents | python + torch pin + the row's SDK + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers (nvidia rows); python + torch pin + the vendor SDK tarball, no clang/LLVM/NCCL (vendor rows) |
+| Contents | python + torch pin + the row's SDK + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers (nvidia rows); python + torch pin + the vendor SDK tarball, no clang/LLVM/NCCL (vendor rows, iluvatar excepted — its SDK carries its own clang + llvm tools) |
 | Which rows | Only those declaring `builder.enabled` — the nvidia rows because their runtime image lacks the toolchain, a vendor row because its wheel needs the 22.04 floor; a runtime image that already carries both the toolchain and a 22.04 floor needs none |
 | Recipe | `Containerfile.builder` for the nvidia rows; a vendor row names its own via `builder.containerfile` (`Containerfile.builder-vendor-hygon` is the first) — the SDK is a tarball/run into `/opt`, not the CUDA apt repo, so the install steps are not shareable |
-| Acceptance | Compiling that row's device bitcode inside the built image (nvidia rows), or importing the pinned torch against the carried SDK (vendor rows — they publish no bitcode, so the torch import is the proof the wheel build stands in for), in CI, before the push |
+| Acceptance | Compiling that row's device bitcode inside the built image (nvidia rows), or importing the pinned torch against the carried SDK (vendor rows — they publish no bitcode, so the torch import is the proof the wheel build stands in for), in CI, before the push. iluvatar is the vendor-row exception: it ships bitcode too, compiled and validated by the SDK's own clang + llvm tools, so its acceptance is the torch import (its `import torch` is the SDK-floor proof) and not the nvidia `make` |
 
 A vendor-SDK row (hygon, metax, …) that publishes a builder gets the same
 self-contained 22.04 environment, but its recipe is its own file rather than
@@ -81,9 +81,12 @@ deadsnakes PPA), so the shared file's CUDA-apt + NCCL-extract + LLVM steps do no
 apply and its nvidia-3.12 python does not either. The builder channel's *inputs*
 are unchanged — `flagcx-config.py` hands the vendor row the same `BUILDER_*`
 names, and `build-flagcx-builder.sh` picks the recipe from `builder.containerfile`
-(empty = the shared nvidia file) — but the vendor row carries no device bitcode,
-so its verification is the torch import (see `verify-flagcx-builder.sh`) rather
-than the `make` the nvidia rows run. hygon is the ideal first vendor: DTK 26.04
+(empty = the shared nvidia file) — but the vendor row carries no device bitcode
+(the iluvatar rows now do, via FlagCX #668, yet still verify by the torch import:
+their bitcode is produced and validated by the SDK's own clang/llvm tools, which
+are 22.04-clean, so the import is the only floor the nvidia `make`-and-assert
+step would add), so its verification is the torch import (see
+`verify-flagcx-builder.sh`) rather than the `make` the nvidia rows run. hygon is the ideal first vendor: DTK 26.04
 has no 24.04 build at all (the 24.04 base image runs the 22.04 tarball forward),
 so its SDK is 22.04-clean by construction and the builder costs nothing the SDK
 cannot already provide.
@@ -166,6 +169,18 @@ available is `makefiles/nvidia_gencode.mk`'s table, and a second copy of it here
 `bindings/ir/nvidia/Makefile` never includes `makefiles/nvidia.mk`, so the comm-traits branch that
 file picks for the `.so` by reading `nccl.h` can reach the `.bc` only as a value passed in — without
 it the two artifacts disagree about `DeviceAPI::Window`/`Multimem`.
+
+**The iluvatar rows state `bitcode_arch` without `bitcode_adaptor_flag`.** The `bindings/ir`
+Makefiles are per-adaptor now (FlagCX #668), and the iluvatar entry in setup.py's
+`BITCODE_MAKEFILES` sets `adaptor_flag_var: None` because `bindings/ir/iluvatar/Makefile` states
+its own `-DUSE_ILUVATAR_ADAPTOR -DFLAGCX_COMM_TRAITS_DEFAULT` — iluvatar has no comm-traits branch
+to spell, so there is no flag to pass and `FLAGCX_BITCODE_ADAPTOR_FLAGS` is never read for it. The
+compiler is the SDK's own clang (`COREX_CLANG ?= $(DEVICE_HOME)/bin/clang`) and the validation is
+its `llvm-dis`/`llvm-as`/`opt`/`llvm-nm`, all resolved from PATH, so the nvidia clang/LLVM 22 pin
+does not apply: the SDK's clang is 18.1.8 on 4.4.0 and 22.1.0git on 4.5.0, and both (with their
+llvm tools) link at most GLIBC_2.16. The `.bc` triple is `bi-iluvatar-ilurt`, not
+`nvptx64-nvidia-cuda`, so an iluvatar `.bc` is not flagtree-consumable — the f6ded0be snapshot
+constraint (which exists to satisfy flagtree's `parseIRFile` reader) is therefore moot on this row.
 
 **Nothing goes stale.** The builder is self-contained, so a rebuilt runtime does not stale it the
 way it staled the runtime-based builder — the image records no runtime digest. The floor the wheel
