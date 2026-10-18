@@ -146,7 +146,11 @@
 #                 setup.py as FLAGCX_BITCODE_ADAPTOR_FLAGS, which refuses an
 #                 empty value whenever the arch is set rather than defaulting
 #                 it — the wrong branch is not a build failure, it is a `.bc`
-#                 that loads and does the wrong thing.
+#                 that loads and does the wrong thing. The iluvatar rows state
+#                 bitcode_arch WITHOUT it: setup.py's iluvatar entry sets
+#                 adaptor_flag_var to None because its Makefile states its own
+#                 flag (no comm-traits branch), so FLAGCX_BITCODE_ADAPTOR_FLAGS
+#                 is never read for them and the absence is the rule, not a gap.
 
 # ── ready: makefiles/*.mk defaults and the base-image SDK layout agree ──────
 
@@ -467,6 +471,22 @@ iluvatar-corex4.4.0:
   vendor_lib_dirs: [/usr/local/corex/lib]
   deb: {enabled: true, default_for_vendor: false}
   wheel: {enabled: true}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
+  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
+  # that. Unlike the other vendor rows this one also ships device bitcode —
+  # iluvatar has a bindings/ir Makefile (FlagCX #668), and its device compiler
+  # is the SDK's own clang, so bitcode_arch below is the arch the wheel's .bc
+  # is compiled at. The .bc triple is bi-iluvatar-ilurt, not nvptx64, so it is
+  # NOT flagtree-consumable and the nvidia f6ded0be clang constraint does not
+  # apply: the SDK's clang and its llvm tools produce and validate it.
+  # bitcode_adaptor_flag is deliberately absent — setup.py's iluvatar entry has
+  # adaptor_flag_var: None, the Makefile states its own -DUSE_ILUVATAR_ADAPTOR
+  # (no comm-traits branch), and FLAGCX_BITCODE_ADAPTOR_FLAGS is not read.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-iluvatar
+    sdk_version: 4.4.0
+  bitcode_arch: ivcore11
 
 iluvatar-corex4.5.0:
   vendor: iluvatar_corex
@@ -481,6 +501,14 @@ iluvatar-corex4.5.0:
   vendor_lib_dirs: [/usr/local/corex/lib]
   deb: {enabled: true, default_for_vendor: true}
   wheel: {enabled: true}
+  # Same 22.04 builder as the 4.4.0 row, for the same reason, plus bitcode.
+  # sdk_version is the installer's own spelling (4.5.0.20260804), not the
+  # key's: the recipe derives the installer/driver/cmake filenames from it.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-iluvatar
+    sdk_version: 4.5.0.20260804
+  bitcode_arch: ivcore11
 
 kunlunxin-xre5.37.1:
   vendor: klx

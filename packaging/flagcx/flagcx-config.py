@@ -786,7 +786,10 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
         # must state the arch/flags it compiles at. A vendor row publishes no
         # bitcode — its proof is the torch/SDK import, and its recipe is its own
         # `builder.containerfile` — so the requirement is that one or the other
-        # hold, never that a vendor row state an nvidia-only fact.
+        # hold, never that a vendor row state an nvidia-only fact. iluvatar is a
+        # vendor row with a containerfile, so it passes on the recipe; its
+        # bitcode_arch (stated without an adaptor flag) is consumed by the wheel
+        # build, and the builder's verification stays the torch import.
         if builder:
             has_bitcode = bool(spec.get("bitcode_arch") and spec.get("bitcode_adaptor_flag"))
             has_vendor_recipe = bool((spec.get("builder") or {}).get("containerfile"))
@@ -798,9 +801,14 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                 )
         # The wheel channel reads the same pair from the other end: one of the two
         # without the other would compile the `.bc` at the Makefile's default,
-        # which is some other row's answer.
-        if wheel and bool(spec.get("bitcode_arch")) != bool(
-            spec.get("bitcode_adaptor_flag")
+        # which is some other row's answer. iluvatar is the exception — its
+        # adaptor's setup.py entry declares adaptor_flag_var: None (the Makefile
+        # states its own flag, no comm-traits branch), so its arch is stated
+        # alone and FLAGCX_BITCODE_ADAPTOR_FLAGS is never read for it.
+        if (
+            wheel
+            and bool(spec.get("bitcode_arch")) != bool(spec.get("bitcode_adaptor_flag"))
+            and spec["vendor"] != "iluvatar_corex"
         ):
             problems.append(
                 where + "bitcode_arch and bitcode_adaptor_flag are stated one "
