@@ -175,8 +175,11 @@ a hand-written `PKG-INFO` does not survive into METADATA, and appending to the
 `egg_info` output does not either.
 
 **FlagCX is built out, not in.** The build exports `USE_FLAGCX=OFF` to make sure that
-the wheel carries no flagcx at all. The runtime installs the `flagcx` package and
-FlagTree prefers that library over the vendored copy.
+the wheel carries no flagcx at all. The runtime installs the `flagcx` package and, once
+FlagTree falls back to it (upstream
+[#1393](https://github.com/flagos-ai/FlagTree/pull/1393)), uses that library over the
+vendored copy. Until that merges the wheel carries no `flagcx_wrapper` either, so TLE
+keeps distributed support off whether or not the package is installed.
 
 Removing `.git` to make the version clean: FlagTree's `get_git_commit_hash()` appends
 `+git<sha8>` whenever `git rev-parse` answers, which is why the SHA has to be read
