@@ -102,6 +102,8 @@ ARG MAX_JOBS=32
 # Only binary caches are staged; FlagTree clones its own third-party sources.
 # TRITON_OFFLINE_BUILD=1 (the vendor's setting) makes setup.py reject a
 # dependency whose syspath is unset, so the staged caches are what gets read.
+# USE_FLAGCX=OFF keeps FlagCX out of the wheel: compiling it needs the CoreX
+# SDK and clang, which the flagcx line owns.
 RUN git config --global http.version HTTP/1.1 \
     && for i in 1 2 3 4 5 6 7 8; do \
          git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
@@ -126,12 +128,14 @@ RUN git config --global http.version HTTP/1.1 \
     && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
     && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
     && export TRITON_OFFLINE_BUILD=1 TRITON_BUILD_PROTON=OFF TRITON_ILU_BUILD_GLUON=OFF \
+    && export USE_FLAGCX=OFF \
     && export MAX_JOBS="${MAX_JOBS}" \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
          python -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
          echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
        done \
+    && test ! -e /opt/flagtree/third_party/iluvatar/tle/third_party/flagcx \
     && ls -la /wheels/*.whl
 
 # printf to a file, not `python - <<'PY'`: on the Docker legacy builder the CoreX
@@ -171,6 +175,12 @@ RUN printf '%s\n' \
       '    print("FAIL: the iluvatar plugin is not linked into libtriton.so")' \
       '    sys.exit(1)' \
       'print("OK: iluvatar plugin is linked into libtriton.so")' \
+      '' \
+      'stray = [n for n in zipfile.ZipFile(whl).namelist() if "flagcx" in n.lower()]' \
+      'if stray:' \
+      '    print("FAIL: USE_FLAGCX=OFF did not keep FlagCX out of the wheel: " + str(stray[:5]))' \
+      '    sys.exit(1)' \
+      'print("OK: no FlagCX in the wheel")' \
       '' \
       'blob = open(so, "rb").read()' \
       'internals = re.findall(rb"pybind11_internals_v[0-9]+", blob)' \
