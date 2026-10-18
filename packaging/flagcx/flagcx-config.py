@@ -122,8 +122,10 @@ WHEEL_BUILD_INPUT_FIELDS = (
 # to an index.
 BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
-    "builder_apt", "builder_extra_apt", "builder_sdk_version", "assert", "make_env",
+    "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
+    "builder_torch_gcu",
+    "builder_sdk_version", "builder_aten_version",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
@@ -602,11 +604,19 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # versions disagree with the key (3.7.2.1 -> sdk 3.7.2.0, 3.8.1.3 ->
             # 3.8.1.3) — base/<key> carries the SDK version, and the recipe takes
             # it rather than deriving from `key`, which would need the same
-            # "3.7.2.1 is not 3.7.2.0" exception restated. Only the metax recipe
-            # reads it; every other row leaves it "" and the shared/nvidia recipe
-            # installs its SDK through apt instead.
+            # "3.7.2.1 is not 3.7.2.0" exception restated. The enflame recipe
+            # names its debs from the same field, so its rows state it too; every
+            # other row leaves it "" and the shared/nvidia recipe installs its
+            # SDK through apt instead.
             entry["builder_sdk_version"] = (spec.get("builder") or {}).get(
                 "sdk_version"
+            ) or ""
+            # topsaten's version is not the SDK version and not templatable from
+            # it (1.10.6 -> topsaten 3.8.20260710, 1.9.10 -> 3.7.20260514), so
+            # the enflame rows state it under builder: — libtorch_gcu.so NEEDs
+            # libtopsaten.so.3, so the deb is part of the SDK-floor import.
+            entry["builder_aten_version"] = (spec.get("builder") or {}).get(
+                "aten_version"
             ) or ""
             # Not under `builder:` in the registry: nothing in the image depends
             # on either, so a block that also holds what the image installs would
@@ -638,13 +648,16 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
                 configs.get("runtime_prereqs") or []
             )
             entry["builder_torch"] = torch_pin(entry["deps"])
-            # The torch-mlu bridge pin: the vendor torch import alone is not the
-            # SDK-floor proof — torch_mlu's _MLUC binds libcncl/libcnrt. Not all
-            # rows carry one (hygon's du torch has none), so it may be empty.
+            # The vendor-torch bridge pin, one package name per adaptor family:
+            # torch_mlu on cambricon (its _MLUC binds libcncl/libcnrt), torch_gcu
+            # on enflame (libtorch_gcu_python NEEDs libtopspti, so the import is
+            # the SDK-floor proof the plain torch import is not). Not all rows
+            # carry one (hygon's du torch has none), so it may be empty.
             entry["builder_torch_mlu"] = _deps_pin(entry["deps"], "torch-mlu")
             entry["builder_torch_mlu_ops"] = _deps_pin(
                 entry["deps"], "torch-mlu-ops"
             )
+            entry["builder_torch_gcu"] = _deps_pin(entry["deps"], "torch-gcu")
             entry["builder_numpy"] = numpy_pin(entry["deps"])
             # Read from deps rather than hardcoded in the Containerfile: torch_mlu
             # imports pandas at autoload (profiler/analysis/kernel_parser.py), but

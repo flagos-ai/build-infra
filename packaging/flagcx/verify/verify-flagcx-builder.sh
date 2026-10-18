@@ -147,6 +147,7 @@ docker exec -i \
     -e FLAGCX_REPO="$OPT_REPO" -e FLAGCX_REF="$OPT_REF" \
     -e HAS_BITCODE="$HAS_BITCODE" \
     -e TORCH_MLU_PIN="$BUILDER_TORCH_MLU" \
+    -e TORCH_GCU_PIN="$BUILDER_TORCH_GCU" \
     -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
     -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
     -e MAKE_ENV="$BUILDER_MAKE_ENV" \
@@ -164,9 +165,15 @@ if [ "$HAS_BITCODE" != "1" ]; then
     # A row that pins a torch bridge (torch-mlu) needs the bridge import too:
     # `import torch` is pure-CPU there and never dlopens the SDK, while the
     # bridge does — it is what binds the wheel to libcncl/libcnrt, so it is the
-    # SDK-floor proof the plain torch import is not.
+    # SDK-floor proof the plain torch import is not. torch_gcu is the same shape
+    # on enflame: libtorch_gcu_python NEEDs libtopspti, so `import torch_gcu`
+    # is what dlopens the SDK. Unlike torch_mlu, its package name is torch-gcu
+    # while its module name is torch_gcu.
     if [ -n "$TORCH_MLU_PIN" ]; then
         TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_mlu; print(">>> torch_mlu imports against the vendor SDK (floor proof)")'
+    fi
+    if [ -n "$TORCH_GCU_PIN" ]; then
+        TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_gcu; print(">>> torch_gcu imports against the vendor SDK (floor proof)")'
     fi
     echo ">>> ok: $BACKEND (vendor row, no device bitcode)"
     exit 0
