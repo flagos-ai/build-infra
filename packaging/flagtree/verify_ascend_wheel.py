@@ -47,16 +47,27 @@ EXTRA_TREES = (
 ARCH_TAG = "-cp311-cp311-linux_aarch64"
 # The install-info file names CANN ships, in preference order.
 INSTALL_INFO_FILES = ("ascend_toolkit_install.info", "ascend_all_cann_install.info")
-# libtriton and the ascend plugin share pybind11 type registries; the runtime
-# venv ships pybind11 3.0.3, whose internals version is this. A drift is the
-# metax/sunrise failure mode: the wheel imports fine on a GPU-less box and only
-# breaks at kernel-compile time on real hardware.
-PYBIND11_INTERNALS = b"11"
 
 
 def fail(msg):
     print(f"FAIL: {msg}")
     sys.exit(1)
+
+
+def installed_internals():
+    """The PYBIND11_INTERNALS_VERSION of the pybind11 this build installed.
+
+    Read out of pybind11's own header, the way FlagTree's own
+    _installed_pybind11_internals() does, rather than pinned as a literal here:
+    the pin is PYBIND11_VERSION, and this is what proves the build used it.
+    """
+    import pybind11
+    hdr = Path(pybind11.get_include()) / "pybind11" / "detail" / "internals.h"
+    try:
+        m = re.search(r"#\s*define\s+PYBIND11_INTERNALS_VERSION\s+(\d+)", hdr.read_text())
+    except OSError:
+        return None, getattr(pybind11, "__version__", None)
+    return (m.group(1).encode() if m else None), getattr(pybind11, "__version__", None)
 
 
 def cann_version():
@@ -112,7 +123,7 @@ def main():
         fail("CANN_VERSION is not set (it is the pairing gate, not decoration)")
     if found != expected:
         fail(f"build machine CANN '{found or '<not found>'}' != expected '{expected}' "
-             "(wrong BASE_IMAGE: the wheel is built against the CANN it finds there)")
+             "(wrong BUILDER_IMAGE: the wheel is built against the CANN it finds there)")
     print(f"OK: build machine CANN {found} matches CANN_VERSION")
 
     d = tempfile.mkdtemp()
@@ -122,18 +133,43 @@ def main():
         fail(f"wheel missing {missing}")
     print("OK: wheel ships the ascend extra trees " + " / ".join(EXTRA_TREES))
 
+    # The carrier the build writes: .git is dropped for the clean version, so the
+    # commit only survives if setuptools merged the setup.cfg the build left in
+    # the clone. Asserted here rather than assumed, because it is the only record
+    # of what the wheel was built from.
+    with zipfile.ZipFile(whl) as zf:
+        meta = next(n for n in zf.namelist() if n.endswith(".dist-info/METADATA"))
+        lines = zf.read(meta).decode().splitlines()
+    source_commits = [l for l in lines if l.startswith("Project-URL: Source-Commit, ")]
+    if len(source_commits) != 1 or not source_commits[0].startswith(
+            "Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/"):
+        fail(f"wheel METADATA carries {source_commits} (expected one Source-Commit "
+             "Project-URL; the build's setup.cfg carrier did not survive)")
+    print(f"OK: {source_commits[0]}")
+
     so = next(iter(glob.glob(d + "/**/libtriton.so", recursive=True)), None)
     if so is None:
         fail("no libtriton.so in the wheel")
+    # The comparison, not a literal: libtriton and the ascend plugin it links
+    # share pybind11 type registries only when their internals versions match, and
+    # a mismatch is the metax/sunrise failure mode -- the wheel imports fine on a
+    # GPU-less box and only breaks at kernel-compile time on real hardware. What
+    # the build installed is read from pybind11 itself, so the pin and this gate
+    # cannot drift apart.
+    want, pybind11_version = installed_internals()
+    if want is None:
+        fail("could not read PYBIND11_INTERNALS_VERSION from the installed pybind11 "
+             f"({pybind11_version!r})")
     got = internals(so)
-    if got != [PYBIND11_INTERNALS]:
-        fail(f"libtriton.so pybind11 internals {got} (expected "
-             f"[{PYBIND11_INTERNALS!r}]; adjust PYBIND11_VERSION)")
+    if got != [want]:
+        fail(f"libtriton.so pybind11 internals {got}, the build's pybind11 "
+             f"{pybind11_version} provides [{want!r}]")
     others = {tuple(v) for p in glob.glob(d + "/**/*.so", recursive=True)
               if p != so and (v := internals(p))}
-    if others - {(PYBIND11_INTERNALS,)}:
+    if others - {(want,)}:
         fail(f"shipped .so files expose other pybind11 internals {others}")
-    print(f"OK: libtriton.so pybind11 internals v{PYBIND11_INTERNALS.decode()}")
+    print(f"OK: libtriton.so and the wheel's other .so files carry pybind11 internals "
+          f"v{want.decode()}, the build's pybind11 {pybind11_version}")
 
 
 if __name__ == "__main__":

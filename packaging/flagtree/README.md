@@ -21,9 +21,9 @@ wheel is self-owned and reproducible — and an A/B baseline against the vendor'
 
 The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` builders start from a plain
 Ubuntu 22.04 (old glibc: the resulting `libtriton.so` must load on 22.04 nodes).
-The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair instead builds **inside the
-backend's runtime image**, because FlagTree's Ascend build needs CANN on the
-build machine — see the section below.
+The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair's builder stage instead starts
+from **the backend's runtime image**, because FlagTree's Ascend build needs CANN
+on the build machine — see the section below.
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
@@ -31,8 +31,8 @@ build machine — see the section below.
 | `metax`      | FlagTree for MetaX (MACA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU), builder + wheel | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
-| `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann9.0.0` |
-| `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311) | `flagos-runtime-ascend-cann8.5.0` |
+| `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
+| `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann8.5.0` |
 
 The `metax` builder was written because MetaX's own wheel
 (`flagtree==0.6.1+metax3.6` on the host index) is built on Ubuntu 24.04 and links
@@ -82,13 +82,19 @@ v11** (verified on metax124: v11 → `test_abs.py` 36/36 pass; v12 → 36/36 fai
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). `nvidia-cuda`, `metax`, `iluvatar` and `sunrise`
-have one; the ascend pair is still single-stage.
+into FlagTree's offline cache). All six have one. For `nvidia-cuda`, `metax`,
+`sunrise` and `iluvatar` the stage starts from a bare `ubuntu:22.04` and is the
+`BUILDER_IMAGE` default; for the ascend pair its cold value is the backend's
+runtime image, which is why `backends.yaml` marks those rows `base_image:
+runtime` and the builder line resolves their `BUILDER_IMAGE` from
+`generate_matrix.py --runtime` instead of letting the Containerfile default.
 
 `.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
 one job per entry in `backends.yaml`, which is where a backend's build-line facts
 live: its Containerfile, the image repository the stage is published under, the
-runner labels, the disk budget, and which extra proof the stage needs.
+runner labels, the disk budget, and which extra proof the stage needs
+(`verify_stage`; the ascend pair's own step asserts the runtime image's CANN
+line and version, the staged LLVM and the triton deps).
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
@@ -214,7 +220,7 @@ else: a wheel is a wheel line's deliverable, so one version never has two
 uploaders. The upload path for this backend is `flagtree-wheel.yml` with
 `target=iluvatar`, where `prepare` maps the target to the `iluvatar-corex4.5.0`
 runtime row for its runner labels and vendor index while still passing no
-`BASE_IMAGE`.
+`BUILDER_IMAGE` — this stage cold-builds from bare `ubuntu:22.04`.
 
 **The plugin is linked in, not shipped.** This backend builds `triton_iluvatar.cc`
 as an object and links it into `libtriton.so` (`add_triton_plugin` in
@@ -316,58 +322,87 @@ rooted at `.triton/` and therefore unpacked with `--strip-components=1`.
 
 ## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
 
-The Ascend pair differs from the builders above in one structural way: **the build
-environment is the backend's own runtime image**, not a plain Ubuntu. It is also
-named after that backend rather than the FlagTree line it builds, so the
-Containerfile name, `flagtree-wheel.yml`'s `target` and `generate_matrix.py`'s
-backend name are one string.
+The Ascend pair differs from the builders above in one structural way: **its
+builder stage's cold base is the backend's own runtime image**, not a plain
+Ubuntu — so its `BUILDER_IMAGE` default is a registry ref rather than
+`ubuntu:22.04`, and a cold build pulls that image. The pair is also named after
+the backend rather than the FlagTree line it builds, so the Containerfile name,
+`flagtree-wheel.yml`'s `target` and `generate_matrix.py`'s backend name are one
+string.
 
 FlagTree's Ascend build reads the CANN version *on the build machine* and uses it
 to select the AscendNPU-IR branch/commit (`python/setup_tools/utils/ascend.py`,
 `ASCEND_NPU_IR_PINS`); AscendNPU-IR is then compiled from source into the build
-and the Ascend plugin links CANN's BiShengIR dialects. Building inside
+and the Ascend plugin links CANN's BiShengIR dialects. Building on
 `flagos-runtime-ascend-cann{9.0.0,8.5.0}` makes that pairing automatic — the pin
 follows the CANN the wheel will actually run against — and the image is already a
 complete toolchain for the build (python 3.11 venv with pip/ninja/pybind11,
-gcc/make/cmake/binutils, git/curl/tar, torch + torch_npu), so no apt step is
-needed. Same rule as the Megatron wheel builder: build env == delivery env.
+gcc/make/cmake/binutils, git/curl/tar, torch + torch_npu), so the builder stage
+adds no apt step: only the two prebuilt inputs below. Same rule as the Megatron
+wheel builder: build env == delivery env.
+
+**Two stages, one file**, the shape the other four have. `--target builder` is
+the runtime image plus the two prebuilt inputs staged into FlagTree's offline
+caches, and is what `flagtree-builder.yml` publishes; the default target clones
+the ref and compiles on top of it. The cold/warm knob is the same `BUILDER_IMAGE`
+arg every other backend uses — pointed at the published stage, the staging below
+the marker guard is a no-op, which is what spares a warm build the ~2.4 GB of
+prebuilt deps (LLVM 2198.6 MiB + triton deps 238.0 MiB on the 9.0.0 line).
 
 | | `ascend-cann9.0.0` | `ascend-cann8.5.0` |
 |---|---|---|
 | Base image | `flagos-runtime-ascend-cann9.0.0:{version}` | `flagos-runtime-ascend-cann8.5.0:{version}` |
-| FlagTree branch (default) | `0.7.0-rc2-triton3.5` (build dir = repo root) | `triton_v3.2.x` (build dir = `python/`) |
+| FlagTree branch (default) | `triton_v3.5.x` (build dir = repo root) | `triton_v3.2.x` (build dir = `python/`) |
 | Prebuilt LLVM | `llvm-7d5de303-…-compat_v0.6.0` | `llvm-a66376b0-…-compat_v0.3.0` |
 | triton build deps | `build-deps-triton_3.5.x-linux-aarch64` | `build-deps-triton_3.2.x-linux-aarch64` |
-| Wheel version | `0.7.0rc2+ascend3.5.<UTC date>` | `0.6.0+ascend3.2.<UTC date>` |
+| Wheel version | `0.7.0+ascend3.5.<UTC date>` | `0.6.0+ascend3.2.<UTC date>` |
 
-The wheel's version label keeps the vendor's `+ascend3.5` / `+ascend3.2` spelling
-— that is what the `configs.yaml` pins and the backend docs reference — while the
-file is named after the backend.
+The default ref is a **vendor release branch, not `main`**: the two CANN lines
+track their own (3.5 for CANN 9.0.0, 3.2 for CANN 8.5.0) and neither follows
+upstream's tip, which is what the layout note in the table reflects — 3.5 keeps
+`setup.py` at the repo root, 3.2 keeps it in `python/`. The wheel's version label
+keeps the vendor's `+ascend3.5` / `+ascend3.2` spelling — that is what the
+`configs.yaml` pins and the backend docs reference — while the file is named
+after the backend.
 
 Notes that apply only here:
 
-- **`PYTHONPATH` must be dropped during the build and the smoke test.** The
-  runtime image's `/etc/profile.d/zz-compiler.sh` puts the *vendor* FlagTree
-  (`/opt/flagtree`) on `PYTHONPATH` in every bash shell, so a naive `import triton`
-  imports the vendor wheel. The source is cloned to `/opt/flagtree-src` (never
-  `/opt/flagtree`), and the smoke installs into `/opt/wheel-test` and asserts
-  `triton.__file__` plus the distribution version.
+- **`PYTHONPATH` must be dropped during the build, the gate and the smoke test.**
+  The runtime image's `/etc/profile.d/zz-compiler.sh` puts the *vendor* FlagTree
+  (`/opt/flagtree`) on `PYTHONPATH` in every bash shell, so a naive
+  `import triton` imports the vendor wheel. The source is cloned to
+  `/opt/flagtree-src` (never `/opt/flagtree`), and the smoke installs into
+  `/opt/wheel-test` and asserts `triton.__file__` plus the distribution version.
+  `verify_ascend_wheel.py` is run with `PYTHONPATH=` for the same reason: its
+  internals check has to read the pybind11 the build installed, not the vendor
+  flagtree's tree.
 - **Two build-time pins, two different contracts.** `PYBIND11_VERSION` (default
-  `3.0.3` = internals v11, matching `configs.yaml` runtime_prereqs) is an ABI
-  contract with the runtime: an unpinned install pulls 3.1.x (v12), which imports
-  fine but breaks at kernel-compile time on hardware. `NANOBIND_VERSION` (default
-  `2.4.0`) is a contract with the prebuilt LLVM instead — its
-  `MLIRDetectPythonEnv.cmake` asks for 2.4, and nanobind 3.x rejects that request,
-  failing the build in cmake. Both are named `_VERSION`, not the `_SPEC` of the
-  older builders: ARG splits on the first `=`, so `ARG X==3.0.3` would hand pip
-  `pybind11=3.0.3`.
+  `3.0.3`) is an ABI contract with the runtime: an unpinned install pulls 3.1.x,
+  which imports fine but breaks at kernel-compile time on hardware.
+  `NANOBIND_VERSION` (default `2.4.0`) is a contract with the prebuilt LLVM
+  instead — its `MLIRDetectPythonEnv.cmake` asks for 2.4, and nanobind 3.x
+  rejects that request, failing the build in cmake. Both are named `_VERSION`,
+  not the `_SPEC` of the older builders: ARG splits on the first `=`, so
+  `ARG X==3.0.3` would hand pip `pybind11=3.0.3`.
+- **The internals gate compares, it does not pin.** A pybind11 internals version
+  written as a literal here would be a second place for the pin to live and drift
+  from. Instead the gate reads `PYBIND11_INTERNALS_VERSION` out of the
+  *installed* pybind11's own `internals.h` — the way FlagTree's own
+  `_installed_pybind11_internals()` does — and fails if `libtriton.so` or any
+  other shipped `.so` disagrees with it.
 - **The CANN version is a gate, not decoration**: `CANN_VERSION` is compared
-  against the toolkit found in the image, so a wrong `BASE_IMAGE` fails the build
-  instead of producing a wheel built against the wrong CANN. The gate reads the
-  install-info file the image actually ships — flagtree reads only
+  against the toolkit found in the image, so a wrong `BUILDER_IMAGE` fails the
+  build instead of producing a wheel built against the wrong CANN. The gate reads
+  the install-info file the image actually ships — flagtree reads only
   `ascend_toolkit_install.info`, which CANN 9.0.0 does not ship, so the 3.5 build
   logs `CANN version not detected` and takes its default pin (the cann9.0.0 line,
   correct for this image, and the gate is what proves it).
+- **The source commit travels in a `setup.cfg` carrier**, like `nvidia-cuda`:
+  neither branch ships a `setup.cfg` and neither `pyproject.toml` has a
+  `[project]` table, so the file the build writes merges into METADATA on its
+  own; `verify_ascend_wheel.py` asserts the resulting `Source-Commit`
+  `Project-URL` is there exactly once. This is the contract a `daily:` row would
+  need, which is why it is in place before one exists.
 - **The prebuilt LLVM bundles are newer than the source they compile.** Each
   builder carries a `TRITON_APPEND_CMAKE_ARGS` workaround for a hard error that
   comes from the bundle rather than from flagtree: 3.2's clang 21 fires
@@ -384,7 +419,8 @@ Notes that apply only here:
   version:`), which a version bump reaches later than the base images. Until it is
   published, `flagtree-wheel.yml`'s `base_image` input takes another tag of the
   same CANN line (e.g. `:2.2.0-build`). Blank = the derived runtime image, which is
-  what a real build must use.
+  what a real build must use. That input reaches the build as
+  `--build-arg BUILDER_IMAGE`, the same arg every other backend's cold base uses.
 - **The proxy is the runner's, like every other builder.** The targets declare
   `http_proxy` / `https_proxy` / `no_proxy` and `flagtree-wheel.yml` relays all
   three verbatim; git, curl and pip read them on their own, and nothing in the
@@ -401,6 +437,11 @@ Notes that apply only here:
   `flagos-pypi-ascend`, beside the vendor's). Those runners run pip 22.0.2, which
   has no `--break-system-packages`, so the plain `pip install --upgrade twine
   pkginfo` fallback is the branch that actually runs there.
+- **No `daily:` row, and that is deliberate.** Their refs are the vendor's own
+  release branches rather than a line this repo fixes day to day, so a
+  date-stamped daily would publish the same content over and over. Their wheels
+  come from `flagtree-wheel.yml`, which is where the vendor's own version string
+  belongs.
 
 ## Build
 
@@ -419,10 +460,15 @@ docker build --target builder -t flagtree-builder-nvidia-cuda:ci -f nvidia-cuda 
 docker build --build-arg BUILDER_IMAGE=flagtree-builder-nvidia-cuda:ci \
              -t flagtree-build:0.7.0 -f nvidia-cuda .
 
-# ascend pair: aarch64 only, and the FROM image is the backend's runtime image
-# (pulled from the registry if absent). The build clones github.com and fetches
-# prebuilt deps, so the same three proxy args apply.
-docker build -t flagtree-ascend-cann9.0.0:0.7.0rc2 -f ascend-cann9.0.0 .
+# ascend pair: aarch64 only, and the builder stage's cold base is the backend's
+# runtime image (pulled from the registry if absent). The build clones github.com
+# and fetches prebuilt deps, so the same three proxy args apply.
+docker build -t flagtree-ascend-cann9.0.0:0.7.0 -f ascend-cann9.0.0 .
+
+# ...and the same split as nvidia-cuda above, on the published stage:
+docker build --target builder -t flagtree-builder-ascend-cann9.0.0:ci -f ascend-cann9.0.0 .
+docker build --build-arg BUILDER_IMAGE=flagtree-builder-ascend-cann9.0.0:ci \
+             -t flagtree-ascend-cann9.0.0:0.7.0 -f ascend-cann9.0.0 .
 ```
 
 Useful build args (see the Containerfile for the full list):
@@ -445,16 +491,18 @@ Useful build args (see the Containerfile for the full list):
   under. Default `flagtree`; the daily line sets `flagtree-<backend>` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
   `setup.py`). Set by no caller in this repo.
-- `BUILDER_IMAGE` — the staged builders (`nvidia-cuda`, `metax`, `iluvatar`,
-  `sunrise`). The image stage 1 builds on; defaults to `ubuntu:22.04` (the cold
-  build). Pointing it at the published builder stage makes stage 1 a no-op — see
-  the builder sections above.
+- `BUILDER_IMAGE` — the staged builders (every Containerfile here has one). The
+  image stage 1 builds on; defaults to `ubuntu:22.04` (the cold build) except on
+  the ascend pair, whose cold base is the backend's runtime image and is therefore
+  a registry ref. Pointing it at the published builder stage makes stage 1 a no-op
+  — see the builder sections above. This is also the arg `flagtree-wheel.yml`'s
+  `base_image` input reaches the build as.
 
 The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
 and drops asserts. A smoke test installs the freshly built wheel and imports
 `triton`, failing the build if the wheel is broken. `nvidia-cuda` additionally
-patches `python/flagtree/__init__.py` and records the source commit after the
-clone (see below).
+patches `python/flagtree/__init__.py` after the clone, and it and the ascend pair
+record the source commit (see below).
 
 ## Daily builds
 
