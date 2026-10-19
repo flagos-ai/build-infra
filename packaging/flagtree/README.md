@@ -639,6 +639,14 @@ permanent gap in that backend's daily line — 2026-10-18 is one, for every
 backend, because the plan's 404-tolerance line was written to stdout and took
 `matrix.json` with it, leaving the build matrix empty (#1411).
 
+**A failed plan must not read as a green day.** The plan reaches the build job
+through `$GITHUB_OUTPUT`, and an empty matrix *skips* the build job rather than
+failing it — so a plan that dies still concludes the run `success`. The matrix is
+therefore assigned to a variable before it is written: `matrix="$(jq -c . …)"`
+carries jq's exit status into `set -e`, where the one-line
+`echo "matrix=$(jq …)"` discards it. Both flagtree lines emit the matrix this way
+(#1411's second half).
+
 **And it builds on the published builder stage** (see the NVIDIA builder section
 above): the `builder_image` input takes an override, and blank means the ref
 derived from `build-config.yml` + `configs.yaml`. `ubuntu:22.04` is the cold path

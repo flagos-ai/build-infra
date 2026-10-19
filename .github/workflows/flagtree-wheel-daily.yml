@@ -204,7 +204,12 @@ jobs:
           print(json.dumps({"include": rows}))
           PY
           cat matrix.json
-          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+          # Assign before writing: `echo "matrix=$(jq ...)"` discards jq's exit
+          # status, so a failed plan would leave a green run with an empty
+          # matrix -- and the build job is gated on emptiness, so it is skipped
+          # rather than failed.
+          matrix="$(jq -c . matrix.json)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build:
     needs: [authorize, plan]
