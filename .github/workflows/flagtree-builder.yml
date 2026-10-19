@@ -19,7 +19,9 @@ name: FlagTree Builder
 # ref (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits). The
 # wheel lines build on top of those images. One entry per backend in
 # packaging/flagtree/backends.yaml; a row's `verify_stage` names the extra
-# assertions its stage gets.
+# assertions its stage gets, and a row's `verify` block declares them as data
+# instead -- one generic step, so a backend staged like the ones before it needs
+# no step of its own.
 #
 # Not a wheel publisher: no stage here compiles the ref, so nothing on this line
 # produces a wheel. Wheel lines own that.
@@ -100,6 +102,16 @@ jobs:
               cold_base = ""
               if (b.get("base_image") or "") == "runtime":
                   cold_base = runtime_image(name)
+              # A row that declares a `verify` block gets the generic step
+              # below. Refuse an empty one there rather than here: a block that
+              # says nothing would pass the step having asserted nothing, which
+              # is exactly the failure the step exists to prevent.
+              verify = b.get("verify") or {}
+              if verify and not (verify.get("python") or verify.get("commands")
+                                 or verify.get("files") or verify.get("dirs")):
+                  print(f"{name}: builder.verify declares no assertion",
+                        file=sys.stderr)
+                  sys.exit(1)
               rows.append({
                   "name": name,
                   "containerfile": cfg["containerfile"],
@@ -110,6 +122,10 @@ jobs:
                   # A name, not a flag: each backend stages different things, so
                   # each has its own assertions. "" = the build is the proof.
                   "verify_stage": b.get("verify_stage") or "",
+                  # The same, as data, for the one generic step below. A JSON
+                  # string (a matrix value has to be a scalar), and empty rather
+                  # than "{}" so the step's `if:` can test it at all.
+                  "verify": json.dumps(verify) if verify else "",
                   "cold_base": cold_base,
               })
 
@@ -342,6 +358,47 @@ jobs:
             "$llvm_clang" --version
             echo ">>> staged ascend deps; $(grep -m1 ^version= "$info") at $ASCEND_HOME, clang $llvm_clang"
           '
+
+      # The named stages above exist because each declares something a path list
+      # cannot say (a symbol in a shared object, a CANN line read off the image).
+      # Everything that is just "the interpreter, these executables, these paths"
+      # is declared in backends.yaml and rendered here instead, so the next
+      # backend of that shape adds a row and no workflow step.
+      - name: Verify the stage carries what the wheel build reads (backends.yaml)
+        if: ${{ matrix.verify }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+          # Already a JSON string -- the plan job encoded it, because a matrix
+          # value has to be a scalar.
+          VERIFY: ${{ matrix.verify }}
+          NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          # Rendered on the runner and piped into the image on stdin: the file
+          # checks have to run where the staged paths are, and the image needs
+          # nothing added to it to be probed. The marker the builder stage writes
+          # last is asserted here rather than in the rows, so no row can forget
+          # it. The interpreter is checked exactly -- a range is not a version
+          # check, and would pass on a bump that moved the wheel's cp tag.
+          python3 - > /tmp/stage-verify.sh <<'PY'
+          import json, os, shlex
+
+          v = json.loads(os.environ["VERIFY"])
+          lines = ["set -euo pipefail", "test -f /opt/flagtree-build-env.ready"]
+          if v.get("commands"):
+              lines.append("command -v " + " ".join(shlex.quote(c) for c in v["commands"]) + " >/dev/null")
+          if v.get("python"):
+              want = tuple(int(x) for x in str(v["python"]).split("."))
+              lines.append(f"python{v['python']} -c 'import sys; "
+                           f"assert sys.version_info[:2] == {want!r}, sys.version'")
+              lines.append(f"python{v['python']} -m pip --version")
+          lines += [f"test -f {shlex.quote(p)}" for p in v.get("files") or []]
+          lines += [f"test -d {shlex.quote(p)}" for p in v.get("dirs") or []]
+          lines.append(f'echo ">>> {os.environ["NAME"]}: stage verified"')
+          print("\n".join(lines))
+          PY
+          cat /tmp/stage-verify.sh
+          docker run --rm -i "$IMAGE_REF" bash -s < /tmp/stage-verify.sh
 
       - name: Push the builder image
         if: ${{ inputs.push }}

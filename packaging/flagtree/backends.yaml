@@ -32,6 +32,10 @@
 #                   different things. The names are flagtree-builder.yml's step
 #                   names, not a second registry. Omitted = the build is the
 #                   proof.
+#     verify        the same idea, as data: the interpreter, the executables and
+#                   the paths the stage must carry. Rendered by the one generic
+#                   step in flagtree-builder.yml, so a backend staged like the
+#                   ones that came before it needs no new step there.
 #   daily.enabled   whether the daily line builds this backend. False until a
 #                   build here has been verified on the backend's own nodes.
 #   daily.dist_name one project per backend, so `pip install --pre <name>` ranks
@@ -115,6 +119,33 @@ backends:
       # cp310: this backend builds with the 22.04 system interpreter, not a
       # deadsnakes 3.12 -- see the Containerfile's builder stage.
       wheel_tag: cp310-cp310-linux_x86_64
+
+  # The first row that uses `verify` instead of a `verify_stage`: its stage is
+  # the same shape as metax's (apt toolchain, deadsnakes 3.12, prebuilt inputs
+  # into FlagTree's cache) and its own nodes carry the label.
+  enflame:
+    containerfile: enflame
+    builder_image: flagtree-builder-enflame
+    runson: ["self-hosted", "tops1106"]
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.12"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+        dirs:
+          # Where find_package(MLIR REQUIRED CONFIG) is pointed, and what
+          # install_extension copies into the wheel for the TLE raw path.
+          - /root/.flagtree/enflame/llvm-fc83c68-gcc9-x64/lib/cmake/mlir
+          - /root/.flagtree/enflame/llvm-fc83c68-gcc9-x64/python_packages/mlir_core/mlir
+    daily:
+      # False until a wheel built here has run on a GCU node.
+      enabled: false
+      dist_name: flagtree-enflame
+      version_base: "0.7.1"
+      ref: main
+      wheel_tag: cp312-cp312-linux_x86_64
 
   ascend-cann9.0.0:
     containerfile: ascend-cann9.0.0

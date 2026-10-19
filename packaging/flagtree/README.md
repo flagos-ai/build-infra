@@ -19,8 +19,9 @@
 Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
-The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` builders start from a plain
-Ubuntu 22.04 (old glibc: the resulting `libtriton.so` must load on 22.04 nodes).
+The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` / `enflame` builders start
+from a plain Ubuntu 22.04 (old glibc: the resulting `libtriton.so` must load on
+22.04 nodes).
 The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair's builder stage instead starts
 from **the backend's runtime image**, because FlagTree's Ascend build needs CANN
 on the build machine — see the section below.
@@ -31,6 +32,7 @@ on the build machine — see the section below.
 | `metax`      | FlagTree for MetaX (MACA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU), builder + wheel | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `enflame`    | FlagTree for Enflame (GCU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann8.5.0` |
 
@@ -90,19 +92,25 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All six have one. For `nvidia-cuda`, `metax`,
-`sunrise` and `iluvatar` the stage starts from a bare `ubuntu:22.04` and is the
-`BUILDER_IMAGE` default; for the ascend pair its cold value is the backend's
-runtime image, which is why `backends.yaml` marks those rows `base_image:
-runtime` and the builder line resolves their `BUILDER_IMAGE` from
+into FlagTree's offline cache). All seven have one. For `nvidia-cuda`, `metax`,
+`sunrise`, `iluvatar` and `enflame` the stage starts from a bare `ubuntu:22.04`
+and is the `BUILDER_IMAGE` default; for the ascend pair its cold value is the
+backend's runtime image, which is why `backends.yaml` marks those rows
+`base_image: runtime` and the builder line resolves their `BUILDER_IMAGE` from
 `generate_matrix.py --runtime` instead of letting the Containerfile default.
 
 `.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
 one job per entry in `backends.yaml`, which is where a backend's build-line facts
 live: its Containerfile, the image repository the stage is published under, the
-runner labels, the disk budget, and which extra proof the stage needs
-(`verify_stage`; the ascend pair's own step asserts the runtime image's CANN
-line and version, the staged LLVM and the triton deps).
+runner labels, the disk budget, and which extra proof the stage needs. That proof
+is either a `verify_stage` name — a step in the workflow, for a stage whose
+contract a path list cannot express (the ascend pair asserts the runtime image's
+CANN line and version, its staged LLVM and the triton deps; the other four assert
+a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
+same assertions as data: the interpreter, the executables, the paths. The block
+is rendered by one generic step, so a backend staged like its predecessors needs
+a row and no workflow step at all. `enflame` is the first of those, and the four
+that came before it keep their own steps.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
