@@ -125,6 +125,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
     "builder_torch_gcu", "builder_torch_npu", "builder_cannshmem",
+    "builder_torch_ptpu",
     "builder_sdk_version", "builder_aten_version", "builder_ops_product",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
@@ -672,6 +673,14 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # transitively; it is empty on the 8.5.0 rows.
             entry["builder_torch_npu"] = _deps_pin(entry["deps"], "torch-npu")
             entry["builder_cannshmem"] = _deps_pin(entry["deps"], "cann-shmem")
+            # torch-ptpu is the sunrise bridge, the same shape as torch_gcu/
+            # torch_npu — but it cannot be the SDK-floor proof in a build RUN:
+            # its extension probes the device in a constructor (tangGetDeviceCount)
+            # and aborts with no device visible. The builder's probe dlopens the
+            # SDK sonames instead; the pin is still carried so the install is
+            # asserted by metadata and the wheel build (which runs with device
+            # flags) imports it for real.
+            entry["builder_torch_ptpu"] = _deps_pin(entry["deps"], "torch-ptpu")
             entry["builder_numpy"] = numpy_pin(entry["deps"])
             # Read from deps rather than hardcoded in the Containerfile: torch_mlu
             # imports pandas at autoload (profiler/analysis/kernel_parser.py), but

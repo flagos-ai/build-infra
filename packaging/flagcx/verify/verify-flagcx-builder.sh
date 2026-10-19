@@ -154,6 +154,7 @@ docker exec -i \
     -e TORCH_MLU_PIN="$BUILDER_TORCH_MLU" \
     -e TORCH_GCU_PIN="$BUILDER_TORCH_GCU" \
     -e TORCH_NPU_PIN="$BUILDER_TORCH_NPU" \
+    -e TORCH_PTPU_PIN="$BUILDER_TORCH_PTPU" \
     -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
     -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
     -e MAKE_ENV="$BUILDER_MAKE_ENV" \
@@ -187,6 +188,16 @@ if [ "$HAS_BITCODE" != "1" ]; then
     # torch_npu.
     if [ -n "$TORCH_NPU_PIN" ]; then
         TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_npu; print(">>> torch_npu imports against the vendor SDK (floor proof)")'
+    fi
+    # torch-ptpu is the sunrise bridge, but it is NOT importable here: its
+    # extension probes the device in a constructor and aborts with no device
+    # visible, and this verify passes no device flags (the full import is the
+    # wheel build's own job, which runs with the row's flags). The SDK floor is
+    # therefore proven by dlopening the two sonames FlagCX's own link names —
+    # libpccl.so, libtangrt_shared.so — which bind nothing device-side.
+    if [ -n "$TORCH_PTPU_PIN" ]; then
+        LD_LIBRARY_PATH="/usr/local/pccl/lib/linux-x86_64:${LD_LIBRARY_PATH:-}" \
+        /flagos/bin/python -c 'import ctypes; [ctypes.CDLL(l) for l in ("libpccl.so", "libtangrt_shared.so")]; print(">>> libpccl + libtangrt_shared dlopen against the vendor SDK (floor proof)")'
     fi
     echo ">>> ok: $BACKEND (vendor row, no device bitcode)"
     exit 0

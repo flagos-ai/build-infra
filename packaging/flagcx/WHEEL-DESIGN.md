@@ -96,7 +96,14 @@ arch-rooted `lib64/devlib/include` links — so the recipe installs toolkit **pl
 (no nnal/ATB: the import never reaches it), and the 910b/910c split reaches the builder as the ops
 installer's chip token (`builder.ops_product`, 910b vs A3). Two rows of one CANN version still
 build the same wheel bytes, since the wheel links the sonames only, never the ops binaries. Only
-`sdk_version` and `ops_product` differ across rows (they name the two installers). hygon is the ideal first vendor: DTK 26.04
+`sdk_version` and `ops_product` differ across rows (they name the two installers). sunrise is the same
+shape back on amd64, python 3.10 from jammy itself, torch `2.11.0+cpu` plus the `torch-ptpu` bridge:
+its SDK (TangRT/PCCL/taDNN/taBLAS, four installers) and torch are all already 22.04-clean, so the
+builder is the enflame shape — toolchain floor only, no reglib work. The one thing that differs is
+the SDK-floor proof: `import torch_ptpu` probes the device in a constructor and aborts device-less,
+so the probe (and `verify-flagcx-builder.sh`) dlopens the two sonames FlagCX's own link names —
+`libpccl.so`, `libtangrt_shared.so` — instead, and the full bridge import is left to the wheel build,
+which runs with the row's device flags. hygon is the ideal first vendor: DTK 26.04
 has no 24.04 build at all (the 24.04 base image runs the 22.04 tarball forward),
 so its SDK is 22.04-clean by construction and the builder costs nothing the SDK
 cannot already provide.

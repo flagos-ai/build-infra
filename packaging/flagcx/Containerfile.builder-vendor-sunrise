@@ -1,0 +1,181 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX build-toolchain image for the sunrise row's wheel: the vendor-SDK twin
+# of Containerfile.builder, self-contained on ubuntu:22.04 so the wheel's glibc
+# floor is 2.35 and it installs on the bundle's physical 22.04 hosts. No
+# clang/bitcode/NCCL — sunrise.mk compiles nothing device-side and links only
+# -ltangrt_shared -lpccl.
+#
+# No reglib floor work is needed: every .so the SDK ships, plus torch 2.11.0+cpu
+# (GLIBC_2.28) and torch-ptpu's _C (GLIBC_2.34), links at most GLIBC_2.34 /
+# GLIBCXX_3.4.19 — so the 22.04 floor here is only the build toolchain's, the
+# enflame shape.
+#
+# The SDK-floor proof cannot be `import torch_ptpu`: its extension probes the
+# device in a constructor (`tangGetDeviceCount failed`) and aborts when none is
+# visible, and a docker-build RUN has no device. The proof is therefore the two
+# sonames FlagCX's own link names — libpccl.so, libtangrt_shared.so — dlopen'd
+# bare, plus the torch-ptpu pin asserted by metadata. The full import stays in
+# the wheel build, which runs with the row's device flags.
+
+FROM ubuntu:22.04
+
+# After FROM: a pre-FROM ARG is not in scope for the RUNs below.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/sunrise
+ARG SDK_VERSION
+ARG BUILDER_ASSERT
+ARG TORCH_PIN
+ARG TORCH_PTPU_PIN
+ARG NUMPY_PIN
+ARG VENDOR_PYPI
+ARG EXTRA_PYPI
+ARG PYTHON_VERSION=3.10
+ARG RUNTIME_PREREQS
+
+# Never baked as ENV: the proxy is a build-time fact of one RUN.
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+# The node's own value, not a second copy here that could silently win.
+ARG no_proxy=
+
+# python 3.10 is jammy's own, no deadsnakes: the row's torch pin is cp310, and
+# jammy's 3.10 is the stable release that ABI matches (the hygon recipe does the
+# same). pciutils mirrors base/<key> (the toolkit installer may probe PCI).
+# libgflags/libgoogle-glog are the build-only headers torch's c10/util headers
+# reach; libnuma/libgomp/libgfortran are the manylinux_2_28 baseline the +cpu
+# torch wheel assumes. No python3-pip: ensurepip is disabled for jammy's system
+# python, and the venv (which carries its own pip) is all this image needs.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl wget git unzip \
+        build-essential gcc g++ cmake pciutils \
+        python3.10 python3.10-venv python3.10-dev \
+        libgflags-dev libgoogle-glog-dev \
+        libnuma1 libgomp1 libgfortran5 libelf1; \
+    rm -rf /var/lib/apt/lists/*
+
+# The SDK, the same four installers base/<key> installs (toolkit, PCCL, taDNN,
+# taBLAS). `--toolkit` skips the kernel driver; the other three copy a tree into
+# /usr/local. All four ship libs that link at most GLIBC_2.34, so they install
+# identically on 22.04 — the same packages the 24.04 base already proves.
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /tangtk.run "${FILE_STORE}/tangtk-${SDK_VERSION}-linux-x86_64.run"; \
+    bash /tangtk.run -y --toolkit; \
+    rm -f /tangtk.run
+
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /pccl.run "${FILE_STORE}/pccl-${SDK_VERSION}-linux_x86_64.run"; \
+    bash /pccl.run; \
+    rm -f /pccl.run
+
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /tadnn.tar.gz "${FILE_STORE}/tadnn-${SDK_VERSION}-linux-x86_64.tar.gz"; \
+    tar xf /tadnn.tar.gz -C /tmp; \
+    cd "/tmp/tadnn-${SDK_VERSION}-linux-x86_64"; \
+    ./install_tadnn.sh; \
+    cd /; \
+    rm -rf "/tmp/tadnn-${SDK_VERSION}-linux-x86_64" /tadnn.tar.gz
+
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /tablas.tar.gz "${FILE_STORE}/tablas-${SDK_VERSION}-linux-x86_64.tar.gz"; \
+    tar xf /tablas.tar.gz -C /tmp; \
+    cd "/tmp/tablas-${SDK_VERSION}-linux-x86_64"; \
+    ./install_blas.sh; \
+    cd /; \
+    rm -rf "/tmp/tablas-${SDK_VERSION}-linux-x86_64" /tablas.tar.gz
+
+# The row's SDK assert, checked here rather than as an unresolved symbol later.
+RUN set -eux; \
+    for path in ${BUILDER_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# The vendor env, mirrored from base/<key>'s ENV: the wheel build resolves the
+# SDK libs from LD_LIBRARY_PATH. torch-ptpu's _C carries its own RUNPATH to the
+# stub/tapti/pccl dirs, so these two are what a bare dlopen of libpccl /
+# libtangrt_shared needs beyond them.
+ENV TANGRT_ROOT="/usr/local/tangrt" \
+    LIBRARY_PATH="/usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64" \
+    LD_LIBRARY_PATH="/usr/local/tangrt/targets/linux-x86_64/lib:/usr/local/tangrt/lib/linux-x86_64"
+
+# Interpreter and torch, the things the runtime image used to provide. prereqs+
+# numpy from the general mirror, torch/torch-ptpu from the vendor index LAST so
+# +cpu resolves there while their own deps resolve on the mirror. torch-ptpu
+# pins torch exactly (Requires-Dist: torch==<ver>), and PEP 440's == ignores the
+# local part, so torch==<ver>+cpu satisfies it — the same joint install the
+# runtime's deps list makes.
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN set -eux; \
+    python3.10 -m venv /flagos; \
+    /flagos/bin/pip install --no-cache-dir --upgrade pip; \
+    /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    for i in 1 2 3; do \
+        PIP_INDEX_URL="${EXTRA_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+        PIP_TRUSTED_HOST=resource.flagos.net \
+        /flagos/bin/pip install --no-cache-dir --pre \
+            "${TORCH_PIN}" ${TORCH_PTPU_PIN} && break; \
+        echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
+    done
+
+# The probe the wheel build stands in for. `import torch` is pure-CPU and safe
+# device-less; `import torch_ptpu` is not — its extension probes the device in a
+# constructor, so the pin is asserted by metadata and the SDK floor by dlopen of
+# the two sonames FlagCX links. TORCH_DEVICE_BACKEND_AUTOLOAD=0: the probe must
+# not do more than the build it stands in for, which sets the same for itself.
+RUN set -eu; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'assert os.path.exists(header), "no Python.h under %s" % header' \
+      '' \
+      'want_minor = int(os.environ["PYTHON_VERSION"].split(".", 1)[1])' \
+      'assert sys.version_info[:2] == (3, want_minor), "the venv is %s, the row says %s" % (sys.version_info[:2], os.environ["PYTHON_VERSION"])' \
+      '' \
+      'import torch' \
+      'want_torch = os.environ["TORCH_PIN"].split("==", 1)[1]' \
+      'have_torch = importlib.metadata.version("torch")' \
+      'assert have_torch == want_torch, "torch %s, the row pins %s" % (have_torch, want_torch)' \
+      '' \
+      'want_ptpu = os.environ["TORCH_PTPU_PIN"].split("==", 1)[1]' \
+      'have_ptpu = importlib.metadata.version("torch-ptpu")' \
+      'assert have_ptpu == want_ptpu, "torch-ptpu %s, the row pins %s" % (have_ptpu, want_ptpu)' \
+      '' \
+      'import ctypes' \
+      'for lib in ("libpccl.so", "libtangrt_shared.so"):' \
+      '    ctypes.CDLL(lib)' \
+      'print(">>> build env: %s, cp3%d, torch %s, torch-ptpu %s, pccl+tangrt dlopen"' \
+      '      % (sys.executable, want_minor, torch.__version__, have_ptpu))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 PYTHON_VERSION="${PYTHON_VERSION}" \
+      TORCH_PIN="${TORCH_PIN}" TORCH_PTPU_PIN="${TORCH_PTPU_PIN}" \
+      LD_LIBRARY_PATH="/usr/local/pccl/lib/linux-x86_64:${LD_LIBRARY_PATH}" \
+      /flagos/bin/python -
