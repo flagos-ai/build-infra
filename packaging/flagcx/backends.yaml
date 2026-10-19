@@ -711,3 +711,7 @@ tsingmicro-tsm260610:
   # fmt in its base repositories, so oe2403 is the suite this builds for.
   rpm: {enabled: true, sdk: filestore, suites: [openeuler24.03]}
   wheel: {enabled: true}
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-tsm
+    sdk_version: "260610164501"

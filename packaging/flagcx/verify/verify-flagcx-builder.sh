@@ -155,6 +155,8 @@ docker exec -i \
     -e TORCH_GCU_PIN="$BUILDER_TORCH_GCU" \
     -e TORCH_NPU_PIN="$BUILDER_TORCH_NPU" \
     -e TORCH_PTPU_PIN="$BUILDER_TORCH_PTPU" \
+    -e TORCH_TXDA_PIN="$BUILDER_TORCH_TXDA" \
+    -e TXOPS_PIN="$BUILDER_TXOPS" \
     -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
     -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
     -e MAKE_ENV="$BUILDER_MAKE_ENV" \
@@ -198,6 +200,16 @@ if [ "$HAS_BITCODE" != "1" ]; then
     if [ -n "$TORCH_PTPU_PIN" ]; then
         LD_LIBRARY_PATH="/usr/local/pccl/lib/linux-x86_64:${LD_LIBRARY_PATH:-}" \
         /flagos/bin/python -c 'import ctypes; [ctypes.CDLL(l) for l in ("libpccl.so", "libtangrt_shared.so")]; print(">>> libpccl + libtangrt_shared dlopen against the vendor SDK (floor proof)")'
+    fi
+    # torch_txda is the tsingmicro bridge, the same device-probe shape as
+    # torch_ptpu, so it is not importable here either. txops is the binding
+    # import that does NOT probe the device — it CDLLs libtxdnn (RTLD_GLOBAL)
+    # and imports the pytxdnn extension — so it is the import the proof makes,
+    # alongside a bare dlopen of the two sonames FlagCX's link names
+    # (libhpgr.so, libtccl.so).
+    if [ -n "$TORCH_TXDA_PIN" ]; then
+        TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import txops; print(">>> txops imports against the vendor SDK (floor proof)")'
+        /flagos/bin/python -c 'import ctypes; [ctypes.CDLL(l) for l in ("libhpgr.so", "libtccl.so")]; print(">>> libhpgr + libtccl dlopen against the vendor SDK (floor proof)")'
     fi
     echo ">>> ok: $BACKEND (vendor row, no device bitcode)"
     exit 0
