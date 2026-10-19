@@ -41,6 +41,13 @@ ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-d
 ARG LLVM_TARBALL=enflame-llvm23-fc83c68-gcc9-x64_v0.4.0.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 
+# The vendor's own toolkit deb, from the store the base image reads: toolkit.py
+# raises at IMPORT without /opt/triton_gcu, and only this deb creates it, so the
+# wheel stage cannot import the backend without one here. One deb per tops (the
+# version tag names the vendor release), so a 1.9.10 build overrides both args.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/enflame
+ARG TRITON_GCU_DEB=triton-gcu_3.6.0+1.0.20260821.cc.1.10.6-1_amd64.deb
+
 # The cache key, not the tarball's name: FlagTree registers this store under
 # `file="llvm-fc83c68-gcc9-x64"`, and its own unpack renames the tarball's root
 # to that name -- so a staged tree has to carry it too.
@@ -92,6 +99,11 @@ RUN set -eu; \
            echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
          done; \
        done \
+    && for i in 1 2 3 4 5; do \
+         wget -q --tries=3 --timeout=120 "${FILE_STORE}/${TRITON_GCU_DEB}" -O "${TRITON_GCU_DEB}" && break; \
+         echo ">>> download ${TRITON_GCU_DEB} attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && dpkg-deb -x "${TRITON_GCU_DEB}" / \
     && mkdir -p /tmp/llvm-extract \
     && tar -xzf "${LLVM_TARBALL}" -C /tmp/llvm-extract \
     && if [ "$(ls -A /tmp/llvm-extract | wc -l)" -ne 1 ]; then \
@@ -102,7 +114,8 @@ RUN set -eu; \
     && mv /tmp/llvm-extract/* "/root/.flagtree/enflame/${LLVM_CACHE_DIR}" \
     && rmdir /tmp/llvm-extract \
     && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
-    && rm -f /tmp/*.tar.gz \
+    && rm -f /tmp/*.tar.gz /tmp/*.deb \
+    && test -x /opt/triton_gcu/bin/gcu-compiler-opt \
     && test -d "/root/.flagtree/enflame/${LLVM_CACHE_DIR}/lib/cmake/mlir" \
     && ls "/root/.flagtree/enflame/${LLVM_CACHE_DIR}"/lib/cmake/mlir/*Config.cmake >/dev/null \
     && test -d "/root/.flagtree/enflame/${LLVM_CACHE_DIR}/python_packages/mlir_core/mlir" \
@@ -245,17 +258,21 @@ RUN printf '%s\n' \
     > /tmp/gate.py \
     && python3.12 /tmp/gate.py
 
-# Smoke test: install the wheel, import triton, assert the version and the
-# Source-Commit carrier. No backend assertion: `_discover_backends` swallows a
-# raising entry point, and enflame's toolkit.py raises at import without
-# TRITON_GCU_PATH (default /opt/triton_gcu), whose toolkit belongs to the runtime
-# images -- so whether the backend loads is the node verification's job.
+# Smoke test: install the wheel, import the backend, assert the version and the
+# Source-Commit carrier. The backend import is the real one -- the toolkit the
+# vendor deb put at /opt/triton_gcu is what makes it possible, and without it
+# toolkit.py raises here rather than in the field.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
     && python3.12 -c "\
 import importlib.metadata as md, triton;\
-print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__);\
+from triton.backends import backends;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', sorted(backends));\
+assert 'enflame' in backends, sorted(backends);\
 urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
 print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
 assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
 assert md.version('${FLAGTREE_WHEEL_NAME}') == '${FLAGTREE_WHEEL_VERSION}', md.version('${FLAGTREE_WHEEL_NAME}');\
-assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}'), md.version('${FLAGTREE_WHEEL_NAME}')"
+assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}'), md.version('${FLAGTREE_WHEEL_NAME}')" \
+    && python3.12 -c "\
+from triton.backends.enflame.backend import GCUBackend;\
+print('OK enflame backend imported', GCUBackend)"
