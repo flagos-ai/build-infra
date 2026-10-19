@@ -86,7 +86,17 @@ names, and `build-flagcx-builder.sh` picks the recipe from `builder.containerfil
 their bitcode is produced and validated by the SDK's own clang/llvm tools, which
 are 22.04-clean, so the import is the only floor the nvidia `make`-and-assert
 step would add), so its verification is the torch import (see
-`verify-flagcx-builder.sh`) rather than the `make` the nvidia rows run. hygon is the ideal first vendor: DTK 26.04
+`verify-flagcx-builder.sh`) rather than the `make` the nvidia rows run. ascend is the same shape on
+arm64: its vendor torch is `torch==<ver>+cpu` plus the `torch-npu` bridge, so `import torch` is
+pure-CPU and the SDK-floor proof is `import torch_npu`, which dlopens the CANN toolkit libs. One
+recipe (`Containerfile.builder-vendor-ascend`) serves all four rows because flagcx links only
+`-ltorch_npu -lascendcl -lhccl`. The toolkit alone does not ship those link-time presences —
+`libhccl.so` and the canonical `<hccl/hccl.h>` come in the chip ops package, which also wires the
+arch-rooted `lib64/devlib/include` links — so the recipe installs toolkit **plus** the ops package
+(no nnal/ATB: the import never reaches it), and the 910b/910c split reaches the builder as the ops
+installer's chip token (`builder.ops_product`, 910b vs A3). Two rows of one CANN version still
+build the same wheel bytes, since the wheel links the sonames only, never the ops binaries. Only
+`sdk_version` and `ops_product` differ across rows (they name the two installers). hygon is the ideal first vendor: DTK 26.04
 has no 24.04 build at all (the 24.04 base image runs the 22.04 tarball forward),
 so its SDK is 22.04-clean by construction and the builder costs nothing the SDK
 cannot already provide.

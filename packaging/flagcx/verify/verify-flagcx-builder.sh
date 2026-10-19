@@ -153,6 +153,7 @@ docker exec -i \
     -e HAS_BITCODE="$HAS_BITCODE" \
     -e TORCH_MLU_PIN="$BUILDER_TORCH_MLU" \
     -e TORCH_GCU_PIN="$BUILDER_TORCH_GCU" \
+    -e TORCH_NPU_PIN="$BUILDER_TORCH_NPU" \
     -e BITCODE_ARCH="$BUILDER_BITCODE_ARCH" \
     -e ADAPTOR_FLAG="$BUILDER_BITCODE_ADAPTOR_FLAG" \
     -e MAKE_ENV="$BUILDER_MAKE_ENV" \
@@ -179,6 +180,13 @@ if [ "$HAS_BITCODE" != "1" ]; then
     fi
     if [ -n "$TORCH_GCU_PIN" ]; then
         TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_gcu; print(">>> torch_gcu imports against the vendor SDK (floor proof)")'
+    fi
+    # torch_npu is the ascend bridge, the same shape as torch_gcu: `import
+    # torch` is pure-CPU on ascend, while torch_npu's import dlopens the CANN
+    # toolkit libs — the SDK-floor proof. Package name is torch-npu, module name
+    # torch_npu.
+    if [ -n "$TORCH_NPU_PIN" ]; then
+        TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_npu; print(">>> torch_npu imports against the vendor SDK (floor proof)")'
     fi
     echo ">>> ok: $BACKEND (vendor row, no device bitcode)"
     exit 0

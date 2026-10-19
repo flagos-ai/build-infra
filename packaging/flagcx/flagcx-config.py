@@ -124,8 +124,8 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
     "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
-    "builder_torch_gcu",
-    "builder_sdk_version", "builder_aten_version",
+    "builder_torch_gcu", "builder_torch_npu", "builder_cannshmem",
+    "builder_sdk_version", "builder_aten_version", "builder_ops_product",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
@@ -618,6 +618,13 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["builder_aten_version"] = (spec.get("builder") or {}).get(
                 "aten_version"
             ) or ""
+            # Ascend's ops package is chip-specific (910b vs A3), and it — not
+            # the toolkit — ships libhccl.so and the canonical <hccl/hccl.h>, so
+            # the recipe's ops installer filename needs the chip token as a
+            # per-row input. Stated, not derived: A3 is not in the key.
+            entry["builder_ops_product"] = (spec.get("builder") or {}).get(
+                "ops_product"
+            ) or ""
             # Not under `builder:` in the registry: nothing in the image depends
             # on either, so a block that also holds what the image installs would
             # read as if they were installed too. They are the row's device
@@ -658,6 +665,13 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
                 entry["deps"], "torch-mlu-ops"
             )
             entry["builder_torch_gcu"] = _deps_pin(entry["deps"], "torch-gcu")
+            # The ascend bridge (torch_npu) is the same shape as torch_mlu/
+            # torch_gcu: `import torch_npu` dlopens the CANN toolkit libs, so it
+            # is the SDK-floor proof `import torch` (pure cpu) is not. cann-shmem
+            # rides the 9.0.0 deps list only, where the import may pull it in
+            # transitively; it is empty on the 8.5.0 rows.
+            entry["builder_torch_npu"] = _deps_pin(entry["deps"], "torch-npu")
+            entry["builder_cannshmem"] = _deps_pin(entry["deps"], "cann-shmem")
             entry["builder_numpy"] = numpy_pin(entry["deps"])
             # Read from deps rather than hardcoded in the Containerfile: torch_mlu
             # imports pandas at autoload (profiler/analysis/kernel_parser.py), but
