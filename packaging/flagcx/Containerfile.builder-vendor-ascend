@@ -1,0 +1,196 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX build-toolchain image for the four ascend rows' wheels: the vendor-SDK
+# twin of Containerfile.builder, self-contained on ubuntu:22.04 so the wheel's
+# glibc floor is 2.35 and it installs on the bundle's physical 22.04 hosts. No
+# clang/bitcode/NCCL — ascend.mk compiles nothing device-side and links only
+# -ltorch_npu -lascendcl -lhccl.
+#
+# Two installers: the toolkit plus the chip ops package. The toolkit alone does
+# not carry libhccl.so or the canonical <hccl/hccl.h> — both ship in the ops
+# package, which also wires the arch-rooted lib64/devlib/include links and the
+# cann -> cann-<ver> link the toolkit leaves unwired (the same split base/<key>
+# depends on). nnal/ATB is not installed: `import torch_npu` — the SDK-floor
+# proof — dlopens libhccl/libascendcl/libge_runner/libgraph/libacl_op_compiler,
+# none of which is ATB.
+#
+# The 910b/910c split therefore reaches the builder: the ops package is chip-
+# specific (910b vs A3), so OPS_PRODUCT is a per-row input. The wheel bytes it
+# builds still come out identical for two rows of one CANN version — the wheel
+# links the sonames only, not the ops binaries — so the recipe stays shared and
+# the per-row inputs are just SDK_VERSION and OPS_PRODUCT.
+
+FROM ubuntu:22.04
+
+# After FROM: a pre-FROM ARG is not in scope for the RUNs below.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/ascend
+ARG SDK_VERSION
+ARG OPS_PRODUCT
+ARG BUILDER_ASSERT
+ARG TORCH_PIN
+ARG TORCH_NPU_PIN
+ARG CANNSHMEM_PIN
+ARG NUMPY_PIN
+ARG VENDOR_PYPI
+ARG EXTRA_PYPI
+ARG PYTHON_VERSION=3.11
+ARG RUNTIME_PREREQS
+
+# Never baked as ENV: the proxy is a build-time fact of one RUN.
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+# The node's own value, not a second copy here that could silently win.
+ARG no_proxy=
+
+# python 3.11 via deadsnakes on jammy (jammy's own is the 3.11.0~rc1 snapshot,
+# which predates the final ABI the torch cp311 wheels were built against).
+# libgflags/libgoogle-glog are the build-only headers torch's c10/util headers
+# reach; the manylinux_2_28 torch wheel needs the numa/gomp/gfortran/elf
+# runtime libs its auditwheel baseline assumes.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl wget git unzip \
+        build-essential gcc g++ cmake python3-pip; \
+    curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg; \
+    echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        python3.11 python3.11-venv python3.11-dev \
+        libgflags-dev libgoogle-glog-dev \
+        libnuma1 libgomp1 libgfortran5 libelf1; \
+    rm -rf /var/lib/apt/lists/*
+
+# The CANN toolkit, one installer per row (SDK_VERSION names it). The toolkit
+# alone does not ship hccl: the next step installs the chip ops package, which
+# is what provides libhccl.so, the canonical <hccl/hccl.h> and the
+# arch-rooted lib64/devlib/include links — exactly as base/<key> depends on it.
+ENV CANN_PACKAGE="Ascend-cann-toolkit_${SDK_VERSION}_linux-aarch64.run"
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /cann.run "${FILE_STORE}/${CANN_PACKAGE}"; \
+    chmod +x /cann.run; \
+    /cann.run --full --quiet --nox11 --install-for-all; \
+    rm -f /cann.run
+
+# The chip ops package, one installer per row. Ops is chip-specific (910b vs
+# A3), so OPS_PRODUCT is a per-row input even though the wheel bytes it leads
+# to are identical for two rows of one CANN version — the wheel links the
+# sonames only, never the ops binaries.
+ENV OPS_PACKAGE="Ascend-cann-${OPS_PRODUCT}-ops_${SDK_VERSION}_linux-aarch64.run"
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /ops.run "${FILE_STORE}/${OPS_PACKAGE}"; \
+    chmod +x /ops.run; \
+    /ops.run --install --quiet --nox11 --install-for-all; \
+    rm -f /ops.run
+
+# The row's SDK assert, checked here rather than as an unresolved symbol later.
+RUN set -eux; \
+    for path in ${BUILDER_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# torch_npu's import reads ASCEND_OPP_PATH/ASCEND_AICPU_PATH/TOOLCHAIN_HOME and
+# the full LD_LIBRARY_PATH out of set_env.sh — the same env the wheel build
+# sources from /etc/profile.d/vendor.sh before it imports (wheel-build-in-
+# container.sh + Containerfile.wheel both source it). Captured once here from
+# set_env.sh — the single source of truth — rather than restated as ENV, which
+# would drift. bash-only: set_env.sh exports bash functions that dash mangles
+# (the anchored var-name grep drops the leaked function bodies).
+RUN env | LC_ALL=C sort > /tmp/_v_before && \
+    bash -c 'set -a; \
+      . /usr/local/Ascend/cann/set_env.sh > /dev/null 2>&1 || true; \
+      set +a; env' \
+      | LC_ALL=C sort > /tmp/_v_after && \
+    { LC_ALL=C comm -13 /tmp/_v_before /tmp/_v_after || true; } \
+      | { grep -Ev '^(_|PWD|SHLVL|OLDPWD)=' || true; } \
+      | { grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true; } \
+      | while IFS='=' read -r var val; do \
+          esc=$(printf '%s' "$val" | sed "s/'/'\\\\''/g"); \
+          printf "export %s='%s'\n" "$var" "$esc"; \
+        done \
+      > /etc/profile.d/vendor.sh && \
+    rm -f /tmp/_v_before /tmp/_v_after && \
+    echo "vendor.sh: captured $(wc -l < /etc/profile.d/vendor.sh) env vars"
+
+# Interpreter and torch, the things the runtime image used to provide. prereqs+
+# numpy from the general mirror, torch/torch-npu from the vendor index LAST so
+# +cpu resolves there while their own deps resolve on the mirror. torch-npu
+# pins torch exactly (Requires-Dist: torch==<ver>), and PEP 440's == ignores the
+# local part, so torch==<ver>+cpu satisfies it — the same joint install the
+# runtime's deps list makes. cann-shmem rides along only on the 9.0.0 rows,
+# where it is non-empty (the 8.5.0 deps list has no cann-shmem token).
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN set -eux; \
+    python3.11 -m ensurepip --upgrade; \
+    python3.11 -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
+    python3.11 -m venv /flagos; \
+    /flagos/bin/pip install --no-cache-dir --upgrade pip; \
+    /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    for i in 1 2 3; do \
+        PIP_INDEX_URL="${EXTRA_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+        PIP_TRUSTED_HOST=resource.flagos.net \
+        /flagos/bin/pip install --no-cache-dir --pre \
+            "${TORCH_PIN}" ${TORCH_NPU_PIN} ${CANNSHMEM_PIN} && break; \
+        echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
+    done
+
+# The probe the wheel build stands in for: import the pinned torch against the
+# SDK. `import torch` is pure-CPU on this row and never dlopens the SDK, so the
+# floor proof is `import torch_npu` — its __init__ loads the CANN toolkit libs
+# through the vendor.sh env above. Versions are asserted against
+# importlib.metadata, not __version__, because a vendor torch may drop the
+# local segment. TORCH_DEVICE_BACKEND_AUTOLOAD=0: the probe must not do more
+# than the build it stands in for, which sets the same for itself.
+RUN set -eu; \
+    if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'assert os.path.exists(header), "no Python.h under %s" % header' \
+      '' \
+      'want_minor = int(os.environ["PYTHON_VERSION"].split(".", 1)[1])' \
+      'assert sys.version_info[:2] == (3, want_minor), "the venv is %s, the row says %s" % (sys.version_info[:2], os.environ["PYTHON_VERSION"])' \
+      '' \
+      'import torch' \
+      'want_torch = os.environ["TORCH_PIN"].split("==", 1)[1]' \
+      'have_torch = importlib.metadata.version("torch")' \
+      'assert have_torch == want_torch, "torch %s, the row pins %s" % (have_torch, want_torch)' \
+      '' \
+      'import torch_npu' \
+      'want_npu = os.environ["TORCH_NPU_PIN"].split("==", 1)[1]' \
+      'have_npu = importlib.metadata.version("torch-npu")' \
+      'assert have_npu == want_npu, "torch-npu %s, the row pins %s" % (have_npu, want_npu)' \
+      'print(">>> build env: %s, cp3%d, torch %s (metadata %s), torch-npu %s"' \
+      '      % (sys.executable, want_minor, torch.__version__, have_torch, have_npu))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 PYTHON_VERSION="${PYTHON_VERSION}" \
+      TORCH_PIN="${TORCH_PIN}" TORCH_NPU_PIN="${TORCH_NPU_PIN}" /flagos/bin/python -

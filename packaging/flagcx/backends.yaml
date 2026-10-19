@@ -124,6 +124,13 @@
 #                 version and not derivable from it (1.10.6 -> 3.8.20260710,
 #                 1.9.10 -> 3.7.20260514), and libtorch_gcu.so NEEDs
 #                 libtopsaten.so.3, so the deb is part of the SDK-floor import.
+#   builder.ops_product
+#                 the Ascend ops package's chip token, ascend only: the ops
+#                 installer (Ascend-cann-<chip>-ops_<ver>_linux-aarch64.run) is
+#                 the package that ships libhccl.so and the canonical
+#                 <hccl/hccl.h>, and the chip token (910b vs A3) is not in the
+#                 key. Stated for the same reason as sdk_version: the filename
+#                 must not be re-derived at build time.
 #   bitcode_arch  BITCODE_LIB_ARCH for the device-bitcode build, stated and not
 #                 derived. The only derivation available is the gencode table in
 #                 FlagCX's makefiles/nvidia_gencode.mk, and copying that table
@@ -397,6 +404,20 @@ ascend-cann8.5.0:
   deb: {enabled: true, default_for_vendor: false}
   rpm: {enabled: true, base_image: ascendai/cann}
   wheel: {enabled: true}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
+  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
+  # that. The SDK (libascendcl/libhccl, max GLIBC_2.17) and torch (max
+  # GLIBC_2.28) are already 22.04-clean, so only the 24.04 build toolchain was
+  # the problem. libhccl.so and the canonical <hccl/hccl.h> ship in the ops
+  # package, which is chip-specific, so ops_product carries the chip token the
+  # recipe's ops installer filename needs (910b vs A3); sdk_version names the
+  # toolkit installer. The two rows of one CANN version still build the same
+  # wheel bytes — the wheel links the sonames only, never the ops binaries.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-ascend
+    sdk_version: "8.5.0"
+    ops_product: 910b
 
 ascend-cann8.5.0-910c:
   vendor: ascend
@@ -410,6 +431,13 @@ ascend-cann8.5.0-910c:
   deb: {enabled: true, default_for_vendor: false}
   rpm: {enabled: true, base_image: ascendai/cann}
   wheel: {enabled: true}
+  # Same 22.04 builder as the 910b row; ops_product is A3, the 910C ops chip
+  # token — the only per-row difference, and it names the ops installer.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-ascend
+    sdk_version: "8.5.0"
+    ops_product: A3
 
 ascend-cann9.0.0:
   vendor: ascend
@@ -423,6 +451,12 @@ ascend-cann9.0.0:
   deb: {enabled: true, default_for_vendor: false}
   rpm: {enabled: true, base_image: ascendai/cann}
   wheel: {enabled: true}
+  # Same 22.04 builder as the 8.5.0 rows, for the same reason.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-ascend
+    sdk_version: "9.0.0"
+    ops_product: 910b
 
 ascend-cann9.0.0-910c:
   vendor: ascend
@@ -436,6 +470,13 @@ ascend-cann9.0.0-910c:
   deb: {enabled: true, default_for_vendor: false}
   rpm: {enabled: true, base_image: ascendai/cann}
   wheel: {enabled: true}
+  # Same 22.04 builder as the 9.0.0 row; ops_product is A3, the 910C ops chip
+  # token.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-ascend
+    sdk_version: "9.0.0"
+    ops_product: A3
 
 # ── probed in-container: enabled, or still owing one probe ─────────────────
 
