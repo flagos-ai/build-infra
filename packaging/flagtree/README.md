@@ -117,6 +117,51 @@ one entry, not a new workflow and not a second job.
 The stage is tagged with the stack version (`configs.yaml` `version:`), so it is
 flat: a rebuild overwrites it. The wheel lines build on top of it.
 
+## Enflame builder (`enflame`)
+
+Same reason and shape as `metax`: the vendor's enflame wheel is built on a newer
+distro and drags symbols a 22.04 client cannot load, so this stage is a bare
+`ubuntu:22.04` with a deadsnakes python 3.12 and the prebuilt inputs staged into
+FlagTree's offline cache.
+
+**The vendor toolkit deb is one of those inputs, and it is not optional.** This
+backend's `third_party/enflame/backend/toolkit.py` raises *at import* when
+`/opt/triton_gcu` is absent —
+
+```python
+datadir = os.getenv("TRITON_GCU_PATH") or "/opt/triton_gcu"
+if not os.path.exists(datadir):
+    raise Exception("Cannot find data directory in " + datadir)
+```
+
+— and `backend.py` imports it, so any client that imports the enflame backend
+needs that directory. It is created by the vendor's `triton-gcu` deb
+(`./opt/triton_gcu/**`, 3.3 GB unpacked), which `base/enflame-*` installs — so
+the runtime images have it and a bare build machine does not. That is the whole
+difference between a wheel that imports in the field and one that does not, so
+the builder stage stages the deb the same way it stages LLVM and unpacks it with
+`dpkg-deb -x … /`. The wheel stage's smoke test then imports the backend for
+real: with the deb absent, `toolkit.py` raises there, where before it raised in
+a user's process.
+
+The deb is per-`tops` (`…cc.1.10.6` vs `…cc.1.9.10`) while one Containerfile
+serves both, so `TRITON_GCU_DEB` (and `FILE_STORE`, the store the base image
+reads) default to the deb `base/enflame-tops1.10.6` itself installs and a 1.9.10
+build overrides both. Enflame is the only backend here whose vendor module raises
+at import time — metax, iluvatar, sunrise, hcu, mthreads, tsingmicro and xpu all
+raise inside functions — which is why this staging is a hard requirement rather
+than a convenience.
+
+**No pybind11 pin and no plugin tarball.** `enflame.py` ships no
+`register_cache` pybind11 table and no prebuilt `.so` is an ABI counterparty —
+every binding in this wheel is compiled here from one pybind11 — so there is
+nothing for a pin to agree with. The gate asserts what enflame.py does declare:
+the GCU tools, both core libraries and both python bindings, by basename.
+
+**Two settings that are the vendor's.** `TRITON_APPEND_CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release`
+and the `Source-Commit` carrier in `setup.cfg`, which is the same
+`.git`-before-`pip wheel` route `metax` takes to a clean date version.
+
 ## NVIDIA builder (`nvidia-cuda`)
 
 `nvidia-cuda` splits its build environment from the ref the way `metax` does.

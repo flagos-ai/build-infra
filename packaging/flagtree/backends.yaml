@@ -134,6 +134,9 @@ backends:
         commands: [git, cmake, ninja, make, wget, curl]
         files:
           - /root/.triton/json/include/nlohmann/json.hpp
+          # The vendor toolkit deb's payload: toolkit.py raises at import without
+          # it, which is what the wheel stage's smoke test imports the backend for.
+          - /opt/triton_gcu/bin/gcu-compiler-opt
         dirs:
           # Where find_package(MLIR REQUIRED CONFIG) is pointed, and what
           # install_extension copies into the wheel for the TLE raw path.
