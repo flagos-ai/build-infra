@@ -1,0 +1,262 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build a FlagTree enflame (GCU) wheel on Ubuntu 22.04 (glibc 2.35 / gcc 11.4).
+# Same reason as metax: the vendor wheel comes off a newer distro, debug-built.
+#   docker build --target builder -t flagtree-builder-enflame:ci -f enflame .
+#   docker build -t flagtree-enflame:0.7.0 -f enflame .
+#   id=$(docker create flagtree-enflame:0.7.0); docker cp $id:/wheels ./wheels
+
+# TWO STAGES, ONE FILE. `--target builder` is the build machine (apt toolchain,
+# python 3.12, the prebuilt enflame LLVM and the triton toolkits), published by
+# flagtree-builder.yml; the default target builds the wheel on top of it. It is
+# also the one knob that separates a cold build from a warm one -- pointing this
+# at the published stage turns everything below it into a no-op, via its marker.
+ARG BUILDER_IMAGE=ubuntu:22.04
+FROM ${BUILDER_IMAGE} AS builder
+
+# Proxy is consumed during build only -- an ARG is not persisted in the image.
+# no_proxy is declared too: an undeclared ARG of that name is not inherited, and
+# it is the one that keeps the deps download below off the tunnel.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# The prebuilt backend inputs, staged on our own filestore: ks3 answers the CI
+# proxy with 500 and is in no runner's no_proxy. The LLVM version moves WITH the
+# ref -- FlagTree declares this URL in python/setup_tools/utils/enflame.py and
+# re-downloads a cache it does not recognize, so a stale stage still builds.
+ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
+ARG LLVM_TARBALL=enflame-llvm23-fc83c68-gcc9-x64_v0.4.0.tar.gz
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
+
+# The cache key, not the tarball's name: FlagTree registers this store under
+# `file="llvm-fc83c68-gcc9-x64"`, and its own unpack renames the tarball's root
+# to that name -- so a staged tree has to carry it too.
+ARG LLVM_CACHE_DIR=llvm-fc83c68-gcc9-x64
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Python 3.12 comes from the deadsnakes PPA, wired by hand: add-apt-repository
+# resolves it through Launchpad's REST API and the runner's proxy answers that
+# CONNECT with 500. The key server and the archive are reachable, so the key is
+# fetched and the source line written directly.
+
+# The LLVM tarball is unpacked into a scratch directory and moved to the cache
+# key, rather than stripped: its root is named after the tarball, which is not the
+# name FlagTree looks for. Asserting one top-level entry makes the move defined.
+
+# The marker is written last, and is the point of the first line below: on top of
+# a published builder the earlier work is already in the image but the
+# instruction still runs, so without the guard every warm build would reinstall
+# the same packages and re-fetch the same ~1.8 GB.
+RUN set -eu; \
+    if [ -f /opt/flagtree-build-env.ready ]; then \
+        echo ">>> build environment already staged in the base image"; \
+        exit 0; \
+    fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl \
+        git wget \
+    && curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg \
+    && echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build binutils \
+        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
+        libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+        libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+        python3.12 python3.12-venv python3.12-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && mkdir -p /root/.flagtree/enflame /root/.triton \
+    && cd /tmp \
+    && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+         for i in 1 2 3 4 5; do \
+           wget -q --tries=3 --timeout=60 "${DEPS_BASE}/${f}" -O "${f}" && break; \
+           echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
+         done; \
+       done \
+    && mkdir -p /tmp/llvm-extract \
+    && tar -xzf "${LLVM_TARBALL}" -C /tmp/llvm-extract \
+    && if [ "$(ls -A /tmp/llvm-extract | wc -l)" -ne 1 ]; then \
+         echo "ERROR: ${LLVM_TARBALL} must unpack to exactly one top-level" >&2; \
+         echo "       directory; found: $(ls -A /tmp/llvm-extract | tr '\n' ' ')" >&2; \
+         exit 1; \
+       fi \
+    && mv /tmp/llvm-extract/* "/root/.flagtree/enflame/${LLVM_CACHE_DIR}" \
+    && rmdir /tmp/llvm-extract \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
+    && rm -f /tmp/*.tar.gz \
+    && test -d "/root/.flagtree/enflame/${LLVM_CACHE_DIR}/lib/cmake/mlir" \
+    && ls "/root/.flagtree/enflame/${LLVM_CACHE_DIR}"/lib/cmake/mlir/*Config.cmake >/dev/null \
+    && test -d "/root/.flagtree/enflame/${LLVM_CACHE_DIR}/python_packages/mlir_core/mlir" \
+    && test -f /root/.triton/json/include/nlohmann/json.hpp \
+    && test -d /root/.triton/nvidia/cudart \
+    && touch /opt/flagtree-build-env.ready
+
+# `lib/cmake/mlir` is the contract, not `bin/clang`: CMakeLists does
+# `find_package(MLIR REQUIRED CONFIG PATHS ${LLVM_LIBRARY_DIR}/cmake/mlir)`, and
+# `mlir_core` is what enflame.py's `_find_mlir_core_path` looks for by name.
+
+# `--strip-components=1` makes the triton toolkits a cache: that tarball is rooted
+# at `.triton/`, and unstripped it lands one level below what FlagTree looks at,
+# which then deletes the tree and re-fetches json from github. `nvidia/cudart` is
+# the same idea: setup.py fetches the CUDA redists unless it finds them cached.
+
+FROM builder AS flagtree
+
+# Stage-scoped, so every arg the wheel build reads is declared again. BuildKit
+# inherits a parent stage's ARGs into a `FROM parent` child and the legacy
+# builder does not, so an ARG declared only above is empty on half the runners.
+# The proxy args are here because this stage clones the source and pip-installs.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# FlagTree ref to build, the single version knob; the backend is selected at
+# build time via FLAGTREE_BACKEND, not by source. The default is the release
+# configs.yaml pins -- a client installs this wheel's version, so the two must not
+# drift. A daily run overrides it.
+ARG FLAGTREE_VERSION=0.7.0+enflame3.6
+
+# Wheel version; defaults to FLAGTREE_VERSION, so one arg drives both the
+# checkout and the label. FlagTree's setup.py appends a dirty "+git<sha>" unless
+# it holds the vendor's FLAGTREE_PYPI_KEY or finds no .git dir, so the build
+# removes .git before `pip wheel` and the version comes out clean.
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
+
+# The distribution name FlagTree publishes under, and the vendor key as the other
+# route to a clean version. The daily line sets both; this line's defaults keep
+# publishing plain `flagtree`.
+ARG FLAGTREE_WHEEL_NAME=flagtree
+ARG FLAGTREE_PYPI_KEY=
+
+# No pybind11 pin: metax and iluvatar pin one because a prebuilt plugin or vendor
+# libtriton is the ABI counterparty. enflame has neither -- enflame.py ships no
+# pybind11 table and every binding in this wheel is compiled here, from one
+# pybind11, so there is nothing for a pin to agree with.
+ARG MAX_JOBS=32
+
+# Build the FlagTree enflame wheel from source on this 22.04 toolchain
+# (FLAGTREE_BACKEND=enflame). Force HTTP/1.1 for git and retry the network steps.
+
+# THE SHA IS READ BEFORE .git GOES, AND BOTH BEFORE `pip wheel`: the version has
+# to come out clean, so .git must not exist when setup.py asks, while the commit
+# id is worth keeping, so it goes into a setup.cfg that setuptools merges into
+# setup() on its own. FlagTree ships no setup.cfg of its own, so its absence is
+# asserted rather than assumed.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
+           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
+         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/flagtree; sleep 5; \
+       done \
+    && test -d /opt/flagtree/.git \
+    && sha8="$(git -C /opt/flagtree rev-parse --short=8 HEAD)" \
+    && if [ -e /opt/flagtree/setup.cfg ]; then \
+         echo "ERROR: FlagTree now ships its own setup.cfg, which would be" >&2; \
+         echo "       overwritten below. Move the carrier to that file instead." >&2; \
+         exit 1; \
+       fi \
+    && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
+         "${sha8}" > /opt/flagtree/setup.cfg \
+    && cd /opt/flagtree \
+    && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
+    && export FLAGTREE_BACKEND=enflame \
+    && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
+    && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
+    && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
+    && export MAX_JOBS="${MAX_JOBS}" \
+    && rm -rf /opt/flagtree/.git \
+    && for i in 1 2 3 4 5; do \
+         python3.12 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# Gate: a dirty version, a 22.04-incompatible symbol in libtriton.so, or a wheel
+# missing the GCU binaries enflame.py declares -- install_extension only warns
+# when one is absent, so a wheel without them builds green. Basenames, not paths.
+# A FILE, not `python - <<'PY'`: on the legacy builder a heredoc never reaches
+# python's stdin, so the step would pass having asserted nothing.
+RUN printf '%s\n' \
+      'import glob, os, re, subprocess, sys, tempfile, zipfile' \
+      '' \
+      'whl = glob.glob("/wheels/*.whl")[0]' \
+      'name = os.path.basename(whl)' \
+      'ver = name.split("-")[1]' \
+      'if "git" in ver:' \
+      '    print("FAIL: dirty wheel version " + ver + " (expected clean, no git<sha> suffix)")' \
+      '    sys.exit(1)' \
+      'if "cp312" not in name:' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp312)")' \
+      '    sys.exit(1)' \
+      'print("OK: wheel " + name + " version " + ver)' \
+      '' \
+      'd = tempfile.mkdtemp()' \
+      'zipfile.ZipFile(whl).extractall(d)' \
+      'so = os.path.join(d, "triton", "_C", "libtriton.so")' \
+      'if not os.path.exists(so):' \
+      '    print("FAIL: no triton/_C/libtriton.so in " + name)' \
+      '    sys.exit(1)' \
+      'syms = subprocess.check_output(["objdump", "-T", so], text=True)' \
+      'forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]' \
+      'hits = [f for f in forbidden if f in syms]' \
+      'if hits:' \
+      '    print("FAIL: 22.04-incompatible symbols in libtriton.so: " + str(hits))' \
+      '    sys.exit(1)' \
+      'maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)), key=lambda v: [int(x) for x in v[6:].split(".")])' \
+      'print("OK: libtriton.so is 22.04-clean (max " + maxglibc + ", no forbidden symbols)")' \
+      '' \
+      'names = set(zipfile.ZipFile(whl).namelist())' \
+      'base = {n.rsplit("/", 1)[-1] for n in names}' \
+      'want = ["triton-gcu300-opt", "triton-gcu400-opt", "VERSION",' \
+      '        "libtriton_gcu300_core.so", "libtriton_gcu400_core.so"]' \
+      'missing = [f for f in want if f not in base]' \
+      'if missing:' \
+      '    print("FAIL: the wheel is missing " + str(missing))' \
+      '    sys.exit(1)' \
+      'bindings = sorted(n for n in base if re.match(r"_triton_gcu(300|400)\.", n))' \
+      'arches = sorted({re.search(r"gcu(300|400)", n).group(1) for n in bindings})' \
+      'if arches != ["300", "400"]:' \
+      '    print("FAIL: python bindings for GCU " + str(arches) + ", expected both 300 and 400: " + str(bindings))' \
+      '    sys.exit(1)' \
+      'print("OK: GCU tools, both core libraries and both python bindings are in the wheel")' \
+      'mlir = sorted({n.split("/")[0] for n in names if n.startswith("mlir/")})' \
+      'print("NOTE: mlir python bindings in the wheel: " + (str(mlir) if mlir else "none"))' \
+    > /tmp/gate.py \
+    && python3.12 /tmp/gate.py
+
+# Smoke test: install the freshly built wheel and import it, then assert the two
+# things that make the .git removal and the setup.cfg carrier meaningful.
+RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
+    && python3.12 -c "\
+import importlib.metadata as md, triton;\
+from triton.backends import backends;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', list(backends.keys()));\
+urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
+print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
+assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
+assert md.version('${FLAGTREE_WHEEL_NAME}') == '${FLAGTREE_WHEEL_VERSION}', md.version('${FLAGTREE_WHEEL_NAME}');\
+assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}'), md.version('${FLAGTREE_WHEEL_NAME}')" \
+    && python3.12 -c "\
+from triton.backends.enflame.backend import GCUBackend;\
+print('OK enflame backend imported')"
