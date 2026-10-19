@@ -222,6 +222,7 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "TORCH_GCU_PIN=$BUILDER_TORCH_GCU" \
             --build-arg "TORCH_NPU_PIN=$BUILDER_TORCH_NPU" \
             --build-arg "CANNSHMEM_PIN=$BUILDER_CANNSHMEM" \
+            --build-arg "TORCH_PTPU_PIN=$BUILDER_TORCH_PTPU" \
             --build-arg "NUMPY_PIN=$BUILDER_NUMPY" \
             --build-arg "PANDAS_PIN=$BUILDER_PANDAS" \
             --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \
