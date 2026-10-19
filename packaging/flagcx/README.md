@@ -76,12 +76,13 @@ packaging/flagcx/verify/verify-flagcx-builder.sh --backend hygon-dtk26.04
 
 Only rows with a `builder:` block have one, and they declare it for two different reasons. The
 nvidia rows need the toolchain the runtime lacks — so their recipe (`Containerfile.builder`) adds
-the SDK apt packages, NCCL and clang/llvm 22 — while a vendor-SDK row such as hygon needs only the
-floor: its runtime image already carries the toolchain but is 24.04, so its own recipe
-(`Containerfile.builder-vendor-hygon`, named by `builder.containerfile`) installs the same SDK
-tarball and interpreter but no clang, bitcode or NCCL. A row whose runtime image already carries
-the toolchain and whose wheel need not drop its glibc floor builds straight from the runtime image
-and has none, which is the ordinary state and not drift.
+the SDK apt packages, NCCL and clang/llvm 22 — while a vendor-SDK row such as hygon or ascend needs
+only the floor: its runtime image already carries the toolchain but is 24.04, so its own recipe
+(`Containerfile.builder-vendor-hygon` / `Containerfile.builder-vendor-ascend`, named by
+`builder.containerfile`) installs the same SDK tarball and interpreter but no clang, bitcode or
+NCCL. A row whose runtime image already carries the toolchain and whose wheel need not drop its
+glibc floor builds straight from the runtime image and has none, which is the ordinary state and
+not drift.
 
 The verification is the acceptance test, not the image existing. `verify-flagcx-builder.sh`
 compiles that row's device bitcode inside the built image and asserts the artifact: which
@@ -151,10 +152,10 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 
 | Row | Built + verified | Published |
 |---|---|---|
-| `ascend-cann8.5.0` | 2026-10-10 | `0.14.0+cann8.5.0` |
-| `ascend-cann8.5.0-910c` | 2026-10-09 | `0.14.0+cann8.5.0.910c` |
-| `ascend-cann9.0.0` | 2026-10-10 | `0.14.0+cann9.0.0` |
-| `ascend-cann9.0.0-910c` | 2026-10-09 | `0.14.0+cann9.0.0.910c` |
+| `ascend-cann8.5.0` | 2026-10-19 | `0.14.0+cann8.5.0` |
+| `ascend-cann8.5.0-910c` | 2026-10-19 | `0.14.0+cann8.5.0.910c` |
+| `ascend-cann9.0.0` | 2026-10-19 | `0.14.0+cann9.0.0` |
+| `ascend-cann9.0.0-910c` | 2026-10-19 | `0.14.0+cann9.0.0.910c` |
 | `cambricon-neuware4.4.3` | 2026-10-09 | `0.14.0+neuware4.4.3` |
 | `cambricon-neuware4.7.2` | 2026-10-17 | `0.14.0+neuware4.7.2` |
 | `enflame-tops1.9.10` | 2026-10-18 | `0.14.0+tops1.9.10` |
@@ -186,7 +187,10 @@ were re-published on 2026-10-18 off the shared metax 22.04 builder (PR #1394) �
 22.04-clean. The two enflame pins were re-published the same way on 2026-10-18, off the shared
 enflame 22.04 builder (PR #1398) — same pins, now 22.04-clean (max GLIBC_2.34, no forbidden
 symbols). The two iluvatar pins were re-published the same way, off the shared iluvatar 22.04
-builder, on the same day — same pins, now 22.04-clean. The release re-publish builds with
+builder, on the same day — same pins, now 22.04-clean. The four ascend pins were re-published the
+same way on 2026-10-19, off the shared `Containerfile.builder-vendor-ascend` 22.04 builder — same
+pins, now 22.04-clean (max GLIBC_2.34, no forbidden symbols); 910b and 910c of one CANN version
+still build the same wheel bytes, only the label differs. The release re-publish builds with
 `bitcode=false`: iluvatar's `bindings/ir` Makefile (FlagCX #668) is not in the `v0.14.0` tag, so a
 release wheel carries no `libflagcx_device.bc`; the bitcode ships in the daily dev-pin build off
 `main`, which is what the `bitcode` input defaults to `true` for (see `--no-bitcode` in
