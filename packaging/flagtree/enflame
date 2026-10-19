@@ -245,18 +245,17 @@ RUN printf '%s\n' \
     > /tmp/gate.py \
     && python3.12 /tmp/gate.py
 
-# Smoke test: install the freshly built wheel and import it, then assert the two
-# things that make the .git removal and the setup.cfg carrier meaningful.
+# Smoke test: install the wheel, import triton, assert the version and the
+# Source-Commit carrier. No backend assertion: `_discover_backends` swallows a
+# raising entry point, and enflame's toolkit.py raises at import without
+# TRITON_GCU_PATH (default /opt/triton_gcu), whose toolkit belongs to the runtime
+# images -- so whether the backend loads is the node verification's job.
 RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
     && python3.12 -c "\
 import importlib.metadata as md, triton;\
-from triton.backends import backends;\
-print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', list(backends.keys()));\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__);\
 urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
 print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
 assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
 assert md.version('${FLAGTREE_WHEEL_NAME}') == '${FLAGTREE_WHEEL_VERSION}', md.version('${FLAGTREE_WHEEL_NAME}');\
-assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}'), md.version('${FLAGTREE_WHEEL_NAME}')" \
-    && python3.12 -c "\
-from triton.backends.enflame.backend import GCUBackend;\
-print('OK enflame backend imported')"
+assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}'), md.version('${FLAGTREE_WHEEL_NAME}')"
