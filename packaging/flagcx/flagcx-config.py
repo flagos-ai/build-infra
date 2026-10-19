@@ -125,7 +125,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
     "builder_torch_gcu", "builder_torch_npu", "builder_cannshmem",
-    "builder_torch_ptpu",
+    "builder_torch_ptpu", "builder_torch_txda", "builder_txops",
     "builder_sdk_version", "builder_aten_version", "builder_ops_product",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
@@ -681,6 +681,16 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # asserted by metadata and the wheel build (which runs with device
             # flags) imports it for real.
             entry["builder_torch_ptpu"] = _deps_pin(entry["deps"], "torch-ptpu")
+            # torch_txda is the tsingmicro bridge, the same shape as torch_ptpu:
+            # its TXDAHooks constructor probes the device (txGetDeviceCount) and
+            # aborts with no device visible, so the builder's probe imports txops
+            # (the binding import that dlopens libtxdnn/pytxdnn without a device
+            # probe) and dlopens libhpgr/libtccl instead; the pin is still
+            # carried so the install is asserted by metadata and the wheel build
+            # (which runs with device flags) imports it for real. txops is what
+            # the torch_txda import itself pulls, so it is pinned alongside.
+            entry["builder_torch_txda"] = _deps_pin(entry["deps"], "torch_txda")
+            entry["builder_txops"] = _deps_pin(entry["deps"], "txops")
             entry["builder_numpy"] = numpy_pin(entry["deps"])
             # Read from deps rather than hardcoded in the Containerfile: torch_mlu
             # imports pandas at autoload (profiler/analysis/kernel_parser.py), but

@@ -1,0 +1,179 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX build-toolchain image for the tsingmicro row's wheel: the vendor-SDK
+# twin of Containerfile.builder, self-contained on ubuntu:22.04 so the wheel's
+# glibc floor is 2.35 and it installs on the bundle's physical 22.04 hosts. No
+# clang/bitcode/NCCL — tsm.mk compiles nothing device-side and links only
+# -ltorch_txda -lhpgr.
+#
+# No reglib floor work is needed: every .so in the chain links at most
+# GLIBC_2.34 (libhpgr/libtccl/libtsmml/libtsmprofiler-sdk-tsmtx/libtxdnn all
+# GLIBC_2.34, torch 2.11.0+cpu's libtorch_cpu GLIBC_2.28, torch_txda's
+# libtorch_txda GLIBC_2.34, 0 __isoc23_ anywhere) — the SDK itself is 22.04-built
+# (kuiper/lib/Readme says so), so the 22.04 floor here is only the build
+# toolchain's, the enflame shape.
+#
+# The SDK-floor proof cannot be `import torch_txda`: like sunrise's torch_ptpu,
+# its TXDAHooks constructor probes the device (txGetDeviceCount) and aborts when
+# none is visible, and a docker-build RUN has no device. `import txops` is the
+# import that binds — it ctypes.CDLLs libtxdnn.so (RTLD_GLOBAL) and imports the
+# pytxdnn extension, none of which probes the device — so the proof is `import
+# txops` plus a bare dlopen of the two SDK sonames FlagCX's link names
+# (libhpgr.so, libtccl.so), with the torch/torch_txda/txops pins asserted by
+# metadata. The full torch_txda import stays in the wheel build, which runs with
+# the row's device flags.
+
+FROM ubuntu:22.04
+
+# After FROM: a pre-FROM ARG is not in scope for the RUNs below.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/tsingmicro
+ARG SDK_VERSION
+ARG BUILDER_ASSERT
+ARG TORCH_PIN
+ARG TORCH_TXDA_PIN
+ARG TXOPS_PIN
+ARG NUMPY_PIN
+ARG VENDOR_PYPI
+ARG EXTRA_PYPI
+ARG PYTHON_VERSION=3.10
+ARG RUNTIME_PREREQS
+
+# Never baked as ENV: the proxy is a build-time fact of one RUN.
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+# The node's own value, not a second copy here that could silently win.
+ARG no_proxy=
+
+# python 3.10 is jammy's own, no deadsnakes: the row's torch pin is cp310, and
+# jammy's 3.10 is the stable release that ABI matches (the sunrise recipe does
+# the same). sudo is a hardcoded dependency of the TSM installers, libopenmpi3
+# is what base/<key> ships for torch_txda, and libunwind8/liblzma5 are what
+# libtccl's transitive closure pulls (libtsmprofiler-register -> libunwind, the
+# profiler -> liblzma). libfmt8 is jammy's own package (the 22.04 libfmt.so.8
+# soname base/<key> fetches from filestore because 24.04 ships only libfmt9) —
+# no filestore round-trip here. No python3-pip: ensurepip is disabled for
+# jammy's system python, and the venv (which carries its own pip) is all this
+# image needs.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl wget git unzip \
+        build-essential gcc g++ cmake \
+        python3.10 python3.10-venv python3.10-dev \
+        libgflags-dev libgoogle-glog-dev \
+        libnuma1 libgomp1 libgfortran5 libelf1 \
+        libopenmpi3 sudo libunwind8 liblzma5 libfmt8; \
+    rm -rf /var/lib/apt/lists/*
+
+# The SDK, the same four installers base/<key> installs. The CCL lib
+# (libtccl.so.2) NEEDs the profiler's libtsmprofiler-sdk-tsmtx/libtsmprofiler-
+# register and libtsmml, so all four must land — the runtime, ccl and profiler
+# installers together own the closure torch_txda binds. Every lib they ship
+# links at most GLIBC_2.34 (the SDK is 22.04-built), so they install identically
+# on jammy — the same packages the 24.04 base already proves.
+RUN set -eux; \
+    for pkg in Tsm_validation_suite Tsm_runtime Tsm_ccl Tsm_profiler; do \
+        fn="${pkg}_${SDK_VERSION}_x86_64_installer.run"; \
+        curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+            -o "${fn}" "${FILE_STORE}/${fn}"; \
+        chmod +x "${fn}"; \
+        ./"${fn}"; \
+        rm -f "${fn}"; \
+    done
+
+# The row's SDK assert, checked here rather than as an unresolved symbol later.
+RUN set -eux; \
+    for path in ${BUILDER_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# The SDK env. torch_txda's RUNPATH names /usr/local/kuiper/lib but not the
+# profiler dir, and libtccl's closure reaches into tsm8-profiler/lib — so both
+# are on LD_LIBRARY_PATH. The tx8_deps/llvm roots base/<key> also exports are
+# compiler-side (flagtree/triton) and this image builds no device code, so they
+# are not here.
+ENV LD_LIBRARY_PATH="/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib"
+
+# Interpreter and torch, the things the runtime image used to provide. prereqs+
+# numpy from the general mirror, torch/torch_txda/txops from the vendor index
+# LAST so +cpu resolves there while their own deps resolve on the mirror.
+# torch_txda pins torch exactly (Requires-Dist: torch==<ver>), and PEP 440's ==
+# ignores the local part, so torch==<ver>+cpu satisfies it — the same joint
+# install the runtime's deps list makes.
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN set -eux; \
+    python3.10 -m venv /flagos; \
+    /flagos/bin/pip install --no-cache-dir --upgrade pip; \
+    /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    for i in 1 2 3; do \
+        PIP_INDEX_URL="${EXTRA_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+        PIP_TRUSTED_HOST=resource.flagos.net \
+        /flagos/bin/pip install --no-cache-dir --pre \
+            "${TORCH_PIN}" ${TORCH_TXDA_PIN} ${TXOPS_PIN} && break; \
+        echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
+    done
+
+# The probe the wheel build stands in for. `import torch` is pure-CPU and safe
+# device-less; `import txops` is the binding import (libtxdnn + pytxdnn, no
+# device probe); `import torch_txda` is NOT safe here — its constructor probes
+# the device and aborts, so the pin is asserted by metadata and the SDK floor by
+# dlopen of the two sonames FlagCX links. TORCH_DEVICE_BACKEND_AUTOLOAD=0: the
+# probe must not do more than the build it stands in for, which sets the same
+# for itself.
+RUN set -eu; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'assert os.path.exists(header), "no Python.h under %s" % header' \
+      '' \
+      'want_minor = int(os.environ["PYTHON_VERSION"].split(".", 1)[1])' \
+      'assert sys.version_info[:2] == (3, want_minor), "the venv is %s, the row says %s" % (sys.version_info[:2], os.environ["PYTHON_VERSION"])' \
+      '' \
+      'import torch' \
+      'want_torch = os.environ["TORCH_PIN"].split("==", 1)[1]' \
+      'have_torch = importlib.metadata.version("torch")' \
+      'assert have_torch == want_torch, "torch %s, the row pins %s" % (have_torch, want_torch)' \
+      '' \
+      'want_txda = os.environ["TORCH_TXDA_PIN"].split("==", 1)[1]' \
+      'have_txda = importlib.metadata.version("torch_txda")' \
+      'assert have_txda == want_txda, "torch_txda %s, the row pins %s" % (have_txda, want_txda)' \
+      '' \
+      'want_txops = os.environ["TXOPS_PIN"].split("==", 1)[1]' \
+      'have_txops = importlib.metadata.version("txops")' \
+      'assert have_txops == want_txops, "txops %s, the row pins %s" % (have_txops, want_txops)' \
+      '' \
+      'import txops' \
+      'import ctypes' \
+      'for lib in ("libhpgr.so", "libtccl.so"):' \
+      '    ctypes.CDLL(lib)' \
+      'print(">>> build env: %s, cp3%d, torch %s, torch_txda %s, txops %s, hpgr+tccl dlopen"' \
+      '      % (sys.executable, want_minor, torch.__version__, have_txda, have_txops))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 PYTHON_VERSION="${PYTHON_VERSION}" \
+      TORCH_PIN="${TORCH_PIN}" TORCH_TXDA_PIN="${TORCH_TXDA_PIN}" \
+      TXOPS_PIN="${TXOPS_PIN}" \
+      /flagos/bin/python -
