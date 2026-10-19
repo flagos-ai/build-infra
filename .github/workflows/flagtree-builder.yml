@@ -125,7 +125,11 @@ jobs:
           print(json.dumps({"include": rows}))
           PY
           cat matrix.json
-          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+          # Assign before writing: `echo "matrix=$(jq ...)"` discards jq's exit
+          # status, so a malformed plan would reach the build job as an empty
+          # matrix instead of failing here.
+          matrix="$(jq -c . matrix.json)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build:
     needs: set-matrix
