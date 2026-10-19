@@ -632,6 +632,13 @@ that day replaces the first the same way. One consequence to know about rather
 than discover: a consumer holding the already-fetched wheel in a warm pip cache
 keeps it, since neither the version nor the URL changed.
 
+**The date is the version, so a missed day does not come back.** The plan
+computes `<version_base>.dev<today's UTC date>` and takes no date input; a
+dispatch made later publishes the later date. An unpublished day is therefore a
+permanent gap in that backend's daily line — 2026-10-18 is one, for every
+backend, because the plan's 404-tolerance line was written to stdout and took
+`matrix.json` with it, leaving the build matrix empty (#1411).
+
 **And it builds on the published builder stage** (see the NVIDIA builder section
 above): the `builder_image` input takes an override, and blank means the ref
 derived from `build-config.yml` + `configs.yaml`. `ubuntu:22.04` is the cold path
