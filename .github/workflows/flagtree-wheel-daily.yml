@@ -171,7 +171,7 @@ jobs:
                       with urllib.request.urlopen(url, timeout=60) as r:
                           skip = filename.encode() in r.read()
                   except Exception as e:
-                      print(f">>> {name}: index not readable ({e}) -- building")
+                      print(f">>> {name}: index not readable ({e}) -- building", file=sys.stderr)
               # Progress to stderr, never stdout: this script is redirected into
               # matrix.json, and one line of prose ahead of the JSON makes jq
               # fail and takes the row's output with it.
