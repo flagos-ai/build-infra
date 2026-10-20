@@ -149,6 +149,41 @@ backends:
       ref: main
       wheel_tag: cp312-cp312-linux_x86_64
 
+  # Like enflame: the same shape as metax's stage (apt toolchain, the backend's
+  # prebuilt LLVM and the shared triton deps into FlagTree's cache), with the
+  # 22.04 system python 3.10 rather than deadsnakes, which is the interpreter
+  # hygon's runtime pins.
+  hcu:
+    containerfile: hcu
+    builder_image: flagtree-builder-hcu
+    runson: ["self-hosted", "hygon"]
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.10"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+          # CMakeLists copies this into the wheel; the build fails without it.
+          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/bin/FileCheck
+        dirs:
+          # The two find_package() contracts in this backend's CMakeLists:
+          # MLIR via the default MLIR_DIR, LLD via hcu's explicit find_package.
+          # Neither is an apt package, so both have to come from the staged LLVM.
+          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/mlir
+          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/lld
+          # hcu's CMakeLists adds third_party/nvidia and setup.py copies the
+          # CUDA redists into it from these caches, so both must be staged.
+          - /root/.triton/nvidia/cudart
+          - /root/.triton/nvidia/cupti
+    daily:
+      enabled: false
+      dist_name: flagtree-hcu
+      version_base: "0.7.1"
+      ref: main
+      # cp310: the 22.04 system interpreter, same as sunrise.
+      wheel_tag: cp310-cp310-linux_x86_64
+
   ascend-cann9.0.0:
     containerfile: ascend-cann9.0.0
     builder_image: flagtree-builder-ascend-cann9.0.0

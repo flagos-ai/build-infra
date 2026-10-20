@@ -92,8 +92,9 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All seven have one. For `nvidia-cuda`, `metax`,
-`sunrise`, `iluvatar` and `enflame` the stage starts from a bare `ubuntu:22.04`
+into FlagTree's offline cache). All eight have one. For `nvidia-cuda`, `metax`,
+`sunrise`, `iluvatar`, `enflame` and `hcu` the stage starts from a bare
+`ubuntu:22.04`
 and is the `BUILDER_IMAGE` default; for the ascend pair its cold value is the
 backend's runtime image, which is why `backends.yaml` marks those rows
 `base_image: runtime` and the builder line resolves their `BUILDER_IMAGE` from
@@ -109,8 +110,8 @@ CANN line and version, its staged LLVM and the triton deps; the other four asser
 a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
 same assertions as data: the interpreter, the executables, the paths. The block
 is rendered by one generic step, so a backend staged like its predecessors needs
-a row and no workflow step at all. `enflame` is the first of those, and the four
-that came before it keep their own steps.
+a row and no workflow step at all. `enflame` and `hcu` are the two of those, and
+the four that came before them keep their own steps.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
@@ -161,6 +162,37 @@ the GCU tools, both core libraries and both python bindings, by basename.
 **Two settings that are the vendor's.** `TRITON_APPEND_CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release`
 and the `Source-Commit` carrier in `setup.cfg`, which is the same
 `.git`-before-`pip wheel` route `metax` takes to a clean date version.
+
+## Hygon builder (`hcu`)
+
+The same shape as `enflame` — bare `ubuntu:22.04`, apt toolchain, the backend's
+prebuilt LLVM and the shared triton toolkits into FlagTree's offline cache — with
+two differences.
+
+**It is the system python 3.10, not a deadsnakes 3.12.** `configs.yaml` pins
+`hygon-dtk26.04` at python 3.10, so the wheel has to wear `cp310`; 22.04 ships
+that interpreter, so there is no PPA to wire by hand.
+
+**No vendor SDK, no clang, no apt LLD.** `hcu.py`'s `install_extension` is a
+no-op and `third_party/hcu/backend/include/hip/**` is tracked in git, so nothing
+outside the staged LLVM is needed to compile — and hcu is on cmake's gcc flag
+list, not the clang one. LLD is a `find_package(LLD REQUIRED CONFIG)` in
+`third_party/hcu/CMakeLists.txt`, resolved against `LLD_DIR`, which CMakeLists
+defaults to `${LLVM_LIBRARY_DIR}/cmake/lld`; the staged LLVM ships that file
+along with `liblldCommon.a`/`liblldELF.a`, so no `lld-14` package is staged. The
+same tree supplies `bin/FileCheck`, which CMakeLists copies into the wheel.
+
+**Two settings that must stay unset.** `hcu.py`'s one `register_cache` entry
+short-circuits on `LLVM_SYSPATH` (`pre_hook=check_env(...)`), so exporting it
+sends the build to the vendor's ks3 bucket instead of the staged tree; and
+`TRITON_OFFLINE_BUILD` makes `get_thirdparty_packages` raise unless
+`JSON_SYSPATH` is set too. Staging the cache without either variable is what
+lets FlagTree's own hook run and export the paths.
+
+**No pybind11 pin.** As with enflame, no prebuilt `.so` is an ABI counterparty,
+so the gate has nothing to read a pin off. It asserts the invariant instead:
+`libtriton.so` and every other tagged `.so` in `triton/_C` carry the same
+pybind11 internals version as the `pybind11` the build installed.
 
 ## NVIDIA builder (`nvidia-cuda`)
 
