@@ -71,6 +71,13 @@ jobs:
       - name: Build the wheel
         run: OUTDIR="${GITHUB_WORKSPACE}/wheels" bash packaging/flaggems/build.sh
 
+      # The upload step resolves the uploader image with image-ref.sh, which
+      # reads configs.yaml/build-config.yml via python3's yaml module.
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
       # Upload to the internal PyPI on the schedule, or when manually requested.
       # Manual dispatch defaults upload=false so building from a branch is safe.
       - name: Upload to internal PyPI

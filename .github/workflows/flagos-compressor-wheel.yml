@@ -78,6 +78,13 @@ jobs:
             esac
           done
 
+      # The upload step resolves the uploader image with image-ref.sh, which
+      # reads configs.yaml/build-config.yml via python3's yaml module.
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+
       - name: Upload to internal PyPI
         if: ${{ inputs.upload }}
         env:
