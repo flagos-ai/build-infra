@@ -55,7 +55,12 @@ on:
           vllm-plugin-fl wheel version to install (commit-precise pin). Either the
           tag form copied from a released tag (0.2.2rc2.post2) or the temp form for a
           pre-merge build (<base>+g<sha7>.d<date>); both come out of the vllm-plugin
-          wheel workflow's log. Empty = skip the plugin install.
+          wheel workflow's log. Native backends (packaging/vllm/plugin-build.yaml)
+          build a labelled wheel, and where one vendor index carries more than one
+          native build (nvidia: cuda12.8 + cuda13.3) the full "<public>+<label>" is
+          required, not decoration — PEP 440 ignores the label in a bare
+          "==<public>" comparison, so a shortened pin would match the wrong
+          backend's build. Empty = skip the plugin install.
         type: string
         default: ''
       flagcx_version:
@@ -251,17 +256,32 @@ jobs:
       # was inert), then import vllm + vllm_fl on the app container. Runs
       # before push so a failed verify gates the push. Needs hardware access
       # (the script reads run flags from .github/build-config.yml).
+      # Backends in packaging/vllm/plugin-build.yaml carry the native wheel, so
+      # their verify additionally asserts vllm_fl._C registers weak_ref_tensor
+      # on CUDA (--expect-native-plugin) — the identity fallback of the
+      # pure-python wheel OOMs cudagraph capture (#1428/#1431) and the serve
+      # step's --enforce-eager default never exercises that path.
       # record_only: skip — no fresh image, the original run already verified.
       - name: Verify vllm app image
         if: ${{ inputs.verify && !inputs.record_only }}
         run: |
           set -euo pipefail
+          expect_native=""
+          if python3 - <<'PY'
+          import yaml
+          cfg = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))["backends"]
+          raise SystemExit(0 if "${{ matrix.name }}" in cfg else 1)
+          PY
+          then
+            expect_native="--expect-native-plugin"
+          fi
           bash packaging/vllm/verify/verify-vllm-backend.sh \
             "${{ matrix.name }}" \
             --vllm-version "${{ inputs.vllm_version }}" \
             --plugin-fl-version "${{ inputs.plugin_fl_version }}" \
             --flagcx-version "${{ inputs.flagcx_version }}" \
-            --app-image "${APP_TAG}"
+            --app-image "${APP_TAG}" \
+            ${expect_native}
 
       # Content gate: the tag's plugin suffix must name what is actually
       # installed in the image, not merely what the dispatch asked for. Read
