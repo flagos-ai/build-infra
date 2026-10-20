@@ -25,13 +25,24 @@ name: FlagCX RPM Package
 # vendor, not about our tooling -- so rpm coverage is what FlagCX's own flow
 # supports, and it grows when a vendor makes it possible.
 #
-# Three rows today, which are the combinations that have a repository to land
+# Six rows today, which are the combinations that have a repository to land
 # in:
 #
 #   nvidia  x openeuler2403  ->  flagos-yum-openeuler24.03
 #   nvidia  x fedora43       ->  flagos-yum-fedora43
 #   ascend  x openeuler2403  ->  flagos-yum-openeuler24.03
+#   tsm     x openeuler2403  ->  flagos-yum-openeuler24.03
+#   sunrise x openeuler2403  ->  flagos-yum-openeuler24.03
+#   du      x openeuler2403  ->  flagos-yum-openeuler24.03
 #
+# The last three need no vendor base image at all: their SDKs install into
+# /opt or /usr/local from the file store without calling a package manager, so
+# the row builds in a plain openEuler image. That is what
+# `packaging/flagcx/backends.yaml` records as rpm.sdk: filestore, and why
+# these rows arrived without a vendor machine behind them. The packaging they
+# build reaches FlagCX through flagos-ai/FlagCX#673. A backend named
+# after its adaptor, not its vendor: hygon builds through du.mk, so the
+# package is libflagcx-du, as on the deb side.
 # Two combinations the upstream flow supports are deliberately absent: its
 # default nvidia x rocky8, and metax x rocky8. Both produce .el8 packages and
 # there is no el8 repository -- the yum side has fedora43, openeuler24.03 and
@@ -53,6 +64,9 @@ on:
           - nvidia-openeuler2403
           - nvidia-fedora43
           - ascend-openeuler2403
+          - tsm-openeuler2403
+          - sunrise-openeuler2403
+          - du-openeuler2403
       ref:
         description: >-
           FlagCX git ref to build. A tag is preferred: a branch head moves, so
@@ -114,6 +128,15 @@ jobs:
              "suite":"fedora43","verify_image":"fedora:43",
              "verify_repo":"https://developer.download.nvidia.com/compute/cuda/repos/fedora43/x86_64/cuda-fedora43.repo"},
             {"name":"ascend-openeuler2403","backend":"ascend","distro":"openeuler2403",
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts",
+             "verify_repo":""},
+            {"name":"tsm-openeuler2403","backend":"tsm","distro":"openeuler2403",
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts",
+             "verify_repo":""},
+            {"name":"sunrise-openeuler2403","backend":"sunrise","distro":"openeuler2403",
+             "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts",
+             "verify_repo":""},
+            {"name":"du-openeuler2403","backend":"du","distro":"openeuler2403",
              "suite":"openeuler24.03","verify_image":"openeuler/openeuler:24.03-lts",
              "verify_repo":""}
           ]'
