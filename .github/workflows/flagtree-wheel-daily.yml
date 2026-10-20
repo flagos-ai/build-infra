@@ -64,6 +64,10 @@ on:
         description: 'per-backend builder image override, space-separated backend=ref (blank = the published one; backend=ubuntu:22.04 builds that row cold)'
         type: string
         default: ''
+      backends:
+        description: 'space-separated backend keys to build (blank = every enabled row). The schedule ignores this and always builds every row.'
+        type: string
+        default: ''
   schedule:
     # Daily at 01:37 UTC, after the FlagGems daily at 01:17.
     - cron: '37 1 * * *'
@@ -110,6 +114,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF_OVERRIDE: ${{ inputs.flagtree_version }}
           BUILDER_IMAGE_OVERRIDE: ${{ inputs.builder_image }}
+          SELECTED: ${{ inputs.backends }}
         run: |
           set -euo pipefail
           python3 - <<'PY' > matrix.json
@@ -139,10 +144,22 @@ jobs:
           nexus = os.environ["NEXUS_BASE"]
           on_schedule = os.environ["EVENT_NAME"] == "schedule"
 
+          # A manual dispatch may name the rows it wants -- which is how one
+          # backend is exercised without occupying every other backend's runner.
+          # Naming a row asks for that row, so it reaches one whose `enabled` is
+          # still false: that flag says whether the SCHEDULE builds it, and a
+          # backend is dispatched by hand before it is ever enabled. The schedule
+          # takes no selection at all; refreshing every backend is what it is for.
+          want = [] if on_schedule else (os.environ.get("SELECTED") or "").split()
+
           rows = []
           for name, cfg in backends.items():
+              if want and name not in want:
+                  continue
               d = cfg.get("daily")
-              if not d or not d.get("enabled"):
+              if not d:
+                  continue
+              if not (d.get("enabled") or want):
                   continue
 
               version = f"{d['version_base']}.dev{date}"
@@ -209,9 +226,15 @@ jobs:
                   "ref": os.environ.get("REF_OVERRIDE") or d.get("ref", "main"),
               })
 
-          unknown = set(overrides) - set(backends)
+          unknown_builder = set(overrides) - set(backends)
+          if unknown_builder:
+              print(f"builder_image names unknown backend(s): {' '.join(sorted(unknown_builder))}", file=sys.stderr)
+              sys.exit(1)
+          # A typo in a selection must fail loudly rather than plan nothing: an
+          # empty matrix skips the build job and still concludes the run green.
+          unknown = [w for w in want if w not in backends]
           if unknown:
-              print(f"builder_image names unknown backend(s): {' '.join(sorted(unknown))}", file=sys.stderr)
+              print(f"unknown backend(s): {' '.join(unknown)}", file=sys.stderr)
               sys.exit(1)
           # An empty matrix is not a failure here -- every row may be published
           # already -- so the build job is skipped on emptiness instead.

@@ -764,6 +764,14 @@ above): the `builder_image` input takes an override, and blank means the ref
 derived from `build-config.yml` + `configs.yaml`. `ubuntu:22.04` is the cold path
 and the fallback for before the builder has been published.
 
+**Which rows it builds.** The schedule always builds every enabled row. A manual
+dispatch may name rows instead, through the `backends` input — which is what
+keeps a one-backend check from occupying every other backend's runner, and is
+how a row is exercised before `enabled` is flipped (naming a row reaches a
+disabled one, since `enabled` says whether the *schedule* builds it). An unknown
+name fails the plan rather than dropping the row: an empty matrix skips the
+build job and still concludes the run green.
+
 **Caveat for consumers.** `flagtree`, `flagtree-nvidia` and `flagtree-metax` all
 install the top-level `triton/` and `flagtree/` packages, and none declares
 `Obsoletes`/`Provides`, so pip treats them as unrelated projects and installing
