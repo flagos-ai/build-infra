@@ -194,6 +194,14 @@ so the gate has nothing to read a pin off. It asserts the invariant instead:
 `libtriton.so` and every other tagged `.so` in `triton/_C` carry the same
 pybind11 internals version as the `pybind11` the build installed.
 
+**Verified on a BW1000 node** (hygon25, 2026-10-20). The wheel built on the
+published builder imports on the `flagos-runtime-hygon-dtk26.04` image and runs
+a real kernel: `import triton` reports triton 3.6.0 with `backends == ['hcu']`,
+the driver resolves `GPUTarget(backend='hip', arch='gfx936', warp_size=64)`, and
+a vector-add kernel returns `max diff 0.0` against torch's own result. No DTK is
+needed at import time — `HIPUtils.__init__` is reached lazily on the first launch,
+and the image supplies it there.
+
 ## NVIDIA builder (`nvidia-cuda`)
 
 `nvidia-cuda` splits its build environment from the ref the way `metax` does.
@@ -644,8 +652,8 @@ record the source commit (see below).
 `.github/workflows/flagtree-wheel-daily.yml` builds one wheel per day and
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
-`flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame` and the ascend pair
-today. The release line
+`flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu` and
+the ascend pair today. The release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
 
