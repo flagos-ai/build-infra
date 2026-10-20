@@ -168,8 +168,8 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `metax-maca3.8.1.3` | 2026-10-18 | `0.14.0+maca3.8.1.3` |
 | `mthreads-musa4.3.6` | 2026-10-09 | `0.14.0+musa4.3.6` |
 | `mthreads-musa5.2.0` | 2026-10-09 | `0.14.0+musa5.2.0` |
-| `nvidia-cuda12.8` | 2026-10-09 | `0.14.0+cuda12.8` |
-| `nvidia-cuda13.3` | 2026-10-09 | `0.14.0+cuda13.3` |
+| `nvidia-cuda12.8` | 2026-10-17 | `0.14.0+cuda12.8` |
+| `nvidia-cuda13.3` | 2026-10-17 | `0.14.0+cuda13.3` |
 | `sunrise-tangrt1.2.0` | 2026-10-19 | `0.14.0+tangrt1.2.0` |
 | `tsingmicro-tsm260610` | 2026-10-20 | `0.14.0+tsm260610` |
 
@@ -179,7 +179,10 @@ built, verified and published off that tag; eighteen of them in a single dispatc
 and the two remaining ascend rows (`cann8.5.0`, `cann9.0.0`) finished on 2026-10-10 after the
 publish-only failures on their nodes (the docker `~/.docker/config.json` proxies stale `noProxy`
 left tencent/PyPI on the proxy path, which answered CONNECT 500; removing the proxies entry let
-those nodes reach the tencent mirror directly). hygon's pin was re-published on 2026-10-17 after
+those nodes reach the tencent mirror directly). The two nvidia pins were re-published on
+2026-10-17 after the wheel moved onto the self-contained 22.04 builder (PR #1372, and the bundle
+smoke flip back to 22.04 in PR #1376) — same pins, now 22.04-clean — which is why their date
+differs from the original dispatch. hygon's pin was re-published on 2026-10-17 after
 its wheel moved onto the 22.04 builder (PR #1380) — same pin, now 22.04-clean — which is why its
 date differs from the other nineteen. cambricon-neuware4.7.2's pin was re-published the same way
 on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clean. The two metax pins
