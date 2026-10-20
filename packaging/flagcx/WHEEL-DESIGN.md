@@ -103,7 +103,14 @@ builder is the enflame shape — toolchain floor only, no reglib work. The one t
 the SDK-floor proof: `import torch_ptpu` probes the device in a constructor and aborts device-less,
 so the probe (and `verify-flagcx-builder.sh`) dlopens the two sonames FlagCX's own link names —
 `libpccl.so`, `libtangrt_shared.so` — instead, and the full bridge import is left to the wheel build,
-which runs with the row's device flags. hygon is the ideal first vendor: DTK 26.04
+which runs with the row's device flags. tsingmicro (`Containerfile.builder-vendor-tsm`) is
+the same shape again: the SDK's four installers (validation suite + runtime + ccl + profiler —
+libtccl's closure reaches into the profiler's lib) and torch `2.11.0+cpu` are all 22.04-clean, so
+the builder is the enflame shape. Its bridge is `torch_txda`, the sunrise probe shape again — the
+TXDAHooks constructor probes `txGetDeviceCount` and aborts device-less — so the SDK-floor proof is
+`import txops` (the binding import that CDLLs libtxdnn RTLD_GLOBAL and imports pytxdnn without a
+device probe) plus a bare dlopen of `libhpgr.so`/`libtccl.so`, with the torch_txda pin asserted by
+metadata; the full import is left to the wheel build. hygon is the ideal first vendor: DTK 26.04
 has no 24.04 build at all (the 24.04 base image runs the 22.04 tarball forward),
 so its SDK is 22.04-clean by construction and the builder costs nothing the SDK
 cannot already provide.
