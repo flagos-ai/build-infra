@@ -184,6 +184,44 @@ backends:
       # cp310: the 22.04 system interpreter, same as sunrise.
       wheel_tag: cp310-cp310-linux_x86_64
 
+  # Like hcu: the same shape as metax's stage (apt toolchain, the backend's
+  # prebuilt LLVM plus the vendor's tx8 headers, and the shared triton deps into
+  # FlagTree's cache), with the 22.04 system python 3.10 rather than deadsnakes.
+  tsingmicro:
+    containerfile: tsingmicro
+    builder_image: flagtree-builder-tsingmicro
+    runson: ["self-hosted", "tsingmicro"]
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.10"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+          # The compiler FlagTree selects for this backend by bare name, so it has
+          # to be on PATH; CMakeLists also copies this FileCheck into the wheel.
+          - /root/.flagtree/tsingmicro/tsingmicro-llvm22/bin/clang
+          - /root/.flagtree/tsingmicro/tsingmicro-llvm22/bin/FileCheck
+        dirs:
+          # The two find_package() contracts: MLIR via the default MLIR_DIR, and
+          # LLD, which third_party/amd asks for against ${LLVM_LIBRARY_DIR}/cmake/lld.
+          - /root/.flagtree/tsingmicro/tsingmicro-llvm22/lib/cmake/mlir
+          - /root/.flagtree/tsingmicro/tsingmicro-llvm22/lib/cmake/lld
+          # third_party/tsingmicro/CMakeLists include()s this file, and the crt
+          # builds its RISC-V runtime with the Xuantie toolchain under it.
+          - /root/.flagtree/tsingmicro/tx8_deps/rcs1fw-rtt
+          # third_party/nvidia is in the codegen backend list, and setup.py copies
+          # the CUDA redists into it from these two caches.
+          - /root/.triton/nvidia/cudart
+          - /root/.triton/nvidia/cupti
+    daily:
+      enabled: false
+      dist_name: flagtree-tsingmicro
+      version_base: "0.7.1"
+      ref: main
+      # cp310: the 22.04 system interpreter, same as sunrise and hcu.
+      wheel_tag: cp310-cp310-linux_x86_64
+
   ascend-cann9.0.0:
     containerfile: ascend-cann9.0.0
     builder_image: flagtree-builder-ascend-cann9.0.0
