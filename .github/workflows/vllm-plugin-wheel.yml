@@ -810,11 +810,13 @@ jobs:
               #
               # The nvcr runtime base already wires a CUDA apt source with a
               # different Signed-By than the cuda-keyring .deb installs, so the
-              # two sources collide at `apt-get update`. Drop the base's
+              # two sources collide at `apt-get update`. Drop the base image
               # /etc/apt/sources.list.d/cuda-*.list before updating — the
               # keyring package re-adds the same repo with its own key. The
               # runtime-visible effect is nil: the apt-source wiring lives only
               # in this disposable build container, never in the runtime image.
+              # (No apostrophes in these comments: this block is a single-quoted
+              # `bash -c` argument, and an apostrophe would close it early.)
               if python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"wire_cuda_repo\") else 1)"; then
                 nvcc="$(apt_list cuda_nvcc)"
                 rm -f /etc/apt/sources.list.d/cuda-*.list \
@@ -831,10 +833,10 @@ jobs:
                 rm -rf /var/lib/apt/lists/*
               fi
 
-              # MACA's cu-bridge is the CUDA-compatible toolchain that metax's
+              # The MACA cu-bridge is the CUDA-compatible toolchain that metax
               # torch (a CUDA build) resolves its toolkit from; it sits beside
               # the device root, not inside it (/opt/maca). Export CUDA_PATH so
-              # Caffe2Config's find_package(CUDA) finds it — flagcx surfaces the
+              # Caffe2Config find_package(CUDA) finds it — flagcx surfaces the
               # same value the same way (wheel.cuda_path -> CUDA_PATH).
               cuda_path="$(apt_list cuda_path)"
               if [ -n "${cuda_path}" ]; then export CUDA_PATH="${cuda_path}"; fi
