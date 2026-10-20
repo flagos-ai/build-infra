@@ -146,9 +146,10 @@ configure_deb() {
 }
 
 configure_rpm() {
-  # gpgcheck=0 because the yum repositories are not signed yet -- the published
-  # key covers apt only. Stated here rather than hidden: a signed rpm line is
-  # pending, and this flag is what has to change when it lands.
+  # gpgcheck=0 because the yum repositories are unsigned end to end: the
+  # packages carry no signature header and repomd has no detached one, and the
+  # published key covers apt only (#1424). Stated here rather than hidden --
+  # this flag and the gpgkey line are what change when signing lands.
   cat > /etc/yum.repos.d/flagos.repo <<EOF
 [flagos]
 name=FlagOS ($SUITE)
@@ -157,7 +158,7 @@ enabled=1
 gpgcheck=0
 EOF
   say "configured /etc/yum.repos.d/flagos.repo"
-  warn "the yum repositories are not signed yet, so this repository is configured with gpgcheck=0"
+  warn "the yum repositories are not signed yet (build-infra#1424), so this repository is configured with gpgcheck=0"
 }
 
 # --- what the repository actually carries -------------------------------------
