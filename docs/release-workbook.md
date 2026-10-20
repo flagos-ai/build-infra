@@ -5,9 +5,11 @@
 > `packaging/flaggems` 每日自动推送到 `flagos-pypi-daily` 的 wheel 用于日常开发。
 > 使用者在 runtime 镜像内 `pip install --index-url ...` 覆盖即可，不影响发版流程。
 >
-> FlagTree 同样有一条每日线（`flagtree-wheel-daily.yml`），以 `flagtree-nvidia`
-> 为发行名推送到 `flagos-pypi-daily`，版本形如 `0.7.1.dev20261015`（只有日期，
-> 无 local 段）；`pip install --pre flagtree-nvidia` 即取最新。构建所用的 commit
+> FlagTree 同样有一条每日线（`flagtree-wheel-daily.yml`），每个后端一个发行名
+> （`flagtree-nvidia`、`flagtree-metax`、`flagtree-enflame`、
+> `flagtree-ascend-cann9.0.0` …），推送到 `flagos-pypi-daily`，版本形如
+> `0.7.1.dev20261015`（只有日期，无 local 段）；`pip install --pre flagtree-nvidia`
+> 即取最新。构建所用的 commit
 > 不在版本号里，而在 wheel 元数据中：`pip show -v flagtree-nvidia` 会打印
 > `Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/<sha8>`。
 > 它与发版线（`flagtree-wheel.yml` → 各 vendor index 的 `flagtree`）
