@@ -113,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY' > matrix.json
-          import json, os, sys, urllib.request, yaml
+          import json, os, re, sys, urllib.request, yaml
           from datetime import datetime, timezone
 
           # The published builder stage is derived the way every other image ref
@@ -146,8 +146,16 @@ jobs:
                   continue
 
               version = f"{d['version_base']}.dev{date}"
-              # flagtree_<backend> is the filename form of flagtree-<backend>.
-              wheel = f"flagtree_{d['dist_name'].removeprefix('flagtree-')}-{version}"
+              # bdist_wheel writes the file as setuptools' safer_name(name):
+              # PEP 503-canonicalise first (runs of `-_.` to one `-`) and then
+              # every `-` to `_`. `flagtree-nvidia` survives a prefix swap, but a
+              # name carrying its own `-` or `.` does not -- on disk
+              # `flagtree-ascend-cann9.0.0` is `flagtree_ascend_cann9_0_0`.
+              # Composing it here rather than reading the built file back is what
+              # lets the schedule skip a day before any build starts, so it has
+              # to be the same rule the wheel is written under.
+              dist = re.sub(r"[^A-Za-z0-9]+", "_", d["dist_name"]).lower()
+              wheel = f"{dist}-{version}"
               filename = f"{wheel}-{d['wheel_tag']}.whl"
 
               # THE SCHEDULE SKIPS A DAY ALREADY PUBLISHED; A MANUAL RUN NEVER
@@ -166,7 +174,13 @@ jobs:
               # the project does not exist, and Nexus creates it on first push.
               skip = False
               if on_schedule:
-                  url = f"{nexus}/{repo}/simple/{d['dist_name']}/"
+                  # The index path is the CANONICAL name (PEP 503: lowercase, runs
+                  # of `-_.` to one `-`), not the distribution name -- Nexus
+                  # stores and serves the canonical spelling only, so a raw
+                  # `flagtree-ascend-cann9.0.0` answers 404 and the row would
+                  # silently rebuild every day.
+                  index_name = re.sub(r"[-_.]+", "-", d["dist_name"]).lower()
+                  url = f"{nexus}/{repo}/simple/{index_name}/"
                   try:
                       with urllib.request.urlopen(url, timeout=60) as r:
                           skip = filename.encode() in r.read()

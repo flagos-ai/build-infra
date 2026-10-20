@@ -143,8 +143,7 @@ backends:
           - /root/.flagtree/enflame/llvm-fc83c68-gcc9-x64/lib/cmake/mlir
           - /root/.flagtree/enflame/llvm-fc83c68-gcc9-x64/python_packages/mlir_core/mlir
     daily:
-      # False until a wheel built here has run on a GCU node.
-      enabled: false
+      enabled: true
       dist_name: flagtree-enflame
       version_base: "0.7.1"
       ref: main
@@ -164,6 +163,16 @@ backends:
       # CANN it finds there). `runtime` tells the builder line to resolve that tag
       # from configs.yaml rather than take the Containerfile's default.
       base_image: runtime
+    daily:
+      enabled: true
+      dist_name: flagtree-ascend-cann9.0.0
+      version_base: "0.7.0"
+      # The triton 3.5 line, which is where this CANN line's fixes land: ascend has
+      # not moved to triton 3.6, so upstream's main is not this backend's tree.
+      ref: triton_v3.5.x
+      # cp311 + aarch64: the build machine is the CANN runtime image, so this is
+      # neither the deadsnakes 3.12 nor the x86_64 the ubuntu:22.04 stages wear.
+      wheel_tag: cp311-cp311-linux_aarch64
 
   ascend-cann8.5.0:
     containerfile: ascend-cann8.5.0
@@ -173,8 +182,10 @@ backends:
     builder:
       verify_stage: ascend
       base_image: runtime
-
-  # Neither ascend row has a `daily:` block. Their refs are the vendor's own
-  # release branches, not a line this repo fixes day to day, so a date-stamped
-  # daily would publish the same content over and over. Their wheels come from
-  # flagtree-wheel.yml, which is where the vendor's own version string belongs.
+    daily:
+      enabled: true
+      dist_name: flagtree-ascend-cann8.5.0
+      version_base: "0.6.0"
+      # The triton 3.2 line, same reason as the 9.0.0 row above.
+      ref: triton_v3.2.x
+      wheel_tag: cp311-cp311-linux_aarch64

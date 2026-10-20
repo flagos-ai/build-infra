@@ -481,8 +481,8 @@ Notes that apply only here:
   neither branch ships a `setup.cfg` and neither `pyproject.toml` has a
   `[project]` table, so the file the build writes merges into METADATA on its
   own; `verify_ascend_wheel.py` asserts the resulting `Source-Commit`
-  `Project-URL` is there exactly once. This is the contract a `daily:` row would
-  need, which is why it is in place before one exists.
+  `Project-URL` is there exactly once — the contract the `daily:` row below
+  relies on.
 - **The prebuilt LLVM bundles are newer than the source they compile.** Each
   builder carries a `TRITON_APPEND_CMAKE_ARGS` workaround for a hard error that
   comes from the bundle rather than from flagtree: 3.2's clang 21 fires
@@ -524,11 +524,27 @@ Notes that apply only here:
   `flagos-pypi-ascend`, beside the vendor's). Those runners run pip 22.0.2, which
   has no `--break-system-packages`, so the plain `pip install --upgrade twine
   pkginfo` fallback is the branch that actually runs there.
-- **No `daily:` row, and that is deliberate.** Their refs are the vendor's own
-  release branches rather than a line this repo fixes day to day, so a
-  date-stamped daily would publish the same content over and over. Their wheels
-  come from `flagtree-wheel.yml`, which is where the vendor's own version string
-  belongs.
+- **Both rows are on the daily line, each tracking its own branch.** The daily
+  does not build upstream's `main` here: ascend has not moved to triton 3.6, so
+  the 3.5 and 3.2 lines are where this backend's fixes land, and each `daily:`
+  row names its branch as `ref`. That is the same shape as every other backend's
+  row — what differs is only that the ref is a vendor line rather than `main`.
+  A date-stamped wheel of a branch that did not move is still a wheel of a new
+  date, and the commit it was built from travels in its METADATA.
+- **Their wheel tags are `cp311`/`aarch64`, not the `cp312`/`x86_64` of the
+  `ubuntu:22.04` stages.** The build machine is the CANN runtime image, so the
+  interpreter is the one that image ships. The `daily.wheel_tag` a row declares
+  is checked against what the build produced, so a wrong one fails the run rather
+  than publishing a wheel no CANN node can install.
+- **The distribution name is dotted, and that reaches the index.** A daily
+  publishes under `flagtree-ascend-cann9.0.0`, whose canonical (PEP 503) form is
+  `flagtree-ascend-cann9-0-0` — dots are separators, not part of the name. Nexus
+  serves only the canonical spelling, and a wheel's file name is a third string
+  again (`flagtree_ascend_cann9_0_0-…`, `bdist_wheel`'s escaping). The plan job
+  derives both, which is why the daily's skip probe reads
+  `…/simple/flagtree-ascend-cann9-0-0/` and not the name the row declares.
+  Consumer-side the declared name is the right one: pip, and
+  `importlib.metadata`, normalize it themselves.
 
 ## Build
 
@@ -593,10 +609,11 @@ record the source commit (see below).
 
 ## Daily builds
 
-`.github/workflows/flagtree-wheel-daily.yml` builds FlagTree `main` every day and
+`.github/workflows/flagtree-wheel-daily.yml` builds one wheel per day and
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
-`flagtree-iluvatar` and `flagtree-sunrise` today. The release line
+`flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame` and the ascend pair
+today. The release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
 
@@ -659,13 +676,23 @@ Why the pieces sit where they do:
   `Project-URL: Source-Commit, …` in the METADATA, with no line of FlagTree
   source changed (see the NVIDIA build section above).
 
-Two knobs per backend, both in `packaging/flagtree/backends.yaml`'s `daily:`
+Three knobs per backend, all in `packaging/flagtree/backends.yaml`'s `daily:`
 block: `version_base` (the release this daily leads — move it when `configs.yaml`
-moves on) and `dist_name` (names the wheel). `ref` is the FlagTree line that row
-tracks — upstream's `main` for `nvidia` and `metax`, declared rather than taken
-from the Containerfile's own default, which is the vendor release a local build
-reproduces. `wheel_tag` is the interpreter and platform the wheel wears; sunrise's
-is `cp310`, the third place its 22.04-python-3.10 shape shows up.
+moves on), `dist_name` (names the wheel) and `ref` (the FlagTree line that row
+tracks — upstream's `main` everywhere but the ascend pair, which tracks its own
+`triton_v3.5.x` / `triton_v3.2.x`). `ref` is declared rather than taken from the
+Containerfile's own default, which is the vendor release a local build
+reproduces. `wheel_tag` is the interpreter and platform the wheel wears: `cp312`
+on the deadsnakes stages, `cp310` on sunrise (its 22.04 system python) and
+`cp311`/`aarch64` on the ascend pair (its CANN runtime image).
+
+**One distribution, three spellings of its name.** `dist_name` is what
+`setup.py` is handed (`flagtree-ascend-cann9.0.0`); the file on the index is
+`bdist_wheel`'s escaping (`flagtree_ascend_cann9_0_0-0.7.0.dev<date>-cp311-cp311-linux_aarch64.whl`);
+the index path is the PEP 503 canonical form (`flagtree-ascend-cann9-0-0`). The
+plan job derives the second and the third from the first, so the skip probe and
+the filename gate agree with what lands — for the dashed names the three happen
+to coincide, which is why nothing here noticed until a dotted one arrived.
 
 **The cron skips a day that has already been published; a manual run never
 does.** The version is known without a build — it is the UTC date — so the plan
