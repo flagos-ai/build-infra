@@ -150,15 +150,14 @@ def _runtime_matrix(
         cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
         cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
 
-        # vllm-plugin-FL builds as a pure-python wheel for every backend
-        # (VLLM_VENDOR unset — the matrix key is kept for the workflow env).
-        # The former vllm_fl._C native build (VLLM_VENDOR=cuda, nvidia only)
-        # needed a real CUDA toolchain in the runtime image: torch's
-        # Caffe2Config CUDA-detection gate FATALs without nvcc, and the
-        # runtime image ships no toolkit. The plugin's runtime fallbacks
-        # (register_op_schemas + Python weak_ref_tensor impl) cover the
-        # empty-mode paths every backend verifies, so no backend compiles _C
-        # anymore. Retired 2026-08-23 ("都走统一个模式").
+        # vllm-plugin-FL wheel flavor: the pure-python `build` fan-out leaves
+        # VLLM_VENDOR unset (this key stays "" for the workflow env). The
+        # native vllm_fl._C build no longer runs through this matrix — it is a
+        # per-backend job in vllm-plugin-wheel.yml, gated on
+        # packaging/vllm/plugin-build.yaml, which apt-installs the nvidia CUDA
+        # toolchain only where needed (hygon/metax need none: csrc declares
+        # LANGUAGES CXX and the op is host-side). The matrix key is kept for
+        # compatibility so every downstream reader of the field is unchanged.
         vllm_vendor = ""
 
         # Per-backend runtime env vars — serialized as "KEY=value\nKEY2=value2"

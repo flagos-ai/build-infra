@@ -78,6 +78,14 @@ TP_SIZE=""
 # own configs.yaml (REPO_ROOT below); explicit --stack-version = use exactly
 # this version, for when the checkout is stale and you don't want to refresh.
 STACK_VERSION=""
+# The app image under test must carry the NATIVE vllm-plugin-FL wheel
+# (vllm_fl._C compiled in). Set by the caller (vllm-app-image.yml) for the
+# backends listed in packaging/vllm/plugin-build.yaml; the check asserts the
+# extension imports AND registers weak_ref_tensor on CUDA, independent of the
+# serve flags — the identity fallback a pure-python wheel installs is a strong
+# reference that OOMs cudagraph capture (flagos-ai/build-infra#1428/#1431), and
+# `--enforce-eager` in the default CMD hid that defect class entirely.
+EXPECT_NATIVE_PLUGIN=false
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -86,6 +94,7 @@ while [[ $# -gt 0 ]]; do
         --vllm-version) VLLM_VERSION="$2"; shift 2 ;;
         --plugin-fl-version) PLUGIN_FL_VERSION="$2"; shift 2 ;;
         --flagcx-version) FLAGCX_VERSION="$2"; shift 2 ;;
+        --expect-native-plugin) EXPECT_NATIVE_PLUGIN=true; shift ;;
         --skip-serve) SKIP_SERVE=true; shift ;;
         --serve-timeout) SERVE_TIMEOUT="$2"; shift 2 ;;
         --app-image) APP_IMAGE="$2"; shift 2 ;;
@@ -103,6 +112,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --vllm-version <ver> vLLM version to install (default: 0.20.2)"
             echo "  --plugin-fl-version <ver> vllm-plugin-FL wheel version (default: skip plugin)"
             echo "  --flagcx-version <ver> flagcx wheel version baked into the image (default: skip flagcx)"
+            echo "  --expect-native-plugin Assert the app image carries the native vllm_fl._C"
+            echo "                         extension (CUDA-registered weak_ref_tensor)"
             echo "  --skip-serve          Skip serve test, only install and verify imports"
             echo "  --serve-timeout <sec> Time budget for serve readiness + completion (default: 1800)"
             echo "  --app-image <image>   Verify a prebuilt vllm app image (matrix + import)"
@@ -355,6 +366,24 @@ if [[ -n "${APP_IMAGE}" ]]; then
         log_error "❌ import failed"
         docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
         exit 1
+    fi
+
+    # Native-plugin gate: the issue's release check. A pure-python wheel has no
+    # vllm_fl._C, so _C_ops_registry falls back to ("weak_ref_tensor", identity)
+    # — a strong reference that leaks VRAM per captured graph until OOM. Assert
+    # BOTH that the extension imports and that it registered its op on CUDA
+    # (a .so that built but never dispatched would pass the import alone).
+    if [[ "${EXPECT_NATIVE_PLUGIN}" == "true" ]]; then
+        log_step "Native plugin check (vllm_fl._C weak_ref_tensor on CUDA)"
+        if docker exec "${APP_CONTAINER}" bash -c '
+            python3 -c "import vllm_fl._C" \
+            && python3 -c "import torch; d=torch._C._dispatch_dump(\"_C::weak_ref_tensor\"); print(d); import sys; sys.exit(0 if any(\"CUDA\" in line for line in d.splitlines()) else 1)"'; then
+            log_info "✅ vllm_fl._C imports and registers weak_ref_tensor on CUDA"
+        else
+            log_error "❌ native plugin missing or weak_ref_tensor not CUDA-registered"
+            docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+            exit 1
+        fi
     fi
 
     log_step "Import check (flagcx)"

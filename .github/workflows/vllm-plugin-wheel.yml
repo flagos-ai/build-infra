@@ -17,19 +17,34 @@ name: VLLM Plugin Wheel
 # Build the vllm-plugin-FL wheel and (optionally) upload it to the per-vendor
 # PyPI.
 #
-# ONE BUILD SERVES EVERY BACKEND, so this workflow builds once and uploads to
-# every vendor index — the FlagGems arrangement. The plugin ships as a
-# pure-python py3-none-any wheel whose content does not depend on where it was
-# built: the same ref + version built in flagos-runtime-nvidia-cuda12.8
-# (python 3.12) and in flagos-runtime-kunlunxin-xre5.29.0 (python 3.10) gave
-# 328 members, member for member identical — only the zip mtimes of generated
-# files differ, so the sha256 of the file differs while its content does not
-# (measured 2026-09-19). The former per-backend fan-out built that same wheel
-# 20 times. `backend` therefore picks THE IMAGE THE BUILD RUNS IN, not the
-# index the wheel lands on: "all" builds in DEFAULT_BUILD_BACKEND and uploads
-# to every index in the runtime matrix; a named backend builds there and
-# uploads to that vendor's index alone (a staged rollout, or one index before
-# the rest).
+# TWO WHEEL FLAVORS, in two jobs:
+#
+#   pure-python (the `build` job): the default. ONE BUILD SERVES EVERY BACKEND,
+#   so this workflow builds once and uploads to every non-native vendor index —
+#   the FlagGems arrangement. The plugin ships as a py3-none-any wheel whose
+#   content does not depend on where it was built: the same ref + version built
+#   in flagos-runtime-nvidia-cuda12.8 (python 3.12) and in
+#   flagos-runtime-kunlunxin-xre5.29.0 (python 3.10) gave 328 members, member
+#   for member identical — only the zip mtimes of generated files differ, so
+#   the sha256 of the file differs while its content does not (measured
+#   2026-09-19). The former per-backend fan-out built that same wheel 20 times.
+#   `backend` therefore picks THE IMAGE THE BUILD RUNS IN, not the index the
+#   wheel lands on: "all" builds in DEFAULT_BUILD_BACKEND and uploads to every
+#   non-native index in the runtime matrix; a named backend builds there and
+#   uploads to that vendor's index alone (a staged rollout, or one index before
+#   the rest).
+#
+#   native (the `build-native` job): per-backend. The backends listed in
+#   packaging/vllm/plugin-build.yaml compile the plugin's own `vllm_fl._C`
+#   extension (the host-side weak_ref_tensor op) inside their OWN runtime image
+#   and upload to their own vendor index. This restores the genuinely weak
+#   reference vllm's cudagraph capture needs — the pure-python wheel's identity
+#   fallback is a strong reference that leaks VRAM per captured graph and OOMs
+#   large models (see flagos-ai/build-infra#1428 hygon, #1431 MetaX). A native
+#   wheel's .so links the exact torch/ABI of its backend, so a native row is
+#   NOT backend-independent and is never fanned out; each native index carries
+#   exactly one wheel (the local label keeps a native build from colliding with
+#   the pure-python 0.3.0 the `build` job no longer uploads there).
 #
 # THE BUILD ENVIRONMENT IS STILL A RUNTIME IMAGE: BASE_IMAGE =
 # flagos-runtime-{vendor}-{backend}:{version}, from generate_matrix --runtime.
@@ -54,11 +69,16 @@ name: VLLM Plugin Wheel
 # flag_gems / numpy / vllm). The plugin must not ship dependencies that could
 # overwrite the runtime matrix — the image provides them.
 #
-# Wheel flavor: the pure-python wheel (VLLM_VENDOR unset). The former
-# vllm_fl._C native build (VLLM_VENDOR=cuda, nvidia only) required a CUDA
-# toolchain in the runtime image that it does not ship, and the plugin's
-# runtime fallbacks cover the empty-mode paths — retired 2026-08-23
-# ("都走统一个模式").
+# Wheel flavor: pure-python (VLLM_VENDOR unset) for every backend except the
+# native rows in packaging/vllm/plugin-build.yaml, which build vllm_fl._C with
+# VLLM_VENDOR=cuda in their own runtime image. The former native build
+# (nvidia-only) was retired 2026-08-23 ("都走统一个模式") because the nvidia
+# runtime image ships no nvcc and torch's Caffe2Config CUDA-detection gate
+# FATALs without one; it comes back as a per-backend job that apt-installs the
+# nvidia toolchain only where needed and leaves the CUDA-dispatch vendors
+# (hygon/metax) with no nvcc requirement — csrc/ declares LANGUAGES CXX only and
+# the op is host-side, so find_package(Torch) resolves through torch's own
+# cmake_prefix_path without a device compiler.
 #
 # The version is DERIVED, never typed, and takes one of two forms — picked by
 # what the requested ref IS, not by a flag:
@@ -95,10 +115,12 @@ name: VLLM Plugin Wheel
 # on a fork — dispatch with plugin_repo=<fork URL> + plugin_ref=<branch|tag|SHA>
 # to build them, and gate the upload with audit-deps.py as usual.
 #
-# Upload target: every vendor index under backend=all, else flagos-pypi-<vendor>
-# so the wheel lands next to that backend's vllm+flagos / torch / flag_gems;
-# pypi_repo replaces the target with the one repo it names. There is no
-# schedule: uploads are manual.
+# Upload target (pure-python): every NON-NATIVE vendor index under
+# backend=all, else flagos-pypi-<vendor> so the wheel lands next to that
+# backend's vllm+flagos / torch / flag_gems; pypi_repo replaces the target
+# with the one repo it names. Native indexes are excluded — the native row
+# uploads there from build-native, and a pure-python wheel would otherwise
+# sit beside its native 0.3.0. There is no schedule: uploads are manual.
 #
 # The wheel is also kept as a run artifact on every build, publish or not:
 # the cleanup step deletes the work dir, so a manual build (upload=false —
@@ -192,6 +214,16 @@ jobs:
           # The vendor index a backend installs the plugin from is the one its
           # runtime row already carries (flagos_pypi), so the fan-out cannot
           # drift from the index the app images use.
+          #
+          # Native backends (packaging/vllm/plugin-build.yaml) get their wheel
+          # from build-native, which uploads to their own index — a pure-python
+          # wheel fanned out there would sit beside the native 0.3.0. Drop
+          # their indexes from the pure fan-out.
+          native_vendors=$(python3 -c '
+          import yaml
+          cfg = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))
+          print(" ".join(sorted({k.split("-", 1)[0] for k in (cfg.get("backends") or {})})))
+          ')
           build_backend="${BACKEND}"
           if [[ "${BACKEND}" == "all" ]]; then
             build_backend="${DEFAULT_BUILD_BACKEND}"
@@ -203,6 +235,16 @@ jobs:
           fi
           if [[ -n "${PYPI_REPO}" ]]; then
             repos="${PYPI_REPO}"
+          else
+            filtered=""
+            for repo in ${repos}; do
+              keep=1
+              for v in ${native_vendors}; do
+                if [ "${repo}" = "flagos-pypi-${v}" ]; then keep=0; fi
+              done
+              if [ "${keep}" = "1" ]; then filtered="${filtered} ${repo}"; fi
+            done
+            repos=$(printf '%s' "${filtered}" | xargs -n1 | sort -u | paste -sd' ' -)
           fi
           row=$(jq -c --arg n "${build_backend}" '.include[] | select(.name == $n)' matrix.json)
           if [[ -z "${row}" ]]; then
@@ -528,3 +570,395 @@ jobs:
     uses: ./.github/workflows/record-wheel-info.yml
     with:
       workflow: vllm-plugin
+
+  # Which native backends to build, resolved on ubuntu-latest into a concrete
+  # matrix (runson / image_tag / flagos_pypi / extra_pypi) so the self-hosted
+  # runners need no python/pyyaml. A backend is native iff it is listed in
+  # packaging/vllm/plugin-build.yaml; everything else is the pure-python job
+  # above. Each build-native row resolves its own ref/version on the runner
+  # (a tree checked out on ubuntu-latest could not be mounted from there).
+  plan-native:
+    needs: authorize
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+      - id: plan
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > matrix.json
+          import json, subprocess, sys, yaml
+
+          data = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))["backends"]
+          rows = []
+          for name, cfg in data.items():
+              # The runtime matrix already carries runson / image_tag /
+              # flagos_pypi / extra_pypi — reuse it rather than re-derive.
+              out = subprocess.run(["python3", "scripts/generate_matrix.py",
+                                    "--runtime", name],
+                                   capture_output=True, text=True, check=True)
+              inc = json.loads(out.stdout)["include"]
+              if not inc:
+                  print(f"{name}: not in the runtime matrix", file=sys.stderr)
+                  sys.exit(1)
+              row = inc[0]
+              # runson is a JSON-encoded array STRING (generate_matrix emits it
+              # verbatim); fromjson at runs-on unpacks it.
+              rows.append({
+                  "name": name,
+                  "runson": row["runson"],
+                  "image_tag": row["image_tag"],
+                  "flagos_pypi": row["flagos_pypi"],
+                  "extra_pypi": row["extra_pypi"],
+              })
+          if not rows:
+              print("no native backends in packaging/vllm/plugin-build.yaml",
+                    file=sys.stderr)
+              sys.exit(1)
+          print(json.dumps({"include": rows}))
+          PY
+          cat matrix.json
+          echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
+
+  # One job per native backend: resolve the ref on the build runner (a
+  # self-hosted machine — a checked-out tree on ubuntu-latest could not be
+  # mounted from there), compile vllm_fl._C inside that backend's own runtime
+  # image (build env == delivery env), and upload to its vendor index.
+  build-native:
+    needs: plan-native
+    if: ${{ fromJSON(needs.plan-native.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan-native.outputs.matrix) }}
+    name: native-${{ matrix.name }}
+    runs-on: ${{ fromJSON(matrix.runson) }}
+    env:
+      WORK: /tmp/vllm-plugin-native-${{ github.run_id }}-${{ matrix.name }}
+      BASE_IMAGE: ${{ matrix.image_tag }}
+      EXTRA_PYPI: ${{ matrix.extra_pypi }}
+      FLAGOS_PYPI: ${{ matrix.flagos_pypi }}
+      PLUGIN_REF: ${{ inputs.plugin_ref }}
+      PLUGIN_PR: ${{ inputs.plugin_pr }}
+      PLUGIN_REPO: ${{ inputs.plugin_repo }}
+      PLUGIN_VERSION_BASE: ${{ inputs.version_base }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Resolve the ref to an exact commit, derive the version, and load this
+      # backend's native build config — all on the runner. Same derivation as
+      # the pure-python build job; deterministic per ref, so every row lands on
+      # the same commit+version.
+      - name: Resolve plugin commit + version + build config
+        run: |
+          set -euo pipefail
+          python3 -c "import packaging" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages packaging
+          python3 - <<'PY' > "${WORK}.cfg"
+          import json, yaml
+          name = "${{ matrix.name }}"
+          cfg = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))["backends"][name]
+          print(json.dumps({
+              "apt": " ".join(cfg.get("apt") or []),
+              "cmake_args": cfg.get("cmake_args") or "",
+              "librt_symlink": bool(cfg.get("librt_symlink")),
+              "wire_cuda_repo": bool(cfg.get("wire_cuda_repo")),
+              "cuda_nvcc": cfg.get("cuda_nvcc") or "",
+          }))
+          PY
+          cat "${WORK}.cfg"
+
+          rm -rf "${WORK}/src"
+          mkdir -p "${WORK}"
+          for attempt in 1 2 3; do
+            if git clone --quiet --filter=blob:none "${PLUGIN_REPO}" "${WORK}/src"; then
+              break
+            fi
+            rm -rf "${WORK}/src"
+            if [ "${attempt}" = 3 ]; then
+              git clone --quiet "${PLUGIN_REPO}" "${WORK}/src"
+            fi
+            sleep 5
+          done
+          [ -d "${WORK}/src/.git" ] \
+            || { echo "ERROR: cannot clone ${PLUGIN_REPO}" >&2; exit 1; }
+          cd "${WORK}/src"
+
+          sha=""; tag=""; label=""
+          if [ -n "${PLUGIN_PR}" ]; then
+            [[ "${PLUGIN_PR}" =~ ^[0-9]+$ ]] \
+              || { echo "ERROR: plugin_pr '${PLUGIN_PR}' is not a PR number" >&2; exit 1; }
+            git fetch --quiet --no-tags origin "refs/pull/${PLUGIN_PR}/head" \
+              || { echo "ERROR: no refs/pull/${PLUGIN_PR}/head in ${PLUGIN_REPO} — wrong repo, or the PR number is wrong." >&2; exit 1; }
+            sha=$(git rev-parse FETCH_HEAD)
+            label="PR #${PLUGIN_PR}"
+          elif [[ "${PLUGIN_REF}" =~ ^[0-9a-f]{40}$ ]]; then
+            sha="${PLUGIN_REF,,}"
+            git cat-file -e "${sha}^{commit}" 2>/dev/null \
+              || { echo "ERROR: ${sha} is not a commit in ${PLUGIN_REPO} — pass a branch/tag name or a PR number, or push the commit to a branch first." >&2; exit 1; }
+            label="commit ${sha:0:7}"
+          elif git rev-parse --verify --quiet "refs/remotes/origin/${PLUGIN_REF}" >/dev/null; then
+            sha=$(git rev-parse "refs/remotes/origin/${PLUGIN_REF}")
+            label="branch ${PLUGIN_REF}"
+          elif git rev-parse --verify --quiet "refs/tags/${PLUGIN_REF}^{commit}" >/dev/null; then
+            sha=$(git rev-parse "refs/tags/${PLUGIN_REF}^{commit}")
+            tag="${PLUGIN_REF}"
+            label="tag ${PLUGIN_REF}"
+          else
+            echo "ERROR: '${PLUGIN_REF}' is neither a branch nor a tag in ${PLUGIN_REPO}" >&2
+            echo "      (an abbreviated SHA is not resolvable — pass the full 40-hex one)" >&2
+            exit 1
+          fi
+
+          git checkout -q --detach "${sha}"
+          if [ "$(git rev-parse HEAD)" != "${sha}" ]; then
+            echo "ERROR: checked out $(git rev-parse HEAD), expected ${sha}" >&2
+            exit 1
+          fi
+
+          norm() {
+            python3 -c "import sys; from packaging.version import Version; print(Version(sys.argv[1]))" "$1"
+          }
+          if [ -n "${tag}" ]; then
+            version=$(norm "${tag}")
+            echo ">>> version form: tag — ${tag} -> ${version}"
+          else
+            base=""; desc=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -n "${desc}" ]; then base=$(norm "${desc}"); fi
+            if [ -z "${base}" ]; then
+              [ -n "${PLUGIN_VERSION_BASE}" ] \
+                || { echo "ERROR: no tag is reachable from ${sha} and version_base is empty — re-dispatch with version_base naming this line." >&2; exit 1; }
+              base="${PLUGIN_VERSION_BASE}"
+            elif [ -n "${PLUGIN_VERSION_BASE}" ] && [ "${base}" != "${PLUGIN_VERSION_BASE}" ]; then
+              base="${PLUGIN_VERSION_BASE}"
+            fi
+            version="${base}+g${sha:0:7}.d$(date -u +%Y%m%d)"
+            echo ">>> version form: temp — ${version}"
+          fi
+          # Native rows carry a per-backend local label: PEP 440 `==0.3.0`
+          # matches any `0.3.0+<label>` build, so the app image's bare pin still
+          # resolves it, while the label keeps this wheel from colliding with
+          # the pure-python 0.3.0 — and with the other native row where one
+          # vendor publishes two backends to the same index (nvidia: cuda12.8 +
+          # cuda13.3 both land on flagos-pypi-nvidia). The label is the backend
+          # key with "-" folded to "." (norm's own folding: ".04" -> ".4").
+          # Where the label goes depends on the version form: the temp form
+          # already carries a `+g<sha>.d<date>` local label (a second `+` is
+          # invalid), so the label extends it with a `.`; the tag form has no
+          # local label, so the label is added as one with `+`.
+          blabel=${{ matrix.name }}
+          blabel="${blabel//-/.}"
+          case "${version}" in
+            *+*) version=$(norm "${version}.${blabel}") ;;
+            *)   version=$(norm "${version}+${blabel}") ;;
+          esac
+          echo ">>> native label: ${version}"
+          {
+            echo "PLUGIN_SHA=${sha}"
+            echo "PLUGIN_VERSION=${version}"
+          } >> "$GITHUB_ENV"
+          echo ">>> resolved ${label} -> ${sha}"
+
+      # Build the native wheel inside this backend's runtime image: same
+      # python/ABI/glibc as delivery. The container gets the resolved source
+      # tree (read-only) and the derived version — nothing else; it talks to
+      # git only through setuptools-scm.
+      - name: Build the native wheel in the runtime image
+        run: |
+          set -euo pipefail
+          docker pull "${BASE_IMAGE}"
+          mkdir -p "${WORK}/out"
+          cfg="$(cat "${WORK}.cfg")"
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
+          docker run --rm \
+            -e PLUGIN_VERSION \
+            -e EXTRA_PYPI \
+            -e HTTPS_PROXY="${proxy_url}" \
+            -e HTTP_PROXY="${proxy_url}" \
+            -e no_proxy="${no_proxy:-}" \
+            -e NO_PROXY="${NO_PROXY:-}" \
+            -e CFG_JSON="${cfg}" \
+            -v "${WORK}/src:/work/src:ro" \
+            -v "${WORK}/out:/work/out" \
+            "${BASE_IMAGE}" \
+            bash -euo pipefail -c '
+              set -euo pipefail
+              apt_json="${CFG_JSON}"
+              apt_list() { python3 -c "import json,os,sys; print(json.loads(os.environ[\"CFG_JSON\"]).get(sys.argv[1]))" "$1"; }
+
+              # Build-only deps: torch headers transitively include
+              # gflags/glog (c10/util/Flags.h, c10/util/Logging.h). Build-only
+              # — nothing is linked.
+              if [ -n "$(apt_list apt)" ]; then
+                apt-get update
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $(apt_list apt)
+                rm -rf /var/lib/apt/lists/*
+              fi
+
+              # nvidia only: torch Caffe2Config CUDA-detection FATALs without
+              # nvcc. Wire the CUDA apt repo (cuda-keyring) and install nvcc +
+              # the torch-header -dev set (curand/cccl/math -dev: transitive
+              # ATen includes only — the .so links no math lib), the flagcx
+              # builder recipe.
+              if python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"wire_cuda_repo\") else 1)"; then
+                nvcc="$(apt_list cuda_nvcc)"
+                curl -fsSL --retry 3 --connect-timeout 15 \
+                  -o /tmp/cuda-keyring.deb \
+                  "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
+                dpkg -i /tmp/cuda-keyring.deb
+                rm -f /tmp/cuda-keyring.deb
+                apt-get update
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                  "${nvcc}" libcurand-dev cuda-cccl libcublas-dev \
+                  libcusparse-dev libcusolver-dev libcufft-dev
+                rm -rf /var/lib/apt/lists/*
+              fi
+
+              # ubuntu 24.04 ships librt.so.1 without a bare librt.so symlink,
+              # which torch TorchConfig links against; create it if missing.
+              if python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"librt_symlink\") else 1)"; then
+                if [ ! -e /usr/lib/x86_64-linux-gnu/librt.so ]; then
+                  ln -s /usr/lib/x86_64-linux-gnu/librt.so.1 /usr/lib/x86_64-linux-gnu/librt.so
+                fi
+              fi
+
+              # Build from a container-local copy: the tree is mounted
+              # read-only, and setuptools writes build/ + egg-info beside the
+              # sources. Take ownership — git refuses a repo owned by another
+              # user, and setuptools-scm needs git for its file finder.
+              mkdir -p /build && cp -a /work/src /build/src
+              chown -R root:root /build/src
+              command -v git >/dev/null \
+                || { echo "ERROR: no git in the build image — setuptools-scm would ship a wheel missing vllm_fl/dispatch/README.md" >&2; exit 1; }
+              cd /build/src
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
+                "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
+              export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
+              export VLLM_VENDOR=cuda
+              cmake_args="$(apt_list cmake_args)"
+              if [ -n "${cmake_args}" ]; then export CMAKE_ARGS="${cmake_args}"; fi
+              /flagos/bin/pip wheel --no-build-isolation --no-deps \
+                -w /work/out .
+              ls -la /work/out/
+            '
+          # Anti-silent-skip gate: setup.py registers the _C extension only
+          # when VLLM_VENDOR is set; if it silently failed to compile, the
+          # wheel would ship pure-python and reproduce #1428/#1431 exactly.
+          # Assert the .so is a wheel member before it can reach upload.
+          python3 - <<'PY'
+          import glob, sys, zipfile
+          whl = glob.glob("${WORK}/out/*.whl")
+          assert len(whl) == 1, f"expected exactly one wheel, got {whl}"
+          names = zipfile.ZipFile(whl[0]).namelist()
+          so = [n for n in names if n.startswith("vllm_fl/_C") and n.endswith((".so", ".pyd"))]
+          assert so, f"vllm_fl._C missing from the wheel (native build failed?): {whl[0]}"
+          print("gate OK:", so)
+          PY
+          wheel=$(ls "${WORK}"/out/*.whl | head -n1)
+          wname=$(basename "${wheel}")
+          if [[ "${wname}" != vllm_plugin_fl-${PLUGIN_VERSION}-* ]]; then
+            echo "ERROR: wheel ${wname} does not match derived version ${PLUGIN_VERSION}" >&2
+            exit 1
+          fi
+          echo ">>> built: ${wname} (plugin commit ${PLUGIN_SHA:0:7})"
+
+      - name: Audit the wheel dependencies
+        run: |
+          set -euo pipefail
+          python3 packaging/script/audit-deps.py \
+            --watch torch --watch torch_npu --watch torchvision \
+            --watch torchaudio --watch triton --watch flag_gems \
+            --watch numpy==1.26.4 --watch vllm \
+            "${WORK}"/out/*.whl
+
+      - name: Upload the wheel as a run artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vllm-plugin-wheel-native-${{ matrix.name }}
+          path: ${{ env.WORK }}/out/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to the vendor PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          # The repo name is the flagos_pypi URL's /repository/<name>/simple
+          # segment — uploads to this backend's own index only (native wheels
+          # are never fanned out).
+          repo=$(printf '%s' "${FLAGOS_PYPI}" | sed 's#.*/repository/##; s#/simple$##')
+          echo ">>> uploading $(ls "${WORK}"/out/*.whl | xargs -n1 basename) to ${repo}"
+          proxy_url="${https_proxy:-${HTTPS_PROXY:-${http_proxy:-${HTTP_PROXY:-}}}}"
+          proxy_url="${proxy_url:-${{ secrets.HTTP_PROXY }}}"
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e repo="${repo}" \
+            -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -e HTTPS_PROXY="${proxy_url}" \
+            -e HTTP_PROXY="${proxy_url}" \
+            -e no_proxy="${no_proxy:-}" \
+            -e NO_PROXY="${NO_PROXY:-}" \
+            -v "${WORK}/out:/wheels" \
+            "${BASE_IMAGE}" \
+            bash -euo pipefail -c '
+              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              /flagos/bin/twine upload \
+                --repository-url "https://resource.flagos.net/repository/${repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
+
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          set -euo pipefail
+          repo=$(printf '%s' "${FLAGOS_PYPI}" | sed 's#.*/repository/##; s#/simple$##')
+          mkdir -p .wheel-info
+          for w in "${WORK}"/out/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "vllm-plugin-fl" "" "${repo}" "$(basename "$w")" \
+              >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the wheel-info manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: wheel-info-manifest-native-${{ matrix.name }}-${{ github.run_id }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
+
+      - name: Clean up the work dir
+        if: ${{ always() }}
+        run: |
+          docker run --rm -v "${WORK}:/work" "${BASE_IMAGE}" rm -rf /work 2>/dev/null || true
+          rm -rf "${WORK}" 2>/dev/null || true
+
+  # Records what the native publish steps uploaded. Fan-out-safe: each
+  # build-native row uploads to a distinct vendor index and writes a manifest
+  # whose artifact name carries the run id (reusable-workflow artifacts are
+  # scoped to the CALLING workflow's run, so a bare matrix.name would collide
+  # with the pure build's run-id-named artifact on a re-run), and
+  # record-wheel-info commits once per run.
+  record-wheel-info-native:
+    needs: build-native
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: vllm-plugin-native
