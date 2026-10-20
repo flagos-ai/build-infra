@@ -19,9 +19,9 @@
 Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
-The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` / `enflame` builders start
-from a plain Ubuntu 22.04 (old glibc: the resulting `libtriton.so` must load on
-22.04 nodes).
+The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` / `enflame` / `tsingmicro`
+builders start from a plain Ubuntu 22.04 (old glibc: the resulting
+`libtriton.so` must load on 22.04 nodes).
 The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair's builder stage instead starts
 from **the backend's runtime image**, because FlagTree's Ascend build needs CANN
 on the build machine — see the section below.
@@ -33,6 +33,8 @@ on the build machine — see the section below.
 | `sunrise`    | FlagTree for Sunrise (PTPU), builder + wheel | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `enflame`    | FlagTree for Enflame (GCU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `hcu`        | FlagTree for Hygon (DTK), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `tsingmicro` | FlagTree for Tsingmicro (TX8), builder + wheel | Ubuntu 22.04 + staged clang 22 |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann8.5.0` |
 
@@ -92,9 +94,9 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All eight have one. For `nvidia-cuda`, `metax`,
-`sunrise`, `iluvatar`, `enflame` and `hcu` the stage starts from a bare
-`ubuntu:22.04`
+into FlagTree's offline cache). All nine have one. For `nvidia-cuda`, `metax`,
+`sunrise`, `iluvatar`, `enflame`, `hcu` and `tsingmicro` the stage starts from a
+bare `ubuntu:22.04`
 and is the `BUILDER_IMAGE` default; for the ascend pair its cold value is the
 backend's runtime image, which is why `backends.yaml` marks those rows
 `base_image: runtime` and the builder line resolves their `BUILDER_IMAGE` from
@@ -110,8 +112,8 @@ CANN line and version, its staged LLVM and the triton deps; the other four asser
 a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
 same assertions as data: the interpreter, the executables, the paths. The block
 is rendered by one generic step, so a backend staged like its predecessors needs
-a row and no workflow step at all. `enflame` and `hcu` are the two of those, and
-the four that came before them keep their own steps.
+a row and no workflow step at all. `enflame`, `hcu` and `tsingmicro` are the
+three of those, and the four that came before them keep their own steps.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
@@ -201,6 +203,49 @@ the driver resolves `GPUTarget(backend='hip', arch='gfx936', warp_size=64)`, and
 a vector-add kernel returns `max diff 0.0` against torch's own result. No DTK is
 needed at import time — `HIPUtils.__init__` is reached lazily on the first launch,
 and the image supplies it there.
+
+## Tsingmicro builder (`tsingmicro`)
+
+The same shape as `hcu` — bare `ubuntu:22.04`, apt toolchain, the backend's
+prebuilt inputs into FlagTree's offline cache — with these differences.
+
+**It is the system python 3.10, not a deadsnakes 3.12.** `configs.yaml` pins
+`tsingmicro-tsm260610` at python 3.10, so the wheel has to wear `cp310`; 22.04
+ships that interpreter, so there is no PPA to wire by hand.
+
+**Two prebuilt trees, not one.** `tsingmicro.py` registers two caches,
+`tsingmicro-llvm22` and `tx8_deps`, and both are staged: the first is the LLVM the
+backend compiles with, the second is the vendor's `TX8_DEPS_ROOT` (the Xuantie
+RISC-V toolchain the crt links its runtime with, the profiling library
+`driver.py` hard-links at import, and `rcsfw_include_interface.cmake`, which
+`third_party/tsingmicro/CMakeLists.txt` `include()`s). FlagTree matches a cache
+by directory name, so each tarball is unpacked with `--strip-components=1` onto
+the exact key — the vendor's own roots are `tsingmicro-llvm22/` and `tx8_deps/`,
+but relying on that would break the day either tarball is repacked.
+
+**The staged clang has to reach cmake through PATH.** `FlagTreeOptions.cmake`
+selects `clang`/`clang++` for this backend by bare name, with no PATH
+manipulation of its own (unlike `mthreads`), so no apt clang is installed at all
+and the staged `bin` is prepended in the wheel stage. The crt and the profiler
+are compiled with an absolute `${LLVM_SYSPATH}/bin/clang` through the same
+variable, so both stages end up on one compiler.
+
+**No import smoke test.** The other builders install their wheel and import it.
+This one cannot: `third_party/tsingmicro/backend/driver.py` imports `torch_txda`
+at module level, `import triton` reaches it through backend discovery, and
+`torch_txda` aborts unless the TX8 device nodes are present — a docker build can
+never be handed `/dev/accel`. The build instead asserts what it can: that the
+wheel installs, and that `tsingmicro-opt`, `tx-profiler` and `libvr.a` are in it
+at a plausible size. That assertion is not decoration —
+`install_extension` prints a warning and *continues* when the CMake build tree did
+not produce one, so a wheel missing `tsingmicro-opt` (482 MB) would otherwise be
+built, gated and published. The import itself is verified on the backend's own
+node, with the devices attached.
+
+**Two settings that must stay unset.** Same as `hcu`, and for the same reason:
+each of `tsingmicro.py`'s two cache entries short-circuits on the variable its
+post-hook would export (`LLVM_SYSPATH`, `TX8_DEPS_ROOT`), so exporting either
+sends the build to the vendor's ks3 bucket instead of the staged tree.
 
 ## NVIDIA builder (`nvidia-cuda`)
 
