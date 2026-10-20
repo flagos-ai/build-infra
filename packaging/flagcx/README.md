@@ -171,7 +171,7 @@ pin the vendor index serves, which is the only column a user's `pip install` can
 | `nvidia-cuda12.8` | 2026-10-09 | `0.14.0+cuda12.8` |
 | `nvidia-cuda13.3` | 2026-10-09 | `0.14.0+cuda13.3` |
 | `sunrise-tangrt1.2.0` | 2026-10-19 | `0.14.0+tangrt1.2.0` |
-| `tsingmicro-tsm260610` | 2026-10-09 | `0.14.0+tsm260610` |
+| `tsingmicro-tsm260610` | 2026-10-20 | `0.14.0+tsm260610` |
 
 Every published pin is a build off the release tag `v0.14.0`, so the pins differ only in the row
 label, and the pin is what tells two vendors' builds of one commit apart. All twenty rows were
@@ -194,7 +194,11 @@ still build the same wheel bytes, only the label differs. The sunrise pin was re
 way on 2026-10-19, off its own `Containerfile.builder-vendor-sunrise` 22.04 builder (PR #1418) —
 same pin, now 22.04-clean (`_C*.so` max GLIBC_2.32, `libflagcx.so` GLIBC_2.34, no forbidden
 symbols); its SDK-floor proof is a dlopen of libpccl/libtangrt_shared rather than the bridge import,
-because torch-ptpu probes the device in a constructor and aborts device-less. The release re-publish builds with
+because torch-ptpu probes the device in a constructor and aborts device-less. The tsingmicro pin was
+re-published the same way on 2026-10-20, off its own `Containerfile.builder-vendor-tsm` 22.04 builder
+(PR #1422) — same pin, now 22.04-clean (`_C*.so` max GLIBC_2.32, `libflagcx.so` GLIBC_2.34, no
+forbidden symbols); its SDK-floor proof is `import txops` plus a dlopen of libhpgr/libtccl rather
+than `import torch_txda`, whose TXDAHooks constructor probes the device and aborts device-less. The release re-publish builds with
 `bitcode=false`: iluvatar's `bindings/ir` Makefile (FlagCX #668) is not in the `v0.14.0` tag, so a
 release wheel carries no `libflagcx_device.bc`; the bitcode ships in the daily dev-pin build off
 `main`, which is what the `bitcode` input defaults to `true` for (see `--no-bitcode` in
