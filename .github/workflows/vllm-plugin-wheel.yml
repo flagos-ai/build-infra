@@ -669,6 +669,8 @@ jobs:
               "librt_symlink": bool(cfg.get("librt_symlink")),
               "wire_cuda_repo": bool(cfg.get("wire_cuda_repo")),
               "cuda_nvcc": cfg.get("cuda_nvcc") or "",
+              "cuda_extra_apt": " ".join(cfg.get("cuda_extra_apt") or []),
+              "metax_mxcc": bool(cfg.get("metax_mxcc")),
               "cuda_path": cfg.get("cuda_path") or "",
           }))
           PY
@@ -792,6 +794,38 @@ jobs:
               set -euo pipefail
               apt_json="${CFG_JSON}"
               apt_list() { python3 -c "import json,os,sys; print(json.loads(os.environ[\"CFG_JSON\"]).get(sys.argv[1]))" "$1"; }
+              is_metax() { python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"metax_mxcc\") else 1)"; }
+
+              # metax only: compile the two host-side csrc TUs with g++ and link
+              # against the torch libs directly — the sglang mxcc/g++ recipe,
+              # minus its mxcc .cu pass (the plugin csrc has no .cu files).
+              # -DUSE_MACA satisfies the torch header branch guards (Macros.h,
+              # ATen/Context.h static_assert otherwise). Output is the wheel
+              # member vllm_fl/_C<tag>.so, staged in /work/out (kept the
+              # vllm_fl/ dir prefix so the host-side fold-in is a basename move,
+              # matching the cmake install target) for the host-side injection
+              # step to fold into the pure-python wheel (the
+              # cmake/find_package(Torch) path is skipped for metax — see below).
+              # (No apostrophes in these comments: this block is a single-quoted
+              # `bash -c` argument.)
+              build_metax_from_source() {
+                torchlib="/flagos/lib/python3.12/site-packages/torch/lib"
+                cubr="/opt/maca/tools/cu-bridge/include"
+                macainc="/opt/maca/include"
+                pyinc=$(python3 -c "import sysconfig; print(sysconfig.get_paths()['include'])")
+                torchincs=$(TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -c "from torch.utils.cpp_extension import include_paths; print(' '.join('-I'+p for p in include_paths()))")
+                soext=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+                mkdir -p /build/metax /work/out/vllm_fl
+                g++ -shared -fPIC -std=c++17 -O2 -DUSE_MACA -DTORCH_EXTENSION_NAME=_C \
+                  -I"${cubr}" -I"${macainc}" -I/work/src/csrc \
+                  -I"${pyinc}" ${torchincs} \
+                  /work/src/csrc/cuda/weak_ref_tensor.cpp \
+                  /work/src/csrc/cuda/torch_bindings.cpp \
+                  -L"${torchlib}" -Wl,-rpath,\$ORIGIN/../../torch/lib \
+                  -lc10 -lc10_cuda -ltorch_cpu -ltorch -ltorch_cuda -ltorch_python \
+                  -o "/work/out/vllm_fl/_C${soext}"
+                echo ">>> metax g++ build: $(ls /work/out/vllm_fl/_C*)" >&2
+              }
 
               # Build-only deps: torch headers transitively include
               # gflags/glog (c10/util/Flags.h, c10/util/Logging.h). Build-only
@@ -803,41 +837,66 @@ jobs:
               fi
 
               # nvidia only: torch Caffe2Config CUDA-detection FATALs without
-              # nvcc. Wire the CUDA apt repo (cuda-keyring) and install nvcc +
-              # the torch-header -dev set (curand/cccl/math -dev: transitive
-              # ATen includes only — the .so links no math lib), the flagcx
-              # builder recipe.
+              # nvcc. Install nvcc + the torch-header -dev set (curand/cccl/math
+              # -dev: transitive ATen includes only — the .so links no math
+              # lib), the flagcx builder recipe.
               #
-              # The nvcr runtime base already wires a CUDA apt source with a
-              # different Signed-By than the cuda-keyring .deb installs, so the
-              # two sources collide at `apt-get update`. Drop the base image
-              # /etc/apt/sources.list.d/cuda-*.list before updating — the
-              # keyring package re-adds the same repo with its own key. The
-              # runtime-visible effect is nil: the apt-source wiring lives only
-              # in this disposable build container, never in the runtime image.
+              # Both nvidia runtime bases already wire the CUDA apt source
+              # (12.8: cuda.list + the key in /etc/apt/trusted.gpg; 13.3: the
+              # cuda-keyring .deb layout). A plain `apt-get update` resolves the
+              # versioned package names below from either, so do not rewrite the
+              # source. The `-dev`/cccl names are VERSIONED per backend (the
+              # ubuntu2404 CUDA repo carries no unversioned libcurand-dev /
+              # cuda-cccl; 13.3 has cccl-13-3 which Provides cuda-cccl-13-3) —
+              # cuda_extra_apt carries the row list, mirroring flagcx
+              # builder.extra_apt. libcublas-<track> is unheld first so its
+              # -dev can land (both rows hold it; only the headers matter — the
+              # .so links no math lib, and this container is disposable).
               # (No apostrophes in these comments: this block is a single-quoted
               # `bash -c` argument, and an apostrophe would close it early.)
               if python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"wire_cuda_repo\") else 1)"; then
                 nvcc="$(apt_list cuda_nvcc)"
-                rm -f /etc/apt/sources.list.d/cuda-*.list \
-                      /etc/apt/sources.list.d/*cuda*.list 2>/dev/null || true
-                curl -fsSL --retry 3 --connect-timeout 15 \
-                  -o /tmp/cuda-keyring.deb \
-                  "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
-                dpkg -i /tmp/cuda-keyring.deb
-                rm -f /tmp/cuda-keyring.deb
+                # The base holds libcublas-<track> at its runtime version; the
+                # -dev package Depends on a newer one, so a plain install fails
+                # with "held broken packages". This build container is disposable
+                # (never committed back to the runtime image), so unhold the
+                # runtime lib first and let the -dev install pull its own beside
+                # it. The wheel .so links no math lib — only the headers matter.
+                libcublas="libcublas-${nvcc#cuda-nvcc-}"
+                apt-mark unhold "${libcublas}" || true
                 apt-get update
+                extra_apt="$(apt_list cuda_extra_apt)"
                 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-                  "${nvcc}" libcurand-dev cuda-cccl libcublas-dev \
-                  libcusparse-dev libcusolver-dev libcufft-dev
+                  "${nvcc}" ${extra_apt}
                 rm -rf /var/lib/apt/lists/*
+              fi
+
+              # metax only: the sglang g++-direct recipe (proven, verified).
+              # MACA torch is a CUDA-alias build whose Caffe2Config
+              # find_package(Torch) cannot resolve the cu-bridge toolchain
+              # through env vars alone — the bridge ships cucc (no nvcc), and
+              # its FindCUDA/cmake_module machinery needs a device arch
+              # (CUCC_TARGETS) that the wheel build node does not expose, while
+              # torch FindCUDAToolkit has no MACA branch at all. So do not
+              # take the cmake path here: compile the two host-side .cpp TUs
+              # with plain g++ -DUSE_MACA (they are host-only — from_blob
+              # registers on c10::kCUDA, no device code) and link g++ -shared
+              # against c10/c10_cuda/torch_cpu/torch/torch_cuda/torch_python.
+              # Same compiler+linker as packaging/sglang/wheels/metax/
+              # setup_maca.py, minus its mxcc .cu pass (the plugin csrc has no
+              # .cu files). The .so is staged in /work/out and folded into the
+              # pure-python wheel by the host-side step after this container.
+              if is_metax; then
+                build_metax_from_source
               fi
 
               # The MACA cu-bridge is the CUDA-compatible toolchain that metax
               # torch (a CUDA build) resolves its toolkit from; it sits beside
               # the device root, not inside it (/opt/maca). Export CUDA_PATH so
               # Caffe2Config find_package(CUDA) finds it — flagcx surfaces the
-              # same value the same way (wheel.cuda_path -> CUDA_PATH).
+              # same value the same way (wheel.cuda_path -> CUDA_PATH). (metax
+              # own native build above does not read it; it is kept for the
+              # cmake path the other CUDA-dispatch rows still take.)
               cuda_path="$(apt_list cuda_path)"
               if [ -n "${cuda_path}" ]; then export CUDA_PATH="${cuda_path}"; fi
 
@@ -861,9 +920,15 @@ jobs:
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
               export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
-              export VLLM_VENDOR=cuda
-              cmake_args="$(apt_list cmake_args)"
-              if [ -n "${cmake_args}" ]; then export CMAKE_ARGS="${cmake_args}"; fi
+              # metax: the pure-python wheel below has no extension to compile
+              # (VLLM_VENDOR is unset), and the g++ .so staged in /work/out is
+              # folded in on the host. The other native rows keep VLLM_VENDOR
+              # and the cmake/torch path.
+              if ! is_metax; then
+                export VLLM_VENDOR=cuda
+                cmake_args="$(apt_list cmake_args)"
+                if [ -n "${cmake_args}" ]; then export CMAKE_ARGS="${cmake_args}"; fi
+              fi
               /flagos/bin/pip wheel --no-build-isolation --no-deps \
                 -w /work/out .
               ls -la /work/out/
@@ -871,9 +936,46 @@ jobs:
           # Anti-silent-skip gate: setup.py registers the _C extension only
           # when VLLM_VENDOR is set; if it silently failed to compile, the
           # wheel would ship pure-python and reproduce #1428/#1431 exactly.
-          # Assert the .so is a wheel member before it can reach upload.
+          # For metax the .so is g++-built and folded in below; for the cmake
+          # rows the wheel must already carry it. Assert the .so is a wheel
+          # member before it can reach upload.
           # The heredoc is quoted, so bash does not expand ${WORK} inside it —
           # pass the out dir as argv and glob sys.argv[1].
+          # metax: fold the g++ .so into the pure-python wheel (vllm_fl/_C<tag>)
+          # and re-record. The native wheel must differ from the pure-python
+          # 0.3.0 fan-out only by this member; the label already distinguishes
+          # the two on the shared nvidia index, and metax has its own index.
+          if [ -n "$(ls "${WORK}"/out/vllm_fl/_C*.so 2>/dev/null)" ]; then
+            python3 - "${WORK}/out" <<'PY'
+          import base64, glob, hashlib, os, sys, zipfile
+          out = sys.argv[1]
+          so = glob.glob(out + "/vllm_fl/_C*.so")
+          assert len(so) == 1, f"expected one staged .so, got {so}"
+          whl = glob.glob(out + "/*.whl")
+          assert len(whl) == 1, f"expected one wheel, got {whl}"
+          member = "vllm_fl/" + os.path.basename(so[0])
+          data = open(so[0], "rb").read()
+          digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+          line = f"{member},sha256={digest},{len(data)}"
+          tmp = whl[0] + ".tmp"
+          with zipfile.ZipFile(whl[0]) as zin, \
+               zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+              rec_name = None
+              for n in zin.namelist():
+                  if n == member:
+                      continue
+                  if n.endswith(".dist-info/RECORD"):
+                      rec_name = n
+                      continue
+                  zout.writestr(n, zin.read(n))
+              assert rec_name, "no RECORD in the wheel"
+              rec = zin.read(rec_name).decode()
+              zout.writestr(member, data)
+              zout.writestr(rec_name, rec.rstrip("\n") + "\n" + line + "\n")
+          os.replace(tmp, whl[0])
+          print("folded", member, "into", whl[0])
+          PY
+          fi
           python3 - "${WORK}/out" <<'PY'
           import glob, sys, zipfile
           whl = glob.glob(sys.argv[1] + "/*.whl")

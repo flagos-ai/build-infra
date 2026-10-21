@@ -47,12 +47,18 @@
 #                   this); create it before building.
 #   wire_cuda_repo  nvidia only: torch's Caffe2Config CUDA-detection gate FATALs
 #                   without nvcc, and the nvidia runtime base
-#                   (nvcr cuda-runtime) ships none. Install the CUDA apt repo via
-#                   cuda-keyring and apt-install cuda-nvcc + the torch-header -dev
-#                   set, exactly the flagcx builder recipe
-#                   (packaging/flagcx/backends.yaml nvidia rows + its
-#                   Containerfile.builder). curand/cccl/math -dev are transitive
-#                   torch-header includes only; the .so links no math lib.
+#                   (nvcr cuda-runtime) ships none. The base already wires the
+#                   CUDA apt source, so this flag installs cuda_nvcc +
+#                   cuda_extra_apt (below) from it — no source rewrite.
+#   cuda_nvcc       nvidia only: the versioned nvcc package for this backend.
+#   cuda_extra_apt  nvidia only: the versioned torch-header -dev/cccl set
+#                   (curand/cccl/cublas/cusparse/cusolver/cufft), mirroring
+#                   flagcx builder.extra_apt. curand/cccl/math -dev are
+#                   transitive torch-header includes only; the .so links no
+#                   math lib.
+#   metax_mxcc      metax only: build by the mxcc/g++-direct recipe (sglang
+#                   setup_maca.py) instead of the cmake/torch path, which metax's
+#                   CUDA-alias torch cannot satisfy without a device arch.
 
 backends:
   hygon-dtk26.04:
@@ -62,19 +68,35 @@ backends:
 
   metax-maca3.8.1.3:
     apt: [libgflags-dev, libgoogle-glog-dev]
-    # MACA's torch is a CUDA-based build (torch==2.10.0+metax3.8.1.0); its
-    # Caffe2Config resolves the toolkit through CUDA_PATH/CUDA_HOME, and metax's
-    # cu-bridge — the CUDA-compatible toolchain — sits beside the device root
-    # (/opt/maca/tools/cu-bridge), not inside it. The build exports this as
-    # CUDA_PATH, the same value flagcx surfaces via wheel.cuda_path.
+    # metax builds by the mxcc/g++-direct recipe (packaging/sglang/wheels/metax/
+    # setup_maca.py), not the cmake/torch path: MACA's torch is a CUDA-alias
+    # build whose Caffe2Config find_package(Torch) cannot resolve the cu-bridge
+    # toolchain through env vars alone (the bridge ships cucc, not nvcc, and
+    # torch's FindCUDAToolkit has no MACA branch). metax_mxcc selects that
+    # recipe in vllm-plugin-wheel.yml; the two host-side .cpp TUs are compiled
+    # with g++ -DUSE_MACA (no device code, so no arch is needed).
+    metax_mxcc: true
+    # Kept for the record only: metax's mxcc-direct build does not read
+    # CUDA_PATH (its includes/libs are resolved inline from MACA_PATH).
     cuda_path: /opt/maca/tools/cu-bridge
 
   nvidia-cuda12.8:
     wire_cuda_repo: true
     cuda_nvcc: cuda-nvcc-12-8
+    # Versioned -dev/cccl names, mirroring flagcx builder.extra_apt: the
+    # ubuntu2404 CUDA repo carries no unversioned libcurand-dev/cuda-cccl, and
+    # only the -dev flavor (which depends on the held runtime libcublas-12-8
+    # at its exact installed version) can coexist with the base's pinned libs.
+    cuda_extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8]
     apt: [libgflags-dev, libgoogle-glog-dev]
 
   nvidia-cuda13.3:
     wire_cuda_repo: true
     cuda_nvcc: cuda-nvcc-13-3
+    # 13.3's unversioned libcublas-dev-13-3 resolves to 13.6.0.2 while the base
+    # holds libcublas-13-3 at 13.5.1.27-1, so a plain apt install fails with
+    # "held broken packages". The workflow unholds libcublas-<track> first (the
+    # build container is disposable and the .so links no math lib), which is
+    # what lets the versioned -dev land beside the upgraded runtime lib.
+    cuda_extra_apt: [libcurand-dev-13-3, cccl-13-3, libcublas-dev-13-3, libcusparse-dev-13-3, libcusolver-dev-13-3, libcufft-dev-13-3]
     apt: [libgflags-dev, libgoogle-glog-dev]
