@@ -110,7 +110,8 @@ backends:
     # two reasons: the .so must link torch 2.8, not 2.10, and the app image's
     # bare ==0.3.0 pin resolves per-index to whatever 0.3.0+<label> is newest,
     # so without a distinct label this backend would pull the 3.8.1.3 wheel and
-    # ABI-break. The per-backend local label (metax.maca3.7.2.1) keeps them apart.
+    # ABI-break. The per-backend local label (maca3.7.2.1, bare backend name —
+    # the vendor is dropped) keeps them apart.
     metax_mxcc: true
     torch_prefix: /flagos/lib/python3.12/site-packages/torch
     cuda_path: /opt/maca/tools/cu-bridge
