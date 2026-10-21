@@ -671,6 +671,7 @@ jobs:
               "cuda_nvcc": cfg.get("cuda_nvcc") or "",
               "cuda_extra_apt": " ".join(cfg.get("cuda_extra_apt") or []),
               "metax_mxcc": bool(cfg.get("metax_mxcc")),
+              "gpp_direct": bool(cfg.get("gpp_direct")),
               "cuda_path": cfg.get("cuda_path") or "",
           }))
           PY
@@ -795,36 +796,45 @@ jobs:
               apt_json="${CFG_JSON}"
               apt_list() { python3 -c "import json,os,sys; print(json.loads(os.environ[\"CFG_JSON\"]).get(sys.argv[1]))" "$1"; }
               is_metax() { python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"metax_mxcc\") else 1)"; }
+              is_gpp() { python3 -c "import json,os; exit(0 if json.loads(os.environ[\"CFG_JSON\"]).get(\"gpp_direct\") else 1)"; }
 
-              # metax only: compile the two host-side csrc TUs with g++ and link
-              # against the torch libs directly — the sglang mxcc/g++ recipe,
-              # minus its mxcc .cu pass (the plugin csrc has no .cu files).
-              # -DUSE_MACA satisfies the torch header branch guards (Macros.h,
-              # ATen/Context.h static_assert otherwise). Output is the wheel
-              # member vllm_fl/_C<tag>.so, staged in /work/out (kept the
-              # vllm_fl/ dir prefix so the host-side fold-in is a basename move,
-              # matching the cmake install target) for the host-side injection
-              # step to fold into the pure-python wheel (the
-              # cmake/find_package(Torch) path is skipped for metax — see below).
+              # metax (metax_mxcc) and kunlunxin (gpp_direct): compile the two
+              # host-side csrc TUs with g++ and link against the torch libs
+              # directly — the sglang mxcc/g++ recipe, minus its mxcc .cu pass
+              # (the plugin csrc has no .cu files). metax adds -DUSE_MACA plus
+              # the cu-bridge/maca include dirs (their CUDA-alias torch header
+              # branch guards need them: Macros.h, ATen/Context.h static_assert
+              # otherwise); kunlunxin is plain CUDA torch with no nvcc and takes
+              # neither. Output is the wheel member vllm_fl/_C<tag>.so, staged
+              # in /work/out (kept the vllm_fl/ dir prefix so the host-side
+              # fold-in is a basename move, matching the cmake install target)
+              # for the host-side injection step to fold into the pure-python
+              # wheel (the cmake/find_package(Torch) path is skipped for these
+              # rows — see below). torchlib is derived from torch.__file__ so
+              # python3.10 (kunlunxin) and python3.12 (metax) both resolve.
               # (No apostrophes in these comments: this block is a single-quoted
               # `bash -c` argument.)
-              build_metax_from_source() {
-                torchlib="/flagos/lib/python3.12/site-packages/torch/lib"
-                cubr="/opt/maca/tools/cu-bridge/include"
-                macainc="/opt/maca/include"
+              build_gpp_from_source() {
+                cxx_extra_defs=""
+                cxx_extra_incs=""
+                if is_metax; then
+                  cxx_extra_defs="-DUSE_MACA"
+                  cxx_extra_incs="-I/opt/maca/tools/cu-bridge/include -I/opt/maca/include"
+                fi
+                torchlib=$(python3 -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), \"lib\"))")
                 pyinc=$(python3 -c "import sysconfig; print(sysconfig.get_paths()[\"include\"])")
                 torchincs=$(TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -c "from torch.utils.cpp_extension import include_paths; print(\" \".join(\"-I\"+p for p in include_paths()))")
                 soext=$(python3 -c "import sysconfig; print(sysconfig.get_config_var(\"EXT_SUFFIX\"))")
-                mkdir -p /build/metax /work/out/vllm_fl
-                g++ -shared -fPIC -std=c++17 -O2 -DUSE_MACA -DTORCH_EXTENSION_NAME=_C \
-                  -I"${cubr}" -I"${macainc}" -I/work/src/csrc \
+                mkdir -p /build/gpp /work/out/vllm_fl
+                g++ -shared -fPIC -std=c++17 -O2 ${cxx_extra_defs} -DTORCH_EXTENSION_NAME=_C \
+                  ${cxx_extra_incs} -I/work/src/csrc \
                   -I"${pyinc}" ${torchincs} \
                   /work/src/csrc/cuda/weak_ref_tensor.cpp \
                   /work/src/csrc/cuda/torch_bindings.cpp \
                   -L"${torchlib}" -Wl,-rpath,\$ORIGIN/../../torch/lib \
                   -lc10 -lc10_cuda -ltorch_cpu -ltorch -ltorch_cuda -ltorch_python \
                   -o "/work/out/vllm_fl/_C${soext}"
-                echo ">>> metax g++ build: $(ls /work/out/vllm_fl/_C*)" >&2
+                echo ">>> g++ build: $(ls /work/out/vllm_fl/_C*)" >&2
               }
 
               # Build-only deps: torch headers transitively include
@@ -871,23 +881,26 @@ jobs:
                 rm -rf /var/lib/apt/lists/*
               fi
 
-              # metax only: the sglang g++-direct recipe (proven, verified).
-              # MACA torch is a CUDA-alias build whose Caffe2Config
-              # find_package(Torch) cannot resolve the cu-bridge toolchain
-              # through env vars alone — the bridge ships cucc (no nvcc), and
-              # its FindCUDA/cmake_module machinery needs a device arch
-              # (CUCC_TARGETS) that the wheel build node does not expose, while
-              # torch FindCUDAToolkit has no MACA branch at all. So do not
-              # take the cmake path here: compile the two host-side .cpp TUs
-              # with plain g++ -DUSE_MACA (they are host-only — from_blob
-              # registers on c10::kCUDA, no device code) and link g++ -shared
-              # against c10/c10_cuda/torch_cpu/torch/torch_cuda/torch_python.
-              # Same compiler+linker as packaging/sglang/wheels/metax/
-              # setup_maca.py, minus its mxcc .cu pass (the plugin csrc has no
-              # .cu files). The .so is staged in /work/out and folded into the
-              # pure-python wheel by the host-side step after this container.
-              if is_metax; then
-                build_metax_from_source
+              # metax (metax_mxcc) / kunlunxin (gpp_direct): the sglang
+              # g++-direct recipe (proven, verified). MACA torch is a
+              # CUDA-alias build whose Caffe2Config find_package(Torch) cannot
+              # resolve the cu-bridge toolchain through env vars alone — the
+              # bridge ships cucc (no nvcc), and its FindCUDA/cmake_module
+              # machinery needs a device arch (CUCC_TARGETS) that the wheel
+              # build node does not expose, while torch FindCUDAToolkit has no
+              # MACA branch at all. kunlunxin is plain CUDA torch (+cu129) that
+              # ships no nvcc either, so find_package(Torch) dies at
+              # enable_language(CUDA) — same dead end. So do not take the cmake
+              # path here: compile the two host-side .cpp TUs with plain g++
+              # (they are host-only — from_blob registers on c10::kCUDA, no
+              # device code) and link g++ -shared against
+              # c10/c10_cuda/torch_cpu/torch/torch_cuda/torch_python. Same
+              # compiler+linker as packaging/sglang/wheels/metax/setup_maca.py,
+              # minus its mxcc .cu pass (the plugin csrc has no .cu files). The
+              # .so is staged in /work/out and folded into the pure-python wheel
+              # by the host-side step after this container.
+              if is_metax || is_gpp; then
+                build_gpp_from_source
               fi
 
               # The MACA cu-bridge is the CUDA-compatible toolchain that metax
@@ -931,11 +944,11 @@ jobs:
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
               export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
-              # metax: the pure-python wheel below has no extension to compile
-              # (VLLM_VENDOR is unset), and the g++ .so staged in /work/out is
-              # folded in on the host. The other native rows keep VLLM_VENDOR
-              # and the cmake/torch path.
-              if ! is_metax; then
+              # metax (metax_mxcc) / kunlunxin (gpp_direct): the pure-python
+              # wheel below has no extension to compile (VLLM_VENDOR is unset),
+              # and the g++ .so staged in /work/out is folded in on the host.
+              # The other native rows keep VLLM_VENDOR and the cmake/torch path.
+              if ! is_metax && ! is_gpp; then
                 export VLLM_VENDOR=cuda
                 cmake_args="$(apt_list cmake_args)"
                 if [ -n "${cmake_args}" ]; then export CMAKE_ARGS="${cmake_args}"; fi
@@ -947,20 +960,21 @@ jobs:
           # Anti-silent-skip gate: setup.py registers the _C extension only
           # when VLLM_VENDOR is set; if it silently failed to compile, the
           # wheel would ship pure-python and reproduce #1428/#1431 exactly.
-          # For metax the .so is g++-built and folded in below; for the cmake
-          # rows the wheel must already carry it. Assert the .so is a wheel
-          # member before it can reach upload.
+          # For the g++ rows (metax/kunlunxin) the .so is g++-built and folded
+          # in below; for the cmake rows the wheel must already carry it. Assert
+          # the .so is a wheel member before it can reach upload.
           # The heredoc is quoted, so bash does not expand ${WORK} inside it —
           # pass the out dir as argv and glob sys.argv[1].
-          # metax: fold the g++ .so into the wheel and make the wheel tell the
-          # truth about itself. A wheel that carries a compiled _C<tag>.so is
-          # NOT pure-Python, whatever its filename says — the catalog
-          # (scripts/gen_wheel_info.py) derives python/os/arch from the wheel
-          # FILENAME, so the filename (and the WHEEL metadata pip reads off it)
-          # both have to become cp312 / linux / linux_x86_64 or the record will
-          # keep writing "any". The pure 0.3.0 fan-out stays py3-none-any; the
-          # +metax label already distinguishes the two on the shared index, and
-          # metax has its own.
+          # g++ rows (metax/kunlunxin): fold the g++ .so into the wheel and make
+          # the wheel tell the truth about itself. A wheel that carries a
+          # compiled _C<tag>.so is NOT pure-Python, whatever its filename says —
+          # the catalog (scripts/gen_wheel_info.py) derives python/os/arch from
+          # the wheel FILENAME, so the filename (and the WHEEL metadata pip
+          # reads off it) both have to become cp310/cp312 (derived from the
+          # .so's own tag, not hardcoded) / linux / linux_x86_64 or the record
+          # will keep writing "any". The pure 0.3.0 fan-out stays py3-none-any;
+          # the per-backend +<label> already distinguishes these on the shared
+          # indexes (metax: 3.7.2.1 vs 3.8.1.3; kunlunxin has its own).
           if [ -n "$(ls "${WORK}"/out/vllm_fl/_C*.so 2>/dev/null)" ]; then
             python3 - "${WORK}/out" <<'PY'
           import base64, glob, hashlib, os, sys, zipfile
