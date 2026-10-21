@@ -27,8 +27,12 @@
 # vllm_fl falls back to `("weak_ref_tensor", lambda t: t)` — a strong reference —
 # and vLLM cudagraph capture leaks VRAM per graph until it OOMs (see
 # flagos-ai/build-infra#1428 hygon, #1431 MetaX). The native op registers on
-# c10::kCUDA, which every CUDA-dispatch backend (nvidia/metax/hygon) routes
-# through, so one host-side op restores a real weak reference for all of them.
+# c10::kCUDA, which every CUDA-dispatch backend routes through — that is every
+# backend whose torch dispatches tensors on the CUDA key (tensor.is_cuda() true),
+# not the plugin's is_cuda_alike() (which returns False for hygon even though
+# hygon empirically needed _C). So one host-side op restores a real weak
+# reference for all of them: nvidia, metax, hygon and kunlunxin (each verified
+# on-node 2026-10-21).
 #
 #   apt             build-only packages installed in the build container before
 #                   the wheel build. gflags/glog are transitive torch-header
@@ -58,13 +62,44 @@
 #                   math lib.
 #   metax_mxcc      metax only: build by the mxcc/g++-direct recipe (sglang
 #                   setup_maca.py) instead of the cmake/torch path, which metax's
-#                   CUDA-alias torch cannot satisfy without a device arch.
+#                   CUDA-alias torch cannot satisfy without a device arch. Adds
+#                   -DUSE_MACA plus the cu-bridge/maca include dirs to the g++
+#                   compile.
+#   gpp_direct      build the two host-side csrc TUs with plain g++ (the metax
+#                   recipe minus -DUSE_MACA and the MACA include dirs). For a
+#                   CUDA-dispatch torch that ships no nvcc and whose
+#                   Caffe2Config find_package(Torch) therefore dies at
+#                   enable_language(CUDA) — kunlunxin (+cu129) is this shape:
+#                   no nvcc, no pip cmake, and the cmake path proved dead
+#                   (verified on-node 2026-10-21).
 
 backends:
   hygon-dtk26.04:
     cmake_args: "-DCMAKE_PREFIX_PATH=/opt/dtk;/opt/dtk/hip;/opt/dtk/hsa;/opt/hyhal;/usr/local/hyhal"
     apt: [libgflags-dev, libgoogle-glog-dev]
     librt_symlink: true
+
+  kunlunxin-xre5.37.1:
+    # Real CUDA torch (2.9.0+cu129, USE_CUDA=ON, CUDA Runtime 12.9) with no
+    # nvcc: find_package(Torch) reaches Caffe2Config enable_language(CUDA) and
+    # FATALs "No CMAKE_CUDA_COMPILER", so the cmake path is dead here. Build the
+    # host-side TUs with plain g++ instead (verified on-node 2026-10-21: .so
+    # registers _C::weak_ref_tensor on CUDA and weak-refs a cuda:0 tensor).
+    # python 3.10 -> the wheel folds to cp310.
+    gpp_direct: true
+    apt: [libgflags-dev, libgoogle-glog-dev]
+
+  metax-maca3.7.2.1:
+    apt: [libgflags-dev, libgoogle-glog-dev]
+    # Same MACA CUDA-alias torch family as 3.8.1.3 (torch 2.8.0+metax3.7.2.0,
+    # no nvcc), so the metax_mxcc g++-direct recipe transfers verbatim (verified
+    # on-node 2026-10-21). Needs its OWN row (not just the 3.8.1.3 wheel) for
+    # two reasons: the .so must link torch 2.8, not 2.10, and the app image's
+    # bare ==0.3.0 pin resolves per-index to whatever 0.3.0+<label> is newest,
+    # so without a distinct label this backend would pull the 3.8.1.3 wheel and
+    # ABI-break. The per-backend local label (metax.maca3.7.2.1) keeps them apart.
+    metax_mxcc: true
+    cuda_path: /opt/maca/tools/cu-bridge
 
   metax-maca3.8.1.3:
     apt: [libgflags-dev, libgoogle-glog-dev]
