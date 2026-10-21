@@ -52,15 +52,13 @@ on:
         default: 0.24.0
       plugin_fl_version:
         description: >-
-          vllm-plugin-fl wheel version to install (commit-precise pin). Either the
-          tag form copied from a released tag (0.2.2rc2.post2) or the temp form for a
-          pre-merge build (<base>+g<sha7>.d<date>); both come out of the vllm-plugin
-          wheel workflow's log. Native backends (packaging/vllm/plugin-build.yaml)
-          build a labelled wheel, and where one vendor index carries more than one
-          native build (nvidia: cuda12.8 + cuda13.3) the full "<public>+<label>" is
-          required, not decoration — PEP 440 ignores the label in a bare
-          "==<public>" comparison, so a shortened pin would match the wrong
-          backend's build. Empty = skip the plugin install.
+          vllm-plugin-fl public version to install (commit-precise pin): a
+          released tag form (0.2.2rc2.post2) or a temp form
+          (<base>+g<sha7>.d<date>), both from the vllm-plugin wheel workflow's
+          log. Native backends (packaging/vllm/plugin-build.yaml) build a
+          labelled wheel, so the per-backend local label is derived here from the
+          backend key (<public>+<bare-backend>); enter only the public version,
+          never the label. Empty = skip the plugin install.
         type: string
         default: ''
       flagcx_version:
@@ -183,12 +181,43 @@ jobs:
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
+          # PEP 440 normalization (same helper as the wheel workflow): a bare
+          # backend like dtk26.04 must fold to dtk26.4 to match the wheel's own
+          # metadata, else the honesty gate below false-fails on a correct image.
+          python3 -c "import packaging" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages packaging
+          norm() {
+            python3 -c "import sys; from packaging.version import Version; print(Version(sys.argv[1]))" "$1"
+          }
+          # Native backends (packaging/vllm/plugin-build.yaml) install a
+          # labelled wheel whose local label is the bare backend name; derive
+          # it from matrix.name so the single public-version input fans out to
+          # a distinct pin per backend. Pure backends stay at the public tag.
+          # Where the label goes depends on the version form, mirroring the
+          # wheel workflow: the temp form already carries a `+g<sha>.d<date>`
+          # local label (a second `+` is invalid), so the label extends it with
+          # a `.`; the tag form has no local label, so `+` adds one.
           plugin="${{ inputs.plugin_fl_version }}"
           if [[ -n "${plugin}" ]]; then
-              app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
+            native=$(python3 -c '
+            import yaml, sys
+            cfg = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))["backends"]
+            print(1 if "${{ matrix.name }}" in cfg else 0)
+            ')
+            if [[ "${native}" == "1" ]]; then
+              blabel="${{ matrix.name }}"
+              blabel="${blabel#*-}"
+              blabel="${blabel//-/.}"
+              case "${plugin}" in
+                *+*) plugin=$(norm "${plugin}.${blabel}") ;;
+                *)   plugin=$(norm "${plugin}+${blabel}") ;;
+              esac
+            fi
+            app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
           else
-              app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}"
+            app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}"
           fi
+          echo "PLUGIN_FL_VERSION=${plugin}" >> "$GITHUB_ENV"
           echo "APP_TAG=${app_tag}" >> "$GITHUB_ENV"
 
       # Changelog gate: a push must be authorized by a pending changelog entry
@@ -233,7 +262,7 @@ jobs:
             ${proxy_args} \
             --build-arg "RUNTIME_IMAGE=${{ matrix.image_tag }}" \
             --build-arg "VLLM_VERSION=${{ inputs.vllm_version }}" \
-            --build-arg "PLUGIN_FL_VERSION=${{ inputs.plugin_fl_version }}" \
+            --build-arg "PLUGIN_FL_VERSION=${PLUGIN_FL_VERSION}" \
             --build-arg "FLAGCX_VERSION=${{ inputs.flagcx_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \
             --build-arg "EXTRA_PYPI=${{ matrix.extra_pypi }}" \
@@ -243,7 +272,7 @@ jobs:
             --label "org.opencontainers.image.revision=${commit}" \
             --label "org.opencontainers.image.created=${created}" \
             --label "last-updated=${created}" \
-            --label "flagos.plugin=${{ inputs.plugin_fl_version }}" \
+            --label "flagos.plugin=${PLUGIN_FL_VERSION}" \
             --label "flagos.flagcx=${{ inputs.flagcx_version }}" \
             -t "${APP_TAG}" \
             -f app/vllm/Containerfile .
@@ -278,7 +307,7 @@ jobs:
           bash packaging/vllm/verify/verify-vllm-backend.sh \
             "${{ matrix.name }}" \
             --vllm-version "${{ inputs.vllm_version }}" \
-            --plugin-fl-version "${{ inputs.plugin_fl_version }}" \
+            --plugin-fl-version "${PLUGIN_FL_VERSION}" \
             --flagcx-version "${{ inputs.flagcx_version }}" \
             --app-image "${APP_TAG}" \
             ${expect_native}
@@ -298,7 +327,7 @@ jobs:
         if: ${{ !inputs.record_only && inputs.plugin_fl_version != '' }}
         run: |
           set -euo pipefail
-          requested="${{ inputs.plugin_fl_version }}"
+          requested="${PLUGIN_FL_VERSION}"
           installed=$(docker run --rm --entrypoint python3 "${APP_TAG}" \
             -c "import importlib.metadata as m; print(m.version('vllm-plugin-fl'))" 2>/dev/null || true)
           if [ -z "${installed}" ]; then
