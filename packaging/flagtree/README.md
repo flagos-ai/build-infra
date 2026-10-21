@@ -94,13 +94,13 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All nine have one. For `nvidia-cuda`, `metax`,
-`sunrise`, `iluvatar`, `enflame`, `hcu` and `tsingmicro` the stage starts from a
-bare `ubuntu:22.04`
-and is the `BUILDER_IMAGE` default; for the ascend pair its cold value is the
-backend's runtime image, which is why `backends.yaml` marks those rows
-`base_image: runtime` and the builder line resolves their `BUILDER_IMAGE` from
-`generate_matrix.py --runtime` instead of letting the Containerfile default.
+into FlagTree's offline cache). All ten have one. For `nvidia-cuda`, `metax`,
+`sunrise`, `iluvatar`, `enflame`, `hcu`, `tsingmicro` and `mthreads` the stage
+starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default; for the
+ascend pair its cold value is the backend's runtime image, which is why
+`backends.yaml` marks those rows `base_image: runtime` and the builder line
+resolves their `BUILDER_IMAGE` from `generate_matrix.py --runtime` instead of
+letting the Containerfile default.
 
 `.github/workflows/flagtree-builder.yml` publishes all of them in one matrix —
 one job per entry in `backends.yaml`, which is where a backend's build-line facts
@@ -112,8 +112,8 @@ CANN line and version, its staged LLVM and the triton deps; the other four asser
 a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
 same assertions as data: the interpreter, the executables, the paths. The block
 is rendered by one generic step, so a backend staged like its predecessors needs
-a row and no workflow step at all. `enflame`, `hcu` and `tsingmicro` are the
-three of those, and the four that came before them keep their own steps.
+a row and no workflow step at all. `enflame`, `hcu`, `tsingmicro` and `mthreads`
+are the four of those, and the four that came before them keep their own steps.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 

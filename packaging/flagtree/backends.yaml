@@ -222,6 +222,46 @@ backends:
       # cp310: the 22.04 system interpreter, same as sunrise and hcu.
       wheel_tag: cp310-cp310-linux_x86_64
 
+  # Like tsingmicro: the same shape as metax's stage (apt toolchain, the
+  # backend's prebuilt LLVM and the shared triton deps into FlagTree's cache),
+  # with the 22.04 system python 3.10 rather than deadsnakes. Its second staged
+  # cache is the vendor's local `llc`/`ld.lld`, which the backend resolves by
+  # bare name and setup.py copies into `backend/bin` -- hence the two extra
+  # files below.
+  mthreads:
+    containerfile: mthreads
+    builder_image: flagtree-builder-mthreads
+    runson: ["self-hosted", "musa520"]
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.10"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+          # FlagTreeOptions.cmake names the staged LLVM's clang/clang++ as this
+          # backend's compilers and puts its bin on PATH, so no apt clang is
+          # installed and this one is the only compiler the build may resolve.
+          # CMakeLists also copies this FileCheck into the wheel.
+          - /root/.flagtree/mthreads/mthreads-llvm22/bin/clang
+          - /root/.flagtree/mthreads/mthreads-llvm22/bin/FileCheck
+          # The vendor's local backend tools: compiler.py resolves `llc` and
+          # `ld.lld` by bare name through the cache's copy_dst_path.
+          - /root/.flagtree/mthreads/mthreads_local_binary/llc
+          - /root/.flagtree/mthreads/mthreads_local_binary/ld.lld
+        dirs:
+          # The two find_package() contracts: MLIR via the default MLIR_DIR and
+          # LLD via the sibling LLD_DIR, neither of which is an apt package.
+          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir
+          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld
+    daily:
+      enabled: false
+      dist_name: flagtree-mthreads
+      version_base: "0.7.1"
+      ref: main
+      # cp310: the 22.04 system interpreter, same as sunrise, hcu and tsingmicro.
+      wheel_tag: cp310-cp310-linux_x86_64
+
   ascend-cann9.0.0:
     containerfile: ascend-cann9.0.0
     builder_image: flagtree-builder-ascend-cann9.0.0
