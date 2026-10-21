@@ -72,6 +72,12 @@
 #                   enable_language(CUDA) — kunlunxin (+cu129) is this shape:
 #                   no nvcc, no pip cmake, and the cmake path proved dead
 #                   (verified on-node 2026-10-21).
+#   torch_prefix    g++ rows only (gpp_direct / metax_mxcc): the absolute
+#                   site-packages/torch prefix, hardcoded instead of derived
+#                   from `import torch`. Needed on kunlunxin, whose torch prints
+#                   a stdout banner on import that would pollute any
+#                   $(python3 -c "import torch") capture; the prefix is stable
+#                   per runtime image, so all g++ rows hardcode it.
 
 backends:
   hygon-dtk26.04:
@@ -86,7 +92,14 @@ backends:
     # host-side TUs with plain g++ instead (verified on-node 2026-10-21: .so
     # registers _C::weak_ref_tensor on CUDA and weak-refs a cuda:0 tensor).
     # python 3.10 -> the wheel folds to cp310.
+    # NO torch.__file__ derivation: importing torch on kunlunxin prints a
+    # "Libraries loaded from different directories!" banner to STDOUT (with
+    # dashes), which would land in any $(python3 -c "import torch; ...") capture
+    # and reach g++ as flags. The site-packages prefix is a stable absolute path
+    # in every backend's runtime image, so hardcode it the way the on-node
+    # verification did (klx_gpp2.sh) and keep the build banner-free.
     gpp_direct: true
+    torch_prefix: /flagos/lib/python3.10/site-packages/torch
     apt: [libgflags-dev, libgoogle-glog-dev]
 
   metax-maca3.7.2.1:
@@ -99,6 +112,7 @@ backends:
     # so without a distinct label this backend would pull the 3.8.1.3 wheel and
     # ABI-break. The per-backend local label (metax.maca3.7.2.1) keeps them apart.
     metax_mxcc: true
+    torch_prefix: /flagos/lib/python3.12/site-packages/torch
     cuda_path: /opt/maca/tools/cu-bridge
 
   metax-maca3.8.1.3:
@@ -111,6 +125,7 @@ backends:
     # recipe in vllm-plugin-wheel.yml; the two host-side .cpp TUs are compiled
     # with g++ -DUSE_MACA (no device code, so no arch is needed).
     metax_mxcc: true
+    torch_prefix: /flagos/lib/python3.12/site-packages/torch
     # Kept for the record only: metax's mxcc-direct build does not read
     # CUDA_PATH (its includes/libs are resolved inline from MACA_PATH).
     cuda_path: /opt/maca/tools/cu-bridge

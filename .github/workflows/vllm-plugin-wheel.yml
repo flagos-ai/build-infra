@@ -672,6 +672,7 @@ jobs:
               "cuda_extra_apt": " ".join(cfg.get("cuda_extra_apt") or []),
               "metax_mxcc": bool(cfg.get("metax_mxcc")),
               "gpp_direct": bool(cfg.get("gpp_direct")),
+              "torch_prefix": cfg.get("torch_prefix") or "",
               "cuda_path": cfg.get("cuda_path") or "",
           }))
           PY
@@ -810,8 +811,10 @@ jobs:
               # fold-in is a basename move, matching the cmake install target)
               # for the host-side injection step to fold into the pure-python
               # wheel (the cmake/find_package(Torch) path is skipped for these
-              # rows — see below). torchlib is derived from torch.__file__ so
-              # python3.10 (kunlunxin) and python3.12 (metax) both resolve.
+              # rows — see below). torchroot is read from the per-backend
+              # torch_prefix (never imported — see the comment inside the
+              # function), so python3.10 (kunlunxin) and python3.12 (metax)
+              # both resolve.
               # (No apostrophes in these comments: this block is a single-quoted
               # `bash -c` argument.)
               build_gpp_from_source() {
@@ -821,20 +824,19 @@ jobs:
                   cxx_extra_defs="-DUSE_MACA"
                   cxx_extra_incs="-I/opt/maca/tools/cu-bridge/include -I/opt/maca/include"
                 fi
-                torchlib=$(python3 -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), \"lib\"))")
+                # The torch root is hardcoded per backend (torch_prefix in
+                # plugin-build.yaml) rather than derived from `import torch`:
+                # the kunlunxin torch (2.9.0+cu129) prints a "Libraries loaded
+                # from different directories!" banner (with dashes) to STDOUT
+                # on import, and any $(python3 -c "import torch; ...") capture
+                # — torchlib, torchincs — picks those dashes up and reaches g++
+                # as flags. The site-packages prefix is a stable absolute path
+                # in every runtime image (verified on-node 2026-10-21), so the
+                # g++ rows read it from the config instead of importing torch.
+                torchroot="$(apt_list torch_prefix)"
+                torchlib="${torchroot}/lib"
+                torchincs="-I${torchroot}/include -I${torchroot}/include/torch/csrc/api/include"
                 pyinc=$(python3 -c "import sysconfig; print(sysconfig.get_paths()[\"include\"])")
-                # Derive the torch include dirs from torch.__file__ instead of
-                # torch.utils.cpp_extension.include_paths(): the kunlunxin torch
-                # (2.9.0+cu129) prints a "Libraries loaded from different
-                # directories!" banner (with dashes) to STDOUT on that call, and
-                # the dashes land in this variable and reach g++ as flags. The
-                # two dirs below are the whole include_paths() surface these
-                # host-side TUs use (verified on-node 2026-10-21). NOTE the
-                # python one-liner must not contain single quotes: this whole
-                # build block is a single-quoted bash -c argument, so any
-                # apostrophe (or a stray unclosed quote) truncates the heredoc
-                # mid-line and bash fails with "unexpected end of file".
-                torchincs=$(TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -c "import os, torch; p=os.path.dirname(torch.__file__); print(\"-I\"+os.path.join(p,\"include\"), \"-I\"+os.path.join(p,\"include\",\"torch\",\"csrc\",\"api\",\"include\"))")
                 soext=$(python3 -c "import sysconfig; print(sysconfig.get_config_var(\"EXT_SUFFIX\"))")
                 mkdir -p /build/gpp /work/out/vllm_fl
                 g++ -shared -fPIC -std=c++17 -O2 ${cxx_extra_defs} -DTORCH_EXTENSION_NAME=_C \
