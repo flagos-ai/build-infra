@@ -215,7 +215,7 @@ backends:
           - /root/.triton/nvidia/cudart
           - /root/.triton/nvidia/cupti
     daily:
-      enabled: false
+      enabled: true
       dist_name: flagtree-tsingmicro
       version_base: "0.7.1"
       ref: main

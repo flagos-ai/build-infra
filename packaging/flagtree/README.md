@@ -247,6 +247,18 @@ each of `tsingmicro.py`'s two cache entries short-circuits on the variable its
 post-hook would export (`LLVM_SYSPATH`, `TX8_DEPS_ROOT`), so exporting either
 sends the build to the vendor's ks3 bucket instead of the staged tree.
 
+**Verified on a TX8110 node** (tsm-249, 2026-10-21). The wheel built on the
+published builder imports on the `flagos-runtime-tsingmicro-tsm260610` image and
+runs a real kernel: `import triton` reports triton 3.6.0 with
+`backends == ['tsingmicro']`, the driver resolves
+`GPUTarget(backend='txda', arch=1, warp_size=16)`, and a vector-add kernel
+returns `max diff 0.0` against torch's own result. The runtime image already
+carries the vendor's flagtree at `/opt/flagtree` on `PYTHONPATH`, so the check
+installs the wheel to its own directory and prepends it — a bare `import triton`
+would resolve to the vendor tree and prove nothing. The container needs
+`--device /dev/accel --device /dev/accel_drv_mgr`; without them `torch_txda`
+aborts at import, which is the same reason the build stage has no smoke test.
+
 ## NVIDIA builder (`nvidia-cuda`)
 
 `nvidia-cuda` splits its build environment from the ref the way `metax` does.
@@ -697,8 +709,8 @@ record the source commit (see below).
 `.github/workflows/flagtree-wheel-daily.yml` builds one wheel per day and
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
-`flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu` and
-the ascend pair today. The release line
+`flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
+`flagtree-tsingmicro` and the ascend pair today. The release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
 
