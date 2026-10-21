@@ -917,6 +917,17 @@ jobs:
               command -v git >/dev/null \
                 || { echo "ERROR: no git in the build image — setuptools-scm would ship a wheel missing vllm_fl/dispatch/README.md" >&2; exit 1; }
               cd /build/src
+              # flagcx auto-loads as a torch privateuse1 backend extension when
+              # torch first imports; on the build runners the nvidia runtime
+              # image has no GPU, so libcuda.so.1 is absent and the extension
+              # raises ImportError -> torch does not expose its CMake package ->
+              # find_package(Torch) fails with "Could not find ... Torch". The
+              # same guard the metax torchincs lookup already uses disables the
+              # auto-load; torch then presents its CMake config from headers +
+              # libs alone, which is all the host-side _C build needs. Set it
+              # for every native row: hygon/metax never auto-load on nvidia, and
+              # nvidia never auto-loads there.
+              export TORCH_DEVICE_BACKEND_AUTOLOAD=0
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" \
                 "setuptools>=77,<81" "setuptools-scm>=8" "wheel"
               export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM_PLUGIN_FL="${PLUGIN_VERSION}"
