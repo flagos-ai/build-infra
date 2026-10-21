@@ -122,7 +122,11 @@ backends:
     # ubuntu2404 CUDA repo carries no unversioned libcurand-dev/cuda-cccl, and
     # only the -dev flavor (which depends on the held runtime libcublas-12-8
     # at its exact installed version) can coexist with the base's pinned libs.
-    cuda_extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8]
+    # nvrtc-dev is separate from the others: torch's TorchConfig always link-
+    # appends libnvrtc (CUDA_nvrtc_LIBRARY), so with no nvrtc package the
+    # generate step dies on a NOTFOUND. The plugin csrc never calls NVRTC —
+    # the header/lib are transitive torch-link requirements only.
+    cuda_extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8, cuda-nvrtc-dev-12-8]
     apt: [libgflags-dev, libgoogle-glog-dev]
 
   nvidia-cuda13.3:
@@ -133,5 +137,6 @@ backends:
     # "held broken packages". The workflow unholds libcublas-<track> first (the
     # build container is disposable and the .so links no math lib), which is
     # what lets the versioned -dev land beside the upgraded runtime lib.
-    cuda_extra_apt: [libcurand-dev-13-3, cccl-13-3, libcublas-dev-13-3, libcusparse-dev-13-3, libcusolver-dev-13-3, libcufft-dev-13-3]
+    # Same nvrtc-dev rationale as 12.8.
+    cuda_extra_apt: [libcurand-dev-13-3, cccl-13-3, libcublas-dev-13-3, libcusparse-dev-13-3, libcusolver-dev-13-3, libcufft-dev-13-3, cuda-nvrtc-dev-13-3]
     apt: [libgflags-dev, libgoogle-glog-dev]
