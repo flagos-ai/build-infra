@@ -569,9 +569,9 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+cuda12.8
     pypi_index: flagos-pypi-nvidia
-    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 NVIDIA CUDA 12.8 后端推理补齐 vLLM 算子与服务能力。
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为通用 GPU 环境 12.8 后端推理补齐 vLLM 算子与服务能力。
     desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
-      and serving for the NVIDIA CUDA 12.8 platform.
+      and serving for the Generic GPU 12.8 platform.
     notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
     notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
       for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
@@ -583,9 +583,9 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+cuda13.3
     pypi_index: flagos-pypi-nvidia
-    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 NVIDIA CUDA 13.3 后端推理补齐 vLLM 算子与服务能力。
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为通用 GPU 环境 13.3 后端推理补齐 vLLM 算子与服务能力。
     desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
-      and serving for the NVIDIA CUDA 13.3 platform.
+      and serving for the Generic GPU 13.3 platform.
     notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
     notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
       for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
