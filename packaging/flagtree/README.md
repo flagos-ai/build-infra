@@ -259,6 +259,46 @@ would resolve to the vendor tree and prove nothing. The container needs
 `--device /dev/accel --device /dev/accel_drv_mgr`; without them `torch_txda`
 aborts at import, which is the same reason the build stage has no smoke test.
 
+## Mthreads builder (`mthreads`)
+
+The same shape as `hcu` — bare `ubuntu:22.04`, apt toolchain, the backend's
+prebuilt inputs into FlagTree's offline cache — with these differences.
+
+**It is the system python 3.10.** `configs.yaml` pins both mthreads backends at
+python 3.10, so the wheel has to wear `cp310`; 22.04 ships that interpreter, so
+there is no PPA to wire by hand.
+
+**Two prebuilt trees, and the local binary is the one that moves.**
+`mthreads.py` registers `mthreads-llvm22` and `mthreads_local_binary`. The first
+is the LLVM the backend compiles with; the second is the vendor's `llc` and
+`ld.lld`, which `compiler.py` resolves by bare name. Its version is not pinned to
+the LLVM's: `mthreads.py` declares v0.7.0 on `main` and v0.6.1 on the tag the
+wheel stage defaults to, and FlagTree adopts a cache by *directory* name without
+ever comparing versions — so the tarball is an `ARG`, the default follows the
+daily's ref, and a build on the tag passes the other name.
+
+**No apt clang.** `FlagTreeOptions.cmake` puts the staged LLVM's `bin` on PATH and
+names its `clang`/`clang++` as this backend's compilers, so an apt clang would be
+a second one the build never looks at — and it copies the staged `FileCheck` into
+the wheel.
+
+**No pybind11 pin.** As with enflame and hcu, no prebuilt `.so` is an ABI
+counterparty, so the gate asserts the invariant instead: `libtriton.so` and every
+other tagged `.so` in `triton/_C` carry the same pybind11 internals version as the
+`pybind11` the build installed.
+
+**Verified on an MTT S5000 node** (2026-10-21). The wheel built on the published
+builder imports on the `flagos-runtime-mthreads-musa5.2.0` image and runs a real
+kernel: `import triton` reports triton 3.6.0 with `backends == ['mthreads']`, the
+`Source-Commit` URL is in its metadata, and a vector-add kernel returns
+`max abs err: 0.0`. Like tsingmicro, the runtime image already carries the
+vendor's flagtree at `/opt/flagtree` on `PYTHONPATH`, so the check installs the
+wheel to its own directory and prepends it — a bare `import triton` would resolve
+to the vendor tree and prove nothing. The container needs
+`--device /dev/mtgpu.0 --device /dev/dri` (the flags `build-config.yml` records
+for this vendor); the driver imports no MUSA library at module scope, so the
+import alone does not need them, but the kernel launch does.
+
 ## NVIDIA builder (`nvidia-cuda`)
 
 `nvidia-cuda` splits its build environment from the ref the way `metax` does.
@@ -710,7 +750,8 @@ record the source commit (see below).
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
-`flagtree-tsingmicro` and the ascend pair today. The release line
+`flagtree-tsingmicro`, `flagtree-mthreads` and the ascend pair today. The
+release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
 
