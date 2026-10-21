@@ -513,10 +513,12 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+dtk26.4
     pypi_index: flagos-pypi-hygon
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 Hygon DTK 26.04 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
+      and serving for the Hygon DTK 26.04 platform.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA/HIP 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
+      for CUDA/HIP graph capture, avoiding the VRAM leak of the pure-Python fallback.
     python:
     - cp310
     os:
@@ -525,10 +527,12 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+xre5.37.1
     pypi_index: flagos-pypi-kunlunxin
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为昆仑芯 P800（XRE 5.37.1）后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
+      and serving for the Kunlunxin P800 (XRE 5.37.1) platform.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
+      for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
     python:
     - cp310
     os:
@@ -537,10 +541,12 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+maca3.7.2.1
     pypi_index: flagos-pypi-metax
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 MetaX MACA 3.7.2.1 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
+      and serving for the MetaX MACA 3.7.2.1 platform.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
+      for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
     python:
     - cp312
     os:
@@ -549,10 +555,12 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+maca3.8.1.3
     pypi_index: flagos-pypi-metax
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 MetaX MACA 3.8.x 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
+      and serving for the MetaX MACA 3.8.x platform.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
+      for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
     python:
     - cp312
     os:
@@ -561,10 +569,12 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+cuda12.8
     pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 NVIDIA CUDA 12.8 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
+      and serving for the NVIDIA CUDA 12.8 platform.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
+      for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
     python:
     - cp312
     os:
@@ -573,10 +583,12 @@ wheels:
     - linux_x86_64
   - version: 0.3.0+cuda13.3
     pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为 NVIDIA CUDA 13.3 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
+      and serving for the NVIDIA CUDA 13.3 platform.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference
+      for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
     python:
     - cp312
     os:
