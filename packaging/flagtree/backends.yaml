@@ -255,7 +255,7 @@ backends:
           - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir
           - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld
     daily:
-      enabled: false
+      enabled: true
       dist_name: flagtree-mthreads
       version_base: "0.7.1"
       ref: main
