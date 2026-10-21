@@ -952,10 +952,15 @@ jobs:
           # member before it can reach upload.
           # The heredoc is quoted, so bash does not expand ${WORK} inside it —
           # pass the out dir as argv and glob sys.argv[1].
-          # metax: fold the g++ .so into the pure-python wheel (vllm_fl/_C<tag>)
-          # and re-record. The native wheel must differ from the pure-python
-          # 0.3.0 fan-out only by this member; the label already distinguishes
-          # the two on the shared nvidia index, and metax has its own index.
+          # metax: fold the g++ .so into the wheel and make the wheel tell the
+          # truth about itself. A wheel that carries a compiled _C<tag>.so is
+          # NOT pure-Python, whatever its filename says — the catalog
+          # (scripts/gen_wheel_info.py) derives python/os/arch from the wheel
+          # FILENAME, so the filename (and the WHEEL metadata pip reads off it)
+          # both have to become cp312 / linux / linux_x86_64 or the record will
+          # keep writing "any". The pure 0.3.0 fan-out stays py3-none-any; the
+          # +metax label already distinguishes the two on the shared index, and
+          # metax has its own.
           if [ -n "$(ls "${WORK}"/out/vllm_fl/_C*.so 2>/dev/null)" ]; then
             python3 - "${WORK}/out" <<'PY'
           import base64, glob, hashlib, os, sys, zipfile
@@ -964,27 +969,49 @@ jobs:
           assert len(so) == 1, f"expected one staged .so, got {so}"
           whl = glob.glob(out + "/*.whl")
           assert len(whl) == 1, f"expected one wheel, got {whl}"
+          # The staged .so is _C.cpython-312-x86_64-linux-gnu.so: the module
+          # stem `_C` + sysconfig EXT_SUFFIX. Strip both, and the tag that is
+          # left (cpython-<ver>-<arch>-<os>) is the platform the wheel now
+          # actually targets. The catalog's platform-tag vocabulary is
+          # linux_<arch> (see scripts/gen_wheel_info.py _OS_ARCH), so that is
+          # the filename AND WHEEL Tag platform — the two must agree.
+          soname = os.path.basename(so[0])
+          tag = soname[len("_C"):-len(".so")]
+          _interp, vermin, arch, _os = tag.split("-", 3)
+          python_tag = "cp" + vermin
+          plat = "linux_" + arch
+          dist, ver, _py, _abi2, _plat = os.path.basename(whl[0])[:-len(".whl")].split("-")
+          newname = f"{dist}-{ver}-{python_tag}-{python_tag}-{plat}.whl"
           member = "vllm_fl/" + os.path.basename(so[0])
           data = open(so[0], "rb").read()
           digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
           line = f"{member},sha256={digest},{len(data)}"
-          tmp = whl[0] + ".tmp"
+          new_whl = os.path.join(out, newname)
+          assert new_whl != whl[0], "wheel already carries the native tag"
           with zipfile.ZipFile(whl[0]) as zin, \
-               zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
-              rec_name = None
+               zipfile.ZipFile(new_whl, "w", zipfile.ZIP_DEFLATED) as zout:
+              wheel_name = rec_name = None
               for n in zin.namelist():
                   if n == member:
+                      continue
+                  if n.endswith(".dist-info/WHEEL"):
+                      wheel_name = n
                       continue
                   if n.endswith(".dist-info/RECORD"):
                       rec_name = n
                       continue
                   zout.writestr(n, zin.read(n))
+              assert wheel_name, "no WHEEL in the wheel"
               assert rec_name, "no RECORD in the wheel"
+              wmeta = zin.read(wheel_name).decode()
+              wmeta = wmeta.replace("Tag: py3-none-any", f"Tag: {python_tag}-{python_tag}-{plat}")
+              wmeta = wmeta.replace("Root-Is-Purelib: true", "Root-Is-Purelib: false")
               rec = zin.read(rec_name).decode()
               zout.writestr(member, data)
+              zout.writestr(wheel_name, wmeta)
               zout.writestr(rec_name, rec.rstrip("\n") + "\n" + line + "\n")
-          os.replace(tmp, whl[0])
-          print("folded", member, "into", whl[0])
+          os.remove(whl[0])
+          print("folded", member, "into", newname)
           PY
           fi
           python3 - "${WORK}/out" <<'PY'
