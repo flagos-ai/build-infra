@@ -570,6 +570,9 @@ jobs:
     uses: ./.github/workflows/record-wheel-info.yml
     with:
       workflow: vllm-plugin
+      # This run also uploads wheel-info-manifest-native-* (build-native); the
+      # bare default pattern would cross-download them into the pure record.
+      manifest_pattern: wheel-info-manifest-*
 
   # Which native backends to build, resolved on ubuntu-latest into a concrete
   # matrix (runson / image_tag / flagos_pypi / extra_pypi) so the self-hosted
@@ -1157,3 +1160,7 @@ jobs:
     uses: ./.github/workflows/record-wheel-info.yml
     with:
       workflow: vllm-plugin-native
+      # Narrow to the native manifests only: the pure build's
+      # wheel-info-manifest-* (also uploaded this run) would otherwise be
+      # cross-downloaded and double-recorded into the native catalog rows.
+      manifest_pattern: wheel-info-manifest-native-*

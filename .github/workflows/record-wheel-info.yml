@@ -52,6 +52,16 @@ on:
         description: 'PR base ref (default: GITHUB_REF_NAME or main)'
         required: false
         type: string
+      manifest_pattern:
+        description: >-
+          download-artifact glob for this workflow's publish manifests
+          (default: wheel-info-manifest-*). Callers that publish more than one
+          kind of wheel and therefore run more than one record job in the same
+          run MUST pass a narrower pattern, or the jobs cross-download each
+          other's manifests.
+        required: false
+        type: string
+        default: wheel-info-manifest-*
 
 defaults:
   run:
@@ -72,7 +82,7 @@ jobs:
         # failure of the record — the merge step below says so and skips.
         continue-on-error: true
         with:
-          pattern: wheel-info-manifest-*
+          pattern: ${{ inputs.manifest_pattern }}
           path: .wheel-info-dl
       - name: Merge the manifests
         id: merge
