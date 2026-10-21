@@ -511,6 +511,78 @@ wheels:
     - linux
     arch:
     - linux_x86_64
+  - version: 0.3.0+dtk26.4
+    pypi_index: flagos-pypi-hygon
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp310
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: 0.3.0+xre5.37.1
+    pypi_index: flagos-pypi-kunlunxin
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp310
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: 0.3.0+maca3.7.2.1
+    pypi_index: flagos-pypi-metax
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: 0.3.0+maca3.8.1.3
+    pypi_index: flagos-pypi-metax
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: 0.3.0+cuda12.8
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: 0.3.0+cuda13.3
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
 - name: megatron-core
   short_name: Megatron-LM-FL
   versions:
