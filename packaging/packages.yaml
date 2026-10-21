@@ -477,7 +477,16 @@ wheels:
     arch:
     - any
   - version: 0.3.0
-    pypi_index: flagos-pypi-hosted
+    pypi_index:
+    - flagos-pypi-hosted
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-enflame
+    - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
+    - flagos-pypi-mthreads
+    - flagos-pypi-sunrise
+    - flagos-pypi-tsingmicro
     desc_zh: 面向 vLLM 0.24.0 线的 FlagOS 插件安装包，为多后端推理补齐 vLLM 算子与服务能力。
     desc_en: FlagOS plugin wheel for the vLLM 0.24.0 line, extending vLLM operators
       and serving across domestic backends.
@@ -489,6 +498,18 @@ wheels:
     - any
     arch:
     - any
+  - version: 0.3.0+hygon.dtk26.4
+    pypi_index: flagos-pypi-hygon
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp310
+    os:
+    - linux
+    arch:
+    - linux_x86_64
 - name: megatron-core
   short_name: Megatron-LM-FL
   versions:
