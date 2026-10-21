@@ -823,7 +823,14 @@ jobs:
                 fi
                 torchlib=$(python3 -c "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), \"lib\"))")
                 pyinc=$(python3 -c "import sysconfig; print(sysconfig.get_paths()[\"include\"])")
-                torchincs=$(TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -c "from torch.utils.cpp_extension import include_paths; print(\" \".join(\"-I\"+p for p in include_paths()))")
+                # Derive the torch include dirs from torch.__file__ instead of
+                # torch.utils.cpp_extension.include_paths(): kunlunxin's torch
+                # (2.9.0+cu129) prints a "Libraries loaded from different
+                # directories!" banner (with dashes) to STDOUT on that call, and
+                # the dashes land in this variable and reach g++ as flags. The
+                # two dirs below are the whole include_paths() surface these
+                # host-side TUs use (verified on-node 2026-10-21).
+                torchincs=$(TORCH_DEVICE_BACKEND_AUTOLOAD=0 python3 -c "import os, torch; p=os.path.dirname(torch.__file__); print('-I'+os.path.join(p,'include'), '-I'+os.path.join(p,'include','torch','csrc','api','include'))")
                 soext=$(python3 -c "import sysconfig; print(sysconfig.get_config_var(\"EXT_SUFFIX\"))")
                 mkdir -p /build/gpp /work/out/vllm_fl
                 g++ -shared -fPIC -std=c++17 -O2 ${cxx_extra_defs} -DTORCH_EXTENSION_NAME=_C \
