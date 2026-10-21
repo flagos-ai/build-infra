@@ -961,14 +961,16 @@ jobs:
           # The staged .so is _C.cpython-312-x86_64-linux-gnu.so: the module
           # stem `_C` + sysconfig EXT_SUFFIX. Strip both, and the tag that is
           # left (cpython-<ver>-<arch>-<os>) is the platform the wheel now
-          # actually targets.
+          # actually targets. The catalog's platform-tag vocabulary is
+          # linux_<arch> (see scripts/gen_wheel_info.py _OS_ARCH), so that is
+          # the filename AND WHEEL Tag platform — the two must agree.
           soname = os.path.basename(so[0])
           tag = soname[len("_C"):-len(".so")]
           _interp, vermin, arch, _os = tag.split("-", 3)
           python_tag = "cp" + vermin
-          plat = {"x86_64": "manylinux_2_28_x86_64"}.get(arch, arch + "_linux")
+          plat = "linux_" + arch
           dist, ver, _py, _abi2, _plat = os.path.basename(whl[0])[:-len(".whl")].split("-")
-          newname = f"{dist}-{ver}-{python_tag}-{python_tag}-linux_x86_64.whl"
+          newname = f"{dist}-{ver}-{python_tag}-{python_tag}-{plat}.whl"
           member = "vllm_fl/" + os.path.basename(so[0])
           data = open(so[0], "rb").read()
           digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
