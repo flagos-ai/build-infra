@@ -105,12 +105,11 @@ RUN set -eu; \
     && test -f /root/.triton/json/include/nlohmann/json.hpp \
     && touch /opt/flagtree-build-env.ready
 
-# Every extraction above lands under the name xpu.py's cache uses, which is not
-# always the tarball's own root: the two LLVM 19 packages share a root name and
-# the cache wants `xtdk-llvm19` / `xtdk-llvm19-printf`, so they are renamed in
-# place. The triton toolkits tarball is the other shape -- rooted at `.triton/`,
-# so it is the one that gets a strip. No `--strip-components` on the LLVM 19
-# pair: it would flatten `lib/clang/19/include/xpu/kernel/xtdk.h`, which a
+# Every extraction lands under the name xpu.py's cache uses, which is not always
+# the tarball's root: the two LLVM 19 packages share a root and the cache wants
+# `xtdk-llvm19` / `xtdk-llvm19-printf`, so those are renamed in place. Only the
+# triton toolkits tarball is rooted at `.triton/`, so it is the one that gets a
+# strip -- stripping the LLVM 19 pair would flatten `xpu/kernel/xtdk.h`, which a
 # `tle.raw` payload includes by that path.
 
 # LLVM_SYSPATH and TRITON_USE_XTDK_FRONTEND are deliberately NOT set. Both LLVM
