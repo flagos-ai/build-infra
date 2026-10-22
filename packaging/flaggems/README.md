@@ -16,6 +16,10 @@
 
 # FlagGems wheel builder
 
+**`DESIGN.md` is the design of record** — why the pure-Python wheel needs no
+container, where the cpp wheel and deb fit, and how each version is derived.
+This file is only how to run it.
+
 Builds the **pure-Python `flag_gems` wheel** from FlagGems source and uploads it
 to the internal PyPI, daily.
 
@@ -29,7 +33,8 @@ version; the checkout just has to include tags.
 
 > The per-vendor **C++ operator** wheels (`flag-gems-cpp-<vendor>`) are a
 > separate, rarely-rebuilt artifact that *does* need a base image to compile —
-> not built here. See the design doc (§3).
+> not built here. See `DESIGN.md` and the release path in
+> `scripts/release_flaggems.py`.
 
 ## Build
 

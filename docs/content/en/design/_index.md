@@ -37,3 +37,5 @@ file, not this site.
 - **[FlagCX]({{< relref "flagcx" >}})** — the collective-communication library's
   deb/wheel/builder channels, the one-artifact-per-backend rule, and the
   glibc floor.
+- **[FlagGems]({{< relref "flaggems" >}})** — the pure-Python `flag_gems` wheel,
+  the per-backend cpp wheel, and the upstream-owned deb.
