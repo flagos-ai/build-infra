@@ -33,3 +33,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
   wheel、`--target builder` 阶段拆分，以及每日线。
 - **[FlagCX]({{< relref "flagcx" >}})** —— 集合通信库的 deb/wheel/builder 三条
   通道、每个后端一个产物的规则，以及 glibc floor。
+- **[FlagGems]({{< relref "flaggems" >}})** —— 纯 Python 的 `flag_gems` wheel、
+  每个后端的 cpp wheel，以及上游自有的 deb。
