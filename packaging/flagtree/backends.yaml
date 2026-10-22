@@ -262,6 +262,59 @@ backends:
       # cp310: the 22.04 system interpreter, same as sunrise, hcu and tsingmicro.
       wheel_tag: cp310-cp310-linux_x86_64
 
+  kunlunxin:
+    containerfile: kunlunxin
+    builder_image: flagtree-builder-kunlunxin
+    # The backend's own nodes, same reason as metax, iluvatar and the rest: the
+    # daily is dispatched for every backend at once and one shared runner would
+    # serialize that. This build touches no XPU hardware.
+    runson: ["self-hosted", "kunlunxin"]
+    # Ten staged tarballs, ~13 GiB uncompressed, plus the compile.
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.10"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+          # The default (public-LLVM) frontend, and the source of `llc19`'s
+          # find_package(MLIR)/find_package(LLD) contracts. The bundled patchelf
+          # is load-bearing too: without one the LLVM 19 tools keep their
+          # DT_RUNPATH and an older ambient libLLVM can win.
+          - /root/.flagtree/xpu/llvm-pub22/lib/cmake/mlir/MLIRConfig.cmake
+          - /root/.flagtree/xpu/llvm-pub22/lib/cmake/lld/LLDConfig.cmake
+          - /root/.flagtree/xpu/llvm-pub22/bin/patchelf
+          # The fallback (XTDK) frontend. Its only unconditionally-staged file is
+          # the elfconv wrapper: no other package carries it.
+          - /root/.flagtree/xpu/llvm_trust/bin/xpu3-elfconv-triton
+          # The `llc19` toolchain. Every LLVM 19 tool in this staging has to come
+          # from this one package -- `llc` produces the kernel object and `clang`
+          # the CRT object, and the two agree on the `.XPU.attributes` section
+          # type only within one package.
+          - /root/.flagtree/xpu/xtdk-llvm19/bin/llc
+          - /root/.flagtree/xpu/xtdk-llvm19/lib/libLLVM.so.19.1
+          # The device printf runtime, pinned to its own release: the toolchain
+          # snapshot carries the old protocol, which fails `test_print` wholesale.
+          - /root/.flagtree/xpu/xtdk-llvm19-printf/lib/linux/libclang_rt.xpuprintf-xpu3.a
+          # The two prebuilt-object caches the backend compiles against, and the
+          # runtime .so overlay that replaces what cmake copies into xpu3/so.
+          - /root/.flagtree/xpu/xpu-sdnn-objects/lib/Dialect/TritonSDNN/Transforms/DSACopy.cpp.o
+          - /root/.flagtree/xpu/xpu-python-impl-so/python/triton/backends/intrinsic_tables.abi3.so
+          - /root/.flagtree/xpu/xpu-runtime-so/libxpurt.so.12.9.1.kunlun
+        dirs:
+          # `xre-Linux-x86_64` is reached through a HARDCODED `/xpu/` path in
+          # xpu.py, not through the backend key, so the directory has to be there
+          # under exactly this name.
+          - /root/.flagtree/xpu/xre-Linux-x86_64
+    daily:
+      enabled: true
+      dist_name: flagtree-kunlunxin
+      version_base: "0.7.1"
+      ref: main
+      # cp310: the 22.04 system interpreter, like sunrise, hcu, mthreads and
+      # tsingmicro.
+      wheel_tag: cp310-cp310-linux_x86_64
+
   ascend-cann9.0.0:
     containerfile: ascend-cann9.0.0
     builder_image: flagtree-builder-ascend-cann9.0.0

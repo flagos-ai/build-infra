@@ -19,9 +19,9 @@
 Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
-The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` / `enflame` / `tsingmicro`
-builders start from a plain Ubuntu 22.04 (old glibc: the resulting
-`libtriton.so` must load on 22.04 nodes).
+The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` / `enflame` / `tsingmicro` /
+`mthreads` / `kunlunxin` builders start from a plain Ubuntu 22.04 (old glibc: the
+resulting `libtriton.so` must load on 22.04 nodes).
 The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair's builder stage instead starts
 from **the backend's runtime image**, because FlagTree's Ascend build needs CANN
 on the build machine — see the section below.
@@ -35,6 +35,8 @@ on the build machine — see the section below.
 | `enflame`    | FlagTree for Enflame (GCU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `hcu`        | FlagTree for Hygon (DTK), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `tsingmicro` | FlagTree for Tsingmicro (TX8), builder + wheel | Ubuntu 22.04 + staged clang 22 |
+| `mthreads`   | FlagTree for Moore Threads (MUSA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `kunlunxin`  | FlagTree for Kunlunxin (XPU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann8.5.0` |
 
@@ -94,9 +96,10 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All ten have one. For `nvidia-cuda`, `metax`,
-`sunrise`, `iluvatar`, `enflame`, `hcu`, `tsingmicro` and `mthreads` the stage
-starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default; for the
+into FlagTree's offline cache). All eleven have one. For `nvidia-cuda`, `metax`,
+`sunrise`, `iluvatar`, `enflame`, `hcu`, `tsingmicro`, `mthreads` and `kunlunxin`
+the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default;
+for the
 ascend pair its cold value is the backend's runtime image, which is why
 `backends.yaml` marks those rows `base_image: runtime` and the builder line
 resolves their `BUILDER_IMAGE` from `generate_matrix.py --runtime` instead of
@@ -112,8 +115,9 @@ CANN line and version, its staged LLVM and the triton deps; the other four asser
 a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
 same assertions as data: the interpreter, the executables, the paths. The block
 is rendered by one generic step, so a backend staged like its predecessors needs
-a row and no workflow step at all. `enflame`, `hcu`, `tsingmicro` and `mthreads`
-are the four of those, and the four that came before them keep their own steps.
+a row and no workflow step at all. `enflame`, `hcu`, `tsingmicro`, `mthreads` and
+`kunlunxin` are the five of those, and the four that came before them keep their
+own steps.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
@@ -298,6 +302,70 @@ to the vendor tree and prove nothing. The container needs
 `--device /dev/mtgpu.0 --device /dev/dri` (the flags `build-config.yml` records
 for this vendor); the driver imports no MUSA library at module scope, so the
 import alone does not need them, but the kernel launch does.
+
+## Kunlunxin builder (`kunlunxin`)
+
+The same shape as `mthreads` — bare `ubuntu:22.04`, apt toolchain, the backend's
+prebuilt inputs into FlagTree's offline cache, the 22.04 system python 3.10 and
+therefore a `cp310` wheel — with these differences.
+
+**Ten prebuilt inputs, and the cache is matched by directory name.**
+`xpu.py` fetches each into `~/.flagtree/xpu/<name>` and renames the extracted
+root to that name, so staging is extract plus `mv`, not a plain untar. Two of
+them (the LLVM 19 toolchain and its printf runtime) share the tarball root
+`xtdk-llvm19-ubuntu2004_x86_64` while landing as `xtdk-llvm19` and
+`xtdk-llvm19-printf`, which is why their filestore names carry a version suffix
+— the cache name and the tarball root are different things and only the former
+is what FlagTree looks up. The triton toolkits tarball is the one exception: it
+is rooted at `.triton/` and gets `--strip-components=1`.
+
+**The frontend is an environment variable, so the variable has to stay unset.**
+Both LLVM cache entries short-circuit on `LLVM_SYSPATH`
+(`pre_hook=check_env`) — a value there does not merely skip the staged tree, it
+sends the build to the vendor's URL — and it is also what selects the leg:
+public LLVM is the validated one and what `llvm-pub22` stages, XTDK the
+fallback behind `TRITON_USE_XTDK_FRONTEND`. Neither is set here, so the entries
+run and export the paths themselves. `llvm_trust` is staged and ordered first
+regardless: it is the only package carrying `xpu3-elfconv-triton`.
+
+**pybind11 is pinned to one patch release, 3.0.1.** The backend compiles
+against prebuilt SDNN objects, which embed pybind11 internals **v11** — a tag
+3.0.1 and 3.0.4 both provide. Only the patch release distinguishes them: 3.0.4
+changed the internals constructor (pybind11 #5870) and SIGSEGVs in the
+dispatcher, so the gate compares `pybind11.__version__` against the pin and not
+just the internals tag. FlagTree names this same release in its own
+`_PYBIND11_INTERNALS_TO_PIP` table.
+
+**No apt `patchelf`.** The backend resolves it from `PATH` first and then from
+the copy the public-LLVM tarball bundles; the bundled one is what the vendor's
+own CI takes, so a second one would only add a way for the two to differ.
+
+**No `TRITON_APPEND_CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release`**, unlike `metax`,
+`mthreads` and `tsingmicro`. Kunlunxin's published vendor wheel is built the
+default way (rel-with-asserts), and the optimization level is not a packaging
+detail for a compiler — this builder reproduces the vendor build rather than
+diverging from it. The price is a much larger wheel.
+
+**`xre-Linux-x86_64` keeps its name.** The backend reaches it through a
+hardcoded `/xpu/` path in `xpu.py` rather than through the cache key, so the
+directory has to be there under exactly this name whatever `FLAGTREE_BACKEND`
+says — which is why the row asserts the *directory* and not a file inside it.
+
+**Verified on a P800 node** (2026-10-22). The wheel built on the published
+builder imports on the `flagos-runtime-kunlunxin-xre5.37.1:2.3.0` image with
+`backends == ['xpu']` and a `Source-Commit` in its metadata. Like the other
+backends whose runtime image carries the vendor's flagtree at `/opt/flagtree`
+on `PYTHONPATH`, the check installs the wheel to its own directory and prepends
+it — a bare `import triton` would resolve to the vendor tree and prove nothing.
+
+The kernel check is the one thing about this backend that does not look like
+its siblings: **this stack's torch is a CUDA-alias build, so the P800 is
+reached through `torch.cuda`, not `torch.xpu`** — `torch.cuda.get_device_name()`
+reports `GPU` and `get_device_capability()` `(8, 6)`, and `torch.randn(device=
+"xpu")` raises `Torch not compiled with XPU enabled`. What makes the backend
+*active* is still FlagTree's own xpu one, so the proof is a vector-add kernel
+launched through `torch.cuda` tensors returning `max abs err: 0.0`. The
+container needs `--device /dev/xpu0 --device /dev/xpuctrl`.
 
 ## NVIDIA builder (`nvidia-cuda`)
 
@@ -750,7 +818,8 @@ record the source commit (see below).
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
-`flagtree-tsingmicro`, `flagtree-mthreads` and the ascend pair today. The
+`flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin` and the ascend
+pair today. The
 release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
