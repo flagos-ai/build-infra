@@ -32,3 +32,5 @@ file, not this site.
 - **[vllm-plugin-FL]({{< relref "vllm-plugin-fl" >}})** — the native `vllm_fl._C`
   wheel, its bare-backend label scheme, and why it builds inside the runtime
   image instead of a builder image.
+- **[FlagTree]({{< relref "flagtree" >}})** — the source-built per-backend
+  compiler wheels, the `--target builder` split, and the daily line.

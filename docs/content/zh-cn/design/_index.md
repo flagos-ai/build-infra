@@ -29,3 +29,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
 
 - **[vllm-plugin-FL]({{< relref "vllm-plugin-fl" >}})** —— 原生 `vllm_fl._C`
   wheel、其裸后端名标签方案，以及为何在运行时镜像内构建而非使用 builder 镜像。
+- **[FlagTree]({{< relref "flagtree" >}})** —— 从源码构建的 per-backend 编译器
+  wheel、`--target builder` 阶段拆分，以及每日线。
