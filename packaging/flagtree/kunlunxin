@@ -1,0 +1,298 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build a FlagTree xpu (Kunlunxin) wheel on Ubuntu 22.04 (glibc 2.35, gcc 11.4)
+# with the 22.04 system python 3.10, which is what configs.yaml pins for
+# kunlunxin-xre5.37.1. The runtime is 24.04, and building for 22.04 only has to
+# import there -- the direction glibc compatibility runs in.
+#   docker build --target builder -t flagtree-builder-kunlunxin:ci -f kunlunxin .
+#   docker build -t flagtree-kunlunxin:0.7.1a1 -f kunlunxin .
+
+ARG BUILDER_IMAGE=ubuntu:22.04
+FROM ${BUILDER_IMAGE} AS builder
+
+# Proxy is consumed during build only -- an ARG is not persisted in the image.
+# no_proxy is declared too: an undeclared ARG of that name is not inherited.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# The prebuilt inputs, staged on our own filestore: xpu.py sources them from
+# Kunlunxin's BOS bucket and a ksyuncs path, neither of which the CI proxy
+# reaches. The two LLVM 19 packages share a tarball root name, so their filestore
+# names are de-collided with a version suffix.
+ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
+ARG LLVM_TRUST_TARBALL=xtdk-llvm22-ubuntu2004_x86_64.tar.gz
+ARG LLVM_PUB_TARBALL=llvm-pub-22.1.8-ubuntu2004_x86_64-v2.tar.gz
+ARG LLVM19_TARBALL=xtdk-llvm19-ubuntu2004_x86_64_v20260916.tar.gz
+ARG LLVM19_PRINTF_TARBALL=xtdk-llvm19-ubuntu2004_x86_64_printf_v20260403.tar.gz
+ARG DEVICE_LIBS_TARBALL=xpu-device-libs-ubuntu-x64_v0.3.6.1.1.tar.gz
+ARG RUNTIME_SO_TARBALL=xpu-runtime-so_v0.3.6.2.0.tar.gz
+ARG XRE_TARBALL=xre-Linux-x86_64_v0.3.0.tar.gz
+ARG SDNN_TARBALL=xpu-sdnn-objects_v0.3.6.9.0.tar.gz
+ARG PYTHON_IMPL_TARBALL=xpu-python-impl-so_v0.3.6.9.0.tar.gz
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# No patchelf from apt: xpu.py resolves it from PATH first and then from the copy
+# the public-LLVM tarball bundles, and the bundled one is the path the vendor's
+# own CI takes. Installing a second one would only add a way for the two to
+# differ.
+RUN set -eu; \
+    if [ -f /opt/flagtree-build-env.ready ]; then \
+        echo ">>> build environment already staged in the base image"; \
+        exit 0; \
+    fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates git wget curl binutils \
+        build-essential cmake ninja-build \
+        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        python3.10 python3.10-dev python3.10-venv python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
+    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && mkdir -p /root/.flagtree/xpu /root/.triton \
+    && cd /tmp \
+    && for f in "${LLVM_TRUST_TARBALL}" "${LLVM_PUB_TARBALL}" "${LLVM19_TARBALL}" \
+                "${LLVM19_PRINTF_TARBALL}" "${DEVICE_LIBS_TARBALL}" "${RUNTIME_SO_TARBALL}" \
+                "${XRE_TARBALL}" "${SDNN_TARBALL}" "${PYTHON_IMPL_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+         for i in 1 2 3 4 5; do \
+           wget -q --tries=3 --timeout=60 "${DEPS_BASE}/${f}" -O "${f}" && break; \
+           echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
+         done; \
+       done \
+    && tar -xzf "${LLVM_TRUST_TARBALL}" -C /root/.flagtree/xpu \
+    && mv /root/.flagtree/xpu/xtdk-llvm22-ubuntu2004_x86_64 /root/.flagtree/xpu/llvm_trust \
+    && tar -xzf "${LLVM_PUB_TARBALL}" -C /root/.flagtree/xpu \
+    && mv /root/.flagtree/xpu/llvm-pub-22.1.8-ubuntu2004_x86_64-v2 /root/.flagtree/xpu/llvm-pub22 \
+    && tar -xzf "${LLVM19_TARBALL}" -C /root/.flagtree/xpu \
+    && mv /root/.flagtree/xpu/xtdk-llvm19-ubuntu2004_x86_64 /root/.flagtree/xpu/xtdk-llvm19 \
+    && tar -xzf "${LLVM19_PRINTF_TARBALL}" -C /root/.flagtree/xpu \
+    && mv /root/.flagtree/xpu/xtdk-llvm19-ubuntu2004_x86_64 /root/.flagtree/xpu/xtdk-llvm19-printf \
+    && tar -xzf "${DEVICE_LIBS_TARBALL}" -C /root/.flagtree/xpu \
+    && tar -xzf "${RUNTIME_SO_TARBALL}" -C /root/.flagtree/xpu \
+    && tar -xzf "${XRE_TARBALL}" -C /root/.flagtree/xpu \
+    && tar -xzf "${SDNN_TARBALL}" -C /root/.flagtree/xpu \
+    && tar -xzf "${PYTHON_IMPL_TARBALL}" -C /root/.flagtree/xpu \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
+    && rm -f /tmp/*.tar.gz \
+    && test -x /root/.flagtree/xpu/llvm_trust/bin/xpu3-elfconv-triton \
+    && test -f /root/.flagtree/xpu/llvm_trust/lib/linux/libclang_rt.xpuprintf-xpu3.a \
+    && test -f /root/.flagtree/xpu/llvm-pub22/bin/patchelf \
+    && test -f /root/.flagtree/xpu/llvm-pub22/lib/cmake/mlir/MLIRConfig.cmake \
+    && test -f /root/.flagtree/xpu/llvm-pub22/lib/cmake/lld/LLDConfig.cmake \
+    && test -x /root/.flagtree/xpu/xtdk-llvm19/bin/llc \
+    && test -f /root/.flagtree/xpu/xtdk-llvm19/lib/libLLVM.so.19.1 \
+    && test -f /root/.flagtree/xpu/xtdk-llvm19/lib/linux/libclang_rt.builtins-xpu3.a \
+    && test -f /root/.flagtree/xpu/xtdk-llvm19-printf/lib/linux/libclang_rt.xpuprintf-xpu3.a \
+    && test -f /root/.flagtree/xpu/xpu-device-libs/libxpujitc.so \
+    && test -f /root/.flagtree/xpu/xpu-runtime-so/libxpurt.so.12.9.1.kunlun \
+    && test -f /root/.flagtree/xpu/xre-Linux-x86_64/version.txt \
+    && test -f /root/.flagtree/xpu/xpu-sdnn-objects/lib/Dialect/TritonSDNN/Transforms/DSACopy.cpp.o \
+    && test -f /root/.flagtree/xpu/xpu-python-impl-so/python/triton/backends/intrinsic_tables.abi3.so \
+    && test -f /root/.triton/json/include/nlohmann/json.hpp \
+    && touch /opt/flagtree-build-env.ready
+
+# Every extraction above lands under the name xpu.py's cache uses, which is not
+# always the tarball's own root: the two LLVM 19 packages share a root name and
+# the cache wants `xtdk-llvm19` / `xtdk-llvm19-printf`, so they are renamed in
+# place. The triton toolkits tarball is the other shape -- rooted at `.triton/`,
+# so it is the one that gets a strip. No `--strip-components` on the LLVM 19
+# pair: it would flatten `lib/clang/19/include/xpu/kernel/xtdk.h`, which a
+# `tle.raw` payload includes by that path.
+
+# LLVM_SYSPATH and TRITON_USE_XTDK_FRONTEND are deliberately NOT set. Both LLVM
+# cache entries short-circuit on LLVM_SYSPATH (`pre_hook=check_env`), and it is
+# also what picks which frontend the build gets: public LLVM is the validated
+# leg and what `llvm-pub22` stages, XTDK is the fallback. Staging without the
+# variables is what lets the entries run and export the paths themselves.
+
+FROM builder AS flagtree
+
+# Stage-scoped, so every arg the wheel build reads is declared again. BuildKit
+# inherits a parent stage's ARGs into a `FROM parent` child and the legacy
+# builder does not, so an ARG declared only above is empty on half the runners.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# FlagTree ref, the single version knob; the backend is selected at build time via
+# FLAGTREE_BACKEND, not by source. The default is the newest vendor release this
+# staging reproduces: configs.yaml still pins 0.7.0+xpu3.6, whose setup.py
+# predates the LLVM 19 staging and cannot be built from these inputs. A daily
+# run overrides it.
+ARG FLAGTREE_VERSION=0.7.1a1+xpu3.6
+
+# Wheel version, defaulting to the ref so one arg drives both. FlagTree appends a
+# dirty "+git<sha>" unless it holds the vendor's FLAGTREE_PYPI_KEY or finds no
+# .git dir, so the build removes .git before `pip wheel`.
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
+ARG FLAGTREE_WHEEL_NAME=flagtree
+ARG FLAGTREE_PYPI_KEY=
+
+# pybind11, pinned to the exact patch release the prebuilt SDNN objects were
+# compiled against. They embed internals v11, which 3.0.1 and 3.0.4 both provide,
+# but 3.0.4 changed the internals constructor (pybind11 #5870) and SIGSEGVs in
+# the dispatcher. FlagTree checks the pair itself and names this same pin.
+ARG PYBIND11_SPEC=3.0.1
+ARG MAX_JOBS=32
+
+# THE SHA IS READ BEFORE .git GOES, AND BOTH BEFORE `pip wheel`: the version has
+# to come out clean, so .git must not exist when setup.py asks, while the commit
+# id is worth keeping, so it goes into a setup.cfg that setuptools merges into
+# setup() on its own. FlagTree ships no setup.cfg of its own, so its absence is
+# asserted rather than assumed.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
+           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
+         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/flagtree; sleep 5; \
+       done \
+    && test -d /opt/flagtree/.git \
+    && sha8="$(git -C /opt/flagtree rev-parse --short=8 HEAD)" \
+    && if [ -e /opt/flagtree/setup.cfg ]; then \
+         echo "ERROR: FlagTree now ships its own setup.cfg, which would be" >&2; \
+         echo "       overwritten below. Move the carrier to that file instead." >&2; \
+         exit 1; \
+       fi \
+    && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
+         "${sha8}" > /opt/flagtree/setup.cfg \
+    && cd /opt/flagtree \
+    && python3.10 -m pip install --no-cache-dir -r python/requirements.txt \
+    && python3.10 -m pip install --no-cache-dir "pybind11==${PYBIND11_SPEC}" \
+    && export FLAGTREE_BACKEND=xpu \
+    && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
+    && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
+    && export MAX_JOBS="${MAX_JOBS}" \
+    && rm -rf /opt/flagtree/.git \
+    && for i in 1 2 3 4 5; do \
+         python3.10 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# No TRITON_APPEND_CMAKE_ARGS, unlike the other backends' Release override: this
+# compiler's own default build type is what the published vendor wheel was built
+# with (asserts on, -O2 -g), and an optimization level is not a packaging detail
+# for a compiler. The price is a much larger wheel.
+
+# printf to a file, not `python - <<'PY'`: on Docker's legacy builder a heredoc
+# never reaches python's stdin and the step passes having asserted nothing.
+RUN printf '%s\n' \
+      'import glob, os, re, subprocess, sys, tempfile, zipfile' \
+      '' \
+      'whl = glob.glob("/wheels/*.whl")[0]' \
+      'name = os.path.basename(whl)' \
+      'ver = name.split("-")[1]' \
+      'if "git" in ver:' \
+      '    print("FAIL: dirty wheel version " + ver + " (expected clean, no git-sha suffix)")' \
+      '    sys.exit(1)' \
+      'if "cp310" not in name:' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp310)")' \
+      '    sys.exit(1)' \
+      'print("OK: wheel " + name + " version " + ver)' \
+      '' \
+      'd = tempfile.mkdtemp()' \
+      'zf = zipfile.ZipFile(whl)' \
+      'zf.extractall(d)' \
+      'member = zf.namelist()' \
+      'def need(path):' \
+      '    if path not in member:' \
+      '        print("FAIL: " + name + " ships no " + path + " (wrong FLAGTREE_BACKEND, or a staged cache was not read)")' \
+      '        sys.exit(1)' \
+      '# The backend package, the marker that makes XPUDriver active without an' \
+      '# env var, and the three staged toolchain trees the backend resolves by' \
+      '# relative path at runtime.' \
+      'for p in ("triton/FLAGTREE_BACKEND",' \
+      '          "triton/backends/xpu/__init__.py",' \
+      '          "triton/backends/xpu/compiler.py",' \
+      '          "triton/backends/xpu/driver.py",' \
+      '          "triton/backends/xpu/llvm19/bin/llc",' \
+      '          "triton/backends/xpu/xpu3/bin/xpu3-elfconv-triton",' \
+      '          "triton/backends/xpu/xpu3/so/liblaunch_shared.so",' \
+      '          "triton/backends/xpu/xpu3/lib/clang/19/include/xpu/kernel/xtdk.h",' \
+      '          "triton/backends/_xtdk_llvm19/lib/libLLVM.so.19.1",' \
+      '          "triton/backends/intrinsic_tables.abi3.so",' \
+      '          "triton/backends/_tables/l19.json",' \
+      '          "triton/backends/_tables/l22.json"):' \
+      '    need(p)' \
+      'backend = open(os.path.join(d, "triton", "FLAGTREE_BACKEND")).read().strip()' \
+      'if backend != "xpu":' \
+      '    print("FAIL: triton/FLAGTREE_BACKEND says " + backend + ", not xpu")' \
+      '    sys.exit(1)' \
+      'eps = [n for n in member if n.endswith(".dist-info/entry_points.txt")]' \
+      'if not eps:' \
+      '    print("FAIL: no entry_points.txt in " + name)' \
+      '    sys.exit(1)' \
+      'entry = zf.read(eps[0]).decode()' \
+      'if "xpu = triton.backends.xpu" not in entry:' \
+      '    print("FAIL: no xpu backend entry point in " + entry)' \
+      '    sys.exit(1)' \
+      'print("OK: wheel ships the xpu backend package, its staged toolchain and the xpu entry point")' \
+      '' \
+      'so = os.path.join(d, "triton", "_C", "libtriton.so")' \
+      'if not os.path.exists(so):' \
+      '    print("FAIL: no triton/_C/libtriton.so in " + name)' \
+      '    sys.exit(1)' \
+      'syms = subprocess.check_output(["objdump", "-T", so], text=True)' \
+      'forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]' \
+      'hits = [f for f in forbidden if f in syms]' \
+      'if hits:' \
+      '    print("FAIL: 22.04-incompatible symbols in libtriton.so: " + str(hits))' \
+      '    sys.exit(1)' \
+      'maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)), key=lambda v: [int(x) for x in v[6:].split(".")])' \
+      'print("OK: libtriton.so is 22.04-clean (max " + maxglibc + ", no forbidden symbols)")' \
+      '' \
+      'import pybind11' \
+      'hdr = os.path.join(pybind11.get_include(), "pybind11", "detail", "internals.h")' \
+      'm = re.search(r"#\s*define\s+PYBIND11_INTERNALS_VERSION\s+(\d+)", open(hdr).read())' \
+      'if not m:' \
+      '    print("FAIL: no PYBIND11_INTERNALS_VERSION in " + hdr)' \
+      '    sys.exit(1)' \
+      'want = m.group(1).encode()' \
+      'got = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", open(so, "rb").read())))' \
+      'if got != [want]:' \
+      '    print("FAIL: libtriton.so carries pybind11 internals " + str(got) + ", but the build pybind11 " + pybind11.__version__ + " provides v" + want.decode())' \
+      '    sys.exit(1)' \
+      '# The internals tag alone does not identify the patch release -- 3.0.1 and' \
+      '# 3.0.4 both provide v11, and only one of them matches the SDNN objects.' \
+      '# PYBIND11_SPEC reaches this file through the environment rather than the' \
+      '# literal above: those printf arguments are single-quoted, so shell expands' \
+      '# nothing in them and a ${...} would stay literal and always compare false.' \
+      'pin = os.environ["PYBIND11_SPEC"]' \
+      'if pybind11.__version__ != pin:' \
+      '    print("FAIL: build pybind11 is " + pybind11.__version__ + ", not the " + pin + " the prebuilt SDNN objects were compiled against")' \
+      '    sys.exit(1)' \
+      'print("OK: libtriton.so and pybind11 " + pybind11.__version__ + " agree on internals v" + want.decode())' \
+    > /tmp/gate.py \
+    && PYBIND11_SPEC="${PYBIND11_SPEC}" python3.10 /tmp/gate.py
+
+# Smoke test: install the freshly built wheel and assert the two things the
+# version pin and the setup.cfg carrier are for. The xpu driver imports torch,
+# and looks for libxpurt.so, inside its methods rather than at module scope, so
+# an import here reaches the backend without an XPU device.
+RUN python3.10 -m pip install --no-cache-dir /wheels/*.whl \
+    && python3.10 -c "\
+import importlib.metadata as md, triton;\
+from triton.backends import backends;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', sorted(backends));\
+assert 'xpu' in backends, sorted(backends);\
+urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
+print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
+assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
+assert md.version('${FLAGTREE_WHEEL_NAME}') == '${FLAGTREE_WHEEL_VERSION}', md.version('${FLAGTREE_WHEEL_NAME}');\
+assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}'), md.version('${FLAGTREE_WHEEL_NAME}')"
