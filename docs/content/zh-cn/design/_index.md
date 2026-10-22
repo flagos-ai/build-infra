@@ -31,3 +31,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
   wheel、其裸后端名标签方案，以及为何在运行时镜像内构建而非使用 builder 镜像。
 - **[FlagTree]({{< relref "flagtree" >}})** —— 从源码构建的 per-backend 编译器
   wheel、`--target builder` 阶段拆分，以及每日线。
+- **[FlagCX]({{< relref "flagcx" >}})** —— 集合通信库的 deb/wheel/builder 三条
+  通道、每个后端一个产物的规则，以及 glibc floor。
