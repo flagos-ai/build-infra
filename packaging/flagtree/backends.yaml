@@ -307,7 +307,7 @@ backends:
           # under exactly this name.
           - /root/.flagtree/xpu/xre-Linux-x86_64
     daily:
-      enabled: false
+      enabled: true
       dist_name: flagtree-kunlunxin
       version_base: "0.7.1"
       ref: main

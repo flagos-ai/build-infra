@@ -347,8 +347,24 @@ diverging from it. The price is a much larger wheel.
 
 **`xre-Linux-x86_64` keeps its name.** The backend reaches it through a
 hardcoded `/xpu/` path in `xpu.py` rather than through the cache key, so the
-directory has to be there under exactly that name whatever `FLAGTREE_BACKEND`
+directory has to be there under exactly this name whatever `FLAGTREE_BACKEND`
 says — which is why the row asserts the *directory* and not a file inside it.
+
+**Verified on a P800 node** (2026-10-22). The wheel built on the published
+builder imports on the `flagos-runtime-kunlunxin-xre5.37.1:2.3.0` image with
+`backends == ['xpu']` and a `Source-Commit` in its metadata. Like the other
+backends whose runtime image carries the vendor's flagtree at `/opt/flagtree`
+on `PYTHONPATH`, the check installs the wheel to its own directory and prepends
+it — a bare `import triton` would resolve to the vendor tree and prove nothing.
+
+The kernel check is the one thing about this backend that does not look like
+its siblings: **this stack's torch is a CUDA-alias build, so the P800 is
+reached through `torch.cuda`, not `torch.xpu`** — `torch.cuda.get_device_name()`
+reports `GPU` and `get_device_capability()` `(8, 6)`, and `torch.randn(device=
+"xpu")` raises `Torch not compiled with XPU enabled`. What makes the backend
+*active* is still FlagTree's own xpu one, so the proof is a vector-add kernel
+launched through `torch.cuda` tensors returning `max abs err: 0.0`. The
+container needs `--device /dev/xpu0 --device /dev/xpuctrl`.
 
 ## NVIDIA builder (`nvidia-cuda`)
 
@@ -801,7 +817,8 @@ record the source commit (see below).
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
-`flagtree-tsingmicro`, `flagtree-mthreads` and the ascend pair today. The
+`flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin` and the ascend
+pair today. The
 release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
