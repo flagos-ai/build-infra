@@ -34,3 +34,6 @@ file, not this site.
   image instead of a builder image.
 - **[FlagTree]({{< relref "flagtree" >}})** — the source-built per-backend
   compiler wheels, the `--target builder` split, and the daily line.
+- **[FlagCX]({{< relref "flagcx" >}})** — the collective-communication library's
+  deb/wheel/builder channels, the one-artifact-per-backend rule, and the
+  glibc floor.
