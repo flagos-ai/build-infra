@@ -408,5 +408,7 @@ the backend is what stops a range from crossing into another backend's variants.
 
 - The wheel's source: which FlagCX ref or release line it builds from, and whether the line lives
   here (`packaging/flagcx/`) or in a directory of its own.
-- flagcx appears in neither `configs.yaml` `deps:` nor `runtime/Containerfile`, so installing it
-  into the runtime image is a new install line rather than an edit to an existing one.
+
+(Installing flagcx into the runtime image is no longer open: since 2026-10-22 every backend carries
+its own `flagcx==0.14.0+<label>` in `configs.yaml` `deps:`, so it rides the one `DEPS` line the
+runtime build already installs. `runtime/Containerfile` still names no flagcx of its own.)

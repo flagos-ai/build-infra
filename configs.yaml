@@ -304,6 +304,9 @@ vendors:
         - attrs==24.2.0
         - decorator==5.1.1
         - psutil==6.0.0
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+cann8.5.0
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -342,6 +345,9 @@ vendors:
         - attrs==24.2.0
         - decorator==5.1.1
         - psutil==6.0.0
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+cann8.5.0.910c
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -385,6 +391,9 @@ vendors:
         - torchaudio==2.10.0+cpu
         - numpy==1.26.4
         - cann-shmem==1.6.0
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+cann9.0.0
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -419,6 +428,9 @@ vendors:
         - torchaudio==2.10.0+cpu
         - numpy==1.26.4
         - cann-shmem==1.6.0
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+cann9.0.0.910c
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -457,6 +469,9 @@ vendors:
         - torchaudio==2.7.1+cpu
         - torchvision==0.22.1+cpu
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+neuware4.4.3
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
@@ -504,6 +519,9 @@ vendors:
         - torchvision==0.26.0+cpu
         - numpy==1.26.4
         - pandas==3.0.5
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+neuware4.7.2
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -552,6 +570,9 @@ vendors:
         - torchvision==0.25.0+cpu
         - torch-gcu==2.10.0+3.7.20260408
         - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+tops1.9.10
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
@@ -607,6 +628,9 @@ vendors:
         - topstx==1.10.6
         - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+tops1.10.6
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
@@ -644,6 +668,9 @@ vendors:
         - torch==2.9.0+das.opt1.dtk2604
         - torchvision==0.24.0+das.opt1.dtk2604.torch290
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+dtk2604
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -690,6 +717,9 @@ vendors:
         - torchaudio==2.7.1+corex.4.4.0
         - torchvision==0.22.1+corex.4.4.0
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+corex4.4.0
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
@@ -742,6 +772,9 @@ vendors:
         - torchaudio==2.10.0+corex.4.5.0.20260804
         - torchvision==0.25.0+corex.4.5.0.20260804
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+corex4.5.0
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
@@ -807,6 +840,9 @@ vendors:
         - xformers==0.0.29+1e7a8ec.d20260114
         - xmlir==1.0.0.1+20260605
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+xre5.37.1
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
@@ -854,6 +890,9 @@ vendors:
         - torchvision==0.15.1+metax3.7.2.0
         - flash_attn==2.6.3+metax3.7.2.0torch2.8
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+maca3.7.2.1
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
@@ -917,6 +956,9 @@ vendors:
         - flash_linear_attention==0.5.0+metax3.8.1.0torch2.10
         - flash_mla==1.0.1+metax3.8.1.0torch2.10
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+maca3.8.1.3
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -951,6 +993,9 @@ vendors:
         - torchvision==0.22.1+6b25dcc
         - mkl==2024.0.0
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+musa4.3.6
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
@@ -983,6 +1028,9 @@ vendors:
         - torchvision==0.24.1.post1+musa5.2.0
         - mkl==2024.0.0
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+musa5.2.0
 
       deps_app:
         megatron_training0.17.1: []
@@ -1050,6 +1098,9 @@ vendors:
         - torchvision==0.26.0+cpu
         - torch-ptpu==0.2.3+torch2.11
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+tangrt1.2.0
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
@@ -1118,6 +1169,9 @@ vendors:
         - torch_txda==0.1.0+20260728.f6fbdb71
         - txops==0.1.0+20260716.e94d9509
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.0+tsm260610
       deps_app:
         megatron_training0.17.1: []
         megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused

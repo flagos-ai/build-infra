@@ -14,8 +14,8 @@
 
 # Per-version app-layer requirements the bundle installs, on top of the shared
 # runtime layer. Read by scripts/build_bundle.py.
-# flagcx is absent: on generic/NVIDIA it is a runtime-layer wheel
-# (configs.yaml deps:), not an app-layer delta.
+# flagcx is absent: every backend now carries its own pin in configs.yaml
+# deps:, so it is a runtime-layer wheel, not an app-layer delta.
 # `entrypoint`/`launcher` let the bundle install a bare-metal `vllm-serve` the
 # same way app/vllm/Containerfile does (python -m <entrypoint>); the verify
 # smoke then exercises the real launcher instead of skipping it.
