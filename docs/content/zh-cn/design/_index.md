@@ -35,3 +35,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
   通道、每个后端一个产物的规则，以及 glibc floor。
 - **[FlagGems]({{< relref "flaggems" >}})** —— 纯 Python 的 `flag_gems` wheel、
   每个后端的 cpp wheel，以及上游自有的 deb。
+- **[FlagLibs]({{< relref "flaglibs" >}})** —— 算子库，每个库一个 `py3-none-any`
+  wheel，发布到单个 hosted 索引。
