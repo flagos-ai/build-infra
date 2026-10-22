@@ -37,3 +37,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
   每个后端的 cpp wheel，以及上游自有的 deb。
 - **[FlagLibs]({{< relref "flaglibs" >}})** —— 算子库，每个库一个 `py3-none-any`
   wheel，发布到单个 hosted 索引。
+- **[Megatron]({{< relref "megatron" >}})** —— fork 源码 wheel，在后端 runtime
+  镜像内构建，单步安装且无 `--no-deps`。

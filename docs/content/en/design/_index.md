@@ -41,3 +41,5 @@ file, not this site.
   the per-backend cpp wheel, and the upstream-owned deb.
 - **[FlagLibs]({{< relref "flaglibs" >}})** — the operator libraries, one
   `py3-none-any` wheel per library on a single hosted index.
+- **[Megatron]({{< relref "megatron" >}})** — the fork-source wheel, built in
+  the backend's runtime image and installed single-step with no `--no-deps`.
