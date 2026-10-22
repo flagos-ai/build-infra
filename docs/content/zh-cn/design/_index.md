@@ -39,3 +39,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
   wheel，发布到单个 hosted 索引。
 - **[Megatron]({{< relref "megatron" >}})** —— fork 源码 wheel，在后端 runtime
   镜像内构建，单步安装且无 `--no-deps`。
+- **[SGLang]({{< relref "sglang" >}})** —— repack 的 `srt_empty` wheel、`+flagos`
+  后缀，以及零 sgl-kernel 路线。
