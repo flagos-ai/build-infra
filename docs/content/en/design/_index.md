@@ -45,3 +45,6 @@ file, not this site.
   the backend's runtime image and installed single-step with no `--no-deps`.
 - **[SGLang]({{< relref "sglang" >}})** — the repacked `srt_empty` wheel, the
   `+flagos` suffix, and the zero-sgl-kernel route.
+- **[verl]({{< relref "verl" >}})** — the fork-source RL-training wheel, one
+  `py3-none-any` for all backends, with megatron-core + vllm riding on the
+  runtime's existing matrix.

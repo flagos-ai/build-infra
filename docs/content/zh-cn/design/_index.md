@@ -41,3 +41,5 @@ FlagOS 构建与打包方式背后的设计决策——*为什么*某个 wheel �
   镜像内构建，单步安装且无 `--no-deps`。
 - **[SGLang]({{< relref "sglang" >}})** —— repack 的 `srt_empty` wheel、`+flagos`
   后缀，以及零 sgl-kernel 路线。
+- **[verl]({{< relref "verl" >}})** —— fork 源码的 RL 训练 wheel，一个
+  `py3-none-any` 通吃全后端，megatron-core + vllm 搭在 runtime 既有矩阵上。
