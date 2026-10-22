@@ -39,3 +39,5 @@ file, not this site.
   glibc floor.
 - **[FlagGems]({{< relref "flaggems" >}})** — the pure-Python `flag_gems` wheel,
   the per-backend cpp wheel, and the upstream-owned deb.
+- **[FlagLibs]({{< relref "flaglibs" >}})** — the operator libraries, one
+  `py3-none-any` wheel per library on a single hosted index.
