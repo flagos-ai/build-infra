@@ -98,7 +98,8 @@ builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
 into FlagTree's offline cache). All eleven have one. For `nvidia-cuda`, `metax`,
 `sunrise`, `iluvatar`, `enflame`, `hcu`, `tsingmicro`, `mthreads` and `kunlunxin`
-the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default; for the
+the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default;
+for the
 ascend pair its cold value is the backend's runtime image, which is why
 `backends.yaml` marks those rows `base_image: runtime` and the builder line
 resolves their `BUILDER_IMAGE` from `generate_matrix.py --runtime` instead of
