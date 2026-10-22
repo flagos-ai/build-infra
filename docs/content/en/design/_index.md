@@ -43,3 +43,5 @@ file, not this site.
   `py3-none-any` wheel per library on a single hosted index.
 - **[Megatron]({{< relref "megatron" >}})** — the fork-source wheel, built in
   the backend's runtime image and installed single-step with no `--no-deps`.
+- **[SGLang]({{< relref "sglang" >}})** — the repacked `srt_empty` wheel, the
+  `+flagos` suffix, and the zero-sgl-kernel route.
