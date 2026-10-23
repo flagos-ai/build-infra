@@ -91,7 +91,7 @@ from pathlib import Path
 
 import yaml
 
-from base_image_status import auth_header, image_labels
+from base_image_status import HarborAuth, credentials, image_labels
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -233,7 +233,7 @@ def main() -> None:
     if not version:
         sys.exit("configs.yaml has no version: field")
     tag = args.tag or version
-    auth = auth_header()
+    auth = HarborAuth(host, credentials())
     current_configs = yaml.safe_load((REPO_ROOT / "configs.yaml").read_text()) or {}
 
     if args.backends:
@@ -261,7 +261,7 @@ def main() -> None:
         """
         entry = {"name": display_name, "tag": query_tag, "built": "", "status": "", "detail": ""}
         try:
-            labels = image_labels(host, repo, query_tag, auth)
+            labels = image_labels(auth, repo, query_tag)
         except urllib.error.URLError as e:
             entry.update(status="UNKNOWN", detail=f"registry unreachable: {e.reason}")
             return entry
