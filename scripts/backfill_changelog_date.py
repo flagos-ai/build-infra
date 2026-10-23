@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Backfill the push_time into an app-image changelog after a push.
+# Backfill the push_time into an image changelog after a push.
 #
 # The changelog flow is: a human writes a changelog entry (reason, date left
 # empty) BEFORE triggering a push — the entry is the authorization for the

@@ -1,0 +1,80 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Record runtime image push
+description: |-
+  Run scripts/record_runtime_image.py on a self-hosted runner. The interpreter
+  is picked and its ruamel.yaml import checked up front — the backfill needs
+  the round-trip YAML, and a runner with no pip used to swallow that install
+  and fail later, after the image was already pushed. Same reason as the app
+  layer's record action, which this mirrors.
+
+inputs:
+  backend:
+    description: 'Backend key this dispatch pushed (the matrix row that built it)'
+    required: true
+  image:
+    description: 'Full pushed image ref, tag included (the workflow own IMAGE_TAG)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Record runtime image push
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        # Candidates in preference order: whatever `python3` is, then the
+        # versioned names a distro may expose separately.
+        candidates="python3 python3.13 python3.12 python3.11 python3.10"
+
+        py=""
+        # 1. An interpreter that already imports ruamel needs nothing installed.
+        for cand in ${candidates}; do
+          command -v "${cand}" >/dev/null 2>&1 || continue
+          if "${cand}" -c "import ruamel.yaml" >/dev/null 2>&1; then
+            py="${cand}"
+            break
+          fi
+        done
+
+        # 2. Otherwise one that has pip and can install it. --break-system-packages
+        #    only exists on newer pip; the plain --user form is the fallback.
+        if [ -z "${py}" ]; then
+          for cand in ${candidates}; do
+            command -v "${cand}" >/dev/null 2>&1 || continue
+            "${cand}" -m pip --version >/dev/null 2>&1 || continue
+            if ! "${cand}" -m pip install --quiet --user 'ruamel.yaml>=0.18' >/dev/null 2>&1; then
+              "${cand}" -m pip install --quiet --user --break-system-packages \
+                'ruamel.yaml>=0.18' >/dev/null 2>&1 || continue
+            fi
+            if "${cand}" -c "import ruamel.yaml" >/dev/null 2>&1; then
+              py="${cand}"
+              break
+            fi
+          done
+        fi
+
+        if [ -z "${py}" ]; then
+          echo "::error::no runner interpreter can provide ruamel.yaml (tried: ${candidates})." \
+               "The changelog backfill needs it; install pip for one of them on this runner."
+          exit 1
+        fi
+
+        echo ">>> recording with ${py} ($(${py} -V 2>&1))"
+        "${py}" scripts/record_runtime_image.py \
+          "${{ inputs.backend }}" "${{ inputs.image }}"

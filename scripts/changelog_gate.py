@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Gate: refuse to push an app image unless the changelog authorizes it.
+# Gate: refuse to push an image unless the changelog authorizes it.
 #
 # The changelog flow: a human writes an entry (reason, date left empty)
 # BEFORE triggering a push. The empty date marks it as pending — after the
-# push succeeds the app-image workflow backfills the date with the registry
+# push succeeds the layer's workflow backfills the date with the registry
 # push_time, so a filled date means "already delivered". Therefore this check
 # reduces to one question: does the changelog carry a pending (empty-date)
 # entry for the tag being pushed?
@@ -86,7 +86,7 @@ def main() -> None:
             data = yaml.load(f, Loader=_StrictLoader)
     except FileNotFoundError:
         sys.exit(
-            f"gate: {path} does not exist — a new app image needs a changelog "
+            f"gate: {path} does not exist — this image needs a changelog "
             f"file with a pending entry for tag {tag} before it can be pushed."
         )
     except yaml.YAMLError as e:

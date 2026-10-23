@@ -1,0 +1,31 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+
+image: flagos-runtime-nvidia-cuda13.3
+tags:
+- tag: 2.3.0
+  entries:
+  - date: ''
+    reason: >-
+      The flagcx wheel this image carries has been replaced since it was pushed
+      (2026-10-17 00:31 UTC): the wheel build that ran before it failed on
+      exactly these two nvidia rows and was re-dispatched, and the re-upload
+      differs in size from the artifact this build downloaded. Rebuilt with
+      no_cache=true so the DEPS layer re-downloads flagcx==0.14.0+cuda13.3
+      instead of reusing the cached layer -- an unchanged pin at the same
+      version is exactly what the build cache hides.
+    upstream_prs: []
