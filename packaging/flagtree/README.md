@@ -849,6 +849,15 @@ one is ever published, would flip the no-`--pre` form over to it. What a plain
 `pip install flagtree` gets is unaffected either way: dailies live under a
 different name.
 
+Inside a runtime or app image, `-e FLAGTREE_VERSION=latest` runs the nvidia
+line's equivalent of the first command — the distribution name is read from the
+image itself (`configs.yaml flagtree_daily`, written to
+`/etc/flagos/flagtree-daily` at build time), so the caller names no backend and
+the wheel lands in `/opt/flagtree` the same way a requested release does. It is
+applied once per container: later shells reuse it, the next container re-fetches.
+The `pip uninstall` above is not needed there — the tree is replaced wholesale,
+and the dist-info changes name with it.
+
 **Which commit is this?** Not from the version — from the wheel's metadata:
 
 ```sh

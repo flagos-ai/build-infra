@@ -47,6 +47,24 @@ docker run -e FLAGTREE_VERSION=0.7.0 <runtime 或 app 镜像> ...
 指定的 wheel 会在应用启动前安装到 `/opt/flagtree`。容器运行中可执行
 `compiler flagtree <版本>` 达到同样效果；`compiler` 查看当前版本。
 
+`latest` 取该后端的**最新每日构建**，而不是发布版：
+
+```bash
+docker run -e FLAGTREE_VERSION=latest <runtime 或 app 镜像> ...
+```
+
+每日 wheel 领先于下一个发布版、每天构建一次，因此这是跑上尚未发布的修复的办法。
+它会下载约 120 MB，需要容器启动时能出网；每个容器只取一次，同容器内后续 shell
+直接复用，下一个容器再取新发布的。
+
+**指定的版本装不上时，容器直接起不来。** 跑着不是你要的那个 FlagTree 的容器，
+并不是你要的东西，而下游没有任何东西会告诉你——所以请求被拒绝：原因写到 stderr，
+退出码非零。`docker run` 返回 1；在 kubernetes 下 pod 进入 `Error`（进而
+`CrashLoopBackOff`），而不是带着错的编译器 Running，原因在
+`kubectl logs <pod>`（重启过就加 `--previous`）。没有每日线的后端（目前
+cambricon、spacemit、thead）同样被拒绝。索引不通由一次短探测（10 秒）判定，
+所以大约十秒就有结论，而不是等 pip 自己重试完。
+
 ## 按需构建
 
 base 镜像是手动构建的，不会每次变更都触发（厂商 SDK 变更不频繁）：

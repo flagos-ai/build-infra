@@ -206,6 +206,7 @@ def _runtime_matrix(
             "deps": deps,
             "cpp_extra": cpp_extra,
             "flagtree_pkg": backend_info.get("flagtree", ""),
+            "flagtree_daily_pkg": backend_info.get("flagtree_daily", ""),
             "triton_pkg": backend_info.get("triton", ""),
             "triton_extra_pkgs": " ".join(
                 backend_info.get("triton_post_install", [])

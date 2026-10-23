@@ -205,6 +205,9 @@ def resolve_build_args(
     # between them. When only one compiler is configured, it goes to its side
     # dir as the sole compiler and is baked as the default PYTHONPATH.
     flagtree = backend_info.get("flagtree", "")
+    # This backend's daily-line distribution name, for `FLAGTREE_VERSION=latest`
+    # (see configs.yaml). Empty for the backends with no daily row.
+    flagtree_daily = backend_info.get("flagtree_daily", "")
     triton = backend_info.get("triton", "")
     triton_post = backend_info.get("triton_post_install", [])
     triton_extra = " ".join(triton_post) if isinstance(triton_post, list) else ""
@@ -224,6 +227,7 @@ def resolve_build_args(
         "RUNTIME_PREREQS": " ".join(configs.get("runtime_prereqs", [])),
         "CPP_EXTRA": cpp_extra,
         "FLAGTREE_PKG": flagtree,
+        "FLAGTREE_DAILY_PKG": flagtree_daily,
         "TRITON_PKG": triton,
         "TRITON_EXTRA_PKGS": triton_extra,
         "INCLUDE_TESTS": include_tests_override or "false",

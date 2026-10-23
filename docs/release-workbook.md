@@ -9,7 +9,8 @@
 > （`flagtree-nvidia`、`flagtree-metax`、`flagtree-enflame`、
 > `flagtree-ascend-cann9.0.0` …），推送到 `flagos-pypi-daily`，版本形如
 > `0.7.1.dev20261015`（只有日期，无 local 段）；`pip install --pre flagtree-nvidia`
-> 即取最新。构建所用的 commit
+> 即取最新，镜像内也可直接 `-e FLAGTREE_VERSION=latest`（发行名由镜像自带，
+> 每个容器取一次）。构建所用的 commit
 > 不在版本号里，而在 wheel 元数据中：`pip show -v flagtree-nvidia` 会打印
 > `Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/<sha8>`。
 > 它与发版线（`flagtree-wheel.yml` → 各 vendor index 的 `flagtree`）

@@ -42,6 +42,10 @@ ARG CPP_EXTRA=""
 # the default compiler. Neither lands in site-packages — compiler() toggles
 # them via PYTHONPATH.
 ARG FLAGTREE_PKG=""
+# This backend's daily-line distribution name (configs.yaml flagtree_daily), for
+# the in-container FLAGTREE_VERSION=latest. Empty when the backend has no daily
+# row — the runtime stage then bakes no daily file and `latest` warns.
+ARG FLAGTREE_DAILY_PKG=""
 ARG TRITON_PKG=""
 ARG TRITON_EXTRA_PKGS=""
 # FlagGems wheel version to pin (== exact). Set by build_runtime.py from
@@ -333,15 +337,19 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # last means the compiler's PYTHONPATH export wins and triton stays importable.
 COPY zz-compiler.sh /etc/profile.d/zz-compiler.sh
 
-# ── FlagTree index for the in-container version override ────────
-# zz-compiler.sh installs a version requested at container start
-# (FLAGTREE_VERSION / `compiler flagtree <ver>`) from this image's own vendor
-# index, falling back to the shared lane. A file and not an ENV: configs.yaml
-# env.runtime is the documented source of this image's env, and an ENV set only
-# here would silently fall outside it.
+# ── FlagTree override sources for the in-container version request ──
+# zz-compiler.sh installs a version requested at container start: a release from
+# this image's vendor index, or `latest` from the daily line. Files, not ENVs —
+# configs.yaml env.runtime is the documented source of this image's env, and an
+# ENV set only here would silently fall outside it.
 ARG FLAGOS_PYPI
+ARG DAILY_PYPI
+ARG FLAGTREE_DAILY_PKG
 RUN mkdir -p /etc/flagos \
-    && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/flagtree-index; fi
+    && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/flagtree-index; fi \
+    && if [ -n "${DAILY_PYPI}" ] && [ -n "${FLAGTREE_DAILY_PKG}" ]; then \
+         printf '%s\n%s\n' "${FLAGTREE_DAILY_PKG}" "${DAILY_PYPI}" > /etc/flagos/flagtree-daily; \
+       fi
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)
