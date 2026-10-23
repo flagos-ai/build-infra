@@ -14,9 +14,9 @@ runtime + 单步安装"。2026-08-28 用户 pivot 后定案：**封装分发角�
 统一 runtime + 单步安装（per-vendor wheel）**。依据：
 
 1. srt_empty 基座天然零 torch 零 sgl-kernel → repack 无需剥依赖；
-2. 每后端在自己的 runtime `-build` 镜像内从同一 sdist 构建 → 复用 vllm
+2. 每后端在自己的 runtime 镜像内从同一 sdist 构建 → 复用 vllm
    工具链，不新搞脚本体系；
-3. ascend aarch64 由 aarch64 `-build` 镜像容器内编译天然产出 aarch64 wheel。
+3. ascend aarch64 由 aarch64 容器内编译天然产出 aarch64 wheel。
 
 ## 3. 自动化边界
 

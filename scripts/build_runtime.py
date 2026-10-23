@@ -30,7 +30,6 @@ Examples:
     python scripts/build_runtime.py ascend-cann9.0.0 --tag latest
     python scripts/build_runtime.py metax --push
     python scripts/build_runtime.py nvidia-cuda12.8 --flaggems 5.4.0.dev601+g03122362d
-    python scripts/build_runtime.py nvidia-cuda12.8 --no-flaggems   # build-platform (step 4)
 """
 
 import argparse
@@ -249,11 +248,6 @@ def main():
         default="",
         help="FlagGems wheel version override (default: from configs.yaml)",
     )
-    parser.add_argument(
-        "--no-flaggems",
-        action="store_true",
-        help="Skip flag_gems install — produce the build-platform image (step 4)",
-    )
     parser.add_argument("--base-image", help="Override base image")
     parser.add_argument("--extra-pypi", help="Override extra PyPI mirror URL")
     parser.add_argument(
@@ -300,7 +294,6 @@ def main():
         include_tests_override=args.include_tests,
     )
     build_args["FLAGGEMS_VERSION"] = args.flaggems or configs.get("flaggems", "")
-    build_args["NO_FLAGGEMS"] = "1" if args.no_flaggems else ""
 
     image_name = f"flagos-runtime-{vendor}-{backend}"
     version = configs["version"]
@@ -308,17 +301,15 @@ def main():
     if args.tag:
         tag = args.tag
     else:
-        suffix = "-build" if args.no_flaggems else ""
         if args.registry:
-            tag = f"{args.registry}/{image_name}:{version}{suffix}"
+            tag = f"{args.registry}/{image_name}:{version}"
         else:
             registry = runtime_registry(repo_root)
-            tag = f"{registry}/{image_name}:{version}{suffix}" if registry else f"{image_name}:{version}{suffix}"
+            tag = f"{registry}/{image_name}:{version}" if registry else f"{image_name}:{version}"
 
     # OCI provenance stamped onto the built image (git is the source of truth),
     # mirroring scripts/build_base.py. `flagos.flaggems` records the wheel
-    # version that was actually installed — skipped for -build (NO_FLAGGEMS)
-    # images, which install no flag_gems.
+    # version that was actually installed.
     commit = git(repo_root, "rev-parse", "HEAD") or ""
     created = git(repo_root, "show", "-s", "--format=%cI", "HEAD") or ""
     labels = {
@@ -328,9 +319,8 @@ def main():
         "last-updated": created,
         "org.opencontainers.image.source": "https://github.com/flagos-ai/build-infra",
         "flagos.base": build_args["BASE_IMAGE"],
+        "flagos.flaggems": build_args["FLAGGEMS_VERSION"],
     }
-    if not args.no_flaggems:
-        labels["flagos.flaggems"] = build_args["FLAGGEMS_VERSION"]
 
     cmd = ["docker", "build"]
     for key, value in build_args.items():

@@ -12,7 +12,7 @@
 ## 结论速览
 
 - **打包模型（2026-08-28 定案）**：统一 runtime + 单步安装（per-vendor wheel）。
-  每个后端在自己的 runtime `-build` 镜像内从同一 sdist
+  每个后端在自己的 runtime 镜像内从同一 sdist
   （`sglang-0.5.18.tar.gz`）构建 wheel；srt_empty 非 CUDA variant 基座天然
   零 torch 零 sgl-kernel，repack 仅打 `+flagos` 后缀；硬件算子收敛到 runtime
   内置 flag_gems（零 sgl-kernel 路线，import 面由共享 `sgl-kernel-shim`

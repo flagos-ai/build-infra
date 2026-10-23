@@ -26,7 +26,7 @@ FlagGems 是 FlagOS 镜像里 vLLM 所运行的算子库。它按一个关键事
 - **`flag_gems` wheel** —— `py3-none-any`，因此不需要厂商工具链、不携带
   glibc floor。同一个 wheel 上传到所有厂商 PyPI。
 - **`flag_gems_cpp_<backend>` wheel** —— 每个后端的 C++ 算子，在
-  `runtime:v1` 镜像（`{version}-build`）内构建，其 venv 已带 torch + 依赖 +
+  runtime 镜像（`{version}`）内构建，其 venv 已带 torch + 依赖 +
   编译器。每个 cmake backend 一个，上传到该后端的厂商索引。
 - **`python3-flag-gems` `.deb`** —— 用上游自带的 `packaging/debian/` 定义构建；
   build-infra 只拥有发布路径。
@@ -41,12 +41,11 @@ FlagGems、`pip wheel . --no-deps`，再加一道门禁——结果必须是 `py
 （非 tag）构建会打一个一次性本地 tag，让 `_version.py` 仍携带真实 commit，
 随后工作流上传到 `flagos-pypi-daily`。
 
-## 为什么 cpp wheel 在 `runtime:v1` 里构建
+## 为什么 cpp wheel 在 runtime 镜像里构建
 
 C++ 算子要对着 torch 和厂商后端编译，所以构建环境必须等于交付环境——与
-vllm-plugin-FL 原生 wheel 同一条规则。用 `--no-flaggems` 构建的 runtime
-镜像（`{version}-build`）已经带了 torch、依赖和编译器，于是 `pip wheel ./cpp`
-在里面直接可用。
+vllm-plugin-FL 原生 wheel 同一条规则。runtime 镜像（`{version}`）已经带了
+torch、依赖和编译器，于是 `pip wheel ./cpp` 在里面直接可用。
 
 哪些后端有这个 wheel 是**推导**出来的，不是枚举：`cpp_matrix.py` 把 runtime
 矩阵过滤到 `configs.yaml` 里设了 `cmake_backend` 的行，`VENDOR_MAP` 再把它

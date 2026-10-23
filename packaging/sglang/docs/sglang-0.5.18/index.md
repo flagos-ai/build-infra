@@ -1,9 +1,9 @@
 # sglang 0.5.18 打包 — 端到端验证报告
 
-> **原则：构建全部在目标机 `-build` 容器内进行，本地（macOS）不构建 wheel。**
-> 每个后端在自己的 runtime `-build` 镜像
-> （`flagos-runtime-<vendor>-<backend>:<version>-build`）内从同一个源包构建
-> wheel；ascend aarch64 亦由 aarch64 `-build` 镜像容器内编译天然产出 aarch64
+> **原则：构建全部在目标机 runtime 容器内进行，本地（macOS）不构建 wheel。**
+> 每个后端在自己的 runtime 镜像
+> （`flagos-runtime-<vendor>-<backend>:<version>`）内从同一个源包构建
+> wheel；ascend aarch64 亦由 aarch64 容器内编译天然产出 aarch64
 > wheel。
 
 ## 0. 背景

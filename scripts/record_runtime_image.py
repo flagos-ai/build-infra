@@ -35,7 +35,7 @@ Every backend a dispatch pushes records onto one branch (one per tag) and one
 PR — this is a changelog fan-out, not a matrix rewrite — so the push is retried
 against the concurrent writers from the same dispatch. The tag is an input, not
 derived here, so the recorded date always belongs to the image that was really
-pushed (including the ``-build`` variant).
+pushed.
 
 Usage:
     python scripts/record_runtime_image.py metax-maca3.8.1.3 \\

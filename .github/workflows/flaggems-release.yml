@@ -17,11 +17,11 @@ name: FlagGems Release Wheels
 # This workflow:
 #
 # — build the pure-Python flag_gems wheel → push to every vendor PyPI.
-# — Build cpp operator wheels inside runtime:v1 (local, from step 4).
+# — Build cpp operator wheels inside the runtime image (step 6).
 # — Write flaggems: into configs.yaml, commit, open a PR.
 #
-# Prerequisites: runtime:v1 images (built with --no-flaggems, tagged
-# {version}-build) must be present on each vendor's self-hosted runner.
+# Prerequisites: runtime images at the stack version must be present on each
+# vendor's self-hosted runner.
 
 on:
   workflow_dispatch:
@@ -113,7 +113,7 @@ jobs:
           path: .wheel-info/manifest.tsv
           if-no-files-found: error
 
-  # ── cpp operator wheels, inside runtime:v1 ───────────────────────────
+  # ── cpp operator wheels, inside the runtime image ────────────────────
   cpp-matrix:
     needs: python-wheel
     if: ${{ !inputs.skip_cpp }}
@@ -154,16 +154,15 @@ jobs:
           python3 -c "import twine" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages --index-url "$mirror" twine
 
-      - name: Pull runtime:v1 image
+      - name: Pull runtime image
         run: |
-          # Tag derives from configs.yaml version: + the -build suffix of the
-          # NO_FLAGGEMS platform image — never hardcode either.
+          # Tag derives from configs.yaml version: — never hardcode it.
           version=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
           reg=$(python3 -c "import yaml;c=yaml.safe_load(open('.github/build-config.yml'));print(c['registry']['host']+'/'+c['registry']['prefixes']['runtime'])")
-          echo "RUNTIME_IMAGE=${reg}/flagos-runtime-${BACKEND}:${version}-build" >> "$GITHUB_ENV"
+          echo "RUNTIME_IMAGE=${reg}/flagos-runtime-${BACKEND}:${version}" >> "$GITHUB_ENV"
           docker pull "$RUNTIME_IMAGE"
 
-      - name: Build cpp wheel inside runtime:v1
+      - name: Build cpp wheel inside the runtime image
         run: |
           python3 scripts/release_flaggems.py build-cpp "$BACKEND" \
             --ref "$FLAGGEMS_REF" --runtime-image "$RUNTIME_IMAGE" --outdir wheels-cpp
