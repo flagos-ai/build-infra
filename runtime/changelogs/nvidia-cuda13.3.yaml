@@ -19,7 +19,7 @@ image: flagos-runtime-nvidia-cuda13.3
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-23T03:45:50.805Z'
     reason: >-
       The flagcx wheel this image carries has been replaced since it was pushed
       (2026-10-17 00:31 UTC): the wheel build that ran before it failed on

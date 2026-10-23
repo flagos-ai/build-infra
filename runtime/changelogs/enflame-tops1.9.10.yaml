@@ -19,7 +19,7 @@ image: flagos-runtime-enflame-tops1.9.10
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-23T03:45:28.673Z'
     reason: >-
       flagcx 0.14.0 becomes a runtime dependency on this backend: configs.yaml
       deps: now pins flagcx==0.14.0+tops1.9.10, so the DEPS install pulls it

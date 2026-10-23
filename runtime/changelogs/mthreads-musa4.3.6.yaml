@@ -19,7 +19,7 @@ image: flagos-runtime-mthreads-musa4.3.6
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-23T04:58:09.941Z'
     reason: >-
       flagcx 0.14.0 becomes a runtime dependency on this backend: configs.yaml
       deps: now pins flagcx==0.14.0+musa4.3.6, so the DEPS install pulls it from
