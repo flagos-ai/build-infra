@@ -15,14 +15,12 @@
 
 **没有充分理由，不重建镜像。** 重建前必须先在 changelog 写一条待定条目
 （reason，date 留空）。push 前门禁检查该条目是否存在；没有就拒绝 push。
-调试构建（`push=false`）和 v1 的 `-build` 平台 tag 不受此限——后者是 wheel
-线的构建平台，不是交付镜像。
+调试构建（`push=false`）不受此限。
 
 **An image is never rebuilt without a documented reason.** Before a rebuild, a
 pending entry (reason, empty date) must be added to the changelog. A push-time
-gate refuses the push when it is absent. Debug builds (`push=false`) and the v1
-`-build` platform tag are exempt — the latter is the build environment the wheel
-lines compile in, not a delivered image.
+gate refuses the push when it is absent. Debug builds (`push=false`) are
+exempt.
 
 ## 文件与结构 / Files and schema
 

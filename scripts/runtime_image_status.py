@@ -28,20 +28,15 @@ stamped by the runtime build paths:
     flagos.flaggems                     FlagGems wheel version installed
     flagos.base                         base image ref it was built from
 
-Each backend is reported as TWO rows: the normal runtime image (``{name}``)
-and the ``-build`` build-platform variant (``{name}-build``, produced with
-NO_FLAGGEMS for cpp wheel compilation). Both live in the same
-``flagos-runtime-{name}`` repo, the latter under a ``-build`` tag suffix.
-``-build`` images carry the same provenance labels except ``flagos.flaggems``
-(no flag_gems is installed by design), so that check is skipped for them.
+One row per backend. Every runtime image carries flag_gems — there is no
+``-build`` (NO_FLAGGEMS) variant any more.
 
 A backend is OUTDATED when any of:
 
   - the image's ``version`` label differs from the tag being inspected
     (normally configs.yaml ``version:`` — the tag changed, so the image
     must be rebuilt to carry the new tag),
-  - the image's ``flagos.flaggems`` differs from configs.yaml ``flaggems:``
-    (normal rows only — ``-build`` images install no flag_gems),
+  - the image's ``flagos.flaggems`` differs from configs.yaml ``flaggems:``,
   - runtime build inputs changed since that commit (``runtime/Containerfile``,
     ``scripts/build_runtime.py``), or
   - runtime-relevant configs.yaml fields changed since that commit. The
@@ -248,17 +243,10 @@ def main() -> None:
         repo: str,
         query_tag: str,
         expected_version: str,
-        is_build: bool,
         vendor: str,
         backend: str,
     ) -> dict:
-        """Check one (backend, variant) row against Harbor + git history.
-
-        ``is_build`` selects the ``-build`` (NO_FLAGGEMS) variant: it carries
-        no ``flagos.flaggems`` label by design, so that check is skipped, and
-        its ``version`` label is the plain stack version (the ``-build`` is a
-        tag suffix, not a version).
-        """
+        """Check one backend row against Harbor + git history."""
         entry = {"name": display_name, "tag": query_tag, "built": "", "status": "", "detail": ""}
         try:
             labels = image_labels(auth, repo, query_tag)
@@ -274,13 +262,10 @@ def main() -> None:
             return entry
 
         # Legacy images (built before label stamping) carry no flagos.* labels —
-        # only labels inherited from the base image. The discriminator: normal
-        # rows must have flagos.flaggems; -build rows have no flaggems by design
-        # but do carry flagos.base (stamped since the same change), so flagos.base
-        # is their marker. Checked before the revision check so legacy images get
-        # the authoritative message.
-        marker = "flagos.base" if is_build else "flagos.flaggems"
-        if not labels.get(marker, ""):
+        # only labels inherited from the base image. flagos.flaggems is the
+        # marker that tells a stamped image from a legacy one. Checked before
+        # the revision check so legacy images get the authoritative message.
+        if not labels.get("flagos.flaggems", ""):
             entry.update(
                 status="UNKNOWN",
                 detail="built before label stamping — rebuild to track status",
@@ -313,10 +298,9 @@ def main() -> None:
         reasons = []
         if built_version and built_version != expected_version:
             reasons.append(f"tag: built as {built_version}, expected {expected_version}")
-        if not is_build:
-            built_flaggems = labels.get("flagos.flaggems", "")
-            if flaggems and built_flaggems != flaggems:
-                reasons.append(f"flaggems: built {built_flaggems}, expected {flaggems}")
+        built_flaggems = labels.get("flagos.flaggems", "")
+        if flaggems and built_flaggems != flaggems:
+            reasons.append(f"flaggems: built {built_flaggems}, expected {flaggems}")
         if changed:
             n = build_inputs_commits(revision)
             count = f" ({n} commit(s))" if n is not None else ""
@@ -341,8 +325,7 @@ def main() -> None:
     for name in names:
         vendor, backend = name.split("-", 1)
         repo = f"{project}/flagos-runtime-{name}"
-        results.append(inspect_row(name, repo, tag, tag, False, vendor, backend))
-        results.append(inspect_row(f"{name}-build", repo, f"{tag}-build", tag, True, vendor, backend))
+        results.append(inspect_row(name, repo, tag, tag, vendor, backend))
 
     if args.json:
         print(json.dumps(results, indent=2))

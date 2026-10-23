@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 镜像 | `flagos-runtime-metax-maca3.8.1.3:2.1.2`（`-build` 构建 / 本镜像验证）|
+| 镜像 | `flagos-runtime-metax-maca3.8.1.3:2.1.2`（本体构建 / 同镜像验证）|
 | Python | 3.12 |
 | torch | 2.10.0+metax3.8.1.0（CUDA-alias：`torch.version.cuda="11.6"`，无 nvcc）|
 | flagtree | 0.6.1+metax3.6 @ `/opt/flagtree`（F 路径）|
@@ -24,7 +24,7 @@
 
 ## 2. 构建与安装
 
-- 构建：`build-and-repack.sh metax-maca3.8.1.3` 在 `-build` 镜像容器内从
+- 构建：`build-and-repack.sh metax-maca3.8.1.3` 在 runtime 镜像容器内从
   `sglang-0.5.18.tar.gz`（filestore）构建，`+flagos` repack，上传
   `flagos-pypi-metax`。
 - 安装（vendor index + aliyun extra，完整闭包）：

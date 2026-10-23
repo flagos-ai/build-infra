@@ -17,7 +17,7 @@ name: VLLM Wheel
 # Build + repack vllm wheels for one (or all) backend(s), and optionally
 # upload them to the per-vendor PyPI. This is the CI consolidation of the
 # manual packaging/vllm/build-and-repack.sh — same build (runtime
-# flagos-runtime-{vendor}-{backend}:{version}-build image, all backends =
+# flagos-runtime-{vendor}-{backend}:{version} image, all backends =
 # VLLM_TARGET_DEVICE=empty source build; nvidia unified onto the empty mode
 # 2026-08-23, the former standard pip-download mode is retired), same repack
 # (packaging/script/repack.py + config.yaml), same per-vendor
@@ -41,7 +41,7 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose -build image repacks the wheel (e.g. ascend-cann9.0.0, or "all")'
+        description: 'Backend whose runtime image repacks the wheel (e.g. ascend-cann9.0.0, or "all")'
         type: string
         default: ascend-cann9.0.0
       vllm_version:
@@ -107,7 +107,7 @@ jobs:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Wraps build-and-repack.sh; the -build image must already exist on the
+      # Wraps build-and-repack.sh; the runtime image must already exist on the
       # runner (pulled by the script, `|| true`). Wheels land in
       # /tmp/vllm-repack-<vendor>-<backend>/output on the runner host.
       # HTTPS_PROXY is not needed: the build pulls vllm source from the
@@ -137,7 +137,7 @@ jobs:
             --watch numpy==1.26.4 --watch vllm \
             "/tmp/vllm-repack-${vendor}-${backend}/output/"*.whl
 
-      # Upload only when explicitly requested. Runs from inside the -build
+      # Upload only when explicitly requested. Runs from inside the runtime
       # image (no host python needed); the secret travels via `-e
       # NEXUS_TOKEN` so it never appears in a process list or image layer.
       - name: Upload to vendor PyPI
@@ -158,7 +158,7 @@ jobs:
           backend="${matrix_name#*-}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
-          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}-build"
+          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}"
           echo ">>> uploading $(ls /tmp/vllm-repack-${vendor}-${backend}/output/*.whl | xargs -n1 basename) to ${pypi_repo}"
           docker run --rm \
             -e NEXUS_TOKEN \
@@ -210,14 +210,14 @@ jobs:
           # The container (root) writes build files into the host bind mount;
           # under /tmp's sticky bit the runner user cannot delete them, so a
           # plain `rm -rf` fails on every run that reaches file creation.
-          # Delete from inside the -build image (root) first, then remove the
+          # Delete from inside the runtime image (root) first, then remove the
           # empty host dir. `|| true` keeps a failed cleanup from failing the
           # job — the work is already done (same pattern as
           # vllm-plugin-wheel.yml).
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
-          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${vendor}-${backend}:${STACK_VERSION}-build"
+          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${vendor}-${backend}:${STACK_VERSION}"
           docker rm -f "vllm-build-${vendor}-${backend}" 2>/dev/null || true
           docker run --rm -v "/tmp/vllm-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
           rm -rf "/tmp/vllm-repack-${vendor}-${backend}" 2>/dev/null || true

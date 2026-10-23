@@ -47,9 +47,6 @@ ARG TRITON_EXTRA_PKGS=""
 # FlagGems wheel version to pin (== exact). Set by build_runtime.py from
 # configs.yaml flaggems: or the --flaggems CLI override.
 ARG FLAGGEMS_VERSION=0.0.0
-# When non-empty, skip the flag_gems install entirely — produces the
-# build-platform image for step 5 (no flag_gems, just torch + deps + compilers).
-ARG NO_FLAGGEMS=""
 # Per-backend runtime env vars from configs.yaml env.runtime, serialized
 # as "KEY=value\nKEY2=value2". Written to /etc/profile.d/runtime_env.sh in
 # the runtime stage so they are active in every shell.
@@ -79,7 +76,6 @@ ARG TRITON_PKG
 ARG TRITON_EXTRA_PKGS
 ARG INCLUDE_TESTS
 ARG FLAGGEMS_VERSION
-ARG NO_FLAGGEMS
 ARG http_proxy
 ARG https_proxy
 ARG no_proxy
@@ -244,40 +240,33 @@ RUN if [ -n "${RUNTIME_PREREQS}" ]; then \
       [ "$_installed" -eq 0 ] || { echo "ERROR: RUNTIME_PREREQS install failed after 3 attempts"; exit 1; }; \
     fi
 
-# ── FlagGems — skip when building the build-platform (runtime:v1).
+# ── FlagGems — always installed; the runtime image is the deliverable.
 
-# When NO_FLAGGEMS is set: skip flag_gems entirely.  This produces a
-# runtime image that has torch + deps + compilers but no flag_gems —
-# the build platform for step 5 (cpp wheel compilation).
-ARG NO_FLAGGEMS
-RUN if [ -n "${NO_FLAGGEMS}" ]; then \
-      echo "NO_FLAGGEMS: skipping flag_gems install"; \
-    else \
-      _installed=1; \
-      for i in 1 2 3; do \
-        if PIP_INDEX_URL="${FLAGOS_PYPI}" \
-           PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
-           PIP_TRUSTED_HOST="resource.flagos.net" \
-           pip install --no-cache-dir --pre \
-          "flag_gems==${FLAGGEMS_VERSION}"; then \
-          _installed=0; break; \
-        fi; \
-        echo "FlagGems install attempt $i failed, retrying..."; \
-      done; \
-      [ "$_installed" -eq 0 ] || { echo "ERROR: FlagGems install failed after 3 attempts"; exit 1; }; \
-      if [ -n "${CPP_EXTRA}" ]; then \
-        PIP_INDEX_URL="${FLAGOS_PYPI}" \
-        PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
-        PIP_TRUSTED_HOST="resource.flagos.net" \
-        pip install --no-cache-dir --pre \
-          "flag-gems-${CPP_EXTRA}==${FLAGGEMS_VERSION}" 2>/dev/null \
-          && echo "cpp extension ${CPP_EXTRA} installed" \
-          || echo "cpp extension ${CPP_EXTRA} not available (skipped)"; \
+ARG FLAGGEMS_VERSION
+RUN _installed=1; \
+    for i in 1 2 3; do \
+      if PIP_INDEX_URL="${FLAGOS_PYPI}" \
+         PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
+         PIP_TRUSTED_HOST="resource.flagos.net" \
+         pip install --no-cache-dir --pre \
+        "flag_gems==${FLAGGEMS_VERSION}"; then \
+        _installed=0; break; \
       fi; \
-      if find /flagos -name 'c_operators*.so' 2>/dev/null | grep -q .; then \
-        echo "cpp extension .so detected — enabling USE_C_EXTENSION"; \
-        printf 'export USE_C_EXTENSION=1\n' > /etc/profile.d/use_c_extension.sh; \
-      fi; \
+      echo "FlagGems install attempt $i failed, retrying..."; \
+    done; \
+    [ "$_installed" -eq 0 ] || { echo "ERROR: FlagGems install failed after 3 attempts"; exit 1; }; \
+    if [ -n "${CPP_EXTRA}" ]; then \
+      PIP_INDEX_URL="${FLAGOS_PYPI}" \
+      PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
+      PIP_TRUSTED_HOST="resource.flagos.net" \
+      pip install --no-cache-dir --pre \
+        "flag-gems-${CPP_EXTRA}==${FLAGGEMS_VERSION}" 2>/dev/null \
+        && echo "cpp extension ${CPP_EXTRA} installed" \
+        || echo "cpp extension ${CPP_EXTRA} not available (skipped)"; \
+    fi; \
+    if find /flagos -name 'c_operators*.so' 2>/dev/null | grep -q .; then \
+      echo "cpp extension .so detected — enabling USE_C_EXTENSION"; \
+      printf 'export USE_C_EXTENSION=1\n' > /etc/profile.d/use_c_extension.sh; \
     fi
 
 # ── Tests — deferred (image not finalized) ────────────────────
@@ -326,8 +315,9 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 
 # C++ operator extensions are opt-in — set USE_C_EXTENSION=1 at runtime
 # AFTER installing the flag-gems-cpp-<vendor> wheel. The env is NOT set
-# here as a default because runtime:v1 (NO_FLAGGEMS) has no cpp wheel and
-# setting it prematurely causes FlagGems to crash on import.
+# here as a default: a cpp wheel is not always present (CPP_EXTRA may be
+# unset, or the wheel not published yet) and setting it prematurely causes
+# FlagGems to crash on import.
 #
 # Compiler switching: see runtime/zz-compiler.sh — baked to /etc/profile.d so
 # the default compiler (FlagTree at /opt/flagtree, else Triton at

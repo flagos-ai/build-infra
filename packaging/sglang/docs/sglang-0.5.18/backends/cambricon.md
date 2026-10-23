@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 镜像 | `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（`-build` 重建，含 torchvision fix，见 §4）|
+| 镜像 | `flagos-runtime-cambricon-neuware4.7.2:2.1.2`（重建，含 torchvision fix，见 §4）|
 | Python | 3.12 |
 | torch | 2.11.0+cpu（torch-mlu 1.33.1+torch2.11.0，PrivateUse1）|
 | vendor triton | 3.4.0+mlu2.1.1 @ `/opt/triton`（T 路径）|

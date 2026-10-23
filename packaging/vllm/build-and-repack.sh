@@ -48,7 +48,7 @@
 # Prerequisites:
 #   - Docker with harbor.baai.ac.cn access
 #   - python3 + pyyaml on the host (for reading configs.yaml)
-#   - build image flagos-runtime-<vendor>-<backend>:<version>-build
+#   - runtime image flagos-runtime-<vendor>-<backend>:<version>
 #   - vllm source tarball at flagos-filestore (all backends build empty mode)
 #   - twine on the host (only when --upload is used)
 #
@@ -102,7 +102,7 @@ else
     exit 1
 fi
 
-BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}-build"
+BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}"
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 
 # Upload target.  Everything stays on the per-vendor index: the binary deps

@@ -27,3 +27,17 @@ tags:
       copy instead of the one triton/_C bundles. Nothing else about the image
       changes.
     upstream_prs: []
+  - date: '2026-10-17T00:30:33.514Z'
+    reason: >-
+      This image first carried the FlagTree version override (build-infra
+      #1342, merged 2026-10-14): zz-compiler.sh now honours a FlagTree version
+      requested at container start (`docker run -e FLAGTREE_VERSION=<ver>`),
+      and `compiler flagtree <ver>` does the same in a running container. The
+      requested wheel is installed into /opt/flagtree in place -- fetched from
+      this image's own vendor index (/etc/flagos/flagtree-index, written at
+      build time), with the shared lane as a sequential second attempt -- so a
+      FlagTree bump no longer forces a rebuild of this image and of every app
+      image above it. A failed install warns and leaves the baked compiler
+      active. Recorded late: this push is older than the entry above it, and
+      its date is the push that first carried the override.
+    upstream_prs: []
