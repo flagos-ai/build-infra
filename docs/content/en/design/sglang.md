@@ -45,8 +45,8 @@ source lives in sglang-plugin-FL, not here.
 
 ## One sdist, many vendors
 
-Every backend builds from the same sdist, inside its own runtime `-build`
-image (ascend's aarch64 comes out of the aarch64 container). Per-vendor
+Every backend builds from the same sdist, inside its own runtime image
+(ascend's aarch64 comes out of the aarch64 container). Per-vendor
 differences — metax's JIT-gap fallbacks, for example — are host-side patches
 applied before the build, or plugin-layer code, never baked into the wheel.
 

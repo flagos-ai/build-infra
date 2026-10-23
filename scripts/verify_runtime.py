@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Verify a runtime v2 image: import torch, triton, flag_gems, and run
+"""Verify a runtime image: import torch, triton, flag_gems, and run
 flag_gems.use_gems() with a simple add operator.
 
 Pulls the image from Harbor and runs the verification command inside it
@@ -93,7 +93,7 @@ def main() -> None:
     all_names = [b["name"] for b in images.get("backends", [])]
     if target == "all":
         names = all_names
-        print(f"Verifying all {len(names)} runtime v2 backends...")
+        print(f"Verifying all {len(names)} runtime backends...")
     else:
         names = [target] if target in all_names else []
         if not names:
@@ -115,7 +115,7 @@ def main() -> None:
         # Pull + verify.  Stream output directly to the terminal so
         # self-hosted runners capture it in the job log — capture_output
         # can drop it when GitHub API connectivity is unreliable.
-        print(f"::group::{name} — verify runtime v2 ({image})")
+        print(f"::group::{name} — verify runtime ({image})")
         print(f"  Pulling {image}...")
         pr = subprocess.run(["docker", "pull", image])
         if pr.returncode != 0:

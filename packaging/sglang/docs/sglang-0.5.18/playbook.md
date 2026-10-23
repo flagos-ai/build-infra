@@ -12,9 +12,9 @@
 4. **统一 `+flagos` 后缀，保留平台 tag**。repack 只追加 PEP 440 本地版本后缀，
    不重打包，二进制 wheel 平台 tag（`linux_x86_64` / `manylinux_2_34_aarch64`）
    原样保留——这是 ascend aarch64 能跨平台分发的前提。
-5. **构建在目标机 `-build` 容器内**。本地（macOS）不构建任何 wheel；每个后端
-   在自己的 runtime `-build` 镜像
-   （`flagos-runtime-<vendor>-<backend>:<version>-build`）内从同一 sdist 构建。
+5. **构建在目标机 runtime 容器内**。本地（macOS）不构建任何 wheel；每个后端
+   在自己的 runtime 镜像
+   （`flagos-runtime-<vendor>-<backend>:<version>`）内从同一 sdist 构建。
 
 ## 2. sdist 定制自建（一次，全后端共用）
 
@@ -62,8 +62,8 @@ extra 里声明。
 流程要点：
 
 1. 取 `configs.yaml` 的 `version:` → `STACK_VERSION`，`BUILD_IMAGE =
-   flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}-build`（`-build` 镜像
-   = flaggems=none 构建的 runtime 镜像，无需新建）。
+   flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}`（就是交付镜像本身，
+   无需额外构建）。
 2. `docker run -d --network host` 起构建容器（DOCKER_RUN_FLAGS 读
    `.github/build-config.yml` run.vendors）。
 3. 容器内 aliyun 装 `setuptools-scm setuptools-rust wheel build`；拉 filestore
@@ -161,7 +161,7 @@ shim 的设计（`generate.py` 生成）：
 
 ### 5.4 验证判据
 
-- 服务起于 runtime `-build` 无关的**验证容器**（镜像
+- 服务起于**验证容器**（镜像
   `flagos-runtime-<vendor>-<backend>:<version>` + 两条 pip install）。
 - F（flagtree，PYTHONPATH=/opt/flagtree）与 T（vendor triton，
   PYTHONPATH=/opt/triton）**双路径 E2E 全过**才算完成。

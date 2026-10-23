@@ -120,7 +120,7 @@ jobs:
           echo "runson=$(jq -c '.include[0].runson | fromjson' matrix.json)" >> "$GITHUB_OUTPUT"
           if [ "$in_base" = yes ]; then
             # A version bump reaches the runtime images later than configs.yaml: until
-            # then the build takes another tag of the same CANN line (e.g. -build).
+            # then the build takes a tag of a previous stack version.
             echo "base_image=${BASE_IMAGE_OVERRIDE:-$(jq -r '.include[0].image_tag' matrix.json)}" >> "$GITHUB_OUTPUT"
             echo "extra_pypi=$(jq -r '.include[0].extra_pypi' matrix.json)" >> "$GITHUB_OUTPUT"
           else

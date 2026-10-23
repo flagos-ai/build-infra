@@ -103,7 +103,7 @@ version: "2.3.0"
 flaggems: "5.4.0"
 
 # Versions of build tools needed to compile the cpp operator wheel inside the
-# runtime:v1 container.  Pinned so a future pip install won't silently pull an
+# runtime image.  Pinned so a future pip install won't silently pull an
 # incompatible release.
 flaggems_cpp_build_deps:
   - "setuptools>=64.0,<77"

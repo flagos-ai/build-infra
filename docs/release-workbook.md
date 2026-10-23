@@ -30,7 +30,9 @@
 version: "X.Y.Z"
 ```
 
-- `flaggems` 此时**留空**。
+- `flaggems` 这一步**不要留空**：沿用上一版的值即可，`runtime-image.yml` 会把它
+  当 `flag_gems==<ver>` 去装，空值会让 runtime 构建直接失败。新版本由步骤 5c 的
+  PR 回填。
 - **此时不打 tag**。tag 在整个栈验证通过后才打。
 
 ```bash
@@ -89,16 +91,20 @@ gh pr list --head auto/image-descriptions-*
 
 合并后 `base-descriptions-publish.yml` + `hugo-site.yml` 自动推送描述到 Harbor 和文档站。
 
-## 4. 构建 runtime:v1（构建平台）
+## 4. 构建 runtime 镜像（cpp wheel 的构建平台）
 
-> **手动触发。** 产出不含 FlagGems 的运行时镜像（`:{version}-build`），用于步骤 5 的 FlagGems wheel 编译。
+> **手动触发。** 推到 Harbor，供步骤 5 的 cpp wheel 编译拉取。
 
 ```bash
-gh workflow run runtime-image.yml -f backend="all" -f push="true" -f flaggems="none"
+gh workflow run runtime-image.yml -f backend="all" -f push="true"
 ```
 
-镜像 tag: `:{version}-build`（如 `:2.2.0-build`）。
-推送到 Harbor 供 FlagGems CI 拉取。
+镜像 tag: `:{version}`（如 `:2.2.0`）。此时 configs.yaml 的 `flaggems:` 还是上一版，
+没关系：这一步要的是**构建环境**（torch + deps + 编译器齐备），
+flag_gems 版本在步骤 6 重建时才对齐。
+
+**这次 push 同样要过 changelog 门禁** —— `runtime/changelogs/<backend>.yaml` 里先写一条
+待定条目，说明为什么现在重建（新建 tag / deps 变更 / **构建平台**）。见 `docs/changelog.md`。
 
 验证方式：
 ```bash
@@ -108,15 +114,15 @@ gh run view <RUN_ID> --json jobs -q '...'  # 同步骤 2
 
 全部 backend `completed | success` 则步骤 4 完成。
 
-如果只有部分 backend 需要 runtime:v1（比如只验证 nvidia），可以只触发指定 backend：
+如果只有部分 backend 需要（比如只验证 nvidia），可以只触发指定 backend：
 ```bash
-gh workflow run runtime-image.yml -f backend="nvidia-cuda13.3" -f flaggems="none"
-gh workflow run runtime-image.yml -f backend="nvidia-cuda13.3" -f push="true" -f flaggems="none"
+gh workflow run runtime-image.yml -f backend="nvidia-cuda13.3"
+gh workflow run runtime-image.yml -f backend="nvidia-cuda13.3" -f push="true"
 ```
 
 ## 5. FlagGems 构建 wheels
 
-前置条件：步骤 4 全部完成（或至少目标 backend 完成）。
+前置条件：步骤 4 全部完成（或至少目标 backend 完成）—— cpp wheel 在步骤 4 推上去的 runtime 镜像内编译。
 
 ### 5a. 在 FlagGems 仓库打 release tag
 
@@ -132,7 +138,7 @@ gh workflow run flaggems-release.yml -f flaggems_ref="v5.3.1"
 
 工作流自动：
 - `python-wheel` (h20)：纯 Python wheel → 推送到全部 14 个 vendor PyPI
-- `cpp-wheels` (各硬件 runner)：在本地 runtime:v1 内编译 cpp wheel → 推送到对应 vendor PyPI
+- `cpp-wheels` (各硬件 runner)：在本地 runtime 镜像内编译 cpp wheel → 推送到对应 vendor PyPI
 - `update-config` (ubuntu-latest)：自动回填 `flaggems:` 字段 → 开 PR
 
 ### 5c. Merge PR
@@ -144,9 +150,10 @@ gh pr list --head auto/flaggems-*
 
 Review + merge。
 
-## 6. 构建 runtime:v2（正式镜像）
+## 6. 重建 runtime 镜像（正式交付镜像）
 
-> **手动触发。** 基于 Harbor 上最新的 base 镜像 + PyPI 上最新的 wheel，产出最终 runtime 镜像并推 Harbor。
+> **手动触发。** 步骤 5c 的 PR 合并后，`configs.yaml` 的 `flaggems:` 已是新版本，
+> 重建一次让交付镜像带上它。基于 Harbor 上最新的 base 镜像 + PyPI 上最新的 wheel。
 
 ```bash
 gh workflow run runtime-image.yml -f backend="all" -f push="true"
@@ -154,13 +161,14 @@ gh workflow run runtime-image.yml -f backend="all" -f push="true"
 
 `flaggems` 留空 — 自动读取 `configs.yaml` 中的版本。
 
-镜像 tag: `:{version}`（如 `:2.2.0`）。注意与步骤 4 的 `:{version}-build` 区分 — 后者是构建平台，不含 FlagGems；前者是最终交付物。
+镜像 tag: `:{version}`（如 `:2.2.0`）—— 与步骤 4 同一个 tag，覆盖它（flat tag 的既定发布模型）。
+同样要过 changelog 门禁：这次的待定条目写「带上 FlagGems X.Y.Z」。
 
 > **注意：** 步骤 5（FlagGems 迭代测试）可能持续数周，期间步骤 6 会被反复执行。
-> 每次 `configs.yaml` 更新 deps 或 FlagGems 修复后，都需要重新构建 runtime:v2 来验证。
+> 每次 `configs.yaml` 更新 deps 或 FlagGems 修复后，都需要重新构建 runtime 镜像来验证。
 > 步骤 8（生成 runtime 描述）只在最终验证通过后执行一次。
 
-## 7. 验证 runtime v2（端到端）
+## 7. 验证 runtime 镜像（端到端）
 
 在对应硬件的节点上手动验证：
 
@@ -184,7 +192,7 @@ gh workflow run gendoc-runtime.yml
 
 生成 runtime 页面最终版本（含 `flag_gems` 版本号）。Review + merge PR。
 
-> **注意：** 此步骤只在 runtime:v2 最终验证通过后执行一次。
+> **注意：** 此步骤只在 runtime 镜像最终验证通过后执行一次。
 > 描述内容来自 `configs.yaml`，runtime 镜像构建本身不触发此工作流。
 
 ## 9. 打 release tag
@@ -197,7 +205,7 @@ git tag -f vX.Y.Z HEAD
 git push -f origin vX.Y.Z
 ```
 
-tag 含义：**这个 commit 上的整套 FlagOS 软件栈（base → runtime:v1 → FlagGems → runtime:v2）已经过验证。**
+tag 含义：**这个 commit 上的整套 FlagOS 软件栈（base → runtime → FlagGems → runtime 重建）已经过验证。**
 
 ## 未决改进
 

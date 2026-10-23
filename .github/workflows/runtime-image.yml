@@ -14,14 +14,13 @@
 
 name: Build Runtime Image (manual)
 
-# The run title self-labels each dispatch so v1 (build, no flag_gems) and v2
-# (full, with flag_gems) are told apart at a glance in the Actions run list —
-# the two produce identical job names, so without this they are indistinguishable.
-# Shows: layer (v1/v2) · backend · push/no-push · no-cache · pinned flaggems ver.
+# The run title self-labels each dispatch so a push, a no-push debug run and a
+# no-cache rebuild are told apart at a glance in the Actions run list.
+# Shows: backend · push/no-push · no-cache · pinned flaggems ver.
 run-name: >-
-  ${{ inputs.flaggems == 'none' && 'v1 build' || 'v2 flag_gems' }}
+  runtime
   · ${{ inputs.backend }}
-  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.record_only && ' · record-only' || '' }}${{ inputs.flaggems != '' && inputs.flaggems != 'none' && format(' · fg={0}', inputs.flaggems) || '' }}
+  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.record_only && ' · record-only' || '' }}${{ inputs.flaggems != '' && format(' · fg={0}', inputs.flaggems) || '' }}
 
 # Runtime images are built on demand, not on every push/PR. They layer
 # FlagGems (pure Python + optional C++ extension) on top of a base image
@@ -39,7 +38,7 @@ on:
         type: boolean
         default: false
       flaggems:
-        description: 'FlagGems wheel version to install. Empty = version pinned in configs.yaml. "none" = skip flag_gems entirely (v1, -build image).'
+        description: 'FlagGems wheel version to install. Empty = version pinned in configs.yaml.'
         type: string
         default: ''
       skip_cpp:
@@ -142,13 +141,11 @@ jobs:
       - name: Env + parameters
         run: |
           flaggems_ver="${{ inputs.flaggems }}"
-          [[ -z "$flaggems_ver" || "$flaggems_ver" == "none" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
+          [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
           # Resolved once, here: the changelog gate, the build and the record
-          # step must agree on the tag being pushed, and "-build" is a suffix on
-          # the v1 (NO_FLAGGEMS) variant only.
+          # step must agree on the tag being pushed.
           image_tag="${{ matrix.image_tag }}"
-          [[ "${{ inputs.flaggems }}" == "none" ]] && image_tag="${image_tag}-build"
           echo "IMAGE_TAG=${image_tag}" >> "$GITHUB_ENV"
 
           echo "hostname: $(hostname)"
@@ -157,7 +154,6 @@ jobs:
           echo "base_image:         ${{ matrix.base_image }}"
           echo "image_tag:          ${image_tag}"
           echo "flaggems_version:   ${flaggems_ver}"
-          echo "flaggems_mode:      ${{ inputs.flaggems == 'none' && 'none (v1 -build)' || 'install' }}"
           echo "python_version:      ${{ matrix.python_version }}"
           echo "deps:                ${{ matrix.deps }}"
           echo "cpp_extra:           ${{ matrix.cpp_extra }}"
@@ -166,9 +162,9 @@ jobs:
 
       # Changelog gate: a push must be authorized by a pending entry (reason,
       # empty date) for this tag, checked before the build. Debug builds
-      # (push=false) and the v1 (flaggems=none) -build platform are exempt.
+      # (push=false) are exempt.
       - name: Changelog gate
-        if: ${{ inputs.push && !inputs.record_only && inputs.flaggems != 'none' }}
+        if: ${{ inputs.push && !inputs.record_only }}
         run: |
           set -euo pipefail
           python3 scripts/changelog_gate.py \
@@ -187,11 +183,9 @@ jobs:
         if: ${{ !inputs.record_only }}
         run: |
           flaggems_ver="${{ inputs.flaggems }}"
-          [[ -z "$flaggems_ver" || "$flaggems_ver" == "none" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
+          [[ -z "$flaggems_ver" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
-          no_flaggems_arg=""
           image_tag="${IMAGE_TAG}"
-          [[ "${{ inputs.flaggems }}" == "none" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1'
 
           cpp_extra="${{ matrix.cpp_extra }}"
           [[ "${{ inputs.skip_cpp }}" == "true" ]] && cpp_extra=""
@@ -209,8 +203,8 @@ jobs:
             --label org.opencontainers.image.created=${git_created} \
             --label last-updated=${git_created} \
             --label org.opencontainers.image.source=https://github.com/flagos-ai/build-infra \
-            --label flagos.base=${{ matrix.base_image }}"
-          [[ "${{ inputs.flaggems }}" != "none" ]] && label_args="${label_args} --label flagos.flaggems=${flaggems_ver}"
+            --label flagos.base=${{ matrix.base_image }} \
+            --label flagos.flaggems=${flaggems_ver}
 
           # Classic builder does not forward the runner proxy into the build —
           # relay it as --build-arg (ARG-only: never reaches image config).
@@ -253,7 +247,6 @@ jobs:
             --build-arg "INCLUDE_TESTS=false" \
             --build-arg "FLAGGEMS_VERSION=${flaggems_ver}" \
             --build-arg "RUNTIME_ENV=${{ matrix.runtime_env }}" \
-            ${no_flaggems_arg} \
             -t "${image_tag}" \
             -f runtime/Containerfile runtime/
 
@@ -263,10 +256,9 @@ jobs:
 
       # record_only recovery path: date a changelog for a tag already in the
       # registry without rebuilding it. The registry query makes github.sha
-      # irrelevant, but matrix.version must still be the pushed one. Same
-      # -build exemption as the gate.
+      # irrelevant, but matrix.version must still be the pushed one.
       - name: Record runtime image push
-        if: ${{ success() && (inputs.record_only || inputs.push) && inputs.flaggems != 'none' }}
+        if: ${{ success() && (inputs.record_only || inputs.push) }}
         uses: ./.github/actions/record-runtime-image
         with:
           backend: "${{ matrix.name }}"

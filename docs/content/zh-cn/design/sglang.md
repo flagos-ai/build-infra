@@ -42,7 +42,7 @@ import 面，硬件算子全部由 runtime 内置的 flag_gems 提供。shim 的
 
 ## 一个 sdist，多个厂商
 
-每个后端从同一个 sdist 构建，在自己的 runtime `-build` 镜像内（ascend 的
+每个后端从同一个 sdist 构建，在自己的 runtime 镜像内（ascend 的
 aarch64 出自 aarch64 容器）。per-vendor 差异——例如 metax 的 JIT 缺口 fallback
 ——是构建前在 host 侧应用的 patch，或插件层代码，绝不写进 wheel。
 

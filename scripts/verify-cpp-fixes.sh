@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # === verify-cpp-fixes.sh ============================================
-# Run inside the runtime:v1 container to verify FlagGems + libtriton_jit
+# Run inside the runtime image to verify FlagGems + libtriton_jit
 # fixes before the PRs are merged.
 #
 # Env vars (all required):

@@ -30,14 +30,14 @@
 #                           outward-facing so it never runs by default
 #
 # Env:
-#   STACK_VERSION      stack version for the -build image tag (default: read
+#   STACK_VERSION      stack version for the runtime image tag (default: read
 #                      from configs.yaml)
 #   DOCKER_RUN_FLAGS   extra `docker run` flags; defaults to the vendor's run
 #                      flags from .github/build-config.yml (toolkit ?: raw) —
 #                      ptpu vendors (e.g. sunrise) need /dev visible at build
 #
 # Prereqs: docker + harbor access; python3 + pyyaml on the host; the
-# flagos-runtime-<vendor>-<backend>:<version>-build image; the shared source
+# flagos-runtime-<vendor>-<backend>:<version> image; the shared source
 # tarball on the filestore (build-sdist.sh).
 #
 # Model (srt_empty base, no dep stripping, per-vendor upload, rust cache):
@@ -91,7 +91,7 @@ else
     exit 1
 fi
 
-BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}-build"
+BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}"
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 
 # Per-vendor index: the wheel + its ABI-bound runtime deps form one matched
@@ -254,7 +254,7 @@ docker exec "$CONTAINER" bash -c "
     python3 ${WORK_DIR}/merge-runtime-base.py pyproject.toml
 
     # Rust toolchain for the multimodal rust ext. Skip if the present cargo
-    # already reads the workspace manifest — never downgrade a -build image
+    # already reads the workspace manifest — never downgrade the runtime image
     # with the distro apt cargo (1.75 on Ubuntu 24.04 fails on resolver="3" /
     # edition="2024"). Official dist tarball cached on the filestore (no
     # external CDN at wheel time); rustup from static.rust-lang.org is the

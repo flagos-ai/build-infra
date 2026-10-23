@@ -84,7 +84,7 @@ enforce-eager，`/root/run_serve.sh` 现场保留。两处插件 patch 日志（
 
 **日期:** 2026-08-09　**平台:** Enflame GCU300
 
-**镜像:** `flagos-runtime-enflame-tops1.9.10:2.1.2`（runtime v2：仅预置 flag_gems，**无 vllm、无 plugin**）
+**镜像:** `flagos-runtime-enflame-tops1.9.10:2.1.2`（runtime 镜像：仅预置 flag_gems，**无 vllm、无 plugin**）
 
 **stack:** torch_gcu **2.10.0** / tops1.9.10 / flag_gems master（editable）/ plugin [VPF #357](https://github.com/flagos-ai/vllm-plugin-FL/pull/357)（editable）
 

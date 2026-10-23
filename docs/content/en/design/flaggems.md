@@ -27,7 +27,7 @@ pure Python, the C++ operator library is not:
 - **`flag_gems` wheel** — `py3-none-any`, so it needs no vendor toolchain and
   carries no glibc floor. One identical wheel is uploaded to every vendor PyPI.
 - **`flag_gems_cpp_<backend>` wheel** — the per-backend C++ operators, built
-  inside the `runtime:v1` image (`{version}-build`), whose venv already has
+  inside the runtime image (`{version}`), whose venv already has
   torch + deps + compilers. One per cmake backend, uploaded to that backend's
   vendor index.
 - **`python3-flag-gems` `.deb`** — built from upstream's own `packaging/debian/`
@@ -44,12 +44,12 @@ The version is FlagGems' own, read by `setuptools_scm` from its git tags. A
 daily (non-tag) build stamps a throwaway local tag so `_version.py` still
 carries the real commit, then the workflow uploads to `flagos-pypi-daily`.
 
-## Why the cpp wheel builds in `runtime:v1`
+## Why the cpp wheel builds in the runtime image
 
 The C++ operators compile against torch and the vendor backend, so the build
 environment has to equal the delivery environment — the same rule as the
-vllm-plugin-FL native wheel. The runtime image built with `--no-flaggems`
-(`{version}-build`) already carries torch, the deps and the compilers, so
+vllm-plugin-FL native wheel. The runtime image (`{version}`) already
+carries torch, the deps and the compilers, so
 `pip wheel ./cpp` just works inside it.
 
 Which backends get one is derived, not listed: `cpp_matrix.py` filters the

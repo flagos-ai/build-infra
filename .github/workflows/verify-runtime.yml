@@ -14,7 +14,7 @@
 
 name: Verify Runtime Images
 
-# Verify runtime v2 images on actual hardware: import torch, triton, flag_gems,
+# Verify runtime images on actual hardware: import torch, triton, flag_gems,
 # and run flag_gems.use_gems() with a simple add operator.
 #
 # Each backend runs on its own self-hosted runner (matching hardware) and

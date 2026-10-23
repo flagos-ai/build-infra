@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build the flag-gems-cpp-<vendor> wheel inside the runtime:v1 container.
+# Build the flag-gems-cpp-<vendor> wheel inside the runtime image.
 # Env vars (all required):
 #   FLAGGEMS_REF                — git tag, e.g. "v5.3.1"
 #   FLAGGEMS_CPP_VENDOR         — set_cpp_vendor.sh arg, e.g. "cuda"

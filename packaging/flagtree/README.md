@@ -703,7 +703,7 @@ Notes that apply only here:
 - The base image is the runtime image at the stack version (`configs.yaml
   version:`), which a version bump reaches later than the base images. Until it is
   published, `flagtree-wheel.yml`'s `base_image` input takes another tag of the
-  same CANN line (e.g. `:2.2.0-build`). Blank = the derived runtime image, which is
+  same CANN line (e.g. a previous stack version). Blank = the derived runtime image, which is
   what a real build must use. That input reaches the build as
   `--build-arg BUILDER_IMAGE`, the same arg every other backend's cold base uses.
 - **The proxy is the runner's, like every other builder.** The targets declare

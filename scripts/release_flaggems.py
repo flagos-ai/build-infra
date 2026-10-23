@@ -23,9 +23,8 @@ Usage::
     python3 scripts/release_flaggems.py build-cpp BACKEND --ref v5.3.1 --runtime-image IMG [--outdir DIR]
     python3 scripts/release_flaggems.py upload-cpp BACKEND WHEEL [--dry-run]
 
-Cpp wheel build runs inside the runtime:v1 container (built in step 4
-with --no-flaggems) — its venv already has torch + deps + compilers,
-so ``pip wheel ./cpp`` just works.
+Cpp wheel build runs inside the runtime image (step 6), whose venv already has
+torch + deps + compilers, so ``pip wheel ./cpp`` just works.
 
 The NEXUS_TOKEN env var is required for upload commands (``user:token``).
 """
@@ -170,7 +169,7 @@ VENDOR_MAP: dict[str, str] = {
 
 
 def cmd_build_cpp(args: argparse.Namespace) -> str:
-    """Build a cpp operator wheel inside runtime:v1.  Returns wheel path."""
+    """Build a cpp operator wheel inside the runtime image.  Returns wheel path."""
     cfg = _load_configs()
     vendor, bk = args.backend.split("-", 1)
     specs = (cfg.get("vendors") or {}).get(vendor, {}).get(bk)
@@ -314,11 +313,11 @@ def main() -> None:
     up.set_defaults(func=lambda a: cmd_upload_python(a))
 
     # build-cpp
-    bc = subs.add_parser("build-cpp", help="Build cpp wheel inside runtime:v1")
+    bc = subs.add_parser("build-cpp", help="Build cpp wheel inside the runtime image")
     bc.add_argument("backend", help="Backend name, e.g. nvidia-cuda12.8")
     bc.add_argument("--ref", required=True, help="FlagGems git tag/ref")
     bc.add_argument("--runtime-image", required=True,
-                    help="runtime:v1 image ref (built with --no-flaggems in step 4)")
+                    help="runtime image ref to build the wheel in")
     bc.add_argument("--outdir", help="Output directory for the cpp wheel")
     bc.set_defaults(func=lambda a: cmd_build_cpp(a))
 
