@@ -1,0 +1,29 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+
+image: flagos-runtime-mthreads-musa4.3.6
+tags:
+- tag: 2.3.0
+  entries:
+  - date: ''
+    reason: >-
+      flagcx 0.14.0 becomes a runtime dependency on this backend: configs.yaml
+      deps: now pins flagcx==0.14.0+musa4.3.6, so the DEPS install pulls it from
+      the vendor index and FlagTree resolves libflagcx.so to the package's copy
+      instead of the one triton/_C bundles. Nothing else about the image
+      changes.
+    upstream_prs: []

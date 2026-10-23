@@ -15,16 +15,20 @@
 
 **没有充分理由，不重建镜像。** 重建前必须先在 changelog 写一条待定条目
 （reason，date 留空）。push 前门禁检查该条目是否存在；没有就拒绝 push。
-调试构建（`push=false`）不受此限。
+调试构建（`push=false`）和 v1 的 `-build` 平台 tag 不受此限——后者是 wheel
+线的构建平台，不是交付镜像。
 
 **An image is never rebuilt without a documented reason.** Before a rebuild, a
 pending entry (reason, empty date) must be added to the changelog. A push-time
-gate refuses the push when it is absent. Debug builds (`push=false`) are exempt.
+gate refuses the push when it is absent. Debug builds (`push=false`) and the v1
+`-build` platform tag are exempt — the latter is the build environment the wheel
+lines compile in, not a delivered image.
 
 ## 文件与结构 / Files and schema
 
-逐镜像一个文件，分 app 放在 `app/<app>/changelogs/<image>.yaml`
-（base/runtime 层同理，落位待定）。字段含义见文件头注释：
+逐镜像一个文件：app 层 `app/<app>/changelogs/<image>.yaml`，
+runtime 层 `runtime/changelogs/<backend>.yaml`（base 层落位待定）。
+字段含义见文件头注释：
 
 文件名与文件内的 `image:` 就是镜像名（app 层即公开名
 `{app}{app_version}-{app_name}`，见 `scripts/app_public.py`）：app 层改公开名时
@@ -41,14 +45,18 @@ gate 都按这个名字找文件，漏改一处即 push 前被拒。
     已经在所构建的 tag 里，tag 本身就是记录。build-infra 自己的 PR 是交付
     动作本身，不列。
 
-One YAML per image under `app/<app>/changelogs/<image>.yaml` (base/runtime
-follow the same idea; placement TBD). See each file's header for the schema:
+One YAML per image: `app/<app>/changelogs/<image>.yaml` for the app layer,
+`runtime/changelogs/<backend>.yaml` for the runtime layer (base layer TBD).
+See each file's header for the schema:
 
-The filename and the `image:` field inside it are the image name (for the app
-layer, the public name `{app}{app_version}-{app_name}`, see
-`scripts/app_public.py`): renaming the app layer renames both, and a **rename is
-not a rebuild — no new entry**. The workflow's changelog path and the gate look
-the file up by that name, so missing one place fails the push.
+The filename and the `image:` field inside it are the image name. For the app
+layer the filename is the public name
+(`{app}{app_version}-{app_name}`, see `scripts/app_public.py`) — renaming the
+app layer renames both, and a **rename is not a rebuild — no new entry**. For
+the runtime layer the filename is the backend key, as everywhere else that
+addresses a backend, and `image:` carries the full image name. The workflow's
+changelog path and the gate look the file up by that name, so missing one
+place fails the push.
 
 - `tags`: published tags, newest first. Tags the registry no longer carries are
   folded into the history of the entry that succeeded them — this file is their
@@ -70,15 +78,15 @@ the file up by that name, so missing one place fails the push.
 2. 触发 push 构建 —— 门禁检查该 tag 是否有待定条目：新 tag 需有 tag 记录，
    同 tag 重打需在既有 block 下新增待定条目。无则拒。
 3. 构建 → 校验 → push。
-4. record 步骤回填 `date` = registry `push_time`，与 image_tag 记录同一个 PR。
+4. record 步骤回填 `date` = registry `push_time`（app 层与 image_tag 记录同一个 PR）。
 
 1. A human commits a pending entry (reason, empty `date`).
 2. Trigger the push build — the gate checks for a pending entry for this tag:
    a new tag needs a tag record; a re-push needs a new pending entry under the
    existing block. Refuse otherwise.
 3. Build → verify → push.
-4. The record step backfills `date` = registry `push_time`, in the same PR as
-   the image_tag record.
+4. The record step backfills `date` = registry `push_time` (the app layer in
+   the same PR as its image_tag record).
 
 门禁无需查 registry 或比较时钟：已交付条目的 `date` 一定非空（已回填），
 因此"`date` 为空"就等价于"有人准备好了这次重建"。
@@ -90,5 +98,8 @@ prepared this rebuild.
 ## 相关 / See also
 
 - 生成式文档与 review 门禁的既有模式：`docs/status-matrix.md`
+- 落位：app 层 `.github/workflows/{vllm,sglang,megatron}-app-image.yml`，
+  runtime 层 `.github/workflows/runtime-image.yml`（门禁 → 构建 → push → 回填）。
 - 门禁：`scripts/changelog_gate.py`；回填：`scripts/backfill_changelog_date.py`；
-  记录集成：`scripts/record_app_image_tag.py`。
+  记录集成：app 层 `scripts/record_app_image_tag.py`，
+  runtime 层 `scripts/record_runtime_image.py`。

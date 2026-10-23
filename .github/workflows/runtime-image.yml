@@ -21,7 +21,7 @@ name: Build Runtime Image (manual)
 run-name: >-
   ${{ inputs.flaggems == 'none' && 'v1 build' || 'v2 flag_gems' }}
   · ${{ inputs.backend }}
-  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.flaggems != '' && inputs.flaggems != 'none' && format(' · fg={0}', inputs.flaggems) || '' }}
+  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.no_cache && ' · no-cache' || '' }}${{ inputs.record_only && ' · record-only' || '' }}${{ inputs.flaggems != '' && inputs.flaggems != 'none' && format(' · fg={0}', inputs.flaggems) || '' }}
 
 # Runtime images are built on demand, not on every push/PR. They layer
 # FlagGems (pure Python + optional C++ extension) on top of a base image
@@ -50,6 +50,17 @@ on:
         description: 'Disable Docker build cache (use for rebuild wheels with same version)'
         type: boolean
         default: false
+      record_only:
+        description: >-
+          Skip pull/build/push, only re-record — dates the changelog entry for a
+          tag pushed but never recorded (failed record step / closed record PR).
+        type: boolean
+        default: false
+
+# The record step commits a dated changelog and opens a PR.
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   authorize:
@@ -112,7 +123,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Harbor login (push only)
-        if: ${{ inputs.push }}
+        if: ${{ inputs.push && !inputs.record_only }}
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
@@ -133,11 +144,18 @@ jobs:
           flaggems_ver="${{ inputs.flaggems }}"
           [[ -z "$flaggems_ver" || "$flaggems_ver" == "none" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
+          # Resolved once, here: the changelog gate, the build and the record
+          # step must agree on the tag being pushed, and "-build" is a suffix on
+          # the v1 (NO_FLAGGEMS) variant only.
+          image_tag="${{ matrix.image_tag }}"
+          [[ "${{ inputs.flaggems }}" == "none" ]] && image_tag="${image_tag}-build"
+          echo "IMAGE_TAG=${image_tag}" >> "$GITHUB_ENV"
+
           echo "hostname: $(hostname)"
           echo "arch: $(uname -m)"
           docker version --format 'docker: {{.Server.Version}}' 2>/dev/null || echo "docker: unavailable"
           echo "base_image:         ${{ matrix.base_image }}"
-          echo "image_tag:          ${{ matrix.image_tag }}"
+          echo "image_tag:          ${image_tag}"
           echo "flaggems_version:   ${flaggems_ver}"
           echo "flaggems_mode:      ${{ inputs.flaggems == 'none' && 'none (v1 -build)' || 'install' }}"
           echo "python_version:      ${{ matrix.python_version }}"
@@ -146,7 +164,19 @@ jobs:
           echo "flagtree_pkg:        ${{ matrix.flagtree_pkg }}"
           echo "triton_pkg:          ${{ matrix.triton_pkg }}"
 
+      # Changelog gate: a push must be authorized by a pending entry (reason,
+      # empty date) for this tag, checked before the build. Debug builds
+      # (push=false) and the v1 (flaggems=none) -build platform are exempt.
+      - name: Changelog gate
+        if: ${{ inputs.push && !inputs.record_only && inputs.flaggems != 'none' }}
+        run: |
+          set -euo pipefail
+          python3 scripts/changelog_gate.py \
+            "runtime/changelogs/${{ matrix.name }}.yaml" \
+            "${IMAGE_TAG##*:}"
+
       - name: Pull base image
+        if: ${{ !inputs.record_only }}
         run: |
           docker pull "${{ matrix.base_image }}" || {
             echo "::error::Failed to pull base image ${{ matrix.base_image }}"
@@ -154,13 +184,14 @@ jobs:
           }
 
       - name: Build runtime image
+        if: ${{ !inputs.record_only }}
         run: |
           flaggems_ver="${{ inputs.flaggems }}"
           [[ -z "$flaggems_ver" || "$flaggems_ver" == "none" ]] && flaggems_ver="${{ matrix.flaggems_version }}"
 
           no_flaggems_arg=""
-          image_tag="${{ matrix.image_tag }}"
-          [[ "${{ inputs.flaggems }}" == "none" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1' && image_tag="${image_tag}-build"
+          image_tag="${IMAGE_TAG}"
+          [[ "${{ inputs.flaggems }}" == "none" ]] && no_flaggems_arg='--build-arg NO_FLAGGEMS=1'
 
           cpp_extra="${{ matrix.cpp_extra }}"
           [[ "${{ inputs.skip_cpp }}" == "true" ]] && cpp_extra=""
@@ -227,8 +258,16 @@ jobs:
             -f runtime/Containerfile runtime/
 
       - name: Push runtime image
-        if: ${{ inputs.push }}
-        run: |
-          image_tag="${{ matrix.image_tag }}"
-          [[ "${{ inputs.flaggems }}" == "none" ]] && image_tag="${image_tag}-build"
-          docker push "${image_tag}"
+        if: ${{ inputs.push && !inputs.record_only }}
+        run: docker push "${IMAGE_TAG}"
+
+      # record_only recovery path: date a changelog for a tag already in the
+      # registry without rebuilding it. The registry query makes github.sha
+      # irrelevant, but matrix.version must still be the pushed one. Same
+      # -build exemption as the gate.
+      - name: Record runtime image push
+        if: ${{ success() && (inputs.record_only || inputs.push) && inputs.flaggems != 'none' }}
+        uses: ./.github/actions/record-runtime-image
+        with:
+          backend: "${{ matrix.name }}"
+          image: "${{ env.IMAGE_TAG }}"
