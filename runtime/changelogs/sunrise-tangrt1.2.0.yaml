@@ -19,7 +19,7 @@ image: flagos-runtime-sunrise-tangrt1.2.0
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-23T03:49:03.733Z'
     reason: >-
       flagcx 0.14.0 becomes a runtime dependency on this backend: configs.yaml
       deps: now pins flagcx==0.14.0+tangrt1.2.0, so the DEPS install pulls it
