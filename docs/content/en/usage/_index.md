@@ -73,6 +73,36 @@ restart — carrying the reason. A backend the daily line does not build
 that does not answer is settled by a short probe (10s), so the failure arrives in
 about ten seconds rather than after pip's own retries.
 
+## Choosing a FlagGems version
+
+FlagGems is installed in every runtime and app image, and its daily line publishes
+a wheel every day. Override it at container start the same way:
+
+```bash
+docker run -e FLAGGEMS_VERSION=5.4.0 <runtime-or-app-image> ...
+docker run -e FLAGGEMS_VERSION=latest <runtime-or-app-image> ...
+```
+
+The wheel is installed into the image's own Python environment before the
+application starts — about 13 MB, fetched once per container, needing egress at
+container start. There is no in-container command for it; the environment
+variable is the whole interface.
+
+`latest` means the newest build **on the daily line**, not the newest compared to
+what the image already carries: the version it resolved is reported at start, so
+you can see which one you got. Daily wheels lead the next release, so this is how
+to run a FlagGems fix that has not been released yet.
+
+An in-container install resolves only FlagGems' own version — everything else is
+held at the version the image was built with, so the stack around it does not
+move. The one thing that is not covered is a C++ operator extension
+(`USE_C_EXTENSION=1`): its wheel version has to match FlagGems' own, and an
+in-container override does not swap it.
+
+A request that cannot be met stops the container exactly as a FlagTree request
+does, and for the same reason — see the section above for what that looks like
+under docker and kubernetes.
+
 ## Building on demand
 
 Base images are built manually, not on every change (vendor SDKs change rarely):

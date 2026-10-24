@@ -65,6 +65,29 @@ docker run -e FLAGTREE_VERSION=latest <runtime 或 app 镜像> ...
 cambricon、spacemit、thead）同样被拒绝。索引不通由一次短探测（10 秒）判定，
 所以大约十秒就有结论，而不是等 pip 自己重试完。
 
+## 指定 FlagGems 版本
+
+每个 runtime / app 镜像都装了 FlagGems，其每日线每天产出 wheel。同样可以在启动
+容器时覆盖：
+
+```bash
+docker run -e FLAGGEMS_VERSION=5.4.0 <runtime 或 app 镜像> ...
+docker run -e FLAGGEMS_VERSION=latest <runtime 或 app 镜像> ...
+```
+
+wheel 会在应用启动前装进镜像自带的 Python 环境——约 13 MB，每个容器只取一次，
+需要容器启动时能出网。它没有对应的容器内命令，环境变量就是全部接口。
+
+`latest` 指**每日线上最新**，不与镜像里已有的版本比较：启动时会打印解析出的版本，
+你能看到拿到的是哪一个。每日 wheel 领先于下一个发布版，因此这是跑上尚未发布的
+FlagGems 修复的办法。
+
+容器内安装只改 FlagGems 自身的版本，其余依赖保持在镜像构建时的版本，周围的技术栈
+不会跟着动。唯一没被覆盖的是 C++ 算子扩展（`USE_C_EXTENSION=1`）：它的 wheel 版本
+必须与 FlagGems 自身版本对应，容器内覆盖不会把它一起换掉。
+
+装不上时容器同样直接起不来，原因与 FlagTree 那条相同——具体表现见上一节。
+
 ## 按需构建
 
 base 镜像是手动构建的，不会每次变更都触发（厂商 SDK 变更不频繁）：

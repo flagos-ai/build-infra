@@ -64,3 +64,8 @@ hit the C++ backend — wrong ref or packaging).
   as a GitHub Actions artifact for inspection.
 - Upload target: **`flagos-pypi-daily`** (the daily/dev repo; releases go to
   `flagos-pypi-hosted`). Auth via the org secret `NEXUS_TOKEN` (`user:token`).
+
+The daily build is reachable from inside a runtime or app image without a
+rebuild: `docker run -e FLAGGEMS_VERSION=latest` installs the newest wheel on
+that line at container start (`-e FLAGGEMS_VERSION=<version>` for a release).
+See `docs/content/en/usage/_index.md` ("Choosing a FlagGems version").
