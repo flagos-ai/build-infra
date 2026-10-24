@@ -3,7 +3,8 @@
 发版操作手册。每条可直接执行，Ctrl+C 即可复制命令。
 
 > `packaging/flaggems` 每日自动推送到 `flagos-pypi-daily` 的 wheel 用于日常开发。
-> 使用者在 runtime 镜像内 `pip install --index-url ...` 覆盖即可，不影响发版流程。
+> 使用者在 runtime 镜像内 `pip install --index-url ...` 覆盖即可，不影响发版流程；
+> 镜像内也可直接 `-e FLAGGEMS_VERSION=latest`（每个容器取一次，装不上则容器起不来）。
 >
 > FlagTree 同样有一条每日线（`flagtree-wheel-daily.yml`），每个后端一个发行名
 > （`flagtree-nvidia`、`flagtree-metax`、`flagtree-enflame`、

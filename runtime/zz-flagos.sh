@@ -24,6 +24,7 @@
 #
 #   compiler [flagtree|triton] [version|latest]
 #   docker run -e FLAGTREE_VERSION=<ver|latest> <runtime|app image> ...
+#   docker run -e FLAGGEMS_VERSION=<ver|latest> <runtime|app image> ...
 #
 # A request that cannot be honoured STOPS the container: running a different
 # FlagTree than the one asked for is a stack the caller did not ask for.
@@ -39,6 +40,7 @@ _compiler_side_dirs="/opt/flagtree /opt/triton"
 _flagos_pkg_marker() {
     case "$1" in
         flagtree) printf '%s' "/opt/flagtree/.daily-latest" ;;
+        flaggems) printf '%s' "/flagos/.flaggems-latest" ;;
     esac
 }
 
@@ -47,18 +49,21 @@ _flagos_pkg_failed() {
         # Inside the tree for FlagTree: the install replaces it wholesale, so a
         # later explicit version request clears this for free.
         flagtree) printf '%s' "/opt/flagtree/.request-failed" ;;
+        flaggems) printf '%s' "/flagos/.flaggems-request-failed" ;;
     esac
 }
 
 _flagos_pkg_label() {
     case "$1" in
         flagtree) printf '%s' "FlagTree" ;;
+        flaggems) printf '%s' "FlagGems" ;;
     esac
 }
 
 _flagos_pkg_envvar() {
     case "$1" in
         flagtree) printf '%s' "FLAGTREE_VERSION" ;;
+        flaggems) printf '%s' "FLAGGEMS_VERSION" ;;
     esac
 }
 
@@ -67,6 +72,7 @@ _flagos_pkg_envvar() {
 _flagos_vendor_index_file="/etc/flagos/vendor-index"
 _flagos_vendor_fallback_index="https://resource.flagos.net/repository/flagos-pypi-hosted/simple"
 _flagos_daily_index_file="/etc/flagos/daily-index"
+_flagos_mirror_index_file="/etc/flagos/mirror-index"
 
 # The daily line, for `latest`: only this package's per-backend distribution
 # name, written at build time from FLAGTREE_DAILY_PKG. Absent on the backends
@@ -222,6 +228,20 @@ _flagos_index_daily() {
     printf '%s' "$u"
 }
 
+_flagos_index_mirror() {
+    local u=""
+    [ -r "$_flagos_mirror_index_file" ] && read -r u < "$_flagos_mirror_index_file"
+    printf '%s' "$u"
+}
+
+# The versions this image itself pins (configs.yaml deps + runtime_prereqs),
+# frozen at build time. An in-container FlagGems install resolves against a pool
+# that has to reach the public mirror — vendor indexes carry no numpy, the daily
+# index 14 projects — and the mirror offers numpy 2.x, an ABI break under a torch
+# built for 1.x. FlagGems' own transitive deps are deliberately absent: an older
+# release legitimately moves those.
+_flagos_flaggems_constraints="/etc/flagos/flaggems-constraints.txt"
+
 _flagos_same_version() {
     # A public request (0.7.0) is satisfied by a lane build of it (0.7.0+metax3.6)
     # — the local segment is a pin only when the caller wrote one.
@@ -353,6 +373,130 @@ _flagtree_satisfied() {
     if _flagtree_installed_is_daily; then return 1; fi
     have=$(_flagtree_installed_version) || return 1
     _flagos_same_version "$want" "$have"
+}
+
+_flaggems_installed_version() {
+    # Version alone, read off the dist-info name: this runs on every shell start,
+    # and `python3` is ambiguous in this image (the venv's, and the vendor's).
+    local d
+    for d in /flagos/lib/python3.*/site-packages/flag_gems-*.dist-info; do
+        [ -d "$d" ] || continue
+        d="${d##*/}"
+        d="${d%.dist-info}"
+        printf '%s' "${d#flag_gems-}"
+        return 0
+    done
+    return 1
+}
+
+_flaggems_satisfied() {
+    # FlagGems has one project name on every lane, so — unlike FlagTree — what is
+    # installed answers the request directly, whatever line it came from.
+    local want="$1" have
+    have=$(_flaggems_installed_version) || return 1
+    _flagos_same_version "$want" "$have"
+}
+
+_flaggems_resolve_latest() {
+    # Print the newest version on the daily line, or fail having said why.
+    #
+    # Read out and installed exactly, rather than handed to pip as a bare name:
+    # without --upgrade pip calls an installed 5.4.0 satisfying and does nothing,
+    # and with --upgrade it means "newest in the pool", which reaches the public
+    # mirror. Both are a different question from the one asked.
+    local index out ver
+    index=$(_flagos_index_daily)
+    if [ -z "$index" ]; then
+        echo "flaggems latest: no daily index in this image — request an explicit version" >&2
+        return 1
+    fi
+    command -v pip >/dev/null 2>&1 || { echo "flaggems latest: pip not found" >&2; return 1; }
+
+    _flagos_probe flaggems latest "$index" || return 1
+    # pip's own answer rather than a scan of the simple index: the daily line
+    # carries both `.dev<date>` builds and releases, and picking the largest by
+    # date suffix gets it wrong the moment a release is in there. Only the daily
+    # index is asked — it alone decides what `latest` means.
+    if ! out=$(pip index versions flag_gems --pre --no-cache-dir \
+                   "${_flagos_pip_net_opts[@]}" --index-url "$index" 2>/dev/null); then
+        echo "flaggems latest: the daily index has no flag_gems" >&2
+        return 1
+    fi
+    # First line is `flag_gems (5.5.0.dev<date>)`; nothing after it is read.
+    read -r _ ver <<<"$out"
+    ver="${ver#(}"
+    ver="${ver%)}"
+    # pip marks this output experimental, so the shape is checked before the
+    # string is allowed anywhere near a version specifier.
+    case "$ver" in
+        [0-9]*)
+            case "$ver" in
+                *[!0-9A-Za-z.+-]*)
+                    echo "flaggems latest: cannot read a version out of the daily index — request an explicit version" >&2
+                    return 1 ;;
+            esac ;;
+        *)
+            echo "flaggems latest: cannot read a version out of the daily index — request an explicit version" >&2
+            return 1 ;;
+    esac
+    printf '%s' "$ver"
+}
+
+_flaggems_install_exact() {
+    # pip replaces the package in place — the wheel is py3-none-any and the venv
+    # is the landing point, so unlike FlagTree there is no tree to stage and swap.
+    # ${2} is the index expected to hold it, first in the pool and the one probed;
+    # the other two follow so dependencies can resolve.
+    local ver="$1" index="${2:-}" args=() m have
+    [ -n "$index" ] || index=$(_flagos_index_vendor)
+    # The same three-index pool the build step resolves against. It has to reach
+    # the mirror: the daily index carries 14 projects and the vendor indexes carry
+    # no numpy at all.
+    for m in "$(_flagos_index_vendor)" "$(_flagos_index_daily)" "$(_flagos_index_mirror)"; do
+        [ -n "$m" ] && [ "$m" != "$index" ] && args+=(--extra-index-url "$m")
+    done
+    if [ -r "$_flagos_flaggems_constraints" ]; then
+        args+=(-c "$_flagos_flaggems_constraints")
+    else
+        # Only reachable with a newer script than image (a bind-mount). Say so —
+        # without the file the pool is free to move the stack around FlagGems.
+        echo "flaggems ${ver}: no constraints file in this image, the install may move other packages" >&2
+    fi
+
+    echo "flaggems ${ver}: installing from ${index} (one-off, ~13 MB)..." >&2
+    # --pre: a daily is a `.dev<date>` and invisible without it. No --upgrade:
+    # with a bare name that would mean "newest in the pool", which is exactly the
+    # question `latest` is not asking. No --no-deps either — unlike the FlagTree
+    # tree, site-packages is where the venv's own dependencies belong.
+    local rc=0
+    _flagos_pip_install flaggems "$ver" "$index" --no-cache-dir --pre \
+            --index-url "$index" "${args[@]}" "flag_gems==${ver}" >&2 || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        # 2 = the probe reported it and already said why. Otherwise the reason is
+        # pip's own — a version the pool does not have, or a dependency the
+        # constraints file holds below what this FlagGems asks for, and guessing
+        # which would be worse than pointing at the output above.
+        [ "$rc" -eq 2 ] || echo "flaggems ${ver}: the install failed (pip's reason above)" >&2
+        return 1
+    fi
+    # A pip return of 0 only says it did not give up; the request is what the venv
+    # has to end up holding.
+    have=$(_flaggems_installed_version) || true
+    if [ "$have" != "$ver" ]; then
+        echo "flaggems ${ver}: pip succeeded but the venv holds ${have:-nothing}" >&2
+        return 1
+    fi
+}
+
+_flaggems_install_latest() {
+    local ver
+    ver=$(_flaggems_resolve_latest) || return 1
+    echo "flaggems latest: the daily line's newest is ${ver}" >&2
+    _flaggems_install_exact "$ver" "$(_flagos_index_daily)" || return 1
+    # Record the resolved version so the rest of this container skips the lookup,
+    # and report it: `latest` is the newest on the daily line, not the newest this
+    # container has seen, so which one was taken is the whole answer.
+    printf '%s\n' "$ver" > "$(_flagos_pkg_marker flaggems)"
 }
 
 _flagos_ensure() {
@@ -502,12 +646,17 @@ compiler() {
     fi
 }
 
-# FLAGTREE_VERSION, when set, is a version request made at container start. The
-# flag rather than an immediate exit keeps a second request's reason from being
-# masked by the first one's.
+# FLAGTREE_VERSION / FLAGGEMS_VERSION, when set, are version requests made at
+# container start. The flag rather than an immediate exit keeps a second
+# request's reason from being masked by the first one's. FlagTree first: it is
+# the compiler, and without it FlagGems cannot be imported at all.
 _flagos_request_failed=0
 if ! _flagos_ensure flagtree "${FLAGTREE_VERSION:-}"; then
     _flagos_report_cannot_install flagtree "${FLAGTREE_VERSION:-}"
+    _flagos_request_failed=1
+fi
+if ! _flagos_ensure flaggems "${FLAGGEMS_VERSION:-}"; then
+    _flagos_report_cannot_install flaggems "${FLAGGEMS_VERSION:-}"
     _flagos_request_failed=1
 fi
 [ "$_flagos_request_failed" -eq 0 ] || exit 1

@@ -101,6 +101,8 @@ STRINGS = {
         "switch_compiler_note": "This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.",
         "flagtree_version": "Choosing a FlagTree version",
         "flagtree_version_note": "To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.",
+        "flaggems_version": "Choosing a FlagGems version",
+        "flaggems_version_note": "Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.",
         "environment": "Environment",
         "launch": "Launch",
         "launch_toolkit_optional": "**With the container toolkit** *(optional)*:",
@@ -146,6 +148,8 @@ STRINGS = {
         "switch_compiler_note": "本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。",
         "flagtree_version": "指定 FlagTree 版本",
         "flagtree_version_note": "如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。",
+        "flaggems_version": "指定 FlagGems 版本",
+        "flaggems_version_note": "给 `docker run` 传入 `-e FLAGGEMS_VERSION=<版本>`，即可在应用启动前装上该 FlagGems 发布版，无需重建镜像。`-e FLAGGEMS_VERSION=latest` 取的是**每日线**上的最新构建（领先于下一个发布版）：它是「每日线最新」，不与镜像里已有的版本比较。wheel 约 13 MB，每个容器只取一次。容器内安装会保持其余依赖与构建时一致；请求装不上时容器直接起不来，而不是带着另一个 FlagGems 启动。",
         "environment": "环境变量",
         "launch": "启动",
         "launch_toolkit_optional": "**使用容器工具包** *(可选)*：",
@@ -600,6 +604,10 @@ def render_runtime(entry: dict, lang: str = "en", flavor: str = "web") -> str:
         if any(p["pkg"].startswith("flagtree==") for p in packages):
             lines += ["", f"### {s['flagtree_version']}", ""]
             lines.append(s["flagtree_version_note"])
+        # Unconditional: FlagGems is installed in every runtime image, so the
+        # ability to override it belongs on every runtime page.
+        lines += ["", f"### {s['flaggems_version']}", ""]
+        lines.append(s["flaggems_version_note"])
         lines.append("")
 
     # ── Environment (runtime env vars) ──
