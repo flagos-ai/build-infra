@@ -50,6 +50,29 @@ The wheel is installed into `/opt/flagtree` before the application starts. In a
 running container, `compiler flagtree <version>` does the same; `compiler` alone
 prints the active version.
 
+`latest` picks the newest **daily build** for that backend instead of a release:
+
+```bash
+docker run -e FLAGTREE_VERSION=latest <runtime-or-app-image> ...
+```
+
+Daily wheels lead the next release and are built every day, so this is the way to
+run a fix that has not been released yet. It downloads about 120 MB and needs
+egress at container start; the fetch happens once per container, so later shells
+in the same container reuse it, and the next container picks up whatever was
+published since.
+
+**When the requested version cannot be installed, the container stops.** A
+container running a FlagTree other than the one asked for is not what was asked
+for, and nothing downstream would say so — so the request is refused, the reason
+goes to stderr, and the exit is non-zero: `docker run` returns 1, and under
+kubernetes the pod goes to `Error` (then `CrashLoopBackOff`) instead of coming up
+Running on the wrong compiler, with `kubectl logs <pod>` — `--previous` for the
+restart — carrying the reason. A backend the daily line does not build
+(cambricon, spacemit, thead today) is refused the same way. Reaching an index
+that does not answer is settled by a short probe (10s), so the failure arrives in
+about ten seconds rather than after pip's own retries.
+
 ## Building on demand
 
 Base images are built manually, not on every change (vendor SDKs change rarely):

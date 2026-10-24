@@ -284,7 +284,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
 # --compiler <flagtree|triton>: switch the in-container compiler for every
 # runtime step (snapshot + import + serve). The runtime's `compiler` bash
-# function is sourced in every shell (BASH_ENV → /etc/profile.d/zz-compiler.sh);
+# function is sourced in every shell (BASH_ENV → /etc/profile.d/zz-flagos.sh);
 # `compiler <name>` exports PYTHONPATH to the selected side dir (/opt/flagtree
 # or /opt/triton) and fails (rc 1) if that compiler is absent. Empty = leave
 # the runtime's default compiler active. stdout is discarded: `compiler triton`

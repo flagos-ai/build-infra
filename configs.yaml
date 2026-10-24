@@ -47,6 +47,17 @@
 #   "cmake_backend:"   — FLAGGEMS_BACKEND for C++ extensions (only where supported).
 #   "triton:"          — vendor Triton package(s).
 #   "flagtree:"        — FlagTree package (preferred compiler).
+#   "flagtree_daily:"  — this backend's distribution name on flagos-pypi-daily,
+#                        which is what `-e FLAGTREE_VERSION=latest` installs.
+#                        Declared, never derived from the vendor or backend
+#                        key: the daily line names one project per backend
+#                        (packaging/flagtree/backends.yaml `daily.dist_name`),
+#                        and the two sets do not line up — ascend has two
+#                        (one per CANN line), hygon's project is `flagtree-hcu`
+#                        after FlagTree's own backend name, and cambricon /
+#                        spacemit / thead have no daily line at all. Absent =
+#                        no daily line: `latest` warns and keeps the baked
+#                        compiler rather than guessing a name.
 #   "triton_post_install:" — extra packages installed after Triton (COMPILER=triton).
 #   "env:"             — environment split by which image consumes it:
 #                          base:        vars baked into flagos-base-{vendor}-{backend}
@@ -171,6 +182,7 @@ vendors:
       cmake_backend: CUDA
       triton: triton==3.6.0
       flagtree: flagtree==0.7.0
+      flagtree_daily: flagtree-nvidia
       env:
         base:
           # Effective env — inherited verbatim from nvcr 12.8.0-runtime-ubuntu24.04
@@ -226,6 +238,7 @@ vendors:
       # #1266), not triton/_C/libflagcx.so (libcudart.so.12, absent on CUDA 13) —
       # the flagcx wheel for cuda13.3 (flagcx-0.14.0+cuda13.3) is a dep.
       flagtree: flagtree==0.7.0
+      flagtree_daily: flagtree-nvidia
       env:
         base:
           # Effective env — inherited verbatim from nvcr 13.3.0-runtime-ubuntu24.04
@@ -281,6 +294,7 @@ vendors:
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
+      flagtree_daily: flagtree-ascend-cann8-5-0
       env:
         app:
           sglang:
@@ -336,6 +350,7 @@ vendors:
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
+      flagtree_daily: flagtree-ascend-cann8-5-0
       deps:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
@@ -367,6 +382,7 @@ vendors:
       cmake_backend: NPU
       triton: triton==3.5.0
       flagtree: flagtree==0.7.0+ascend3.5
+      flagtree_daily: flagtree-ascend-cann9-0-0
       triton_post_install:
         - triton_ascend==3.2.1
       env:
@@ -419,6 +435,7 @@ vendors:
       cmake_backend: NPU
       triton: triton==3.5.0
       flagtree: flagtree==0.7.0+ascend3.5
+      flagtree_daily: flagtree-ascend-cann9-0-0
       triton_post_install:
         - triton_ascend==3.2.1
       deps:
@@ -551,6 +568,7 @@ vendors:
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
       flagtree: flagtree==0.7.0+enflame3.6
+      flagtree_daily: flagtree-enflame
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
@@ -602,6 +620,7 @@ vendors:
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20260722
       flagtree: flagtree==0.7.0+enflame3.6
+      flagtree_daily: flagtree-enflame
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
@@ -662,6 +681,7 @@ vendors:
       python: "3.10"
       triton: triton==3.5.1+das.opt1.dtk2604.torch290
       flagtree: flagtree==0.7.0+hcu3.6
+      flagtree_daily: flagtree-hcu
       deps:
         - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
@@ -696,6 +716,7 @@ vendors:
       cmake_backend: IX
       triton: triton==3.1.0+corex.4.4.0
       flagtree: flagtree==0.6.1+iluvatar3.6
+      flagtree_daily: flagtree-iluvatar
       env:
         base:
           COREX_ROOT: /usr/local/corex
@@ -757,6 +778,7 @@ vendors:
       cmake_backend: IX
       triton: triton==3.2.0+corex.4.5.0.20260804
       flagtree: flagtree==0.7.1a1+iluvatar3.6
+      flagtree_daily: flagtree-iluvatar
       env:
         base:
           COREX_ROOT: /usr/local/corex
@@ -806,6 +828,7 @@ vendors:
       triton: triton==3.6.0+gitcd2d6c1b
       # triton: triton==3.0.0+a48aedef
       flagtree: flagtree==0.7.0+xpu3.6
+      flagtree_daily: flagtree-kunlunxin
       env:
         base:
           PATH: /usr/local/xpu/bin:$PATH
@@ -868,6 +891,7 @@ vendors:
       # 0.7.0+metax3.6 wheel: triton.compiler.compiler re-exports triton_key),
       # so the F path no longer needs to be held at 0.6.1.
       flagtree: flagtree==0.7.0+metax3.6
+      flagtree_daily: flagtree-metax
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -915,6 +939,7 @@ vendors:
       # 0.7.0 carries FlagTree #1052's triton_key re-export (verified in the
       # 0.7.0+metax3.6 wheel), so the F path no longer needs to be held at 0.6.1.
       flagtree: flagtree==0.7.0+metax3.6
+      flagtree_daily: flagtree-metax
       env:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
@@ -981,6 +1006,7 @@ vendors:
       cmake_backend: MUSA
       triton: triton==3.6.0+git89458660
       flagtree: flagtree==0.7.0+mthreads3.6
+      flagtree_daily: flagtree-mthreads
       env:
         base:
           MUSA_HOME: /usr/local/musa
@@ -1016,6 +1042,7 @@ vendors:
       cmake_backend: MUSA
       triton: triton==3.6.0
       flagtree: flagtree==0.7.0+mthreads3.6
+      flagtree_daily: flagtree-mthreads
       env:
         base:
           MUSA_HOME: /usr/local/musa
@@ -1062,6 +1089,7 @@ vendors:
       python: "3.10"
       triton: triton==3.6.0.1+git0a5cfb35
       flagtree: flagtree==0.7.0+sunrise3.6
+      flagtree_daily: flagtree-sunrise
       env:
         base:
           TANGRT_ROOT: /usr/local/tangrt
@@ -1143,6 +1171,7 @@ vendors:
       python: "3.10"
       triton: triton==3.6.0.post2026072919+git8f5b0609
       flagtree: flagtree==0.7.0+tsingmicro3.6
+      flagtree_daily: flagtree-tsingmicro
       system_dpkg:
         # libfmt8 is a system-level dependency for torch_txda (links
         # libfmt.so.8). Ubuntu 24.04 ships libfmt9, so we install the

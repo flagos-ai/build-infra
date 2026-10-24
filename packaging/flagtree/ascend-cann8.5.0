@@ -123,7 +123,7 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
     && test -d /opt/flagtree-src/.git \
     && git -C /opt/flagtree-src --no-pager log -1 --format='>>> flagtree source: %H %s'
 
-# PYTHONPATH is dropped: zz-compiler.sh puts the VENDOR flagtree on it in every bash.
+# PYTHONPATH is dropped: zz-flagos.sh puts the VENDOR flagtree on it in every bash.
 # TRITON_APPEND_CMAKE_ARGS disables -Wdangling-assignment-gsl, which this bundle's
 # clang 21 raises on the bundle's OWN MLIR headers (35205978277); the -Werror that
 # promotes it is flagtree's own (CMakeLists.txt:196), and setup.py passes the value

@@ -653,7 +653,7 @@ after the backend.
 Notes that apply only here:
 
 - **`PYTHONPATH` must be dropped during the build, the gate and the smoke test.**
-  The runtime image's `/etc/profile.d/zz-compiler.sh` puts the *vendor* FlagTree
+  The runtime image's `/etc/profile.d/zz-flagos.sh` puts the *vendor* FlagTree
   (`/opt/flagtree`) on `PYTHONPATH` in every bash shell, so a naive
   `import triton` imports the vendor wheel. The source is cloned to
   `/opt/flagtree-src` (never `/opt/flagtree`), and the smoke installs into
@@ -848,6 +848,15 @@ both spellings resolve to the newest daily; a stable release of that name, if
 one is ever published, would flip the no-`--pre` form over to it. What a plain
 `pip install flagtree` gets is unaffected either way: dailies live under a
 different name.
+
+Inside a runtime or app image, `-e FLAGTREE_VERSION=latest` runs the nvidia
+line's equivalent of the first command — the distribution name is read from the
+image itself (`configs.yaml flagtree_daily`, written to
+`/etc/flagos/flagtree-daily` at build time), so the caller names no backend and
+the wheel lands in `/opt/flagtree` the same way a requested release does. It is
+applied once per container: later shells reuse it, the next container re-fetches.
+The `pip uninstall` above is not needed there — the tree is replaced wholesale,
+and the dist-info changes name with it.
 
 **Which commit is this?** Not from the version — from the wheel's metadata:
 
