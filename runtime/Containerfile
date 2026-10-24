@@ -331,16 +331,36 @@ COPY zz-flagos.sh /etc/profile.d/zz-flagos.sh
 
 # ── In-container version request sources, read by zz-flagos.sh ──
 # Files, not ENVs: configs.yaml env.runtime documents this image's env, and an
-# ENV set only here would silently fall outside it. vendor-index and daily-index
-# are build-time configuration; flagtree-daily is this backend's daily
-# distribution name, absent where the daily line has no row for it.
+# ENV set only here would silently fall outside it. The three *-index files are
+# build-time configuration; flagtree-daily is this backend's daily distribution
+# name, absent where the daily line has no row for it.
 ARG FLAGOS_PYPI
 ARG DAILY_PYPI
 ARG FLAGTREE_DAILY_PKG
+# Stage-scoped on purpose: a Dockerfile stage does not inherit a global ARG, and
+# an undeclared one expands to empty rather than failing — which would leave
+# FLAGGEMS_VERSION=latest with no mirror to fall back to.
+ARG EXTRA_PYPI
 RUN mkdir -p /etc/flagos \
     && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/vendor-index; fi \
     && if [ -n "${DAILY_PYPI}" ]; then printf '%s\n' "${DAILY_PYPI}" > /etc/flagos/daily-index; fi \
+    && if [ -n "${EXTRA_PYPI}" ]; then printf '%s\n' "${EXTRA_PYPI}" > /etc/flagos/mirror-index; fi \
     && if [ -n "${FLAGTREE_DAILY_PKG}" ]; then printf '%s\n' "${FLAGTREE_DAILY_PKG}" > /etc/flagos/flagtree-daily; fi
+
+# ── The venv's own pins, for the in-container FlagGems install ──
+# After the /flagos COPY above, so pip freeze sees the final venv. It holds what
+# THIS image pins (configs.yaml deps + runtime_prereqs), not the whole freeze:
+# pinning flag_gems' own transitive deps too would refuse an older FlagGems that
+# legitimately wants a different sqlalchemy (5.3.6 wants 2.0.48, this image has
+# 2.0.55). Those are the versions a pool reaching the public mirror must not move
+# — it offers numpy 2.x under a torch built for 1.x.
+ARG DEPS
+ARG RUNTIME_PREREQS
+RUN printf '%s\n' ${DEPS} ${RUNTIME_PREREQS} | sed 's/[<>=!~].*$//' | sort -u > /tmp/flagos-pins \
+    && pip freeze --all \
+       | awk -F= 'NR==FNR { p[tolower($1)]; next } tolower($1) in p' /tmp/flagos-pins - \
+       > /etc/flagos/flaggems-constraints.txt \
+    && rm -f /tmp/flagos-pins
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)
