@@ -294,7 +294,7 @@ vendors:
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
-      flagtree_daily: flagtree-ascend-cann8.5.0
+      flagtree_daily: flagtree-ascend-cann8-5-0
       env:
         app:
           sglang:
@@ -350,7 +350,7 @@ vendors:
       cmake_backend: NPU
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
-      flagtree_daily: flagtree-ascend-cann8.5.0
+      flagtree_daily: flagtree-ascend-cann8-5-0
       deps:
         - torch==2.9.0+cpu
         - torch-npu==2.9.0
@@ -382,7 +382,7 @@ vendors:
       cmake_backend: NPU
       triton: triton==3.5.0
       flagtree: flagtree==0.7.0+ascend3.5
-      flagtree_daily: flagtree-ascend-cann9.0.0
+      flagtree_daily: flagtree-ascend-cann9-0-0
       triton_post_install:
         - triton_ascend==3.2.1
       env:
@@ -435,7 +435,7 @@ vendors:
       cmake_backend: NPU
       triton: triton==3.5.0
       flagtree: flagtree==0.7.0+ascend3.5
-      flagtree_daily: flagtree-ascend-cann9.0.0
+      flagtree_daily: flagtree-ascend-cann9-0-0
       triton_post_install:
         - triton_ascend==3.2.1
       deps:
