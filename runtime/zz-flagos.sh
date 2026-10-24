@@ -266,7 +266,7 @@ _flagtree_swap_in() {
 
 _flagtree_install_exact() {
     # Install ${1} into /opt/flagtree, leaving the baked tree in place until it
-    # succeeded. Returns 1 on failure (caller warns and keeps the default).
+    # succeeded. Returns 1 on failure (the caller stops the container).
     local ver="$1" staged="/opt/flagtree.new" index src ok=1 reachable=0
     local -a sources=()
 

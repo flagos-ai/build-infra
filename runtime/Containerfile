@@ -44,7 +44,7 @@ ARG CPP_EXTRA=""
 ARG FLAGTREE_PKG=""
 # This backend's daily-line distribution name (configs.yaml flagtree_daily), for
 # the in-container FLAGTREE_VERSION=latest. Empty when the backend has no daily
-# row — the runtime stage then bakes no daily file and `latest` warns.
+# row — the runtime stage then bakes no daily file, and `latest` refuses.
 ARG FLAGTREE_DAILY_PKG=""
 ARG TRITON_PKG=""
 ARG TRITON_EXTRA_PKGS=""
