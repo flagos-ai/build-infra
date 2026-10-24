@@ -323,33 +323,24 @@ RUN if [ -n "${RUNTIME_ENV}" ]; then \
 # unset, or the wheel not published yet) and setting it prematurely causes
 # FlagGems to crash on import.
 #
-# Compiler switching: see runtime/zz-compiler.sh — baked to /etc/profile.d so
-# the default compiler (FlagTree at /opt/flagtree, else Triton at
-# /opt/triton) is active in every shell, and 'compiler flagtree|triton'
-# toggles between the side dirs. The same file honours a version requested at
-# container start (FLAGTREE_VERSION), installing it into /opt/flagtree in place
-# so a FlagTree bump needs no image rebuild.
-#
-# The zz- prefix forces it to sort LAST among /etc/profile.d/*.sh (which are
-# sourced alphabetically). Some base images ship a vendor.sh (captured from
-# the SDK's set_env.sh) that exports PYTHONPATH absolutely — ascend's does —
-# which would clobber the compiler dir if compiler.sh sorted before it. Sorting
-# last means the compiler's PYTHONPATH export wins and triton stays importable.
-COPY zz-compiler.sh /etc/profile.d/zz-compiler.sh
+# Compiler switching and the in-container version request both live in
+# runtime/zz-flagos.sh, copied to /etc/profile.d. The zz- prefix sorts it LAST
+# there, so its PYTHONPATH export wins over any vendor.sh that assigns
+# PYTHONPATH absolutely (ascend's set_env.sh capture does).
+COPY zz-flagos.sh /etc/profile.d/zz-flagos.sh
 
-# ── FlagTree override sources for the in-container version request ──
-# zz-compiler.sh installs a version requested at container start: a release from
-# this image's vendor index, or `latest` from the daily line. Files, not ENVs —
-# configs.yaml env.runtime is the documented source of this image's env, and an
-# ENV set only here would silently fall outside it.
+# ── In-container version request sources, read by zz-flagos.sh ──
+# Files, not ENVs: configs.yaml env.runtime documents this image's env, and an
+# ENV set only here would silently fall outside it. vendor-index and daily-index
+# are build-time configuration; flagtree-daily is this backend's daily
+# distribution name, absent where the daily line has no row for it.
 ARG FLAGOS_PYPI
 ARG DAILY_PYPI
 ARG FLAGTREE_DAILY_PKG
 RUN mkdir -p /etc/flagos \
-    && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/flagtree-index; fi \
-    && if [ -n "${DAILY_PYPI}" ] && [ -n "${FLAGTREE_DAILY_PKG}" ]; then \
-         printf '%s\n%s\n' "${FLAGTREE_DAILY_PKG}" "${DAILY_PYPI}" > /etc/flagos/flagtree-daily; \
-       fi
+    && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/vendor-index; fi \
+    && if [ -n "${DAILY_PYPI}" ]; then printf '%s\n' "${DAILY_PYPI}" > /etc/flagos/daily-index; fi \
+    && if [ -n "${FLAGTREE_DAILY_PKG}" ]; then printf '%s\n' "${FLAGTREE_DAILY_PKG}" > /etc/flagos/flagtree-daily; fi
 
 # ── Bash plumbing — make profile.d/*.sh available everywhere ─────
 #   /etc/profile         → profile.d/*.sh   (login shells, native)

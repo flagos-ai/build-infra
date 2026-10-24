@@ -653,7 +653,7 @@ after the backend.
 Notes that apply only here:
 
 - **`PYTHONPATH` must be dropped during the build, the gate and the smoke test.**
-  The runtime image's `/etc/profile.d/zz-compiler.sh` puts the *vendor* FlagTree
+  The runtime image's `/etc/profile.d/zz-flagos.sh` puts the *vendor* FlagTree
   (`/opt/flagtree`) on `PYTHONPATH` in every bash shell, so a naive
   `import triton` imports the vendor wheel. The source is cloned to
   `/opt/flagtree-src` (never `/opt/flagtree`), and the smoke installs into

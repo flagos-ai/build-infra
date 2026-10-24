@@ -162,7 +162,7 @@ To diagnose LD_LIBRARY_PATH-class issues, run two probes side by side:
 
 The dual-compiler runtime (flagtree `/opt/flagtree`, vendor triton `/opt/triton`,
 neither in site-packages) activates its default compiler through
-`BASH_ENV=/etc/bash_env.sh` → sources `/etc/profile.d/*.sh` (zz-compiler.sh
+`BASH_ENV=/etc/bash_env.sh` → sources `/etc/profile.d/*.sh` (zz-flagos.sh
 runs last, auto-`compiler flagtree` when no side dir is on PYTHONPATH). The
 compiler side dir is what makes `import triton` and `import flag_gems` work —
 flag_gems *requires* triton, and `supports_paged_attention()` degrades to the
@@ -178,7 +178,7 @@ passes. Rules:
   `sh`/`docker run <img> <binary>`** — that is the "vllm way" and it also
   matches every docs launch command (they all end in `bash`).
 - `compiler` does NOT need explicit sourcing: BASH_ENV already sourced
-  zz-compiler.sh; `compiler flagtree >/dev/null` is only needed to *switch*.
+  zz-flagos.sh; `compiler flagtree >/dev/null` is only needed to *switch*.
   A blank `PYTHONPATH` seen from a non-bash exec is a probe artifact, not the
   image being broken.
 - Corollary: a RL/training repro that hangs at the flash-attn gate is
