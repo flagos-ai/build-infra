@@ -56,8 +56,10 @@
 #                        (one per CANN line), hygon's project is `flagtree-hcu`
 #                        after FlagTree's own backend name, and cambricon /
 #                        spacemit / thead have no daily line at all. Absent =
-#                        no daily line: `latest` warns and keeps the baked
-#                        compiler rather than guessing a name.
+#                        no daily line: `latest` refuses rather than guessing a
+#                        name. The spelling here is what pip is handed, and pip
+#                        canonicalizes it itself (PEP 503), so it need not match
+#                        this row's `dist_name` character for character.
 #   "triton_post_install:" — extra packages installed after Triton (COMPILER=triton).
 #   "env:"             — environment split by which image consumes it:
 #                          base:        vars baked into flagos-base-{vendor}-{backend}

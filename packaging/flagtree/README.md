@@ -741,15 +741,17 @@ Notes that apply only here:
   interpreter is the one that image ships. The `daily.wheel_tag` a row declares
   is checked against what the build produced, so a wrong one fails the run rather
   than publishing a wheel no CANN node can install.
-- **The distribution name is dotted, and that reaches the index.** A daily
-  publishes under `flagtree-ascend-cann9.0.0`, whose canonical (PEP 503) form is
+- **The distribution name may be dotted, and that reaches the index.** A row may
+  publish under `flagtree-ascend-cann9.0.0`, whose canonical (PEP 503) form is
   `flagtree-ascend-cann9-0-0` — dots are separators, not part of the name. Nexus
   serves only the canonical spelling, and a wheel's file name is a third string
   again (`flagtree_ascend_cann9_0_0-…`, `bdist_wheel`'s escaping). The plan job
   derives both, which is why the daily's skip probe reads
-  `…/simple/flagtree-ascend-cann9-0-0/` and not the name the row declares.
-  Consumer-side the declared name is the right one: pip, and
-  `importlib.metadata`, normalize it themselves.
+  `…/simple/flagtree-ascend-cann9-0-0/` rather than the declared spelling alone.
+  Consumer-side any spelling works: pip, and `importlib.metadata`, normalize it
+  themselves. `configs.yaml flagtree_daily` therefore spells these two rows the
+  canonical way — the name is handed to pip, and this way what is written down
+  is what the index actually serves.
 
 ## Build
 

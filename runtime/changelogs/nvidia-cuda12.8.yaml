@@ -32,7 +32,7 @@ tags:
   - date: '2026-10-17T00:26:58.291Z'
     reason: >-
       This image first carried the FlagTree version override (build-infra
-      #1342, merged 2026-10-14): zz-compiler.sh now honours a FlagTree version
+      #1342, merged 2026-10-14): zz-flagos.sh now honours a FlagTree version
       requested at container start (`docker run -e FLAGTREE_VERSION=<ver>`),
       and `compiler flagtree <ver>` does the same in a running container. The
       requested wheel is installed into /opt/flagtree in place -- fetched from

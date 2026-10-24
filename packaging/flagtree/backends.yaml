@@ -39,7 +39,9 @@
 #   daily.enabled   whether the daily line builds this backend. False until a
 #                   build here has been verified on the backend's own nodes.
 #   daily.dist_name one project per backend, so `pip install --pre <name>` ranks
-#                   without a backend token in the version.
+#                   without a backend token in the version. Declared as the name
+#                   setup.py is handed; the index path is its PEP 503 canonical
+#                   form (see README "three spellings of its name").
 #   daily.version_base
 #                   the release the daily leads: `<version_base>.dev<UTC date>`.
 #                   Bump it with configs.yaml's flagtree pin.
