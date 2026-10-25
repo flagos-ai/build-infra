@@ -30,6 +30,16 @@
 # FlagTree than the one asked for is a stack the caller did not ask for.
 # ============================================================================
 
+# Bases with a vendor SDK env (ascend, hygon) ship a vendor.sh that assigns PATH
+# absolutely, without /flagos/bin. It is sourced from inside the same loop, before
+# this file, so the venv prefix has to be re-asserted before anything asks for
+# `pip`. Guarded: bash.bashrc sources the loop a second time, and an unguarded
+# prepend stacks a duplicate on every pass.
+case ":$PATH:" in
+    *:/flagos/bin:*) ;;
+    *) export PATH="/flagos/bin:$PATH" ;;
+esac
+
 _compiler_side_dirs="/opt/flagtree /opt/triton"
 
 # Per-package facts the shared code needs, as one-line case arms: where the

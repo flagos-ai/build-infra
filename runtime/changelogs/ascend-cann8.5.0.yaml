@@ -29,7 +29,10 @@ tags:
       a non-zero exit rather than letting it run on a different version. The
       image bakes the files those requests read, among them the constraints
       file that holds an in-container FlagGems install to this image's own
-      pins.
+      pins. On the vendor bases whose SDK env assigns PATH absolutely (ascend,
+      hygon), the profile plumbing also re-asserts the venv prefix after that
+      assignment: `pip` was otherwise resolving to the system interpreter, or to
+      none, before the request could run.
     upstream_prs: []
   - date: '2026-10-23T03:42:12.565Z'
     reason: >-
