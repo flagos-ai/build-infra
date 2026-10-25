@@ -204,7 +204,7 @@ jobs:
             --label last-updated=${git_created} \
             --label org.opencontainers.image.source=https://github.com/flagos-ai/build-infra \
             --label flagos.base=${{ matrix.base_image }} \
-            --label flagos.flaggems=${flaggems_ver}
+            --label flagos.flaggems=${flaggems_ver}"
 
           # Classic builder does not forward the runner proxy into the build —
           # relay it as --build-arg (ARG-only: never reaches image config).
