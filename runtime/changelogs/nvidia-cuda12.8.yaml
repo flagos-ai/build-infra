@@ -19,7 +19,7 @@ image: flagos-runtime-nvidia-cuda12.8
 tags:
 - tag: 2.3.0
   entries:
-  - date:
+  - date: '2026-10-25T09:48:21.613Z'
     reason: >-
       This image gains the container-start version request: `-e
       FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`

@@ -19,7 +19,7 @@ image: flagos-runtime-cambricon-neuware4.4.3
 tags:
 - tag: 2.3.0
   entries:
-  - date:
+  - date: '2026-10-25T09:49:29.838Z'
     reason: >-
       This image gains the container-start version request: `-e
       FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`

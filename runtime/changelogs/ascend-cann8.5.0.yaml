@@ -19,7 +19,7 @@ image: flagos-runtime-ascend-cann8.5.0
 tags:
 - tag: 2.3.0
   entries:
-  - date:
+  - date: '2026-10-25T09:46:09.519Z'
     reason: >-
       This image gains the container-start version request: `-e
       FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`
