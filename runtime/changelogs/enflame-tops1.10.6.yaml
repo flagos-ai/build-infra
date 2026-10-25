@@ -19,7 +19,7 @@ image: flagos-runtime-enflame-tops1.10.6
 tags:
 - tag: 2.3.0
   entries:
-  - date:
+  - date: '2026-10-25T09:57:55.187Z'
     reason: >-
       This image gains the container-start version request: `-e
       FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`
