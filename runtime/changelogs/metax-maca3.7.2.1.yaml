@@ -19,6 +19,18 @@ image: flagos-runtime-metax-maca3.7.2.1
 tags:
 - tag: 2.3.0
   entries:
+  - date:
+    reason: >-
+      This image gains the container-start version request: `-e
+      FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`
+      override the versions baked in, resolved from the image's own indexes
+      before the application starts. `latest` takes the newest wheel on the
+      daily line. A request that cannot be honoured stops the container with
+      a non-zero exit rather than letting it run on a different version. The
+      image bakes the files those requests read, among them the constraints
+      file that holds an in-container FlagGems install to this image's own
+      pins.
+    upstream_prs: []
   - date: '2026-10-23T03:46:23.784Z'
     reason: >-
       flagcx 0.14.0 becomes a runtime dependency on this backend: configs.yaml
@@ -34,7 +46,7 @@ tags:
       requested at container start (`docker run -e FLAGTREE_VERSION=<ver>`),
       and `compiler flagtree <ver>` does the same in a running container. The
       requested wheel is installed into /opt/flagtree in place -- fetched from
-      this image's own vendor index (/etc/flagos/flagtree-index, written at
+      this image's own vendor index (/etc/flagos/vendor-index, written at
       build time), with the shared lane as a sequential second attempt -- so a
       FlagTree bump no longer forces a rebuild of this image and of every app
       image above it. A failed install warns and leaves the baked compiler
