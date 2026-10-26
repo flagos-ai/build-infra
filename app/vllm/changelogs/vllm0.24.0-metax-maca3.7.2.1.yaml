@@ -22,7 +22,8 @@
 #     date:        push_time, backfilled by the app-image workflow after push.
 #                  Empty while a build is pending review/gate.
 #     reason:      why this rebuild happened — the change that matters for
-#                  THIS image (not the mechanical bump). Human-written.
+#                  THIS image (not the mechanical bump). Human-written
+#                  markdown, one item per bullet; published beside the image.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -35,24 +36,18 @@ tags:
 - tag: 2.3.0-0.3.0
   entries:
   - date: ''
-    reason: >-
-      Rebuilt on the refreshed 2.3.0 runtime (#1484, pushed for the whole matrix
-      on 2026-10-25). What the runtime beneath it now brings: the container-start
-      version request (#1480, #1482), so `-e FLAGTREE_VERSION=` / `-e
-      FLAGGEMS_VERSION=` override the baked compiler and FlagGems, and a request
-      that cannot be honoured stops the container instead of letting it run on
-      another version; flagcx 0.14.0 is now a runtime dependency (#1471), pinned
-      as flagcx==0.14.0+maca3.7.2.1 in the runtime's own DEPS layer, so the app
-      layer installs none — the 2.2.0 runtime these images sat on carried no
-      flagcx at all; and the FlagTree version override (#1342), which lets
-      `compiler flagtree <ver>` switch compilers in a running container. The
-      plugin release is unchanged (0.3.0) but the wheel is not: this backend
-      installs the native 0.3.0+maca3.7.2.1 build published 2026-10-21 (#1435,
-      #1441, #1450, #1457), which carries `vllm_fl._C` and registers
-      `weak_ref_tensor` on the CUDA dispatch key. Without it the plugin falls back
-      to an identity lambda that holds a strong reference, and vLLM's cudagraph
-      capture leaks VRAM per captured graph until it OOMs (#1428, #1431) — a path
-      the serve smoke never reached, as it runs `--enforce-eager`.
+    reason: |-
+      - The runtime introduces two container-start flags,
+        `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
+        which override the compiler and FlagGems versions baked into the image. A
+        request that cannot be honoured stops the container instead of letting it
+        run on another version.
+      - flagcx 0.14.0 is now a runtime dependency, pinned as
+        flagcx==0.14.0+maca3.7.2.1.
+      - This backend installs the native plugin build `0.3.0+maca3.7.2.1`: it
+        carries `vllm_fl._C` and registers `weak_ref_tensor` on the CUDA
+        dispatch key, without which vLLM's cudagraph capture leaks VRAM
+        per captured graph.
     upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:
