@@ -42,7 +42,7 @@ title: "sglang0.5.18-kunlunxin-xre5.37.1"
 `sglang==0.5.18+flagos`
 
 
-`sglang-fl==0.1.dev1+g7fb22a0c2`
+`sglang-fl==0.1.dev1+g7fb22a0c2.xre5.37.1`
 
 ## 环境变量
 
