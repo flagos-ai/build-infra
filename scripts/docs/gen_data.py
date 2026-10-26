@@ -400,11 +400,14 @@ def app_image_data(app_prefix: str, app: str, name: str, app_name: str = "") -> 
     # backend's native label restored (the tag carries the public version only).
     # Unpublished combos get an empty spec and the page shows only the app wheel.
     plugin_pkg = APP_PLUGIN_PACKAGES.get(base_app, "")
-    plugin_package = (
-        f"{plugin_pkg}=={vllm_plugin_pin(name, published_tag.split('-', 1)[1].replace('_', '+'))}"
-        if plugin_pkg and published_tag and "-" in published_tag
-        else ""
-    )
+    if plugin_pkg and published_tag and "-" in published_tag:
+        plugin_ver = published_tag.split("-", 1)[1].replace("_", "+")
+        # vllm-plugin-FL's native label does not describe sglang-fl.
+        if plugin_pkg == "vllm-plugin-fl":
+            plugin_ver = vllm_plugin_pin(name, plugin_ver)
+        plugin_package = f"{plugin_pkg}=={plugin_ver}"
+    else:
+        plugin_package = ""
     return {
         "image": f"{base}:{tag}",
         "published": bool(published_tag),
