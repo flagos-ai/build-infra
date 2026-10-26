@@ -42,7 +42,7 @@ title: "sglang0.5.18-hygon-dtk26.04"
 `sglang==0.5.18+flagos`
 
 
-`sglang-fl==0.1.dev1+g440208beb`
+`sglang-fl==0.1.dev1+g440208beb.dtk26.4`
 
 ## Launch
 
