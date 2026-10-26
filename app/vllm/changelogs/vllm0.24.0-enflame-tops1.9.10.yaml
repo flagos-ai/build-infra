@@ -35,7 +35,7 @@ image: vllm0.24.0-enflame-tops1.9.10
 tags:
 - tag: 2.3.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-10-26T12:21:47.725Z'
     reason: |-
       - The runtime introduces two container-start flags,
         `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
