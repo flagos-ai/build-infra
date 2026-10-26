@@ -42,7 +42,7 @@ title: "vllm0.20.2-hygon-dtk26.04"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.2`
+`vllm-plugin-fl==0.2.2+dtk26.4`
 
 ## 启动
 

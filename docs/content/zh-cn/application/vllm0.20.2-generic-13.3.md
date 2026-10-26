@@ -42,7 +42,7 @@ title: "vllm0.20.2-generic-13.3"
 `vllm==0.20.2+flagos`
 
 
-`vllm-plugin-fl==0.2.2`
+`vllm-plugin-fl==0.2.2+cuda13.3`
 
 ## 环境变量
 

@@ -42,7 +42,7 @@ title: "sglang0.5.18-metax-maca3.8.1.3"
 `sglang==0.5.18+flagos`
 
 
-`sglang-fl==0.1.dev1+g0900c244b`
+`sglang-fl==0.1.dev1+g0900c244b.maca3.8.1.3`
 
 ## Environment
 
