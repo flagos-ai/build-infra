@@ -33,6 +33,7 @@
 | `clone-ref.sh` | 发布线浅克隆组件仓：分支/tag，或 `pull/<N>` 取 PR 头（只验证不发布） | ✅ |
 | `install-git-hooks.sh` | 安装 git hooks（status matrix pre-commit 用） | — |
 | `version.py` | `image_version()` — 从 configs.yaml 取 flat tag | — |
+| `vllm_plugin.py` | vllm-plugin-FL 的 native label / pin / tag 三态互转（唯一推导处；`pin` 幂等） | — |
 | `docs/gen_data.py` | docs 管线第 1 步：解析 configs.yaml + Containerfile + build-config.yml → `docs/data/images.yaml` | ✅ |
 | `docs/gen_descriptions.py` | docs 管线第 2 步：images.yaml → Hugo 页 + 仓内 readme（含 `--check` 漂移比对） | ✅ |
 | `docs/extract_versions.py` | gendoc：在镜像内抽取系统包版本 → TSV | ✅ |

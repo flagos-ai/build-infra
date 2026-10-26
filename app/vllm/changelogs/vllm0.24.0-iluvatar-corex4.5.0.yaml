@@ -22,7 +22,8 @@
 #     date:        push_time, backfilled by the app-image workflow after push.
 #                  Empty while a build is pending review/gate.
 #     reason:      why this rebuild happened — the change that matters for
-#                  THIS image (not the mechanical bump). Human-written.
+#                  THIS image (not the mechanical bump). Human-written
+#                  markdown, one item per bullet; published beside the image.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -32,6 +33,18 @@
 
 image: vllm0.24.0-iluvatar-corex4.5.0
 tags:
+- tag: 2.3.0-0.3.0
+  entries:
+  - date: ''
+    reason: |-
+      - The runtime introduces two container-start flags,
+        `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
+        which override the compiler and FlagGems versions baked into the image. A
+        request that cannot be honoured stops the container instead of letting it
+        run on another version.
+      - flagcx 0.14.0 is now a runtime dependency, pinned as
+        flagcx==0.14.0+corex4.5.0.
+    upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:
   - date: '2026-09-28T14:02:38.207Z'

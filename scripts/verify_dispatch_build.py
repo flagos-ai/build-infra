@@ -95,9 +95,11 @@ def _plugin_fl_version(verify_args: str) -> str | None:
 
     Taken from the cell's own args rather than re-derived from the status
     matrix: the wheel the cell verified against is exactly the wheel the app
-    image must bake, and the app-image tag carries it as a suffix. Dispatching
-    without it makes vllm-app-image.yml fall back to the bare stack version,
-    which no changelog block matches — the gate then refuses the push.
+    image must bake. The cell's pin is already labelled for a native backend
+    (verify_collect_cells.py restores it), and the app build's `pin()` accepts
+    an already-labelled version unchanged — so this forwards it verbatim.
+    Dispatching without it makes vllm-app-image.yml fall back to the bare stack
+    version, which no changelog block matches — the gate then refuses the push.
     """
     parts = shlex.split(verify_args or "")
     for i, tok in enumerate(parts):

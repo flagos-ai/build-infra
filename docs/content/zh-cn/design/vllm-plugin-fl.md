@@ -67,6 +67,13 @@ vllm-plugin-FL 以预构建 wheel 的形式从厂商 PyPI 安装进每个 vLLM a
 加上 vendor 就重复了。app 构建从后端名推导完整 pin，因此一次派发只需给出
 公共版本号（`0.3.0`）。
 
+标签只进 pin，不进镜像 tag：同一索引上多个原生构建共用一个公共版本号
+（`flagos-pypi-nvidia` 上 `0.3.0` 与 `0.3.0+cuda12.8`、`0.3.0+cuda13.3` 并存），
+裸 `==0.3.0` 会解析到最新的那个 local version，即另一个后端的 `.so`，所以
+**装入的 pin 必须带标签**；而 app 镜像 tag 的插件段只写公共版本号——
+仓库段已经点明是哪个后端，标签留在 tag 里反而会打断两处解析 tag 后缀的
+消费方（verify driver 的 pin 反推、record 步骤的插件 commit 漂移门禁）。
+
 ## 完整理由
 
 设计记录在代码旁：
