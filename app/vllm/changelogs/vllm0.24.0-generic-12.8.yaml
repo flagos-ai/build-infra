@@ -32,6 +32,27 @@
 
 image: vllm0.24.0-generic-12.8
 tags:
+- tag: 2.3.0-0.3.0_cuda12.8
+  entries:
+  - date: ''
+    reason: >-
+      Rebuilt on the refreshed 2.3.0 runtime (#1484, pushed for the whole matrix
+      on 2026-10-25). What the runtime beneath it now brings: the container-start
+      version request (#1480, #1482), so `-e FLAGTREE_VERSION=` / `-e
+      FLAGGEMS_VERSION=` override the baked compiler and FlagGems, and a request
+      that cannot be honoured stops the container instead of letting it run on
+      another version; flagcx moves to the released 0.14.0, pinned as
+      flagcx==0.14.0+cuda12.8 in the runtime's own DEPS layer (#1372, #1471) —
+      these rows carried 0.14.0rc2.post2 before; and the FlagTree version override
+      (#1342), which lets `compiler flagtree <ver>` switch compilers in a running
+      container. The plugin pin is unchanged (0.3.0) but the wheel is not: this
+      backend takes the labelled native 0.3.0+cuda12.8 wheel published 2026-10-21
+      (#1435, #1441, #1450, #1457), which carries `vllm_fl._C` and registers
+      `weak_ref_tensor` on the CUDA dispatch key. Without it the plugin falls back
+      to an identity lambda that holds a strong reference, and vLLM's cudagraph
+      capture leaks VRAM per captured graph until it OOMs (#1428, #1431) — a path
+      the serve smoke never reached, as it runs `--enforce-eager`.
+    upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:
   - date: '2026-09-28T14:08:12.320Z'

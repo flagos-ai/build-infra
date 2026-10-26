@@ -32,6 +32,29 @@
 
 image: vllm0.24.0-ascend-cann8.5.0-910c
 tags:
+- tag: 2.3.0-0.3.0
+  entries:
+  - date: ''
+    reason: >-
+      Rebuilt on the refreshed 2.3.0 runtime (#1484, pushed for the whole matrix
+      on 2026-10-25). What the runtime beneath it now brings: the container-start
+      version request (#1480, #1482), so `-e FLAGTREE_VERSION=` / `-e
+      FLAGGEMS_VERSION=` override the baked compiler and FlagGems, and a request
+      that cannot be honoured stops the container instead of letting it run on
+      another version; flagcx 0.14.0 is now a runtime dependency (#1471), pinned
+      as flagcx==0.14.0+cann8.5.0.910c in the runtime's own DEPS layer, so the app
+      layer installs none — the 2.2.0 runtime these images sat on carried no
+      flagcx at all; and the FlagTree version override (#1342), which lets
+      `compiler flagtree <ver>` switch compilers in a running container. The
+      runtime also re-asserts the venv prefix after this vendor's SDK env assigns
+      PATH absolutely (#1486), without which `pip` resolved to the system
+      interpreter, or to none. The plugin pin and wheel are both unchanged: this
+      backend stays on the pure-python 0.3.0, whose 2026-10-21 re-upload beside
+      the `vllm_fl._C` work is content-identical to the wheel already installed
+      (253 members, no `.so`). The native extension registers on the CUDA dispatch
+      key, which this backend's torch does not dispatch through
+      (packaging/vllm/DESIGN.md).
+    upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:
   - date: '2026-09-28T14:01:13.474Z'
