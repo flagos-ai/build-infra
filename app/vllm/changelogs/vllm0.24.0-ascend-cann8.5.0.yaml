@@ -35,7 +35,7 @@ image: vllm0.24.0-ascend-cann8.5.0
 tags:
 - tag: 2.3.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-10-26T12:23:37.297Z'
     reason: |-
       - The runtime introduces two container-start flags,
         `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
