@@ -43,8 +43,6 @@ tags:
         run on another version.
       - flagcx 0.14.0 is now a runtime dependency, pinned as
         flagcx==0.14.0+tsm260610.
-      - The plugin is unchanged: this backend installs the pure-python
-        0.3.0 wheel, which has no `vllm_fl._C` extension.
     upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:

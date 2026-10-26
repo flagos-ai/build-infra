@@ -196,14 +196,13 @@ jobs:
           norm() {
             python3 -c "import sys; from packaging.version import Version; print(Version(sys.argv[1]))" "$1"
           }
-          # Two forms of the plugin version, from one resolver (scripts/
-          # vllm_plugin.py): the INSTALLED pin carries the native local label so
-          # pip picks this backend's own wheel, while the TAG carries the public
-          # version only — the repository segment already names the backend, and
-          # a label in the tag would break the two consumers that parse the
-          # tag's suffix. The input may arrive already labelled (the verify
-          # driver forwards a cell's own pin), so pin() is idempotent and
-          # public() strips the label rather than appending a second one.
+          # Two forms of the plugin version, from scripts/vllm_plugin.py: the
+          # INSTALLED pin carries the native label so pip picks this backend's
+          # own wheel, while the TAG carries the public version only — the
+          # repository segment already names the backend, and a label in the tag
+          # breaks the two consumers that parse the tag's suffix. The input may
+          # arrive already labelled (the verify driver forwards a cell's own
+          # pin), so pin() is idempotent and public() strips the label.
           plugin="${{ inputs.plugin_fl_version }}"
           if [[ -n "${plugin}" ]]; then
             plugin=$(norm "$(python3 scripts/vllm_plugin.py pin "${{ matrix.name }}" "${plugin}")")

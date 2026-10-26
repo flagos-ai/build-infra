@@ -47,8 +47,6 @@ tags:
       - The runtime re-asserts the venv prefix after this vendor's SDK env assigns
         PATH absolutely; `pip` otherwise resolved to the system interpreter, or to
         none.
-      - The plugin is unchanged: this backend installs the pure-python
-        0.3.0 wheel, which has no `vllm_fl._C` extension.
     upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:

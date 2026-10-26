@@ -37,12 +37,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-# load version.py from sibling scripts/ directory
+# load version.py and the sibling resolvers from scripts/
 _scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(_scripts_dir))
 from version import image_version
 from app_public import identity as app_public_identity, public_name
-import vllm_plugin
+from vllm_plugin import pin as vllm_plugin_pin
 
 import yaml
 
@@ -397,12 +397,11 @@ def app_image_data(app_prefix: str, app: str, name: str, app_name: str = "") -> 
     # the tag's plugin segment (the workflow input plugin version, '+' -> '_'),
     # and is not discoverable inside the container at build time — so published
     # combos carry it here, back-derived from the exact Harbor tag, with this
-    # backend's native label restored (the tag carries the public version only;
-    # the label is derived from the backend key, scripts/vllm_plugin.py).
+    # backend's native label restored (the tag carries the public version only).
     # Unpublished combos get an empty spec and the page shows only the app wheel.
     plugin_pkg = APP_PLUGIN_PACKAGES.get(base_app, "")
     plugin_package = (
-        f"{plugin_pkg}=={vllm_plugin.pin(name, published_tag.split('-', 1)[1].replace('_', '+'))}"
+        f"{plugin_pkg}=={vllm_plugin_pin(name, published_tag.split('-', 1)[1].replace('_', '+'))}"
         if plugin_pkg and published_tag and "-" in published_tag
         else ""
     )
