@@ -42,7 +42,6 @@ _scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(_scripts_dir))
 from version import image_version
 from app_public import identity as app_public_identity, public_name
-from vllm_plugin import pin as vllm_plugin_pin
 
 import yaml
 
@@ -396,18 +395,21 @@ def app_image_data(app_prefix: str, app: str, name: str, app_name: str = "") -> 
     # The OOT plugin rides in the same image as the app itself. Its version is
     # the tag's plugin segment (the workflow input plugin version, '+' -> '_'),
     # and is not discoverable inside the container at build time — so published
-    # combos carry it here, back-derived from the exact Harbor tag, with this
-    # backend's native label restored (the tag carries the public version only).
-    # Unpublished combos get an empty spec and the page shows only the app wheel.
+    # combos carry it here, back-derived from the exact Harbor tag. Unpublished
+    # combos get an empty spec and the page shows only the app wheel.
+    #
+    # The pin is printed bare because a backend's PEP 440 local label records
+    # which wheel one build installed, and the tag does not carry it: deriving
+    # it here would assert it about every image that ever held that tag, the
+    # ones built before any labelled wheel existed included. The consumers that
+    # install the wheel restore the label themselves
+    # (scripts/verify_collect_cells.py); a page reports what was published.
     plugin_pkg = APP_PLUGIN_PACKAGES.get(base_app, "")
-    if plugin_pkg and published_tag and "-" in published_tag:
-        plugin_ver = published_tag.split("-", 1)[1].replace("_", "+")
-        # vllm-plugin-FL's native label does not describe sglang-fl.
-        if plugin_pkg == "vllm-plugin-fl":
-            plugin_ver = vllm_plugin_pin(name, plugin_ver)
-        plugin_package = f"{plugin_pkg}=={plugin_ver}"
-    else:
-        plugin_package = ""
+    plugin_package = (
+        f"{plugin_pkg}=={published_tag.split('-', 1)[1].replace('_', '+')}"
+        if plugin_pkg and published_tag and "-" in published_tag
+        else ""
+    )
     return {
         "image": f"{base}:{tag}",
         "published": bool(published_tag),
