@@ -42,7 +42,7 @@ title: "vllm0.24.0-kunlunxin-xre5.37.1"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.3.0`
+`vllm-plugin-fl==0.3.0+xre5.37.1`
 
 ## 环境变量
 
