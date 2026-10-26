@@ -373,11 +373,15 @@ if [[ -n "${APP_IMAGE}" ]]; then
     # — a strong reference that leaks VRAM per captured graph until OOM. Assert
     # BOTH that the extension imports and that it registered its op on CUDA
     # (a .so that built but never dispatched would pass the import alone).
+    #
+    # One interpreter only: the op exists solely where the extension was loaded,
+    # so a second `python3 -c` queries an empty dispatch table and fails a
+    # correct image. The `bash -c` is what sources zz-flagos.sh, which puts the
+    # compiler side dir (triton) on PYTHONPATH.
     if [[ "${EXPECT_NATIVE_PLUGIN}" == "true" ]]; then
         log_step "Native plugin check (vllm_fl._C weak_ref_tensor on CUDA)"
         if docker exec "${APP_CONTAINER}" bash -c '
-            python3 -c "import vllm_fl._C" \
-            && python3 -c "import torch; d=torch._C._dispatch_dump(\"_C::weak_ref_tensor\"); print(d); import sys; sys.exit(0 if any(\"CUDA\" in line for line in d.splitlines()) else 1)"'; then
+            python3 -c "import vllm_fl._C, torch; d = torch._C._dispatch_dump(\"_C::weak_ref_tensor\"); print(d); import sys; sys.exit(0 if any(\"CUDA\" in line for line in d.splitlines()) else 1)"'; then
             log_info "✅ vllm_fl._C imports and registers weak_ref_tensor on CUDA"
         else
             log_error "❌ native plugin missing or weak_ref_tensor not CUDA-registered"
