@@ -31,7 +31,7 @@ title: "vllm0.24.0-generic-12.8"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.2.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda12.8:2.3.0</code> <a href="../../runtime/nvidia-cuda12.8/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -50,12 +50,12 @@ title: "vllm0.24.0-generic-12.8"
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.2.0-0.3.0`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.3.0-0.3.0`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.2.0-0.3.0
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.3.0-0.3.0
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
