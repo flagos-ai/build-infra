@@ -1,0 +1,88 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# Base image for AMD ROCm 7.2.4 on Ubuntu 24.04
+# ============================================================
+# History:
+# - 20261026: Initial version. ROCm 7.2.4 is installed straight from
+#   repo.radeon.com — no filestore. Unlike the tar/run-SDK vendors, ROCm
+#   is apt-native, and bandwidth to repo.radeon.com is fine, so caching
+#   debs to filestore buys nothing. gfx1100 (RDNA3, Radeon PRO W7900).
+
+FROM ubuntu:24.04
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ────────────────────────────────────────────
+# The amd node's containers cannot reach archive.ubuntu.com (its AAAA record
+# hangs); switch to the aliyun mirror over HTTP first — no ca-certificates yet,
+# so HTTPS would fail the handshake. Verified on-node 2026-10-26.
+RUN sed -i \
+        -e 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' \
+        -e 's|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' \
+        -e 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubuntu-ports|g' \
+        /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true \
+    && apt-get -o Acquire::ForceIPv4=true update \
+    && apt-get install -y --no-install-recommends \
+        git vim ca-certificates curl unzip gnupg \
+        libnuma1 libgfortran5 libdw1 libelf1 libpciaccess0 \
+        gcc g++ build-essential cmake pciutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── ROCm apt sources (repo.radeon.com) ────────────────────────
+# One key signs every repo.radeon.com suite. The pin keeps radeon's build
+# of a package ahead of Ubuntu universe's older one — rocm-cmake / hipcc /
+# rocminfo also exist in universe and would otherwise be a coin flip.
+# amdgpu/30.30.4 is NOT added: it only carries the DKMS kernel driver,
+# which a base image never needs (the host provides the device).
+RUN install -d /etc/apt/keyrings \
+    && curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/rocm.gpg \
+    && printf '%s\n' \
+        'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2.4 noble main' \
+        'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/graphics/7.2.4/ubuntu noble main' \
+        > /etc/apt/sources.list.d/rocm.list \
+    && printf '%s\n' \
+        'Package: *' \
+        'Pin: release o=repo.radeon.com' \
+        'Pin-Priority: 600' \
+        > /etc/apt/preferences.d/repo-radeon-pin-600
+
+# ── ROCm SDK (lean set) ───────────────────────────────────────
+# 28 top-level packages; apt pulls the runtime .so deps to 50 ROCm packages
+# (94 total with the Ubuntu toolchain). Verified `apt-get -s` on a clean
+# noble container: resolves cleanly WITH the pin above, fails without it.
+# The -dev packages carry the headers + unversioned .so symlinks the compiler
+# stack (FlagTree, Megatron's pybind11 ext, vllm _C) links against.
+# MIOpen / MIGraphX / rocm-gdb / rocprofiler-sdk / opencl are deliberately
+# omitted — debug or convolution-only, nothing torch+vllm links.
+RUN apt-get -o Acquire::ForceIPv4=true update \
+    && apt-get install -y --no-install-recommends \
+        amdgpu-core amd-smi-lib \
+        rocm-smi-lib rocm-utils rocm-llvm rocm-device-libs rocm-cmake \
+        hipcc rocminfo \
+        hip-dev hipblas-dev hipblaslt-dev hipcub-dev hiprand-dev \
+        hipsparse-dev hipsparselt-dev hsa-rocr-dev rccl-dev \
+        rocblas-dev rocfft-dev rocrand-dev rocsolver-dev \
+        rocsparse-dev rocthrust-dev rocwmma-dev \
+        rocprofiler-register roctracer hsa-amd-aqlprofile \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV ROCM_PATH=/opt/rocm
+ENV PATH="${ROCM_PATH}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${ROCM_PATH}/lib"
+ENV HIP_VISIBLE_DEVICES=all
