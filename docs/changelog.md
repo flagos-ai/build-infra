@@ -38,9 +38,9 @@ gate 都按这个名字找文件，漏改一处即 push 前被拒。
 - `entries`：每次实质构建一条，按时间**倒序**。
   - `date`：registry 的 `push_time`，由工作流在 push 后回填，**不手写**。
   - `reason`：本次重建的理由（对该镜像有意义的变更）。人写 **markdown**，
-    **一项一条**，只写这一版带来了什么：不写 PR 号、不写构建流水账、不写与
-    上一版的对比（改了什么是「带来什么」的自然结果，不必单说一遍）。理由
-    最终随镜像一起发布，所以多项理由必须可读成一个列表。
+    **一项一条**，只写这一版带来了什么——没变的东西不写，不写 PR 号、不写
+    构建流水账、不写与上一版的对比（改了什么是「带来什么」的自然结果，不必
+    单说一遍）。理由最终随镜像一起发布，所以多项理由必须可读成一个列表。
   - `upstream_prs`：本次构建**等待中的其他仓库** PR（vllm-plugin-FL /
     FlagGems / FlagTree …），仅为跟踪而记。**已合并的 PR 不写**——它的改动
     已经在所构建的 tag 里，tag 本身就是记录。build-infra 自己的 PR 是交付
@@ -67,10 +67,11 @@ place fails the push.
     push — never hand-typed.
   - `reason`: why this rebuild happened (the change that matters for this
     image). Human-written **markdown**, **one item per bullet**, stating only
-    what this version brings: no PR numbers, no build bookkeeping, no
-    before/after contrast with the previous version (what changed follows from
-    what it brings, and does not need saying twice). The reason is published
-    alongside the image, so a reason with several items must read as a list.
+    what this version brings — nothing that did not change, no PR numbers, no
+    build bookkeeping, no before/after contrast with the previous version (what
+    changed follows from what it brings, and does not need saying twice). The
+    reason is published alongside the image, so a reason with several items must
+    read as a list.
   - `upstream_prs`: PENDING PRs in **other** repos (vllm-plugin-FL / FlagGems /
     FlagTree …) that this build is waiting on — a tracking list. A merged PR is
     **not** listed: its change is already in the tag being built, so the tag is
