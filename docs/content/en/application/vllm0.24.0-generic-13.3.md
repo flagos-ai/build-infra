@@ -42,7 +42,7 @@ title: "vllm0.24.0-generic-13.3"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.3.0`
+`vllm-plugin-fl==0.3.0+cuda13.3`
 
 ## Environment
 
