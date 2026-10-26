@@ -42,7 +42,7 @@ title: "vllm0.24.0-metax-maca3.8.1.3"
 `vllm==0.24.0+flagos`
 
 
-`vllm-plugin-fl==0.3.0`
+`vllm-plugin-fl==0.3.0+maca3.8.1.3`
 
 ## 启动
 
