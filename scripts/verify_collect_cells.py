@@ -59,6 +59,8 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+import vllm_plugin
 
 # app -> verify script + the scenario column that script verifies.
 # verify_args carries the extra flags the script needs beyond the positional
@@ -144,8 +146,12 @@ def plugin_fl_version(matrix: dict, backend: str) -> str | None:
 
     The app-image tag is ``{stack_version}-{plugin_version}`` with ``+``→``_``
     (vllm-app-image.yml runs ``tr '+' '_'`` on the plugin version), so the
-    plugin version is the tag's suffix with ``_``→``+``. The status matrix
-    ``image_tag`` is the single source of truth for "this backend is published"
+    plugin version is the tag's suffix with ``_``→``+``. The tag carries the
+    public version only, so this backend's native local label is restored from
+    the backend key (scripts/vllm_plugin.py) — installing the bare version
+    would resolve to whichever native build is newest on that index, i.e. to
+    another backend's ``.so``. The status matrix ``image_tag`` is the single
+    source of truth for "this backend is published"
     (record_app_image_tag.py writes it on push), and the full-install verify
     path must pin the same wheel the app image baked to reach an identical
     serve environment.
@@ -159,7 +165,7 @@ def plugin_fl_version(matrix: dict, backend: str) -> str | None:
     tag = ((matrix.get("backends") or {}).get(backend) or {}).get("image_tag")
     if not tag or "-" not in tag:
         return None
-    return tag.split("-", 1)[1].replace("_", "+")
+    return vllm_plugin.pin(backend, tag.split("-", 1)[1].replace("_", "+"))
 
 
 def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:

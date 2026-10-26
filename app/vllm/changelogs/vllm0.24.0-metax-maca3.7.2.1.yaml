@@ -32,7 +32,7 @@
 
 image: vllm0.24.0-metax-maca3.7.2.1
 tags:
-- tag: 2.3.0-0.3.0_maca3.7.2.1
+- tag: 2.3.0-0.3.0
   entries:
   - date: ''
     reason: >-
@@ -46,13 +46,13 @@ tags:
       layer installs none — the 2.2.0 runtime these images sat on carried no
       flagcx at all; and the FlagTree version override (#1342), which lets
       `compiler flagtree <ver>` switch compilers in a running container. The
-      plugin pin is unchanged (0.3.0) but the wheel is not: this backend takes the
-      labelled native 0.3.0+maca3.7.2.1 wheel published 2026-10-21 (#1435, #1441,
-      #1450, #1457), which carries `vllm_fl._C` and registers `weak_ref_tensor` on
-      the CUDA dispatch key. Without it the plugin falls back to an identity
-      lambda that holds a strong reference, and vLLM's cudagraph capture leaks
-      VRAM per captured graph until it OOMs (#1428, #1431) — a path the serve
-      smoke never reached, as it runs `--enforce-eager`.
+      plugin release is unchanged (0.3.0) but the wheel is not: this backend
+      installs the native 0.3.0+maca3.7.2.1 build published 2026-10-21 (#1435,
+      #1441, #1450, #1457), which carries `vllm_fl._C` and registers
+      `weak_ref_tensor` on the CUDA dispatch key. Without it the plugin falls back
+      to an identity lambda that holds a strong reference, and vLLM's cudagraph
+      capture leaks VRAM per captured graph until it OOMs (#1428, #1431) — a path
+      the serve smoke never reached, as it runs `--enforce-eager`.
     upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:

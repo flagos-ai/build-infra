@@ -32,7 +32,7 @@
 
 image: vllm0.24.0-hygon-dtk26.04
 tags:
-- tag: 2.3.0-0.3.0_dtk26.4
+- tag: 2.3.0-0.3.0
   entries:
   - date: ''
     reason: >-
@@ -48,8 +48,8 @@ tags:
       flagtree <ver>` switch compilers in a running container. The runtime also
       re-asserts the venv prefix after this vendor's SDK env assigns PATH
       absolutely (#1486), without which `pip` resolved to the system interpreter,
-      or to none. The plugin pin is unchanged (0.3.0) but the wheel is not: this
-      backend takes the labelled native 0.3.0+dtk26.4 wheel published 2026-10-21
+      or to none. The plugin release is unchanged (0.3.0) but the wheel is not: this
+      backend installs the native 0.3.0+dtk26.4 build published 2026-10-21
       (#1435, #1441, #1450, #1457), which carries `vllm_fl._C` and registers
       `weak_ref_tensor` on the CUDA dispatch key. Without it the plugin falls back
       to an identity lambda that holds a strong reference, and vLLM's cudagraph

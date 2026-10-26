@@ -32,7 +32,7 @@
 
 image: vllm0.24.0-generic-13.3
 tags:
-- tag: 2.3.0-0.3.0_cuda13.3
+- tag: 2.3.0-0.3.0
   entries:
   - date: ''
     reason: >-
@@ -45,8 +45,8 @@ tags:
       flagcx==0.14.0+cuda13.3 in the runtime's own DEPS layer (#1372, #1471) —
       these rows carried 0.14.0rc2.post2 before; and the FlagTree version override
       (#1342), which lets `compiler flagtree <ver>` switch compilers in a running
-      container. The plugin pin is unchanged (0.3.0) but the wheel is not: this
-      backend takes the labelled native 0.3.0+cuda13.3 wheel published 2026-10-21
+      container. The plugin release is unchanged (0.3.0) but the wheel is not:
+      this backend installs the native 0.3.0+cuda13.3 build published 2026-10-21
       (#1435, #1441, #1450, #1457), which carries `vllm_fl._C` and registers
       `weak_ref_tensor` on the CUDA dispatch key. Without it the plugin falls back
       to an identity lambda that holds a strong reference, and vLLM's cudagraph

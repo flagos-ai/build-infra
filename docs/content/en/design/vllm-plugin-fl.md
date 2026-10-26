@@ -71,6 +71,15 @@ There is no vendor prefix — the wheel already lands on a per-vendor index
 derives the full pin from the backend name, so a dispatch only ever names the
 public version (`0.3.0`).
 
+The label reaches the pin, never the image tag: one index carries several
+native builds under one public version (`flagos-pypi-nvidia` holds `0.3.0`,
+`0.3.0+cuda12.8` and `0.3.0+cuda13.3`), and a bare `==0.3.0` resolves to the
+newest local version — another backend's `.so` — so **the installed pin must
+carry the label**. The app tag's plugin segment stays at the public version:
+the repository segment already names the backend, and a label there breaks the
+two consumers that parse the tag's suffix (the verify driver's pin recovery and
+the record step's plugin-commit drift gate).
+
 ## Full rationale
 
 The design of record lives beside the code:

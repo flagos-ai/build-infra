@@ -753,23 +753,10 @@ jobs:
           # resolves it, while the label keeps this wheel from colliding with
           # the pure-python 0.3.0 — and with the other native row where one
           # vendor publishes two backends to the same index (nvidia: cuda12.8 +
-          # cuda13.3 both land on flagos-pypi-nvidia). The label is the bare
-          # backend name (matrix.name minus the vendor prefix) with "-" folded
-          # to "." (norm's own folding: ".04" -> ".4"). The vendor is dropped:
-          # the app build re-derives it mechanically from the backend key, and
-          # a `+vendor.backend` label carries the vendor twice — the index it
-          # lands on is already per-vendor.
-          # Where the label goes depends on the version form: the temp form
-          # already carries a `+g<sha>.d<date>` local label (a second `+` is
-          # invalid), so the label extends it with a `.`; the tag form has no
-          # local label, so the label is added as one with `+`.
-          blabel=${{ matrix.name }}
-          blabel="${blabel#*-}"
-          blabel="${blabel//-/.}"
-          case "${version}" in
-            *+*) version=$(norm "${version}.${blabel}") ;;
-            *)   version=$(norm "${version}+${blabel}") ;;
-          esac
+          # cuda13.3 both land on flagos-pypi-nvidia). Same resolver as the app
+          # build's pin (scripts/vllm_plugin.py), so the label the wheel carries
+          # and the label the app derives cannot drift.
+          version=$(norm "$(python3 scripts/vllm_plugin.py pin "${{ matrix.name }}" "${version}")")
           echo ">>> native label: ${version}"
           {
             echo "PLUGIN_SHA=${sha}"

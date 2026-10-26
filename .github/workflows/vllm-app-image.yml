@@ -26,6 +26,10 @@ run-name: App Image · vllm${{ inputs.vllm_version || '?' }} · ${{ inputs.backe
 # Requires-Dist mean neither install can touch the runtime's baked
 # torch/torch_npu/triton/flag_gems/numpy matrix.
 #
+# The {plugin} tag segment is the PUBLIC plugin version: native backends
+# install a labelled wheel (0.3.0+cuda12.8) while their tag stays 0.3.0. See
+# packaging/vllm/DESIGN.md.
+#
 # Then verifies the built image on the node: the critical-package matrix must
 # be identical to the runtime's (BEFORE snapshot from the runtime image, AFTER
 # from the app image), and vllm + vllm_fl must import (see
@@ -55,10 +59,11 @@ on:
           vllm-plugin-fl public version to install (commit-precise pin): a
           released tag form (0.2.2rc2.post2) or a temp form
           (<base>+g<sha7>.d<date>), both from the vllm-plugin wheel workflow's
-          log. Native backends (packaging/vllm/plugin-build.yaml) build a
+          log. Native backends (packaging/vllm/plugin-build.yaml) install a
           labelled wheel, so the per-backend local label is derived here from the
-          backend key (<public>+<bare-backend>); enter only the public version,
-          never the label. Empty = skip the plugin install.
+          backend key; enter only the public version, never the label. An
+          already-labelled pin is accepted unchanged. Empty = skip the plugin
+          install.
         type: string
         default: ''
       flagcx_version:
@@ -174,6 +179,8 @@ jobs:
       # '_' (invalid image-tag char). The repo segment is the app-layer public
       # name (matrix.app_name, generic-12.8 for nvidia-cuda12.8) — the app layer
       # is published vendor-neutral, so the real vendor must not reach the tag.
+      # {plugin} is the public version: the native local label belongs to the
+      # installed pin, not to the tag (packaging/vllm/DESIGN.md).
       # Computed in every mode: record_only must derive the original push's tag
       # from the inputs alone.
       - name: Compute app image tag
@@ -181,39 +188,27 @@ jobs:
           set -euo pipefail
           host="${{ needs.set-matrix.outputs.harbor_host }}"
           app_prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('.github/build-config.yml'))['registry']['prefixes']['app'])")
-          # PEP 440 normalization (same helper as the wheel workflow): a bare
-          # backend like dtk26.04 must fold to dtk26.4 to match the wheel's own
-          # metadata, else the honesty gate below false-fails on a correct image.
+          # PEP 440 normalization: a bare backend label like dtk26.04 must fold
+          # to dtk26.4 to match the wheel's own metadata, else the honesty gate
+          # below false-fails on a correct image.
           python3 -c "import packaging" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages packaging
           norm() {
             python3 -c "import sys; from packaging.version import Version; print(Version(sys.argv[1]))" "$1"
           }
-          # Native backends (packaging/vllm/plugin-build.yaml) install a
-          # labelled wheel whose local label is the bare backend name; derive
-          # it from matrix.name so the single public-version input fans out to
-          # a distinct pin per backend. Pure backends stay at the public tag.
-          # Where the label goes depends on the version form, mirroring the
-          # wheel workflow: the temp form already carries a `+g<sha>.d<date>`
-          # local label (a second `+` is invalid), so the label extends it with
-          # a `.`; the tag form has no local label, so `+` adds one.
+          # Two forms of the plugin version, from one resolver (scripts/
+          # vllm_plugin.py): the INSTALLED pin carries the native local label so
+          # pip picks this backend's own wheel, while the TAG carries the public
+          # version only — the repository segment already names the backend, and
+          # a label in the tag would break the two consumers that parse the
+          # tag's suffix. The input may arrive already labelled (the verify
+          # driver forwards a cell's own pin), so pin() is idempotent and
+          # public() strips the label rather than appending a second one.
           plugin="${{ inputs.plugin_fl_version }}"
           if [[ -n "${plugin}" ]]; then
-            native=$(python3 -c '
-            import yaml, sys
-            cfg = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))["backends"]
-            print(1 if "${{ matrix.name }}" in cfg else 0)
-            ')
-            if [[ "${native}" == "1" ]]; then
-              blabel="${{ matrix.name }}"
-              blabel="${blabel#*-}"
-              blabel="${blabel//-/.}"
-              case "${plugin}" in
-                *+*) plugin=$(norm "${plugin}.${blabel}") ;;
-                *)   plugin=$(norm "${plugin}+${blabel}") ;;
-              esac
-            fi
-            app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${plugin}" | tr '+' '_')"
+            plugin=$(norm "$(python3 scripts/vllm_plugin.py pin "${{ matrix.name }}" "${plugin}")")
+            tag_plugin=$(python3 scripts/vllm_plugin.py public "${{ matrix.name }}" "${plugin}")
+            app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${tag_plugin}" | tr '+' '_')"
           else
             app_tag="${host}/${app_prefix}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}"
           fi

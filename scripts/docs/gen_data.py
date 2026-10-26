@@ -42,6 +42,7 @@ _scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(_scripts_dir))
 from version import image_version
 from app_public import identity as app_public_identity, public_name
+import vllm_plugin
 
 import yaml
 
@@ -360,7 +361,9 @@ def app_image_data(app_prefix: str, app: str, name: str, app_name: str = "") -> 
     layer is published vendor-neutral, so an nvidia backend publishes as
     ...-generic-12.8, not ...-nvidia-cuda12.8. megatron tags are
     {stack}-{fork_version}; vllm and sglang tags are {stack} (a non-empty
-    plugin version input appends -{plugin} to the tag).
+    plugin version input appends -{plugin} to the tag; the plugin segment is
+    the PUBLIC version — a native backend's local label is not part of it, and
+    `plugin_package` restores it from the backend key).
 
     The status matrix stays keyed by the real backend key (`name`): only the
     published image name is public.
@@ -393,11 +396,13 @@ def app_image_data(app_prefix: str, app: str, name: str, app_name: str = "") -> 
     # The OOT plugin rides in the same image as the app itself. Its version is
     # the tag's plugin segment (the workflow input plugin version, '+' -> '_'),
     # and is not discoverable inside the container at build time — so published
-    # combos carry it here, back-derived from the exact Harbor tag. Unpublished
-    # combos get an empty spec and the page shows only the app wheel.
+    # combos carry it here, back-derived from the exact Harbor tag, with this
+    # backend's native label restored (the tag carries the public version only;
+    # the label is derived from the backend key, scripts/vllm_plugin.py).
+    # Unpublished combos get an empty spec and the page shows only the app wheel.
     plugin_pkg = APP_PLUGIN_PACKAGES.get(base_app, "")
     plugin_package = (
-        f"{plugin_pkg}=={published_tag.split('-', 1)[1].replace('_', '+')}"
+        f"{plugin_pkg}=={vllm_plugin.pin(name, published_tag.split('-', 1)[1].replace('_', '+'))}"
         if plugin_pkg and published_tag and "-" in published_tag
         else ""
     )
