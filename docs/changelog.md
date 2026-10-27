@@ -116,5 +116,4 @@ prepared this rebuild.
   回溯补写了文件，日期取当时 registry 的 `push_time`；该层自回溯之后的
   push 走本文档描述的流程。
 - 门禁：`scripts/changelog_gate.py`；回填：`scripts/backfill_changelog_date.py`；
-  记录集成：app 层 `scripts/record_app_image_tag.py`，
-  base/runtime 层 `scripts/record_runtime_image.py`（`--layer` 选层）。
+  记录集成：`scripts/record_image.py`（`--layer base|runtime|app`）。

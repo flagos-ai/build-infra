@@ -79,7 +79,7 @@ confirmation + result.
 
 - Pass: the symbol goes ✅ in the matrix; the build side
   (`verify_dispatch_build.py`) triggers the app-image build, and
-  `record_app_image_tag.py` writes `image_tag` on push.
+  `record_image.py --layer app` writes `image_tag` on push.
 - Fail: write a structured result (failure step, exit_code, error_head/tail,
   log_path — `verify_record_results.py` appends the task card to
   `.github/verify-queue.yaml` for the debug-loop). The result is ~10 lines,

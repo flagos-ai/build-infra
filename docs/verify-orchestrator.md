@@ -29,7 +29,7 @@ megatron_rl0.17.1 / sglang / verl）× configs.yaml 枚举的每个后端，逐 
 | 状态唯一真相 | `packaging/*/status_matrix.<app>.yaml` | driver 读 ⬜ 集合、回写符号/`prs:`/`image_tag` |
 | 验证脚本 | `verify-vllm-backend.sh`、`verify-megatron-backend.sh` | verify 阶段（§4.1） |
 | app 镜像构建 | `.github/workflows/{vllm,megatron}-app-image.yml` | ✅ → 自动触发该 workflow（push） |
-| tag 回写 + PR | `scripts/record_app_image_tag.py` | 构建后复用 |
+| tag 回写 + PR | `scripts/record_image.py --layer app` | 构建后复用 |
 | 矩阵渲染 | `scripts/render_status_matrix.py` | record 阶段复用 |
 | 漂移 → 修复 PR | `.github/workflows/status-matrix-consistency.yml` | 兜底复用 |
 | 矩阵生成 | `scripts/generate_matrix.py --app` | plan 阶段复用 |
@@ -89,9 +89,9 @@ schema 约定见 `docs/status-matrix.md`。关键不变式：
    claude**——claude 只在本机，调试由本地 debug-loop（§4.2）接手。
 4. **build**（needs verify）：对 verify ✅ 的 cell，触发既有
    `{vllm,megatron,sglang,verl}-app-image.yml`（`push=true`），该 workflow 自己
-   完成构建 → 快照验证 → push → `record_app_image_tag.py` 回写 tag + 开 PR。
+   完成构建 → 快照验证 → push → `record_image.py --layer app` 回写 tag + 开 PR。
 5. **record**（ubuntu，needs build + queue）：重渲矩阵、提交队列文件，把本轮可
-   确定的符号 + `prs:` 变更开成 review-gated PR（复用 `record_app_image_tag.py`
+   确定的符号 + `prs:` 变更开成 review-gated PR（复用 `record_image.py --layer app`
    的 PR 机制与 `status-matrix-consistency.yml` 的 dup-PR 检查）。
 6. **terminate**（needs record）：汇报剩余 ⬜ 数并结束。**不自动重触发**——cell 的
    符号只随「修复 PR merge 进 main」才真正前进；`record` 落的是

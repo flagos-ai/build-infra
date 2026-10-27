@@ -149,10 +149,10 @@ compiler).
   the same tag block. Every image-pushing workflow gates on it: base-image.yml,
   runtime-image.yml and the app-image ones. App-image pushes gate on both the
   changelog and the on-node verify step.
-- On verified push: `record_app_image_tag.py` writes `image_tag` into the
+- On verified push: `record_image.py --layer app` writes `image_tag` into the
   status matrix (published ⟺ image_tag present); the base and runtime layers
-  have no status matrix, so `record_runtime_image.py --layer {base,runtime}`
-  only dates the changelog entry it authorized and opens the record PR.
+  have no status matrix, so `record_image.py --layer {base,runtime}` only
+  dates the changelog entry it authorized and opens the record PR.
 - The status matrix cells move ⬜ → ✅ only after on-node dual-compiler
   verification; a base/runtime change reopens every app cell built on the
   changed image (§1 propagation, §4 note).
@@ -185,8 +185,8 @@ Follow `update-backend` for the shared steps, with these additions up front:
 - Stale-image answer: `scripts/base_image_status.py` (OCI labels vs Containerfile)
 - Publish gate: `scripts/changelog_gate.py` + `docs/changelog.md` (every
   image-pushing workflow: base / runtime / app)
-- Record: `scripts/record_app_image_tag.py` (app, status matrix) /
-  `scripts/record_runtime_image.py --layer base|runtime` (changelog date) +
+- Record: `scripts/record_image.py --layer {base,runtime,app}` — the
+  changelog date for base/runtime, the status matrix's `image_tag` for app +
   `docs/status-matrix.md`
 - Verify-cell flow: `.claude/skills/verify-app-backend/SKILL.md`
 - Node mechanics: `.claude/skills/node-ops/SKILL.md`

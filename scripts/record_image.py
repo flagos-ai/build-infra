@@ -14,126 +14,146 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Record a pushed app image tag into the status matrix and refresh the docs.
+"""Record a pushed image into its layer's tree and open a review-gated PR.
 
-Called by the app-image build workflows right after ``docker push`` — the push
-is the publication event, and the workflow is the only place that knows the
-exact tag at push time. The status matrix ``image_tag`` is the single source of
-truth for "this backend is published" (see docs/status-matrix.md), so the
-workflow writes it there itself instead of leaving it to a human verifier.
+Called by the image workflows right after ``docker push``. The push is the
+publication event, and the job that pushed is the only place that knows which
+ref reached the registry, so the record is written here. The registry's
+``push_time`` is the date it carries, never a hand-typed one.
 
-What the script does, in order:
-  1. Update ``image_tag`` and set ``launch_docs: true`` + ``deps_app: true``
-     for the backend in the status matrix YAML (surgical line edit — the matrix
-     files carry a human header comment that a YAML round-trip would drop).
-     Also drops a backend note of the form "验证 ✅，app 镜像未推送/未发布"
-     — the push just recorded makes it stale by construction.
-     Idempotent: all three facts already recorded → no-op, exit 0.
-  2. Regenerate the pipeline so the docs stay consistent with the matrix:
-     ``gen_data.py`` → ``render_status_matrix.py`` → ``gen_descriptions.py
-     --app-only`` (app pages read no version TSVs, so no VERSIONS_DIR).
-  3. Commit the changed matrix + app pages as ``flagos-ci``, push (or
-     recreate) a per-record branch ``auto/app-image-tag-<backend>-<app>``
-     (app = the status-matrix stem, e.g. sglang0.5.18) and open (or update)
-     a review-gated PR against the workflow's ref — the same dup-PR pattern
-     as status-matrix-consistency.yml. The branch names the record's own
-     backend+app so a stale record PR from an unrelated app/backend cannot
-     block later records with rebase conflicts. PR ops go through the REST
-     API via curl (``GITHUB_TOKEN``), not the ``gh`` CLI — the step runs on
-     self-hosted hardware runners that do not carry gh.
+``--layer`` picks the tree the record lands in. The three layers differ in
+exactly one thing — what "published" has to be written down as:
 
-``launch_docs`` and ``deps_app`` are set alongside ``image_tag`` because step 2
-regenerates the app launch pages — a pushed backend's launch docs exist by
-construction, and a pushed backend is buildable by construction (the workflow
-only builds a backend whose ``deps_app`` key exists in configs.yaml), so
-human-tracking booleans here only drift from reality.
+  base / runtime
+      the pending changelog entry that authorized the rebuild (reason, empty
+      date, written by a human before the dispatch) is dated. Neither layer has
+      a status matrix, so the changelog is all there is to record.
+  app
+      the status matrix's ``image_tag`` — the single source of truth for "this
+      backend is published" (docs/status-matrix.md) — plus ``launch_docs`` and
+      ``deps_app``, plus the same changelog date. The docs pipeline is then
+      re-run so the verification matrix and the app launch pages agree with
+      what was just recorded.
+
+The Harbor query, the rebase-and-retry push and the PR are identical across
+the three; the git and GitHub half lives in ``git_ops``.
+
+Every layer records once per dispatched matrix job rather than once per
+dispatch, because each job is the only place that knows its own image reached
+the registry. A dispatch-level job cannot tell a pushed backend from one whose
+build failed, and dating a failed backend's entry with the previous push's
+``push_time`` would record a rebuild that never happened.
 
 Usage:
-    python scripts/record_app_image_tag.py \\
-      --matrix packaging/vllm/status_matrix.vllm0.20.2.yaml \\
-      --backend nvidia-cuda13.3 \\
-      --tag harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3:2.1.2-0.2.1_g825c1cd
+    python scripts/record_image.py --layer base --backend hygon-dtk26.04 \\
+      --tag harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.3.0
+    python scripts/record_image.py --layer runtime --backend metax-maca3.8.1.3 \\
+      --tag harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.3.0
+    python scripts/record_image.py --layer app \\
+      --matrix packaging/vllm/status_matrix.vllm0.24.0.yaml \\
+      --backend nvidia-cuda12.8 \\
+      --changelog "app/vllm/changelogs/vllm0.24.0-generic-12.8.yaml" \\
+      --tag harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:2.3.0-0.2.1
+    python scripts/record_image.py --layer base --backend hygon-dtk26.04 \\
+      --tag <ref> --dry-run
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from git_ops import (  # noqa: E402
+    REPO_ROOT,
+    _gh_api,
+    _git,
+    configure_git_identity,
+    open_pr,
+    push_record_branch,
+)
 
-GIT_IDENTITY = {
-    "GIT_AUTHOR_NAME": "flagos-ci",
-    "GIT_AUTHOR_EMAIL": "noreply@flagos.net",
-    "GIT_COMMITTER_NAME": "flagos-ci",
-    "GIT_COMMITTER_EMAIL": "noreply@flagos.net",
-}
-
-def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git"] + list(args), check=check, capture_output=True, text=True, cwd=REPO_ROOT
-    )
-
-
-def _run_py(script: Path, *args: str) -> None:
-    subprocess.run(
-        [sys.executable, str(script)] + list(args),
-        check=True, cwd=REPO_ROOT, env=_env(),
-    )
-
-
-def _env() -> dict:
-    env = os.environ.copy()
-    for k, v in GIT_IDENTITY.items():
-        env.setdefault(k, v)
-    return env
-
-
-def _gh_api(method: str, path: str, body: dict | None = None) -> dict:
-    """Call the GitHub REST API with GITHUB_TOKEN (no gh CLI dependency)."""
-    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
-    if not token:
-        sys.exit("Error: GH_TOKEN/GITHUB_TOKEN not set — cannot open a PR")
-    url = f"https://api.github.com{path}"
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Accept", "application/vnd.github+json")
-    req.add_header("X-GitHub-Api-Version", "2022-11-28")
-    if data is not None:
-        req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
-
+DISCLOSURE = "This PR was written in part with the assistance of generative AI."
 
 HARBOR_API = "https://harbor.baai.ac.cn/api/v2.0"
 
 
-def _harbor_push_time(image_ref: str) -> str | None:
-    """Registry push_time (RFC3339) for a full image ref, or None if unreadable.
+def _run_py(script: Path, *args: str) -> None:
+    subprocess.run(
+        [sys.executable, str(script)] + list(args), check=True, cwd=REPO_ROOT
+    )
 
-    Anonymous read works on this Harbor; no token needed.
+
+def harbor_push_time(image_ref: str) -> str:
+    """Registry push_time (RFC3339) for a full image ref.
+
+    Anonymous read works on this Harbor; no token needed. A missing artifact is
+    fatal rather than empty: it means nothing was pushed under that tag, so
+    there is no date to record and the record must not invent one.
     """
     path, _, tag = image_ref.rpartition(":")
     parts = path.split("/")
     if len(parts) < 2 or not tag:
-        return None
-    project, repo = parts[-2], parts[-1]
-    url = f"{HARBOR_API}/projects/{project}/repositories/{repo}/artifacts/{tag}"
+        sys.exit(f"Error: cannot parse image ref '{image_ref}'")
+    url = f"{HARBOR_API}/projects/{parts[-2]}/repositories/{parts[-1]}/artifacts/{tag}"
     try:
         with urllib.request.urlopen(url, timeout=30) as resp:
-            return json.load(resp).get("push_time")
-    except Exception:
-        return None
+            push_time = json.load(resp).get("push_time")
+    except urllib.error.HTTPError as exc:
+        sys.exit(
+            f"Error: registry has no artifact {image_ref} ({exc.code}) — nothing was "
+            f"pushed under that tag, so there is no date to record"
+        )
+    if not push_time:
+        sys.exit(f"Error: registry returned no push_time for {image_ref}")
+    return push_time
 
+
+# ── base / runtime: date the changelog entry ────────────────────────────────
+
+
+def record_changelog(layer: str, backend: str, ref: str, tag: str, dry_run: bool) -> None:
+    changelog = f"{layer}/changelogs/{backend}.yaml"
+    if not (REPO_ROOT / changelog).is_file():
+        sys.exit(f"Error: {changelog} is missing — every {layer} row needs one")
+
+    push_time = harbor_push_time(ref)
+    print(f"{backend}: {ref} pushed at {push_time}")
+    if dry_run:
+        return
+
+    _run_py(REPO_ROOT / "scripts" / "backfill_changelog_date.py", changelog, tag, push_time)
+    if _git("diff", "--quiet", "--", changelog, check=False).returncode == 0:
+        print(f"{changelog}: tag {tag} was already dated — nothing to record")
+        return
+
+    configure_git_identity()
+    _git("add", changelog, check=False)
+    commit_msg = f"chore({layer}): record changelog date for {tag} ({backend})"
+    # One branch per layer and tag: a dispatch records every backend it pushed
+    # onto this one, and it is deleted when its PR merges.
+    branch = f"auto/{layer}-changelog-{tag}"
+    push_record_branch(branch, commit_msg)
+    open_pr(branch, commit_msg, (
+        f"The {layer}-image workflow pushed `{tag}` and dated each backend's pending "
+        "changelog entry with its registry push_time — the entry that authorized "
+        "the rebuild. No image content is changed here; this records that the "
+        "rebuilds happened, and why. One dispatch records every backend it pushed "
+        "on this branch, so this PR fills up as the matrix proceeds.\n\n"
+        "Schema and rules: docs/changelog.md.\n\n"
+        f"{DISCLOSURE}"
+    ))
+
+
+# ── app: record the tag into the status matrix, refresh the docs ────────────
 
 # The image tag's plugin suffix is the plugin's PUBLIC version with '+' mapped
 # to '_' (image-tag-safe): <version>, or <version>_g<sha7>.d<date> for a
@@ -210,7 +230,7 @@ def app_key_of(matrix_rel: str) -> str:
 def record_branch(matrix_rel: str, backend: str) -> str:
     """Per-record branch: derived from this record's backend+app.
 
-    Never the shared ``auto/app-image-tag`` — a stale open record PR from an
+    Never a shared ``auto/app-image-tag`` — a stale open record PR from an
     unrelated app/backend used to block every later record with rebase
     conflicts (mthreads-musa4.3.6 sglang record, 2026-09-04). Same record
     re-run → same branch, so recovery rebases onto the existing PR.
@@ -317,54 +337,41 @@ def clear_stale_note(matrix_path: Path, backend: str) -> bool:
     return False
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--matrix", required=True, help="status matrix YAML path, relative to repo root")
-    parser.add_argument("--backend", required=True, help="backend key in the matrix")
-    parser.add_argument("--tag", required=True, help="full pushed image ref (tag taken after the last ':')")
-    parser.add_argument(
-        "--changelog",
-        help="app changelog YAML (repo-relative); its pending entry's date is "
-        "backfilled with the registry push_time and committed with the record",
-    )
-    args = parser.parse_args()
-
-    matrix_rel = args.matrix
+def record_app(matrix_rel: str, backend: str, ref: str, tag: str, changelog: str) -> None:
     matrix_path = REPO_ROOT / matrix_rel
     if not matrix_path.is_file():
         sys.exit(f"Error: matrix file not found: {matrix_rel}")
-    tag = args.tag.rsplit(":", 1)[-1]
+
+    # Identity first: the backfill and the docs pipeline below run as flagos-ci
+    # too, and subprocesses inherit the environment.
+    configure_git_identity()
 
     # The changelog entry's date is the registry push_time — authoritative and
     # never hand-typed. Backfill it here, where the pushed ref is known, so the
     # same PR carries the matrix record and the dated changelog entry (the gate
     # reads the empty date as "pending", so it must be filled after the push).
-    if args.changelog:
-        cl_path = REPO_ROOT / args.changelog
+    if changelog:
+        cl_path = REPO_ROOT / changelog
         if not cl_path.is_file():
-            sys.exit(f"Error: changelog not found: {args.changelog}")
-        push_time = _harbor_push_time(args.tag)
-        if not push_time:
-            sys.exit(f"Error: cannot read push_time for {args.tag} from the registry")
-        _run_py(
-            REPO_ROOT / "scripts" / "backfill_changelog_date.py",
-            str(cl_path), tag, push_time,
-        )
-    cl_changed = bool(args.changelog) and _git(
-        "diff", "--quiet", args.changelog, check=False
+            sys.exit(f"Error: changelog not found: {changelog}")
+        push_time = harbor_push_time(ref)
+        _run_py(REPO_ROOT / "scripts" / "backfill_changelog_date.py",
+                str(cl_path), tag, push_time)
+    cl_changed = bool(changelog) and _git(
+        "diff", "--quiet", changelog, check=False
     ).returncode != 0
 
     # A stale "未推送" note contradicts image_tag by construction — clear it
     # before the idempotency check so already-recorded backends self-heal.
-    changed = clear_stale_note(matrix_path, args.backend)
+    changed = clear_stale_note(matrix_path, backend)
 
     # Idempotency: all three facts already recorded → nothing to do.
-    backend_cfg = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(args.backend, {})
+    backend_cfg = (yaml.safe_load(matrix_path.read_text()) or {}).get("backends", {}).get(backend, {})
     if (backend_cfg.get("image_tag", "") == tag and backend_cfg.get("launch_docs", False)
             and backend_cfg.get("deps_app", False)):
         if not cl_changed:
             if not changed:
-                print(f"{args.backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
+                print(f"{backend} already records image_tag {tag} + launch_docs + deps_app — nothing to do.")
             return
 
     # Do not record an image whose plugin pin has drifted off a tracked OPEN
@@ -373,16 +380,16 @@ def main() -> None:
     if drift:
         sys.exit(f"Error: {drift}")
 
-    print(f"Recording image_tag {tag} + launch_docs + deps_app for {args.backend} in {matrix_rel}")
+    print(f"Recording image_tag {tag} + launch_docs + deps_app for {backend} in {matrix_rel}")
 
-    changed = update_image_tag(matrix_path, args.backend, tag) or changed
-    changed = update_launch_docs(matrix_path, args.backend) or changed
-    changed = update_deps_app(matrix_path, args.backend) or changed
+    changed = update_image_tag(matrix_path, backend, tag) or changed
+    changed = update_launch_docs(matrix_path, backend) or changed
+    changed = update_deps_app(matrix_path, backend) or changed
     if not (changed or cl_changed):
         return
 
     comp = component_of(matrix_rel)
-    branch = record_branch(matrix_rel, args.backend)
+    branch = record_branch(matrix_rel, backend)
 
     # Refresh the pipeline so matrix, verification md, and app pages agree.
     _run_py(REPO_ROOT / "scripts" / "docs" / "gen_data.py")
@@ -392,71 +399,76 @@ def main() -> None:
     # Stage only the artifacts this record touches.
     patterns = [matrix_rel, "packaging/*/docs/*-verification-matrix.md",
                 "docs/content/en/application/*.md", "docs/content/zh-cn/application/*.md"]
-    if args.changelog:
-        patterns.append(args.changelog)
+    if changelog:
+        patterns.append(changelog)
     for pattern in patterns:
         _git("add", pattern, check=False)
     if _git("diff", "--cached", "--quiet", check=False).returncode == 0:
         print("No doc changes after recording tag — nothing to PR.")
         return
 
-    commit_msg = f"chore({comp}): record app image tag {tag} for {args.backend}"
-    for k, v in GIT_IDENTITY.items():
-        os.environ.setdefault(k, v)
-    _git("config", "user.name", "flagos-ci", check=False)
-    _git("config", "user.email", "noreply@flagos.net", check=False)
-    _git("checkout", "-B", branch, check=False)
-    _git("commit", "-m", commit_msg)
-
-    # The record PR's merge deletes this branch (delete_branch_on_merge), so
-    # ask origin, not the (possibly stale) local mirror, whether it exists.
-    probe = _git("ls-remote", "origin", f"refs/heads/{branch}", check=False)
-    if probe.returncode == 0 and probe.stdout.strip():
-        # The same record already sits on the branch (re-run / recovery): rebase
-        # onto it, then plain-push — we are its descendant, and --force would
-        # clobber its commit.
-        _git("fetch", "origin", branch, check=False)
-        if _git("rebase", f"origin/{branch}", check=False).returncode != 0:
-            _git("rebase", "--abort", check=False)
-            sys.exit(
-                f"Error: {branch} already carries a record for {tag} — merge or close its "
-                f"PR, then re-run the workflow"
-            )
-        _git("push", "origin", branch)
-    else:
-        # Branch deleted: recreate from fresh main so the regenerated pages
-        # embed records merged since this run was dispatched.
-        _git("fetch", "origin", "main", check=False)
-        if _git("rebase", "origin/main", check=False).returncode != 0:
-            _git("rebase", "--abort", check=False)
-            sys.exit(
-                f"Error: {branch} is absent but this run's base conflicts with origin/main — "
-                f"re-run the workflow to record {tag}"
-            )
-        _git("push", "origin", branch)
-
-    base = os.environ.get("GITHUB_REF_NAME", "main")
-    repo = os.environ.get("GITHUB_REPOSITORY")
-    if not repo:
-        sys.exit("Error: GITHUB_REPOSITORY not set — cannot open a PR")
-    existing = _gh_api(
-        "GET", f"/repos/{repo}/pulls?head={repo.split('/', 1)[0]}:{branch}&state=open"
-    )
-    if existing:
-        print(f"PR already open for {branch}; updated content pushed")
-        return
-    body = (
-        f"The {comp} app-image workflow pushed an image for `{args.backend}` and recorded "
+    commit_msg = f"chore({comp}): record app image tag {tag} for {backend}"
+    push_record_branch(branch, commit_msg)
+    open_pr(branch, commit_msg, (
+        f"The {comp} app-image workflow pushed an image for `{backend}` and recorded "
         f"the published tag `{tag}` into the status matrix. This PR brings the matrix, the "
         "verification matrix, and the app launch pages back in sync — no functional changes. "
-        "Schema and refresh mechanism: docs/status-matrix.md."
+        "Schema and refresh mechanism: docs/status-matrix.md.\n\n"
+        f"{DISCLOSURE}"
+    ))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    _gh_api("POST", f"/repos/{repo}/pulls", {
-        "title": commit_msg,
-        "head": branch,
-        "base": base,
-        "body": body,
-    })
+    parser.add_argument(
+        "--layer", choices=("base", "runtime", "app"), required=True,
+        help="which tree the record lands in",
+    )
+    parser.add_argument(
+        "--backend", required=True,
+        help="backend key, e.g. hygon-dtk26.04 (the status matrix is keyed by it)",
+    )
+    parser.add_argument(
+        "--tag", required=True,
+        help="full pushed image ref; the tag is what follows the last ':'",
+    )
+    parser.add_argument(
+        "--matrix",
+        help="app only: status matrix YAML path, relative to the repo root",
+    )
+    parser.add_argument(
+        "--changelog",
+        help="app only: per-image changelog YAML (repo-relative); its pending "
+        "entry's date is backfilled with the registry push_time",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="base/runtime only: resolve the push time and stop (no writes, no PR)",
+    )
+    args = parser.parse_args()
+
+    tag = args.tag.rpartition(":")[2]
+    if not tag or "/" in tag:
+        sys.exit(f"Error: '{args.tag}' carries no tag")
+
+    if args.layer == "app":
+        if not args.matrix:
+            parser.error("--matrix is required for --layer app")
+        if args.dry_run:
+            parser.error("--dry-run is not implemented for --layer app")
+        record_app(args.matrix, args.backend, args.tag, tag, args.changelog)
+        return
+
+    if args.matrix:
+        parser.error("--matrix is only meaningful for --layer app")
+    if args.changelog:
+        parser.error(
+            f"--layer {args.layer} records {args.layer}/changelogs/<backend>.yaml; "
+            "--changelog is only for --layer app"
+        )
+    record_changelog(args.layer, args.backend, args.tag, tag, args.dry_run)
 
 
 if __name__ == "__main__":

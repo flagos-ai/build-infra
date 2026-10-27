@@ -9,7 +9,7 @@
 - **verify 门禁 push**：app 镜像 workflow 内 verify（`--app-image` 模式：
   BEFORE = runtime / AFTER = app 包矩阵 unchanged + megatron.core import +
   helpers_cpp 绑定）通过才推送 Harbor。
-- **record_app_image_tag**：镜像发布 tag 自动记录（`record_app_image_tag.py`），
+- **镜像发布 tag 自动记录**（`record_image.py --layer app`），
   image_tag 为已发布 tag 唯一事实源。
 - **`--scenario rl` 不自动化**：上游阻塞（[MLF #116](https://github.com/flagos-ai/Megatron-LM-FL/pull/116) + flash-attn 依赖），RL
   cell 标 ⛔ 不收集。

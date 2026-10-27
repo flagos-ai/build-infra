@@ -170,7 +170,7 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
   app_tag="${host}/${app_prefix}/verl0.7.0-${{ matrix.name }}:${{ matrix.version }}-${fork_ver}"
   ```
 - verify：`bash packaging/verl/verify/verify-verl-backend.sh "${{ matrix.name }}" --verl-version ... --megatron-version ... --vllm-version ... --plugin-fl-version ... --app-image "${APP_TAG}"`。
-- record：`python3 scripts/record_app_image_tag.py --matrix "packaging/verl/status_matrix.verl0.7.0.yaml" --backend ... --tag ...`（组件正则 `packaging/(\w+)/` 匹配 verl，无需改）。
+- record：`python3 scripts/record_image.py --layer app --matrix "packaging/verl/status_matrix.verl0.7.0.yaml" --backend ... --tag ...`（组件正则 `packaging/(\w+)/` 匹配 verl，无需改）。
 
 ## 6. Verify 脚本 + 节点清单
 
@@ -196,7 +196,7 @@ FL 训练/rollout 环境（来自 `examples/grpo_trainer/run_qwen3-0.6b_fl.sh` +
 2. **TE-FL 独立 wheel 可达性 + flagcx 可选路径**：TE-FL 已实证可独立出纯 Python wheel（§3.1，`packaging/transformer-engine-fl/builder/`），风险收窄为各 vendor index 对 hosted 的可见性 + 首 op 分发与 flag_gems 的兼容（同 megatron wheel 先例）。FlagCX 为可选（verl 无强依赖，仅 `USE_FLAGCX=1` 时被选为通信后端字符串）——是否配 flagcx 由 megatron-core[rl]/TE-FL 线决定；配置时 `USE_FLAGCX`/`FLAGCX_PATH` 必须成对（§3.2）。
 3. **ray[default]>=2.41 在非 x86**：ascend（cann850/cann9，aarch64）的 ray wheel 可得性未证——全后端范围下这两后端是最大风险。
 4. **verl 最小 E2E config**：verl 无 megatron 那种 mock-data 一键训练；搭 1 GPU 可跑的最小 PPO config + 数据集是最大验证工作量（§6.5 为临时项）。
-5. **版本双轨**：wheel 版本 `0.7.0+fl.<date>.g<sha>`（PEP 440 local）vs fork git describe `v0.2.0-rc2.post1-1-g45068d9e` 分居两处——tag 规则保持分离，`record_app_image_tag`/plugin 回推不得假设两者一致。
+5. **版本双轨**：wheel 版本 `0.7.0+fl.<date>.g<sha>`（PEP 440 local）vs fork git describe `v0.2.0-rc2.post1-1-g45068d9e` 分居两处——tag 规则保持分离，`record_image.py --layer app`/plugin 回推不得假设两者一致。
 6. **deps_app 键位=verified 语义**：用户选全后端铺开，与"键位存在即已验证"惯例冲突——矩阵格保持 ⬜ 直到节点 F/T 双路径过，verify 步骤在 workflow 里始终默认开启。
 
 ## 验证方式

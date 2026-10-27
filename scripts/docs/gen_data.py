@@ -332,7 +332,7 @@ def app_launch_docs(app: str, name: str) -> bool:
     → trigger verify), so it does not mean the app works on this backend yet
     and cannot decide the launch page. Delivery lands in the status matrix:
     ``backends.<name>.launch_docs`` is flipped true at publication
-    (scripts/record_app_image_tag.py sets it atomically with the pushed tag)
+    (scripts/record_image.py --layer app sets it atomically with the pushed tag)
     or when a verified-but-unpublished app image is documented, and stays
     false while verification is pending or failed. Generate the page only
     then — a backend whose matrix has no such record has nothing to launch.
