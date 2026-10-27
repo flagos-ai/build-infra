@@ -36,10 +36,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ────────────────────────────────────────────
 # RUN sed -i 's|URIs: http://archive.ubuntu.com/ubuntu|URIs: https://mirrors.aliyun.com/ubuntu|g; s|URIs: http://security.ubuntu.com/ubuntu|URIs: https://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources \
+# libgoogle-glog0v6t64 is not for the SDK: torch's c10 headers make the plugin's
+# _C.so link libglog.so.1, and DTK ships no such soname (torch.libs carries a
+# hashed one). Without it `import vllm_fl._C` dies on ImportError.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git vim ca-certificates curl unzip \
         libnuma1 \
         libgfortran5 libdrm-amdgpu1 libdw1 libelf1 libpciaccess0 \
+        libgoogle-glog0v6t64 \
         gcc g++ build-essential cmake \
         pciutils \
     && rm -rf /var/lib/apt/lists/*
