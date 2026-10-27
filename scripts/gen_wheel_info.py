@@ -56,17 +56,19 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import json
-import os
 import re
-import subprocess
 import sys
-import urllib.request
 from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from git_ops import (  # noqa: E402
+    REPO_ROOT,
+    _git,
+    open_pr,
+    push_record_branch,
+)
 
 CATALOG = REPO_ROOT / "packaging" / "packages.yaml"
 
@@ -94,44 +96,11 @@ _OS_ARCH = {
 _PY_SORT = {"cp310": 0, "cp311": 1, "cp312": 2, "cp313": 3, "py3": 99}
 _ARCH_SORT = {"linux_x86_64": 0, "linux_aarch64": 1, "any": 99}
 
-GIT_IDENTITY = {
-    "GIT_AUTHOR_NAME": "flagos-ci",
-    "GIT_AUTHOR_EMAIL": "noreply@flagos.net",
-    "GIT_COMMITTER_NAME": "flagos-ci",
-    "GIT_COMMITTER_EMAIL": "noreply@flagos.net",
-}
-
 # A version row's key order. A row created here has to match what a hand-written
 # one looks like, or the merge would silently reformat the file around it.
 _ROW_KEYS = ("version", "pypi_index", "desc_zh", "desc_en", "notes", "notes_en",
              "python", "os", "arch")
 _MACHINE_FIELDS = ("pypi_index", "python", "os", "arch")
-
-
-# ── git / GitHub helpers (mirror scripts/record_app_image_tag.py) ───────────
-
-
-def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git"] + list(args), check=check, capture_output=True, text=True, cwd=REPO_ROOT
-    )
-
-
-def _gh_api(method: str, path: str, body: dict | None = None) -> dict:
-    """Call the GitHub REST API with GITHUB_TOKEN (no gh CLI dependency)."""
-    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
-    if not token:
-        sys.exit("Error: GH_TOKEN/GITHUB_TOKEN not set — cannot open a PR")
-    url = f"https://api.github.com{path}"
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Accept", "application/vnd.github+json")
-    req.add_header("X-GitHub-Api-Version", "2022-11-28")
-    if data is not None:
-        req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
 
 
 # ── manifest → catalog merge ────────────────────────────────────────────────
@@ -328,60 +297,15 @@ def cmd_record(args: argparse.Namespace) -> None:
         print("no wheel-info changes after recording — nothing to PR")
         return
 
-    for k, v in GIT_IDENTITY.items():
-        os.environ.setdefault(k, v)
-    _git("config", "user.name", "flagos-ci", check=False)
-    _git("config", "user.email", "noreply@flagos.net", check=False)
-    _git("checkout", "-B", branch, check=False)
-    _git("commit", "-m", commit_msg)
-
-    probe = _git("ls-remote", "origin", f"refs/heads/{branch}", check=False)
-    if probe.returncode == 0 and probe.stdout.strip():
-        # Same record already on the branch (re-run / recovery): rebase onto it
-        # and plain-push — we are its descendant, and --force would clobber it.
-        _git("fetch", "origin", branch, check=False)
-        if _git("rebase", f"origin/{branch}", check=False).returncode != 0:
-            _git("rebase", "--abort", check=False)
-            sys.exit(
-                f"Error: {branch} already carries a wheel-info record — merge or close its "
-                f"PR, then re-run the workflow"
-            )
-        _git("push", "origin", branch)
-    else:
-        # Branch deleted: recreate from fresh main so the record carries every
-        # catalog change merged since this run was dispatched.
-        _git("fetch", "origin", "main", check=False)
-        if _git("rebase", "origin/main", check=False).returncode != 0:
-            _git("rebase", "--abort", check=False)
-            sys.exit(
-                f"Error: {branch} conflicts with origin/main — re-run the workflow to record"
-            )
-        _git("push", "origin", branch)
-
-    base = args.base or os.environ.get("GITHUB_REF_NAME", "main")
-    repo = os.environ.get("GITHUB_REPOSITORY")
-    if not repo:
-        sys.exit("Error: GITHUB_REPOSITORY not set — cannot open a PR")
-    existing = _gh_api(
-        "GET", f"/repos/{repo}/pulls?head={repo.split('/', 1)[0]}:{branch}&state=open"
-    )
-    if existing:
-        print(f"PR already open for {branch}; updated content pushed")
-        return
-    body = (
+    push_record_branch(branch, commit_msg)
+    open_pr(branch, commit_msg, (
         f"The `{workflow}` wheel workflow published wheels to the vendor PyPI and recorded "
         "the publish events into the matching rows of `packaging/packages.yaml` "
         "(`pypi_index` / `python` / `os` / `arch` only — the hand-written descriptions are "
         "left as they are). No functional changes; the publish step keeps the catalog "
         "current from now on — see scripts/gen_wheel_info.py.\n\n"
         "This PR was written in part with the assistance of generative AI."
-    )
-    _gh_api("POST", f"/repos/{repo}/pulls", {
-        "title": commit_msg,
-        "head": branch,
-        "base": base,
-        "body": body,
-    })
+    ), base=args.base)
 
 
 # ── CLI ─────────────────────────────────────────────────────────────────────

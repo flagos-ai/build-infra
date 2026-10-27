@@ -27,7 +27,7 @@ the per-cell symbols, appended failed cells to the debug queue, and written
      main), force-push — one branch per app line (vllm/megatron) so two
      concurrent driver runs don't clobber each other's results.
   3. Open (or update) a review-gated PR via the REST API — the same dup-PR +
-     force-push pattern as record_app_image_tag.py.
+     force-push pattern as record_image.py.
 
 It never merges. Requires GH_TOKEN/GITHUB_TOKEN and GITHUB_REPOSITORY.
 

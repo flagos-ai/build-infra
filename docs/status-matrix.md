@@ -125,7 +125,7 @@ FlagGems 的 PR）。**PR 一合并就从这里删掉**；删空后把 `prs` key
 `—`，记录行查不到时保留上次的状态。渲染时若发现 YAML 里仍有已合并的条目，
 会在 stderr 列出提示删除。
 
-这个语义也是 `record_app_image_tag.py` 的 pin 闸门所依赖的：镜像 tag 钉的
+这个语义也是 `scripts/record_image.py --layer app` 的 pin 闸门所依赖的：镜像 tag 钉的
 plugin commit 必须仍是某个在册（即 OPEN）PR 的 head。已合并的 PR 不在 `prs`
 里，其 tag 也就不再受漂移检查约束 —— tag 不可变，本无漂移可言。
 

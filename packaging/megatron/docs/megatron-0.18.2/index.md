@@ -73,7 +73,7 @@ cambricon-neuware4.7.2。app 镜像 tag `2.2.0-0.3.0`，5 行（training + rl）
   cambricon 根因=wheel 无 MLU 平台登记，须按 release/0.2 重建 wheel 后复验，否则下线。
 - **record 回填**：第一批 6 个通过 verify 的镜像（3 后端 × training/rl）Record step
   因 status matrix 尚未上 main 而失败（run 36212107759 / 36212109803）。PR #1118 合并后
-  重跑（push 幂等）或本地跑 `record_app_image_tag.py`，回填 changelog date + image_tag。
+  重跑（push 幂等）或本地跑 `record_image.py --layer app`，回填 changelog date + image_tag。
 - **cuda13.3 app 镜像 rebuild**：现推 2.2.0-0.3.0 不含 `FLAGCX_BITCODE_PATH` env；configs.yaml
   env.runtime 固化后重建 runtime + app 镜像，使 F 路径默认可用。
 - **旧 wheel 清理**：`flagos-pypi-hygon` 上残留 `megatron_core-0.18.2+fl.0.3.0rc2-cp310`

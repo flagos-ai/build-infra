@@ -184,8 +184,8 @@ jobs:
       # irrelevant, but matrix.version must still be the pushed one.
       - name: Record base image push
         if: ${{ success() && (inputs.record_only || inputs.push) }}
-        uses: ./.github/actions/record-image-changelog
+        uses: ./.github/actions/record-image
         with:
           layer: base
           backend: "${{ matrix.name }}"
-          image: "${{ env.IMAGE_TAG }}"
+          tag: "${{ env.IMAGE_TAG }}"

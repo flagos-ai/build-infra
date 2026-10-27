@@ -21,7 +21,7 @@ matrix job uploaded, then hands them here. For each result this script:
 
   1. Surgically sets the cell symbol in the app's status_matrix YAML —
      ✅ for passed, ❌ for failed (line edit, same technique as
-     record_app_image_tag.py, so the header comment survives).
+     record_image.py, so the header comment survives).
   2. Appends a task card for each failed cell to .github/verify-queue.yaml
      (the driver → local debug-loop handoff; docs/verify-orchestrator.md
      §4.2.1). Idempotent: a cell already queued for the same verdict is not

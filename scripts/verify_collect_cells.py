@@ -151,7 +151,7 @@ def plugin_fl_version(matrix: dict, backend: str) -> str | None:
     backend key — installing the bare version would resolve to whichever native
     build is newest on that index, i.e. to another backend's ``.so``. The status
     matrix ``image_tag`` is the single source of truth for "this backend is
-    published" (record_app_image_tag.py writes it on push), and the full-install
+    published" (record_image.py --layer app writes it on push), and the full-install
     verify path must pin the same wheel the app image baked to reach an
     identical serve environment.
 
