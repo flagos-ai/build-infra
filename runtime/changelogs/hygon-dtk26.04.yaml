@@ -19,7 +19,7 @@ image: flagos-runtime-hygon-dtk26.04
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-27T03:24:06.403Z'
     reason: >-
       The base image gains libgoogle-glog0v6t64. The vllm-plugin-FL native
       build (0.3.0+dtk26.4) links libglog.so.1 — torch's c10 headers pull glog
