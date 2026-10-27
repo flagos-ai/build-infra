@@ -260,7 +260,8 @@ jobs:
       # irrelevant, but matrix.version must still be the pushed one.
       - name: Record runtime image push
         if: ${{ success() && (inputs.record_only || inputs.push) }}
-        uses: ./.github/actions/record-runtime-image
+        uses: ./.github/actions/record-image-changelog
         with:
+          layer: runtime
           backend: "${{ matrix.name }}"
           image: "${{ env.IMAGE_TAG }}"

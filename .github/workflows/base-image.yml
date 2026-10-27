@@ -19,6 +19,13 @@ name: Build Base Image (manual)
 # value at the current maturity. Trigger this manually to build a backend (or
 # all). A future job may detect configs.yaml drift and remind maintainers.
 
+# The run title self-labels each dispatch so a push, a no-push debug run and a
+# record-only recovery run are told apart at a glance in the Actions run list.
+run-name: >-
+  base
+  · ${{ inputs.backend }}
+  · ${{ inputs.push && 'push' || 'no-push' }}${{ inputs.record_only && ' · record-only' || '' }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -30,6 +37,17 @@ on:
         description: 'Push image(s) to the registry'
         type: boolean
         default: false
+      record_only:
+        description: >-
+          Skip build/push, only re-record — dates the changelog entry for a tag
+          pushed but never recorded (failed record step / closed record PR).
+        type: boolean
+        default: false
+
+# The record step commits a dated changelog and opens a PR.
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   authorize:
@@ -88,7 +106,7 @@ jobs:
             || python3 -m pip install --user --break-system-packages pyyaml
 
       - name: Log in to the Container registry
-        if: ${{ inputs.push }}
+        if: ${{ inputs.push && !inputs.record_only }}
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
@@ -121,6 +139,7 @@ jobs:
       # here rather than silently dying mid-build. (Candidate for extraction to
       # a composite action once the runtime/app image builds share it.)
       - name: Check disk space
+        if: ${{ !inputs.record_only }}
         shell: bash
         run: |
           # Check free space on the working-directory filesystem — this is where
@@ -136,6 +155,37 @@ jobs:
             exit 1
           fi
 
-      - name: Build base image
+      - name: Env + parameters
         run: |
-          python3 scripts/build_base.py "${{ matrix.name }}" ${{ inputs.push && '--push' || '' }}
+          # Resolved once, here: the changelog gate, the build and the record
+          # step must agree on the tag being pushed.
+          echo "IMAGE_TAG=${{ matrix.image_tag }}" >> "$GITHUB_ENV"
+          echo "image_tag: ${{ matrix.image_tag }}"
+
+      # Changelog gate: a push must be authorized by a pending entry (reason,
+      # empty date) for this tag, checked before the build. Debug builds
+      # (push=false) are exempt.
+      - name: Changelog gate
+        if: ${{ inputs.push && !inputs.record_only }}
+        run: |
+          set -euo pipefail
+          python3 scripts/changelog_gate.py \
+            "base/changelogs/${{ matrix.name }}.yaml" \
+            "${IMAGE_TAG##*:}"
+
+      - name: Build base image
+        if: ${{ !inputs.record_only }}
+        run: |
+          python3 scripts/build_base.py "${{ matrix.name }}" --tag "${IMAGE_TAG}" \
+            ${{ inputs.push && '--push' || '' }}
+
+      # record_only recovery path: date a changelog for a tag already in the
+      # registry without rebuilding it. The registry query makes github.sha
+      # irrelevant, but matrix.version must still be the pushed one.
+      - name: Record base image push
+        if: ${{ success() && (inputs.record_only || inputs.push) }}
+        uses: ./.github/actions/record-image-changelog
+        with:
+          layer: base
+          backend: "${{ matrix.name }}"
+          image: "${{ env.IMAGE_TAG }}"
