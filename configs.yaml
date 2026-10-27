@@ -175,6 +175,33 @@ app_public:
     model_zh: 通用 GPU
 
 vendors:
+  amd:
+    rocm7.2.4:
+      extras: amd
+      hardware: ["AMD Radeon PRO W7900"]   # gfx1100, RDNA3
+      driver: "6.16.13"
+      python: "3.12"
+      # No cmake_backend: FlagGems has no ROCm/HIP C++ backend yet
+      # (release_flaggems.py VENDOR_MAP has no HIP/ROCM). Revisit when it lands.
+      triton: triton==3.6.0
+      flagtree: flagtree==0.7.0+amd3.6
+      env:
+        base:
+          # Mirrors base/amd-rocm7.2.4 ENV exactly (the source of truth for
+          # per-image env documentation). ROCm dispatches on the CUDA key, so
+          # torch.cuda.is_available() is True on AMD.
+          ROCM_PATH: /opt/rocm
+          PATH: /opt/rocm/bin:$PATH
+          LD_LIBRARY_PATH: /opt/rocm/lib
+          HIP_VISIBLE_DEVICES: all
+      deps:
+        - torch==2.11.0+rocm7.2
+        - torchaudio==2.11.0+rocm7.2
+        - torchvision==0.26.0+rocm7.2
+        - numpy==1.26.4
+      sdk:
+        - ROCm 7.2.4 (x86_64)   # apt-native from repo.radeon.com, no filestore
+
   nvidia:
     cuda12.8:
       extras: nvidia-cuda128

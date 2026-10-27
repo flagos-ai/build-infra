@@ -67,6 +67,7 @@ ALLOWED_TOOLS = "Bash Read Edit Write Grep Glob WebFetch"
 #   <key>StartInterval</key><integer>300</integer>  # 5 min tick
 
 DEFAULT_NODES = {
+    "amd-rocm7.2.4": "amd",
     "nvidia-cuda12.8": "h20",
     "nvidia-cuda13.3": "h20",
     "metax-maca3.7.2.1": "metax123",

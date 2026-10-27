@@ -715,3 +715,25 @@ tsingmicro-tsm260610:
     enabled: true
     containerfile: Containerfile.builder-vendor-tsm
     sdk_version: "260610164501"
+
+amd-rocm7.2.4:
+  vendor: amd
+  make_flag: USE_AMD
+  arch: amd64
+  glibc_floor: "2.39"
+  # amd.mk defaults DEVICE_HOME/CCL_HOME to /opt/rocm, and the Makefile's
+  # include ladder reaches makefiles/amd.mk when USE_AMD=1 — both agree with
+  # the base image (base/amd-rocm7.2.4 installs rccl-dev + hsa-rocr-dev +
+  # hip-dev + hipcc, so the header <rccl/rccl.h>, <hip/hip_runtime_api.h> and
+  # libhiprtc are present). No device bitcode on this row: amd.mk ships none,
+  # so no builder is declared and no clang is needed.
+  apt: []
+  make_env:
+    DEVICE_HOME: /opt/rocm
+    CCL_HOME: /opt/rocm
+  vendor_libs: [rccl, hiprtc]
+  assert:
+    - /opt/rocm/include/rccl/rccl.h
+    - /opt/rocm/include/hip/hip_runtime_api.h
+  deb: {enabled: false, default_for_vendor: true}
+  wheel: {enabled: false}
