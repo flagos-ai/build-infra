@@ -39,7 +39,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT]
+        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT, flagtree-cpu]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -65,6 +65,14 @@ on:
           into every suite this target was built and verified for.
         type: string
         default: ''
+      arches:
+        description: >-
+          architectures to build, space-separated (x86_64 aarch64). Leave empty
+          to build every architecture this target is valid for -- which is not
+          every architecture: a compiled package can only be built where its
+          build inputs are published for that one.
+        type: string
+        default: ''
       verify:
         description: 'install the .rpm in a clean container before uploading'
         type: boolean
@@ -79,7 +87,11 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # GitHub-hosted arm64 runners. This repository is public, so they are free
+    # and need no addition to the self-hosted pool. An rpm for aarch64 has to
+    # be built on aarch64: rpmbuild stamps the architecture of the host it runs
+    # on into the package.
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
       # Set by any matrix row that actually built. Empty means every row
@@ -90,18 +102,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Only the suite here. The base image cannot live in this matrix: a
-        # component whose build needs a vendor SDK builds on that vendor's
-        # image for the distribution, not on the plain one -- FlagDNN needs a
-        # CUDA-on-RockyLinux image where FlagTree needs bare Fedora. The
-        # target table below names the image per suite, and a target that has
-        # none for a suite is skipped rather than built on the wrong base.
+        # The suite and the architecture. The base image cannot live in this
+        # matrix: a component whose build needs a vendor SDK builds on that
+        # vendor's image for the distribution, not on the plain one -- FlagDNN
+        # needs a CUDA-on-RockyLinux image where FlagTree needs bare Fedora.
+        # The target table below names the image per suite, and a target that
+        # has none for a suite, or is not valid for an architecture, is skipped
+        # rather than built on the wrong base or the wrong machine.
         suite: [fedora43, openeuler24.03, rhel9]
+        arch: [x86_64, aarch64]
     steps:
       - name: Resolve the target
         id: cfg
         env:
           TARGET: ${{ inputs.target }}
+          ARCH: ${{ matrix.arch }}
+          ARCHES: ${{ inputs.arches }}
         run: |
           set -euo pipefail
           # Per target: repository, build script, how that script takes its
@@ -115,6 +131,10 @@ jobs:
           # each of them for the sake of uniformity.
           deps=''
           base_pkgs=''
+          # arches: the architectures this target's build inputs exist for --
+          # not the architectures its source supports. An x86_64-only entry is
+          # a statement about what is missing, named at the target.
+          arches=x86_64
           # publish_runs_on: where the upload job runs. The hosted runners
           # reach Nexus at tens of KB/s and the connection drops after about
           # an hour, which the 80 MB FlagTree rpms survive only sometimes;
@@ -129,6 +149,10 @@ jobs:
               outdir=rpm-packages
               ref=master
               ver=''
+              # x86_64 only because of the build inputs, not the source: the
+              # build installs torch and triton from flagos-pypi-nvidia, which
+              # publishes both for x86_64 alone while upstream has aarch64
+              # wheels for both. Add aarch64 here once the index carries them.
               image_fedora43=
               image_openeuler2403=
               image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
@@ -188,6 +212,26 @@ jobs:
               image_fedora43=
               image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts
               image_rhel9= ;;
+            flagtree-cpu)
+              repo=flagtree-cpu
+              script=packaging/rpm/helpers/build-flagtree-cpu-rpm.sh
+              # Quoted: shellcheck reads a bare `env` as a command substitution.
+              base_arg='env'
+              spec=packaging/rpm/specs/flagtree-cpu.spec
+              outdir=dist-rpm/output
+              # The CPU backend needs no vendor SDK and no accelerator, so it
+              # is the one native target that builds from the distribution
+              # alone on both architectures -- its spec is ExclusiveArch:
+              # aarch64 x86_64. It builds LLVM, which takes about two hours on
+              # a hosted arm64 runner.
+              arches='x86_64 aarch64'
+              # Packaging lands with flagos-ai/flagtree-cpu#8; until then this
+              # target builds only from `pull/8`, which cannot be published.
+              ref=main
+              ver=''
+              image_fedora43=fedora:43
+              image_openeuler2403=openeuler/openeuler:24.03-lts
+              image_rhel9= ;;
             *)
               echo "::error::unknown target '${TARGET}'"; exit 1 ;;
           esac
@@ -202,7 +246,22 @@ jobs:
             echo "outdir=${outdir}"
             echo "default_ref=${ref}"
             echo "default_version=${ver}"
+            echo "arches=${arches}"
           } >> "$GITHUB_OUTPUT"
+          # An override may narrow the architecture list but never widen it --
+          # same rule as the suites below, for the same reason.
+          for a in ${ARCHES:-}; do
+            case " ${arches} " in
+              *" ${a} "*) ;;
+              *)
+                echo "::error::'${a}' is not an architecture ${TARGET} is valid for (${arches})"
+                exit 1 ;;
+            esac
+          done
+          case " ${ARCHES:-${arches}} " in
+            *" ${ARCH} "*) echo "build_arch=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "build_arch=false" >> "$GITHUB_OUTPUT" ;;
+          esac
           # The base image for the suite this matrix row builds. Empty means the
           # target has no image for that distribution and the row is skipped --
           # so this has to be emitted, or every row skips and the run reports
@@ -344,12 +403,17 @@ jobs:
           PY
           grep -E '^(Version|Release):' "${SPEC}"
 
-      - name: Skip a suite this target has no image for
-        if: ${{ steps.cfg.outputs.base_image == '' }}
-        run: echo "::notice::${{ inputs.target }} has no ${{ matrix.suite }} base image; skipping"
+      - name: Skip a row this target is not built for
+        if: ${{ steps.cfg.outputs.base_image == '' || steps.cfg.outputs.build_arch != 'true' }}
+        run: |
+          if [ -z "${{ steps.cfg.outputs.base_image }}" ]; then
+            echo "::notice::${{ inputs.target }} has no ${{ matrix.suite }} base image; skipping"
+          else
+            echo "::notice::${{ inputs.target }} is not built for ${{ matrix.arch }} (valid: ${{ steps.cfg.outputs.arches }})"
+          fi
 
       - name: Fetch FlagOS build dependencies for ${{ matrix.suite }}
-        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.deps != '' }}
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' && steps.cfg.outputs.deps != '' }}
         working-directory: src
         env:
           DEPS: ${{ steps.cfg.outputs.deps }}
@@ -377,9 +441,9 @@ jobs:
               urllib.request.urlretrieve(f"{base}/{loc}", os.path.join(out, os.path.basename(loc)))
           PY
 
-      - name: Build the .rpm packages for ${{ matrix.suite }}
+      - name: Build the .rpm packages for ${{ matrix.suite }} on ${{ matrix.arch }}
         id: build
-        if: ${{ steps.cfg.outputs.base_image != '' }}
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         working-directory: src
         env:
           BASE_IMAGE: ${{ steps.cfg.outputs.base_image }}
@@ -388,8 +452,8 @@ jobs:
           set -euo pipefail
           if [ -n "${BASE_PKGS}" ]; then
             printf 'FROM %s\nRUN dnf install -y %s && dnf clean all\n' "${BASE_IMAGE}" "${BASE_PKGS}" \
-              | docker build -t "flagos-base:${{ matrix.suite }}" -
-            BASE_IMAGE="flagos-base:${{ matrix.suite }}"
+              | docker build -t "flagos-base:${{ matrix.suite }}-${{ matrix.arch }}" -
+            BASE_IMAGE="flagos-base:${{ matrix.suite }}-${{ matrix.arch }}"
           fi
           case "${{ steps.cfg.outputs.base_arg }}" in
             flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ;;
@@ -411,20 +475,25 @@ jobs:
           done
 
       - name: Upload the .rpm packages
-        if: ${{ steps.cfg.outputs.base_image != '' }}
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: ${{ inputs.target }}-rpm-${{ matrix.suite }}
+          name: ${{ inputs.target }}-rpm-${{ matrix.suite }}-${{ matrix.arch }}
           path: src/out/*.rpm
           retention-days: 7
 
   verify:
     needs: build
     if: ${{ inputs.verify }}
-    runs-on: ubuntu-latest
+    # The package has to be installed on the architecture it was built for,
+    # so this job follows the build's runner choice.
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
+        suite: [fedora43, openeuler24.03, rhel9]
+        arch: [x86_64, aarch64]
+        # Per suite, added to every architecture row of that suite.
         include:
           - suite: fedora43
             image: fedora:43
@@ -440,10 +509,10 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: ${{ inputs.target }}-rpm-${{ matrix.suite }}
+          name: ${{ inputs.target }}-rpm-${{ matrix.suite }}-${{ matrix.arch }}
           path: pkg
 
-      - name: Note a suite with no package
+      - name: Note a row with no package
         if: ${{ steps.fetch.outcome == 'failure' }}
         run: |
           # A suite with no package is expected only when the target has no
@@ -452,7 +521,7 @@ jobs:
           # verified run, which is how a bug that skipped every suite once
           # reported success having built nothing.
           if [ -n "${{ needs.build.outputs.any_built }}" ]; then
-            echo "::notice::nothing was built for ${{ matrix.suite }}"
+            echo "::notice::nothing was built for ${{ matrix.suite }} ${{ matrix.arch }}"
           else
             echo "::error::no suite produced a package - nothing was verified"
             exit 1
@@ -558,19 +627,23 @@ jobs:
           # Empty means every suite this target was built for, not every
           # suite there is: most targets have no image for some of them.
           if [ -z "${SUITES:-}" ]; then
+            # One artifact directory per suite and architecture; no suite name
+            # contains a dash, so the trailing segment is the architecture.
             SUITES=$(find pkg -mindepth 1 -maxdepth 1 -type d -name "${TARGET}-rpm-*" -printf '%f\n' \
-              | sed "s/^${TARGET}-rpm-//" | sort | tr '\n' ' ')
+              | sed "s/^${TARGET}-rpm-//; s/-[^-]*$//" | sort -u | tr '\n' ' ')
           fi
           for suite in ${SUITES}; do
             # Each suite gets the rpm built for that distribution and no other:
             # the Release field carries the distribution tag, and a native
-            # package links against that distribution's libraries.
-            dir="pkg/${TARGET}-rpm-${suite}"
-            if [ ! -d "${dir}" ]; then
+            # package links against that distribution's libraries. Every
+            # architecture of the suite goes into the same repository, which
+            # serves them all from one set of metadata.
+            mapfile -t dirs < <(find pkg -mindepth 1 -maxdepth 1 -type d -name "${TARGET}-rpm-${suite}-*" | sort)
+            if [ "${#dirs[@]}" -eq 0 ]; then
               echo "::error::nothing was built for '${suite}' - it failed or was skipped"
               exit 1
             fi
-            mapfile -t rpms < <(find "${dir}" -name '*.rpm' ! -name '*.src.rpm' | sort)
+            mapfile -t rpms < <(find "${dirs[@]}" -name '*.rpm' ! -name '*.src.rpm' | sort)
             [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
             repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
             for r in "${rpms[@]}"; do

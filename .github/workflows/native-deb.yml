@@ -46,7 +46,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT]
+        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT, flagtree-cpu]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -71,6 +71,14 @@ on:
           compiled package belongs only where what it links against resolves.
         type: string
         default: ''
+      arches:
+        description: >-
+          Debian architectures to build, space-separated (amd64 arm64). Leave
+          empty to build every architecture this target is valid for -- which
+          is not every architecture: a compiled package can only be built where
+          its build inputs are published for that architecture.
+        type: string
+        default: ''
       verify:
         description: 'install the .deb in a clean container before uploading'
         type: boolean
@@ -85,7 +93,18 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only the architecture here. The suite is a property of the target
+        # (see the table below) and the base image follows from it; what this
+        # dimension decides is the machine, because a .deb for arm64 has to be
+        # built on arm64. A target not valid for a row's architecture skips it
+        # rather than building something that was never shown to work there.
+        arch: [amd64, arm64]
+    # GitHub-hosted arm64 runners. This repository is public, so they are free
+    # and need no addition to the self-hosted pool.
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
       suites: ${{ steps.cfg.outputs.suites }}
@@ -98,6 +117,8 @@ jobs:
         id: cfg
         env:
           TARGET: ${{ inputs.target }}
+          ARCH: ${{ matrix.arch }}
+          ARCHES: ${{ inputs.arches }}
         run: |
           set -euo pipefail
           # Per target: repository, build script, the ref and version the
@@ -123,6 +144,10 @@ jobs:
           # an hour, which a 263 MB FlagTree deb does not survive; the
           # self-hosted runner already pushes FlagTree wheels there.
           publish_runs_on='["ubuntu-latest"]'
+          # arches: the architectures this target's build inputs exist for --
+          # not the architectures its source supports. An amd64-only entry is a
+          # statement about what is missing, named at the target.
+          arches=amd64
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
@@ -130,7 +155,14 @@ jobs:
               ref=master
               ver=''
               suites=ubuntu24.04
-              image=ubuntu:24.04 ;;
+              image=ubuntu:24.04
+              # amd64 only, and not because of the source: debian/control
+              # already says `Architecture: amd64 arm64` and every input of
+              # the build image exists for arm64 except the two wheels it
+              # installs -- flagos-pypi-nvidia publishes torch 2.10.0+cu128 and
+              # triton 3.6.0 for x86_64 alone, while upstream has both for
+              # aarch64. Add arm64 here once the index carries them.
+              ;;
             FlagTree)
               repo=FlagTree
               script=packaging/debian/build-helpers/build-flagtree.sh
@@ -147,6 +179,8 @@ jobs:
               script=packaging/debian/build-helpers/build-flag-dnn.sh
               ref=v0.3.0
               ver=v0.3.0
+              # amd64 until libtriton-jit-nvidia is published for arm64: the
+              # build installs it from the apt repository below.
               # Depends on libpython3.12 and libtriton-jit-nvidia, both 24.04-only.
               base=nvidia/cuda:12.8.0-devel-ubuntu24.04
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
@@ -155,6 +189,7 @@ jobs:
             FlagTensor)
               repo=FlagTensor
               script=packaging/debian/build-helpers/build-flagtensor.sh
+              # amd64 for the same reason as FlagDNN.
               # The deb build image bootstraps pip with get-pip.py, which the
               # deadsnakes python3.12 now refuses under PEP 668; no ref builds
               # until FlagTensor#29 is in a release.
@@ -174,6 +209,21 @@ jobs:
               ppa=ppa:deadsnakes/ppa
               suites=ubuntu22.04
               image=ubuntu:22.04 ;;
+            flagtree-cpu)
+              repo=flagtree-cpu
+              script=packaging/debian/build-helpers/build-flagtree-cpu.sh
+              outdir=dist/output
+              # The CPU backend needs no vendor SDK and no accelerator, so it
+              # is the one native target that builds on both architectures from
+              # the distribution alone. It builds LLVM, which takes about two
+              # hours on a hosted arm64 runner.
+              arches='amd64 arm64'
+              ref=main
+              ver=''
+              # Packaging lands with flagos-ai/flagtree-cpu#8; until then this
+              # target builds only from `pull/8`, which cannot be published.
+              suites=ubuntu24.04
+              image=ubuntu:24.04 ;;
             *)
               echo "::error::unknown target '${TARGET}'"; exit 1 ;;
           esac
@@ -194,8 +244,24 @@ jobs:
             echo "default_ref=${ref}"
             echo "default_version=${ver}"
             echo "suites=${suites}"
+            echo "arches=${arches}"
             echo "verify_image=${image}"
           } >> "$GITHUB_OUTPUT"
+
+          # An override may narrow the architecture list but never widen it --
+          # same rule as the suites above, for the same reason.
+          for a in ${ARCHES:-}; do
+            case " ${arches} " in
+              *" ${a} "*) ;;
+              *)
+                echo "::error::'${a}' is not an architecture ${TARGET} is valid for (${arches})"
+                exit 1 ;;
+            esac
+          done
+          case " ${ARCHES:-${arches}} " in
+            *" ${ARCH} "*) echo "build_arch=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "build_arch=false" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
@@ -310,12 +376,18 @@ jobs:
           PY
           head -1 packaging/debian/changelog
 
+      - name: Skip an architecture this target is not valid for
+        if: ${{ steps.cfg.outputs.build_arch != 'true' }}
+        run: |
+          echo "::notice::${{ inputs.target }} is not built for ${{ matrix.arch }} (valid: ${{ steps.cfg.outputs.arches }})"
+
       - name: Fetch FlagOS build dependencies
-        if: ${{ steps.cfg.outputs.deps != '' }}
+        if: ${{ steps.cfg.outputs.build_arch == 'true' && steps.cfg.outputs.deps != '' }}
         working-directory: src
         env:
           DEPS: ${{ steps.cfg.outputs.deps }}
           SUITE: ${{ steps.cfg.outputs.suites }}
+          ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           case "${SUITE}" in
@@ -324,7 +396,10 @@ jobs:
             *) echo "::error::no codename for '${SUITE}'"; exit 1 ;;
           esac
           base="${NEXUS_REPO_BASE}/flagos-apt-${SUITE}"
-          curl -fsSL "${base}/dists/${codename}/main/binary-amd64/Packages" -o Packages
+          # This architecture's index: a compiled dependency exists per
+          # architecture, and binary-amd64 on an arm64 build would fetch a
+          # package dpkg then refuses to install.
+          curl -fsSL "${base}/dists/${codename}/main/binary-${ARCH}/Packages" -o Packages
           mkdir -p packaging/debian/local-deps
           for dep in ${DEPS}; do
             # The newest version of each, by dpkg's own ordering.
@@ -343,6 +418,7 @@ jobs:
           rm Packages
 
       - name: Build the .deb packages
+        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
         working-directory: src
         run: |
           set -euo pipefail
@@ -358,24 +434,40 @@ jobs:
           done
 
       - name: Upload the .deb packages
+        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: ${{ inputs.target }}-deb
+          name: ${{ inputs.target }}-deb-${{ matrix.arch }}
           path: src/${{ steps.cfg.outputs.outdir }}/*.deb
           retention-days: 7
 
   verify:
     needs: build
     if: ${{ inputs.verify }}
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    # The package has to be installed on the architecture it was built for,
+    # so this job follows the build's runner choice.
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - name: Download the .deb packages
+        id: fetch
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: ${{ inputs.target }}-deb
+          name: ${{ inputs.target }}-deb-${{ matrix.arch }}
           path: pkg
 
+      # An architecture the build skipped has no artifact. That is not a
+      # failure here, but it must not read as a passing verification either.
+      - name: Note an architecture with no package
+        if: ${{ steps.fetch.outcome == 'failure' }}
+        run: echo "::notice::nothing was built for ${{ matrix.arch }}"
+
       - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
+        if: ${{ steps.fetch.outcome == 'success' }}
         env:
           FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
           FLAGOS_APT_KEY: https://resource.flagos.net/repository/apt-keys/pub/flagos-apt-public-key.asc
@@ -459,11 +551,14 @@ jobs:
     if: ${{ inputs.publish }}
     runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
+      # Every architecture that built, into one directory: an apt suite serves
+      # all of them from the same repository, and the upload is per file.
       - name: Download the .deb packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: ${{ inputs.target }}-deb
+          pattern: ${{ inputs.target }}-deb-*
           path: pkg
+          merge-multiple: true
 
       - name: Publish to the apt repositories
         env:
