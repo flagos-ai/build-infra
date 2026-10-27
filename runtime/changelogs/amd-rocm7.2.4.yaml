@@ -19,7 +19,7 @@ image: flagos-runtime-amd-rocm7.2.4
 tags:
 - tag: 2.3.0
   entries:
-  - date:
+  - date: '2026-10-27T10:04:40.825Z'
     reason: >-
       This image's base gains the hipsolver, hipfft and miopen-hip development
       packages. torch's headers include theirs under USE_ROCM, and the flagcx
