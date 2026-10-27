@@ -63,19 +63,26 @@ RUN install -d /etc/apt/keyrings \
         > /etc/apt/preferences.d/repo-radeon-pin-600
 
 # ── ROCm SDK (lean set) ───────────────────────────────────────
-# 28 top-level packages; apt pulls the runtime .so deps to 50 ROCm packages
+# 31 top-level packages; apt pulls the runtime .so deps to 50+ ROCm packages
 # (94 total with the Ubuntu toolchain). Verified `apt-get -s` on a clean
 # noble container: resolves cleanly WITH the pin above, fails without it.
 # The -dev packages carry the headers + unversioned .so symlinks the compiler
 # stack (FlagTree, Megatron's pybind11 ext, vllm _C) links against.
-# MIOpen / MIGraphX / rocm-gdb / rocprofiler-sdk / opencl are deliberately
-# omitted — debug or convolution-only, nothing torch+vllm links.
+# hipsolver / hipfft / miopen-hip are NOT optional even though torch+vllm do not
+# link them: torch's own headers (torch/extension.h -> ATen/hip/*) include
+# <hipsolver/hipsolver.h>, <hipfft/hipfft.h> and <miopen/miopen.h> under
+# USE_ROCM, and the flagcx torch wheel compiles against those headers, so any
+# extension build dies on "hipsolver/hipsolver.h: No such file or directory".
+# (FlagGems ships no HIP cpp backend, so only FlagCX exercises this path.)
+# MIGraphX / rocm-gdb / rocprofiler-sdk / opencl stay omitted — debug-only or
+# nothing torch+vllm or the wheels link.
 RUN apt-get -o Acquire::ForceIPv4=true update \
     && apt-get install -y --no-install-recommends \
         amdgpu-core amd-smi-lib \
         rocm-smi-lib rocm-utils rocm-llvm rocm-device-libs rocm-cmake \
         hipcc rocminfo \
         hip-dev hipblas-dev hipblaslt-dev hipcub-dev hiprand-dev \
+        hipfft-dev hipsolver-dev miopen-hip-dev \
         hipsparse-dev hipsparselt-dev hsa-rocr-dev rccl-dev \
         rocblas-dev rocfft-dev rocrand-dev rocsolver-dev \
         rocsparse-dev rocthrust-dev rocwmma-dev \
