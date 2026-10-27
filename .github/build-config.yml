@@ -148,7 +148,7 @@ run:
     iluvatar: "ix-container-toolkit >= 1.1.0"
     tsingmicro: "tx-container-toolkit >= 2.5.0"
     enflame: "tencent-container-toolkit >= 2.0.52"
-    amd: "amd-container-runtime"
+    amd: "amd-container-toolkit >= 1.3.0"
 
 # Device-enumeration command per vendor
 verify:
