@@ -183,7 +183,12 @@ vendors:
       python: "3.12"
       # No cmake_backend: FlagGems has no ROCm/HIP C++ backend yet
       # (release_flaggems.py VENDOR_MAP has no HIP/ROCM). Revisit when it lands.
-      triton: triton==3.6.0
+      # triton-rocm, not triton: torch==2.11.0+rocm7.2 Requires-Dist
+      # triton-rocm==3.6.0, and only this wheel ships triton/backends/amd.
+      # PyPI's triton-3.6.0 has no amd backend at all (amd lives in
+      # third_party/amd/, unpackaged), so the two collide on version string
+      # and the vendor index must carry the triton-rocm wheel under this name.
+      triton: triton-rocm==3.6.0
       flagtree: flagtree==0.7.0+amd3.6
       env:
         base:
