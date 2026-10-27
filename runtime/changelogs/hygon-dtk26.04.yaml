@@ -19,6 +19,14 @@ image: flagos-runtime-hygon-dtk26.04
 tags:
 - tag: 2.3.0
   entries:
+  - date: ''
+    reason: >-
+      The base image gains libgoogle-glog0v6t64. The vllm-plugin-FL native
+      build (0.3.0+dtk26.4) links libglog.so.1 — torch's c10 headers pull glog
+      in at compile time — and this vendor's SDK ships no such soname, so the
+      plugin's `vllm_fl._C` failed to import and the app image could not serve.
+      Nothing else about the image changes.
+    upstream_prs: []
   - date: '2026-10-25T09:46:37.622Z'
     reason: >-
       This image gains the container-start version request: `-e
