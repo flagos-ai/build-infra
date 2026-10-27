@@ -33,6 +33,7 @@ registry:
 runners:
   default: [self-hosted, h20]
   overrides:
+    amd-rocm7.2.4: [self-hosted, amd]
     ascend-cann8.5.0: [self-hosted, cann850, 910b]
     ascend-cann9.0.0: [self-hosted, cann900, 910b]
     ascend-cann8.5.0-910c: [self-hosted, cann850, 910c]
@@ -66,6 +67,20 @@ runners:
 run:
   default: ""
   vendors:
+    amd:
+      # Device passthrough is the verified path on the W7900 node (8× gfx1100
+      # visible). --group-add render would be right for the renderD nodes, but
+      # the base image ships no `render` group (only video:44), so a name-based
+      # --group-add render aborts the run — root reaches the devices anyway.
+      #
+      # amd-container-runtime is installed and registered (daemon.json runtime
+      # "amd", `docker info` lists it) but its CDI device-manager is NOT wired:
+      # `--runtime amd` alone injects no /dev/kfd, /dev/dri and rocm-smi warns
+      # "No AMD GPUs specified". The runtime shim only becomes useful once the
+      # AMD CDI spec lands, so the toolkit tier keeps the explicit --device
+      # flags alongside it — that combination is verified (16× gfx1100).
+      toolkit: "--runtime amd --device /dev/kfd --device /dev/dri"
+      raw: "--device /dev/kfd --device /dev/dri --group-add video --security-opt seccomp=unconfined"
     nvidia:
       toolkit: "--gpus all"
       # raw needs the host driver: nvidia-smi + libnvidia-ml (for smi) + libcuda (CUDA).
@@ -133,6 +148,7 @@ run:
     iluvatar: "ix-container-toolkit >= 1.1.0"
     tsingmicro: "tx-container-toolkit >= 2.5.0"
     enflame: "tencent-container-toolkit >= 2.0.52"
+    amd: "amd-container-toolkit >= 1.3.0"
 
 # Device-enumeration command per vendor
 verify:
@@ -146,5 +162,6 @@ verify:
     kunlunxin: "xpu-smi"
     mthreads: "mthreads-gmi"
     enflame: "efsmi"
+    amd: "rocm-smi"
     sunrise: "pt_smi"
     tsingmicro: "tsm_smi"

@@ -82,6 +82,7 @@ import yaml
 # matrices have always used). A status_matrix YAML's backend key must be one
 # of these or the renderer errors out.
 BACKENDS = [
+    "amd-rocm7.2.4",
     "nvidia-cuda12.8",
     "nvidia-cuda13.3",
     "ascend-cann8.5.0",
@@ -109,6 +110,7 @@ BACKENDS = [
 # Chinese vendor display names for the matrix vendor column (same mapping the
 # verification matrices have always used).
 VENDOR_DISPLAY = {
+    "amd": "AMD",
     "nvidia": "英伟达",
     "ascend": "昇腾",
     "cambricon": "寒武纪",
