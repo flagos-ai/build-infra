@@ -183,18 +183,16 @@ vendors:
       python: "3.12"
       # No cmake_backend: FlagGems has no ROCm/HIP C++ backend yet
       # (release_flaggems.py VENDOR_MAP has no HIP/ROCM). Revisit when it lands.
-      # triton-rocm, not triton: torch==2.11.0+rocm7.2 Requires-Dist
-      # triton-rocm==3.6.0, and only this wheel ships triton/backends/amd.
-      # PyPI's triton-3.6.0 has no amd backend at all (amd lives in
-      # third_party/amd/, unpackaged), so the two collide on version string
-      # and the vendor index must carry the triton-rocm wheel under this name.
+      # cmake_backend: hip
+      
+      # torch==2.11.0+rocm7.2 Requires-Dist triton-rocm==3.6.0, not triton.
+      # Source: https://download.pytorch.org/whl/rocm7.2/triton-rocm/
+      # (triton_rocm-3.6.0-cp312-cp312-linux_x86_64.whl).
       triton: triton-rocm==3.6.0
       flagtree: flagtree==0.7.0+amd3.6
       env:
         base:
-          # Mirrors base/amd-rocm7.2.4 ENV exactly (the source of truth for
-          # per-image env documentation). ROCm dispatches on the CUDA key, so
-          # torch.cuda.is_available() is True on AMD.
+          # Mirrors ENV from base image.
           ROCM_PATH: /opt/rocm
           PATH: /opt/rocm/bin:$PATH
           LD_LIBRARY_PATH: /opt/rocm/lib
@@ -205,7 +203,8 @@ vendors:
         - torchvision==0.26.0+rocm7.2
         - numpy==1.26.4
       sdk:
-        - ROCm 7.2.4 (x86_64)   # apt-native from repo.radeon.com, no filestore
+        # apt-native from repo.radeon.com, no filestore
+        - ROCm 7.2.4 (x86_64)
 
   nvidia:
     cuda12.8:
