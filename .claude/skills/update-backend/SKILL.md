@@ -146,14 +146,13 @@ compiler).
 - `changelog_gate.py <changelog> <tag>` — a pending (empty-date) entry must
   exist before the push is authorized; the layer's workflow backfills the date
   on push. A rebuilt tag with a changed commit needs a NEW pending entry under
-  the same tag block. Both the app-image workflows and `runtime-image.yml` gate
-  on it; base pushes are the remaining gap (their changelog placement is still
-  TBD, see docs/changelog.md). App-image pushes gate on both changelog and the
-  on-node verify step.
+  the same tag block. Every image-pushing workflow gates on it: base-image.yml,
+  runtime-image.yml and the app-image ones. App-image pushes gate on both the
+  changelog and the on-node verify step.
 - On verified push: `record_app_image_tag.py` writes `image_tag` into the
-  status matrix (published ⟺ image_tag present); the runtime layer has no
-  status matrix, so `record_runtime_image.py` only dates the changelog entry
-  it authorized and opens the record PR.
+  status matrix (published ⟺ image_tag present); the base and runtime layers
+  have no status matrix, so `record_runtime_image.py --layer {base,runtime}`
+  only dates the changelog entry it authorized and opens the record PR.
 - The status matrix cells move ⬜ → ✅ only after on-node dual-compiler
   verification; a base/runtime change reopens every app cell built on the
   changed image (§1 propagation, §4 note).
@@ -184,10 +183,10 @@ Follow `update-backend` for the shared steps, with these additions up front:
 
 - Backend spec contract + env split: `configs.yaml` header comment
 - Stale-image answer: `scripts/base_image_status.py` (OCI labels vs Containerfile)
-- Publish gate: `scripts/changelog_gate.py` + `docs/changelog.md` (app-image
-  workflows and `runtime-image.yml`; base pushes not yet gated)
+- Publish gate: `scripts/changelog_gate.py` + `docs/changelog.md` (every
+  image-pushing workflow: base / runtime / app)
 - Record: `scripts/record_app_image_tag.py` (app, status matrix) /
-  `scripts/record_runtime_image.py` (runtime, changelog date) +
+  `scripts/record_runtime_image.py --layer base|runtime` (changelog date) +
   `docs/status-matrix.md`
 - Verify-cell flow: `.claude/skills/verify-app-backend/SKILL.md`
 - Node mechanics: `.claude/skills/node-ops/SKILL.md`
@@ -219,9 +218,8 @@ Follow `update-backend` for the shared steps, with these additions up front:
 - configs.yaml change + downstream audit in the same PR (rule 34).
 - Rebuild set decided by `base_image_status.py`, not guesswork.
 - Rebuilt images re-verified F/T on-node; cells ✅.
-- Pending changelog entry authorized the push (app + runtime pushes; base
-  pushes have no gate yet — trace the rebuild without one); `image_tag`
-  recorded (app) / changelog dated (runtime).
+- Pending changelog entry authorized the push (base + runtime + app);
+  `image_tag` recorded (app) / changelog dated (base + runtime).
 - Docs regenerated through the gendoc PR, not hand-edited.
 
 ## Failure modes / escalate
@@ -256,7 +254,6 @@ Follow `update-backend` for the shared steps, with these additions up front:
       rebuild of an identical-named wheel)
 - [ ] F/T re-verified on the new image; affected app cells reopened and
       re-verified; cells updated
-- [ ] changelog pending entry gated the push (app + runtime pushes; base
-      pushes have no gate — verify their rebuild by trace); `image_tag`
-      recorded (app) / changelog dated (runtime)
+- [ ] changelog pending entry gated the push (base + runtime + app);
+      `image_tag` recorded (app) / changelog dated (base + runtime)
 - [ ] gendoc PR refreshed the generated pages (no hand-edits)

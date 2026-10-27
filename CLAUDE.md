@@ -146,7 +146,7 @@ playbook (`docs/release-workbook.md`) references the display names.
 
 | Workflow file | Purpose |
 |---|---|
-| `base-image.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend; build logic (Harbor login, disk guard, `build_base.py`) inlined in the same file |
+| `base-image.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend; build logic (Harbor login, disk guard, `build_base.py`) inlined in the same file; gated on a base changelog |
 | `runtime-image.yml` | Runtime Image Build (manual): base + FlagGems wheel + deps; gated on a runtime changelog |
 | `gendoc-base.yml` / `gendoc-runtime.yml` | Extract system package versions from built images → review-gated description PR |
 | `pubdoc-base.yml` / `pubdoc-runtime.yml` | Publish descriptions to Harbor on the PR landing on `main` |

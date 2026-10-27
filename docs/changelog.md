@@ -109,11 +109,12 @@ prepared this rebuild.
 ## 相关 / See also
 
 - 生成式文档与 review 门禁的既有模式：`docs/status-matrix.md`
-- 落位：app 层 `.github/workflows/{vllm,sglang,megatron}-app-image.yml`，
-  runtime 层 `.github/workflows/runtime-image.yml`（门禁 → 构建 → push → 回填）。
-  base 层已有文件（`base/changelogs/<backend>.yaml`，按 2.1.2 / 2.2.0 / 2.3.0
-  三个 tag 回溯 — 日期取 registry 的 `push_time`），但 `.github/workflows/base-image.yml`
-  尚未接门禁与回填，所以新一次 base push 不会经过本文档描述的流程。
+- 落位：base 层 `.github/workflows/base-image.yml`，runtime 层
+  `.github/workflows/runtime-image.yml`，app 层
+  `.github/workflows/{vllm,sglang,megatron}-app-image.yml`
+  （门禁 → 构建 → push → 回填）。base 层按 2.1.2 / 2.2.0 / 2.3.0 三个 tag
+  回溯补写了文件，日期取当时 registry 的 `push_time`；该层自回溯之后的
+  push 走本文档描述的流程。
 - 门禁：`scripts/changelog_gate.py`；回填：`scripts/backfill_changelog_date.py`；
   记录集成：app 层 `scripts/record_app_image_tag.py`，
-  runtime 层 `scripts/record_runtime_image.py`。
+  base/runtime 层 `scripts/record_runtime_image.py`（`--layer` 选层）。

@@ -28,7 +28,7 @@
 | `cpp_matrix.py` | C++ wheel 构建矩阵生成 | ✅ |
 | `render_status_matrix.py` | 渲染 status matrix（源 = `packaging/<app>/status_matrix.<app>.yaml`） | ✅ |
 | `record_app_image_tag.py` | app-image build workflow push 后自动记录 image tag | ✅ |
-| `record_runtime_image.py` | runtime-image workflow push 后回填 changelog 日期并开 PR | ✅ |
+| `record_runtime_image.py` | base/runtime-image workflow push 后回填 changelog 日期并开 PR（`--layer` 选层） | ✅ |
 | `release_flaggems.py` | FlagGems release workflow（勿当测试用） | ✅ |
 | `clone-ref.sh` | 发布线浅克隆组件仓：分支/tag，或 `pull/<N>` 取 PR 头（只验证不发布） | ✅ |
 | `install-git-hooks.sh` | 安装 git hooks（status matrix pre-commit 用） | — |

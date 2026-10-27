@@ -90,9 +90,36 @@ def deps_app_keys_for(configs: dict, name: str) -> dict:
     return (configs["vendors"][vendor][backend].get("deps_app") or {})
 
 
-def _base_matrix(runners: dict, selected: list[str]) -> dict:
-    """Original matrix: {name, runson} only."""
-    return {"include": [{"name": n, "runson": runson_for(n, runners)} for n in selected]}
+def _registry(repo_root: Path) -> tuple[str, dict]:
+    build_config = load_yaml(repo_root / ".github" / "build-config.yml")
+    registry = build_config.get("registry") or {}
+    return registry.get("host", ""), (registry.get("prefixes") or {})
+
+
+def _base_matrix(configs: dict, runners: dict, repo_root: Path, selected: list[str]) -> dict:
+    """Base-image matrix: {name, runson} plus the tag the push will carry.
+
+    ``image_tag`` and ``version`` are what the changelog gate and the record
+    step need — both address a push by its tag, so the workflow reads it from
+    here rather than re-deriving it from configs.yaml a second time.
+    """
+    host, prefixes = _registry(repo_root)
+    base_prefix = prefixes.get("base", "flagos-base")
+    stack_version = configs.get("version", "latest")
+    return {
+        "include": [
+            {
+                "name": n,
+                "runson": runson_for(n, runners),
+                "version": stack_version,
+                "image_tag": (
+                    f"{host}/{base_prefix}/flagos-base-{n}:{stack_version}"
+                    if host else f"flagos-base-{n}:{stack_version}"
+                ),
+            }
+            for n in selected
+        ]
+    }
 
 
 def _runtime_matrix(
@@ -117,10 +144,7 @@ def _runtime_matrix(
     ('vllm' / 'sglang' / 'megatron_training'), so the env
     lookup strips a trailing version suffix.
     """
-    build_config = load_yaml(repo_root / ".github" / "build-config.yml")
-    registry = build_config.get("registry") or {}
-    host = registry.get("host", "")
-    prefixes = registry.get("prefixes") or {}
+    host, prefixes = _registry(repo_root)
     base_prefix = prefixes.get("base", "flagos-base")
     runtime_prefix = prefixes.get("runtime", "flagos-runtime")
 
@@ -290,7 +314,7 @@ def main():
     elif args.runtime:
         matrix = _runtime_matrix(configs, runners, repo_root, selected)
     else:
-        matrix = _base_matrix(runners, selected)
+        matrix = _base_matrix(configs, runners, repo_root, selected)
 
     print(json.dumps(matrix))
 

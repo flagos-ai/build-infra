@@ -12,15 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Record runtime image push
+name: Record image changelog
 description: |-
-  Run scripts/record_runtime_image.py on a self-hosted runner. The interpreter
-  is picked and its ruamel.yaml import checked up front — the backfill needs
-  the round-trip YAML, and a runner with no pip used to swallow that install
-  and fail later, after the image was already pushed. Same reason as the app
-  layer's record action, which this mirrors.
+  Run scripts/record_runtime_image.py for one layer on a self-hosted runner.
+  The interpreter is picked and its ruamel.yaml import checked up front — the
+  backfill needs the round-trip YAML, and a runner with no pip used to swallow
+  that install and fail later, after the image was already pushed. Same reason
+  as the app layer's record action, which this mirrors.
+
+  Shared by the runtime and base image workflows: they differ only in the layer
+  and the changelog path, and the interpreter dance is the same for both.
 
 inputs:
+  layer:
+    description: 'Changelog tree to record into: runtime or base'
+    required: false
+    default: runtime
   backend:
     description: 'Backend key this dispatch pushed (the matrix row that built it)'
     required: true
@@ -31,7 +38,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Record runtime image push
+    - name: Record image push
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
@@ -75,6 +82,7 @@ runs:
           exit 1
         fi
 
-        echo ">>> recording with ${py} ($(${py} -V 2>&1))"
+        echo ">>> recording ${{ inputs.image }} as ${{ inputs.layer }}/${{ inputs.backend }} with ${py} ($(${py} -V 2>&1))"
         "${py}" scripts/record_runtime_image.py \
+          --layer "${{ inputs.layer }}" \
           "${{ inputs.backend }}" "${{ inputs.image }}"

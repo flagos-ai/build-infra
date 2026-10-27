@@ -14,32 +14,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Record a runtime image push: date its changelog entry and open a PR.
+"""Record an image push: date its changelog entry and open a PR.
 
-Called by runtime-image.yml right after ``docker push``, once per backend. The
-push is the publication event, and the registry's push_time is the only honest
-date for it, so the pending entry that authorized the rebuild (reason, empty
-date — written by a human before the dispatch) is dated with it here instead
-of by hand.
+Called by runtime-image.yml and base-image.yml right after ``docker push``,
+once per backend. The push is the publication event, and the registry's
+push_time is the only honest date for it, so the pending entry that authorized
+the rebuild (reason, empty date — written by a human before the dispatch) is
+dated with it here instead of by hand.
 
-This is the runtime half of the app layer's ``record_app_image_tag.py``, and it
-is smaller by construction: the runtime layer has no status matrix, no launch
-page and no ``image_tag`` field, so the changelog is all there is to record.
-It is also run once per backend rather than once per dispatch, because each
-matrix job is the only place that knows its own image reached the registry —
-a dispatch-level job cannot tell a pushed backend from one whose build failed,
-and dating a failed backend's entry with the previous push's push_time would
-record a rebuild that never happened.
+``--layer`` selects which changelog tree is recorded. The runtime and base
+layers differ only in the directory they read, the commit subject and the
+record branch — everything else (the Harbor query, the rebase-and-retry push,
+the PR) is the same, so they share this script rather than duplicate it.
 
-Every backend a dispatch pushes records onto one branch (one per tag) and one
-PR — this is a changelog fan-out, not a matrix rewrite — so the push is retried
-against the concurrent writers from the same dispatch. The tag is an input, not
-derived here, so the recorded date always belongs to the image that was really
-pushed.
+The script name still says runtime: it was written for that layer first, and
+the flag is what generalized it.
+
+This is the runtime and base half of the app layer's
+``record_app_image_tag.py``, and it is smaller by construction: neither layer
+has a status matrix, a launch page or an ``image_tag`` field, so the changelog
+is all there is to record. It is also run once per backend rather than once
+per dispatch, because each matrix job is the only place that knows its own
+image reached the registry — a dispatch-level job cannot tell a pushed backend
+from one whose build failed, and dating a failed backend's entry with the
+previous push's push_time would record a rebuild that never happened.
+
+Every backend a dispatch pushes records onto one branch (one per layer and
+tag) and one PR — this is a changelog fan-out, not a matrix rewrite — so the
+push is retried against the concurrent writers from the same dispatch. The tag
+is an input, not derived here, so the recorded date always belongs to the image
+that was really pushed.
 
 Usage:
     python scripts/record_runtime_image.py metax-maca3.8.1.3 \\
       harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.3.0
+    python scripts/record_runtime_image.py --layer base hygon-dtk26.04 \\
+      harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04:2.3.0
     python scripts/record_runtime_image.py metax-maca3.8.1.3 <ref> --dry-run
 """
 
@@ -145,7 +155,7 @@ def push_branch(branch: str, commit_msg: str) -> None:
     sys.exit(f"Error: could not push {branch} after 5 attempts — {last_error}")
 
 
-def open_pr(branch: str, commit_msg: str, tag: str) -> None:
+def open_pr(branch: str, commit_msg: str, tag: str, layer: str) -> None:
     repo = os.environ.get("GITHUB_REPOSITORY")
     if not repo:
         sys.exit("Error: GITHUB_REPOSITORY not set — cannot open a PR")
@@ -156,7 +166,7 @@ def open_pr(branch: str, commit_msg: str, tag: str) -> None:
         return
 
     body = (
-        f"The runtime-image workflow pushed `{tag}` and dated each backend's pending "
+        f"The {layer}-image workflow pushed `{tag}` and dated each backend's pending "
         "changelog entry with its registry push_time — the entry that authorized "
         "the rebuild. No image content is changed here; this records that the "
         "rebuilds happened, and why. One dispatch records every backend it pushed "
@@ -184,6 +194,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("backend", help="backend key, e.g. metax-maca3.8.1.3")
     parser.add_argument("image", help="full pushed image ref (with the tag)")
+    parser.add_argument(
+        "--layer", choices=("runtime", "base"), default="runtime",
+        help="changelog tree to record into (default: runtime)",
+    )
     parser.add_argument("--dry-run", action="store_true",
                         help="resolve the push time and stop (no writes, no PR)")
     args = parser.parse_args()
@@ -191,9 +205,9 @@ def main() -> None:
     tag = args.image.rpartition(":")[2]
     if not tag or "/" in tag:
         sys.exit(f"Error: '{args.image}' carries no tag")
-    changelog = f"runtime/changelogs/{args.backend}.yaml"
+    changelog = f"{args.layer}/changelogs/{args.backend}.yaml"
     if not (REPO_ROOT / changelog).is_file():
-        sys.exit(f"Error: {changelog} is missing — every runtime row needs one")
+        sys.exit(f"Error: {changelog} is missing — every {args.layer} row needs one")
 
     push_time = harbor_push_time(args.image)
     print(f"{args.backend}: {args.image} pushed at {push_time}")
@@ -214,10 +228,10 @@ def main() -> None:
     _git("config", "user.name", "flagos-ci", check=False)
     _git("config", "user.email", "noreply@flagos.net", check=False)
     _git("add", changelog, check=False)
-    commit_msg = f"chore(runtime): record changelog date for {tag} ({args.backend})"
-    branch = f"auto/runtime-changelog-{tag}"
+    commit_msg = f"chore({args.layer}): record changelog date for {tag} ({args.backend})"
+    branch = f"auto/{args.layer}-changelog-{tag}"
     push_branch(branch, commit_msg)
-    open_pr(branch, commit_msg, tag)
+    open_pr(branch, commit_msg, tag, args.layer)
 
 
 if __name__ == "__main__":
