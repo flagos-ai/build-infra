@@ -1,0 +1,45 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# Written retrospectively: the deliveries recorded here predate this layer
+# having a changelog, so their dates are the registry's own push_time, read
+# back from Harbor rather than backfilled by a workflow.
+
+image: flagos-base-tsingmicro-tsm260610
+tags:
+- tag: 2.3.0
+  entries:
+  - date: '2026-10-14T05:50:35.077Z'
+    reason: |-
+      - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    upstream_prs: []
+- tag: 2.2.0
+  entries:
+  - date: '2026-09-17T01:21:40.707Z'
+    reason: |-
+      - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    upstream_prs: []
+- tag: 2.1.2
+  entries:
+  - date: '2026-08-14T14:57:48.167Z'
+    reason: |-
+      - First delivery: the TSM 260610164501 runtime, validation suite, CCL and
+        profiler, with the TX8 compiler dependencies and LLVM 22, on ubuntu:24.04.
+      - `libfmt8` is taken from the Ubuntu 22.04 package: `torch_txda` links
+        `libfmt.so.8` and 24.04 ships only `libfmt.so.9`.
+      - `KUIPER_PATH`, `TX8_DEPS_ROOT`, `LLVM_SYSPATH`, `LLVM_BINARY_DIR` and the
+        MLIR Python path are set in the image, so the vendor compiler stack
+        resolves without an activation step.
+    upstream_prs: []

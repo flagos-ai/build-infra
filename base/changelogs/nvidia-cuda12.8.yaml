@@ -1,0 +1,48 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# Written retrospectively: the deliveries recorded here predate this layer
+# having a changelog, so their dates are the registry's own push_time, read
+# back from Harbor rather than backfilled by a workflow.
+
+image: flagos-base-nvidia-cuda12.8
+tags:
+- tag: 2.3.0
+  entries:
+  - date: '2026-10-14T05:50:15.104Z'
+    reason: |-
+      - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    upstream_prs: []
+- tag: 2.2.0
+  entries:
+  - date: '2026-09-17T01:20:34.364Z'
+    reason: |-
+      - The base layer is now only the apt install on top of the vendor image: our
+        `/usr/local/cuda/bin` and `/usr/local/cuda/lib64` prepends are gone, as
+        are the `NVIDIA_VISIBLE_DEVICES` and `NVIDIA_DRIVER_CAPABILITIES`
+        redeclares. NGC already sets all four, so the prepends only duplicated
+        entries in the effective `PATH` and `LD_LIBRARY_PATH` and the redeclares
+        added nothing.
+    upstream_prs: []
+- tag: 2.1.2
+  entries:
+  - date: '2026-08-14T14:11:08.021Z'
+    reason: |-
+      - First delivery: the NGC CUDA 12.8.0 runtime image on ubuntu:24.04 with the
+        build toolchain added — gcc/g++, cmake, make, libpython3-dev, curl, git,
+        vim.
+      - NCCL comes from the vendor image, which preinstalls a held `libnccl2`, so
+        this layer installs no collective library of its own.
+    upstream_prs: []
