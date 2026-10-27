@@ -736,4 +736,8 @@ amd-rocm7.2.4:
     - /opt/rocm/include/rccl/rccl.h
     - /opt/rocm/include/hip/hip_runtime_api.h
   deb: {enabled: false, default_for_vendor: true}
-  wheel: {enabled: false}
+  # Probe passed in the built runtime image (flagos-runtime-amd-rocm7.2.4:2.3.0):
+  # the assert headers and libhiprtc/librccl are present, torch 2.11.0+rocm7.2
+  # ships libc10_hip/libtorch_hip, and _build_config.py's USE_AMD_ADAPTOR branch
+  # links -lhiprtc -lc10_hip -ltorch_hip against /opt/rocm/{include,lib}.
+  wheel: {enabled: true}
