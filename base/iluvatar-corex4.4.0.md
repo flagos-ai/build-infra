@@ -65,3 +65,33 @@ ixsmi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:56:05*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-23 07:41:54*
+
+- The CoreX CMake installer is given `--prefix`, the flag it honours; it had
+  been passed `--target`, which it ignores, so from a cwd of `/` it unpacked
+  into the root and `/opt/cmake-corex` — the directory `PATH` names — never
+  existed. The build now asserts `cmake --version` rather than trusting the
+  installer's exit status.
+
+### 2.1.2
+
+*2026-09-16 09:47:46*
+
+- First delivery: Corex 4.4.0 with its CUDA header set and the vendor CMake
+  3.31.8 on ubuntu:24.04.
+- No `CPATH` is set: the corex clang already has `/usr/local/corex/include`
+  on its default search path, while the CUDA 10.2 headers an earlier `CPATH`
+  entry pointed at shadow corex's own `cuda.h` — runtime kernel compilation
+  then aborts with `cuda.h did not define IX_VERSION`, and the operators
+  that compile through Jiterator drop out.

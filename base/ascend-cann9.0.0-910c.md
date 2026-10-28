@@ -75,3 +75,41 @@ npu-smi info
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:52*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:38:34*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-09-10 03:59:20*
+
+- First delivery: CANN 9.0.0 — the toolkit, the 910C (A3) ops package and
+  NNAL — on aarch64 ubuntu:24.04.
+- Only the ops package is chip-specific: this variant takes the `A3` token
+  rather than `910b`, while toolkit and NNAL are shared with the 910B line
+  of the same CANN version.
+- python3.11 is force-installed from deadsnakes beside the distribution's
+  3.12: the CANN installer writes python-version-specific artifacts the
+  runtime imports, so the base interpreter has to equal the runtime venv's.
+- The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
+  time, so nothing has to be sourced inside the container. Toolkit and NNAL
+  `set_env.sh` are sourced under bash: they are bash scripts, and under dash
+  they can take a path that calls `exit` and silently kill the step.
+- ATB is in that capture because the toolkit's `set_env.sh` leaves
+  `ATB_HOME_PATH` and the ATB library path out; without them `libatb.so`
+  fails to load and the ATB operators (`_npu_reshape_and_cache`,
+  `_npu_rotary_embedding`) crash at inference.
+- The build takes the runner's proxy settings as build arguments — these
+  nodes have no direct egress — and drops the apt `Post-Invoke` hooks, which
+  fail there because docker 20.10.8's seccomp profile blocks `clone3`.

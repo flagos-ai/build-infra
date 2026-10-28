@@ -91,3 +91,26 @@ hy-smi
 ```
 
 *更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-27 02:02:24*
+
+- 安装 `libgoogle-glog0v6t64` 是为了 `libglog.so.1` 这个 soname：torch 的 c10 头文件使扩展构建链接 glog（`C10_USE_GLOG`），而 DTK 不提供该库，导致 `import vllm_fl._C` 失败，此后端的应用层无法加载其原生插件。
+
+### 2.2.0
+
+*2026-09-17 01:20:40*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.1.2
+
+*2026-08-16 03:44:50*
+
+- 首次交付：海光 DTK 26.04 及 DTK LLVM 工具链，基于 ubuntu:24.04。DTK 构建产物是 Ubuntu 22.04 版 —— 没有 24.04 发行版 —— 镜像取更新的基础系统以满足 FlagTree 需要的 libstdc++。
+- DTK LLVM 包随其提供 —— 即 FlagTree 的 DCU 后端所针对构建的工具链。
+- `libnuma1`、`libgfortran5`、`libdrm-amdgpu1`、`libdw1`、`libelf1` 和 `libpciaccess0` 提供 torch 构建和 DCU 检测路径所需的用户态库。
+- SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`；`env.sh` 在 bash 下执行，因为它通过 `BASH_SOURCE[0]` 找到 DTKROOT，而 dash 不支持这一写法。

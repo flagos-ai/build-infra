@@ -81,3 +81,29 @@ tsm_smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:50:35*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:21:40*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-14 14:57:48*
+
+- First delivery: the TSM 260610164501 runtime, validation suite, CCL and
+  profiler, with the TX8 compiler dependencies and LLVM 22, on ubuntu:24.04.
+- `libfmt8` is taken from the Ubuntu 22.04 package: `torch_txda` links
+  `libfmt.so.8` and 24.04 ships only `libfmt.so.9`.
+- `KUIPER_PATH`, `TX8_DEPS_ROOT`, `LLVM_SYSPATH`, `LLVM_BINARY_DIR` and the
+  MLIR Python path are set in the image, so the vendor compiler stack
+  resolves without an activation step.

@@ -119,3 +119,21 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.1.dev1_g4d44a24cd
+
+*2026-09-28 13:20:50*
+
+在 4.4.0 runtime 上重建，FlagTree 降级到 0.6.1（0.7.0 会硬加载 libflagcx.so；CoreX 4.4.0 SDK 不提供 libixccl，导致 runtime 导入 flag_gems 失败）。stack、sglang 与插件 pin 与其替代的 0.7.0 时期镜像相同。
+
+*2026-09-23 11:33:14*
+
+stack 迁到 2.2.0 后的首次重建，因此 tag 退出 2.1.2。底下的 base 与 runtime 是新的，原因有二：CoreX cmake 安装器被传入一个它静默忽略的 flag，使链上每个镜像都带上一个无法运行的 cmake（#1011）；以及 FlagGems 升到本 stack pin 的版本。sglang 与插件 pin 与其替代的 2.1.2 镜像相同。
+
+### 2.1.2-0.1.dev1_g4d44a24cd
+
+*2026-09-12 11:17:47*
+
+天数智芯 CoreX 4.4.0 上的 sglang 0.5.18。本后端的首个镜像，其 SDK pin 的是 torch 2.7.1，低于 sglang 0.5.18 的假设。它启动时导入的两处 torch 接口只有 2.8 起才存在，且两者都无法由插件触及，因为调度器 worker 在任何插件加载之前就导入它们：一是 torch 改名的 torch.cuda.memory 分配器入口（调用方自身按版本在两种拼写间切换），二是 torch.distributed._symmetric_memory，一种本平台从不运行的 NVLink 多播 all-gather。torch-compat-shim 插件在解释器启动时补齐两者。另外，插件为厂商 triton 注入的 PDL no-op 必须能应对 triton 3.1.0 自身的 call 检查：该检查在 3.1.0 会断言，而在 3.2 仅做测试——这是我方缺陷，更新的 SDK 从未将其暴露。F/T 双编译器 serve 已在 Qwen3-4B 上验证。

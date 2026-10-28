@@ -131,3 +131,36 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:23:37*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+cann8.5.0。
+- 本 vendor 的 SDK env 以绝对路径赋值 PATH 后，runtime 会重新声明 venv 前缀；
+  否则 `pip` 会解析到系统解释器，或者解析不到任何解释器。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:04:26*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 09:56:32*
+
+ascend 0.24.0 移植（PR 387）已进入发布线，因此本镜像离开此前 pin 的合并前 head cf8998c。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.0_gcf8998c.d20260818
+
+*2026-08-24 04:25:06*
+
+Ascend 910B4 上 vllm 0.24.0 的首次交付。vllm-plugin-FL PR 387（ascend 0.24 移植）。F/T 双编译器已验证。

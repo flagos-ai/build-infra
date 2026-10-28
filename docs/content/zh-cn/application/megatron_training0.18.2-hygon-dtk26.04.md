@@ -119,3 +119,23 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG megatron-train --model-type GPT
 ```
+
+## 更新日志
+
+### 2.2.0-0.3.0
+
+*2026-09-27 12:43:54*
+
+基于重新指向的 MLF v0.3.0 wheel（128dbd4f3）重建，该 wheel 现包含 MLF #194（面向 CUDA 的加速器构建的 flag_gems paged 回退）。0.18.2 的 wheel 与 app 镜像安装的是 #194 之前的 wheel；此修复对本镜像有意义，因为沐曦上的 RL E2E 经放开的 flash-attn 门控走 flag_gems paged 算子。
+
+*2026-09-27 09:46:34*
+
+基于重新打 tag 的 MLF v0.3.0 wheel（213d05856）真正重建：第二轮首次推送复用了缓存的 pip 层，镜像仍带着 #192/#193 之前的 wheel。本次构建使用 --no-cache（先做 push=false 的验证轮），因此重新解析 vendor 索引，安装到的是合并后的 wheel。
+
+*2026-09-27 08:37:39*
+
+基于重新打 tag 的 MLF v0.3.0 wheel 重建，该 wheel 现包含 MLF #192（NullTokenizer bos / 本地实现 packed-seq 保护）与 #193（非 NPU 平台基于能力的 paged-attention 分派）。0.18.2 的 app 镜像安装的是 #192/#193 之前的 wheel；此修复对本镜像有意义，因为非 NPU 后端的 RL E2E 走平台自身的 paged 算子。
+
+*2026-09-26 04:51:55*
+
+FlagOS 2.2.0 栈上首个 megatron-core 0.18.2 app 镜像。基于 MLF v0.3.0 tag 构建（全范围 wheel，MLF #189）；安装锁定精确写明该 wheel（0.18.2+0.3.0）。

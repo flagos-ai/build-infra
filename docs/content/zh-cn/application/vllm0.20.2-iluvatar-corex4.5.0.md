@@ -113,3 +113,27 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:34:25*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-23 10:44:29*
+
+改用修正后的 base 镜像重建。CoreX 的 cmake 安装器被传入一个它静默忽略的 flag，导致这条链上的每个镜像都带上了无法运行的 cmake（#1011）。其余不变：同一 stack、同一 base 与 runtime 配方、同一插件 pin。
+
+*2026-09-20 10:54:55*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 0.7.0 时代的 FlagTree；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_g16e8655.d20260907
+
+*2026-09-07 11:06:12*
+
+corex4.5.0 上的确定性修复，与 corex4.4.0 相同：把 flag_gems 的 GEMM 家族拉黑，使 GEMM 回退到原生 corex ixblas（flagtree 编译的 flag_gems GEMM kernel 在真实 engine 中不确定；原生 GEMM 既确定又更快）。F/T 均 30/30 temp=0 确定。更早的发布（gc0c060a6）已被取代。

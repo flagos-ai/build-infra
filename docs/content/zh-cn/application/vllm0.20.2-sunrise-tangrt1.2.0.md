@@ -84,3 +84,27 @@ docker run --rm -it \
   -e TANG_VISIBLE_DEVICES=all \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 15:42:35*
+
+在重建后的 sunrise runtime 上重建。FlagTree 的 sunrise wheel 有缺陷（缺少 sunriseTritonPlugin.so，导致 flag_gems 无法导入 triton），已重新上传；runtime v2 :2.2.0 与 v1 :2.2.0-build 在其上重建（digest 38eec/8b6fc）。本 app 镜像此前构建于坏 runtime 上，现改用修复后的 runtime 重做。插件与 app 锁定与所替代镜像相同。
+
+*2026-09-28 07:23:30*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 10:33:38*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 FlagTree 0.6.0+sunrise3.6；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.0_g687217a.d20260819
+
+*2026-08-20 02:26:28*
+
+Sunrise（PTPU）上 0.20.2 的首次交付。FlagTree PR 978 修复了 flagtree 的 flash-attn decode 挂死（0.4->2.4 tok/s）；重建的 flagtree wheel 随 runtime 携带。F 路径已验证。

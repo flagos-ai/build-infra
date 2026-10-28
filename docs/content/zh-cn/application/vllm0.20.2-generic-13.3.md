@@ -126,3 +126,23 @@ docker run --rm -it \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:38:12*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 07:12:39*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 FlagTree 0.6.1；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_g825c1cd
+
+*2026-08-23 12:12:10*
+
+NVIDIA 上 0.20.2 的首次交付（empty 模式 repack wheel，与所有后端统一）。F/T 双编译器 E2E 已验证。

@@ -126,3 +126,23 @@ docker run --rm -it \
   -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:38:12*
+
+Rebuild on the vllm-plugin-FL formal release v0.2.2 (tag = commit 675548ab, the head of 0.2.2-rc2). The plugin now ships as the release version (vllm-plugin-fl==0.2.2, one py3-none-any wheel, sha 90a4ba10...27fa2, on all 11 vendor indexes) instead of the v0.2.2-rc2.post2 delivery tag — the only delta is the backport of #553 (bounded/safe multiprocessing worker shutdown), which the 2.2.0 stack line now carries. App image rebuilt from that wheel, pinned exactly.
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 07:12:39*
+
+Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once: the stack brings the 2.2.0 base and runtime, with FlagGems 5.4.0-rc2.post3 and FlagTree 0.6.1, and the plugin now comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.2.1_g825c1cd
+
+*2026-08-23 12:12:10*
+
+Initial 0.20.2 deliverable on NVIDIA (empty-mode repacked wheel, unified with all backends). F/T dual-compiler E2E verified.

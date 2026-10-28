@@ -104,3 +104,15 @@ docker run --rm -it \
   --group-add video \
   $IMG megatron-train --model-type GPT
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:13:27*
+
+重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
+
+*2026-09-22 16:06:40*
+
+该后端的首个 app 镜像。该行在两条编译器路径上的 E2E 均为绿，但从未为其构建过镜像，所以这项工作的入口是 playbook 而不是制品。基于 FlagOS 2.2.0 栈与 release/0.2 release tag 的 megatron-core wheel 构建，锁定到其确切版本（0.17.1+fl.0.2.3）。

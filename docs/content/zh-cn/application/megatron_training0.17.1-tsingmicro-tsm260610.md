@@ -110,3 +110,15 @@ docker run --rm -it \
   --device /dev/accel_drv_mgr \
   $IMG megatron-train --model-type GPT
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:23:57*
+
+重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
+
+*2026-09-23 07:26:27*
+
+该后端训练 app 镜像的首次发布。megatron-core wheel 基于 Megatron-LM-FL release 线的 head 构建，该 head 现包含已合入其中的平台 PR（MLF 180 txda graph-capture 查询，MLF 181 Sunrise PT-PU 平台），单步安装锁定精确写明该 wheel（0.17.1+fl.0.2.3），而非把 ==0.17.1 解析为索引中任意一个本地版本。无待处理的 vendor 侧 PR。

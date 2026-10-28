@@ -89,3 +89,11 @@ docker run --rm -it \
   --device /dev/cambricon_ctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.1.2-0.1.dev1_g0b9d98a78
+
+*2026-09-07 03:56:26*
+
+寒武纪 neuware4.4.3 上的 sglang 0.5.18。sglang-plugin-FL PR 90：MLU 厂商补丁（按寒武纪冷启动记录固化冷启动看门狗）。

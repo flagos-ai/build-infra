@@ -85,3 +85,15 @@ docker run --rm -it \
 ```
 
 **No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
+
+## Changelog
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:19:02*
+
+Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+
+*2026-09-25 02:01:07*
+
+megatron_rl image on the 910C twin of cann8.5.0. Built on the FlagOS 2.2.0 stack and on release/0.2's wheel (0.17.1+fl.0.2.3, the same cp311 wheel as 910B — only the CANN ops package differs). deps_app key + status matrix rows land via this PR after the on-node RL E2E passed: train_rl.py GRPO on hw114 (CANN 8.5.0, 910C) exit 0 (same run as hw115). This backend ships no flash-attn; the NPU platform skips the dynamic-batching flash-attn gate and uses the CANN paged attention op.

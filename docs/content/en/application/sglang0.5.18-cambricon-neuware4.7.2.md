@@ -89,3 +89,11 @@ docker run --rm -it \
   --device /dev/cambricon_ctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_g31528294e
+
+*2026-09-05 11:18:28*
+
+sglang 0.5.18 on cambricon neuware4.7.2 (PR 90 MLU vendor patches).

@@ -128,3 +128,15 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG megatron-train --model-type GPT
 ```
+
+## Changelog
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:14:44*
+
+Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+
+*2026-09-24 12:33:39*
+
+First megatron_training app image on the 910C twin of cann9.0.0. Built on the FlagOS 2.2.0 stack and on release/0.2's wheel (0.17.1+fl.0.2.3, the same cp311 wheel as 910B — only the CANN ops package differs). deps_app key + status-matrix rows landed via build-infra #1095 after the on-node E2E passed (inert matrix, pretrain_gpt 5-iter exit 0).

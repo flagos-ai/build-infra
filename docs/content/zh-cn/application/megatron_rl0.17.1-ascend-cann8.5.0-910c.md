@@ -85,3 +85,15 @@ docker run --rm -it \
 ```
 
 **暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。
+
+## 更新日志
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:19:02*
+
+重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
+
+*2026-09-25 02:01:07*
+
+cann8.5.0 的 910C 孪生镜像上的 megatron_rl 镜像。基于 FlagOS 2.2.0 栈与 release/0.2 的 wheel（0.17.1+fl.0.2.3，与 910B 相同的 cp311 wheel，仅 CANN 算子包不同）构建。节点侧 RL E2E 通过后，deps_app 键与状态矩阵行经本 PR 落地：hw114（CANN 8.5.0，910C）上的 train_rl.py GRPO 退出码 0（与 hw115 为同一轮运行）。该后端不提供 flash-attn；NPU 平台跳过动态 batching 的 flash-attn 门控，改用 CANN paged attention 算子。

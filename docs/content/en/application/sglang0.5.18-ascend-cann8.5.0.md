@@ -138,3 +138,11 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_g0f98ddc20
+
+*2026-09-07 14:09:35*
+
+sglang 0.5.18 on Ascend cann8.5.0. sglang-plugin-FL PR 84: torch-native sgl_kernel_npu stand-ins for zero-kernel sglang (exp).

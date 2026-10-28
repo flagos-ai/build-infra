@@ -122,3 +122,11 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_g440208beb
+
+*2026-09-08 00:00:00*
+
+sglang 0.5.18 on hygon DTK 26.04. sglang-plugin-FL PR 98: make sglang serve on the CUDA-alias runtime.

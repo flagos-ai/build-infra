@@ -120,3 +120,27 @@ docker run --rm -it \
   --device /dev/xpuctrl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:32:30*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-22 11:42:17*
+
+改用刷新后的昆仑芯 base 重建，该 base 现在对 XRE 与 xcudart 都提供的五个 soname（libxpuml、libxpucuda、libxpunvidia-ml、libcudart、libxpurt）只保留一代，而此前两者都装。同一个名字的两代同时可达：torch_plugin 按绝对路径从 libcuda.so.1 所在目录 dlopen libxpuml.so.1，那是 xcudart 的副本，而 loader 的默认搜索路径与 FlagCX 的链接行取的是 XRE 的，且 xcudart 副本缺少 XRE 副本具有的 nvml 符号。本 app 所基于的 runtime 镜像已在该 base 上重建，app 镜像又带上它，否则这种混装会随本镜像一起发出去。
+
+*2026-09-20 10:54:30*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 0.7.0 时代的 FlagTree；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_g8236c0a.d20260821
+
+*2026-08-21 03:11:21*
+
+昆仑芯 P800 XPU 上 0.20.2 的首次交付。vllm-plugin-FL PR 268 昆仑芯使能，加上 decode-scale 修复（PR 400：通过 prefill_attention 为 decode 调整 attention scale）。单步安装对矩阵无影响。

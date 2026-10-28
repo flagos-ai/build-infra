@@ -116,3 +116,17 @@ docker run --rm -it \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.2.0-0.1.dev1_g607b9672c
+
+*2026-09-29 10:53:01*
+
+Rebuild on the FlagOS 2.2.0 stack and the mthreads runtime rebuilt with the updated flagtree wheel (same 0.7.0+mthreads3.6 version, new contents, 2026-09-29). Same sglang and plugin pins as the 2.1.2 image it replaces (PR 92 head, still open).
+
+### 2.1.2-0.1.dev1_g607b9672c
+
+*2026-09-05 15:29:12*
+
+sglang 0.5.18 on mthreads musa5.2.0 (PR 92 torch_musa serve).

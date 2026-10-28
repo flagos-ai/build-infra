@@ -146,6 +146,16 @@ def _finalize(args) -> None:
         check=True, cwd=REPO_ROOT, env=env,
     )
 
+    # The whole-page render above drops each page's Changelog section (the
+    # section is appended to the page, not rendered into its body), so it has to
+    # be rebuilt from the changelog files before the PR is cut — otherwise this
+    # refresh would delete the newest entries from every page it touched.
+    subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py"),
+         "--changelog-only", "--layer", cfg["layer"]],
+        check=True, cwd=REPO_ROOT, env=env,
+    )
+
     # Stage only the files for this mode.
     for pattern in cfg["add_paths"]:
         _git("add", pattern, check=False)

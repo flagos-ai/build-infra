@@ -81,3 +81,23 @@ docker run --rm -it \
   --device /dev/cambricon_ctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:59:07*
+
+Rebuild on the vllm-plugin-FL formal release v0.2.2 (tag = commit 675548ab, the head of 0.2.2-rc2). The plugin now ships as the release version (vllm-plugin-fl==0.2.2, one py3-none-any wheel, sha 90a4ba10...27fa2, on all 11 vendor indexes) instead of the v0.2.2-rc2.post2 delivery tag — the only delta is the backport of #553 (bounded/safe multiprocessing worker shutdown), which the 2.2.0 stack line now carries. App image rebuilt from that wheel, pinned exactly.
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 11:03:11*
+
+Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once: the stack brings the 2.2.0 base and runtime, with FlagGems 5.4.0-rc2.post3 and the vendor's own Triton, and the plugin now comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.2.1_gcab2270.d20260905
+
+*2026-09-05 13:56:52*
+
+Fix cold-start mojibake on neuware4.4.3: flag_gems 5.3.5's libentry online timing bench runs on live decode tensors and poisons the MLU device state, so the first cold request degrades to garbage. vllm-plugin-FL PR 411 blacklists flag_gems copy_ (falls back to torch_mlu); the config-built-in blacklist form is verified cold on the delivered image (Paris anchor, 7.75 tok/s hot). Supersedes earlier 0.20.2 publishes (g8d2bf5e/gef78dec/gb954912, same PR 411 line) that predated the semantic gate and shipped the defect.

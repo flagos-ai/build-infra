@@ -122,3 +122,48 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.3.0-0.3.0
+
+*2026-10-27 05:18:35*
+
+- The runtime introduces two container-start flags,
+  `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
+  which override the compiler and FlagGems versions baked into the image. A
+  request that cannot be honoured stops the container instead of letting it
+  run on another version.
+- flagcx 0.14.0 is now a runtime dependency, pinned as
+  flagcx==0.14.0+dtk2604.
+- The runtime re-asserts the venv prefix after this vendor's SDK env assigns
+  PATH absolutely; `pip` otherwise resolved to the system interpreter, or to
+  none.
+- This backend installs the native plugin build `0.3.0+dtk26.4`: it
+  carries `vllm_fl._C` and registers `weak_ref_tensor` on the CUDA
+  dispatch key, without which vLLM's cudagraph capture leaks VRAM
+  per captured graph.
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:03:48*
+
+The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit f105277). The plugin now ships as the release version (vllm-plugin-fl==0.3.0, one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2 image it replaces; the only delta is the formal release of the same code.
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 09:55:10*
+
+This moves the image from v0.3.0-rc2.post1 onto post2, taking the eight commits merged since — the 0.24.0 backend ports among them. Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and on the vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the plugin comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.3.0rc2.post1_gc9bbcf0.d20260914
+
+*2026-09-14 03:48:46*
+
+Rebuild on the vllm-plugin-FL v0.3.0-rc2.post1 tag (main head c9bbcf0) to validate the tag on Hygon. The wheel version base follows the tag's own version (0.3.0rc2.post1) rather than the 0.2.1 line every earlier app image carried.
+
+### 2.1.2-0.2.1_g13eb9be.d20260908
+
+*2026-09-08 23:50:00*
+
+vllm 0.24.0 on Hygon DTK 26.04 (CUDA-alias runtime). Carries the flagtree hygon wheel rebuild (FlagTree PR 1020). F/T verified.

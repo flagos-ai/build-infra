@@ -91,3 +91,27 @@ efsmi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:50:14*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:20:37*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-14 15:08:19*
+
+- First delivery: the Enflame TopsPlatform 1.9.10 stack — driver, runtime,
+  CC, PTI, TOPSTX, TOPS ATen, EFML, ECCL and Triton GCU 3.6.0 — on
+  ubuntu:24.04.
+- `/opt/triton_gcu` is a symlink to where the vendor's triton package
+  installs, which is where FlagTree's `toolkit.py` looks for it.

@@ -113,3 +113,34 @@ docker run --rm -it \
   --device /dev/accel_drv_mgr \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 13:02:36*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+tsm260610。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:41:28*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 10:31:16*
+
+txda 使能（PR 460）已进入发布线，因此本镜像离开 2f034ee，其基于 0.3.0-rc0 的构建。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.3.0rc0_g2f034ee.d20260908
+
+*2026-09-08 12:22:01*
+
+通过 vllm-plugin-FL PR 460（tsingmicro-enable-main）在清微上使能 vllm 0.24.0。PR 447 的 txda 骨架无法独立 serve（init nccl 崩溃、warmup generator 崩溃、attention/norms 路由错误）；本次构建补上最小使能：txda->tccl dist backend、cpu torch.Generator、tsingmicro.yaml（norms 优先 reference，attention->vendor/TxdaSDPA）、TxdaSDPAAttentionBackend。F/T 均 serve 5/5 正确。取代基于 PR 421 的交付（bd010ce），其 KV-write-gate 与 SDPA-attention 工作被继承下来。

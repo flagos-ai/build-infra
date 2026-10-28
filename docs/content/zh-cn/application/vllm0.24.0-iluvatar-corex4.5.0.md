@@ -113,3 +113,44 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:20:24*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+corex4.5.0。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:02:38*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-23 15:32:20*
+
+改用修正后的 base 镜像重建。CoreX 的 cmake 安装器被传入一个它静默忽略的 flag，导致这条链上的每个镜像都带上了无法运行的 cmake（#1011）。其余不变：同一 stack、同一 base 与 runtime 配方、同一插件 pin。
+
+*2026-09-20 09:55:12*
+
+symm-memory stub（PR 491）已进入发布线，因此本镜像离开 c9e2573，一个 main 线的 commit，使本后端收敛到 0.24.0 线交付的插件上。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_gc9e2573.d20260913
+
+*2026-09-13 14:43:51*
+
+改用统一的 vllm-plugin-FL head（symm_mem stub，在 torch >= 2.8 上是 no-op）重建，使两个 iluvatar corex 变体收敛到同一个 wheel。F/T 双编译器已验证。
+
+### 2.1.2-0.2.1_g07063fd.d20260828
+
+*2026-08-30 05:30:47*
+
+天数智芯 corex4.5.0 上 vllm 0.24.0 的首次交付。F/T 双编译器已验证。

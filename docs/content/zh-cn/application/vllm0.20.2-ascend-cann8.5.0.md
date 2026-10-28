@@ -131,3 +131,29 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:46:29*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 11:07:25*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 FlagTree 0.6.0+ascend3.2；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
+
+*2026-09-15 12:01:11*
+
+改用 vllm-plugin-FL 0.2.2-rc2 分支 head db28502 重建，取代本镜像最初构建所用的 fork 合成源码（2b6b635 = release-0.2 加三个 cherry-pick）。它当时携带的 ascend 改动已并入上游并存在于该 head：PR 361 lift_fresh / _to_copy 黑名单（标量 tensor 初始化时 coreDim=0）与 PR 402 pow_scalar，因此 wheel 重新从纯上游仓库构建。wheel 的版本基址跟随分支自身版本（0.2.2rc2.post1），而非本镜像所在的 0.2.0 线。
+
+### 2.1.2-0.2.0_g2b6b635.d20260824
+
+*2026-08-24 01:05:09*
+
+Ascend 910B4 上 0.20.2 的首次交付。vllm-plugin-FL ascend 0.20.2 使能（PR 361 线），加上两套 cann stack 上都需要的四个 dispatch 修复（pow_scalar 黑名单，PR 402）。repack 的空 vllm wheel，单步安装，对矩阵无影响；F/T 双编译器 E2E 已验证。

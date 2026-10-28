@@ -119,3 +119,17 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.2.0-0.1.dev1_g201484665
+
+*2026-09-23 11:33:09*
+
+First rebuild since the stack moved to 2.2.0, so the tag leaves 2.1.2. The base and runtime underneath are new for two reasons: the CoreX cmake installer was being handed a flag it silently ignores, leaving every image in the chain with a cmake that cannot run (#1011), and FlagGems moves to the version this stack pins. Same sglang and plugin pins as the 2.1.2 image it replaces.
+
+### 2.1.2-0.1.dev1_g201484665
+
+*2026-09-10 11:59:36*
+
+sglang 0.5.18 on iluvatar CoreX 4.5.0. corex torch is CUDA-alias, so sglang's is_cuda() is true while the platform has neither an NVIDIA device nor the NVIDIA-only packages its CUDA paths expect: the plugin branch closes the four resulting gaps (flashinfer import face via an on-disk stub package, the sm75 dtype floor, the nvcc-JIT clamp_position, and vendor triton 3.2 missing the PDL intrinsics). F/T dual-compiler E2E verified on Qwen3-4B.

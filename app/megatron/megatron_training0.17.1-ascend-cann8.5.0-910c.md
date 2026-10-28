@@ -1,0 +1,120 @@
+## Prerequisites
+
+- **Architecture:** aarch64
+- **Chip models:** Ascend 910C
+- **Host driver:** 25.5.0
+- **Container toolkit** *(optional)*: Ascend-docker-runtime >= 6.0.RC3
+
+## Image contents
+
+### Built on
+
+`harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.2.0`
+
+### Python
+
+3.11
+
+### Application package
+
+`megatron-core[training]==0.17.1`
+
+## Launch
+
+**Published:** `harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann8.5.0-910c:2.2.0-0.2.3`
+
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-ascend-cann8.5.0-910c:2.2.0-0.2.3
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --privileged \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
+  $IMG bash
+```
+
+Start the app with its default settings:
+
+```bash
+docker run --rm -it \
+  --privileged \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
+  $IMG
+```
+
+Pass arguments to the launcher:
+
+```bash
+docker run --rm -it \
+  --privileged \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
+  $IMG megatron-train --model-type GPT
+```
+
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --device /dev/davinci0 \
+  --device /dev/davinci1 \
+  --device /dev/davinci_manager \
+  --device /dev/devmm_svm \
+  --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+  -v /usr/local/dcmi:/usr/local/dcmi \
+  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
+  $IMG bash
+```
+
+Start the app with its default settings:
+
+```bash
+docker run --rm -it \
+  --device /dev/davinci0 \
+  --device /dev/davinci1 \
+  --device /dev/davinci_manager \
+  --device /dev/devmm_svm \
+  --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+  -v /usr/local/dcmi:/usr/local/dcmi \
+  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
+  $IMG
+```
+
+Pass arguments to the launcher:
+
+```bash
+docker run --rm -it \
+  --device /dev/davinci0 \
+  --device /dev/davinci1 \
+  --device /dev/davinci_manager \
+  --device /dev/devmm_svm \
+  --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+  -v /usr/local/dcmi:/usr/local/dcmi \
+  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
+  $IMG megatron-train --model-type GPT
+```
+
+## Changelog
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:14:42*
+
+Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+
+*2026-09-24 12:34:01*
+
+First megatron_training app image on the 910C twin of cann8.5.0. Built on the FlagOS 2.2.0 stack and on release/0.2's wheel (0.17.1+fl.0.2.3, the same cp311 wheel as 910B — only the CANN ops package differs). deps_app key + status-matrix rows landed via build-infra #1095 after the on-node E2E passed (inert matrix, pretrain_gpt 5-iter exit 0).

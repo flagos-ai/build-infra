@@ -113,3 +113,11 @@ docker run --rm -it \
   --group-add video \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.1.2-0.1.dev1_ga73b27b60
+
+*2026-09-07 16:08:21*
+
+沐曦 maca3.7.2.1 上的 sglang 0.5.18。sglang-plugin-FL PR 86：针对三处 JIT/flashinfer 守卫的厂商补丁。

@@ -119,3 +119,11 @@ docker run --rm -it \
   --device /dev/xpuctrl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.1.2-0.1.dev1_g7fb22a0c2
+
+*2026-09-12 05:11:04*
+
+昆仑芯 P800（XRE 5.37.1）上的 sglang 0.5.18。本后端的首个镜像。插件不再从 torch 属性推导厂商，该做法此前把每个 CUDA 别名平台都标为 nvidia，使 kunlunxin.yaml 从未被加载——其中的二分定位算子黑名单、silu_and_mul 路由、oot_blacklist 皆然；插件把厂商层适配到 0.5.18（overlap_utils 符号已消失，KV pool 不再挂在 ForwardBatch 上，补丁执行器现在隔离单个失败，而不是让它连带禁用其余部分）；强制 JIT 的 CUDA 判定为 False，因为本设备回报 capability (8, 6)，真实 nvcc 因此能成功编译 sm_86 SASS，却在启动时以「invalid device function」失败；并把 attention 路由到 torch_native，因为厂商的 klx_attention_* 算子只存在于我方不发布的厂商编译版 sgl_kernel 构建中——SDPA 系列已被拉黑，以免 flag_gems 把原生路径劫持到同一个 XPU flash-attention 编译器失败上。F/T 双编译器 serve 已在 Qwen3-4B 上验证。

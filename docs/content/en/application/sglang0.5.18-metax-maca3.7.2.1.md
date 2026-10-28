@@ -113,3 +113,11 @@ docker run --rm -it \
   --group-add video \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_ga73b27b60
+
+*2026-09-07 16:08:21*
+
+sglang 0.5.18 on metax maca3.7.2.1. sglang-plugin-FL PR 86: vendor patch for the three JIT/flashinfer guards.

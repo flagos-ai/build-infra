@@ -75,3 +75,35 @@ npu-smi info
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:44*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:20:37*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-10 17:08:40*
+
+- First delivery: CANN 8.5.0 — the toolkit, the 910B ops package and NNAL —
+  on aarch64 ubuntu:24.04.
+- python3.11 is force-installed from deadsnakes beside the distribution's
+  3.12: the CANN installer writes python-version-specific artifacts the
+  runtime imports, so the base interpreter has to equal the runtime venv's.
+- The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
+  time, so nothing has to be sourced inside the container. Toolkit and NNAL
+  `set_env.sh` are sourced under bash: they are bash scripts, and under dash
+  they can take a path that calls `exit` and silently kill the step.
+- ATB is in that capture because the toolkit's `set_env.sh` leaves
+  `ATB_HOME_PATH` and the ATB library path out; without them `libatb.so`
+  fails to load and the ATB operators (`_npu_reshape_and_cache`,
+  `_npu_rotary_embedding`) crash at inference.

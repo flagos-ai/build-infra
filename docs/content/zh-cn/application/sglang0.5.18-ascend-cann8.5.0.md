@@ -138,3 +138,11 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.1.2-0.1.dev1_g0f98ddc20
+
+*2026-09-07 14:09:35*
+
+昇腾 cann8.5.0 上的 sglang 0.5.18。sglang-plugin-FL PR 84：为无 kernel 的 sglang 提供 torch 原生 sgl_kernel_npu 替代实现（实验性）。

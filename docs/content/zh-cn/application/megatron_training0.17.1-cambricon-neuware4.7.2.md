@@ -78,3 +78,21 @@ docker run --rm -it \
   --device /dev/cambricon_ctl \
   $IMG megatron-train --model-type GPT
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:19:10*
+
+重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
+
+*2026-09-22 16:06:13*
+
+基于 FlagOS 2.2.0 栈与 release/0.2 重建，该分支 head 已包含现已合入其中的 app 镜像 PR；所替代的镜像安装的是基于这些 PR head 与集成分支构建的 wheel，因此它们携带的平台修复从未进入制品。wheel 取自该分支 release tag 构建出的那个，安装锁定精确写明（0.17.1+fl.0.2.3），而非把 ==0.17.1 解析为索引中任意一个本地版本。
+
+### 2.1.2-0.2.1_15.g56acf36ba
+
+*2026-08-25 04:32:44*
+
+该后端的 megatron-core wheel（0.17.1+fl）app 镜像。基于 MLF 的 wheel 全范围线（PR 107）构建，后端使能由所列 MLF/vendor PR 承载。在 runtime 之上单步安装 wheel。

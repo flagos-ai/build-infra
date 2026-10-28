@@ -122,3 +122,11 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.1.2-0.1.dev1_g440208beb
+
+*2026-09-08 00:00:00*
+
+海光 DTK 26.04 上的 sglang 0.5.18。sglang-plugin-FL PR 98：让 sglang 在 CUDA 别名 runtime 上跑通 serve。

@@ -94,3 +94,24 @@ nvidia-smi
 ```
 
 *更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-14 05:50:15*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.2.0
+
+*2026-09-17 01:20:34*
+
+- 基础层现在只保留厂商镜像之上的 apt 安装：我们此前对 `/usr/local/cuda/bin` 和 `/usr/local/cuda/lib64` 的前置已移除，`NVIDIA_VISIBLE_DEVICES` 和 `NVIDIA_DRIVER_CAPABILITIES` 的重复声明也已移除。NGC 本就设置了这四项，前置只是在生效的 `PATH` 和 `LD_LIBRARY_PATH` 中制造重复条目，重复声明毫无增益。
+
+### 2.1.2
+
+*2026-08-14 14:11:08*
+
+- 首次交付：NGC CUDA 12.8.0 runtime 镜像，基于 ubuntu:24.04，并加入构建工具链 —— gcc/g++、cmake、make、libpython3-dev、curl、git、vim。
+- NCCL 来自厂商镜像，其中已预装并 hold 了 `libnccl2`，因此本层不自装集合通信库。

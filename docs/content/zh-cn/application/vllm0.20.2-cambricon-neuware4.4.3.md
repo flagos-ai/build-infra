@@ -81,3 +81,23 @@ docker run --rm -it \
   --device /dev/cambricon_ctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:59:07*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 11:03:11*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 vendor 自带的 Triton；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_gcab2270.d20260905
+
+*2026-09-05 13:56:52*
+
+修复 neuware4.4.3 上的冷启动乱码：flag_gems 5.3.5 的 libentry 在线计时 bench 跑在活跃的 decode tensor 上，污染了 MLU 设备状态，导致第一个冷启动请求退化为垃圾输出。vllm-plugin-FL PR 411 把 flag_gems copy_ 拉黑（回退到 torch_mlu）；config 内置黑名单形式已在交付镜像上冷启动验证（Paris anchor 命中，热态 7.75 tok/s）。取代更早的 0.20.2 发布（g8d2bf5e/gef78dec/gb954912，同一 PR 411 线），那些版本早于语义门禁，把该缺陷发了出去。

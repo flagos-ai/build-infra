@@ -94,3 +94,32 @@ nvidia-smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:50:15*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:20:34*
+
+- The base layer is now only the apt install on top of the vendor image: our
+  `/usr/local/cuda/bin` and `/usr/local/cuda/lib64` prepends are gone, as
+  are the `NVIDIA_VISIBLE_DEVICES` and `NVIDIA_DRIVER_CAPABILITIES`
+  redeclares. NGC already sets all four, so the prepends only duplicated
+  entries in the effective `PATH` and `LD_LIBRARY_PATH` and the redeclares
+  added nothing.
+
+### 2.1.2
+
+*2026-08-14 14:11:08*
+
+- First delivery: the NGC CUDA 12.8.0 runtime image on ubuntu:24.04 with the
+  build toolchain added — gcc/g++, cmake, make, libpython3-dev, curl, git,
+  vim.
+- NCCL comes from the vendor image, which preinstalls a held `libnccl2`, so
+  this layer installs no collective library of its own.

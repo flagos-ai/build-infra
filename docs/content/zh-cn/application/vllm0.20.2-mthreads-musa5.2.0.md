@@ -116,3 +116,27 @@ docker run --rm -it \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-29 09:32:46*
+
+改用基于更新后 flagtree wheel 重建的摩尔线程 runtime 重建（版本号同为 0.7.0+mthreads3.6，内容更新，2026-09-29）。插件与 app pin 与被替代的镜像相同。
+
+*2026-09-28 06:37:03*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 10:57:37*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 0.7.0 时代的 FlagTree；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。对 MUSA 而言关键的是：此前发布的镜像只是一个裸 2.1.2 tag，不带任何插件，所以这是此处首个安装 vllm-plugin-FL 的 0.20.2 交付——它带上插件所持有的 MUSA 使能（v1 attention backend 注册表、attention_backend 上的 use_sparse 参数，以及面向 MUSA 的 torch.accelerator / torch.cuda shim）。更早的 2.2.0 尝试（temp-form post1）从未进入 registry——它构建成功但 app 镜像验证失败。
+
+### 2.1.2
+
+*2026-08-24 07:02:14*
+
+摩尔线程 MUSA 上 0.20.2 的首次交付（该线不含 vllm-plugin-fl——裸 tag，app 只安装 repack 的 wheel）。F/T 双路径 app 镜像通过，记录于 2026-08-24。
