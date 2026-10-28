@@ -49,9 +49,10 @@ backends:
     note: 'RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E）'
   cambricon-neuware4.7.2:
     deps_app: true
-    launch_docs: true
-    image_tag: 2.2.0-0.3.0
-    note: 'RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复'
+    launch_docs: false
+    note: 'wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0 致 pp group 未初始化；training
+      侧已 CI+on-node 复现，RL 无从起跑。MLU 平台（#125/#188/#190）只进了 release/0.2；按
+      release/0.2 重建 0.18.2 wheel 后重启本线'
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true

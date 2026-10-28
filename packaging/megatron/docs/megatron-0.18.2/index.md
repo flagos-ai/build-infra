@@ -28,7 +28,7 @@ label**——版本号就是 `0.18.2+0.3.0`（用户明示，不要 `fl`）。`v
 
 第一批后端：nvidia-cuda12.8 / nvidia-cuda13.3 / hygon-dtk26.04 / metax-maca3.8.1.3 /
 cambricon-neuware4.7.2。app 镜像 tag `2.2.0-0.3.0`，5 行（training + rl）全量
-`push=true` 构建。
+`push=true` 构建；cambricon 两行 verify 失败，最终未 push。
 
 | 后端 | training-app | rl-app | 验证结论 |
 |---|---|---|---|
@@ -38,9 +38,10 @@ cambricon-neuware4.7.2。app 镜像 tag `2.2.0-0.3.0`，5 行（training + rl）
 | nvidia-cuda13.3 | generic-13.3 | generic-13.3 | ✅ E2E training（F/T，loss 1.087099E+01，需 `FLAGCX_BITCODE_PATH`，见下）|
 | cambricon-neuware4.7.2 | cambricon-neuware4.7.2 | cambricon-neuware4.7.2 | ❌ pp group 未初始化（见下）|
 
-10 个 app 镜像均已 **push**（push 不因 verify 失败而跳过）。其中 6 个 verify 通过
+10 个 app 镜像中 8 个已 **push**（push 不因 verify 失败而跳过）；其中 6 个 verify 通过
 （nvidia-cuda12.8 / hygon / metax × training/rl，E2E pretrain_gpt 5 iters，loss 收敛
-~1.087~1.089）；2 个后端 × 2 个 app 的 verify 失败。
+~1.087~1.089）。cambricon 的 2 个**未 push**（2026-10-28 核对 Harbor，repo 不存在；
+此前误记为已 push），verify 失败发生在 push 之前。
 
 ### 未闭环的 verify 失败
 
@@ -70,7 +71,9 @@ cambricon-neuware4.7.2。app 镜像 tag `2.2.0-0.3.0`，5 行（training + rl）
 ## 遗留
 
 - **cambricon + cuda13.3 verify 未闭环**：cuda13.3 已修复（见上，rebuild 后默认可用）；
-  cambricon 根因=wheel 无 MLU 平台登记，须按 release/0.2 重建 wheel 后复验，否则下线。
+  cambricon 根因=wheel 无 MLU 平台登记；MLU 平台（MLF #125/#188/#190）只进了 release/0.2，
+  0.18.2 线（v0.3.0 / 0.3.0-rc2 / main）均无该文件，MLF 也无在途移植 PR。按 release/0.2
+  重建 0.18.2 wheel 后重启本线；该后端无镜像已发布，无需下线。
 - **record 回填**：第一批 6 个通过 verify 的镜像（3 后端 × training/rl）Record step
   因 status matrix 尚未上 main 而失败（run 36212107759 / 36212109803）。PR #1118 合并后
   重跑（push 幂等）或本地跑 `record_image.py --layer app`，回填 changelog date + image_tag。

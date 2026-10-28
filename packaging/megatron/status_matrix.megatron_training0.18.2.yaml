@@ -118,11 +118,10 @@ backends:
       env，F 路径需显式注入，T 路径无此问题'
   cambricon-neuware4.7.2:
     deps_app: true
-    launch_docs: true
-    image_tag: 2.2.0-0.3.0
-    note: '0.18.2 CI+on-node 均失败：wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0
-      致 pp group 未初始化。上游 #125/#188/#190 仅入 release/0.2（2026-09-22 后），v0.3.0 分支早于它们。按
-      release/0.2 重建 wheel 后复验，否则该后端镜像须下线'
+    launch_docs: false
+    note: 'wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0 致 pp group 未初始化；CI+on-node
+      均失败。MLU 平台（#125/#188/#190）只进了 release/0.2，v0.3.0 / 0.3.0-rc2 / main 均无此文件，
+      MLF 也无在途移植 PR；按 release/0.2 重建 0.18.2 wheel 后重启本线'
   hygon-dtk26.04:
     deps_app: true
     launch_docs: true
