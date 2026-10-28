@@ -123,3 +123,17 @@ docker run --rm -it \
   -v /dev:/dev \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.1.dev1_g32eabf40e
+
+*2026-09-29 01:53:01*
+
+在 FlagOS 2.2.0 栈上重建，燧原 runtime 重建于 FlagTree 0.7.0（0.6.0/0.7.0rc2 → 0.7.0+enflame3.6，2026-09-28）。sglang 与插件 pin 与其替代的 2.1.2 镜像相同（PR 91 head，仍未合并）。
+
+### 2.1.2-0.1.dev1_g32eabf40e
+
+*2026-09-06 15:10:15*
+
+燧原 tops1.9.10 上的 sglang 0.5.18。sglang-plugin-FL PR 91：恢复厂商层 + 修复 serve。

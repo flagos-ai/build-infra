@@ -59,3 +59,26 @@ pt_smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:50:12*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:21:06*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-14 14:05:32*
+
+- First delivery: TangRT 1.2.0 — the Tang toolkit, PCCL, taDNN and taBLAS —
+  on ubuntu:24.04.
+- `TANGRT_ROOT`, `LIBRARY_PATH` and `LD_LIBRARY_PATH` are set in the image,
+  so the toolkit and its libraries resolve without an activation step.

@@ -72,3 +72,28 @@ nvidia-smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:45*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:21:10*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-09-11 05:55:04*
+
+- First delivery: the NGC CUDA 13.3.0 runtime image on ubuntu:24.04 with the
+  build toolchain added.
+- `libnccl2=2.31.2-1+cuda13.3` is installed and held with `apt-mark`: the
+  13.3.0 vendor image ships no NCCL at all, unlike the 12.8.0 one, and the
+  hold keeps an unpinned install downstream from moving it onto the
+  `+cuda13.4` track.

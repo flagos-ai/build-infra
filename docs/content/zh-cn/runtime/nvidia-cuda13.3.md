@@ -86,3 +86,19 @@ docker run --rm -it \
 ```bash
 nvidia-smi
 ```
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-25 09:46:58*
+
+该镜像新增容器启动时的版本请求：`-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>` 可覆盖镜像内烘焙的版本，在应用启动前从镜像自带的索引解析。`latest` 取 daily 线上最新的 wheel。无法满足的请求会以非零退出码终止容器，而不是让它以另一个版本运行。镜像烘焙了这些请求所读取的文件，其中包含把容器内的 FlagGems 安装约束到本镜像自身 pin 的 constraints 文件。
+
+*2026-10-23 03:45:50*
+
+该镜像携带的 flagcx wheel 在其推送之后（2026-10-17 00:31 UTC）已被替换：此前那次 wheel 构建恰好在这两行 nvidia 上失败并被重新派发，重新上传的产物与本构建下载的产物大小不同。以 no_cache=true 重建，使 DEPS 层重新下载 flagcx==0.14.0+cuda13.3 而不是复用已缓存的层 —— 同一版本下未变的 pin 正是构建缓存会掩盖的情况。
+
+*2026-10-17 00:31:29*
+
+该镜像首次携带 FlagTree 版本覆盖（build-infra #1342，2026-10-14 合并）：zz-flagos.sh 现在支持在容器启动时请求 FlagTree 版本（`docker run -e FLAGTREE_VERSION=<ver>`），`compiler flagtree <ver>` 在运行中的容器里做同样的事。所请求的 wheel 会就地安装到 /opt/flagtree —— 从本镜像自带的厂商索引（/etc/flagos/vendor-index，构建时写入）获取，并以共享 lane 作为按顺序的第二次尝试 —— 因此 FlagTree 升级不再强制重建本镜像及其上层的每一个 app 镜像。安装失败会告警并保留已烘焙的编译器生效。补记：本次推送早于其上一条记录，其日期即首次携带该覆盖的那次推送。

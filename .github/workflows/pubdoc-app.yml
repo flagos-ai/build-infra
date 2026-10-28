@@ -1,0 +1,71 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Publish documentation for app images
+
+# Publication is gated on review+merge: when reviewed per-image descriptions
+# land on main (an app record PR merged), push them to the Harbor repository.
+# Nothing goes live until the description diff has been reviewed and merged.
+# Mirrors pubdoc-runtime.yml for the app layer.
+
+on:
+  # Whenever an app image description changes on main (usually a followup to
+  # an app image push), the image repository description is automatically
+  # updated.
+  push:
+    branches: [main]
+    paths:
+      - 'app/*/*.md'
+
+  # For the occasional github failure when changes on 'app/*/*.md' files
+  # fail to trigger this workflow.
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  publish:
+    needs: authorize
+    runs-on: ubuntu-latest
+    env:
+      HARBOR_HOST: harbor.baai.ac.cn
+      HARBOR_USER: ${{ secrets.HARBOR_USER }}
+      HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - run: python3 -m pip install --user pyyaml
+      - name: Build the image list
+        run: python3 scripts/docs/gen_data.py
+      - name: Refresh the Changelog section
+        # Recompute it from the changelog files rather than trusting the copy
+        # committed in the readme: a changelog entry dated after the last
+        # description refresh is on main but not yet in the readme, and this is
+        # what publishes it.
+        run: python3 scripts/docs/gen_descriptions.py --changelog-only --layer app
+      - name: Upload descriptions to Harbor
+        run: python3 scripts/docs/upload_descriptions.py --layer app

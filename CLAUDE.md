@@ -149,8 +149,8 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `base-image.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend; build logic (Harbor login, disk guard, `build_base.py`) inlined in the same file; gated on a base changelog |
 | `runtime-image.yml` | Runtime Image Build (manual): base + FlagGems wheel + deps; gated on a runtime changelog |
 | `gendoc-base.yml` / `gendoc-runtime.yml` | Extract system package versions from built images → review-gated description PR |
-| `pubdoc-base.yml` / `pubdoc-runtime.yml` | Publish descriptions to Harbor on the PR landing on `main` |
-| `hugo-site.yml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**`) |
+| `pubdoc-base.yml` / `pubdoc-runtime.yml` / `pubdoc-app.yml` | Publish descriptions (incl. the Changelog section) to Harbor on the PR landing on `main` |
+| `hugo-site.yml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**` / `runtime/changelogs/**` / `app/*/changelogs/**`); recomputes every page's Changelog section from the changelog files before the build |
 | `megatron-wheel.yml` | Build megatron-core wheels in the backend's runtime image, upload to `flagos-pypi-hosted` |
 | `megatron-app-image.yml` / `vllm-app-image.yml` / `sglang-app-image.yml` | Build app images from the runtime + vendor wheel, verify on-node, push `flagos-app/...` |
 | `flagcx-*` (`deb.yml`, `wheel.yml`, `builder.yml`, `rpm.yml`) | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |

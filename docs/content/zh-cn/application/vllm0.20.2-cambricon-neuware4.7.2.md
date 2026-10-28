@@ -81,3 +81,23 @@ docker run --rm -it \
   --device /dev/cambricon_ctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:39:21*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 11:14:33*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 vendor 自带的 Triton；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_gb954912.d20260904
+
+*2026-09-04 23:41:57*
+
+改用 flag_gems 5.3.5（FlagGems mask 逻辑修复）重建，此前在 neuware4.7.2 上重新验证，修正了一处 numpy 不匹配（早先的 app 镜像拉入 2.2.6，而 runtime pin 的是 1.26.4）。repack 的 vllm wheel pin 住 xgrammar==0.2.3+flagos；单步安装对矩阵无影响；语义 serve 已验证。取代最初的 0.20.2 交付（同 tag 前缀，gb954912.d20260826，PR 411 寒武纪使能加 flag_gems index 黑名单）。

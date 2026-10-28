@@ -71,3 +71,28 @@ mx-smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:44*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:44:47*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-14 15:04:10*
+
+- First delivery: MACA 3.8.1.3 with driver 3.8.1.6 on ubuntu:24.04,
+  alongside the 3.7.2.1 line.
+- The driver is installed in userspace mode only, so the image builds
+  headless; the kernel driver stays on the host, as with NVIDIA.
+- `MACA_PATH`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
+  toolkit is usable without an activation step.

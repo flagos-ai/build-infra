@@ -88,3 +88,27 @@ cnmon
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:50:06*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:20:35*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-05 11:10:38*
+
+- First delivery: Cambricon Neuware 4.7.2 — cntoolkit 4.7.2, cnnl 2.2.14,
+  cnnlextra 2.4.0, mluops 1.12.0, cncl 1.30.8, cncv 2.12.1, cnclep 1.4.0 and
+  cnmon 6.5.48 — on ubuntu:24.04, alongside the 4.4.3 line.
+- `NEUWARE_HOME`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
+  toolkit is usable without an activation step.

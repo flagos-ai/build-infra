@@ -113,3 +113,11 @@ docker run --rm -it \
   --group-add video \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_g0900c244b
+
+*2026-09-03 12:08:45*
+
+sglang 0.5.18 on metax maca3.8.1.3 (PR 86 JIT/flashinfer guards).

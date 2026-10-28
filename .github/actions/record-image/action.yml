@@ -15,8 +15,10 @@
 name: Record image push
 description: |-
   Run scripts/record_image.py for one layer on a self-hosted runner, picking a
-  runner interpreter that can actually import ruamel.yaml (the changelog
-  backfill needs its round-trip YAML), and failing loudly when none can.
+  runner interpreter that can actually import the YAML modules the record needs
+  (ruamel.yaml for the changelog backfill's round-trip, PyYAML for the
+  gen_descriptions run that refreshes the layer's Changelog section), and
+  failing loudly when none can.
 
   Why this is not just `python3 -m pip install`: the image workflows used to
   assume the runner host has a `python3` with pip, and swallowed the install
@@ -68,27 +70,33 @@ runs:
         # versioned names a distro may expose separately.
         candidates="python3 python3.13 python3.12 python3.11 python3.10"
 
+        # Both are imported by the record path: ruamel.yaml by the changelog
+        # backfill's round-trip, and PyYAML by gen_descriptions.py, which the
+        # record runs to refresh the layer's Changelog section. Genuinely
+        # distinct modules, so either can be the one that is missing.
+        probe='import ruamel.yaml, yaml'
+
         py=""
-        # 1. An interpreter that already imports ruamel needs nothing installed.
+        # 1. An interpreter that already imports both needs nothing installed.
         for cand in ${candidates}; do
           command -v "${cand}" >/dev/null 2>&1 || continue
-          if "${cand}" -c "import ruamel.yaml" >/dev/null 2>&1; then
+          if "${cand}" -c "${probe}" >/dev/null 2>&1; then
             py="${cand}"
             break
           fi
         done
 
-        # 2. Otherwise one that has pip and can install it. --break-system-packages
+        # 2. Otherwise one that has pip and can install them. --break-system-packages
         #    only exists on newer pip; the plain --user form is the fallback.
         if [ -z "${py}" ]; then
           for cand in ${candidates}; do
             command -v "${cand}" >/dev/null 2>&1 || continue
             "${cand}" -m pip --version >/dev/null 2>&1 || continue
-            if ! "${cand}" -m pip install --quiet --user 'ruamel.yaml>=0.18' >/dev/null 2>&1; then
+            if ! "${cand}" -m pip install --quiet --user 'ruamel.yaml>=0.18' 'PyYAML>=6' >/dev/null 2>&1; then
               "${cand}" -m pip install --quiet --user --break-system-packages \
-                'ruamel.yaml>=0.18' >/dev/null 2>&1 || continue
+                'ruamel.yaml>=0.18' 'PyYAML>=6' >/dev/null 2>&1 || continue
             fi
-            if "${cand}" -c "import ruamel.yaml" >/dev/null 2>&1; then
+            if "${cand}" -c "${probe}" >/dev/null 2>&1; then
               py="${cand}"
               break
             fi
@@ -96,8 +104,9 @@ runs:
         fi
 
         if [ -z "${py}" ]; then
-          echo "::error::no runner interpreter can provide ruamel.yaml (tried: ${candidates})." \
-               "The changelog backfill needs it; install pip for one of them on this runner."
+          echo "::error::no runner interpreter can provide ruamel.yaml and PyYAML (tried: ${candidates})." \
+               "The changelog backfill needs the first and the description refresh the second;" \
+               "install pip for one of them on this runner."
           exit 1
         fi
 

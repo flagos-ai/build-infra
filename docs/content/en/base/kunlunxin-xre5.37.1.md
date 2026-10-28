@@ -89,3 +89,33 @@ xpu-smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:46*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-22 07:04:33*
+
+- The vendor's xCCL and MPICH 3.3.2 are installed under `/usr/local` and
+  named on `LD_LIBRARY_PATH` and `PATH`, so FlagCX's `bkcl` call sites
+  resolve inside the container without a host mount.
+- XRE and xcudart each install libxpuml, libxpucuda, libxpunvidia-ml,
+  libcudart and libxpurt under identical names from builds of different
+  generations, and which one a process picks up depends on how the library
+  is reached — the xcudart copies lack symbols XRE's have. XRE's copy of
+  each is installed over xcudart's; content, not version, is the test, and
+  the step ends by asserting that no soname is shipped twice with different
+  content.
+
+### 2.1.2
+
+*2026-08-14 14:35:51*
+
+- First delivery: XRE 5.37.1 with CUDA 12.9.0 and XCUDART 5.13.0 on
+  ubuntu:22.04.

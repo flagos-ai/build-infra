@@ -88,3 +88,29 @@ cnmon
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:45*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:20:56*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-05 11:09:48*
+
+- First delivery: Cambricon Neuware 4.4.3 — cntoolkit 4.4.3, cnnl 2.1.829,
+  cnnlextra 2.2.7, mluops 1.8.1, cncl 1.29.4, cnclep 1.1.1 and cnmon 6.2.15
+  — on ubuntu:22.04.
+- This image stays on 22.04: `cnperf` needs `libncurses5`, which 24.04
+  dropped.
+- `NEUWARE_HOME`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
+  toolkit is usable without an activation step.

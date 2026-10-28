@@ -116,3 +116,44 @@ docker run --rm -it \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:25:32*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+musa4.3.6。
+
+### 2.2.0-0.3.0
+
+*2026-09-29 08:16:21*
+
+改用基于更新后 flagtree wheel 重建的摩尔线程 runtime 重建（版本号同为 0.7.0+mthreads3.6，内容更新，2026-09-29）。插件与 app pin 与被替代的镜像相同。
+
+*2026-09-28 14:05:41*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 09:56:21*
+
+本镜像从 990a8f7 移到发布 tag，该 tag 带上了随之落地的 MUSA 修复：PR 537 在 runtime 打补丁之前先绑定 TP worker，因此 TP>1 的运行不再把每个 shard 都放在 device 0 上。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
+
+*2026-09-16 14:07:50*
+
+改用 vllm-plugin-FL 0.3.0-rc2 分支 head 990a8f7 重建——前一个镜像 pin 的是 5b592be，PR 386 的合并前分支 commit，它不是上游任何分支或 tag 的 tip，因此没有具名的插件 ref 能重建它。镜像现在位于发布线上，并成组携带其 dispatch/worker 改动：后端不可用时 reference 回退仍保持注册（PR 440），FlagGems 黑名单条目可按部署追加（PR 439），OOT graph 路径改用 BreakableCUDAGraphWrapper（PR 342），packed-decode 的 GDN beta 保持 fp32（PR 385）。重建原因是 PR 386 与 FlagGems 5130——本镜像跟踪的两个上游依赖——均已合并，两边都没有待办。
+
+### 2.1.2-0.3.0rc0_g5b592be.d20260817
+
+*2026-09-01 14:14:03*
+
+摩尔线程上的 vllm 0.24.0（PR 386 使能 + FlagGems 5130 mul device-gate 修复）。F/T 已验证。

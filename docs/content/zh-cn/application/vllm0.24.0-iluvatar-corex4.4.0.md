@@ -113,3 +113,50 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:20:37*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+corex4.4.0。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:02:12*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post3
+
+*2026-09-28 21:17:04*
+
+发布线上的 symm-memory stub 现在捕获 ImportError，而不只是 ModuleNotFoundError（vllm-plugin-FL v0.3.0-rc2.post3）：天数智芯 corex 的 torch 2.7.1 带 torch.distributed._symmetric_memory，其 import torch._C._distributed_c10d._SymmetricMemory 会抛 ImportError（一个 torch 2.8 的符号），因此旧的 stub 从未触发，插件无法加载。post3 是带该修复的首个 wheel，已在天数智芯 index 上。stack（0.6.1 flagtree + USE_FLAGTUNE_COST_MODEL=0）与 app pin 与被替代的 post2 镜像相同；T 路径仍因 vendor corex triton 3.1 缺陷无法交付（iluvatar 后端文档 §14.4）。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-28 18:16:28*
+
+改用把 FlagTree 降级到 0.6.1 的 4.4.0 runtime 重建（0.7.0 会硬加载 libflagcx.so；CoreX 4.4.0 SDK 不带 libixccl，导致 runtime import flag_gems 失败）。stack、插件与 app pin 与被替代的 0.7.0 时代镜像相同。T 路径仍因 vendor corex triton 3.1 缺陷无法交付（iluvatar 后端文档 §14.4）；本次重建只重跑 F 路径。
+
+*2026-09-20 17:43:35*
+
+symm-memory stub（PR 491）已进入发布线，因此本镜像离开 c9e2573，一个 main 线的 commit。F 路径仍是可交付的那条；T 路径仍因 iluvatar 后端文档记录的 vendor corex triton 3.1 缺陷无法交付。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_gc9e2573.d20260913
+
+*2026-09-13 14:43:58*
+
+改用携带 symm_mem stub 的统一 vllm-plugin-FL head 重建，取代 pin 到 VPF #434 的一次性 wheel。F 路径可交付；T 路径不可交付（vendor corex triton 3.1 缺陷，见 iluvatar 后端文档）。
+
+### 2.1.2-0.2.1_g84a4ca2.d20260902
+
+*2026-09-02 12:14:27*
+
+天数智芯 corex4.4.0 上的 vllm 0.24.0（PR 434 针对 torch<2.8 的 symm_mem stub）。F 路径可交付；T 路径不可交付（vendor corex triton 3.1 缺陷，见 iluvatar 文档）。

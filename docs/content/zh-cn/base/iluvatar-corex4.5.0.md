@@ -88,3 +88,26 @@ ixsmi
 ```
 
 *更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-14 05:56:24*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.2.0
+
+*2026-09-23 07:39:08*
+
+- CoreX CMake 安装器改传 `--prefix`，这是它认的 flag；此前传的是 `--target`，而它忽略该 flag，于是在 cwd 为 `/` 时解包到了根目录，`PATH` 所指向的目录 `/opt/cmake-corex` 始终不存在。构建现在断言 `cmake --version`，不再信任安装器的退出状态。
+
+### 2.1.2
+
+*2026-09-16 09:54:47*
+
+- 首次交付：Corex 4.5.0 及其 CUDA 头文件集和厂商 CMake 3.31.8，基于 ubuntu:24.04。
+- 驱动的用户态（`libcuda.so.1`、`libixml.so`、`ixsmi`）装入镜像，而非从宿主挂载；内核模块无法在容器内加载，留在宿主。
+- `libopenmpi3t64` 提供 corex 4.5.0 的 `libnvshmem_host.so` 所需的 `libmpi.so.40` —— torch 经 `torch_nvshmem` 访问它，缺了它 torch import 失败。
+- 不设置 `CPATH`：corex clang 的默认搜索路径上已有 `/usr/local/corex/include`，而此前 `CPATH` 条目指向的 CUDA 10.2 头文件会遮蔽 corex 自己的 `cuda.h` —— 运行时 kernel 编译随即以 `cuda.h did not define IX_VERSION` 中断，通过 Jiterator 编译的算子全部掉线。

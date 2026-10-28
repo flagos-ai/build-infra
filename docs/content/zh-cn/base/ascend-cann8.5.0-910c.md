@@ -97,3 +97,28 @@ npu-smi info
 ```
 
 *更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-14 05:49:40*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.2.0
+
+*2026-09-17 01:36:13*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.1.2
+
+*2026-09-10 04:00:19*
+
+- 首次交付：CANN 8.5.0 —— toolkit、910C（A3） ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
+- 只有 ops 包与芯片相关：该变体取 `A3` 标记而非 `910b`，而 toolkit 和 NNAL 与同一 CANN 版本的 910B 线共用。
+- python3.11 从 deadsnakes 强制安装，与发行版自带的 3.12 并存：CANN 安装器写出的 python 版本相关产物会被 runtime import，因此基础解释器必须与 runtime venv 的一致。
+- SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。toolkit 和 NNAL 的 `set_env.sh` 在 bash 下 source：它们是 bash 脚本，在 dash 下可能走到调用 `exit` 的路径，静默中断该步骤。
+- ATB 也在该固化中，因为 toolkit 的 `set_env.sh` 漏掉 `ATB_HOME_PATH` 和 ATB 库路径；缺了它们 `libatb.so` 加载失败，ATB 算子（`_npu_reshape_and_cache`、`_npu_rotary_embedding`）在推理时崩溃。
+- 构建把 runner 的代理设置作为 build arg 传入 —— 这些节点没有直连出口 —— 并移除 apt 的 `Post-Invoke` hook，因为 docker 20.10.8 的 seccomp profile 挡了 `clone3`，hook 在此处失败。

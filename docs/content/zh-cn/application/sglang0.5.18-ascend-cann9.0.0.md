@@ -138,3 +138,11 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.1.2-0.1.dev1_g2e568482e
+
+*2026-09-03 14:08:15*
+
+昇腾 cann9.0.0 上的 sglang 0.5.18（PR 84 的无 kernel 替代实现）。

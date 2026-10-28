@@ -122,3 +122,29 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:37:38*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 10:56:29*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 0.7.0 时代的 FlagTree；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.2rc2.post1_g52949b6.d20260914
+
+*2026-09-14 03:59:20*
+
+改用 vllm-plugin-FL v0.2.2-rc2.post1 tag（release/0.2 head 52949b6）重建，以在海光上验证该 tag。wheel 的版本基址跟随 tag 自身版本（0.2.2rc2.post1），而非此前所有 app 镜像所在的 0.2.1 线。
+
+### 2.1.2-0.2.1_g14cf11d.d20260908
+
+*2026-09-09 00:06:07*
+
+海光 DTK 26.04 上的 vllm 0.20.2（CUDA-alias runtime）。构建在 flagtree hygon wheel 重建线上，含 vllm-plugin-FL hygon 使能；repack 的 vllm wheel 单步安装。F/T 已验证。

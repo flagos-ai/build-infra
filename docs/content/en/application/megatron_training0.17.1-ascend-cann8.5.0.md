@@ -128,3 +128,21 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG megatron-train --model-type GPT
 ```
+
+## Changelog
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:15:06*
+
+Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+
+*2026-09-22 16:04:10*
+
+Rebuilt on the FlagOS 2.2.0 stack and on release/0.2, whose head carries the app-image PRs now merged into it — the image this replaces installed a wheel built off their PR heads and an integration branch, so the platform fixes they carry were never in the artifact. The wheel is the one built from that line's release tag, and the install pin states it exactly (0.17.1+fl.0.2.3) rather than resolving ==0.17.1 to whichever local version the index held.
+
+### 2.1.2-0.2.1_9.g48b97a13f
+
+*2026-09-01 05:06:09*
+
+megatron-core wheel (0.17.1+fl) app image on this backend. Built on the MLF wheel-full-scope line (PR 107) with backend enablement carried by the listed MLF/vendor PRs. Single-step wheel install over the runtime.

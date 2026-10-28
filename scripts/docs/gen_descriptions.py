@@ -31,14 +31,21 @@ verbatim in both. This keeps en/ and zh-cn/ in lockstep — the reason both are
 emitted from one generator rather than a per-language shortcode.
 
 Two output flavors feed three consumers:
-  - "web"   -> docs/content/{en,zh-cn}/base/*.md — the Hugo site. Keeps front
+  - "web"   -> docs/content/{en,zh-cn}/<layer>/*.md — the Hugo site. Keeps front
                matter and renders the container-toolkit caveat as an info marker
                that shows a Bootstrap tooltip on hover (styled in
                docs/assets/docs/scss/custom/structure/_content.scss).
-  - "plain" -> base/*.md (English) — the in-repo image readme and the source for
-               the Harbor repository description. No front matter, no tooltip.
+  - "plain" -> base/*.md, runtime/*.md and app/<component>/<image>.md (English)
+               — the in-repo image readme and the source for the Harbor
+               repository description. No front matter, no tooltip.
 These are separate files, so the web pages can be polished (HTML/CSS) without
 touching the plain readmes.
+
+Each page ends with a Changelog section rebuilt from the image's changelog file.
+It is appended rather than rendered into a page body: the bodies have their own
+generators and cadences, and whichever ran last would drop a reason written in
+between. --changelog-only recomputes just that section, and it is what the
+record steps, the site build and the Harbor upload run.
 
 The body starts at H2 (no H1): Hugo supplies the page title from the front
 matter, and Harbor shows the repository name as the top heading — so the same
@@ -58,6 +65,9 @@ Usage:
   python scripts/docs/gen_descriptions.py --layer runtime nvidia-cuda13.3  # requested backends, one layer only
   python scripts/docs/gen_descriptions.py --app-only         # regenerate only the app-image pages (no VERSIONS_DIR)
   python scripts/docs/gen_descriptions.py --app-only --check # compare, exit 1 on drift (hook / CI)
+  python scripts/docs/gen_descriptions.py --changelog-only   # rebuild only the Changelog section, no VERSIONS_DIR
+  python scripts/docs/gen_descriptions.py --changelog-only --check  # compare that section, exit 1 on drift
+  python scripts/docs/gen_descriptions.py --changelog-only --layer base nvidia-cuda13.3  # one page stem only
   VERSIONS_DIR=/path python scripts/docs/gen_descriptions.py # resolve versions from <dir>/<name>.tsv
 """
 
@@ -125,6 +135,7 @@ STRINGS = {
         "launch_none": "**No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.",
         "verify": "Verify",
         "verify_note": "Inside the container, confirm the accelerator is visible:",
+        "changelog": "Changelog",
     },
     "zh-cn": {
         "prerequisites": "前置条件",
@@ -172,6 +183,7 @@ STRINGS = {
         "launch_none": "**暂无启动器。** 该镜像尚未提供启动器或默认命令——可先启动交互式 shell 查看镜像内容；启动器将随应用的入口点一并提供。",
         "verify": "验证",
         "verify_note": "在容器内，确认加速器可见：",
+        "changelog": "更新日志",
     },
 }
 
@@ -455,6 +467,225 @@ def _verify(entry: dict, s: dict) -> list[str]:
         lines += [s["verify_note"], ""]
         lines += ["```bash", verify, "```", ""]
     return lines
+
+
+# ── Changelog ────────────────────────────────────────────────────────────────
+# Every image layer keeps a per-image changelog (base/changelogs/<backend>.yaml,
+# runtime/changelogs/<backend>.yaml, app/<component>/changelogs/<image>.yaml) —
+# why the image was rebuilt and what the rebuild brought. Those reasons are the
+# user-facing record of an image whose tag only carries the coarse stack-wide
+# version, so they are published: as this section on the image's page, and as
+# the same text in the Harbor repository description.
+#
+# The section is appended to a page rather than rendered into its body, because
+# the page bodies have their own generators and cadences (the base pages need
+# version TSVs, the runtime pages are rendered once at the end of a release) and
+# a reason written in between would be lost by whichever body render came last.
+# Recomputing it from the changelog file at publish time — site build, Harbor
+# upload, and each layer's record step — keeps what a reader sees equal to what
+# the changelog file says, and keeps the committed copy a cache that the next
+# run corrects. Idempotent by construction: the section is dropped and rebuilt
+# from the file, never edited in place.
+
+
+def find_changelog(stem: str, layer: str) -> Path | None:
+    """The changelog file behind a page stem, or None when there is none.
+
+    A page stem is the image's repository name for every layer: the backend key
+    for base and runtime, and ``{app}{version}-{public_name}`` for app images
+    (both are what the changelog file is named after). The app layer's component
+    directory is discovered from the file's own location rather than derived
+    from the app key — one rule, one place, and the plain readme lands beside
+    the changelog.
+    """
+    root = repo_root()
+    if layer in ("base", "runtime"):
+        path = root / layer / "changelogs" / f"{stem}.yaml"
+        return path if path.is_file() else None
+    for path in sorted((root / "app").glob(f"*/changelogs/{stem}.yaml")):
+        return path
+    return None
+
+
+def app_plain_path(stem: str) -> Path | None:
+    """Where an app image's plain readme goes, or None when there is no image.
+
+    The readme sits beside the image's changelog directory — the app layer's
+    component (megatron / vllm / sglang) is read off the changelog file's own
+    location rather than re-derived from the app key, so the two can never
+    disagree. No changelog means the image was never built (an app image cannot
+    be pushed without one), so there is nothing to describe for Harbor.
+    """
+    cl = find_changelog(stem, "app")
+    return cl.parent.parent / f"{stem}.md" if cl else None
+
+
+def _write_app_plain(root: Path, backends: dict) -> int:
+    """Write the app layer's Harbor-bound readmes, one per app image.
+
+    English only, no marker — same as the base and runtime plain readmes: this
+    text is the Harbor repository description, which renders plain markdown.
+    """
+    n = 0
+    for entry in backends.values():
+        for app in entry.get("app", {}).get("images", {}):
+            stem = f"{app}-{_app_page_name(entry)}"
+            path = app_plain_path(stem)
+            if path is None:
+                continue
+            path.write_text(render_app(entry, app, "en", "plain"))
+            n += 1
+    print(f"Wrote {n} app plain readmes to app/<component>/")
+    return n
+
+
+_changelog_cache: dict = {}
+
+
+def load_changelog(path: Path) -> dict | None:
+    """Parsed changelog, or None when the file is absent or unreadable.
+
+    A missing or malformed changelog must not break the page it belongs to: the
+    image is still described, it just has no published reasons.
+    """
+    key = str(path)
+    if key not in _changelog_cache:
+        try:
+            _changelog_cache[key] = yaml.safe_load(path.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            _changelog_cache[key] = None
+    return _changelog_cache[key]
+
+
+def _entry_date(entry: dict) -> str:
+    """The entry's date in display form, or "" while the entry is pending.
+
+    YAML hands back either a string (quoted or a plain scalar that does not
+    parse as a timestamp) or a ``datetime`` — 54 of the recorded entries are
+    the latter — so normalize before formatting.
+    """
+    date = entry.get("date")
+    if not date:
+        return ""
+    return human_date(date.isoformat() if hasattr(date, "isoformat") else str(date))
+
+
+def changelog_section(path: Path | None, s: dict, lang: str) -> list[str]:
+    """The Changelog section: every published tag, newest first.
+
+    Only dated entries are published — an empty ``date`` means the push the
+    entry describes has not happened yet, so it is not a change a reader can
+    have. Tags the registry no longer carries are kept: the changelog is their
+    only trace (docs/changelog.md), which is what "the full history" means.
+    ``upstream_prs`` is maintainer bookkeeping and is not published.
+    """
+    if path is None:
+        return []
+    data = load_changelog(path)
+    if not data:
+        return []
+
+    # The language selects which of the two reasons to print; the config keys
+    # use the short code ("reason_zh") while LANGS carries Hugo's ("zh-cn").
+    suffix = lang.split("-", 1)[0]
+    reason_key = "reason_zh" if suffix == "zh" else "reason"
+
+    blocks: list[list[str]] = []
+    for block in data.get("tags") or []:
+        entries: list[str] = []
+        for entry in block.get("entries") or []:
+            date = _entry_date(entry)
+            if not date:
+                continue
+            reason = (entry.get(reason_key) or entry.get("reason") or "").strip()
+            if not reason:
+                continue
+            entries += [f"*{date}*", "", reason, ""]
+        if entries:
+            blocks += [f"### {block.get('tag')}", ""] + entries
+
+    if not blocks:
+        return []
+    return [f"## {s['changelog']}", ""] + blocks
+
+
+# The section header is the anchor: the section is replaced, not appended to a
+# second time. A page carries the header in its own language, so both spellings
+# are recognized.
+def _changelog_anchor(md: str) -> int:
+    """Offset of the page's Changelog section header, or -1 when absent."""
+    for lang in LANGS:
+        header = f"## {STRINGS[lang]['changelog']}\n"
+        at = md.find("\n" + header)
+        if at != -1:
+            return at + 1
+    if md.startswith(f"## {STRINGS['en']['changelog']}\n"):
+        return 0
+    return -1
+
+
+def rebuild_section(md: str, section: list[str]) -> str:
+    """`md` with its Changelog section replaced by `section` (no section: dropped).
+
+    Idempotent: the section is cut at its header and rebuilt from the changelog
+    file, so running twice with the same file yields the same page.
+    """
+    at = _changelog_anchor(md)
+    head = md[:at].rstrip("\n") + "\n\n" if at != -1 else md.rstrip("\n") + "\n\n"
+    new = head + "\n".join(section) if section else head
+    return new.rstrip("\n") + "\n"
+
+
+def with_changelog(body: str, stem: str, layer: str, lang: str) -> str:
+    """`body` as the page on disk: the body plus its recomputed section.
+
+    The section is appended by --changelog-only instead of being rendered into
+    the body, so comparing a committed page against a bare body render would
+    report drift on every page that has one.
+    """
+    section = changelog_section(find_changelog(stem, layer), STRINGS[lang], lang)
+    return rebuild_section(body, section)
+
+
+def write_changelog_section(path: Path, section: list[str], guarded: bool) -> bool:
+    """Rebuild the page's Changelog section in place. True when it changed.
+
+    ``guarded`` is set for the web pages: they carry GENERATED_MARK, and a page
+    without it is hand-written or foreign, so it must not be touched. The plain
+    readmes carry no marker (Harbor can't parse HTML comments) and are only
+    extended when they already exist.
+    """
+    if not path.is_file():
+        return False
+    md = path.read_text()
+    if guarded and GENERATED_MARK not in md:
+        sys.exit(
+            f"Error: {path} carries no {GENERATED_MARK!r} — it is not this "
+            f"generator's page. Refusing to touch it."
+        )
+    new = rebuild_section(md, section)
+    if new == md:
+        return False
+    path.write_text(new)
+    return True
+
+
+def _page_dirs(root: Path) -> list[tuple[Path, str, bool]]:
+    """Every page a Changelog section belongs on: (dir, layer, guarded).
+
+    The web page directories are guarded (generated, marker-carrying); the
+    in-repo plain readmes are the Harbor description source and unguarded.
+    """
+    dirs = [
+        (root / "docs" / "content" / lang / sub, layer, True)
+        for lang in LANGS
+        for sub, layer in (("base", "base"), ("runtime", "runtime"), ("application", "app"))
+        # The app layer's plain readmes live under app/<component>/, handled below.
+    ]
+    dirs += [(root / "base", "base", False), (root / "runtime", "runtime", False)]
+    dirs += [(d, "app", False) for d in sorted((root / "app").glob("*")) if d.is_dir()]
+    return dirs
+
 
 
 def render(entry: dict, versions: dict, lang: str = "en", flavor: str = "web", meta: dict | None = None) -> str:
@@ -769,23 +1000,28 @@ def render_app(entry: dict, app: str, lang: str = "en", flavor: str = "web") -> 
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _parse_args(argv: list[str]) -> tuple[bool, bool, list[str], set[str]]:
+def _parse_args(argv: list[str]) -> tuple[bool, bool, bool, list[str], set[str]]:
     """Split CLI flags from positional backend names.
 
     ``--app-only`` regenerates only the app-image pages (no VERSIONS_DIR needed);
+    ``--changelog-only`` rebuilds only the Changelog section of the pages that
+    already exist (no VERSIONS_DIR and no images.yaml needed — it is what the
+    record steps, the site build and the Harbor upload run);
     ``--check`` compares against existing files and exits 1 on drift (hook / CI);
     ``--layer`` scopes the requested-backend write to one layer (base/runtime/app,
     default all). The gendoc finalize passes it so a base refresh never rewrites
     runtime pages and vice versa — cross-layer writes are discarded by the caller,
     and an unmarked page in the other layer would abort the run for nothing.
     """
-    app_only = check = False
+    app_only = changelog_only = check = False
     layers: set[str] = {"base", "runtime", "app"}
     names: list[str] = []
     it = iter(argv)
     for a in it:
         if a == "--app-only":
             app_only = True
+        elif a == "--changelog-only":
+            changelog_only = True
         elif a == "--check":
             check = True
         elif a == "--layer":
@@ -803,15 +1039,81 @@ def _parse_args(argv: list[str]) -> tuple[bool, bool, list[str], set[str]]:
             sys.exit(f"Error: unknown flag '{a}'")
         else:
             names.append(a)
-    return app_only, check, names, layers
+    return app_only, changelog_only, check, names, layers
+
+
+def run_changelog_only(root: Path, layers: set[str], check: bool, names: list[str]) -> int:
+    """Rebuild the Changelog section of every existing page, or report drift.
+
+    Walks the page directories rather than images.yaml: a page exists or it does
+    not, and its stem is what the changelog file is named after. A page with no
+    changelog behind it (an unpublished backend, a retired app version, a
+    hand-written page) is left alone.
+
+    Positional names restrict the walk to those page stems — a record step
+    rebuilds its own backend's pages and nothing else, so an unrelated page is
+    never rewritten (and never left dirty) underneath a concurrent run.
+    """
+    drift: list[str] = []
+    changed = 0
+    for directory, layer, guarded in _page_dirs(root):
+        if layer not in layers or not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("*.md")):
+            if path.stem == "_index":
+                continue
+            if names and path.stem not in names:
+                continue
+            cl = find_changelog(path.stem, layer)
+            if cl is None:
+                continue  # no changelog for this page — not ours to touch
+            lang = _lang_of(path)
+            section = changelog_section(cl, STRINGS[lang], lang)
+            if check:
+                if not path.is_file() or rebuild_section(path.read_text(), section) != path.read_text():
+                    drift.append(str(path))
+                continue
+            if write_changelog_section(path, section, guarded):
+                changed += 1
+
+    if check:
+        if drift:
+            print(f"Changelog sections drift: {len(drift)} files differ or are missing:")
+            print("\n".join(f"  {p}" for p in drift))
+            return 1
+        print("Changelog sections up to date.")
+        return 0
+    print(f"Rebuilt the Changelog section of {changed} page(s).")
+    return 0
+
+
+def _lang_of(path: Path) -> str:
+    """Language of a page: its ``content/<lang>/`` directory, else English.
+
+    Only the web pages are per-language; the plain readmes are English and the
+    Harbor description carries the English text.
+    """
+    for parent in path.resolve().parents:
+        if parent.parent.name == "content" and parent.name in LANGS:
+            return parent.name
+    return "en"
 
 
 def main():
+    # Args first: --changelog-only reads neither images.yaml nor the version
+    # TSVs, and on a self-hosted runner (the record steps) images.yaml does not
+    # exist at all — it is git-ignored and only gen_data.py writes it.
+    app_only, changelog_only, check, requested, layers = _parse_args(sys.argv[1:])
+
     root = repo_root()
+
+    if changelog_only:
+        # Positional names scope the rebuild to those page stems — a record
+        # step touches its own backend's pages, not the whole tree.
+        sys.exit(run_changelog_only(root, layers, check, set(requested)))
+
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
     backends = {b["name"]: b for b in images.get("backends", [])}
-
-    app_only, check, requested, layers = _parse_args(sys.argv[1:])
 
     if app_only:
         # Regenerate only the app-image pages (docs/content/{en,zh-cn}/application/).
@@ -823,8 +1125,12 @@ def main():
                 out_dir = root / "docs" / "content" / lang / "application"
                 for name, entry in backends.items():
                     for app in entry.get("app", {}).get("images", {}):
-                        path = out_dir / f"{app}-{_app_page_name(entry)}.md"
-                        if not path.is_file() or path.read_text() != render_app(entry, app, lang, "web"):
+                        stem = f"{app}-{_app_page_name(entry)}"
+                        path = out_dir / f"{stem}.md"
+                        expected = with_changelog(
+                            render_app(entry, app, lang, "web"), stem, "app", lang
+                        )
+                        if not path.is_file() or path.read_text() != expected:
                             drift.append(str(path))
             if drift:
                 print(f"App pages drift: {len(drift)} files differ or are missing:")
@@ -844,7 +1150,8 @@ def main():
                     n += 1
                     total += 1
             print(f"Wrote {n} {lang} app web pages to {out_dir}")
-        print(f"Total: {total} app descriptions")
+        n = _write_app_plain(root, backends)
+        print(f"Total: {total} app descriptions, {n} plain readmes")
         return
 
     vdir = os.environ.get("VERSIONS_DIR")
@@ -917,7 +1224,9 @@ def main():
                 (rt_dir / f"{name}.md").write_text(md)
             print(f"Wrote {len(requested)} runtime plain readmes to {rt_dir}")
 
-        # App web flavor (Harbor plain deferred — PR 2).
+        # App, both flavors. Plain goes beside the image's changelog
+        # (app/<component>/<stem>.md) — the app layer's component is read off
+        # the changelog's own location, never re-derived from the app key.
         if "app" in layers:
             for lang in LANGS:
                 out_dir = root / "docs" / "content" / lang / "application"
@@ -931,6 +1240,7 @@ def main():
                         write_generated(out_dir / f"{app}-{_app_page_name(backends[name])}.md", md)
                         n += 1
                 print(f"Wrote {n} {lang} app web pages to {out_dir}")
+            _write_app_plain(root, {name: backends[name] for name in requested if name in backends})
         return
 
     # File output requires VERSIONS_DIR — without it, only package names
@@ -992,7 +1302,6 @@ def main():
     # ── App images ──────────────────────────────────────────────
     # App web flavor: docs/content/{en,zh-cn}/application/{app}-{name}.md, where
     # {name} is the backend's app-layer public identity when it has one.
-    # Harbor plain flavor deferred to PR 2 (upload_descriptions.py --layer app).
     total_app = 0
     if "app" in layers:
         for lang in LANGS:
@@ -1006,6 +1315,7 @@ def main():
                     n += 1
                     total_app += 1
             print(f"Wrote {n} {lang} app web pages to {out_dir}")
+        _write_app_plain(root, backends)
     print(f"Total: {total + len(backends) + total_app} descriptions")
 
 

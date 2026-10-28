@@ -131,3 +131,29 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:36:40*
+
+Rebuild on the vllm-plugin-FL formal release v0.2.2 (tag = commit 675548ab, the head of 0.2.2-rc2). The plugin now ships as the release version (vllm-plugin-fl==0.2.2, one py3-none-any wheel, sha 90a4ba10...27fa2, on all 11 vendor indexes) instead of the v0.2.2-rc2.post2 delivery tag — the only delta is the backport of #553 (bounded/safe multiprocessing worker shutdown), which the 2.2.0 stack line now carries. App image rebuilt from that wheel, pinned exactly.
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 11:01:50*
+
+Rebuild on the FlagOS 2.2.0 stack and on the vllm-plugin-FL release tag v0.2.2-rc2.post2 (214804a, head of 0.2.2-rc2). Both layers move at once: the stack brings the 2.2.0 base and runtime, with FlagGems 5.4.0-rc2.post3 and the 0.7.0-era FlagTree, and the plugin now comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
+
+*2026-09-15 11:56:48*
+
+Rebuild on the vllm-plugin-FL 0.2.2-rc2 branch head db28502, which replaces the fork-synthesized source (2b6b635 = release-0.2 plus three cherry-picks) this image was originally built from. The ascend changes it carried are merged upstream and present at this head: PR 361 lift_fresh / _to_copy blacklist (coreDim=0 on scalar tensor init) and PR 402 pow_scalar, so the wheel is built from the plain upstream repo again. The wheel version base follows the branch's own version (0.2.2rc2.post1) rather than the 0.2.0 line this image carries.
+
+### 2.1.2-0.2.0_g2b6b635.d20260824
+
+*2026-08-24 01:04:59*
+
+Initial 0.20.2 deliverable on Ascend 910B4. vllm-plugin-FL ascend 0.20.2 enablement (PR 361 line) plus the four dispatch fixes needed on both cann stacks (pow_scalar blacklist, PR 402). Repacked vllm empty wheel, single-step install matrix-inert; F/T dual-compiler E2E verified.

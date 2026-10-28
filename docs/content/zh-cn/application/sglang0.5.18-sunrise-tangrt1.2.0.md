@@ -91,3 +91,17 @@ docker run --rm -it \
   -e TANG_VISIBLE_DEVICES=all \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.1.dev1_g3b94dae1f
+
+*2026-09-28 16:49:04*
+
+在重建后的 sunrise runtime 上重建。FlagTree 的 sunrise wheel 有缺陷（缺少 sunriseTritonPlugin.so，导致 flag_gems 无法导入 triton），已重新上传；runtime v2 :2.2.0 与 v1 :2.2.0-build 在其上重建（digest 38eec/8b6fc）。本 app 镜像此前构建于坏 runtime 上，现改用修复后的 runtime 重做。插件与 app 锁定与所替代镜像相同。
+
+### 2.1.2-0.1.dev1_g3b94dae1f
+
+*2026-09-11 07:48:15*
+
+sunrise TANGRT 1.2.0 上的 sglang 0.5.18。本后端的首个镜像：插件为该平台新增厂商层，其 torch 是携带 PTPU 设备的 +cpu 构建，因此内核不会短路到 CUDA 路径，而是走到只有非 CUDA 别名平台才会触发的两处回退（设备字符串与 pccl 分布式后端）。app env 中拉黑两个 flag_gems 算子，因为厂商 override 在此无法兼容地实现它们：SDPA math kernel 拒绝 enable_gqa（会在首次 prefill 时弄坏所有 GQA 模型），pow 回退在 scalar**tensor 上失败——二者被无限期接受，因此属于已交付配置的一部分，而非待办跟进。runtime 另外升到 flag_gems 5.3.6，以取得 asin 回退与 sunrise cumsum 守卫。F/T 双编译器 serve 已在 Qwen3-4B 上验证。

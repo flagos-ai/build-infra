@@ -1,0 +1,107 @@
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Kunlunxin P800
+- **Host driver:** 5.37.1
+- **Container toolkit** *(optional)*: xpu_container >= 1.0.13
+
+## Image contents
+
+### Built on
+
+`harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.1.2`
+
+### Python
+
+3.10
+
+### Application package
+
+`sglang==0.5.18+flagos`
+
+
+`sglang-fl==0.1.dev1+g7fb22a0c2`
+
+## Environment
+
+- `TORCHINDUCTOR_COMPILE_THREADS=1`
+- `SGLANG_IS_FLASHINFER_AVAILABLE=false`
+- `SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK=1`
+
+## Launch
+
+**Published:** `harbor.baai.ac.cn/flagos-app/sglang0.5.18-kunlunxin-xre5.37.1:2.1.2-0.1.dev1_g7fb22a0c2`
+
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/sglang0.5.18-kunlunxin-xre5.37.1:2.1.2-0.1.dev1_g7fb22a0c2
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --runtime xpu \
+  -e CXPU_VISIBLE_DEVICES=0 \
+  $IMG bash
+```
+
+Start the app with its default settings:
+
+```bash
+docker run --rm -it \
+  --runtime xpu \
+  -e CXPU_VISIBLE_DEVICES=0 \
+  $IMG
+```
+
+Pass arguments to the launcher:
+
+```bash
+docker run --rm -it \
+  --runtime xpu \
+  -e CXPU_VISIBLE_DEVICES=0 \
+  $IMG sglang-serve --model-path <path> --port 9000
+```
+
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --device /dev/xpu0 \
+  --device /dev/xpuctrl \
+  $IMG bash
+```
+
+Start the app with its default settings:
+
+```bash
+docker run --rm -it \
+  --device /dev/xpu0 \
+  --device /dev/xpuctrl \
+  $IMG
+```
+
+Pass arguments to the launcher:
+
+```bash
+docker run --rm -it \
+  --device /dev/xpu0 \
+  --device /dev/xpuctrl \
+  $IMG sglang-serve --model-path <path> --port 9000
+```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_g7fb22a0c2
+
+*2026-09-12 05:11:04*
+
+sglang 0.5.18 on Kunlunxin P800 (XRE 5.37.1). First image for this backend. The plugin stops deriving the vendor from torch attributes, which labelled every CUDA-alias platform nvidia and left kunlunxin.yaml — its bisected operator blacklist, the silu_and_mul routing, the oot_blacklist — never loaded; adapts the vendor layer to 0.5.18 (the overlap_utils symbol is gone, the KV pool moved off ForwardBatch, and the patch runner now isolates one failure instead of letting it disable the rest); forces the JIT CUDA predicates False, since this device answers capability (8, 6) and a real nvcc therefore compiles sm_86 SASS successfully and fails at the launch with "invalid device function"; and routes attention to torch_native, as the vendor klx_attention_* ops exist only in a vendor-compiled sgl_kernel build we do not ship — the SDPA family is blacklisted so flag_gems does not hijack the native path into the same XPU flash-attention compiler failure. F/T dual-compiler serve verified on Qwen3-4B.

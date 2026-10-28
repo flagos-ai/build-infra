@@ -116,3 +116,17 @@ docker run --rm -it \
   -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.1.dev1_g607b9672c
+
+*2026-09-29 10:53:01*
+
+在 FlagOS 2.2.0 栈上重建，摩尔线程 runtime 用更新后的 flagtree wheel 重建（版本仍为 0.7.0+mthreads3.6，内容为新，2026-09-29）。sglang 与插件 pin 与其替代的 2.1.2 镜像相同（PR 92 head，仍未合并）。
+
+### 2.1.2-0.1.dev1_g607b9672c
+
+*2026-09-05 15:29:12*
+
+摩尔线程 musa5.2.0 上的 sglang 0.5.18（PR 92 的 torch_musa serve）。

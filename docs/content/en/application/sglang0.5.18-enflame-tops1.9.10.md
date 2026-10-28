@@ -123,3 +123,17 @@ docker run --rm -it \
   -v /dev:/dev \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.2.0-0.1.dev1_g32eabf40e
+
+*2026-09-29 01:53:01*
+
+Rebuild on the FlagOS 2.2.0 stack and the enflame runtime rebuilt on FlagTree 0.7.0 (0.6.0/0.7.0rc2 → 0.7.0+enflame3.6, 2026-09-28). Same sglang and plugin pins as the 2.1.2 image it replaces (PR 91 head, still open).
+
+### 2.1.2-0.1.dev1_g32eabf40e
+
+*2026-09-06 15:10:15*
+
+sglang 0.5.18 on enflame tops1.9.10. sglang-plugin-FL PR 91: revive vendor layer + fix serve.

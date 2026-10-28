@@ -128,3 +128,15 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG megatron-train --model-type GPT
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:14:44*
+
+重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
+
+*2026-09-24 12:33:39*
+
+cann9.0.0 的 910C 孪生镜像上的首个 megatron_training app 镜像。基于 FlagOS 2.2.0 栈与 release/0.2 的 wheel（0.17.1+fl.0.2.3，与 910B 相同的 cp311 wheel，仅 CANN 算子包不同）构建。节点侧 E2E 通过后，deps_app 键与状态矩阵行经 build-infra #1095 落地（inert 矩阵，pretrain_gpt 跑 5 次迭代退出码 0）。

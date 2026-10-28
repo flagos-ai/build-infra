@@ -73,3 +73,27 @@ mthreads-gmi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:49:45*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 02:17:59*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-14 14:07:01*
+
+- First delivery: MUSA RC4.3.6 with MCCL RC2.1.6 and muDNN RC3.1.6 on
+  ubuntu:22.04.
+- The vendor's driver is installed from its own `.deb`, so the device's
+  userspace comes from the container, and the build toolchain, OpenMPI and
+  the Python development headers are installed beside the SDK.

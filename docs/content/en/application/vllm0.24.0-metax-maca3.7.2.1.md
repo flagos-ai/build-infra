@@ -107,3 +107,45 @@ docker run --rm -it \
   --group-add video \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.3.0-0.3.0
+
+*2026-10-26 23:17:22*
+
+- The runtime introduces two container-start flags,
+  `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
+  which override the compiler and FlagGems versions baked into the image. A
+  request that cannot be honoured stops the container instead of letting it
+  run on another version.
+- flagcx 0.14.0 is now a runtime dependency, pinned as
+  flagcx==0.14.0+maca3.7.2.1.
+- This backend installs the native plugin build `0.3.0+maca3.7.2.1`: it
+  carries `vllm_fl._C` and registers `weak_ref_tensor` on the CUDA
+  dispatch key, without which vLLM's cudagraph capture leaks VRAM
+  per captured graph.
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:06:04*
+
+The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit f105277). The plugin now ships as the release version (vllm-plugin-fl==0.3.0, one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2 image it replaces; the only delta is the formal release of the same code.
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 09:55:46*
+
+This moves the image from 990a8f7, one commit past v0.3.0-rc2.post1, onto the release tag itself. Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and on the vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the plugin comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
+
+*2026-09-16 10:30:23*
+
+Rebuild on the vllm-plugin-FL 0.3.0-rc2 branch head 990a8f7 — PR 377, the metax 0.24.0 enablement this image was waiting on, now on the release line. The four compatibility fixes that previously had to be applied to site-packages by hand live in the plugin: a new metax patches/vllm024_compat.py redefines the triton _load_ptr (_load_ptr's tl.pointer_type called with a constexpr element type, which metax triton 3.0.0 rejects — unwrapped via elem_dtype.value) and _penalties_kernel (the chained boolean use_rep_penalty or use_freq_penalty or use_pres_penalty parenthesized for the same compiler), and moves the SamplingStates get_top_k_top_p / PoolingRunner.pool indexing onto CPU because metax UVA views are CPU-typed tensors; the gdn_linear_attn import of GatedDeltaNetAttention is version-gated (0.24 moved it to mamba/gdn/base.py) and the fused_moe router guards its ROCm-only aiter imports (0.24 dropped fused_moe.rocm_aiter_fused_moe). __init__.py adds _patch_torch_accelerator, binding the torch.cuda memory-stats APIs MACA's partial torch.accelerator lacks; fa_utils.py takes reshape_and_cache_flash from flag_gems, as the 0.20.2 fix does (the empty wheel has no compiled _C_cache_ops). The previous image pinned 5c511da, a commit on PR 377's pre-merge branch that is not the tip of any branch or tag upstream, so no named plugin ref can rebuild it. The wheel version base follows the branch's own version (0.3.0rc2.post1), as the other 0.24.0 backends do.
+
+### 2.1.2-0.2.1_g5c511da.d20260901
+
+*2026-09-03 01:24:31*
+
+vllm 0.24.0 on metax via vllm-plugin-FL PR 377 (metax 0.24 enablement). F/T verified.

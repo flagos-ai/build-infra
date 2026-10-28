@@ -113,3 +113,45 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:20:24*
+
+- The runtime introduces two container-start flags,
+  `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
+  which override the compiler and FlagGems versions baked into the image. A
+  request that cannot be honoured stops the container instead of letting it
+  run on another version.
+- flagcx 0.14.0 is now a runtime dependency, pinned as
+  flagcx==0.14.0+corex4.5.0.
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:02:38*
+
+The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit f105277). The plugin now ships as the release version (vllm-plugin-fl==0.3.0, one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2 image it replaces; the only delta is the formal release of the same code.
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-23 15:32:20*
+
+Rebuild on a corrected base image. The CoreX cmake installer was being handed a flag it silently ignores, so every image in this chain shipped a cmake that cannot run (#1011). Nothing else moves: same stack, same base and runtime recipe, same plugin pin.
+
+*2026-09-20 09:55:12*
+
+The symmetric-memory stub (PR 491) is on the release line now, so this image leaves c9e2573, a commit of the main line, converging this backend onto the plugin the 0.24.0 line delivers. Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and on the vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the plugin comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.2.1_gc9e2573.d20260913
+
+*2026-09-13 14:43:51*
+
+Rebuild on the unified vllm-plugin-FL head (symm_mem stub, a no-op on torch >= 2.8), converging both iluvatar corex variants onto one wheel. F/T dual-compiler verified.
+
+### 2.1.2-0.2.1_g07063fd.d20260828
+
+*2026-08-30 05:30:47*
+
+Initial vllm 0.24.0 deliverable on iluvatar corex4.5.0. F/T dual-compiler verified.

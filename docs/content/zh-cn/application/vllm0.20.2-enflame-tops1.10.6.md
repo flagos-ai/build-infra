@@ -116,3 +116,33 @@ docker run --rm -it \
   -v /dev:/dev \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-29 01:26:18*
+
+改用基于 FlagTree 0.7.0 重建的燧原 runtime 重建（0.6.0/0.7.0rc2 → 0.7.0+enflame3.6，2026-09-28）。插件与 app pin 与被替代的镜像相同。
+
+*2026-09-28 06:40:33*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 08:18:38*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 0.7.0 时代的 FlagTree；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.2rc2.post1_gdcc8966.d20260916
+
+*2026-09-16 10:34:57*
+
+改用 vllm-plugin-FL 0.2.2-rc2 分支 head dcc8966 重建——PR 357，GCU300 的工作首次进入发布线。GCU attention 从插件自带的 AttentionGCUBackend 移到 vLLM 原生 FlashAttentionBackend，经由燧原的 flash_attn 包接入（新增 impl/flash_attn_backend.py 与 impl/slot_mapping.py）；enflame.yaml 的 flagos_blacklist 增加了 GCU300 PassManager 拒绝的 int64-IR ops，以及 sampling 的 sort/top-k 路径与 argmax，后者改回走 torch_gcu。镜像此前从合并前的 enflame 分支（c2e496d）构建，其 commit 从未进入该线。wheel 的版本基址跟随分支自身版本（0.2.2rc2.post1），与 metax 0.20.2 的镜像一致。
+
+### 2.1.2-0.2.1_gc2e496d.d20260905
+
+*2026-09-05 12:54:19*
+
+GCU300（tops1.10.6）上 0.20.2 的首次交付。vllm-plugin-FL rotary-guard-ordering（c2e496d）在 gcu 补丁中保护 rotary flash_attn 的 import，使 engine 启动不再硬依赖 triton_gcu；repack 的 vllm wheel pin 住 xgrammar==0.2.3+flagos（早先的宽松 pin 把 triton 3.8.0 覆盖到 runtime 之上）。F/T 均能正确 serve（Paris anchor）。

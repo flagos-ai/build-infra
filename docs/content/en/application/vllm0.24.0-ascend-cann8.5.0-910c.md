@@ -131,3 +131,44 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## Changelog
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:20:13*
+
+- The runtime introduces two container-start flags,
+  `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>`,
+  which override the compiler and FlagGems versions baked into the image. A
+  request that cannot be honoured stops the container instead of letting it
+  run on another version.
+- flagcx 0.14.0 is now a runtime dependency, pinned as
+  flagcx==0.14.0+cann8.5.0.910c.
+- The runtime re-asserts the venv prefix after this vendor's SDK env assigns
+  PATH absolutely; `pip` otherwise resolved to the system interpreter, or to
+  none.
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:01:13*
+
+The 0.24.0 line moves to the vllm-plugin-FL formal release v0.3.0 (tag = commit f105277). The plugin now ships as the release version (vllm-plugin-fl==0.3.0, one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2 image it replaces; the only delta is the formal release of the same code.
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 10:11:13*
+
+The ascend 0.24.0 port (PR 387) is on the release line now, so this image leaves f31b199, the head that carries the index_select blacklist this backend's vendor triton 3.2.0 needs. Rebuilt on the FlagOS 2.2.0 stack, whose base and runtime carry FlagGems 5.4.0-rc2.post3, and on the vllm-plugin-FL release tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the plugin comes from a released tag rather than a pre-merge commit — an immutable pin, and one wheel served by every vendor index.
+
+### 2.1.2-0.2.0_gf31b199.d20260911
+
+*2026-09-11 10:54:44*
+
+Rebuild pinning vllm-plugin-FL to the index_select blacklist fix (vllm-plugin-FL #387 head f31b199, replacing cf8998c). Without it this backend's vendor triton 3.2.0 path degrades deterministically: triton 3.2.0 ships no triton.experimental, the generic flag_gems index_select is wrong at the shape torch_npu._npu_rotary_embedding uses internally (inp 40960x128, dim 0, idx size 5), and the corrupted cos/sin reach every attention head. Blacklisting the op routes it back to aten.
+
+### 2.1.2-0.2.0_gcf8998c.d20260818
+
+*2026-09-10 10:57:00*
+
+Initial vllm 0.24.0 deliverable on Ascend 910C / CANN 8.5.0 (ascend-cann8.5.0-910c). Same repacked vllm +flagos wheel and vllm-plugin-FL ascend 0.24.0 port as the 910B4 line; only the base SDK's chip-split ops package differs (CANN 910C Ops). Single-step install matrix-inert; F/T dual-compiler E2E verified.

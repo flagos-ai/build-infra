@@ -107,3 +107,29 @@ docker run --rm -it \
   --group-add video \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:36:05*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 07:21:14*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 FlagTree 0.6.1+metax3.6；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.2rc2.post1_gdb28502.d20260915
+
+*2026-09-15 10:39:50*
+
+改用 vllm-plugin-FL 0.2.2-rc2 分支 head db28502 重建——即 tag v0.2.2-rc2.post1 加两个已合并的 commit。这里关键的是 metax PR 333：reshape_and_cache_flash 改走 flag_gems dispatch，而非 vLLM 原生 op。wheel 的版本基址跟随分支自身版本（0.2.2rc2.post1），而非更早 app 镜像所在的 0.2.1 线。
+
+### 2.1.2-0.2.1_g3bc66eb.d20260825
+
+*2026-08-25 02:40:02*
+
+沐曦（MACA）上 0.20.2 的首次交付。empty 模式 repack wheel 单步安装；F/T serve 已验证。更早的 g825c1cd 发布是 metax/nvidia 共用的插件 pin，已被本后端专属构建取代。

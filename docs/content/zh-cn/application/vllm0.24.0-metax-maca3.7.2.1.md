@@ -107,3 +107,43 @@ docker run --rm -it \
   --group-add video \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 23:17:22*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+maca3.7.2.1。
+- 本后端安装原生插件构建 `0.3.0+maca3.7.2.1`：它带有 `vllm_fl._C`，
+  并在 CUDA dispatch key 上注册 `weak_ref_tensor`；缺少它时 vLLM 的
+  cudagraph 捕获会按每个捕获的 graph 泄漏 VRAM。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:06:04*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 09:55:46*
+
+本镜像从 990a8f7（v0.3.0-rc2.post1 之后的一个 commit）移到发布 tag 本身。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.3.0rc2.post1_g990a8f7.d20260916
+
+*2026-09-16 10:30:23*
+
+改用 vllm-plugin-FL 0.3.0-rc2 分支 head 990a8f7 重建——PR 377，本镜像一直等待的 metax 0.24.0 使能，现已进入发布线。此前必须手工打进 site-packages 的四个兼容修复现已内置于插件：新增的 metax patches/vllm024_compat.py 重定义了 triton 的 _load_ptr（_load_ptr 的 tl.pointer_type 以 constexpr 元素类型调用，metax triton 3.0.0 会拒绝，通过 elem_dtype.value 解包）与 _penalties_kernel（链式布尔 use_rep_penalty or use_freq_penalty or use_pres_penalty 针对同一编译器加括号），并把 SamplingStates 的 get_top_k_top_p / PoolingRunner.pool 索引移到 CPU，因为 metax 的 UVA view 是 CPU 类型 tensor；gdn_linear_attn 对 GatedDeltaNetAttention 的 import 做了版本门控（0.24 把它移到了 mamba/gdn/base.py），fused_moe 的 router 也守住了它仅 ROCm 的 aiter import（0.24 去掉了 fused_moe.rocm_aiter_fused_moe）。__init__.py 新增 _patch_torch_accelerator，绑定 MACA 那个不完整的 torch.accelerator 所缺的 torch.cuda 内存统计 API；fa_utils.py 从 flag_gems 取 reshape_and_cache_flash，与 0.20.2 的修复一致（空 wheel 没有编译出的 _C_cache_ops）。前一个镜像 pin 的是 5c511da，PR 377 合并前分支上的一个 commit，它不是上游任何分支或 tag 的 tip，因此没有具名的插件 ref 能重建它。wheel 的版本基址跟随分支自身版本（0.3.0rc2.post1），与其他 0.24.0 后端一致。
+
+### 2.1.2-0.2.1_g5c511da.d20260901
+
+*2026-09-03 01:24:31*
+
+通过 vllm-plugin-FL PR 377（metax 0.24 使能）在沐曦上的 vllm 0.24.0。F/T 已验证。

@@ -120,3 +120,41 @@ docker run --rm -it \
   --device /dev/xpuctrl \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 23:13:33*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+xre5.37.1。
+- 本后端安装原生插件构建 `0.3.0+xre5.37.1`：它带有 `vllm_fl._C`，
+  并在 CUDA dispatch key 上注册 `weak_ref_tensor`；缺少它时 vLLM 的
+  cudagraph 捕获会按每个捕获的 graph 泄漏 VRAM。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:02:40*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-22 11:31:33*
+
+改用刷新后的昆仑芯 base 重建，该 base 现在对 XRE 与 xcudart 都提供的五个 soname（libxpuml、libxpucuda、libxpunvidia-ml、libcudart、libxpurt）只保留一代，而此前两者都装。同一个名字的两代同时可达：torch_plugin 按绝对路径从 libcuda.so.1 所在目录 dlopen libxpuml.so.1，那是 xcudart 的副本，而 loader 的默认搜索路径与 FlagCX 的链接行取的是 XRE 的，且 xcudart 副本缺少 XRE 副本具有的 nvml 符号。本 app 所基于的 runtime 镜像已在该 base 上重建，app 镜像又带上它，否则这种混装会随本镜像一起发出去。
+
+*2026-09-20 09:54:00*
+
+昆仑芯 0.24.0 移植（PR 401）已进入发布线，因此本镜像离开 f780db1，即该移植的合并前 head；该移植带上了前一个镜像缺少的 paged-KV 写入约定修复与 FLA target 重指向。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.0_gf780db1.d20260823
+
+*2026-08-23 04:47:16*
+
+昆仑芯上 vllm 0.24.0 的首次交付（PR 401）。F/T 已验证。

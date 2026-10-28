@@ -97,3 +97,26 @@ npu-smi info
 ```
 
 *更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-14 05:49:44*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.2.0
+
+*2026-09-17 01:20:37*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.1.2
+
+*2026-08-10 17:08:40*
+
+- 首次交付：CANN 8.5.0 —— toolkit、910B ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
+- python3.11 从 deadsnakes 强制安装，与发行版自带的 3.12 并存：CANN 安装器写出的 python 版本相关产物会被 runtime import，因此基础解释器必须与 runtime venv 的一致。
+- SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。toolkit 和 NNAL 的 `set_env.sh` 在 bash 下 source：它们是 bash 脚本，在 dash 下可能走到调用 `exit` 的路径，静默中断该步骤。
+- ATB 也在该固化中，因为 toolkit 的 `set_env.sh` 漏掉 `ATB_HOME_PATH` 和 ATB 库路径；缺了它们 `libatb.so` 加载失败，ATB 算子（`_npu_reshape_and_cache`、`_npu_rotary_embedding`）在推理时崩溃。

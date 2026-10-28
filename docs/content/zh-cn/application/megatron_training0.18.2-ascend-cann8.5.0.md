@@ -128,3 +128,11 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG megatron-train --model-type GPT
 ```
+
+## 更新日志
+
+### 2.2.0-0.3.0
+
+*2026-09-29 08:57:57*
+
+ascend-cann8.5.0 上首个 megatron-core 0.18.2 app 镜像。基于 FlagOS 2.2.0 栈、用 MLF v0.3.0 的 wheel（0.18.2+0.3.0，128dbd4f3）构建。节点侧 F/T 双编译器 E2E 通过后，deps_app 键与状态矩阵行经 build-infra #1296 落地（pretrain_gpt 跑 5 次迭代退出码 0，loss 逐位一致）。

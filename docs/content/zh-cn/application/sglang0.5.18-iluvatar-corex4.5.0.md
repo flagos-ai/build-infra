@@ -119,3 +119,17 @@ docker run --rm -it \
   --device /dev/itrctl \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.1.dev1_g201484665
+
+*2026-09-23 11:33:09*
+
+stack 迁到 2.2.0 后的首次重建，因此 tag 退出 2.1.2。底下的 base 与 runtime 是新的，原因有二：CoreX cmake 安装器被传入一个它静默忽略的 flag，使链上每个镜像都带上一个无法运行的 cmake（#1011）；以及 FlagGems 升到本 stack pin 的版本。sglang 与插件 pin 与其替代的 2.1.2 镜像相同。
+
+### 2.1.2-0.1.dev1_g201484665
+
+*2026-09-10 11:59:36*
+
+天数智芯 CoreX 4.5.0 上的 sglang 0.5.18。corex 的 torch 是 CUDA 别名，因此 sglang 的 is_cuda() 为真，而本平台既没有 NVIDIA 设备，也没有其 CUDA 路径所期待的 NVIDIA 专属包：插件分支补齐由此产生的四处缺口（通过磁盘上的 stub 包提供 flashinfer 导入面、sm75 dtype 下限、nvcc JIT 的 clamp_position，以及厂商 triton 3.2 缺失 PDL 内建）。F/T 双编译器 E2E 已在 Qwen3-4B 上验证。

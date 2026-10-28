@@ -103,3 +103,25 @@ tsm_smi
 ```
 
 *更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-14 05:50:35*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.2.0
+
+*2026-09-17 01:21:40*
+
+- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+
+### 2.1.2
+
+*2026-08-14 14:57:48*
+
+- 首次交付：TSM 260610164501 的 runtime、validation suite、CCL 和 profiler，连同 TX8 编译器依赖和 LLVM 22，基于 ubuntu:24.04。
+- `libfmt8` 取自 Ubuntu 22.04 的包：`torch_txda` 链接 `libfmt.so.8`，而 24.04 只提供 `libfmt.so.9`。
+- 镜像内设置 `KUIPER_PATH`、`TX8_DEPS_ROOT`、`LLVM_SYSPATH`、`LLVM_BINARY_DIR` 和 MLIR Python 路径，无需激活步骤即可解析厂商编译器栈。

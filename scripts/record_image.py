@@ -120,6 +120,20 @@ def harbor_push_time(image_ref: str) -> str:
 # ── base / runtime: date the changelog entry ────────────────────────────────
 
 
+def _changelog_pages(layer: str, backend: str) -> list[str]:
+    """Every base/runtime file carrying this backend's Changelog section.
+
+    The dated entry has to reach the layer's readers, and the section is
+    appended to the generated pages rather than rendered into their bodies, so
+    it is rebuilt here — right after the date exists — and staged with the
+    changelog. Merging the record PR then republishes the Harbor description
+    through the layer's existing pubdoc workflow.
+    """
+    return [
+        f"docs/content/{lang}/{layer}/{backend}.md" for lang in ("en", "zh-cn")
+    ] + [f"{layer}/{backend}.md"]
+
+
 def record_changelog(layer: str, backend: str, ref: str, tag: str, dry_run: bool) -> None:
     changelog = f"{layer}/changelogs/{backend}.yaml"
     if not (REPO_ROOT / changelog).is_file():
@@ -135,8 +149,19 @@ def record_changelog(layer: str, backend: str, ref: str, tag: str, dry_run: bool
         print(f"{changelog}: tag {tag} was already dated — nothing to record")
         return
 
+    # The entry is dated, so it is now publishable: rebuild the Changelog
+    # section of this backend's pages before recording, or the record PR would
+    # leave the published copy one rebuild behind the changelog file.
+    _run_py(
+        REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py",
+        "--changelog-only", "--layer", layer, backend,
+    )
+
     configure_git_identity()
     _git("add", changelog, check=False)
+    pages = _changelog_pages(layer, backend)
+    for page in pages:
+        _git("add", page, check=False)
     commit_msg = f"chore({layer}): record changelog date for {tag} ({backend})"
     # One branch per layer and tag: a dispatch records every backend it pushed
     # onto this one, and it is deleted when its PR merges.
@@ -392,13 +417,21 @@ def record_app(matrix_rel: str, backend: str, ref: str, tag: str, changelog: str
     branch = record_branch(matrix_rel, backend)
 
     # Refresh the pipeline so matrix, verification md, and app pages agree.
+    # --changelog-only last and unscoped: --app-only has just dropped the
+    # Changelog section from *every* app page (they are all re-rendered and all
+    # staged here), so all of them have to get it back, not just this one.
     _run_py(REPO_ROOT / "scripts" / "docs" / "gen_data.py")
     _run_py(REPO_ROOT / "scripts" / "render_status_matrix.py", "--component", comp)
     _run_py(REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py", "--app-only")
+    _run_py(
+        REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py",
+        "--changelog-only", "--layer", "app",
+    )
 
     # Stage only the artifacts this record touches.
     patterns = [matrix_rel, "packaging/*/docs/*-verification-matrix.md",
-                "docs/content/en/application/*.md", "docs/content/zh-cn/application/*.md"]
+                "docs/content/en/application/*.md", "docs/content/zh-cn/application/*.md",
+                "app/*/*.md"]
     if changelog:
         patterns.append(changelog)
     for pattern in patterns:

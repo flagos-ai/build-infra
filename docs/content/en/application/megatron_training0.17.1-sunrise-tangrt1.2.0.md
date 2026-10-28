@@ -81,3 +81,19 @@ docker run --rm -it \
   -e TANG_VISIBLE_DEVICES=all \
   $IMG megatron-train --model-type GPT
 ```
+
+## Changelog
+
+### 2.2.0-0.2.3
+
+*2026-09-28 15:57:10*
+
+Rebuild on a rebuilt sunrise runtime. The FlagTree sunrise wheel was faulty (missing sunriseTritonPlugin.so, so flag_gems could not import triton) and has been re-uploaded; runtime v2 :2.2.0 and v1 :2.2.0-build were rebuilt on it (digests 38eec/8b6fc). This app image was built on the broken runtime and is redone on the fixed one. Same plugin and app pins as the image it replaces.
+
+*2026-09-28 05:16:17*
+
+Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+
+*2026-09-23 07:23:20*
+
+First publication of the training app image on this backend. The megatron-core wheel is built from the Megatron-LM-FL release line's head, which now carries the platform PRs merged into it (MLF 180 txda graph-capture query, MLF 181 Sunrise PT-PU platform), and the single-step install pin states the wheel exactly (0.17.1+fl.0.2.3) rather than resolving ==0.17.1 to whichever local version the index held. No vendor-side PR is pending.

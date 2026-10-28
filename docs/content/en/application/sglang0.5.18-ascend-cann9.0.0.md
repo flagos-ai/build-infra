@@ -138,3 +138,11 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG sglang-serve --model-path <path> --port 9000
 ```
+
+## Changelog
+
+### 2.1.2-0.1.dev1_g2e568482e
+
+*2026-09-03 14:08:15*
+
+sglang 0.5.18 on Ascend cann9.0.0 (PR 84 zero-kernel stand-ins).

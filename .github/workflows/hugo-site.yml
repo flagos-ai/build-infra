@@ -28,6 +28,10 @@ on:
       - 'docs/**'
       - 'configs.yaml'
       - 'base/**'
+      # Every layer's changelog feeds the Changelog section of its pages, so a
+      # changelog-only change has to rebuild the site too.
+      - 'runtime/changelogs/**'
+      - 'app/*/changelogs/**'
       - '.github/build-config.yml'
       - '.github/workflows/hugo-site.yml'
   workflow_dispatch:
@@ -82,6 +86,14 @@ jobs:
 
       - name: Generate docs data
         run: python3 scripts/docs/gen_data.py
+
+      - name: Refresh the Changelog sections
+        # Recompute them from the changelog files rather than trusting the copy
+        # committed in each page: a changelog entry dated since the last page
+        # render is on main but not yet in the page, and the site must show what
+        # the changelog says. Only the workspace is rewritten — the committed
+        # copy stays a cache that the next record or gendoc run corrects.
+        run: python3 scripts/docs/gen_descriptions.py --changelog-only
 
       - name: Build the site
         run: |

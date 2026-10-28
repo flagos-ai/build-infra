@@ -78,3 +78,19 @@ docker run --rm -it \
 ```bash
 ixsmi
 ```
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-25 09:50:49*
+
+该镜像新增容器启动时的版本请求：`-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>` 可覆盖镜像内烘焙的版本，在应用启动前从镜像自带的索引解析。`latest` 取 daily 线上最新的 wheel。无法满足的请求会以非零退出码终止容器，而不是让它以另一个版本运行。镜像烘焙了这些请求所读取的文件，其中包含把容器内的 FlagGems 安装约束到本镜像自身 pin 的 constraints 文件。
+
+*2026-10-23 03:46:35*
+
+flagcx 0.14.0 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.0+corex4.4.0，因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，而不是 triton/_C 自带的那份。镜像其余内容不变。
+
+*2026-10-14 06:24:03*
+
+该镜像首次携带 FlagTree 版本覆盖（build-infra #1342，2026-10-14 合并）：zz-flagos.sh 现在支持在容器启动时请求 FlagTree 版本（`docker run -e FLAGTREE_VERSION=<ver>`），`compiler flagtree <ver>` 在运行中的容器里做同样的事。所请求的 wheel 会就地安装到 /opt/flagtree —— 从本镜像自带的厂商索引（/etc/flagos/vendor-index，构建时写入）获取，并以共享 lane 作为按顺序的第二次尝试 —— 因此 FlagTree 升级不再强制重建本镜像及其上层的每一个 app 镜像。安装失败会告警并保留已烘焙的编译器生效。补记：本次推送早于其上一条记录，其日期即首次携带该覆盖的那次推送。

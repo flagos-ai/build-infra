@@ -18,15 +18,15 @@
 description. Harbor renders the description as markdown and shows the repository
 name as the top heading, so the H2-based body reads correctly on its own.
 
-Reads the plain-flavor markdown from <layer>/<name>.md (the same file that serves
-as the in-repo image readme) for every backend in docs/data/images.yaml. The
-repository is flagos-<layer>-<name> under the project taken from the image ref.
-
-The layer (base or runtime) selects both the markdown directory and which image
-ref in images.yaml supplies the Harbor project.
+Reads the plain-flavor markdown for every image in docs/data/images.yaml. The
+base and runtime layers read <layer>/<name>.md, one per backend; the app layer
+reads app/<component>/<image>.md, one per app image (109 of them, against 21
+backends — which is why the app layer iterates the app images too). The
+repository and the Harbor project are both taken from the image ref itself, so
+one rule covers all three layers.
 
 Env: HARBOR_HOST, HARBOR_USER, HARBOR_PW (basic auth).
-Usage: python scripts/docs/upload_descriptions.py [--layer base|runtime] [--dry-run]
+Usage: python scripts/docs/upload_descriptions.py [--layer base|runtime|app] [--dry-run]
 """
 
 import base64
@@ -47,10 +47,37 @@ def strip_front_matter(md: str) -> str:
     return md.lstrip("\n")
 
 
+def repo_of(image_ref: str) -> str:
+    # harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1 -> flagos-base-nvidia-cuda13.3
+    # harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-12.8:TBD -> vllm0.24.0-generic-12.8
+    return image_ref.split("/")[2].split(":")[0]
+
+
 def project_of(image_ref: str) -> str:
     # harbor.baai.ac.cn/flagos-base/flagos-base-nvidia-cuda13.3:2.1.1 -> flagos-base
     path = image_ref.split("/", 1)[1] if "/" in image_ref else image_ref
     return path.split("/", 1)[0]
+
+
+def targets(images: dict, layer: str, root: Path) -> list[tuple[Path, str]]:
+    """(markdown path, image ref) for every image of one layer.
+
+    The markdown path is derived from the ref's repository name — the app layer's
+    component directory (megatron / vllm / sglang) is discovered from where the
+    file lives rather than re-derived from the app key, so the two can never
+    disagree about which component an image belongs to.
+    """
+    out: list[tuple[Path, str]] = []
+    for entry in images.get("backends", []):
+        if layer in ("base", "runtime"):
+            md = root / layer / f"{entry['name']}.md"
+            out.append((md, entry[layer]["image"]))
+            continue
+        for data in (entry.get("app") or {}).get("images", {}).values():
+            repo = repo_of(data["image"])
+            for md in sorted((root / "app").glob(f"*/{repo}.md")):
+                out.append((md, data["image"]))
+    return out
 
 
 def main():
@@ -59,8 +86,8 @@ def main():
     layer = "base"
     if "--layer" in args:
         layer = args[args.index("--layer") + 1]
-    if layer not in ("base", "runtime"):
-        sys.exit(f"invalid --layer {layer!r}: expected 'base' or 'runtime'")
+    if layer not in ("base", "runtime", "app"):
+        sys.exit(f"invalid --layer {layer!r}: expected 'base', 'runtime' or 'app'")
 
     host = os.environ["HARBOR_HOST"]
     user = os.environ.get("HARBOR_USER", "")
@@ -69,18 +96,15 @@ def main():
 
     root = Path(__file__).resolve().parents[2]
     images = yaml.safe_load((root / "docs" / "data" / "images.yaml").read_text())
-    md_dir = root / layer
 
     failures = 0
-    for entry in images.get("backends", []):
-        name = entry["name"]
-        md_path = md_dir / f"{name}.md"
+    for md_path, ref in targets(images, layer, root):
+        repo = repo_of(ref)
         if not md_path.is_file():
-            print(f"skip {name}: no description md")
+            print(f"skip {repo}: no description md")
             continue
         desc = strip_front_matter(md_path.read_text())
-        project = project_of(entry[layer]["image"])
-        repo = f"flagos-{layer}-{name}"
+        project = project_of(ref)
         url = f"https://{host}/api/v2.0/projects/{project}/repositories/{repo}"
         if dry:
             print(f"[dry-run] PUT {url}  ({len(desc)} chars)")

@@ -91,7 +91,9 @@ gh pr list --head auto/image-descriptions-*
 - [ ] 系统包版本无意外大版本跳变（gcc、libc 等）
 - [ ] Review + merge PR
 
-合并后 `base-descriptions-publish.yml` + `hugo-site.yml` 自动推送描述到 Harbor 和文档站。
+合并后 `pubdoc-base.yml` + `hugo-site.yml` 自动推送描述到 Harbor 和文档站。
+描述 PR 同时携带各页面的 Changelog 一节（由 changelog 文件重算），合入即刷新
+Harbor 上的镜像描述。
 
 ## 4. 构建 runtime 镜像（cpp wheel 的构建平台）
 
@@ -197,6 +199,21 @@ gh workflow run gendoc-runtime.yml
 
 > **注意：** 此步骤只在 runtime 镜像最终验证通过后执行一次。
 > 描述内容来自 `configs.yaml`，runtime 镜像构建本身不触发此工作流。
+
+## 8b. 发布 app 镜像描述（Harbor）
+
+app 层与其他两层走同一条线，只是描述源与触发路径不同：
+
+- 描述源 `app/<组件>/<镜像>.md`，由 `gen_descriptions.py --app-only` 生成、
+  app 的 record PR 携带（每次 push app 镜像都会刷新）；
+- 合入 main 后 `pubdoc-app.yml` 把描述推到 Harbor 的 `flagos-app` 项目。
+
+无需手动触发 —— 记录镜像的 PR 合入即发布。
+
+> **合并顺序：changelog record PR 先合，描述 PR 后合。** 描述 PR 里的
+> Changelog 一节是生成时从 changelog 文件重算的；若它先合入，record PR 随后
+> 回填的日期要等下一次刷新才可见（站点与 Harbor 侧各自在发布前重算，所以读者
+> 看到的仍是对的，只是仓库里那份缓存短暂落后）。
 
 ## 9. 打 release tag
 

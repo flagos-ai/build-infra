@@ -69,3 +69,37 @@ hy-smi
 ```
 
 *Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-27 02:02:24*
+
+- `libgoogle-glog0v6t64` is installed for the `libglog.so.1` soname: torch's
+  c10 headers make an extension build link glog (`C10_USE_GLOG`) and DTK
+  ships no such library, so `import vllm_fl._C` failed and this backend's
+  application layer could not load its native plugin.
+
+### 2.2.0
+
+*2026-09-17 01:20:40*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-16 03:44:50*
+
+- First delivery: Hygon DTK 26.04 with the DTK LLVM toolchain on
+  ubuntu:24.04. The DTK build is the Ubuntu 22.04 one — there is no 24.04
+  release — and the image takes the newer base for the libstdc++ FlagTree
+  needs.
+- The DTK LLVM package ships in it — the toolchain FlagTree's DCU backend
+  builds against.
+- `libnuma1`, `libgfortran5`, `libdrm-amdgpu1`, `libdw1`, `libelf1` and
+  `libpciaccess0` carry the userspace the torch build and the DCU detection
+  path need.
+- The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
+  time; `env.sh` runs under bash because it finds DTKROOT through
+  `BASH_SOURCE[0]`, which dash does not support.

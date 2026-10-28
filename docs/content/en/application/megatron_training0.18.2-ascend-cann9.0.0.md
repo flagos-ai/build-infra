@@ -128,3 +128,11 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG megatron-train --model-type GPT
 ```
+
+## Changelog
+
+### 2.2.0-0.3.0
+
+*2026-09-29 08:58:11*
+
+First megatron-core 0.18.2 app image on ascend-cann9.0.0. Built on the FlagOS 2.2.0 stack from the MLF v0.3.0 wheel (0.18.2+0.3.0, 128dbd4f3). deps_app key + status-matrix rows landed via build-infra #1296 after the on-node F/T dual-compiler E2E passed (pretrain_gpt 5-iter exit 0, loss bit-identical).

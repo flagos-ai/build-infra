@@ -113,3 +113,23 @@ docker run --rm -it \
   --device /dev/accel_drv_mgr \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.2.0-0.2.2
+
+*2026-09-28 06:57:49*
+
+改用 vllm-plugin-FL 正式发布版 v0.2.2 重建（tag = commit 675548ab，即 0.2.2-rc2 的 head）。插件现在以发布版本交付（vllm-plugin-fl==0.2.2，单个 py3-none-any wheel，sha 90a4ba10...27fa2，11 个 vendor index 全都有），此前用的是 v0.2.2-rc2.post2 交付 tag——唯一差别是回移的 #553（有界/安全的 multiprocessing worker 关闭），2.2.0 stack 线现已带上该修复。app 镜像从该 wheel 重建，精确 pin 到该版本。
+
+### 2.2.0-0.2.2rc2.post2
+
+*2026-09-20 11:10:59*
+
+改用 FlagOS 2.2.0 stack 与 vllm-plugin-FL 发布 tag v0.2.2-rc2.post2（214804a，0.2.2-rc2 的 head）重建。两层同时变动：stack 带来 2.2.0 的 base 与 runtime，含 FlagGems 5.4.0-rc2.post3 与 0.7.0 时代的 FlagTree；插件改为取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.1_g90ffdf0.d20260912
+
+*2026-09-13 07:07:04*
+
+清微 TSM 260610（Tsingmicro TX8110）上 vllm 0.20.2 的首次交付。TX8110 计算 flag_gems 的 attention、rms_norm 与 rotary_embedding kernel 会静默出错，因此 attention 走 torch SDPA 并采用普通索引 KV 写入，另外两个回退到 reference；triton 的 copy/cast kernel 被拉黑，因为它们在 sampling 期间做 dtype 转换时会挂死。F/T 双编译器 serve 加推理 E2E 已验证，两条路径在 anchor prompt 上逐 token 一致。

@@ -119,6 +119,52 @@ The gate needs no registry query or clock comparison: a delivered entry is
 always dated (backfilled), so an empty `date` unambiguously means a human
 prepared this rebuild.
 
+## 发布 / Publishing
+
+每一层镜像的用户可读面都带一节 Changelog：
+
+- **文档站**：镜像页末节 `## Changelog` / `## 更新日志`，最新 tag 在前；
+- **Harbor**：仓库描述里的同一节（base/runtime 的 `<layer>/<name>.md`、
+  app 的 `app/<组件>/<镜像>.md` 为描述源）。
+
+这一节**从 changelog 文件重算**，不烘进页面本体：页面的其余部分由各自的
+生成器按各自的节奏产出（base 页需要版本 TSV，runtime 页在发版收尾时渲染一次），
+若一节随整页输出，两条线中后跑的那条会把期间写下的条目抹掉。重算点有三处：
+每层的 record 步骤（回填日期之后）、站点构建前、Harbor 上传前
+（`gen_descriptions.py --changelog-only`）。因此**读者看到的永远与 main 上的
+changelog 一致**，页面上提交的那一节只是缓存，由下一次 record / gendoc 修正。
+
+两条与「读者看什么」有关的规则：
+
+- **待定条目（`date` 为空）不发布** —— 它描述的 push 还没发生，不是读者能拿到的
+  变更。回填日期后它才出现，而这正是 record 步骤刷新本节的原因。
+- **`upstream_prs` 不发布** —— 它是维护者的跟踪清单，不是这次构建带给用户的变更。
+
+Every layer's user-facing surface carries a Changelog section:
+
+- **Docs site**: the last section of each image page, newest tag first;
+- **Harbor**: the same section in the repository description (fed by
+  `<layer>/<name>.md` for base/runtime and `app/<component>/<image>.md` for app).
+
+The section is **recomputed from the changelog file**, never baked into a page
+body: the rest of a page is produced by its own generator on its own cadence
+(the base pages need version TSVs, the runtime pages render once at the end of a
+release), and if the section rode along with that output, whichever line ran
+last would drop the entries written in between. It is recomputed in three
+places — each layer's record step (after the date is backfilled), the site
+build, and the Harbor upload (`gen_descriptions.py --changelog-only`). **What a
+reader sees therefore always matches the changelog on main**; the copy
+committed in the page is a cache that the next record or gendoc run corrects.
+
+Two rules about what a reader sees:
+
+- **A pending entry (empty `date`) is not published** — the push it describes
+  has not happened, so it is not a change anyone can have. It appears once the
+  date is backfilled, which is exactly why the record step refreshes the
+  section.
+- **`upstream_prs` is not published** — it is maintainer bookkeeping, not a
+  change this build brings.
+
 ## 相关 / See also
 
 - 生成式文档与 review 门禁的既有模式：`docs/status-matrix.md`

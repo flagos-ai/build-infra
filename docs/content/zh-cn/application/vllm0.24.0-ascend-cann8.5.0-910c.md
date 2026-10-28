@@ -131,3 +131,42 @@ docker run --rm -it \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
   $IMG vllm-serve --model <path> --port 9000
 ```
+
+## 更新日志
+
+### 2.3.0-0.3.0
+
+*2026-10-26 12:20:13*
+
+- runtime 引入两个容器启动期 flag，
+  `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+  用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+  而不是让它跑在另一个版本上。
+- flagcx 0.14.0 现为 runtime 依赖，pin 为
+  flagcx==0.14.0+cann8.5.0.910c。
+- 本 vendor 的 SDK env 以绝对路径赋值 PATH 后，runtime 会重新声明 venv 前缀；
+  否则 `pip` 会解析到系统解释器，或者解析不到任何解释器。
+
+### 2.2.0-0.3.0
+
+*2026-09-28 14:01:13*
+
+0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
+
+### 2.2.0-0.3.0rc2.post2
+
+*2026-09-20 10:11:13*
+
+ascend 0.24.0 移植（PR 387）已进入发布线，因此本镜像离开 f31b199，即携带本后端 vendor triton 3.2.0 所需 index_select 黑名单的那个 head。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
+
+### 2.1.2-0.2.0_gf31b199.d20260911
+
+*2026-09-11 10:54:44*
+
+重建并把 vllm-plugin-FL pin 到 index_select 黑名单修复（vllm-plugin-FL #387 head f31b199，取代 cf8998c）。没有它，本后端的 vendor triton 3.2.0 路径会确定性地退化：triton 3.2.0 不带 triton.experimental，通用 flag_gems index_select 在 torch_npu._npu_rotary_embedding 内部使用的形状上结果是错的（inp 40960x128，dim 0，idx size 5），被污染的 cos/sin 会传到每一个 attention head。把该 op 拉黑即可让它回到 aten。
+
+### 2.1.2-0.2.0_gcf8998c.d20260818
+
+*2026-09-10 10:57:00*
+
+Ascend 910C / CANN 8.5.0（ascend-cann8.5.0-910c）上 vllm 0.24.0 的首次交付。与 910B4 线相同的 repack vllm +flagos wheel 与 vllm-plugin-FL ascend 0.24.0 移植；仅 base SDK 的芯片拆分 ops 包不同（CANN 910C Ops）。单步安装，对矩阵无影响；F/T 双编译器 E2E 已验证。

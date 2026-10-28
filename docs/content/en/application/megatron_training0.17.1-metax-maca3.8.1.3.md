@@ -104,3 +104,15 @@ docker run --rm -it \
   --group-add video \
   $IMG megatron-train --model-type GPT
 ```
+
+## Changelog
+
+### 2.2.0-0.2.3
+
+*2026-09-28 05:13:27*
+
+Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the 0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+
+*2026-09-22 16:06:40*
+
+First app image for this backend. The row's E2E runs are green on both compiler paths but no image was ever built for it, so the entry point to the work was the playbook rather than an artifact. Built on the FlagOS 2.2.0 stack and on the megatron-core wheel from release/0.2's release tag, pinned to its exact version (0.17.1+fl.0.2.3).
