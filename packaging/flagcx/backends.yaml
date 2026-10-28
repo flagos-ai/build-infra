@@ -725,8 +725,7 @@ amd-rocm7.2.4:
   # include ladder reaches makefiles/amd.mk when USE_AMD=1 — both agree with
   # the base image (base/amd-rocm7.2.4 installs rccl-dev + hsa-rocr-dev +
   # hip-dev + hipcc, so the header <rccl/rccl.h>, <hip/hip_runtime_api.h> and
-  # libhiprtc are present). No device bitcode on this row: amd.mk ships none,
-  # so no builder is declared and no clang is needed.
+  # libhiprtc are present). No device bitcode on this row: amd.mk ships none.
   apt: []
   make_env:
     DEVICE_HOME: /opt/rocm
@@ -738,4 +737,14 @@ amd-rocm7.2.4:
   deb: {enabled: false, default_for_vendor: true}
   # torch 2.11.0+rocm7.2 ships libc10_hip/libtorch_hip, and _build_config.py's
   # USE_AMD_ADAPTOR links -lhiprtc -lc10_hip -ltorch_hip against /opt/rocm/{include,lib}.
+  # The runtime image is ubuntu:24.04, so a wheel built in it links GLIBC_2.38 and
+  # fails the wheel line's 22.04 gate. This row therefore needs its own builder:
+  # self-contained on ubuntu:22.04, with the ROCm 7.2.4 jammy toolchain (rccl-dev
+  # + hip-dev + the torch-required hipsolver/hipfft/miopen-hip headers) and the
+  # pinned torch — so the wheel's glibc floor drops to 2.35 like every other row
+  # that declares a builder. No device bitcode: the builder's proof is the
+  # torch/SDK import, the same vendor-row proof hygon's is.
   wheel: {enabled: true}
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-amd
