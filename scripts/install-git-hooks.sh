@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Install the repo-local git hooks (.githooks/) via core.hooksPath.
-# This keeps .githooks/pre-commit (status-matrix sync check) active for
+# This keeps .githooks/pre-commit (generated-output sync checks) active for
 # everyone without touching their global git config.
 
 set -euo pipefail
