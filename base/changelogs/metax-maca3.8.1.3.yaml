@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-metax-maca3.8.1.3
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:49:44.282Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:44:47.432Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -41,4 +49,8 @@ tags:
         headless; the kernel driver stays on the host, as with NVIDIA.
       - `MACA_PATH`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
         toolkit is usable without an activation step.
+    reason_zh: |-
+      - 首次交付：沐曦 MACA 3.8.1.3 及驱动 3.8.1.6，基于 ubuntu:24.04，与 3.7.2.1 线并存。
+      - 驱动仅以用户态模式安装，因此镜像可无头构建；内核驱动留在宿主，与 NVIDIA 相同。
+      - 镜像内设置 `MACA_PATH`、`PATH` 和 `LD_LIBRARY_PATH`，无需激活步骤即可使用 toolkit。
     upstream_prs: []

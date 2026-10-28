@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -40,6 +43,8 @@ tags:
       Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with
       the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the
       0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+    reason_zh: |-
+      重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
     upstream_prs: []
   - date: '2026-09-23T13:48:39.351Z'
     reason: >-
@@ -49,6 +54,8 @@ tags:
       platform fixes those PRs carry were never in the artifact. flash_attn
       stays an app-layer dep here: it is not a runtime dep on this backend and
       the wheel is source-built with the ABI locked to this backend's torch.
+    reason_zh: |-
+      基于 FlagOS 2.2.0 栈与 release 线 wheel 重建，精确锁定（0.17.1+fl.0.2.3）。所替代的镜像基于 2.1.2、且 wheel 取自 MLF PR head 与集成分支，因此那些 PR 携带的平台修复从未进入制品。此处 flash_attn 仍作为 app 层依赖：该后端上它不是 runtime 依赖，且该 wheel 为源码构建、ABI 锁定到本后端的 torch。
     upstream_prs: []
 - tag: 2.1.2-0.2.1_9.g48b97a13f
   entries:
@@ -57,6 +64,8 @@ tags:
       megatron-core RL wheel app image (MLF PR 114 RL extra + PR 119). Single-step
       wheel install over the
       runtime.
+    reason_zh: |-
+      megatron-core RL wheel 的 app 镜像（MLF PR 114 的 RL extra + PR 119）。在 runtime 之上单步安装 wheel。
     upstream_prs:
     - https://github.com/flagos-ai/Megatron-LM-FL/pull/114
     - https://github.com/flagos-ai/Megatron-LM-FL/pull/119

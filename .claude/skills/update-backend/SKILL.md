@@ -144,7 +144,8 @@ compiler).
 ### 5. Publish gate + record
 
 - `changelog_gate.py <changelog> <tag>` — a pending (empty-date) entry must
-  exist before the push is authorized; the layer's workflow backfills the date
+  exist before the push is authorized, with its reason written in both
+  languages (`reason` and `reason_zh`); the layer's workflow backfills the date
   on push. A rebuilt tag with a changed commit needs a NEW pending entry under
   the same tag block. Every image-pushing workflow gates on it: base-image.yml,
   runtime-image.yml and the app-image ones. App-image pushes gate on both the
@@ -254,6 +255,7 @@ Follow `update-backend` for the shared steps, with these additions up front:
       rebuild of an identical-named wheel)
 - [ ] F/T re-verified on the new image; affected app cells reopened and
       re-verified; cells updated
-- [ ] changelog pending entry gated the push (base + runtime + app);
-      `image_tag` recorded (app) / changelog dated (base + runtime)
+- [ ] changelog pending entry gated the push (base + runtime + app), reason
+      written in both languages; `image_tag` recorded (app) / changelog dated
+      (base + runtime)
 - [ ] gendoc PR refreshed the generated pages (no hand-edits)

@@ -20,7 +20,7 @@
 # push succeeds the layer's workflow backfills the date with the registry
 # push_time, so a filled date means "already delivered". Therefore this check
 # reduces to one question: does the changelog carry a pending (empty-date)
-# entry for the tag being pushed?
+# entry for the tag being pushed, and is it written in both languages?
 #
 #   - a brand-new tag needs a new tag block with a pending entry;
 #   - a re-push of an existing tag needs a new pending entry under it.
@@ -28,6 +28,11 @@
 # Both cases are the same test, so no registry query / clock comparison is
 # needed here (the "since the last push_time" rule is subsumed: the previous
 # build's entry was already backfilled, so it can no longer be pending).
+#
+# Both languages are required because the reason is the deliverable: entries
+# dated before the field existed have no `reason_zh` and are grandfathered in
+# (the gate only ever inspects the pending entry, which is written now), so a
+# missing translation can only be a new one.
 #
 # Usage:
 #   python3 changelog_gate.py <changelog.yaml> <tag>
@@ -97,6 +102,21 @@ def main() -> None:
             continue
         for entry in block.get("entries") or []:
             if not (entry.get("date") or ""):
+                # The reason is the deliverable, and it is published in both
+                # languages, so a pending entry has to carry both. The workflow
+                # calls this gate before the build, so catching it here refuses
+                # the push while a reason can still be written cheaply.
+                missing = [
+                    field
+                    for field in ("reason", "reason_zh")
+                    if not str(entry.get(field) or "").strip()
+                ]
+                if missing:
+                    sys.exit(
+                        f"gate: the pending entry for tag {tag} has no "
+                        f"{' or '.join('`' + m + '`' for m in missing)} — a reason "
+                        f"is written in both languages (docs/changelog.md)."
+                    )
                 print(f"gate: ok — pending changelog entry found for tag {tag}")
                 return
         sys.exit(

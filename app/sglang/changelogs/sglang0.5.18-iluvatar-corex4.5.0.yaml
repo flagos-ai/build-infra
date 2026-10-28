@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -43,6 +46,8 @@ tags:
       in the chain with a cmake that cannot run (#1011), and FlagGems moves to
       the version this stack pins. Same sglang and plugin pins as the 2.1.2
       image it replaces.
+    reason_zh: |-
+      stack 迁到 2.2.0 后的首次重建，因此 tag 退出 2.1.2。底下的 base 与 runtime 是新的，原因有二：CoreX cmake 安装器被传入一个它静默忽略的 flag，使链上每个镜像都带上一个无法运行的 cmake（#1011）；以及 FlagGems 升到本 stack pin 的版本。sglang 与插件 pin 与其替代的 2.1.2 镜像相同。
     upstream_prs: []
 - tag: 2.1.2-0.1.dev1_g201484665
   entries:
@@ -55,5 +60,7 @@ tags:
       dtype floor, the nvcc-JIT clamp_position, and vendor triton 3.2 missing the
       PDL
       intrinsics). F/T dual-compiler E2E verified on Qwen3-4B.
+    reason_zh: |-
+      天数智芯 CoreX 4.5.0 上的 sglang 0.5.18。corex 的 torch 是 CUDA 别名，因此 sglang 的 is_cuda() 为真，而本平台既没有 NVIDIA 设备，也没有其 CUDA 路径所期待的 NVIDIA 专属包：插件分支补齐由此产生的四处缺口（通过磁盘上的 stub 包提供 flashinfer 导入面、sm75 dtype 下限、nvcc JIT 的 clamp_position，以及厂商 triton 3.2 缺失 PDL 内建）。F/T 双编译器 E2E 已在 Qwen3-4B 上验证。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/102

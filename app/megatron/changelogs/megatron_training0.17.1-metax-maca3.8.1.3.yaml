@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Per-image changelog. Schema:
+# Per-image changelog. Schema: docs/changelog.md — a `reason` is
+# written in English and Chinese (`reason_zh`), both required on a
+# new entry.
 #   image: megatron_training0.17.1-metax-maca3.8.1.3
 tags:
 - tag: 2.2.0-0.2.3
@@ -22,6 +24,8 @@ tags:
       Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with
       the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the
       0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+    reason_zh: |-
+      重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
     upstream_prs: []
   - date: '2026-09-22T16:06:40.554Z'
     reason: >-
@@ -30,4 +34,6 @@ tags:
       the work was the playbook rather than an artifact. Built on the FlagOS
       2.2.0 stack and on the megatron-core wheel from release/0.2's release tag,
       pinned to its exact version (0.17.1+fl.0.2.3).
+    reason_zh: |-
+      该后端的首个 app 镜像。该行在两条编译器路径上的 E2E 均为绿，但从未为其构建过镜像，所以这项工作的入口是 playbook 而不是制品。基于 FlagOS 2.2.0 栈与 release/0.2 release tag 的 megatron-core wheel 构建，锁定到其确切版本（0.17.1+fl.0.2.3）。
     upstream_prs: []

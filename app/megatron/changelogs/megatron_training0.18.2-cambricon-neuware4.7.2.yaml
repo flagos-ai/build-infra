@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Per-image changelog. Schema:
+# Per-image changelog. Schema: docs/changelog.md — a `reason` is
+# written in English and Chinese (`reason_zh`), both required on a
+# new entry.
 #   image:  repo image name (no tag)
 #   tags:   one block per tag that has been published, newest first. Only the
 #           latest (registry-resident) tag carries entries; superseded tags
@@ -37,4 +39,6 @@ tags:
   - date: ''
     reason: >-
       First megatron-core 0.18.2 app image on the FlagOS 2.2.0 stack. Built from the MLF v0.3.0 tag (full-scope wheel, MLF #189); the install pin states the wheel exactly (0.18.2+0.3.0).
+    reason_zh: |-
+      FlagOS 2.2.0 栈上首个 megatron-core 0.18.2 app 镜像。基于 MLF v0.3.0 tag 构建（全范围 wheel，MLF #189）；安装锁定精确写明该 wheel（0.18.2+0.3.0）。
     upstream_prs: []

@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-ascend-cann9.0.0
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:49:46.840Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:20:38.804Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -48,4 +56,9 @@ tags:
         `ATB_HOME_PATH` and the ATB library path out; without them `libatb.so`
         fails to load and the ATB operators (`_npu_reshape_and_cache`,
         `_npu_rotary_embedding`) crash at inference.
+    reason_zh: |-
+      - 首次交付：CANN 9.0.0 —— toolkit、910B ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
+      - python3.11 从 deadsnakes 强制安装，与发行版自带的 3.12 并存：CANN 安装器写出的 python 版本相关产物会被 runtime import，因此基础解释器必须与 runtime venv 的一致。
+      - SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。toolkit 和 NNAL 的 `set_env.sh` 在 bash 下 source：它们是 bash 脚本，在 dash 下可能走到调用 `exit` 的路径，静默中断该步骤。
+      - ATB 也在该固化中，因为 toolkit 的 `set_env.sh` 漏掉 `ATB_HOME_PATH` 和 ATB 库路径；缺了它们 `libatb.so` 加载失败，ATB 算子（`_npu_reshape_and_cache`、`_npu_rotary_embedding`）在推理时崩溃。
     upstream_prs: []

@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -44,6 +47,13 @@ tags:
         run on another version.
       - flagcx 0.14.0 is now a runtime dependency, pinned as
         flagcx==0.14.0+corex4.5.0.
+    reason_zh: |-
+      - runtime 引入两个容器启动期 flag，
+        `-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>`，
+        用于覆盖镜像内烘焙的编译器与 FlagGems 版本。无法满足的请求会终止容器，
+        而不是让它跑在另一个版本上。
+      - flagcx 0.14.0 现为 runtime 依赖，pin 为
+        flagcx==0.14.0+corex4.5.0。
     upstream_prs: []
 - tag: 2.2.0-0.3.0
   entries:
@@ -54,6 +64,8 @@ tags:
       one py3-none-any wheel, sha adf5a9e3...451f62, on every vendor index) instead
       of the v0.3.0-rc2.post2 delivery tag. Same stack and app pins as the rc2.post2
       image it replaces; the only delta is the formal release of the same code.
+    reason_zh: |-
+      0.24.0 线迁移到 vllm-plugin-FL 正式发布版 v0.3.0（tag = commit f105277）。插件现在以发布版本交付（vllm-plugin-fl==0.3.0，单个 py3-none-any wheel，sha adf5a9e3...451f62，每个 vendor index 都有），此前用的是 v0.3.0-rc2.post2 交付 tag。stack 与 app pin 与被替代的 rc2.post2 镜像相同；唯一差别是同一份代码的正式发布。
     upstream_prs: []
 - tag: 2.2.0-0.3.0rc2.post2
   entries:
@@ -63,6 +75,8 @@ tags:
       handed a flag it silently ignores, so every image in this chain shipped a
       cmake that cannot run (#1011). Nothing else moves: same stack, same base
       and runtime recipe, same plugin pin.
+    reason_zh: |-
+      改用修正后的 base 镜像重建。CoreX 的 cmake 安装器被传入一个它静默忽略的 flag，导致这条链上的每个镜像都带上了无法运行的 cmake（#1011）。其余不变：同一 stack、同一 base 与 runtime 配方、同一插件 pin。
     upstream_prs: []
   - date: '2026-09-20T09:55:12.142Z'
     reason: >-
@@ -73,6 +87,8 @@ tags:
       tag v0.3.0-rc2.post2 (0891073, head of 0.3.0-rc2): the plugin comes from a
       released tag rather than a pre-merge commit — an immutable pin, and one wheel
       served by every vendor index.
+    reason_zh: |-
+      symm-memory stub（PR 491）已进入发布线，因此本镜像离开 c9e2573，一个 main 线的 commit，使本后端收敛到 0.24.0 线交付的插件上。改用 FlagOS 2.2.0 stack（其 base 与 runtime 携带 FlagGems 5.4.0-rc2.post3）与 vllm-plugin-FL 发布 tag v0.3.0-rc2.post2（0891073，0.3.0-rc2 的 head）重建：插件取自发布 tag 而非合并前的 commit——不可变 pin，且每个 vendor index 提供同一个 wheel。
     upstream_prs: []
 - tag: 2.1.2-0.2.1_gc9e2573.d20260913
   entries:
@@ -81,6 +97,8 @@ tags:
       Rebuild on the unified vllm-plugin-FL head (symm_mem stub, a no-op on
       torch >= 2.8), converging both iluvatar corex variants onto one wheel.
       F/T dual-compiler verified.
+    reason_zh: |-
+      改用统一的 vllm-plugin-FL head（symm_mem stub，在 torch >= 2.8 上是 no-op）重建，使两个 iluvatar corex 变体收敛到同一个 wheel。F/T 双编译器已验证。
     upstream_prs:
     - https://github.com/flagos-ai/vllm-plugin-FL/pull/491
 - tag: 2.1.2-0.2.1_g07063fd.d20260828
@@ -88,3 +106,5 @@ tags:
   - date: 2026-08-30T05:30:47Z
     reason: >-
       Initial vllm 0.24.0 deliverable on iluvatar corex4.5.0. F/T dual-compiler verified.
+    reason_zh: |-
+      天数智芯 corex4.5.0 上 vllm 0.24.0 的首次交付。F/T 双编译器已验证。

@@ -14,13 +14,13 @@
 ## 规则 / Rule
 
 **没有充分理由，不重建镜像。** 重建前必须先在 changelog 写一条待定条目
-（reason，date 留空）。push 前门禁检查该条目是否存在；没有就拒绝 push。
-调试构建（`push=false`）不受此限。
+（reason 与 reason_zh，date 留空）。push 前门禁检查该条目是否存在、两种语言
+是否都写了；不满足就拒绝 push。调试构建（`push=false`）不受此限。
 
 **An image is never rebuilt without a documented reason.** Before a rebuild, a
-pending entry (reason, empty date) must be added to the changelog. A push-time
-gate refuses the push when it is absent. Debug builds (`push=false`) are
-exempt.
+pending entry (reason and reason_zh, empty date) must be added to the
+changelog. A push-time gate refuses the push when it is absent, or when either
+language is missing. Debug builds (`push=false`) are exempt.
 
 ## 文件与结构 / Files and schema
 
@@ -44,6 +44,11 @@ entry**。工作流的 changelog 路径与 gate 都按这个名字找文件，�
     **一项一条**，只写这一版带来了什么——没变的东西不写，不写 PR 号、不写
     构建流水账、不写与上一版的对比（改了什么是「带来什么」的自然结果，不必
     单说一遍）。理由最终随镜像一起发布，所以多项理由必须可读成一个列表。
+  - `reason_zh`：`reason` 的中文版，**同一结构**（一项一条，条数与顺序一致）。
+    发布时两种语言都在，所以新条目两个字段都必须写；门禁只检查待定条目，
+    因此缺翻译只可能是新写的。**字段出现之前**已交付的 464 条是事后补译的
+    ——它们的英文仍是权威，中文只是同一份理由的另一种语言，不是新理由。
+    可继续补译，但不是待办清单。
   - `upstream_prs`：本次构建**等待中的其他仓库** PR（vllm-plugin-FL /
     FlagGems / FlagTree …），仅为跟踪而记。**已合并的 PR 不写**——它的改动
     已经在所构建的 tag 里，tag 本身就是记录。build-infra 自己的 PR 是交付
@@ -77,6 +82,14 @@ the gate look the file up by that name, so missing one place fails the push.
     changed follows from what it brings, and does not need saying twice). The
     reason is published alongside the image, so a reason with several items must
     read as a list.
+  - `reason_zh`: the same reason in Chinese, with the **same structure** (one
+    item per bullet, same count and order). Both languages are published, so a
+    new entry carries both; the gate inspects only the pending entry, so a
+    missing translation can only be a new one. The 464 entries delivered
+    **before the field existed** were translated afterwards — their English
+    remains the authoritative text and the Chinese is the same reason in another
+    language, not a second reason. More of them can be translated later; it is
+    not a to-do list.
   - `upstream_prs`: PENDING PRs in **other** repos (vllm-plugin-FL / FlagGems /
     FlagTree …) that this build is waiting on — a tracking list. A merged PR is
     **not** listed: its change is already in the tag being built, so the tag is
@@ -85,16 +98,16 @@ the gate look the file up by that name, so missing one place fails the push.
 
 ## 流程 / Flow
 
-1. 人写一条待定条目（reason，`date` 留空）并提交。
-2. 触发 push 构建 —— 门禁检查该 tag 是否有待定条目：新 tag 需有 tag 记录，
-   同 tag 重打需在既有 block 下新增待定条目。无则拒。
+1. 人写一条待定条目（reason + reason_zh，`date` 留空）并提交。
+2. 触发 push 构建 —— 门禁检查该 tag 是否有待定条目、两种语言是否都非空：
+   新 tag 需有 tag 记录，同 tag 重打需在既有 block 下新增待定条目。无则拒。
 3. 构建 → 校验 → push。
 4. record 步骤回填 `date` = registry `push_time`（app 层与 image_tag 记录同一个 PR）。
 
-1. A human commits a pending entry (reason, empty `date`).
-2. Trigger the push build — the gate checks for a pending entry for this tag:
-   a new tag needs a tag record; a re-push needs a new pending entry under the
-   existing block. Refuse otherwise.
+1. A human commits a pending entry (reason + reason_zh, empty `date`).
+2. Trigger the push build — the gate checks for a pending entry for this tag and
+   that both languages are written: a new tag needs a tag record; a re-push
+   needs a new pending entry under the existing block. Refuse otherwise.
 3. Build → verify → push.
 4. The record step backfills `date` = registry `push_time` (the app layer in
    the same PR as its image_tag record).

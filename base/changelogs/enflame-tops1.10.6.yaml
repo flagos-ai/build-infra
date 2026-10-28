@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-enflame-tops1.10.6
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:49:42.983Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:20:57.418Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -41,4 +49,7 @@ tags:
       - Both the TOPS ATen build and the `triton_gcu` package are the 1.10.6
         line's, so the platform's own compiler is on the image for the layers
         above to use.
+    reason_zh: |-
+      - 首次交付：燧原 TopsPlatform 1.10.6 栈 —— driver、runtime、CC、PTI、TOPSTX、TOPS ATen、EFML、ECCL 和 Triton GCU 3.6.0 —— 基于 ubuntu:24.04。
+      - TOPS ATen 构建和 `triton_gcu` 包都出自 1.10.6 线，因此平台上自带的编译器已在镜像内，供上层使用。
     upstream_prs: []

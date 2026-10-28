@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-nvidia-cuda13.3
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:49:45.600Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:21:10.987Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -41,4 +49,7 @@ tags:
         13.3.0 vendor image ships no NCCL at all, unlike the 12.8.0 one, and the
         hold keeps an unpinned install downstream from moving it onto the
         `+cuda13.4` track.
+    reason_zh: |-
+      - 首次交付：NGC CUDA 13.3.0 runtime 镜像，基于 ubuntu:24.04，并加入构建工具链。
+      - 安装 `libnccl2=2.31.2-1+cuda13.3` 并用 `apt-mark` hold：13.3.0 厂商镜像完全不带 NCCL，与 12.8.0 不同，hold 可防止下游未固定版本的安装把它移到 `+cuda13.4` 线。
     upstream_prs: []

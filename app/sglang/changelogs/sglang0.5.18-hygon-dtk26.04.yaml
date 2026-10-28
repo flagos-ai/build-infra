@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -39,5 +42,7 @@ tags:
     reason: >-
       sglang 0.5.18 on hygon DTK 26.04. sglang-plugin-FL PR 98: make sglang serve on the CUDA-alias
       runtime.
+    reason_zh: |-
+      海光 DTK 26.04 上的 sglang 0.5.18。sglang-plugin-FL PR 98：让 sglang 在 CUDA 别名 runtime 上跑通 serve。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/98

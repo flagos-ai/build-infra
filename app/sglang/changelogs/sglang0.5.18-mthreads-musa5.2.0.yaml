@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -41,6 +44,8 @@ tags:
       the updated flagtree wheel (same 0.7.0+mthreads3.6 version, new contents,
       2026-09-29). Same sglang and plugin pins as the 2.1.2 image it replaces
       (PR 92 head, still open).
+    reason_zh: |-
+      在 FlagOS 2.2.0 栈上重建，摩尔线程 runtime 用更新后的 flagtree wheel 重建（版本仍为 0.7.0+mthreads3.6，内容为新，2026-09-29）。sglang 与插件 pin 与其替代的 2.1.2 镜像相同（PR 92 head，仍未合并）。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/92
 - tag: 2.1.2-0.1.dev1_g607b9672c
@@ -48,5 +53,7 @@ tags:
   - date: 2026-09-05T15:29:12Z
     reason: >-
       sglang 0.5.18 on mthreads musa5.2.0 (PR 92 torch_musa serve).
+    reason_zh: |-
+      摩尔线程 musa5.2.0 上的 sglang 0.5.18（PR 92 的 torch_musa serve）。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/92

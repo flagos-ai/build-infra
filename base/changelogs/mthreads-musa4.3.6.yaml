@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-mthreads-musa4.3.6
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:49:45.846Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T02:17:59.529Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -40,4 +48,7 @@ tags:
       - The vendor's driver is installed from its own `.deb`, so the device's
         userspace comes from the container, and the build toolchain, OpenMPI and
         the Python development headers are installed beside the SDK.
+    reason_zh: |-
+      - 首次交付：摩尔线程 MUSA RC4.3.6 连同 MCCL RC2.1.6 和 muDNN RC3.1.6，基于 ubuntu:22.04。
+      - 厂商驱动由其自带 `.deb` 安装，因此设备的用户态来自容器，构建工具链、OpenMPI 和 Python 开发头文件与 SDK 一并安装。
     upstream_prs: []
