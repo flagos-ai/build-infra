@@ -10,7 +10,7 @@
   tag（`066fd5edf541`，含 [MLF #189](https://github.com/flagos-ai/Megatron-LM-FL/pull/189)
   全 scope wheel）。4 个 wheel 已上传 `flagos-pypi-{vendor}`：cp312 ×
   nvidia/metax/cambricon，cp310 × hygon。
-- app 镜像 tag：`{app}0.18.2-{app_name}:2.2.0-0.3.0`，10 个已 push（见下表）。
+- app 镜像 tag：`{app}0.18.2-{app_name}:2.2.0-0.3.0`，8 个已 push（见下表）。
 
 ## 已 push 镜像（tag 2.2.0-0.3.0，未验证 = 不可用）
 
@@ -18,9 +18,13 @@
 |---|---|---|---|
 | nvidia-cuda12.8 | generic-12.8 | ✅ push | ✅ push |
 | nvidia-cuda13.3 | generic-13.3 | ✅ push | ✅ push |
-| cambricon-neuware4.7.2 | cambricon-neuware4.7.2 | ✅ push | ✅ push |
+| cambricon-neuware4.7.2 | cambricon-neuware4.7.2 | — | — |
 | hygon-dtk26.04 | hygon-dtk26.04 | ✅ push | ✅ push |
 | metax-maca3.8.1.3 | metax-maca3.8.1.3 | ✅ push | ✅ push |
+
+cambricon 两个镜像**并未 push**（2026-10-28 核对 Harbor：两个 repo 均不存在；
+此处曾误记 ✅，与下方 verify 失败一项自相矛盾）。verify 失败发生在 push 之前，
+故该后端无可发布镜像。
 
 ## 验证状态（F = flagtree，T = triton；⬜ 待验 / ✅ 通过 / ❌ 失败 / ⏸ 挂起）
 
@@ -28,7 +32,7 @@
 |---|---|---|---|---|
 | nvidia-cuda12.8 | ✅/✅ | ✅/✅ | ✅ 通过 | training 复验 2026-09-26，双编译器 E2E loss 一致；RL E2E 复验 2026-09-27（见 §RL E2E） |
 | nvidia-cuda13.3 | ✅/✅ | ✅/✅ | ❌ | training 成功配方：`FLAGCX_BITCODE_PATH=/opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc`（flagtree 自带 .bc），F/T 双路径 E2E 通过，loss 1.087099E+01 与 cuda12.8 一致；env 已固化 configs.yaml，rebuild 后默认可用（现推镜像未含 env，F 路径需显式注入）；RL E2E 复验 2026-09-27（见 §RL E2E） |
-| cambricon-neuware4.7.2 | ❌/— | ⬜/— | ❌ | on-node 复现：wheel(v0.3.0) 无 MLU 平台登记 → pp group 未初始化；须按 release/0.2 重建 wheel 后复验，否则下线 |
+| cambricon-neuware4.7.2 | ❌/— | ⬜/— | ❌ | on-node 复现：wheel(v0.3.0) 无 MLU 平台登记 → pp group 未初始化；MLU 平台（#125/#188/#190）只进了 release/0.2，0.18.2 线无此文件。按 release/0.2 重建 wheel 后重启本线（该后端无镜像已发布，无需下线） |
 | hygon-dtk26.04 | ✅/✅ | ✅/✅ | ✅ 通过 | on-node 复验 2026-09-26；hy-smi 8× HCU DTK 26.04（github node v2.1.2 过旧 → `--stack-version 2.2.0`）；RL E2E 复验 2026-09-27（见 §RL E2E） |
 | metax-maca3.8.1.3 | ✅/✅ | ✅/✅ | ✅ 通过 | on-node 复验 2026-09-26，双编译器 loss 逐位一致；RL E2E 复验 2026-09-27（见 §RL E2E） |
 
@@ -37,9 +41,10 @@ CI verify = 构建时 workflow 内 pre-push 的 import check + mock-data pretrai
 
 ## changelog（发布授权闸门）
 
-- 10 个 0.18.2 changelog 均已 push 记录（PR #1115/#1116/#1122/#1123-#1126 合并进 main），
+- 8 个 0.18.2 changelog 已 push 记录（PR #1115/#1116/#1122/#1123-#1126 合并进 main），
   但 `2.2.0-0.3.0` 条目 **date 为空** → `changelog_gate.py` 视为 pending，**未授权发布**。
-- record step 已回填 matrix `image_tag`（2.2.0-0.3.0）+ 启动页（20 个 en/zh，PR #1122/#1123-#1126）。
+  cambricon 的两个 changelog 已删除（镜像未 push，无 tag 可记；见「已 push 镜像」）。
+- record step 已回填 matrix `image_tag`（2.2.0-0.3.0）+ 启动页（18 个 en/zh，PR #1122/#1123-#1126）。
 
 ## RL E2E（nvidia 0.18.2，2026-09-27）
 
@@ -125,7 +130,8 @@ SSH 别名均经 `bastion.aiops.baai.ac.cn`（Port 2224）；Rule 22：登录后
    training + rl 双场景 × 双编译器。
 3. nvidia×2 + hygon/metax 的 RL E2E 双路径已过（2026-09-27，见 §RL E2E）；
    cuda13.3 training 成功配方已定（env 固化，待 rebuild）；cambricon 诊断完毕
-   （wheel 无 MLU 登记）、按 release/0.2 重建 wheel 后复验；修不了 → 下线对应镜像。
+   （wheel 无 MLU 登记，需先有 0.18.2 线的 MLU 平台移植）→ 该后端镜像从未 push，
+   无可下线对象。
 4. 验证通过的后端：回填 changelog date（授权发布）+ 更新本工作簿 + 更新 status matrix。
 5. MLF #192 合并后按 0.3.0-rc2 重建 wheel（NullTokenizer bos + local-impl guard），
    RL 垫片随之取消。

@@ -319,7 +319,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | — |
-| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | 0.18.2 CI+on-node 均失败：wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0 致 pp group 未初始化。上游 #125/#188/#190 仅入 release/0.2（2026-09-22 后），v0.3.0 分支早于它们。按 release/0.2 重建 wheel 后复验，否则该后端镜像须下线 |
+| NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0 致 pp group 未初始化；CI+on-node 均失败。MLU 平台（#125/#188/#190）只进了 release/0.2，v0.3.0 / 0.3.0-rc2 / main 均无此文件， MLF 也无在途移植 PR；按 release/0.2 重建 0.18.2 wheel 后重启本线 |
 | DTK 26.04 | ✅ | ✅ | ✅ | — |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |
 
@@ -345,7 +345,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 |---|---|---|---|---|
 | CUDA 12.8 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
 | CUDA 13.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
-| NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
+| NEUWARE 4.7.2 | ✅ | ⬜ | ⬜ | wheel(v0.3.0) platform_register 无 MLU 登记，device_count=0 致 pp group 未初始化；training 侧已 CI+on-node 复现，RL 无从起跑。MLU 平台（#125/#188/#190）只进了 release/0.2；按 release/0.2 重建 0.18.2 wheel 后重启本线 |
 | DTK 26.04 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL E2E 复验 2026-09-27 双编译器通过（mock-data GRPO，无垫片，v0.3.0 含 #194；见 workbook §RL E2E） |
 
