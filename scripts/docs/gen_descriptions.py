@@ -1126,12 +1126,26 @@ def main():
                 for name, entry in backends.items():
                     for app in entry.get("app", {}).get("images", {}):
                         stem = f"{app}-{_app_page_name(entry)}"
-                        path = out_dir / f"{stem}.md"
                         expected = with_changelog(
                             render_app(entry, app, lang, "web"), stem, "app", lang
                         )
+                        path = out_dir / f"{stem}.md"
                         if not path.is_file() or path.read_text() != expected:
                             drift.append(str(path))
+            # The Harbor-bound readmes are written by the same non-check run, so
+            # they are compared here too — a page that is current while its
+            # readme is stale is exactly the drift this check exists to catch.
+            for name, entry in backends.items():
+                for app in entry.get("app", {}).get("images", {}):
+                    stem = f"{app}-{_app_page_name(entry)}"
+                    path = app_plain_path(stem)
+                    if path is None:
+                        continue
+                    expected = with_changelog(
+                        render_app(entry, app, "en", "plain"), stem, "app", "en"
+                    )
+                    if not path.is_file() or path.read_text() != expected:
+                        drift.append(str(path))
             if drift:
                 print(f"App pages drift: {len(drift)} files differ or are missing:")
                 print("\n".join(f"  {p}" for p in drift))

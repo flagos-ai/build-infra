@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# CI backstop for the status-matrix refresh mechanism: when a push changes a
-# status_matrix.*.yaml, re-render the verification-matrix markdown and open a
-# review-gated fix PR (flagos-ci identity, auto/status-matrix-fix branch) if
-# the committed markdown drifted. Local guard: .githooks/pre-commit.
+# CI backstop for the generated-output refresh mechanism: when a push changes a
+# status_matrix.*.yaml, an app changelog or an app page, re-render the
+# verification-matrix markdown and the app pages, and open a review-gated fix PR
+# (flagos-ci identity, auto/status-matrix-fix branch) if the committed output
+# drifted. Local guard: .githooks/pre-commit.
 
 name: Status Matrix Consistency
 
@@ -23,6 +24,9 @@ on:
   push:
     paths:
       - 'packaging/**/status_matrix.*.yaml'
+      - 'app/*/changelogs/*.yaml'
+      - 'app/*/*.md'
+      - 'docs/content/*/application/*.md'
   workflow_dispatch:
 
 permissions:
@@ -56,14 +60,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/render_status_matrix.py
 
+      - name: Render the app pages
+        # gen_data.py first: images.yaml is git-ignored, and render_app reads the
+        # status matrix's image_tag through it. --changelog-only last, because
+        # --app-only re-renders whole pages and drops the Changelog section.
+        run: |
+          python3 scripts/docs/gen_data.py
+          python3 scripts/docs/gen_descriptions.py --app-only
+          python3 scripts/docs/gen_descriptions.py --changelog-only --layer app
+
       - name: Detect drift
         id: drift
         run: |
           if ! git diff --quiet -- 'packaging/*/docs/*-verification-matrix.md'; then
             echo "stale=true" >> "$GITHUB_OUTPUT"
           fi
+          # Porcelain, not diff, for the app output: a page or readme the
+          # sources call for but that was never committed is untracked, and
+          # `git diff` does not see it — which is exactly the drift worth
+          # catching here.
+          if [ -n "$(git status --porcelain -- 'docs/content/*/application/*.md' 'app/*/*.md')" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Open fix PR when markdown drifted
+      - name: Open fix PR when the rendered output drifted
         if: steps.drift.outputs.stale == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,20 +93,22 @@ jobs:
           GIT_COMMITTER_NAME: flagos-ci
           GIT_COMMITTER_EMAIL: noreply@flagos.net
         run: |
-          git add -u -- 'packaging/*/docs/*-verification-matrix.md'
-          git commit -m "chore(status-matrix): refresh verification matrix from YAML"
+          git add -A -- 'packaging/*/docs/*-verification-matrix.md' \
+            'docs/content/*/application/*.md' 'app/*/*.md'
+          git commit -m "chore(status-matrix): refresh generated output from its sources"
           branch="auto/status-matrix-fix"
           git branch -f "$branch" HEAD
           git push --force origin "$branch"
           if gh pr list --head "$branch" --json number -q '.[0].number' | grep -q .; then
             echo "PR already open for $branch; force-pushed updated content"
           else
-            body="Refresh the verification-matrix markdown rendered from status_matrix.*.yaml.
+            body="Refresh the generated output rendered from the status matrices and the
+            app changelogs.
 
-            The YAML changed on this branch but the committed markdown was stale. This PR
-            brings the rendered tables back in sync. No functional changes. Schema and
-            refresh mechanism: docs/status-matrix.md."
+            A source changed on this branch but the committed output was stale. This PR
+            brings the verification-matrix markdown and the app pages back in sync. No
+            functional changes. Schema and refresh mechanism: docs/status-matrix.md."
             gh pr create --base "$GITHUB_REF_NAME" --head "$branch" \
-              --title "chore(status-matrix): refresh verification matrix from YAML" \
+              --title "chore(status-matrix): refresh generated output from its sources" \
               --body "$body"
           fi

@@ -131,15 +131,31 @@ plugin commit 必须仍是某个在册（即 OPEN）PR 的 head。已合并的 P
 
 ## 刷新机制
 
+生成物有两类，各自盯自己的来源：**验证矩阵 md** 由 status_matrix YAML 渲染；
+**app 页与 Harbor plain readme** 由 status_matrix 的 `image_tag`（经 images.yaml）
+＋ app changelog 渲染。两者都由下面同一套机制兜底。
+
 1. **pre-commit hook**（`.githooks/pre-commit`，经 `scripts/install-git-hooks.sh`
    安装为 `core.hooksPath`）：暂存区含 status_matrix YAML 或 verification-matrix
-   md 时运行 `render_status_matrix.py --check`；md 与 YAML 不一致 → 提交失败，
-   提示先重跑渲染再提交。无关变更直接放行。
-2. **CI 兜底**（`.github/workflows/status-matrix-consistency.yml`）：push 含
-   status_matrix YAML（或手动 dispatch）时在 ubuntu runner 上重渲染并检测
-   drift；有 drift 则以 flagos-ci 身份提交修复并开 review-gated PR
-   （`auto/status-matrix-fix` 分支，dup-PR 检查复用 `finalize_descriptions.py`
-   模式）。
+   md 时运行 `render_status_matrix.py --check`；含 status_matrix YAML、app
+   changelog、app 页或 `app/<组件>/*.md` 时先跑 `gen_data.py`（images.yaml 是
+   git-ignored，不重建就读不到）再跑 `gen_descriptions.py --app-only --check`。
+   任一不一致 → 提交失败，并打印重跑顺序（`--app-only` 之后必须跟
+   `--changelog-only --layer app`，否则整页重渲会把 changelog 一节丢掉）。
+   无关变更直接放行。
+2. **CI 兜底**（`.github/workflows/status-matrix-consistency.yml`）：push 含上述
+   任一来源、或 workflow_dispatch 时，在 ubuntu runner 上重渲两类生成物并检测
+   drift（app 侧用 `git status --porcelain`，未提交的新页面才算得出来）；有 drift
+   则以 flagos-ci 身份提交修复并开 review-gated PR（`auto/status-matrix-fix`
+   分支，dup-PR 检查复用 `finalize_descriptions.py` 模式）。
+
+**这道闸管不到的两件事**（都是 2026-10-28 cambricon 0.18.2 那一类）：
+
+- 矩阵写了一个 Harbor 上并不存在的 `image_tag`。它比的是「页面 ⟺ 矩阵/changelog」，
+  两边自洽，所以报不出来；那种情形只有 `pubdoc-app` 推描述时才会 404。
+- 反向的撤回：把 `image_tag` 撤掉时，页面/readme 是**多出来**的，而生成器只写不删，
+  `--check` 也只比它该写的那批，于是遗留的页面照样会被推去 Harbor（同样 404）。
+  撤回要连带删掉生成物（PR #1547 的做法），这道闸不代劳。
 
 ## 使用
 
@@ -147,7 +163,10 @@ plugin commit 必须仍是某个在册（即 OPEN）PR 的 head。已合并的 P
 python3 scripts/render_status_matrix.py               # 渲染所有组件
 python3 scripts/render_status_matrix.py --check       # 仅检查（hook / CI 用）
 python3 scripts/render_status_matrix.py --component vllm
+python3 scripts/docs/gen_data.py                      # 重建 docs/data/images.yaml
+python3 scripts/docs/gen_descriptions.py --app-only --check   # 仅检查 app 页
 bash scripts/install-git-hooks.sh                     # 安装 git hooks
 ```
 
-修改流程：改 YAML → 跑渲染器 → 提交两者。
+修改流程：改 YAML → 跑渲染器 → 提交两者；改 app 层的矩阵/changelog 时还要
+`gen_data.py` + `--app-only` + `--changelog-only --layer app` 三条一起跑。

@@ -13,27 +13,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Keep the verification matrices in sync with their status_matrix YAMLs.
-# Runs only when staged changes touch a status_matrix YAML or a rendered
-# verification-matrix markdown; drift fails the commit with a re-render hint.
-# The markdown tables are generated output — fix drift by running
-# `python3 scripts/render_status_matrix.py` and staging the result, not by
-# hand-editing the tables. CI backstop: .github/workflows/status-matrix-
-# consistency.yml.
+# Keep generated output in sync with its source: the verification matrices
+# with their status_matrix YAMLs, and the app pages with the status matrix and
+# their changelog. Runs only when staged changes touch one of those sources or
+# one of the rendered files; drift fails the commit with a re-render hint. All
+# of it is generated output — fix drift by re-running the generator and staging
+# the result, never by hand-editing. CI backstop:
+# .github/workflows/status-matrix-consistency.yml.
 
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
 staged="$(git diff --cached --name-only)"
-if ! printf '%s\n' "$staged" |
-    grep -Eq '^packaging/.*/status_matrix\.[^/]+\.yaml$|^packaging/.*/verification-matrix\.md$'; then
+matches() { printf '%s\n' "$staged" | grep -Eq "$1"; }
+
+matrix=0
+app=0
+if matches '^packaging/.*/status_matrix\.[^/]+\.yaml$|^packaging/.*/verification-matrix\.md$'; then
+    matrix=1
+fi
+if matches '^packaging/.*/status_matrix\.[^/]+\.yaml$|^docs/content/[^/]+/application/[^/]+\.md$|^app/[^/]+/changelogs/[^/]+\.yaml$|^app/[^/]+/[^/]+\.md$'; then
+    app=1
+fi
+
+if [ "$matrix" = 0 ] && [ "$app" = 0 ]; then
     exit 0
 fi
 
 python3 -c "import yaml" 2>/dev/null || python3 -m pip install --user --break-system-packages pyyaml
 
-if ! python3 scripts/render_status_matrix.py --check; then
+if [ "$app" = 1 ]; then
+    # images.yaml is git-ignored, so it has to be rebuilt before it can be read.
+    python3 scripts/docs/gen_data.py >/dev/null
+    if ! python3 scripts/docs/gen_descriptions.py --app-only --check; then
+        echo
+        echo "app pages out of sync with the status matrix or their changelog."
+        echo "Re-render (the second command restores the Changelog section the"
+        echo "first one drops) and stage the result:"
+        echo "  python3 scripts/docs/gen_data.py"
+        echo "  python3 scripts/docs/gen_descriptions.py --app-only"
+        echo "  python3 scripts/docs/gen_descriptions.py --changelog-only --layer app"
+        exit 1
+    fi
+fi
+
+if [ "$matrix" = 1 ] && ! python3 scripts/render_status_matrix.py --check; then
     echo
     echo "verification matrices out of sync with their status_matrix YAMLs."
     echo "Run 'python3 scripts/render_status_matrix.py' and stage the rendered"
