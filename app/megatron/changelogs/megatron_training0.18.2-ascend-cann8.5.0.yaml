@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -41,4 +44,6 @@ tags:
       stack from the MLF v0.3.0 wheel (0.18.2+0.3.0, 128dbd4f3). deps_app key +
       status-matrix rows landed via build-infra #1296 after the on-node F/T
       dual-compiler E2E passed (pretrain_gpt 5-iter exit 0, loss bit-identical).
+    reason_zh: |-
+      ascend-cann8.5.0 上首个 megatron-core 0.18.2 app 镜像。基于 FlagOS 2.2.0 栈、用 MLF v0.3.0 的 wheel（0.18.2+0.3.0，128dbd4f3）构建。节点侧 F/T 双编译器 E2E 通过后，deps_app 键与状态矩阵行经 build-infra #1296 落地（pretrain_gpt 跑 5 次迭代退出码 0，loss 逐位一致）。
     upstream_prs: []

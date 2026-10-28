@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-amd-rocm7.2.4
 tags:
@@ -35,4 +39,8 @@ tags:
         torch and vLLM link none of them: torch's own headers include theirs under
         `USE_ROCM`, so an extension build — the flagcx torch wheel among them —
         fails without them.
+    reason_zh: |-
+      - 首次交付：gfx1100（RDNA3，Radeon PRO W7900）的 ROCm 7.2.4，基于 ubuntu:24.04 —— runtime 集合加上编译器栈链接所依赖的 `-dev` 包。
+      - ROCm 取自 `repo.radeon.com` 而非 filestore tarball，因此镜像采用构建时该仓库提供的各个 point release。一条 pin 把 radeon 的 `rocm-cmake`、`hipcc` 和 `rocminfo` 固定在 Ubuntu universe 也提供的旧构建之上。不安装 DKMS 内核驱动 —— 设备由宿主提供。
+      - 虽然 torch 和 vLLM 都不链接 `hipsolver-dev`、`hipfft-dev` 和 `miopen-hip-dev`，这三者仍然安装：torch 自己的头文件在 `USE_ROCM` 下会 include 它们的头文件，所以扩展构建 —— 其中包括 flagcx torch wheel —— 缺了它们就会失败。
     upstream_prs: []

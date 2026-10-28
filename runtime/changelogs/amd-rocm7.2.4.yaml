@@ -14,6 +14,8 @@
 #
 # Per-image changelog; schema and rules: docs/changelog.md.
 # `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
 
 image: flagos-runtime-amd-rocm7.2.4
 tags:
@@ -25,6 +27,8 @@ tags:
       packages. torch's headers include theirs under USE_ROCM, and the flagcx
       torch wheel compiles against them in this image, so the three are
       required for the wheel build to succeed.
+    reason_zh: |-
+      该镜像的基础镜像新增 hipsolver、hipfft 与 miopen-hip 开发包。torch 的头文件在 USE_ROCM 下会引入这些包，而 flagcx 的 torch wheel 在本镜像内针对它们编译，因此 wheel 构建成功需要这三个包。
     upstream_prs: []
   - date: '2026-10-27T06:29:51.924Z'
     reason: >-
@@ -33,4 +37,6 @@ tags:
       2.11.0+rocm7.2, numpy 1.26.4 — and the ROCm triton 3.6.0 that ships the
       amd backend, alongside FlagTree 0.7.0+amd3.6 and FlagGems 5.4.0 on the
       base image (ROCm 7.2.4, gfx1100).
+    reason_zh: |-
+      该后端 runtime 镜像的首次发布。它在基础镜像（ROCm 7.2.4，gfx1100）之上叠加了 ROCm torch 闭包 —— torch 2.11.0+rocm7.2、torchvision 0.26.0+rocm7.2、torchaudio 2.11.0+rocm7.2、numpy 1.26.4 —— 以及 amd 后端随附的 ROCm triton 3.6.0，并加入 FlagTree 0.7.0+amd3.6 与 FlagGems 5.4.0。
     upstream_prs: []

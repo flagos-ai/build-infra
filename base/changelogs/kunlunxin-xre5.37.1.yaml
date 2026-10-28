@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-kunlunxin-xre5.37.1
 tags:
@@ -24,6 +28,8 @@ tags:
   - date: '2026-10-14T05:49:46.527Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
@@ -39,6 +45,9 @@ tags:
         each is installed over xcudart's; content, not version, is the test, and
         the step ends by asserting that no soname is shipped twice with different
         content.
+    reason_zh: |-
+      - 厂商的 xCCL 和 MPICH 3.3.2 装在 `/usr/local` 下，并写入 `LD_LIBRARY_PATH` 和 `PATH`，因此 FlagCX 的 `bkcl` 调用点在容器内即可解析，无需宿主挂载。
+      - XRE 与 xcudart 各自以完全相同的名字安装 libxpuml、libxpucuda、libxpunvidia-ml、libcudart 和 libxpurt，但来自不同代次的构建，进程最终加载哪一份取决于库的访问路径 —— xcudart 的副本缺少 XRE 副本具有的符号。每个库都安装 XRE 的副本覆盖 xcudart 的；判据是内容而非版本，该步骤最后断言没有 soname 以不同内容被装两次。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -46,4 +55,6 @@ tags:
     reason: |-
       - First delivery: XRE 5.37.1 with CUDA 12.9.0 and XCUDART 5.13.0 on
         ubuntu:22.04.
+    reason_zh: |-
+      - 首次交付：XRE 5.37.1 连同 CUDA 12.9.0 和 XCUDART 5.13.0，基于 ubuntu:22.04。
     upstream_prs: []

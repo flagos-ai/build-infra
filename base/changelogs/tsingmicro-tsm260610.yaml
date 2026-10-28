@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-tsingmicro-tsm260610
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:50:35.077Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:21:40.707Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -42,4 +50,8 @@ tags:
       - `KUIPER_PATH`, `TX8_DEPS_ROOT`, `LLVM_SYSPATH`, `LLVM_BINARY_DIR` and the
         MLIR Python path are set in the image, so the vendor compiler stack
         resolves without an activation step.
+    reason_zh: |-
+      - 首次交付：TSM 260610164501 的 runtime、validation suite、CCL 和 profiler，连同 TX8 编译器依赖和 LLVM 22，基于 ubuntu:24.04。
+      - `libfmt8` 取自 Ubuntu 22.04 的包：`torch_txda` 链接 `libfmt.so.8`，而 24.04 只提供 `libfmt.so.9`。
+      - 镜像内设置 `KUIPER_PATH`、`TX8_DEPS_ROOT`、`LLVM_SYSPATH`、`LLVM_BINARY_DIR` 和 MLIR Python 路径，无需激活步骤即可解析厂商编译器栈。
     upstream_prs: []

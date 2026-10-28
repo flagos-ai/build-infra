@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-nvidia-cuda12.8
 tags:
@@ -24,6 +28,8 @@ tags:
   - date: '2026-10-14T05:50:15.104Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
@@ -35,6 +41,8 @@ tags:
         redeclares. NGC already sets all four, so the prepends only duplicated
         entries in the effective `PATH` and `LD_LIBRARY_PATH` and the redeclares
         added nothing.
+    reason_zh: |-
+      - 基础层现在只保留厂商镜像之上的 apt 安装：我们此前对 `/usr/local/cuda/bin` 和 `/usr/local/cuda/lib64` 的前置已移除，`NVIDIA_VISIBLE_DEVICES` 和 `NVIDIA_DRIVER_CAPABILITIES` 的重复声明也已移除。NGC 本就设置了这四项，前置只是在生效的 `PATH` 和 `LD_LIBRARY_PATH` 中制造重复条目，重复声明毫无增益。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -45,4 +53,7 @@ tags:
         vim.
       - NCCL comes from the vendor image, which preinstalls a held `libnccl2`, so
         this layer installs no collective library of its own.
+    reason_zh: |-
+      - 首次交付：NGC CUDA 12.8.0 runtime 镜像，基于 ubuntu:24.04，并加入构建工具链 —— gcc/g++、cmake、make、libpython3-dev、curl、git、vim。
+      - NCCL 来自厂商镜像，其中已预装并 hold 了 `libnccl2`，因此本层不自装集合通信库。
     upstream_prs: []

@@ -106,7 +106,8 @@ gh workflow run runtime-image.yml -f backend="all" -f push="true"
 flag_gems 版本在步骤 6 重建时才对齐。
 
 **这次 push 同样要过 changelog 门禁** —— `runtime/changelogs/<backend>.yaml` 里先写一条
-待定条目，说明为什么现在重建（新建 tag / deps 变更 / **构建平台**）。见 `docs/changelog.md`。
+待定条目（`reason` + `reason_zh` 两种语言都要写），说明为什么现在重建（新建 tag /
+deps 变更 / **构建平台**）。见 `docs/changelog.md`。
 
 验证方式：
 ```bash
@@ -164,7 +165,7 @@ gh workflow run runtime-image.yml -f backend="all" -f push="true"
 `flaggems` 留空 — 自动读取 `configs.yaml` 中的版本。
 
 镜像 tag: `:{version}`（如 `:2.2.0`）—— 与步骤 4 同一个 tag，覆盖它（flat tag 的既定发布模型）。
-同样要过 changelog 门禁：这次的待定条目写「带上 FlagGems X.Y.Z」。
+同样要过 changelog 门禁：这次的待定条目（中英文各一份）写「带上 FlagGems X.Y.Z」。
 
 > **注意：** 步骤 5（FlagGems 迭代测试）可能持续数周，期间步骤 6 会被反复执行。
 > 每次 `configs.yaml` 更新 deps 或 FlagGems 修复后，都需要重新构建 runtime 镜像来验证。

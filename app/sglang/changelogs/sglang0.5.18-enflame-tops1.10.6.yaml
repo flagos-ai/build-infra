@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -41,6 +44,8 @@ tags:
       FlagTree 0.7.0 (0.6.0/0.7.0rc2 → 0.7.0+enflame3.6, 2026-09-28). Same
       sglang and plugin pins as the 2.1.2 image it replaces (PR 91 head,
       still open).
+    reason_zh: |-
+      在 FlagOS 2.2.0 栈上重建，燧原 runtime 重建于 FlagTree 0.7.0（0.6.0/0.7.0rc2 → 0.7.0+enflame3.6，2026-09-28）。sglang 与插件 pin 与其替代的 2.1.2 镜像相同（PR 91 head，仍未合并）。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/91
 - tag: 2.1.2-0.1.dev1_g65dff2733
@@ -48,5 +53,7 @@ tags:
   - date: 2026-09-05T05:32:04Z
     reason: >-
       sglang 0.5.18 on enflame tops1.10.6 (PR 91 revive vendor layer + serve fix).
+    reason_zh: |-
+      燧原 tops1.10.6 上的 sglang 0.5.18（PR 91 恢复厂商层 + 修复 serve）。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/91

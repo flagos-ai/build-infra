@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-ascend-cann9.0.0-910c
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:49:52.424Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:38:34.802Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -54,4 +62,11 @@ tags:
       - The build takes the runner's proxy settings as build arguments — these
         nodes have no direct egress — and drops the apt `Post-Invoke` hooks, which
         fail there because docker 20.10.8's seccomp profile blocks `clone3`.
+    reason_zh: |-
+      - 首次交付：CANN 9.0.0 —— toolkit、910C（A3） ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
+      - 只有 ops 包与芯片相关：该变体取 `A3` 标记而非 `910b`，而 toolkit 和 NNAL 与同一 CANN 版本的 910B 线共用。
+      - python3.11 从 deadsnakes 强制安装，与发行版自带的 3.12 并存：CANN 安装器写出的 python 版本相关产物会被 runtime import，因此基础解释器必须与 runtime venv 的一致。
+      - SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。toolkit 和 NNAL 的 `set_env.sh` 在 bash 下 source：它们是 bash 脚本，在 dash 下可能走到调用 `exit` 的路径，静默中断该步骤。
+      - ATB 也在该固化中，因为 toolkit 的 `set_env.sh` 漏掉 `ATB_HOME_PATH` 和 ATB 库路径；缺了它们 `libatb.so` 加载失败，ATB 算子（`_npu_reshape_and_cache`、`_npu_rotary_embedding`）在推理时崩溃。
+      - 构建把 runner 的代理设置作为 build arg 传入 —— 这些节点没有直连出口 —— 并移除 apt 的 `Post-Invoke` hook，因为 docker 20.10.8 的 seccomp profile 挡了 `clone3`，hook 在此处失败。
     upstream_prs: []

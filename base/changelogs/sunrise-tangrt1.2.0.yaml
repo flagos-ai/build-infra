@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-sunrise-tangrt1.2.0
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:50:12.684Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:21:06.232Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -39,4 +47,7 @@ tags:
         on ubuntu:24.04.
       - `TANGRT_ROOT`, `LIBRARY_PATH` and `LD_LIBRARY_PATH` are set in the image,
         so the toolkit and its libraries resolve without an activation step.
+    reason_zh: |-
+      - 首次交付：TangRT 1.2.0 —— Tang toolkit、PCCL、taDNN 和 taBLAS —— 基于 ubuntu:24.04。
+      - 镜像内设置 `TANGRT_ROOT`、`LIBRARY_PATH` 和 `LD_LIBRARY_PATH`，无需激活步骤即可解析 toolkit 及其库。
     upstream_prs: []

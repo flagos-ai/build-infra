@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -51,5 +54,7 @@ tags:
       build we do not ship — the SDPA family is blacklisted so flag_gems does not
       hijack the native path into the same XPU flash-attention compiler failure.
       F/T dual-compiler serve verified on Qwen3-4B.
+    reason_zh: |-
+      昆仑芯 P800（XRE 5.37.1）上的 sglang 0.5.18。本后端的首个镜像。插件不再从 torch 属性推导厂商，该做法此前把每个 CUDA 别名平台都标为 nvidia，使 kunlunxin.yaml 从未被加载——其中的二分定位算子黑名单、silu_and_mul 路由、oot_blacklist 皆然；插件把厂商层适配到 0.5.18（overlap_utils 符号已消失，KV pool 不再挂在 ForwardBatch 上，补丁执行器现在隔离单个失败，而不是让它连带禁用其余部分）；强制 JIT 的 CUDA 判定为 False，因为本设备回报 capability (8, 6)，真实 nvcc 因此能成功编译 sm_86 SASS，却在启动时以「invalid device function」失败；并把 attention 路由到 torch_native，因为厂商的 klx_attention_* 算子只存在于我方不发布的厂商编译版 sgl_kernel 构建中——SDPA 系列已被拉黑，以免 flag_gems 把原生路径劫持到同一个 XPU flash-attention 编译器失败上。F/T 双编译器 serve 已在 Qwen3-4B 上验证。
     upstream_prs:
     - https://github.com/flagos-ai/sglang-plugin-FL/pull/104

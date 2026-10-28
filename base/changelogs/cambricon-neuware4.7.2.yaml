@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-cambricon-neuware4.7.2
 tags:
@@ -24,12 +28,16 @@ tags:
   - date: '2026-10-14T05:50:06.814Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:20:35.891Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -40,4 +48,7 @@ tags:
         cnmon 6.5.48 — on ubuntu:24.04, alongside the 4.4.3 line.
       - `NEUWARE_HOME`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
         toolkit is usable without an activation step.
+    reason_zh: |-
+      - 首次交付：寒武纪 Neuware 4.7.2 —— cntoolkit 4.7.2、cnnl 2.2.14、cnnlextra 2.4.0、mluops 1.12.0、cncl 1.30.8、cncv 2.12.1、cnclep 1.4.0 和 cnmon 6.5.48 —— 基于 ubuntu:24.04，与 4.4.3 线并存。
+      - 镜像内设置 `NEUWARE_HOME`、`PATH` 和 `LD_LIBRARY_PATH`，无需激活步骤即可使用 toolkit。
     upstream_prs: []

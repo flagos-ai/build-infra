@@ -16,6 +16,10 @@
 # Written retrospectively: the deliveries recorded here predate this layer
 # having a changelog, so their dates are the registry's own push_time, read
 # back from Harbor rather than backfilled by a workflow.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image. The
+# entries recorded here predate the field, so their `reason_zh` was
+# translated afterwards rather than written with the entry.
 
 image: flagos-base-hygon-dtk26.04
 tags:
@@ -27,12 +31,16 @@ tags:
         c10 headers make an extension build link glog (`C10_USE_GLOG`) and DTK
         ships no such library, so `import vllm_fl._C` failed and this backend's
         application layer could not load its native plugin.
+    reason_zh: |-
+      - 安装 `libgoogle-glog0v6t64` 是为了 `libglog.so.1` 这个 soname：torch 的 c10 头文件使扩展构建链接 glog（`C10_USE_GLOG`），而 DTK 不提供该库，导致 `import vllm_fl._C` 失败，此后端的应用层无法加载其原生插件。
     upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:20:40.030Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+    reason_zh: |-
+      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
     upstream_prs: []
 - tag: 2.1.2
   entries:
@@ -50,4 +58,9 @@ tags:
       - The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
         time; `env.sh` runs under bash because it finds DTKROOT through
         `BASH_SOURCE[0]`, which dash does not support.
+    reason_zh: |-
+      - 首次交付：海光 DTK 26.04 及 DTK LLVM 工具链，基于 ubuntu:24.04。DTK 构建产物是 Ubuntu 22.04 版 —— 没有 24.04 发行版 —— 镜像取更新的基础系统以满足 FlagTree 需要的 libstdc++。
+      - DTK LLVM 包随其提供 —— 即 FlagTree 的 DCU 后端所针对构建的工具链。
+      - `libnuma1`、`libgfortran5`、`libdrm-amdgpu1`、`libdw1`、`libelf1` 和 `libpciaccess0` 提供 torch 构建和 DCU 检测路径所需的用户态库。
+      - SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`；`env.sh` 在 bash 下执行，因为它通过 `BASH_SOURCE[0]` 找到 DTKROOT，而 dash 不支持这一写法。
     upstream_prs: []

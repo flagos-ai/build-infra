@@ -24,6 +24,9 @@
 #     reason:      why this rebuild happened — the change that matters for
 #                  THIS image (not the mechanical bump). Human-written
 #                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
 #     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
 #                  ...) that this build is waiting on — a tracking list, so a
 #                  merged PR does not belong here (its change is already in
@@ -39,12 +42,16 @@ tags:
       Rebuild on the mthreads runtime rebuilt with the updated flagtree wheel
       (same 0.7.0+mthreads3.6 version, new contents, 2026-09-29). Same wheel
       and app pins as the image it replaces.
+    reason_zh: |-
+      在基于更新后 flagtree wheel 重建的摩尔线程 runtime 上重建（版本仍为 0.7.0+mthreads3.6，内容变更，2026-09-29）。wheel 与 app 锁定与所替代镜像相同。
     upstream_prs: []
   - date: '2026-09-28T05:44:46.170Z'
     reason: >-
       Rebuilt wheel 0.17.1+0.2.3 (release/0.2 = MLF v0.2.3, commit 1da6be72) with
       the local label dropped to +0.2.3 (the +fl.0.2.3 label is gone, matching the
       0.18.2 line's 0.18.2+0.3.0). App image rebuilt from that wheel, pinned exactly.
+    reason_zh: |-
+      重建 wheel 0.17.1+0.2.3（release/0.2 = MLF v0.2.3，commit 1da6be72），本地标签去掉、变为 +0.2.3（+fl.0.2.3 标签已移除，与 0.18.2 线的 0.18.2+0.3.0 一致）。app 镜像由该 wheel 重建，精确锁定。
     upstream_prs: []
   - date: '2026-09-23T14:03:26.962Z'
     reason: >-
@@ -57,4 +64,6 @@ tags:
       dynamic-batching
       path needs --attention-backend unfused (DotProductAttention is exempt
       from the gate). The RL scenario has not been measured on this image.
+    reason_zh: |-
+      该后端首个 megatron_rl 镜像。MLF PR 114 声明 [rl] extra、PR 116 将硬性的 flash-attn >= 2.7.3 断言替换为 platform / DotProductAttention 门控之后，RL 线恢复镜像发布。基于 FlagOS 2.2.0 栈与 release 线 wheel 构建，精确锁定（0.17.1+fl.0.2.3），而非把 ==0.17.1 解析为索引中任意一个本地版本。该后端不提供 flash-attn，因此未受门控的动态 batching 路径需要 --attention-backend unfused（DotProductAttention 不受该门控约束）。该镜像尚未实测 RL 场景。
     upstream_prs: []
