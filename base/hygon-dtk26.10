@@ -42,12 +42,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Install DTK ────────────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /dtk.tar.gz ${FILE_STORE}/hygon/${SDK_PACKAGE} \
     && tar xzf /dtk.tar.gz -C /opt \
-    && ln -sf /opt/dtk-26.04 /opt/dtk \
+    && ln -sf /opt/dtk-26.10 /opt/dtk \
     && rm /dtk.tar.gz
 
 # ── Install LLVM DTK ───────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /llvm.run  ${FILE_STORE}/hygon/${LLVM_PACKAGE} \
-    && bash /llvm.run --dtk_dir /opt/dtk-26.04 \
+    && bash /llvm.run --dtk_dir /opt/dtk-26.10 \
     && rm /llvm.run
 
 # ── Capture vendor SDK env into profile.d ──────────────────────
