@@ -38,7 +38,7 @@ title: "hygon-dtk26.04"
 显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.1
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -48,6 +48,7 @@ title: "hygon-dtk26.04"
 - `libdw1`
 - `libelf1`
 - `libgfortran5` — 14.2.0
+- `libgoogle-glog0v6t64` — 0.6.0
 - `libnuma1` — 2.0.18
 - `libpciaccess0` — 0.17
 - `pciutils` — 3.10.0
@@ -90,7 +91,7 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+*更新时间: 2026-10-27 09:20:51 · `72dd165431b8`*
 
 ## 更新日志
 
