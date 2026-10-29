@@ -30,12 +30,9 @@ ARG EXTRA_PYPI
 ARG PYTHON_VERSION=3.12
 ARG RUNTIME_PREREQS
 
-# Never baked as ENV: the proxy is a build-time fact of one RUN.
-ARG HTTPS_PROXY=
-ARG http_proxy=
-ARG https_proxy=
-# The node's own value, not a second copy here that could silently win.
-ARG no_proxy=
+# Never baked as ENV: the proxy is a build-time fact of one RUN. It IS relayed
+# into the build (build-flagcx-builder.sh passes --build-arg http_proxy), so the
+# ROCm step below unsets it per-RUN before touching repo.radeon.com.
 
 # The base image's apt mirror switch, reproduced for the builder: the amd node's
 # containers cannot reach archive.ubuntu.com (its AAAA record hangs), so the
@@ -91,7 +88,8 @@ RUN curl -fsSL \
 #
 # amdgpu-core lives in the graphics repo, not the rocm repo; the two deb lines are
 # the base image's pair with jammy swapped in for noble.
-RUN install -d /etc/apt/keyrings \
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy; \
+    install -d /etc/apt/keyrings \
     && curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key \
         | gpg --dearmor -o /etc/apt/keyrings/rocm.gpg \
     && printf '%s\n' \
