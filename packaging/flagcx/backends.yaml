@@ -520,17 +520,33 @@ hygon-dtk26.04:
     enabled: true
     containerfile: Containerfile.builder-vendor-hygon
 
-# DTK 26.10 (ubuntu:24.04 base, headers under /opt/dtk-26.10/...): documented but
-# not packaged yet — the flagcx pin in configs.yaml is still `# TODO`, so no
-# channel produces anything. The row exists so that generate_matrix.py --runtime
-# (which now emits this key) does not read as drift in --check. All channels off.
+# Wheel-enabled now; deb/rpm stay off (their probe is a separate concern).
 hygon-dtk26.10:
   vendor: du
   make_flag: USE_DU
   arch: amd64
   glibc_floor: "2.39"
   apt: []
+  # Same DU make-env shape as 26.04: du.mk defaults both to ${CUDA_PATH}, which
+  # DTK never exports. The cuda-12 path is the 26.04 layout — the builder's
+  # assert gate names the real path if the 26.10 tarball moved it.
+  make_env:
+    DEVICE_HOME: /opt/dtk/cuda/cuda-12
+    CCL_HOME: /opt/dtk/cuda/cuda-12
+  vendor_libs: [cuda, cudart, rccl]
+  assert:
+    - /opt/dtk/cuda/cuda-12/include/nccl.h
+    - /opt/dtk/cuda/cuda-12/include/cuda_runtime.h
+    - /opt/dtk/lib/librccl.so.1
+  vendor_lib_dirs: [/opt/dtk/cuda/cuda-12/lib64, /opt/dtk/lib, /opt/hyhal/lib]
   deb: {enabled: false, default_for_vendor: false}
+  wheel: {enabled: true, torch_backend: vendor}
+  # Self-contained ubuntu:22.04 builder, same reason as 26.04 (wheel must link
+  # ≤ glibc 2.35). Its recipe differs: DTK-26.10's *22.04* tarball (the 24.04
+  # one links GLIBC_2.38) and python 3.12 from deadsnakes.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-hygon-dtk2610
 
 iluvatar-corex4.4.0:
   vendor: iluvatar_corex
