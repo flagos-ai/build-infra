@@ -31,7 +31,7 @@ title: "metax-maca3.8.1.3"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.2.0</code> <a href="../../base/metax-maca3.8.1.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.3.0</code> <a href="../../base/metax-maca3.8.1.3/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,6 +41,7 @@ title: "metax-maca3.8.1.3"
 
 - `apex==0.1+metax3.8.1.0`
 - `flag_gems==5.4.0`
+- `flagcx==0.14.0+maca3.8.1.3`
 - `flagtree==0.7.0+metax3.6`
 - `flash_attn==2.6.3+metax3.8.1.0torch2.10`
 - `flash_linear_attention==0.5.0+metax3.8.1.0torch2.10`
@@ -57,6 +58,14 @@ title: "metax-maca3.8.1.3"
 
 本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
 
+### 指定 FlagTree 版本
+
+如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。
+
+### 指定 FlagGems 版本
+
+给 `docker run` 传入 `-e FLAGGEMS_VERSION=<版本>`，即可在应用启动前装上该 FlagGems 发布版，无需重建镜像。`-e FLAGGEMS_VERSION=latest` 取的是**每日线**上的最新构建（领先于下一个发布版）：它是「每日线最新」，不与镜像里已有的版本比较。wheel 约 13 MB，每个容器只取一次。容器内安装会保持其余依赖与构建时一致；请求装不上时容器直接起不来，而不是带着另一个 FlagGems 启动。
+
 ## 环境变量
 
 - `USE_FLAGTUNE_COST_MODEL=0`
@@ -70,7 +79,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.3.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -80,7 +89,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.3.0 bash
 ```
 
 ## 验证

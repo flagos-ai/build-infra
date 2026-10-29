@@ -8,7 +8,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.2.0`
+`harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.3.0`
 
 ### Python
 
@@ -17,6 +17,7 @@
 ### Major Python packages
 
 - `flag_gems==5.4.0`
+- `flagcx==0.14.0+neuware4.7.2`
 - `numpy==1.26.4`
 - `pandas==3.0.5`
 - `torch-mlu-ops==1.12.1+torch2.11.0`
@@ -26,6 +27,10 @@
 - `torchvision==0.26.0+cpu`
 - `triton==3.4.0+mlu2.1.1`
 
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
+
 ## Launch
 
 Start an interactive shell (works with docker or podman):
@@ -34,7 +39,7 @@ Start an interactive shell (works with docker or podman):
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.3.0 bash
 ```
 
 ## Verify

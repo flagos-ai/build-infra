@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.2.0`
+`harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.7.2.1:2.3.0`
 
 ### Python
 
@@ -18,6 +18,7 @@
 ### Major Python packages
 
 - `flag_gems==5.4.0`
+- `flagcx==0.14.0+maca3.7.2.1`
 - `flagtree==0.7.0+metax3.6`
 - `flash_attn==2.6.3+metax3.7.2.0torch2.8`
 - `numpy==1.26.4`
@@ -29,6 +30,14 @@
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+### Choosing a FlagTree version
+
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
 
 ## Environment
 
@@ -43,7 +52,7 @@ metax-docker \
   run \
   --rm \
   -it \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.3.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -53,7 +62,7 @@ docker run --rm -it \
   --device /dev/mxcd \
   --device /dev/dri \
   --group-add video \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.7.2.1:2.3.0 bash
 ```
 
 ## Verify

@@ -31,7 +31,7 @@ title: "iluvatar-corex4.4.0"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.2.0</code> <a href="../../base/iluvatar-corex4.4.0/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-iluvatar-corex4.4.0:2.3.0</code> <a href="../../base/iluvatar-corex4.4.0/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -40,7 +40,8 @@ title: "iluvatar-corex4.4.0"
 ### 主要 Python 软件包
 
 - `flag_gems==5.4.0`
-- `flagtree==0.7.0+iluvatar3.6`
+- `flagcx==0.14.0+corex4.4.0`
+- `flagtree==0.6.1+iluvatar3.6`
 - `numpy==1.26.4`
 - `torch==2.7.1+corex.4.4.0`
 - `torchaudio==2.7.1+corex.4.4.0`
@@ -51,6 +52,18 @@ title: "iluvatar-corex4.4.0"
 
 本镜像同时包含 FlagTree（默认）和 Triton。在容器内执行 `compiler triton` 可切换到 Triton，执行 `compiler flagtree` 切回，执行 `compiler` 查看当前编译器。
 
+### 指定 FlagTree 版本
+
+如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。
+
+### 指定 FlagGems 版本
+
+给 `docker run` 传入 `-e FLAGGEMS_VERSION=<版本>`，即可在应用启动前装上该 FlagGems 发布版，无需重建镜像。`-e FLAGGEMS_VERSION=latest` 取的是**每日线**上的最新构建（领先于下一个发布版）：它是「每日线最新」，不与镜像里已有的版本比较。wheel 约 13 MB，每个容器只取一次。容器内安装会保持其余依赖与构建时一致；请求装不上时容器直接起不来，而不是带着另一个 FlagGems 启动。
+
+## 环境变量
+
+- `USE_FLAGTUNE_COST_MODEL=0`
+
 ## 启动
 
 **使用容器工具包** *(可选)*：
@@ -59,7 +72,7 @@ title: "iluvatar-corex4.4.0"
 docker run --rm -it \
   --runtime iluvatar \
   --env IX_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.3.0 bash
 ```
 
 **无需工具包** —— 直接使用 docker / podman：
@@ -68,7 +81,7 @@ docker run --rm -it \
 docker run --rm -it \
   --device /dev/iluvatar0 \
   --device /dev/itrctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.4.0:2.3.0 bash
 ```
 
 ## 验证

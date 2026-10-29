@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.2.0`
+`harbor.baai.ac.cn/flagos-base/flagos-base-enflame-tops1.10.6:2.3.0`
 
 ### Python
 
@@ -19,7 +19,8 @@
 
 - `enflame-modelopt==3.6.20260615+torch.2.11.0`
 - `flag_gems==5.4.0`
-- `flagtree==0.7.0rc2+enflame3.6`
+- `flagcx==0.14.0+tops1.10.6`
+- `flagtree==0.7.0+enflame3.6`
 - `flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706`
 - `numpy==1.26.4`
 - `pyefml==1.10.6`
@@ -35,6 +36,14 @@
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+### Choosing a FlagTree version
+
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
 
 ## Environment
 
@@ -52,7 +61,7 @@ docker run --rm -it \
   --network host \
   -e ENFLAME_VISIBLE_DEVICES=all \
   -e TENCENT_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.3.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -61,7 +70,7 @@ docker run --rm -it \
 docker run --rm -it \
   --privileged \
   -v /dev:/dev \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.3.0 bash
 ```
 
 ## Verify

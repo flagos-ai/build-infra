@@ -30,7 +30,7 @@ title: "cambricon-neuware4.7.2"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.2.0</code> <a href="../../base/cambricon-neuware4.7.2/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2:2.3.0</code> <a href="../../base/cambricon-neuware4.7.2/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -39,6 +39,7 @@ title: "cambricon-neuware4.7.2"
 ### 主要 Python 软件包
 
 - `flag_gems==5.4.0`
+- `flagcx==0.14.0+neuware4.7.2`
 - `numpy==1.26.4`
 - `pandas==3.0.5`
 - `torch-mlu-ops==1.12.1+torch2.11.0`
@@ -48,6 +49,10 @@ title: "cambricon-neuware4.7.2"
 - `torchvision==0.26.0+cpu`
 - `triton==3.4.0+mlu2.1.1`
 
+### 指定 FlagGems 版本
+
+给 `docker run` 传入 `-e FLAGGEMS_VERSION=<版本>`，即可在应用启动前装上该 FlagGems 发布版，无需重建镜像。`-e FLAGGEMS_VERSION=latest` 取的是**每日线**上的最新构建（领先于下一个发布版）：它是「每日线最新」，不与镜像里已有的版本比较。wheel 约 13 MB，每个容器只取一次。容器内安装会保持其余依赖与构建时一致；请求装不上时容器直接起不来，而不是带着另一个 FlagGems 启动。
+
 ## 启动
 
 启动交互式 shell（docker 或 podman 均可）：
@@ -56,7 +61,7 @@ title: "cambricon-neuware4.7.2"
 docker run --rm -it \
   --device /dev/cambricon_dev0 \
   --device /dev/cambricon_ctl \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.3.0 bash
 ```
 
 ## 验证
