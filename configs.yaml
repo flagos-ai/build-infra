@@ -740,6 +740,27 @@ vendors:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
 
+    dtk26.10:
+      extras: hygon
+      hardware: ["Hygon BW1000"]
+      driver: "6.4.2-V2.1.0"
+      python: "3.12"
+      triton: triton==3.7.0+dtk2610.torch2130.2610212057.g024953
+      flagtree: flagtree==0.7.0+hcu3.6
+      flagtree_daily: flagtree-hcu
+      deps:
+        - apex==1.7.0+dtk2610.torch2130.2610221147.gfa848d
+        - flash_attn==2.8.4+dtk2610.torch2130.2610211904.g0f1a5a
+        - torch==2.13.0+dtk2610.2610261432.gefb4e1
+        - torchaudio==2.11.0+dtk2610.torch2130.2610221109.g1da530
+        - torchvision==0.28.0+dtk2610.torch2130.2610212003.gac691b
+        - numpy==1.26.4
+        # TODO
+        # - flagcx==0.14.1+dtk2610
+      sdk:
+        - Hygon DTK 26.10      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
+        - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
+
   iluvatar:
     corex4.4.0:
       extras: iluvatar-corex440
