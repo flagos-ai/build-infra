@@ -442,7 +442,7 @@ vendors:
         - cann-shmem==1.6.0
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+cann9.0.0
+        - flagcx==0.14.1+cann9.0.0
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -755,8 +755,9 @@ vendors:
         - torchaudio==2.11.0+dtk2610.torch2130.2610221109.g1da530
         - torchvision==0.28.0+dtk2610.torch2130.2610212003.gac691b
         - numpy==1.26.4
-        # TODO
-        # - flagcx==0.14.1+dtk2610
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.1+dtk2610
       sdk:
         - Hygon DTK 26.10      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
