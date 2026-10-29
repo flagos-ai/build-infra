@@ -16,7 +16,8 @@ name: FlagTree Wheel
 
 # Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
 # vendor PyPI. Two target families: self-contained Containerfiles (metax /
-# nvidia-cuda / iluvatar / sunrise), and the ascend pair, whose build machine is
+# nvidia-cuda / iluvatar / sunrise / hcu-dtk2610), and the ascend pair, whose
+# build machine is
 # its backend's runtime image and which is therefore named after that backend —
 # the Containerfile, this workflow's target and generate_matrix.py's backend name
 # are the same string. `prepare` resolves what that difference implies: the runner
@@ -35,6 +36,7 @@ on:
           - nvidia-cuda
           - iluvatar
           - sunrise
+          - hcu-dtk2610
           - ascend-cann9.0.0
           - ascend-cann8.5.0
         default: metax
@@ -97,6 +99,8 @@ jobs:
           # ascend targets ARE the backend names, so they need no mapping; the
           # iluvatar target is the plain vendor name, and which CoreX line it
           # means is the runtime image's business, not a guess from the string.
+          # hcu-dtk2610 maps explicitly: `hcu` alone would resolve to the 26.04
+          # line, whose pin is a cp310 wheel this target does not build.
           #
           # `in_base` marks the targets whose build machine IS that backend's
           # runtime image. They take the same `BUILDER_IMAGE` arg every other
@@ -107,6 +111,7 @@ jobs:
           case "$TARGET" in
             ascend-cann*) backend="$TARGET";                in_base=yes ;;
             iluvatar)     backend="iluvatar-corex4.5.0";    in_base=no  ;;
+            hcu-dtk2610)  backend="hygon-dtk26.10";         in_base=no  ;;
           esac
           if [ -z "$backend" ]; then
             echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
