@@ -598,6 +598,66 @@ wheels:
     - linux
     arch:
     - linux_x86_64
+  - version: flagcx==0.14.1+corex4.4.0
+    pypi_index: flagos-pypi-iluvatar
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.1+corex4.5.0
+    pypi_index: flagos-pypi-iluvatar
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.1+xre5.37.1
+    pypi_index: flagos-pypi-kunlunxin
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp310
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.1+cuda12.8
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.1+cuda13.3
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
