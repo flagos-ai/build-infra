@@ -237,6 +237,15 @@ been verified on the backend's own nodes, the same gate every new backend goes
 through. The dist_name `flagtree-hcu-dtk2610` is reserved so the 26.10 line never
 collides with the 26.04 `flagtree-hcu` project.
 
+**The cp312 release wheel comes from `flagtree-wheel.yml` with
+`target=hcu-dtk2610`**, which builds `0.7.0+hcu3.6` as plain `flagtree` into
+`flagos-pypi-hygon` — the name and version `configs.yaml` pins for the 26.10
+runtime. `prepare` maps the target to the `hygon-dtk26.10` runtime row for its
+runner labels and vendor index, and passes no `BUILDER_IMAGE`, so this stage
+cold-builds from bare `ubuntu:22.04` like `iluvatar`. A daily wheel does not
+substitute for it: that line publishes `flagtree-hcu-dtk2610` at
+`<base>.dev<date>`, a different project and version.
+
 ## Tsingmicro builder (`tsingmicro`)
 
 The same shape as `hcu` — bare `ubuntu:22.04`, apt toolchain, the backend's
