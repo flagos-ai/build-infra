@@ -106,3 +106,12 @@ strip_extra_from_indirect:
 # upstream choice for every backend.  See docs/vllm-0.24.0/backends/mthreads.md §8.
 pin_indirect:
   xgrammar: "0.2.3"
+pin_indirect_per_version:
+  # vllm 0.28.0 / 0.32.0 raise the xgrammar floor (0.32.0 hard-pins ==0.2.8 in
+  # requirements/common.txt).  The global 0.2.3 above exists solely for
+  # 0.24.0's transformers window; keeping it global would freeze a stale 0.2.3
+  # into the newer wheels.  Keys are vllm base versions (no +flagos suffix).
+  "0.28.0":
+    xgrammar: "0.2.8"
+  "0.32.0":
+    xgrammar: "0.2.8"

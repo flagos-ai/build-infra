@@ -43,20 +43,23 @@ Design:
 
 import argparse
 import hashlib
-import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 import urllib.request
 import urllib.error
+import urllib.parse
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.tags import sys_tags
+from packaging.utils import InvalidWheelFilename, parse_wheel_filename
+from packaging.version import InvalidVersion, Version
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
@@ -210,27 +213,6 @@ def _get_wheel_tag(wheel_text: str) -> str:
 def _rewrite_wheel_tag(wheel_text: str, new_tag: str) -> str:
     """Replace the Tag line in a WHEEL file."""
     return _WHEEL_TAG_RE.sub(f"Tag: {new_tag}", wheel_text)
-
-
-def _extract_name_version(requires_dist_line: str):
-    """Return (name, version_spec_no_marker) from a raw Requires-Dist string.
-
-    Strips extras like [cu13] and environment markers like ; platform_system == ... .
-    """
-    raw = requires_dist_line.strip()
-    # Split off environment marker
-    pkg_spec = raw.split(";", 1)[0].strip()
-
-    # Strip extras brackets e.g. humming-kernels[cu13]==0.1.10 → humming-kernels==0.1.10
-    pkg_spec = re.sub(r"\[.*\]", "", pkg_spec)
-
-    m = _NAME_RE.match(pkg_spec)
-    name = m.group(1).strip() if m else pkg_spec
-
-    # Version spec is everything after the name
-    version_spec = pkg_spec[len(name):].strip()
-
-    return name, version_spec
 
 
 def _parse_requires_dist_body(body: str) -> tuple[str, str, str] | None:
@@ -390,160 +372,119 @@ def _is_valid_zip(path: Path) -> bool:
     except (zipfile.BadZipFile, OSError):
         return False
 
-_JSON_HEADERS = {"Accept": "application/json"}
 
-
-
-def _version_matches(version: str, spec: str) -> bool:
-    """Lightweight PEP 440 version matching.  Handles ==, >=, <=, !=, <, >.
-    Returns True if `version` satisfies `spec`.
-    """
-    spec = spec.strip()
-    v = _parse_version(version)
-
-    # Split on comma for compound specs like '<1.0.0,>=0.2.1'
-    parts = [p.strip() for p in spec.split(",") if p.strip()]
-    if not parts:
-        return True
-
-    for part in parts:
-        # Support whitespace-separated compound as well: '>=0.2.1,<1.0.0'
-        sub_parts = [s.strip() for s in part.split() if s.strip()]
-        for sp in sub_parts:
-            op, target = _parse_spec_part(sp)
-            if op is None:
-                return False
-            tv = _parse_version(target)
-            if not _check_op(v, op, tv):
-                return False
-    return True
-
-
-def _parse_version(v_str: str):
-    """Parse a version string into a tuple of ints for comparison."""
-    # Strip any epoch prefix
-    if "!" in v_str:
-        v_str = v_str.split("!", 1)[1]
-    # Take only the release segment (before first pre/post/dev marker)
-    release = v_str
-    for sep in ("a", "b", "rc", ".post", ".dev", "+", "-"):
-        idx = release.find(sep)
-        if idx != -1:
-            release = release[:idx]
-    return tuple(int(x) for x in release.split(".") if x.isdigit())
-
-
-def _parse_spec_part(spec: str) -> tuple[str | None, str]:
-    """Parse a single version specifier into (operator, version)."""
-    for op in ("!=", ">=", "<=", "==", ">", "<", "~="):
-        if spec.startswith(op):
-            return op, spec[len(op):]
-    # Bare version is treated as ==
-    return "==", spec
-
-
-def _check_op(v1: tuple, op: str, v2: tuple) -> bool:
-    if op == "==":
-        return v1 == v2
-    elif op == "!=":
-        return v1 != v2
-    elif op == ">=":
-        return v1 >= v2
-    elif op == "<=":
-        return v1 <= v2
-    elif op == ">":
-        return v1 > v2
-    elif op == "<":
-        return v1 < v2
-    elif op == "~=":
-        # Compatible release: ~= X.Y means >= X.Y, == X.*
-        return v1 >= v2 and v1[:len(v2) - 1] == v2[:len(v2) - 1]
-    return False
+# Cache of the interpreter's own tags so compatibility is computed once per
+# run, not once per candidate wheel.
+_SYS_TAGS = frozenset(sys_tags())
 
 
 def _resolve_pip_version(name: str, version_spec: str, extra_indexes: list[str]) -> str | None:
-    """Resolve a version specifier to an exact version via `pip index versions`.
-
-    Prefers vendor-packaged names (e.g. torch with +das suffix) by checking
-    extra indexes first.  Uses the pip CLI rather than the /simple/<name>/json
-    endpoint because Aliyun's mirror does not serve that JSON API (404s for
-    every package), which silently broke this fallback.
+    """Resolve a version specifier to an exact version by fetching the
+    index's PEP 503 simple page and picking the highest compatible wheel
+    file.  This replaces the JSON API (Aliyun's mirror 404s it) and per-version
+    `pip index versions` (a subprocess per dep, minutes each), so it is both
+    correct and fast.
     """
     indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
                + ["https://mirrors.aliyun.com/pypi/simple/"])
 
-    pypi_name = re.sub(r"\[.*\]", "", name)
-    spec = version_spec.strip()
+    try:
+        spec_set = SpecifierSet(version_spec) if version_spec else None
+    except InvalidSpecifier:
+        spec_set = None
+
+    pypi_name = _normalize(name)
     for base_url in indexes:
-        r = subprocess.run(
-            [sys.executable, "-m", "pip", "index", "versions", pypi_name,
-             "-i", base_url],
-            check=False, capture_output=True, text=True, timeout=60,
-        )
-        if r.returncode != 0:
+        candidates: list[Version] = []
+        try:
+            url = f"{base_url}{pypi_name}/"
+            req = urllib.request.Request(url, headers={"Accept": "text/html"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                html = resp.read().decode("utf-8", "replace")
+        except Exception:
             continue
 
-        versions: list[str] = []
-        for line in r.stdout.splitlines():
-            line = line.strip()
-            if line.startswith("Available versions:"):
-                versions = [v.strip() for v in
-                            line.split(":", 1)[1].split(",") if v.strip()]
-                break
-        if not versions:
-            continue
-        versions.sort(key=lambda v: [int(x) for x in re.findall(r"\d+", v)] or [0])
-        for v in reversed(versions):
-            if _version_matches(v, spec):
-                return v
+        # PEP 503 pages list files as `<a href="...#sha256=...">file.whl</a>`,
+        # possibly with attributes (data-requires-python) between href and `>`.
+        for href, fn in re.findall(r'href="([^"]+)"[^>]*>([^<]+)</a>', html):
+            norm = fn.replace(".tar.gz", ".whl")
+            try:
+                _, ver, _, tags = parse_wheel_filename(norm)
+            except (InvalidWheelFilename, InvalidVersion):
+                continue
+            # Match pip's default: never select a prerelease/dev release
+            # unless the spec explicitly asks for one.
+            if ver.is_prerelease or ver.is_devrelease:
+                continue
+            if spec_set is not None and ver not in spec_set:
+                continue
+            if not (tags & _SYS_TAGS):
+                continue
+            candidates.append(ver)
+
+        if candidates:
+            return str(max(candidates))
+
     return None
 
 
 def _download_dep_wheel(name: str, version: str, extra_indexes: list[str]) -> Path:
-    """Download a dependency wheel at exact version.  Returns wheel path."""
+    """Download a dependency wheel at exact version.  Returns wheel path.
+
+    Fetches the PEP 503 simple page and picks the wheel file matching the
+    requested version and a compatible tag, then downloads it directly.
+    (The JSON API 404s on Aliyun's mirror, and a `pip download` subprocess
+    per dep is slow.)
+    """
     indexes = ([ei.rstrip("/") + "/" for ei in extra_indexes]
                + ["https://mirrors.aliyun.com/pypi/simple/"])
 
-    pypi_name = re.sub(r"\[.*\]", "", name)
+    pypi_name = _normalize(name)
+    want = Version(version)
 
-    # Try JSON API first
     for base_url in indexes:
         try:
-            url = f"{base_url}{pypi_name}/{version}/json"
-            req = urllib.request.Request(url, headers=_JSON_HEADERS)
+            url = f"{base_url}{pypi_name}/"
+            req = urllib.request.Request(url, headers={"Accept": "text/html"})
             with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode())
-            for entry in data.get("urls", []):
-                if entry.get("packagetype") == "bdist_wheel":
-                    whl_url = entry.get("url")
-                    fn = entry.get("filename", "")
-                    if whl_url:
-                        dst = CACHE_DIR / fn
-                        if dst.exists() and dst.stat().st_size > 1024 and _is_valid_zip(dst):
-                            return dst
-                        print(f"    downloading {fn} ...")
-                        _download_url(whl_url, dst)
-                        return dst
+                html = resp.read().decode("utf-8", "replace")
         except Exception:
             continue
 
-    # Fallback: pip download
-    spec = f"{pypi_name}=={version}"
-    r = subprocess.run(
-        [sys.executable, "-m", "pip", "download", "--no-deps",
-         "--dest", str(CACHE_DIR), "--no-cache-dir",
-         "-i", indexes[0], spec],
-        check=False, capture_output=True, text=True,
-    )
-    if r.returncode == 0:
-        # Pip normalises package names (PyJWT→pyjwt, etc.).  Match any
-        # wheel whose filename contains the exact version.
-        whls = sorted(
-            [p for p in CACHE_DIR.glob("*.whl") if f"-{version}-" in p.name],
-            key=lambda p: p.stat().st_size,
-        )
-        if whls:
-            return whls[-1]
+        # Pick the wheel for the exact version whose tag the interpreter can
+        # use.  Fall back to any wheel for that version if tags don't match
+        # (e.g. py3-none-any handled elsewhere); we only repack audit-worthy
+        # deps, so a pure-python wheel is the common case.
+        fallback = None
+        for href, fn in re.findall(r'href="([^"]+)"[^>]*>([^<]+)</a>', html):
+            norm = fn.replace(".tar.gz", ".whl")
+            try:
+                _, ver, _, tags = parse_wheel_filename(norm)
+            except (InvalidWheelFilename, InvalidVersion):
+                continue
+            if ver != want:
+                continue
+            if ver.is_prerelease or ver.is_devrelease:
+                continue
+            if fallback is None:
+                fallback = (href, fn)
+            if tags & _SYS_TAGS:
+                dst = CACHE_DIR / fn
+                if dst.exists() and dst.stat().st_size > 1024 and _is_valid_zip(dst):
+                    return dst
+                print(f"    downloading {fn} ...")
+                # href is relative to the package page (`url`), not `base_url`.
+                _download_url(urllib.parse.urljoin(url, href), dst)
+                return dst
+
+        if fallback is not None:
+            href, fn = fallback
+            dst = CACHE_DIR / fn
+            if dst.exists() and dst.stat().st_size > 1024 and _is_valid_zip(dst):
+                return dst
+            print(f"    downloading {fn} ...")
+            _download_url(urllib.parse.urljoin(url, href), dst)
+            return dst
 
     raise RuntimeError(f"Could not download {name}=={version}")
 
@@ -552,7 +493,9 @@ def _download_url(url: str, dst: Path):
     """Download a URL to a local path, with validation."""
     import urllib.request as _ur
     try:
-        with _ur.urlopen(url, timeout=120) as resp:
+        # Strip any `#sha256=...` fragment: urllib includes it in the request
+        # path (PEP 503 fragments are client-side only), which 404s on mirrors.
+        with _ur.urlopen(url.split("#", 1)[0], timeout=120) as resp:
             with open(dst, "wb") as f:
                 shutil.copyfileobj(resp, f)
     except Exception as e:
@@ -567,11 +510,32 @@ def _download_url(url: str, dst: Path):
 # ── indirect dep resolution & repacking ────────────────────────────────
 
 
-def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, str]:
+def _effective_pins(pkg_version: str | None) -> dict[str, str]:
+    """Effective indirect pins for one vllm base version.
+
+    Merges the global `pin_indirect` with any `pin_indirect_per_version`
+    override keyed by the vllm base version (local suffix stripped).  A
+    version-specific conflict fix (0.24.0 → xgrammar 0.2.3) must not freeze
+    a stale floor into newer vllm releases (0.28.0/0.32.0 → 0.2.8).
+    """
+    config = load_config()
+    pins = dict(config.get("pin_indirect") or {})
+    if pkg_version:
+        base = re.sub(r"\+.*$", "", pkg_version)
+        overrides = (config.get("pin_indirect_per_version") or {}).get(base) or {}
+        pins.update(overrides)
+    return pins
+
+
+def resolve_dep_versions(meta_text: str, extra_indexes: list[str],
+                         pins: dict[str, str] | None = None) -> dict[str, str]:
     """Resolve every non-extra Requires-Dist to an exact version.
 
-    Uses a single 'pip install --dry-run --report' call for all retained
-    deps — one pip resolution instead of N, vastly faster.
+    Resolves per package via the index's PEP 503 simple page (a fast HTTP
+    fetch each).  This replaces the old single `pip install --dry-run
+    --report` pass, which for newer vllm dependency sets either hit pip's
+    1800s resolution timeout or died with ResolutionImpossible before falling
+    back here anyway — so the bulk pass was pure overhead.
 
     Returns {name: version} for each retained dep.  Deps that are already
     stripped (torch_chain, cuda_only, orphaned) are excluded.
@@ -582,9 +546,15 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
     for cat in ("remove_torch_chain", "remove_cuda_only", "remove_orphaned"):
         for item in config.get(cat, []):
             exclude.add(_normalize(item))
+    # The global strip set (torch/triton family, stripped from every audited
+    # dep) must not be resolved/audited as retained sub-deps either — that
+    # would download them (e.g. a 300MB triton wheel) right before they get
+    # stripped.  per-package `strip_extra_from_indirect` stays out: it is
+    # scoped to one dep (opencv → numpy), not a global "never retain".
+    for item in config.get("strip_from_indirect", []):
+        exclude.add(_normalize(item))
 
-    # Collect all retained deps' pip specs
-    specs: list[str] = []
+    resolved: dict[str, str] = {}
     for rd in all_rd:
         nn = _normalize(rd["name"])
         if nn in exclude:
@@ -594,85 +564,25 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str]) -> dict[str, 
         if "; extra" in rd["raw"]:
             continue
 
-        spec = rd["raw"].split(";", 1)[0].strip()  # drop markers
-        pkg_spec = re.sub(r"\[.*\]", "", spec)       # drop extras
+        # spec without environment markers: "name>=1.0" → version spec ">=1.0"
+        pkg_spec = rd["raw"].split(";", 1)[0].strip()
+        pkg_spec = re.sub(r"\[.*\]", "", pkg_spec)
         m = _NAME_RE.match(pkg_spec)
-        if m:
-            specs.append(spec)
-
-    if not specs:
-        return {}
-
-    # Build pip index args
-    idx_args: list[str] = []
-    for ei in extra_indexes:
-        idx_args += ["--extra-index-url", ei]
-    idx_args += ["--index-url", "https://mirrors.aliyun.com/pypi/simple/"]
-
-    resolved: dict[str, str] = {}
-    _report_path = None
-    failure: str | None = None
-    try:
-        import tempfile as _tf
-        with _tf.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as _f:
-            _report_path = _f.name
-        r = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--dry-run",
-             "--report", _report_path]
-            + idx_args + specs,
-            check=False, capture_output=True, text=True, timeout=300,
-        )
-        if r.returncode == 0:
-            with open(_report_path) as _f:
-                report = json.load(_f)
-            for item in report.get("install", []):
-                m = item.get("metadata", {})
-                resolved[m.get("name", "")] = m.get("version", "")
+        if not m:
+            continue
+        v = _resolve_pip_version(rd["name"], pkg_spec[m.end():].strip() or "",
+                                 extra_indexes)
+        if v:
+            resolved[rd["name"]] = v
         else:
-            failure = (r.stderr or r.stdout).strip().splitlines()
-            failure = failure[-1] if failure else f"rc={r.returncode}"
-    except subprocess.TimeoutExpired:
-        failure = "timed out after 1800s"
-    except Exception as e:
-        failure = f"{type(e).__name__}: {e}"
-    finally:
-        if _report_path:
-            try:
-                Path(_report_path).unlink(missing_ok=True)
-            except Exception:
-                pass
+            print(f"  WARNING: could not resolve {rd['name']} ({pkg_spec})")
 
-    if resolved:
-        print(f"  pip resolved {len(resolved)} deps in one pass")
-    else:
-        print(f"  WARNING: pip resolution returned empty ({failure}), falling back to per-dep")
-        # Fallback: resolve one-by-one
-        for rd in all_rd:
-            nn = _normalize(rd["name"])
-            if nn in exclude:
-                continue
-            if rd["extra"] is not None:
-                continue
-            if "; extra" in rd["raw"]:
-                continue
-
-            spec = rd["raw"].split(";", 1)[0].strip()
-            pkg_spec = re.sub(r"\[.*\]", "", spec)
-            m = _NAME_RE.match(pkg_spec)
-            if not m:
-                continue
-            v = _resolve_pip_version(rd["name"], pkg_spec[m.end():].strip() or "", extra_indexes)
-            if v:
-                resolved[rd["name"]] = v
-
-    # Apply per-package version pins (config `pin_indirect`).  Overrides the
-    # version pip resolved — used when the highest matching version is
-    # incompatible with vllm's own constraints (e.g. xgrammar 0.2.5's
-    # `transformers<5` vs vllm 0.24.0's `transformers>=5.5.3`); upstream pip
-    # backtracks, but the isolated per-dep resolution here would freeze the
-    # conflict into the repacked wheel.  Only touches deps that survived
-    # resolution — a stripped package is never re-introduced.
-    pins = config.get("pin_indirect") or {}
+    # Apply per-package version pins (config `pin_indirect`, possibly
+    # overridden per vllm base version by `pin_indirect_per_version`).  Only
+    # touches deps that survived resolution — a stripped package is never
+    # re-introduced.
+    if pins is None:
+        pins = _effective_pins(None)
     for pin_name, pin_version in pins.items():
         pin_key = _normalize(pin_name)
         if pin_key in resolved:
@@ -738,7 +648,8 @@ def audit_dep_meta(name: str, version: str, extra_indexes: list[str]) -> dict | 
 
 
 def repack_dep(name: str, version: str, extra_indexes: list[str],
-               visited: set[str] | None = None) -> tuple[Path, Path, list[tuple[str, str]]] | None:
+               visited: set[str] | None = None,
+               pins: dict[str, str] | None = None) -> tuple[Path, Path, list[tuple[str, str]]] | None:
     """Download and repack an indirect dep, stripping its torch/triton deps.
 
     Returns (output_wheel, manifest_path, sub_deps) or None if nothing to strip.
@@ -748,6 +659,8 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
         visited = set()
 
     config = load_config()
+    if pins is None:
+        pins = _effective_pins(None)
     strip_set = _strip_set_for(name, config)
 
     print(f"  repack: {name}=={version}")
@@ -783,7 +696,7 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     sub_repacked_deps: list[tuple[str, str]] = []
 
     # Resolve and repack sub-dependencies
-    dep_versions = resolve_dep_versions(meta_text, extra_indexes)
+    dep_versions = resolve_dep_versions(meta_text, extra_indexes, pins=pins)
     for dep_name, dep_version in sorted(dep_versions.items()):
         sub_key = f"{_normalize(dep_name)}-{dep_version}"
         if sub_key in visited:
@@ -794,7 +707,7 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
             continue
 
         print(f"\n    --- sub-dep: {dep_name}=={dep_version} ---")
-        result = repack_dep(dep_name, dep_version, extra_indexes, visited)
+        result = repack_dep(dep_name, dep_version, extra_indexes, visited, pins=pins)
         if result:
             _, _, sub_sub_deps = result
             sub_repacked_deps.append((dep_name, dep_version))
@@ -860,7 +773,8 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
 
 
 def repack_recursive(repacked_meta_text: str, extra_indexes: list[str],
-                     visited: set[str] | None = None):
+                     visited: set[str] | None = None,
+                     pins: dict[str, str] | None = None):
     """Resolve retained deps, audit each, repack those with torch/triton, recurse.
 
     visited tracks packages already handled to avoid infinite recursion.
@@ -871,10 +785,14 @@ def repack_recursive(repacked_meta_text: str, extra_indexes: list[str],
         visited = set()
 
     config = load_config()
+    if pins is None:
+        mvv = re.search(r"^Version:\s*(.+)$", repacked_meta_text,
+                        re.MULTILINE | re.IGNORECASE)
+        pins = _effective_pins(mvv.group(1).strip() if mvv else None)
     results: list[tuple] = []
 
     # Resolve all retained deps to exact versions
-    dep_versions = resolve_dep_versions(repacked_meta_text, extra_indexes)
+    dep_versions = resolve_dep_versions(repacked_meta_text, extra_indexes, pins=pins)
     print(f"\nResolved {len(dep_versions)} retained deps\n")
 
     # Audit each dep
@@ -895,7 +813,7 @@ def repack_recursive(repacked_meta_text: str, extra_indexes: list[str],
         for s in info["suspect_deps"]:
             print(f"  suspect: {s}")
 
-        result = repack_dep(dep_name, dep_version, extra_indexes, visited)
+        result = repack_dep(dep_name, dep_version, extra_indexes, visited, pins=pins)
         if result is None:
             continue
 
@@ -988,11 +906,12 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
     # Note: +flagos suffix already added to meta_text above, no need to add again
 
     # 5. Recursive indirect dep audit + repack
+    pins = _effective_pins(pkg_version)
     repacked_deps: list[dict] = []
     all_repacked_packages: list[tuple[str, str]] = []  # All packages with their original versions
     if recurse:
         print(f"\n=== Recursive dependency audit ===")
-        results = repack_recursive(new_meta, extra_indexes)
+        results = repack_recursive(new_meta, extra_indexes, pins=pins)
         for dep_name, dep_version, dep_whl, dep_manifest in results:
             if dep_whl and dep_manifest:  # Only direct repacks have wheel/manifest
                 repacked_deps.append({
