@@ -600,10 +600,10 @@ wheels:
     - linux_x86_64
   - version: flagcx==0.14.1+corex4.4.0
     pypi_index: flagos-pypi-iluvatar
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向天数智芯（Iluvatar）Corex 4.4.0 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Iluvatar Corex 4.4.0.
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -612,10 +612,10 @@ wheels:
     - linux_x86_64
   - version: flagcx==0.14.1+corex4.5.0
     pypi_index: flagos-pypi-iluvatar
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向天数智芯（Iluvatar）Corex 4.5.0 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Iluvatar Corex 4.5.0.
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python:
     - cp312
     os:
@@ -624,8 +624,8 @@ wheels:
     - linux_x86_64
   - version: flagcx==0.14.1+xre5.37.1
     pypi_index: flagos-pypi-kunlunxin
-    desc_zh: ''
-    desc_en: ''
+    desc_zh: 面向昆仑芯（Kunlunxin）XRE 5.37.1 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Kunlunxin XRE 5.37.1.
     notes: ''
     notes_en: ''
     python:
@@ -636,10 +636,10 @@ wheels:
     - linux_x86_64
   - version: flagcx==0.14.1+cuda12.8
     pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向通用 GPU 环境 12.8 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Generic GPU 12.8.
+    notes: 适用于通用芯片 12.8 平台。
+    notes_en: For the generic GPU 12.8 platform.
     python:
     - cp312
     os:
@@ -648,8 +648,20 @@ wheels:
     - linux_x86_64
   - version: flagcx==0.14.1+cuda13.3
     pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
+    desc_zh: 面向通用 GPU 环境 13.3 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Generic GPU 13.3.
+    notes: 适用于通用芯片 13.3 平台。
+    notes_en: For the generic GPU 13.3 platform.
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+  - version: flagcx==0.14.1+rocm7.2.4
+    pypi_index: flagos-pypi-amd
+    desc_zh: 面向 AMD ROCm 7.2.4 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for AMD ROCm 7.2.4.
     notes: ''
     notes_en: ''
     python:
