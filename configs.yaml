@@ -53,8 +53,9 @@
 #                        key: the daily line names one project per backend
 #                        (packaging/flagtree/backends.yaml `daily.dist_name`),
 #                        and the two sets do not line up — ascend has two
-#                        (one per CANN line), hygon's project is `flagtree-hcu`
-#                        after FlagTree's own backend name, and cambricon /
+#                        (one per CANN line), hygon's projects are `flagtree-hcu`
+#                        (26.04) and `flagtree-hcu-dtk2610` (26.10) after
+#                        FlagTree's own backend name, and cambricon /
 #                        spacemit / thead have no daily line at all. Absent =
 #                        no daily line: `latest` refuses rather than guessing a
 #                        name. The spelling here is what pip is handed, and pip
@@ -747,7 +748,7 @@ vendors:
       python: "3.12"
       triton: triton==3.7.0+dtk2610.torch2130.2610212057.g024953
       flagtree: flagtree==0.7.0+hcu3.6
-      flagtree_daily: flagtree-hcu
+      flagtree_daily: flagtree-hcu-dtk2610
       deps:
         - apex==1.7.0+dtk2610.torch2130.2610221147.gfa848d
         - flash_attn==2.8.4+dtk2610.torch2130.2610211904.g0f1a5a
@@ -758,7 +759,7 @@ vendors:
         # TODO
         # - flagcx==0.14.1+dtk2610
       sdk:
-        - Hygon DTK 26.10      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
+        - Hygon DTK 26.10      # DTK-26.10-Ubuntu24.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
 
   iluvatar:

@@ -186,6 +186,45 @@ backends:
       # cp310: the 22.04 system interpreter, same as sunrise.
       wheel_tag: cp310-cp310-linux_x86_64
 
+  # The 26.10 twin of hcu: same staged LLVM + triton deps, same FLAGTREE_BACKEND,
+  # but the interpreter is a deadsnakes 3.12 (torch 2.13.0 is cp312-only, so the
+  # wheel has to wear cp312 for the dtk26.10 runtime to resolve it) and the stage
+  # installs the DTK 26.10 Ubuntu22.04 SDK. A distinct dist_name keeps the two
+  # lines' daily wheels from colliding on flagos-pypi-daily.
+  hcu-dtk2610:
+    containerfile: hcu-dtk2610
+    builder_image: flagtree-builder-hcu-dtk2610
+    runson: ["self-hosted", "hygon"]
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.12"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+          # CMakeLists copies this into the wheel; the build fails without it.
+          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/bin/FileCheck
+          # The DTK 26.10 Ubuntu22.04 SDK this stage installs: the runtime image
+          # carries it, so the build machine does too.
+          - /opt/dtk/env.sh
+        dirs:
+          # The two find_package() contracts in this backend's CMakeLists:
+          # MLIR via the default MLIR_DIR, LLD via hcu's explicit find_package.
+          # Neither is an apt package, so both have to come from the staged LLVM.
+          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/mlir
+          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/lld
+          # hcu's CMakeLists adds third_party/nvidia and setup.py copies the
+          # CUDA redists into it from these caches, so both must be staged.
+          - /root/.triton/nvidia/cudart
+          - /root/.triton/nvidia/cupti
+    daily:
+      enabled: false
+      dist_name: flagtree-hcu-dtk2610
+      version_base: "0.7.0"
+      ref: main
+      # cp312: the 26.10 line's interpreter (deps python 3.12).
+      wheel_tag: cp312-cp312-linux_x86_64
+
   # Like hcu: the same shape as metax's stage (apt toolchain, the backend's
   # prebuilt LLVM plus the vendor's tx8 headers, and the shared triton deps into
   # FlagTree's cache), with the 22.04 system python 3.10 rather than deadsnakes.

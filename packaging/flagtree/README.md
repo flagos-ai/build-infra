@@ -33,7 +33,8 @@ on the build machine — see the section below.
 | `sunrise`    | FlagTree for Sunrise (PTPU), builder + wheel | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `enflame`    | FlagTree for Enflame (GCU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
-| `hcu`        | FlagTree for Hygon (DTK), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `hcu`        | FlagTree for Hygon (DTK 26.04), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `hcu-dtk2610`| FlagTree for Hygon (DTK 26.10), builder + wheel | Ubuntu 22.04 + DTK 26.10 (cp312) |
 | `tsingmicro` | FlagTree for Tsingmicro (TX8), builder + wheel | Ubuntu 22.04 + staged clang 22 |
 | `mthreads`   | FlagTree for Moore Threads (MUSA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `kunlunxin`  | FlagTree for Kunlunxin (XPU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
@@ -96,8 +97,9 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All eleven have one. For `nvidia-cuda`, `metax`,
-`sunrise`, `iluvatar`, `enflame`, `hcu`, `tsingmicro`, `mthreads` and `kunlunxin`
+into FlagTree's offline cache). All twelve have one. For `nvidia-cuda`, `metax`,
+`sunrise`, `iluvatar`, `enflame`, `hcu`, `hcu-dtk2610`, `tsingmicro`, `mthreads`
+and `kunlunxin`
 the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default;
 for the
 ascend pair its cold value is the backend's runtime image, which is why
@@ -115,8 +117,9 @@ CANN line and version, its staged LLVM and the triton deps; the other four asser
 a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
 same assertions as data: the interpreter, the executables, the paths. The block
 is rendered by one generic step, so a backend staged like its predecessors needs
-a row and no workflow step at all. `enflame`, `hcu`, `tsingmicro`, `mthreads` and
-`kunlunxin` are the five of those, and the four that came before them keep their
+a row and no workflow step at all. `enflame`, `hcu`, `hcu-dtk2610`,
+`tsingmicro`, `mthreads` and
+`kunlunxin` are the six of those, and the four that came before them keep their
 own steps.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
@@ -207,6 +210,32 @@ the driver resolves `GPUTarget(backend='hip', arch='gfx936', warp_size=64)`, and
 a vector-add kernel returns `max diff 0.0` against torch's own result. No DTK is
 needed at import time — `HIPUtils.__init__` is reached lazily on the first launch,
 and the image supplies it there.
+
+## Hygon builder (`hcu-dtk2610`)
+
+The 26.10 twin of `hcu`: same staged LLVM + triton deps, same
+`FLAGTREE_BACKEND=hcu`, so everything in the `hcu` section above still holds —
+same `install_extension` no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no
+pybind11 pin. Two differences.
+
+**A deadsnakes 3.12, not the system 3.10.** The 26.10 runtime pins python 3.12
+(`torch==2.13.0+dtk2610` is cp312-only), so the wheel has to wear `cp312` or the
+runtime's `pip install flagtree==0.7.0+hcu3.6` cannot resolve it. The PPA is
+wired by hand, same as `enflame`: `add-apt-repository` resolves through
+Launchpad's REST API and the runner's proxy answers that CONNECT with 500.
+
+**DTK 26.10 installed in the stage.** The 26.04 builder stages no SDK — HIP
+headers are tracked in git and DTK is launch-time only (dlopen) — but this stage
+installs the `DTK-26.10-Ubuntu22.04-x86_64.tar.gz` tarball into `/opt/dtk-26.10`
+(`/opt/dtk` symlink), mirroring the flagcx `builder-vendor-hygon` twin. It is not
+what compiles the wheel; it makes the build machine carry the same toolchain the
+26.10 runtime image has, and the smoke test still imports the wheel without
+sourcing it.
+
+**Not on the daily line yet.** `daily.enabled` is false until a build here has
+been verified on the backend's own nodes, the same gate every new backend goes
+through. The dist_name `flagtree-hcu-dtk2610` is reserved so the 26.10 line never
+collides with the 26.04 `flagtree-hcu` project.
 
 ## Tsingmicro builder (`tsingmicro`)
 
