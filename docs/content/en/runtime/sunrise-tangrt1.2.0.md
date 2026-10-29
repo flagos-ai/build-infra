@@ -30,7 +30,7 @@ title: "sunrise-tangrt1.2.0"
 
 ### Built on
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.2.0</code> <a href="../../base/sunrise-tangrt1.2.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-base/flagos-base-sunrise-tangrt1.2.0:2.3.0</code> <a href="../../base/sunrise-tangrt1.2.0/" title="View base image details" aria-label="View base image details"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -39,7 +39,8 @@ title: "sunrise-tangrt1.2.0"
 ### Major Python packages
 
 - `flag_gems==5.4.0`
-- `flagtree==0.6.0+sunrise3.6`
+- `flagcx==0.14.0+tangrt1.2.0`
+- `flagtree==0.7.0+sunrise3.6`
 - `numpy==1.26.4`
 - `torch-ptpu==0.2.3+torch2.11`
 - `torch==2.11.0+cpu`
@@ -50,6 +51,14 @@ title: "sunrise-tangrt1.2.0"
 ### Switch compiler
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+### Choosing a FlagTree version
+
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
 
 ## Environment
 
@@ -64,7 +73,7 @@ docker run --rm -it \
   --privileged \
   -v /dev:/dev \
   -e TANG_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-sunrise-tangrt1.2.0:2.3.0 bash
 ```
 
 ## Verify

@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.2.0`
+`harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann8.5.0:2.3.0`
 
 ### Python
 
@@ -20,6 +20,7 @@
 - `attrs==24.2.0`
 - `decorator==5.1.1`
 - `flag_gems==5.4.0`
+- `flagcx==0.14.0+cann8.5.0`
 - `flagtree==0.6.0+ascend3.2`
 - `numpy==1.26.4`
 - `psutil==6.0.0`
@@ -33,6 +34,14 @@
 
 This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
 
+### Choosing a FlagTree version
+
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
+
 ## Launch
 
 **With the container toolkit** *(optional)*:
@@ -41,7 +50,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 docker run --rm -it \
   --privileged \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.3.0 bash
 ```
 
 **Without a toolkit** — plain docker / podman:
@@ -56,7 +65,7 @@ docker run --rm -it \
   -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
   -v /usr/local/dcmi:/usr/local/dcmi \
   -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.2.0 bash
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0:2.3.0 bash
 ```
 
 ## Verify
