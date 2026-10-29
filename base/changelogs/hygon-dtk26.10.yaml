@@ -19,7 +19,7 @@ image: flagos-base-hygon-dtk26.10
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-29T09:41:24.033Z'
     reason: |-
       - First delivery: Hygon DTK 26.10 on ubuntu:24.04. DTK 26.10 ships a
         native Ubuntu-24.04 build, so this image takes it directly instead of

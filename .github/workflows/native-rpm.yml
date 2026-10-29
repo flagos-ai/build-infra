@@ -39,7 +39,7 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT, flagtree-cpu]
+        options: [libtriton_jit, FlagTree, FlagTree-ascend, FlagDNN, FlagTensor, FlagFFT, flagtree-cpu]
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -131,6 +131,10 @@ jobs:
           # each of them for the sake of uniformity.
           deps=''
           base_pkgs=''
+          # script_arg: one positional argument for the build script, for a
+          # repository whose script packages more than one thing. Empty for
+          # every target whose script takes none.
+          script_arg=''
           # arches: the architectures this target's build inputs exist for --
           # not the architectures its source supports. An x86_64-only entry is
           # a statement about what is missing, named at the target.
@@ -167,6 +171,38 @@ jobs:
               ref=0.7.0+triton3.6
               ver=0.7.0
               image_fedora43=fedora:43
+              image_openeuler2403=openeuler/openeuler:24.03-lts
+              image_rhel9=
+              publish_runs_on='["self-hosted", "h20"]' ;;
+            FlagTree-ascend)
+              # A second package class out of the same repository, not a second
+              # repository: this one is assembled from the wheel the ascend
+              # delivery workflow publishes, where the FlagTree target above
+              # compiles its own. The two differ in everything a row carries --
+              # architecture, suite, and the wheel-vs-source build -- so they
+              # are separate targets rather than one target with a dimension.
+              repo=FlagTree
+              script=packaging/rpm/helpers/build-flagtree-rpm.sh
+              # Quoted: shellcheck reads a bare `env` as a command.
+              base_arg='env'
+              script_arg=ascend
+              spec=packaging/rpm/specs/flagtree.spec
+              outdir=dist-rpm/output
+              # aarch64 only, and openEuler 24.03 only: the published wheel is
+              # cp311 + linux_aarch64, and 24.03 is the only suite here whose
+              # python3 is 3.11. An rpm for aarch64 has to be built on aarch64
+              # anyway, so this is one hosted arm64 row.
+              arches=aarch64
+              # The spec's Version also selects which published wheel is taken
+              # (0.6.1 -> the highest flagtree-0.6.1+ascend*), so `version`
+              # here moves both together.
+              #
+              # Packaging lands with flagos-ai/FlagTree#1461. Until a release
+              # tag carries it, this target builds only from `pull/1461`, which
+              # cannot be published.
+              ref=main
+              ver=''
+              image_fedora43=
               image_openeuler2403=openeuler/openeuler:24.03-lts
               image_rhel9=
               publish_runs_on='["self-hosted", "h20"]' ;;
@@ -239,6 +275,7 @@ jobs:
             echo "repo_url=https://github.com/flagos-ai/${repo}.git"
             echo "script=${script}"
             echo "base_arg=${base_arg}"
+            echo "script_arg=${script_arg}"
             echo "deps=${deps}"
             echo "publish_runs_on=${publish_runs_on}"
             echo "base_pkgs=${base_pkgs}"
@@ -448,6 +485,7 @@ jobs:
         env:
           BASE_IMAGE: ${{ steps.cfg.outputs.base_image }}
           BASE_PKGS: ${{ steps.cfg.outputs.base_pkgs }}
+          SCRIPT_ARG: ${{ steps.cfg.outputs.script_arg }}
         run: |
           set -euo pipefail
           if [ -n "${BASE_PKGS}" ]; then
@@ -455,10 +493,12 @@ jobs:
               | docker build -t "flagos-base:${{ matrix.suite }}-${{ matrix.arch }}" -
             BASE_IMAGE="flagos-base:${{ matrix.suite }}-${{ matrix.arch }}"
           fi
+          # ${VAR:+"${VAR}"} so a target without a script argument passes
+          # none, rather than an empty positional the script would read as one.
           case "${{ steps.cfg.outputs.base_arg }}" in
-            flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ;;
-            env)  RPM_BASE_IMAGE="${BASE_IMAGE}" bash "${{ steps.cfg.outputs.script }}" ;;
-            arg)  bash "${{ steps.cfg.outputs.script }}" "${BASE_IMAGE}" ;;
+            flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ${SCRIPT_ARG:+"${SCRIPT_ARG}"} ;;
+            env)  RPM_BASE_IMAGE="${BASE_IMAGE}" bash "${{ steps.cfg.outputs.script }}" ${SCRIPT_ARG:+"${SCRIPT_ARG}"} ;;
+            arg)  bash "${{ steps.cfg.outputs.script }}" "${BASE_IMAGE}" ${SCRIPT_ARG:+"${SCRIPT_ARG}"} ;;
             *)    echo "::error::unknown base_arg"; exit 1 ;;
           esac
           # Every binary package, not the first: these builds emit a runtime
