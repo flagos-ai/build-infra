@@ -520,6 +520,18 @@ hygon-dtk26.04:
     enabled: true
     containerfile: Containerfile.builder-vendor-hygon
 
+# DTK 26.10 (ubuntu:24.04 base, headers under /opt/dtk-26.10/...): documented but
+# not packaged yet — the flagcx pin in configs.yaml is still `# TODO`, so no
+# channel produces anything. The row exists so that generate_matrix.py --runtime
+# (which now emits this key) does not read as drift in --check. All channels off.
+hygon-dtk26.10:
+  vendor: du
+  make_flag: USE_DU
+  arch: amd64
+  glibc_floor: "2.39"
+  apt: []
+  deb: {enabled: false, default_for_vendor: false}
+
 iluvatar-corex4.4.0:
   vendor: iluvatar_corex
   make_flag: USE_ILUVATAR_COREX
