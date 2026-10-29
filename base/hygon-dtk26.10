@@ -35,6 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libnuma1 \
         libgfortran5 libdrm-amdgpu1 libdw1 libelf1 libpciaccess0 \
         libgoogle-glog0v6t64 \
+        # torch 2.13.0+dtk2610 NEEDs libmpi.so.40 (its global deps), which
+        # libopenmpi3t64 (OpenMPI 4.1.x) provides — same reason as base/iluvatar-corex4.5.0.
+        libopenmpi3t64 \
         gcc g++ build-essential cmake \
         pciutils \
     && rm -rf /var/lib/apt/lists/*
