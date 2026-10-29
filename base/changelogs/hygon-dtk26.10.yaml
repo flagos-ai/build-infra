@@ -1,0 +1,32 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by base-image.yml after the push -- never hand-typed.
+
+image: flagos-base-hygon-dtk26.10
+tags:
+- tag: 2.3.0
+  entries:
+  - date: ''
+    reason: |-
+      - First delivery: Hygon DTK 26.10 on ubuntu:24.04. DTK 26.10 ships a
+        native Ubuntu-24.04 build, so this image takes it directly instead of
+        the 26.04 line's 22.04 forward-compat path.
+      - The dtk_llvm (aillvm) overlay installs into `/opt/dtk-26.10` alongside
+        the SDK, matching the 26.04 base image's toolchain layout.
+    reason_zh: |-
+      - 首次交付：海光 DTK 26.10，基于 ubuntu:24.04。DTK 26.10 提供原生的 Ubuntu 24.04 构建，因此本镜像直接采用它，而无需走 26.04 线的 22.04 向前兼容路径。
+      - dtk_llvm（aillvm）叠加包与 SDK 一同安装到 `/opt/dtk-26.10`，与 26.04 基础镜像的工具链布局保持一致。
+    upstream_prs: []
