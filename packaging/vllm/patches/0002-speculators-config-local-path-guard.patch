@@ -1,0 +1,50 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# transformers >= 5.5.3 rejects local filesystem paths (starting with /)
+# as repo IDs in cached_file/cached_files. vllm's
+# maybe_override_with_speculators passes the --model path (e.g.
+# /models/Qwen3-4B) to PretrainedConfig.get_config_dict, which triggers
+# the rejection:
+#
+#   OSError: Repo id must be in the form 'repo_name' or
+#   'namespace/repo_name': '/models/Qwen3.5-4B'
+#
+# speculators config lookup is optional (most models have none), so a
+# guarded import is safe: if the config dict cannot be fetched for a
+# local path, return early — no speculator override applies.
+--- a/vllm/transformers_utils/config.py
++++ b/vllm/transformers_utils/config.py
+@@ -594,11 +594,15 @@
+     if gguf_model_repo is not None:
+         kwargs["gguf_file"] = model
+
+-    config_dict, _ = PretrainedConfig.get_config_dict(
+-        model if gguf_model_repo is None else gguf_model_repo,
+-        revision=revision,
+-        token=hf_token,
+-        **without_trust_remote_code(kwargs),
+-    )
++    try:
++        config_dict, _ = PretrainedConfig.get_config_dict(
++            model if gguf_model_repo is None else gguf_model_repo,
++            revision=revision,
++            token=hf_token,
++            **without_trust_remote_code(kwargs),
++        )
++    except OSError:
++        return model, tokenizer, vllm_speculative_config
++
+     speculators_config = config_dict.get("speculators_config")
+
