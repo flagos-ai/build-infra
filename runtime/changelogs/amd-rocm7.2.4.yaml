@@ -21,6 +21,14 @@ image: flagos-runtime-amd-rocm7.2.4
 tags:
 - tag: 2.3.0
   entries:
+  - reason: >-
+      flagcx 0.14.1 becomes a runtime dependency on this backend: configs.yaml
+      deps: now pins flagcx==0.14.1+rocm7.2.4, so the DEPS install pulls it from
+      the vendor index and FlagTree resolves libflagcx.so to the package's copy
+      instead of the one triton/_C bundles. Nothing else about the image changes.
+    reason_zh: |-
+      flagcx 0.14.1 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.1+rocm7.2.4，因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，而不是 triton/_C 自带的那份。镜像其余内容不变。
+    upstream_prs: []
   - date: '2026-10-27T10:04:40.825Z'
     reason: >-
       This image's base gains the hipsolver, hipfft and miopen-hip development

@@ -203,6 +203,9 @@ vendors:
         - torchaudio==2.11.0+rocm7.2
         - torchvision==0.26.0+rocm7.2
         - numpy==1.26.4
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.1+rocm7.2.4
       sdk:
         # apt-native from repo.radeon.com, no filestore
         - ROCm 7.2.4 (x86_64)
