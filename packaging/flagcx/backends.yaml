@@ -82,13 +82,14 @@
 #                 from the matrix name (`hygon-dtk26.04` -> `+dtk2604`), the
 #                 same way the PyPI index is named after that name's first
 #                 segment. A label is normally just the suffix read back through
-#                 PEP 440, which leaves `maca3.7.2.1` alone; DTK is the one row
-#                 where that reading would respell the vendor's own `26.04`, so
-#                 flagcx-config.py's wheel_label() names that exception in code
-#                 rather than letting a field here become a third copy of a fact
-#                 the matrix already carries. `vendor` above is the FlagCX
-#                 adaptor family (hygon's is `du`) — the other, independent axis,
-#                 and one field cannot play both roles.
+#                 PEP 440, which leaves `maca3.7.2.1` alone; DTK is the family
+#                 where that reading would respell the vendor's own `26.04`, and
+#                 26.10 is spelled the way the rest of the stack spells it
+#                 (`+dtk2610`), so flagcx-config.py's wheel_label() names those
+#                 exceptions in code rather than letting a field here become a
+#                 third copy of a fact the matrix already carries. `vendor` above
+#                 is the FlagCX adaptor family (hygon's is `du`) — the other,
+#                 independent axis, and one field cannot play both roles.
 #   wheel.cuda_path
 #                 CUDA_PATH for the wheel build only; defaults to the row's
 #                 make_env.DEVICE_HOME. Separate because on MACA the vendor
