@@ -36,6 +36,7 @@ tags:
       `torch.cuda.device_count()` 返回 0，而 `rocm-smi` 却能列出全部卡。
       包、编译器与版本均无变化 —— venv 和 flagcx 依赖与上一次推送完全相同。
     upstream_prs: []
+    date: '2026-10-31T13:13:04.914Z'
   - reason: >-
       flagcx 0.14.1 becomes a runtime dependency on this backend: configs.yaml
       deps: now pins flagcx==0.14.1+rocm7.2.4, so the DEPS install pulls it from
