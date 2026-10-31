@@ -133,6 +133,14 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-10-31 12:10:39*
+
+移除 `HIP_VISIBLE_DEVICES=all` 这个 ENV。HIP 7.2 只接受设备序号或 GPU UUID，
+因此按 NVIDIA 习惯写的 `all` 被解析成空设备列表：`hipGetDeviceCount()` 及由此而来的
+`torch.cuda.device_count()` 返回 0，而同一容器内的 `rocm-smi` 却能列出全部 GPU。
+该变量不设置即表示全部设备，正是此 ENV 想表达的意思，因此镜像现在默认暴露全部设备，
+固定单卡改用 `-e HIP_VISIBLE_DEVICES=<n>`。
+
 *2026-10-27 07:58:45*
 
 - 首次交付：gfx1100（RDNA3，Radeon PRO W7900）的 ROCm 7.2.4，基于 ubuntu:24.04 —— runtime 集合加上编译器栈链接所依赖的 `-dev` 包。
