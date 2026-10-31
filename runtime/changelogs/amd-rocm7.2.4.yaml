@@ -27,7 +27,9 @@ tags:
       the vendor index and FlagTree resolves libflagcx.so to the package's copy
       instead of the one triton/_C bundles. Nothing else about the image changes.
     reason_zh: |-
-      flagcx 0.14.1 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.1+rocm7.2.4，因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，而不是 triton/_C 自带的那份。镜像其余内容不变。
+      flagcx 0.14.1 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.1+rocm7.2.4，
+      因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，
+      而不是 triton/_C 自带的那份。镜像其余内容不变。
     upstream_prs: []
   - date: '2026-10-27T10:04:40.825Z'
     reason: >-
@@ -36,7 +38,8 @@ tags:
       torch wheel compiles against them in this image, so the three are
       required for the wheel build to succeed.
     reason_zh: |-
-      该镜像的基础镜像新增 hipsolver、hipfft 与 miopen-hip 开发包。torch 的头文件在 USE_ROCM 下会引入这些包，而 flagcx 的 torch wheel 在本镜像内针对它们编译，因此 wheel 构建成功需要这三个包。
+      该镜像的基础镜像新增 hipsolver、hipfft 与 miopen-hip 开发包。torch 的头文件在 USE_ROCM
+      下会引入这些包，而 flagcx 的 torch wheel 在本镜像内针对它们编译，因此 wheel 构建成功需要这三个包。
     upstream_prs: []
   - date: '2026-10-27T06:29:51.924Z'
     reason: >-
@@ -46,5 +49,8 @@ tags:
       amd backend, alongside FlagTree 0.7.0+amd3.6 and FlagGems 5.4.0 on the
       base image (ROCm 7.2.4, gfx1100).
     reason_zh: |-
-      该后端 runtime 镜像的首次发布。它在基础镜像（ROCm 7.2.4，gfx1100）之上叠加了 ROCm torch 闭包 —— torch 2.11.0+rocm7.2、torchvision 0.26.0+rocm7.2、torchaudio 2.11.0+rocm7.2、numpy 1.26.4 —— 以及 amd 后端随附的 ROCm triton 3.6.0，并加入 FlagTree 0.7.0+amd3.6 与 FlagGems 5.4.0。
+      该后端 runtime 镜像的首次发布。它在基础镜像（ROCm 7.2.4，gfx1100）之上叠加了 ROCm torch 闭包
+      —— torch 2.11.0+rocm7.2、torchvision 0.26.0+rocm7.2、torchaudio 2.11.0+rocm7.2、
+      numpy 1.26.4 —— 以及 amd 后端随附的 ROCm triton 3.6.0，并加入 FlagTree 0.7.0+amd3.6
+      与 FlagGems 5.4.0。
     upstream_prs: []
