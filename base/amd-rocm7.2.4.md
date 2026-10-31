@@ -72,7 +72,6 @@ Explicitly installed; the version is the one baked into this image:
 - `ROCM_PATH=/opt/rocm`
 - `PATH=/opt/rocm/bin:$PATH`
 - `LD_LIBRARY_PATH=/opt/rocm/lib`
-- `HIP_VISIBLE_DEVICES=all`
 
 ## Launch
 
@@ -105,7 +104,7 @@ Inside the container, confirm the accelerator is visible:
 rocm-smi
 ```
 
-*Last updated: 2026-10-27 15:37:15 · `8115004ba62e`*
+*Last updated: 2026-10-31 19:30:38 · `f96d3762740e`*
 
 ## Changelog
 

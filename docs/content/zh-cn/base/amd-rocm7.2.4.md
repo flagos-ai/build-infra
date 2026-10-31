@@ -94,7 +94,6 @@ title: "amd-rocm7.2.4"
 - `ROCM_PATH=/opt/rocm`
 - `PATH=/opt/rocm/bin:$PATH`
 - `LD_LIBRARY_PATH=/opt/rocm/lib`
-- `HIP_VISIBLE_DEVICES=all`
 
 ## 启动
 
@@ -127,7 +126,7 @@ docker run --rm -it \
 rocm-smi
 ```
 
-*更新时间: 2026-10-27 15:37:15 · `8115004ba62e`*
+*更新时间: 2026-10-31 19:30:38 · `f96d3762740e`*
 
 ## 更新日志
 
