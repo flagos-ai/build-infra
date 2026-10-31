@@ -31,6 +31,7 @@ tags:
       因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，
       而不是 triton/_C 自带的那份。镜像其余内容不变。
     upstream_prs: []
+    date: '2026-10-31T09:25:08.639Z'
   - date: '2026-10-27T10:04:40.825Z'
     reason: >-
       This image's base gains the hipsolver, hipfft and miopen-hip development
