@@ -34,3 +34,4 @@ tags:
       以及 FlagTree 0.7.0+hcu3.6 与 FlagGems 5.4.0，构建于 26.10 基础镜像之上。
       不含 flagcx：它的 `0.14.1+dtk2610` wheel 要在这个镜像里构建，索引尚无该包。
     upstream_prs: []
+    date: '2026-10-31T11:22:58.130Z'
