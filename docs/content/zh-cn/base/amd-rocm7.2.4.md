@@ -94,7 +94,6 @@ title: "amd-rocm7.2.4"
 - `ROCM_PATH=/opt/rocm`
 - `PATH=/opt/rocm/bin:$PATH`
 - `LD_LIBRARY_PATH=/opt/rocm/lib`
-- `HIP_VISIBLE_DEVICES=all`
 
 ## 启动
 
@@ -127,11 +126,19 @@ docker run --rm -it \
 rocm-smi
 ```
 
-*更新时间: 2026-10-27 15:37:15 · `8115004ba62e`*
+*更新时间: 2026-10-31 19:30:38 · `f96d3762740e`*
 
 ## 更新日志
 
 ### 2.3.0
+
+*2026-10-31 12:10:39*
+
+移除 `HIP_VISIBLE_DEVICES=all` 这个 ENV。HIP 7.2 只接受设备序号或 GPU UUID，
+因此按 NVIDIA 习惯写的 `all` 被解析成空设备列表：`hipGetDeviceCount()` 及由此而来的
+`torch.cuda.device_count()` 返回 0，而同一容器内的 `rocm-smi` 却能列出全部 GPU。
+该变量不设置即表示全部设备，正是此 ENV 想表达的意思，因此镜像现在默认暴露全部设备，
+固定单卡改用 `-e HIP_VISIBLE_DEVICES=<n>`。
 
 *2026-10-27 07:58:45*
 

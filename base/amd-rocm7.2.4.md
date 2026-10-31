@@ -72,7 +72,6 @@ Explicitly installed; the version is the one baked into this image:
 - `ROCM_PATH=/opt/rocm`
 - `PATH=/opt/rocm/bin:$PATH`
 - `LD_LIBRARY_PATH=/opt/rocm/lib`
-- `HIP_VISIBLE_DEVICES=all`
 
 ## Launch
 
@@ -105,11 +104,15 @@ Inside the container, confirm the accelerator is visible:
 rocm-smi
 ```
 
-*Last updated: 2026-10-27 15:37:15 · `8115004ba62e`*
+*Last updated: 2026-10-31 19:30:38 · `f96d3762740e`*
 
 ## Changelog
 
 ### 2.3.0
+
+*2026-10-31 12:10:39*
+
+Drop the `HIP_VISIBLE_DEVICES=all` ENV. HIP 7.2 accepts device ordinals or GPU-UUIDs and nothing else, so this value — the NVIDIA-style spelling — parsed to an empty device list: `hipGetDeviceCount()` and therefore `torch.cuda.device_count()` returned 0, while `rocm-smi` inside the same container listed every GPU. The variable being unset means all devices, which is what the ENV was trying to say, so the image now defaults to the full device set and a single-GPU pin uses `-e HIP_VISIBLE_DEVICES=<n>`.
 
 *2026-10-27 07:58:45*
 
