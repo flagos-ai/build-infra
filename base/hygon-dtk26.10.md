@@ -70,3 +70,27 @@ hy-smi
 ```
 
 *Last updated: 2026-10-29 17:12:32 · `43f1693c481a`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-31 07:11:14*
+
+- ROCm-aware Open MPI 5.0.8 is installed from
+  `flagos-filestore/hygon/openmpi-rocm_5.0.8-1_jammy_amd64.deb`,
+  checksum-pinned. `libtorch_cpu.so` references
+  `MPIX_Query_rocm_support`, which only Open MPI 5.x's `mpiext/rocm`
+  component exports and only when built `--with-rocm`; Ubuntu's 4.1.x
+  cannot satisfy it, so `import torch` fails with an undefined symbol.
+- `libibverbs1` and `libquadmath0` join the apt layer: `libtorch_cpu.so`
+  NEEDs the former directly, and the MKL libraries torch ships NEED the
+  latter.
+
+*2026-10-29 09:41:24*
+
+- First delivery: Hygon DTK 26.10 on ubuntu:24.04. DTK 26.10 ships a
+  native Ubuntu-24.04 build, so this image takes it directly instead of
+  the 26.04 line's 22.04 forward-compat path.
+- The dtk_llvm (aillvm) overlay installs into `/opt/dtk-26.10` alongside
+  the SDK, matching the 26.04 base image's toolchain layout.
