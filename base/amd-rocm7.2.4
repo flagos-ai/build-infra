@@ -92,4 +92,5 @@ RUN apt-get -o Acquire::ForceIPv4=true update \
 ENV ROCM_PATH=/opt/rocm
 ENV PATH="${ROCM_PATH}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="${ROCM_PATH}/lib"
-ENV HIP_VISIBLE_DEVICES=all
+# No HIP_VISIBLE_DEVICES: HIP 7.2 accepts ordinals or GPU-UUIDs only, so "all"
+# (the NVIDIA-style value) silently enumerates zero devices. Unset means all.

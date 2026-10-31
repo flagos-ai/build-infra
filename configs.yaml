@@ -193,11 +193,11 @@ vendors:
       flagtree: flagtree==0.7.0+amd3.6
       env:
         base:
-          # Mirrors ENV from base image.
+          # Mirrors ENV from base image. No HIP_VISIBLE_DEVICES: HIP 7.2 takes
+          # ordinals or GPU-UUIDs only, so "all" enumerates zero devices.
           ROCM_PATH: /opt/rocm
           PATH: /opt/rocm/bin:$PATH
           LD_LIBRARY_PATH: /opt/rocm/lib
-          HIP_VISIBLE_DEVICES: all
       deps:
         - torch==2.11.0+rocm7.2
         - torchaudio==2.11.0+rocm7.2
