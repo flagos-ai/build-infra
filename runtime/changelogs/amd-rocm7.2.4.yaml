@@ -22,6 +22,21 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: >-
+      Rebuilt on the corrected base image: the `HIP_VISIBLE_DEVICES=all` ENV is
+      gone, so this image now enumerates every GPU out of the box instead of
+      zero. HIP 7.2 takes ordinals or GPU-UUIDs only, and the base image had
+      been setting the NVIDIA-style `all`, which parsed to an empty device
+      list: `torch.cuda.device_count()` returned 0 while `rocm-smi` listed
+      every card. No package, compiler or version changes — the venv and the
+      flagcx dependency are the same as the previous push.
+    reason_zh: |-
+      基于修正后的基础镜像重建：`HIP_VISIBLE_DEVICES=all` 这个 ENV 已移除，因此该镜像现在
+      开箱即可枚举全部 GPU，而不再枚举到 0 张卡。HIP 7.2 只接受设备序号或 GPU UUID，
+      而基础镜像此前设置的是 NVIDIA 习惯的 `all`，被解析成空设备列表：
+      `torch.cuda.device_count()` 返回 0，而 `rocm-smi` 却能列出全部卡。
+      包、编译器与版本均无变化 —— venv 和 flagcx 依赖与上一次推送完全相同。
+    upstream_prs: []
+  - reason: >-
       flagcx 0.14.1 becomes a runtime dependency on this backend: configs.yaml
       deps: now pins flagcx==0.14.1+rocm7.2.4, so the DEPS install pulls it from
       the vendor index and FlagTree resolves libflagcx.so to the package's copy
