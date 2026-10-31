@@ -400,16 +400,22 @@ def label_round_trip(label: str) -> str:
     return str(Version("0+" + label))[2:]
 
 
-# The one row whose published label is not what PEP 440 makes of its suffix.
-# DTK's release is spelled `26.04` — the runtime image is
-# `flagos-runtime-hygon-dtk26.04:2.1.2` — and PEP 440 cannot carry that spelling:
-# a numeric local segment loses its leading zero, so `+dtk26.04` is written as
-# `+dtk26.4`. Publishing the normalised form would rename the vendor SDK in the
-# one place a reader goes to read its name. Spelled out here rather than derived
-# by a rule: no other row has a vendor version whose leading zero is part of its
-# name, and a general rewriting rule would respell a suffix nobody has seen yet.
-DTK_KEY = "hygon-dtk26.04"
-DTK_PUBLISHED_LABEL = "dtk2604"
+# The rows whose published label is not what PEP 440 makes of their suffix, or
+# would not read the way the rest of the stack spells them. DTK's releases are
+# spelled `26.04` and `26.10` — the runtime images are
+# `flagos-runtime-hygon-dtk26.04` and `-dtk26.10` — and PEP 440 cannot carry the
+# first: a numeric local segment loses its leading zero, so `+dtk26.04` is
+# written `+dtk26.4`. Publishing the normalised form would rename the vendor SDK
+# in the one place a reader goes to read its name. Spelled out here rather than
+# derived by a rule: no other row has a vendor version whose leading zero is part
+# of its name, and a general rewriting rule would respell a suffix nobody has
+# seen yet. 26.10 needs no rewriting, but it is spelled the way the row's own
+# reminder of the SDK does — torch, apex, triton and flagtree all pin
+# `+dtk2610` — and a label is one more place that name must not drift.
+DTK_PUBLISHED_LABELS = {
+    "hygon-dtk26.04": "dtk2604",
+    "hygon-dtk26.10": "dtk2610",
+}
 
 
 def wheel_label(key: str) -> str:
@@ -426,15 +432,16 @@ def wheel_label(key: str) -> str:
     runner's python has no pip and no `packaging` — could not match the file
     without reimplementing PEP 440's rules.
 
-    The DTK row is answered before `packaging` is consulted (see DTK_KEY): its
-    label is decided here and not read off the suffix, so a runner that cannot
-    normalise still exports the spelling the index will carry.
+    The DTK rows are answered before `packaging` is consulted (see
+    DTK_PUBLISHED_LABELS): their labels are decided here and not read off the
+    suffix, so a runner that cannot normalise still exports the spelling the
+    index will carry.
 
     Falls back to the raw suffix when `packaging` is missing: that is
     `--check --channel wheel`'s failure to report, not a merge's to abort on.
     """
-    if key == DTK_KEY:
-        return DTK_PUBLISHED_LABEL
+    if key in DTK_PUBLISHED_LABELS:
+        return DTK_PUBLISHED_LABELS[key]
     label = version_label(key)
     try:
         return label_round_trip(label)
@@ -1102,8 +1109,9 @@ def main() -> int:
         # going to look for a normalisation bug that is not there.
         if published != suffix:
             cause = (
-                "the published label is spelled out on purpose (see DTK_KEY)"
-                if key == DTK_KEY
+                "the published label is spelled out on purpose "
+                "(see DTK_PUBLISHED_LABELS)"
+                if key in DTK_PUBLISHED_LABELS
                 else "PEP 440 normalises the local part"
             )
             print(
