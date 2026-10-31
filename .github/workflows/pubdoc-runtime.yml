@@ -15,7 +15,7 @@
 name: Publish documentation for runtime images
 
 # Publication is gated on review+merge: when reviewed per-image descriptions
-# land on main (a runtime-descriptions PR merged), push them to the Harbor
+# land on main (a runtime-changelog PR merged), push them to the Harbor
 # repository. Nothing goes live until the description diff has been reviewed
 # and merged. Mirrors pubdoc-base.yml for the runtime layer.
 
@@ -73,6 +73,6 @@ jobs:
       - name: Clean up description branch
         if: always()
         run: |
-          label=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'unknown')
-          git push origin --delete "auto/runtime-descriptions-${label}" 2>/dev/null || true
-          echo "Cleaned up auto/runtime-descriptions-${label}"
+          label=$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')
+          git push origin --delete "auto/runtime-changelog-${label}" 2>/dev/null || true
+          echo "Cleaned up auto/runtime-changelog-${label}"

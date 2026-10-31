@@ -43,6 +43,9 @@ name: Generate docs for runtime images
 # vendors. The accumulate job collects whatever extractors succeed, saves partial
 # results to the state branch, then self-triggers with only the missing backends.
 # This loops until all are collected or the retry cap (50) is hit.
+#
+# Landing: finalize commits onto the runtime record branch for this label
+# (auto/runtime-changelog-<label>) — one tag, one PR (#1570).
 
 on:
   workflow_dispatch:

@@ -22,7 +22,7 @@ It combines STATIC data from docs/data/images.yaml (architecture, chip models,
 container toolkit, SDK components, env, launch command) with the RESOLVED
 system-package versions actually baked into the built image. Those versions come
 from a per-backend TSV (`<name>.tsv`, lines "package\tversion") produced in CI by
-`dpkg-query` inside the image — see .github/workflows/base-descriptions.yml.
+`dpkg-query` inside the image — see .github/workflows/gendoc-base.yml.
 
 Both languages are generated from the same language-neutral data: only the prose
 and section headers differ (the STRINGS table below), while the technical values

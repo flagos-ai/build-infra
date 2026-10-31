@@ -20,8 +20,10 @@ Two modes, dispatched by ``--done``:
 
 **done=true (finalize)**
     Run ``gen_descriptions.py`` against the collected TSV files, commit the
-    changed ``--mode`` pages (base or runtime), and open a PR targeting
-    ``main``. Clean up state + per-backend extract branches when done.
+    changed ``--mode`` pages (base or runtime), and land them on the layer's
+    record PR for this label — the branch ``auto/<layer>-changelog-<label>``
+    that ``record_image.py`` pushes the dated changelog entries to. One layer
+    and one tag get one review-gated PR, not two touching the same pages.
 
 **done=false (retry)**
     Self-trigger the ``gendoc-base.yml`` workflow with only the missing
@@ -45,6 +47,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from git_ops import layer_record_branch, push_record_branch, sync_to_record_branch  # noqa: E402
 
 MODE_CONFIG = {
     "base": {
@@ -54,10 +58,10 @@ MODE_CONFIG = {
             "base/*.md",
         ],
         "layer": "base",
-        "pr_prefix": "auto/base-descriptions",
-        "pr_title": "docs(base): refresh image descriptions for {label}",
+        "pr_title": "docs(base): record {label} and refresh image descriptions",
         "pr_body": (
-            "Automated refresh with baked-in system-package versions for {label}."
+            "Baked-in system-package versions for {label}, joined to this tag's "
+            "changelog record so one tag lands in one PR."
             "\n\n**Version data:** {count} backends"
             "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
         ),
@@ -71,10 +75,10 @@ MODE_CONFIG = {
             "runtime/*.md",
         ],
         "layer": "runtime",
-        "pr_prefix": "auto/runtime-descriptions",
-        "pr_title": "docs(runtime): refresh image descriptions for {label}",
+        "pr_title": "docs(runtime): record {label} and refresh image descriptions",
         "pr_body": (
-            "Automated refresh of runtime image descriptions for {label}."
+            "Baked-in package versions for the {label} runtime images, joined to "
+            "this tag's changelog record so one tag lands in one PR."
             "\n\n**Version data:** {count} backends"
             "\n\n**Verify:** {verify_ok} passed, {verify_fail} failed, {verify_skip} skipped"
         ),
@@ -122,6 +126,10 @@ def _finalize(args) -> None:
     _git("config", "user.name", "flagos-ci", check=False)
     _git("config", "user.email", "noreply@flagos.net", check=False)
 
+    # Render on top of the record branch, not main: both lines rewrite these
+    # pages, and rendering from main then rebasing conflicts (#1570).
+    sync_to_record_branch(cfg["layer"], label)
+
     # gen_descriptions reads TSV files from VERSIONS_DIR and requires
     # docs/data/images.yaml (produced by gen_data.py) to be up to date.
     env = _git_env()
@@ -164,23 +172,12 @@ def _finalize(args) -> None:
     dr = _git("diff", "--cached", "--quiet", check=False)
     if dr.returncode == 0:
         print("No description changes — nothing to PR.")
-        # Clean up the stale PR branch from a previous run as well.
-        _git("push", "origin", "--delete", f"{cfg['pr_prefix']}-{label}", check=False)
         _cleanup_state_branch(label)
         return
 
-    pr_branch = f"{cfg['pr_prefix']}-{label}"
-    cr = _git("checkout", "-b", pr_branch, check=False)
-    if cr.returncode != 0:
-        _git("checkout", pr_branch)
-
-    _git("commit", "-m", cfg["commit_msg"].format(label=label))
-
-    # Force-push: a stale branch from a previous run (closed/unmerged PR)
-    # may already exist with a different commit.
-    _git("push", "--force", "origin", pr_branch, check=False)
-
-    # Don't create a duplicate PR if one already exists.
+    # Same branch as the record step: both rewrite these pages (#1570).
+    pr_branch = layer_record_branch(cfg["layer"], label)
+    push_record_branch(pr_branch, cfg["commit_msg"].format(label=label))
     pr_list = _gh("pr", "list", "--head", pr_branch, "--json", "number", "-q", ".[0].number")
     if not pr_list.stdout.strip():
         missing = getattr(args, "missing", "").strip()

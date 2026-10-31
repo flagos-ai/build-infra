@@ -79,12 +79,12 @@ gh workflow run gendoc-base.yml
 工作流自动：
 1. 在每个硬件 runner 上 `docker run` 对应 base 镜像 → verify → `dpkg-query` 抓系统包版本
 2. `accumulate` job（ubuntu-latest）收集全部 artifact → 运行 `gen_descriptions.py`
-3. 自动开出 review-gated PR
+3. 提交到本层本 tag 的 record 分支 `auto/base-changelog-<tag>`（见 §8b）
 
 验证方式：
 ```bash
-# 等待 accumulate job 完成，确认 PR 被开出
-gh pr list --head auto/image-descriptions-*
+# 等 accumulate 完成，确认记录 PR 已带上描述提交
+gh pr list --head 'auto/base-changelog-*'
 ```
 
 - [ ] 确认所有 backend verify 通过（检查 PR 描述中无缺失标注）
@@ -199,6 +199,7 @@ gh workflow run gendoc-runtime.yml
 
 > **注意：** 此步骤只在 runtime 镜像最终验证通过后执行一次。
 > 描述内容来自 `configs.yaml`，runtime 镜像构建本身不触发此工作流。
+> 提交落在 `auto/runtime-changelog-<tag>`，与 record 同一个 PR。
 
 ## 8b. 发布 app 镜像描述（Harbor）
 
@@ -210,10 +211,9 @@ app 层与其他两层走同一条线，只是描述源与触发路径不同：
 
 无需手动触发 —— 记录镜像的 PR 合入即发布。
 
-> **合并顺序：changelog record PR 先合，描述 PR 后合。** 描述 PR 里的
-> Changelog 一节是生成时从 changelog 文件重算的；若它先合入，record PR 随后
-> 回填的日期要等下一次刷新才可见（站点与 Harbor 侧各自在发布前重算，所以读者
-> 看到的仍是对的，只是仓库里那份缓存短暂落后）。
+> **一层一个 tag 只有一个 PR。** base / runtime 的 changelog 记录与描述刷新
+> 落在同一个分支 `auto/<layer>-changelog-<tag>`：两者都要重写同一批页面，
+> 分成两个 PR 必然冲突（#1570）。PR 合入后该分支由 `pubdoc-*.yml` 清理。
 
 ## 9. 打 release tag
 
