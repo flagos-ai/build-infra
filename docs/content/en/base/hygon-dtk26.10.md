@@ -49,8 +49,10 @@ Explicitly installed; the version is the one baked into this image:
 - `libelf1`
 - `libgfortran5` — 14.2.0
 - `libgoogle-glog0v6t64` — 0.6.0
+- `libibverbs1` — 50.0
 - `libnuma1` — 2.0.18
 - `libpciaccess0` — 0.17
+- `libquadmath0` — 14.2.0
 - `pciutils` — 3.10.0
 - `unzip` — 6.0
 - `vim` — 9.1.0016
@@ -91,7 +93,7 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-10-29 17:12:32 · `43f1693c481a`*
+*Last updated: 2026-10-31 13:41:54 · `115dccef47d6`*
 
 ## Changelog
 
