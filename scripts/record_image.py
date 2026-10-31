@@ -77,6 +77,7 @@ from git_ops import (  # noqa: E402
     _gh_api,
     _git,
     configure_git_identity,
+    layer_record_branch,
     open_pr,
     push_record_branch,
 )
@@ -163,16 +164,15 @@ def record_changelog(layer: str, backend: str, ref: str, tag: str, dry_run: bool
     for page in pages:
         _git("add", page, check=False)
     commit_msg = f"chore({layer}): record changelog date for {tag} ({backend})"
-    # One branch per layer and tag: a dispatch records every backend it pushed
-    # onto this one, and it is deleted when its PR merges.
-    branch = f"auto/{layer}-changelog-{tag}"
+    # Shared with the version refresh of the same pages; one tag, one PR.
+    branch = layer_record_branch(layer, tag)
     push_record_branch(branch, commit_msg)
     open_pr(branch, commit_msg, (
         f"The {layer}-image workflow pushed `{tag}` and dated each backend's pending "
         "changelog entry with its registry push_time — the entry that authorized "
         "the rebuild. No image content is changed here; this records that the "
-        "rebuilds happened, and why. One dispatch records every backend it pushed "
-        "on this branch, so this PR fills up as the matrix proceeds.\n\n"
+        "rebuilds happened, and why. The description refresh joins this branch, so "
+        "one tag lands in one PR.\n\n"
         "Schema and rules: docs/changelog.md.\n\n"
         f"{DISCLOSURE}"
     ))

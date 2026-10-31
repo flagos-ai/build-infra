@@ -21,6 +21,11 @@ name: Generate docs for base images
 # Separate from the build (per the design): version extraction needs the built
 # image, and keeping this out of the build workflow keeps both simpler.
 #
+# Landing: finalize commits onto the base record branch for this label
+# (auto/base-changelog-<label>), the branch the record step dates the changelog
+# entries on. Both rewrite the same pages, so one tag gets one PR (#1570). This
+# runs on the base build's completion — after the record steps pushed the branch.
+#
 # Transport: each extract job annotates its TSV with metadata headers (run id,
 # verify outcome, OCI labels) via scripts/annotate_version_tsv.py, then uploads
 # it as a per-backend artifact (versions-<backend>) with upload-artifact.

@@ -75,6 +75,30 @@ def configure_git_identity() -> None:
     _git("config", "user.email", "noreply@flagos.net", check=False)
 
 
+def layer_record_branch(layer: str, label: str) -> str:
+    """The one branch a layer's record for ``label`` lands on.
+
+    The record step and the version refresh rewrite the same pages, so they
+    share it: one tag, one PR (#1570). Deleted on merge.
+    """
+    return f"auto/{layer}-changelog-{label}"
+
+
+def sync_to_record_branch(layer: str, label: str) -> str:
+    """Move the worktree onto the layer's record branch for ``label``.
+
+    Rendering against main and rebasing afterwards conflicts on the very pages
+    both lines rewrite. A branch that does not exist yet leaves the worktree be.
+    """
+    branch = layer_record_branch(layer, label)
+    probe = _git("ls-remote", "origin", f"refs/heads/{branch}", check=False)
+    if probe.returncode != 0 or not probe.stdout.strip():
+        return branch
+    _git("fetch", "origin", branch, check=False)
+    _git("checkout", "-B", branch, "FETCH_HEAD")
+    return branch
+
+
 def push_record_branch(branch: str, commit_msg: str, attempts: int = 5) -> None:
     """Commit onto the record's branch and push, rebasing past concurrent writers.
 

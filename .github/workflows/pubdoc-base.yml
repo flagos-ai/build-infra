@@ -15,7 +15,7 @@
 name: Publish documentation for base images
 
 # Publication is gated on review+merge: when reviewed per-image descriptions
-# land on main (a base-descriptions PR merged), push them to the Harbor repository.
+# land on main (a base-changelog PR merged), push them to the Harbor repository.
 # Nothing goes live until the version diff — the checkpoint for catching
 # a disruptive change (e.g. a toolchain gcc bump) — has been reviewed and merged.
 
@@ -73,6 +73,6 @@ jobs:
       - name: Clean up description branch
         if: always()
         run: |
-          label=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'unknown')
-          git push origin --delete "auto/base-descriptions-${label}" 2>/dev/null || true
-          echo "Cleaned up auto/base-descriptions-${label}"
+          label=$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')
+          git push origin --delete "auto/base-changelog-${label}" 2>/dev/null || true
+          echo "Cleaned up auto/base-changelog-${label}"

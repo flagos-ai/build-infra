@@ -148,7 +148,7 @@ playbook (`docs/release-workbook.md`) references the display names.
 |---|---|
 | `base-image.yml` | Base Image Build (manual): matrix via `generate_matrix.py`, one job per backend; build logic (Harbor login, disk guard, `build_base.py`) inlined in the same file; gated on a base changelog |
 | `runtime-image.yml` | Runtime Image Build (manual): base + FlagGems wheel + deps; gated on a runtime changelog |
-| `gendoc-base.yml` / `gendoc-runtime.yml` | Extract system package versions from built images → review-gated description PR |
+| `gendoc-base.yml` / `gendoc-runtime.yml` | Extract system package versions from built images → commit onto the layer's record PR (`auto/<layer>-changelog-<tag>`) |
 | `pubdoc-base.yml` / `pubdoc-runtime.yml` / `pubdoc-app.yml` | Publish descriptions (incl. the Changelog section) to Harbor on the PR landing on `main` |
 | `hugo-site.yml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**` / `runtime/changelogs/**` / `app/*/changelogs/**`); recomputes every page's Changelog section from the changelog files before the build |
 | `megatron-wheel.yml` | Build megatron-core wheels in the backend's runtime image, upload to `flagos-pypi-hosted` |
