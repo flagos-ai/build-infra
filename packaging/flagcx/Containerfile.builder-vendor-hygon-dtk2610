@@ -50,11 +50,7 @@ RUN set -eux; \
         ca-certificates gnupg curl git \
         build-essential gcc g++ cmake \
         libnuma1 libgfortran5 libdrm-amdgpu1 libdw1 libelf1 libpciaccess0 \
-        # torch 2.13.0+dtk2610 NEEDs libmpi.so.40 and libibverbs.so.1, and the
-        # 26.10 wheel does not bundle either (the 26.04 one hashed both). This
-        # image is self-contained on 22.04, so it carries its own: libopenmpi3,
-        # the jammy spelling of base/hygon-dtk26.10's libopenmpi3t64.
-        libopenmpi3 \
+        libibverbs1 \
         pciutils; \
     curl -fsSL \
          "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
@@ -78,6 +74,19 @@ RUN set -eux; \
     tar xzf /dtk.tar.gz -C /opt; \
     ln -sf /opt/dtk-26.10 /opt/dtk; \
     rm /dtk.tar.gz
+
+# torch's DTK build references MPIX_Query_rocm_support, which only Open MPI 5.x
+# built --with-rocm exports; jammy's libopenmpi3 (4.1.x) lacks it. Same package
+# base/hygon-dtk26.10 installs.
+ARG OPENMPI_DEB=openmpi-rocm_5.0.8-1_jammy_amd64.deb
+ARG OPENMPI_DEB_SHA256=0ec0cbcd951db8df25208d93cd99135019acb15877dec6c5b6e8910e1d97db82
+RUN set -eux; \
+    curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/openmpi.deb \
+        "${FILE_STORE}/hygon/${OPENMPI_DEB}"; \
+    echo "${OPENMPI_DEB_SHA256}  /tmp/openmpi.deb" | sha256sum -c -; \
+    dpkg -i /tmp/openmpi.deb; \
+    ldconfig; \
+    rm /tmp/openmpi.deb
 
 # The row's SDK assert, checked here rather than as an unresolved symbol later.
 RUN set -eux; \
