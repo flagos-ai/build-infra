@@ -22,17 +22,15 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: >-
-      First release of this backend's runtime image. It layers the DTK 26.10
-      torch closure — torch 2.13.0+dtk2610, torchvision 0.28.0, torchaudio
-      2.11.0, apex 1.7.0, flash_attn 2.8.4, numpy 1.26.4 and flagcx
-      0.14.1+dtk2610 — on python 3.12, alongside FlagTree 0.7.0+hcu3.6 and
-      FlagGems 5.4.0, above the 26.10 base image (DTK 26.10 on ubuntu:24.04,
-      with the ROCm-aware Open MPI 5.0.8 that torch's libtorch_cpu.so
-      requires).
+      First release of this backend's runtime image: python 3.12 with the DTK
+      26.10 torch closure (torch 2.13.0, torchvision 0.28.0, torchaudio 2.11.0,
+      apex 1.7.0, flash_attn 2.8.4, numpy 1.26.4), FlagTree 0.7.0+hcu3.6 and
+      FlagGems 5.4.0, above the 26.10 base image. flagcx is left out because its
+      `0.14.1+dtk2610` wheel is built inside this image and the index does not
+      carry it yet.
     reason_zh: |-
-      该后端 runtime 镜像的首次发布。在 python 3.12 上装入 DTK 26.10 的 torch 闭包
-      —— torch 2.13.0+dtk2610、torchvision 0.28.0、torchaudio 2.11.0、apex 1.7.0、
-      flash_attn 2.8.4、numpy 1.26.4 与 flagcx 0.14.1+dtk2610 —— 以及 FlagTree 0.7.0+hcu3.6
-      与 FlagGems 5.4.0，构建于 26.10 基础镜像之上（DTK 26.10 on ubuntu:24.04，
-      带 torch 的 libtorch_cpu.so 所必需的 ROCm 版 Open MPI 5.0.8）。
+      该后端 runtime 镜像的首次发布：python 3.12 加 DTK 26.10 的 torch 闭包（torch 2.13.0、
+      torchvision 0.28.0、torchaudio 2.11.0、apex 1.7.0、flash_attn 2.8.4、numpy 1.26.4），
+      以及 FlagTree 0.7.0+hcu3.6 与 FlagGems 5.4.0，构建于 26.10 基础镜像之上。
+      不含 flagcx：它的 `0.14.1+dtk2610` wheel 要在这个镜像里构建，索引尚无该包。
     upstream_prs: []

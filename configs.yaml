@@ -759,9 +759,8 @@ vendors:
         - torchaudio==2.11.0+dtk2610.torch2130.2610221109.g1da530
         - torchvision==0.28.0+dtk2610.torch2130.2610212003.gac691b
         - numpy==1.26.4
-        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
-        # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.1+dtk2610
+      # flagcx joins deps: once its wheel is on the vendor index; a first build
+      # cannot install a dependency nothing has published yet.
       sdk:
         - Hygon DTK 26.10      # DTK-26.10-Ubuntu24.04-x86_64.tar.gz
         - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
