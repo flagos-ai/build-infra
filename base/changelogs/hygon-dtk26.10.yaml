@@ -19,7 +19,7 @@ image: flagos-base-hygon-dtk26.10
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-10-31T07:11:14.007Z'
     reason: |-
       - ROCm-aware Open MPI 5.0.8 is installed from
         `flagos-filestore/hygon/openmpi-rocm_5.0.8-1_jammy_amd64.deb`,

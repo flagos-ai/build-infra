@@ -92,3 +92,22 @@ hy-smi
 ```
 
 *更新时间: 2026-10-29 17:12:32 · `43f1693c481a`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-10-31 07:11:14*
+
+- 从 `flagos-filestore/hygon/openmpi-rocm_5.0.8-1_jammy_amd64.deb` 安装带
+  ROCm 支持的 Open MPI 5.0.8，并以校验和固定。`libtorch_cpu.so` 引用 `MPIX_Query_rocm_support`，
+  该符号只由 Open MPI 5.x 的 `mpiext/rocm` 组件导出，且仅在 `--with-rocm` 构建时存在；
+  Ubuntu 的 4.1.x 无法满足，导致 `import torch` 报未定义符号。
+- apt 层新增 `libibverbs1` 与 `libquadmath0`：前者是 `libtorch_cpu.so` 的直接依赖，
+  后者是 torch 所带 MKL 库的直接依赖。
+
+*2026-10-29 09:41:24*
+
+- 首次交付：海光 DTK 26.10，基于 ubuntu:24.04。DTK 26.10 提供原生的 Ubuntu 24.04 构建，
+  因此本镜像直接采用它，而无需走 26.04 线的 22.04 向前兼容路径。
+- dtk_llvm（aillvm）叠加包与 SDK 一同安装到 `/opt/dtk-26.10`，与 26.04 基础镜像的工具链布局保持一致。
