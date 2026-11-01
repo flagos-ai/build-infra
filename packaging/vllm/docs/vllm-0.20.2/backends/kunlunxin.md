@@ -10,7 +10,7 @@
 此前两个阻塞（解码乱码、解码假死）均已 A/B 定位根因并闭环；旧阻塞（三处
 attention 内核编译失败）由厂商插件层 **[VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)**（xtorch_ops 原生 attention
 backend，不碰 Triton 编译）+ triton 3.6.0 升级（[build-infra #469](https://github.com/flagos-ai/build-infra/pull/469)）解除。解码乱码根因详见
-[`kunlunxin-decode-repetition-scale-bug.md`](../../kunlunxin-decode-repetition-scale-bug.md)。
+[`kunlunxin-decode-repetition-scale-bug.md`](../../handoffs/kunlunxin-decode-repetition-scale-bug.md)。
 
 ### 阻塞点与闭环
 

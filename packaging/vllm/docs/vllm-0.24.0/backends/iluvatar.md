@@ -1,10 +1,10 @@
 # vllm 0.24.0 — iluvatar corex4.5.0
 
-> 本文对应 0.20.2 线 [§2.5 / §2.12](../vllm-0.20.2/backends/iluvatar.md) 的 0.24.0 延续。
+> 本文对应 0.20.2 线 [§2.5 / §2.12](../../vllm-0.20.2/backends/iluvatar.md) 的 0.24.0 延续。
 > 0.24.0 已验证 corex4.5.0（§14，F/T 双路径）与 corex4.4.0（**F ✅ / T ❌**，见
 > [§14.4](#144-corex440-t-路径负结果2026-09-04)）；两 corex 变体现统一到同一插件
 > wheel `0.2.1+gc9e2573.d20260913`（§14.5）。0.20.2 线 corex4.4.0 仍为负结果
->（工具链过旧，见 0.20.2 [§2.5](../vllm-0.20.2/backends/iluvatar.md)）。
+>（工具链过旧，见 0.20.2 [§2.5](../../vllm-0.20.2/backends/iluvatar.md)）。
 > 标准流程见 [`playbook.md`](../playbook.md)，决策见 [`decisions.md`](../decisions.md)。
 
 ## 14. iluvatar（COREX 4.5.0）详细记录（2026-08-30）
@@ -72,7 +72,7 @@ docker run -d --network host --device /dev/iluvatar0 \
 F ✅ 记录于 2026-09-02 / build-infra #688）。
 
 **结论：❌ T 路径不可交付——厂商 corex 编译器存在不可修复缺陷。** 与 0.20.2 线
-[§2.5](../vllm-0.20.2/backends/iluvatar.md)（D 前向数值乱码，工具链代差定案）同一定论；
+[§2.5](../../vllm-0.20.2/backends/iluvatar.md)（D 前向数值乱码，工具链代差定案）同一定论；
 对 4.4.0 SDK 钉死的 vendor corex triton 3.1.0，无法通过插件/镜像层修复。**交付路径 = F
 （flagtree），T 不交付。**
 

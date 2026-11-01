@@ -23,13 +23,15 @@ build then runs in. Design and the `backends.yaml` field contract live in
 
 ## Agent 协作纪律
 
-agent 写作/记录的唯一权威规则见 `docs/agent-protocol.md`。开箱即知：
+agent 写作/记录的唯一权威规则见 `docs/agent-protocol.md`（含两条硬规则：技能
+只装流程与指针、不装事实；事实的归属由「它变化的轴」决定）。开箱即知：
 
 - **subagent 永不写 docs / memory / WORKING-CONTEXT** —— 写入判断收归主会话。
 - **只记结论**（为什么 / 最终状态 / 机制），**不记过程**（流水账禁止）。
 - **注释只写为什么**，不解释是什么；密度匹配周围代码。
 - 每线 `docs/README.md` 是唯一入口；先 grep 定位再读最小片段。
 - WORKING-CONTEXT 类文件有时效：并入 docs / status matrix 后**删除**。
+- 某条知识该放哪个文件：先查 `docs/README.md` 的路由表。
 
 ## Key commands
 
@@ -153,15 +155,22 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `hugo-site.yml` | Build + deploy docs site to GitHub Pages (push to `main`, `docs/**` / `configs.yaml` / `base/**` / `runtime/changelogs/**` / `app/*/changelogs/**`); recomputes every page's Changelog section from the changelog files before the build |
 | `megatron-wheel.yml` | Build megatron-core wheels in the backend's runtime image, upload to `flagos-pypi-hosted` |
 | `megatron-app-image.yml` / `vllm-app-image.yml` / `sglang-app-image.yml` | Build app images from the runtime + vendor wheel, verify on-node, push `flagos-app/...` |
-| `flagcx-*` (`deb.yml`, `wheel.yml`, `builder.yml`, `rpm.yml`) | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |
+| `flagcx-deb.yml` / `flagcx-wheel.yml` / `flagcx-builder.yml` / `flagcx-rpm.yml` | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |
 | `flaggems-wheel.yml` | Daily (01:17 UTC) + manual FlagGems wheel build → `flagos-pypi-daily` |
 | `flagtree-wheel-daily.yml` | Daily (01:37 UTC) + manual FlagTree wheel per backend → `flagos-pypi-daily` as `flagtree-<backend>`, one matrix row per `daily:`-enabled entry in `packaging/flagtree/backends.yaml`, on that backend's published builder stage (see `packaging/flagtree/README.md`) |
 | `flagtree-builder.yml` | Publishes `--target builder` of every `packaging/flagtree` Containerfile that has one, one matrix row per backend in `packaging/flagtree/backends.yaml`; the daily builds the wheel on top of it |
 | `flaggems-release.yml` | FlagGems release wheels: python + cpp wheels → all vendor indexes, `update-config` PR |
 | `native-deb.yml` / `native-rpm.yml` / `noarch-deb.yml` / `noarch-rpm.yml` | Component repos' deb/rpm release paths to the Nexus repositories |
-| `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes (`flagtree-wheel.yml` is manual-only; the daily line is its own file) |
+| `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `sglang-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml`, `flagos-compressor-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes (`flagtree-wheel.yml` is manual-only; the daily line is its own file) |
+| `flaggems-deb.yml` | FlagGems `.deb` release path |
+| `wheel-uploader.yml` | Publishes the uploader image (`packaging/upload/`) that every wheel-uploading workflow runs twine in |
+| `record-wheel-info.yml` | Records a release's `pypi_index`/`python`/`os`/`arch` into `packaging/packages.yaml` (see `docs/wheel-info.md`) |
+| `bundle.yml` | Builds a bundled artifact set for a stack version |
 | `verify-runtime.yml` / `verify-driver.yml` / `verify-cpp-fixes.yml` / `status-matrix-consistency.yml` | Verify image content, driver reachability, cpp fixes, generated-output drift (matrices + app pages) |
 | `upload-nexus.yml`, `sync-to-remote.yaml`, `auto-approve.yml`, `release-verify-selftest.yml`, `sdk-reminder.yml` | Nexus upload, GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder |
+
+This table must stay complete: a new workflow file belongs here in the same PR.
+(An automated check is planned, see `docs/README.md` → 待落地.)
 
 `builders.txt` lists the GitHub accounts allowed to manually trigger the image
 build workflows (checked by `authorize` in each workflow).
