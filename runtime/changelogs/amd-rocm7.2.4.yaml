@@ -31,6 +31,7 @@ tags:
       不再回退到 `torch.version.hip`。基础镜像自带 ROCm 的 amdsmi 源码树
       （/opt/rocm/share/amd_smi）但从未安装，而 amd-smi 命令行工具并不暴露 Python API。
     upstream_prs: []
+    date: '2026-11-01T10:52:01.222Z'
   - reason: >-
       Rebuilt on the corrected base image: the `HIP_VISIBLE_DEVICES=all` ENV is
       gone, so this image now enumerates every GPU out of the box instead of

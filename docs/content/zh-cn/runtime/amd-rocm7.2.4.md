@@ -95,6 +95,12 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-01 10:52:01*
+
+为该后端的 runtime 依赖新增 amdsmi 7.0.2。vLLM 的 ROCm 平台探测只认 amdsmi，
+不再回退到 `torch.version.hip`。基础镜像自带 ROCm 的 amdsmi 源码树
+（/opt/rocm/share/amd_smi）但从未安装，而 amd-smi 命令行工具并不暴露 Python API。
+
 *2026-10-31 13:13:04*
 
 基于修正后的基础镜像重建：`HIP_VISIBLE_DEVICES=all` 这个 ENV 已移除，因此该镜像现在
