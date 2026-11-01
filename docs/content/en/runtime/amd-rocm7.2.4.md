@@ -95,6 +95,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-01 10:52:01*
+
+Adds amdsmi 7.0.2 to this backend's runtime dependencies. vLLM's ROCm platform probe is amdsmi-only — it no longer falls back to `torch.version.hip`. The base image ships ROCm's amdsmi source tree under /opt/rocm/share/amd_smi but never installs it, and the amd-smi CLI does not expose the Python API.
+
 *2026-10-31 13:13:04*
 
 Rebuilt on the corrected base image: the `HIP_VISIBLE_DEVICES=all` ENV is gone, so this image now enumerates every GPU out of the box instead of zero. HIP 7.2 takes ordinals or GPU-UUIDs only, and the base image had been setting the NVIDIA-style `all`, which parsed to an empty device list: `torch.cuda.device_count()` returned 0 while `rocm-smi` listed every card. No package, compiler or version changes — the venv and the flagcx dependency are the same as the previous push.
