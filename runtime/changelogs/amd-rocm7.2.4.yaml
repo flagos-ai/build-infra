@@ -22,6 +22,16 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: >-
+      Adds amdsmi 7.0.2 to this backend's runtime dependencies. vLLM's ROCm
+      platform probe is amdsmi-only — it no longer falls back to `torch.version.hip`.
+      The base image ships ROCm's amdsmi source tree under /opt/rocm/share/amd_smi
+      but never installs it, and the amd-smi CLI does not expose the Python API.
+    reason_zh: |-
+      为该后端的 runtime 依赖新增 amdsmi 7.0.2。vLLM 的 ROCm 平台探测只认 amdsmi，
+      不再回退到 `torch.version.hip`。基础镜像自带 ROCm 的 amdsmi 源码树
+      （/opt/rocm/share/amd_smi）但从未安装，而 amd-smi 命令行工具并不暴露 Python API。
+    upstream_prs: []
+  - reason: >-
       Rebuilt on the corrected base image: the `HIP_VISIBLE_DEVICES=all` ENV is
       gone, so this image now enumerates every GPU out of the box instead of
       zero. HIP 7.2 takes ordinals or GPU-UUIDs only, and the base image had
