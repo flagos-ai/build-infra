@@ -69,6 +69,35 @@ backends:
       ref: main
       wheel_tag: cp312-cp312-linux_x86_64
 
+  # FlagTree's other default backend. Same stage shape as nvidia's (bare
+  # ubuntu:22.04, deadsnakes 3.12, LLVM through LLVM_SYSPATH, the shared triton
+  # deps), which is why the two sit together -- but it needs its own verify step:
+  # third_party/amd/CMakeLists.txt find_package()s LLD against
+  # ${LLVM_LIBRARY_DIR}/cmake/lld, and the nvidia step has no reason to assert
+  # that. No vendor SDK is staged: the backend vendors its hip/hsa/roctracer
+  # headers and opens libamdhip64 at run time.
+  amd:
+    containerfile: amd
+    builder_image: flagtree-builder-amd
+    runson: ["self-hosted", "amd"]
+    # Measured on the amd node: the two images this line produces are 8.43 GB and
+    # 27.1 GB raw (1.88 GB and 20.6 GB unique). The 27.1 GB is the largest wheel
+    # image of any row -- the default build type keeps an 890 MB libtriton.so
+    # with debug sections -- and both are resident at once.
+    disk_min_gb: 60
+    builder:
+      verify_stage: amd
+    daily:
+      # Off until a `main` build has been through the backend's own nodes. The
+      # 0.7.0+amd3.6 tag build was A/B'd against the vendor wheel in the amd
+      # runtime (op sweep + torch.compile, both trees), which is what the
+      # Containerfile's gates encode; `main` is a different tree.
+      enabled: false
+      dist_name: flagtree-amd
+      version_base: "0.7.1"
+      ref: main
+      wheel_tag: cp312-cp312-linux_x86_64
+
   iluvatar:
     containerfile: iluvatar
     builder_image: flagtree-builder-iluvatar-corex4.5.0

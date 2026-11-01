@@ -19,9 +19,9 @@
 Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
-The `nvidia-cuda` / `metax` / `sunrise` / `iluvatar` / `enflame` / `tsingmicro` /
-`mthreads` / `kunlunxin` builders start from a plain Ubuntu 22.04 (old glibc: the
-resulting `libtriton.so` must load on 22.04 nodes).
+The `nvidia-cuda` / `amd` / `metax` / `sunrise` / `iluvatar` / `enflame` /
+`tsingmicro` / `mthreads` / `kunlunxin` builders start from a plain Ubuntu 22.04
+(old glibc: the resulting `libtriton.so` must load on 22.04 nodes).
 The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair's builder stage instead starts
 from **the backend's runtime image**, because FlagTree's Ascend build needs CANN
 on the build machine — see the section below.
@@ -29,6 +29,7 @@ on the build machine — see the section below.
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
 | `nvidia-cuda`| FlagTree for NVIDIA, builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `amd`        | FlagTree for AMD (ROCm), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `metax`      | FlagTree for MetaX (MACA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `sunrise`    | FlagTree for Sunrise (PTPU), builder + wheel | Ubuntu 22.04 + clang/lld 14 |
 | `iluvatar`   | FlagTree for Iluvatar (CoreX), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
@@ -97,9 +98,9 @@ contract, and reading it back means the pin and the gate cannot drift apart.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All twelve have one. For `nvidia-cuda`, `metax`,
-`sunrise`, `iluvatar`, `enflame`, `hcu`, `hcu-dtk2610`, `tsingmicro`, `mthreads`
-and `kunlunxin`
+into FlagTree's offline cache). All thirteen have one. For `nvidia-cuda`, `amd`,
+`metax`, `sunrise`, `iluvatar`, `enflame`, `hcu`, `hcu-dtk2610`, `tsingmicro`,
+`mthreads` and `kunlunxin`
 the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default;
 for the
 ascend pair its cold value is the backend's runtime image, which is why
@@ -111,16 +112,16 @@ letting the Containerfile default.
 one job per entry in `backends.yaml`, which is where a backend's build-line facts
 live: its Containerfile, the image repository the stage is published under, the
 runner labels, the disk budget, and which extra proof the stage needs. That proof
-is either a `verify_stage` name — a step in the workflow, for a stage whose
-contract a path list cannot express (the ascend pair asserts the runtime image's
-CANN line and version, its staged LLVM and the triton deps; the other four assert
-a prebuilt plugin's md5 prefix or a symbol) — or a `verify` block, which is the
-same assertions as data: the interpreter, the executables, the paths. The block
-is rendered by one generic step, so a backend staged like its predecessors needs
-a row and no workflow step at all. `enflame`, `hcu`, `hcu-dtk2610`,
-`tsingmicro`, `mthreads` and
-`kunlunxin` are the six of those, and the four that came before them keep their
-own steps.
+is either a `verify_stage` name — a step in the workflow, for a stage holding
+something a path list would state too weakly (the ascend pair asserts the
+runtime image's CANN line and version; `amd` asserts the staged LLD that
+`third_party/amd` `find_package()`s; `sunrise` and `metax` report their prebuilt
+plugin's md5 prefix, which is what FlagTree compares it against) — or a `verify`
+block, which is the same assertions as data: the interpreter, the executables,
+the paths. The block is rendered by one generic step, so a backend staged like
+its predecessors needs a row and no workflow step at all. `enflame`, `hcu`,
+`hcu-dtk2610`, `tsingmicro`, `mthreads` and `kunlunxin` are the six of those;
+the six named steps each say something a path list cannot.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
@@ -495,6 +496,78 @@ Removing `.git` to make the version clean: FlagTree's `get_git_commit_hash()` ap
 `+git<sha8>` whenever `git rev-parse` answers, which is why the SHA has to be read
 *before* the removal. Read it back with `pip show -v`, not from the version.
 
+## AMD builder (`amd`)
+
+Unlike `metax` and `iluvatar`, the glibc argument is **not** why this line exists:
+the vendor's `0.7.0+amd3.6` wheel was built on 22.04 too (its `libtriton.so`
+carries `GCC: (Ubuntu 11.4.0-1ubuntu1~22.04.3)`, requires no symbol above
+`GLIBC_2.34`, and is 892 MB against this build's 890 MB — same compiler, same
+build type). What it does not carry is **provenance**: its METADATA has no
+`Source-Commit`, and its `Wheel-Version` says only `setuptools (79.0.1)`. So this
+line's reason is self-ownership and the `Source-Commit` record — plus the same
+structural one every backend has: `amd` is one of FlagTree's default backends, so
+a container that compiles it compiles `nvidia` too, and the CUDA redists have to
+be staged for `setup.py` whichever backend the wheel is for.
+
+```
+ubuntu:22.04 ──> builder   apt toolchain + python 3.12 + LLVM f6ded0be + triton deps
+                   │        published to flagos-dev by flagtree-builder.yml
+                   ▼
+                flagtree   clone the ref, compile triton (FLAGTREE_BACKEND=amd)
+                           /wheels/*.whl, cp312
+```
+
+**No ROCm SDK is staged.** The `amd` backend vendors the hip/hsa/roctracer
+headers it compiles against and opens `libamdhip64` at run time through
+`ROCM_PATH` / `hipconfig` / `ldconfig` — so the build machine needs none of the
+ROCm stack the runtime image carries. What it does need that `nvidia-cuda` does
+not is **LLD**: `third_party/amd/CMakeLists.txt` asks for it explicitly
+(`find_package(LLD REQUIRED CONFIG PATHS "${LLD_DIR}")`) and `triton_amd.cc`
+includes `lld/Common/Driver.h`. The staged LLVM carries both (`lib/cmake/lld` and
+`include/lld`), which is also why this row has its **own** `verify_stage` step
+rather than the `verify` block: "the LLD config is present" is not something a
+path list should be the only assertion for, and the nvidia step has no reason to
+assert it.
+
+**Staging the CUDA side without a CUDA SDK.** `setup.py` copies the CUDA redists
+out of `~/.triton/nvidia/{cudart,cupti}` when the nvidia backend is in the build,
+so those two caches come from the shared `build-deps-triton_3.6.x` tarball the
+other bare-ubuntu stages already use — not from
+`developer.download.nvidia.com`, which is the fetch this avoids.
+
+**What the build gives up: `proton`.** `TRITON_BUILD_PROTON=OFF`, because the
+profiler is not part of what the runtime uses. Measured on-node rather than
+assumed: the wheel installs into the `amd-rocm7.2.4` runtime, `triton.profiler`
+is unimportable, and `torch.compile` — inductor's `proton_profiling` branch is
+the one consumer that references it — produces results identical to the vendor
+wheel's tree (`maxdiff=1.526e-05` on both, 9/9 ops in the sweep). The A/B also
+accounted for every other difference from the vendor wheel — its 182 extra files
+are exactly three things: 164 under `triton/backends/nvidia/{include,bin}` that
+`get_excluded_package_data()` drops by design for a non-nvidia build, 15 under
+`triton/profiler/`, and the three proton files (`bin/proton`,
+`bin/proton-viewer`, `triton/_C/libproton.so`). Nothing exists on our side that
+the vendor wheel lacks.
+`PYBIND11_SPEC=pybind11==3.0.1` is what makes that A/B
+possible at all — it reproduces the vendor wheel's `pybind11` internals v11, so
+the two `libtriton.so` are drop-in counterparts. The build asserts that
+(`__pybind11_internals_v11`).
+
+**One behavioral difference, and it is the intended one.** The vendor wheel's
+`triton/FLAGTREE_BACKEND` is an **empty** file, so `_discover_backends()`
+enumerates every entry point and the tree reports `['amd', 'nvidia']`; the active
+one is then decided at run time by `driver.is_active()`. This build's exports
+`FLAGTREE_BACKEND=amd` like every other row except `nvidia-cuda`, so the marker
+carries `amd` and the tree reports `['amd']` — the backend is named at build time
+rather than probed. Both resolve to `amd` on an amd node; the difference only
+shows if someone tries to drive `nvidia` from this wheel.
+
+**No `Release` override, unlike `nvidia-cuda`.** `TRITON_APPEND_CMAKE_ARGS` stays
+unset for the reason `kunlunxin` gives: an optimization level is not a packaging
+detail for a compiler, and this line's point is to be a counterpart of the vendor
+wheel. The measurements agree — the two `libtriton.so` differ by 2.5 MB out of
+~891 MB and carry the same 8 debug sections. The 22.04 objdump gate still runs,
+so what the wheel may carry is bounded even at the default build type.
+
 ## Iluvatar builder (`iluvatar`)
 
 Same reason as `metax`: the vendor's own wheel is built on Ubuntu 24.04. Measured
@@ -817,20 +890,25 @@ docker build -t flagtree-ascend-cann9.0.0:0.7.0 -f ascend-cann9.0.0 .
 docker build --target builder -t flagtree-builder-ascend-cann9.0.0:ci -f ascend-cann9.0.0 .
 docker build --build-arg BUILDER_IMAGE=flagtree-builder-ascend-cann9.0.0:ci \
              -t flagtree-ascend-cann9.0.0:0.7.0 -f ascend-cann9.0.0 .
+
+# amd: bare ubuntu, no ROCm on the build machine.
+docker build -t flagtree-amd:0.7.0 -f amd .
+docker build --build-arg BUILDER_IMAGE=flagtree-builder-amd:ci -t flagtree-amd:0.7.0 -f amd .
 ```
 
 Useful build args (see the Containerfile for the full list):
 
 - `FLAGTREE_VERSION` — FlagTree git branch/tag/sha to build; also the wheel version
-  string (default `0.7.0` for `nvidia-cuda`, `0.7.0+metax3.6` for `metax`,
+  string (default `0.7.0` for `nvidia-cuda`, `0.7.0+amd3.6` for `amd`,
+  `0.7.0+metax3.6` for `metax`,
   `0.7.1a1+iluvatar3.6` for `iluvatar`, `0.7.0+sunrise3.6` for `sunrise`). This
   is the single version knob, and each default is the release the stack pins in
   `configs.yaml`: the wheel's version is what a client's `pip` ends up with, so
   the two are meant to agree.
 - `FLAGTREE_WHEEL_VERSION` — wheel version string; defaults to `FLAGTREE_VERSION`,
   so you normally only set `FLAGTREE_VERSION`. Every builder here ends up with a
-  clean version (no `+git<sha>`): `metax`/`sunrise`/`iluvatar`/`nvidia-cuda` and
-  the ascend pair all drop `.git` before `pip wheel`, and `FLAGTREE_PYPI_KEY`
+  clean version (no `+git<sha>`): every builder here drops `.git` before
+  `pip wheel`, and `FLAGTREE_PYPI_KEY`
   (md5-gated in FlagTree's `setup.py`) is the other route for a caller that holds
   the secret.
   On the ascend pair it defaults to `FLAGTREE_BASE_VERSION.<UTC date>` instead
@@ -846,11 +924,17 @@ Useful build args (see the Containerfile for the full list):
   — see the builder sections above. This is also the arg `flagtree-wheel.yml`'s
   `base_image` input reaches the build as.
 
-The build runs in `Release` mode, which strips `libtriton.so` (~840 MB → ~150 MB)
-and drops asserts. A smoke test installs the freshly built wheel and imports
+`nvidia-cuda`, `metax`, `enflame`, `tsingmicro` and `mthreads` build in `Release`
+mode (`TRITON_APPEND_CMAKE_ARGS`), which strips `libtriton.so` (840 → ~150 MB)
+and drops asserts; the rest keep upstream's default build type, because an
+optimization level is not a packaging detail for a compiler and the vendor wheel
+being matched was built that way (`kunlunxin` and `amd` say so in their own
+files). Note the contrast with `amd`: it has no `Release` override, so its wheel
+is the largest this line produces (~890 MB `libtriton.so`, 359 MB wheel). A smoke
+test installs the freshly built wheel and imports
 `triton`, failing the build if the wheel is broken. `nvidia-cuda` additionally
-patches `python/flagtree/__init__.py` after the clone, and it and the ascend pair
-record the source commit (see below).
+patches `python/flagtree/__init__.py` after the clone, and it, `amd` and the
+ascend pair record the source commit (see below).
 
 ## Daily builds
 
@@ -859,7 +943,7 @@ publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
 `flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin` and the ascend
-pair today. The
+pair today (`flagtree-amd`'s row exists but is off — see its section). The
 release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.

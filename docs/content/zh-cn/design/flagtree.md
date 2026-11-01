@@ -37,7 +37,7 @@ per-backend 的 wheel，而不是从厂商的 wheel 安装。
 
 ## 构建形态
 
-每个后端在 `packaging/flagtree/backends.yaml` 旁各有一个 Containerfile（11 个
+每个后端在 `packaging/flagtree/backends.yaml` 旁各有一个 Containerfile（13 个
 后端）。构建拆成两个阶段：
 
 - **`--target builder`** —— 与 FlagTree ref 无关的一切：apt 工具链、解释器，
@@ -45,7 +45,7 @@ per-backend 的 wheel，而不是从厂商的 wheel 安装。
   因此热构建只需为 clone 和编译买单。
 - **default target** —— clone ref 并在已发布阶段之上编译。
 
-九个后端从裸 `ubuntu:22.04` 起步（旧 glibc，`libtriton.so` 得以在 22.04 节点
+十一个后端从裸 `ubuntu:22.04` 起步（旧 glibc，`libtriton.so` 得以在 22.04 节点
 加载）；ascend 一对从各自的运行时镜像起步，因为 Ascend 构建需要 CANN 在
 构建机上。
 
