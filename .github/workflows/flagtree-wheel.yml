@@ -34,6 +34,7 @@ on:
         options:
           - metax
           - nvidia-cuda
+          - amd
           - iluvatar
           - sunrise
           - hcu-dtk2610
@@ -97,8 +98,9 @@ jobs:
           set -euo pipefail
           # Which configs.yaml backend a target belongs to, when it has one. The
           # ascend targets ARE the backend names, so they need no mapping; the
-          # iluvatar target is the plain vendor name, and which CoreX line it
-          # means is the runtime image's business, not a guess from the string.
+          # iluvatar and amd targets are the plain vendor names, and which CoreX
+          # or ROCm line each means is the runtime image's business, not a guess
+          # from the string.
           # hcu-dtk2610 maps explicitly: `hcu` alone would resolve to the 26.04
           # line, whose pin is a cp310 wheel this target does not build.
           #
@@ -111,6 +113,7 @@ jobs:
           case "$TARGET" in
             ascend-cann*) backend="$TARGET";                in_base=yes ;;
             iluvatar)     backend="iluvatar-corex4.5.0";    in_base=no  ;;
+            amd)          backend="amd-rocm7.2.4";          in_base=no  ;;
             hcu-dtk2610)  backend="hygon-dtk26.10";         in_base=no  ;;
           esac
           if [ -z "$backend" ]; then

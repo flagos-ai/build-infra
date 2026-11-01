@@ -40,7 +40,7 @@ A source build also gives an A/B baseline against the vendor's wheel.
 ## Build shape
 
 Each backend has its own Containerfile beside `packaging/flagtree/backends.yaml`
-(11 backends). The build splits into two stages:
+(13 backends). The build splits into two stages:
 
 - **`--target builder`** — everything that does not depend on the FlagTree ref:
   the apt toolchain, the interpreter, and the prebuilt LLVM/plugin/triton
@@ -48,7 +48,7 @@ Each backend has its own Containerfile beside `packaging/flagtree/backends.yaml`
   warm build only pays for the clone and the compile.
 - **default target** — clones the ref and compiles on top of the published stage.
 
-Nine backends start from a bare `ubuntu:22.04` (old glibc, so `libtriton.so`
+Eleven backends start from a bare `ubuntu:22.04` (old glibc, so `libtriton.so`
 loads on 22.04 nodes); the ascend pair starts from its own runtime image because
 the Ascend build needs CANN on the build machine.
 

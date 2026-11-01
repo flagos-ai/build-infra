@@ -259,6 +259,39 @@ jobs:
             echo ">>> LLVM_SYSPATH=${LLVM_SYSPATH}, staged $(cat /opt/flagtree-build-env.llvm)"
           '
 
+      # The amd stage's own contract. Same shape as nvidia's, minus the vendor
+      # toolkit -- the backend vendors its hip/hsa/roctracer headers and dlopens
+      # libamdhip64 at run time, so nothing ROCm is staged. What it adds is LLD:
+      # third_party/amd/CMakeLists.txt find_package()s it against
+      # ${LLVM_LIBRARY_DIR}/cmake/lld and includes lld/Common/Driver.h, neither of
+      # which the nvidia assertions would catch. The nvidia caches are asserted
+      # because amd is one of FlagTree's default backends, so the nvidia backend
+      # is compiled and setup.py copies the CUDA redists out of them.
+      - name: Verify the stage carries what the wheel build reads (amd)
+        if: ${{ matrix.verify_stage == 'amd' }}
+        env:
+          IMAGE_REF: ${{ steps.ref.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+            test -f /opt/flagtree-build-env.ready
+            command -v git cmake ninja make wget curl >/dev/null
+            python3.12 -c "import sys; assert sys.version_info[:2] == (3, 12)"
+            python3.12 -m pip --version
+            test -f /usr/local/bin/patch-flagtree-version.py
+            # LLD is the amd-specific find_package() contract; both names, because
+            # triton_amd.cc includes the header and CMake the config.
+            test -f "${LLVM_SYSPATH}/include/lld/Common/Driver.h"
+            test -f "${LLVM_SYSPATH}/lib/cmake/lld/LLDConfig.cmake"
+            test -f "${LLVM_SYSPATH}/lib/cmake/mlir/MLIRConfig.cmake"
+            test -f /root/.triton/json/include/nlohmann/json.hpp
+            test -d /root/.triton/nvidia/cudart
+            test -d /root/.triton/nvidia/cupti
+            # The staleness gate in the wheel build reads this.
+            test -s /opt/flagtree-build-env.llvm
+            echo ">>> LLVM_SYSPATH=${LLVM_SYSPATH}, staged $(cat /opt/flagtree-build-env.llvm)"
+          '
+
       # The metax stage's own contract: the three prebuilt inputs are what the
       # wheel build consumes instead of fetching. Their NAMES are the coupling
       # that matters -- FlagTree declares the URLs it wants in

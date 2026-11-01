@@ -1,0 +1,236 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build a FlagTree amd (ROCm) wheel on Ubuntu 22.04. Not for the glibc floor --
+# the vendor's 0.7.0+amd3.6 wheel is a 22.04 build too -- but for provenance: it
+# carries no Source-Commit. No ROCm SDK is needed: the backend vendors
+# hip/roctracer/hsa headers and opens libamdhip64 by dlopen.
+# Build = `docker build -t flagtree-amd:0.7.0 -f amd .` then `docker create` +
+# `docker cp $id:/wheels .`.
+
+ARG BUILDER_IMAGE=ubuntu:22.04
+FROM ${BUILDER_IMAGE} AS builder
+
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# LLVM f6ded0be is what cmake/llvm-hash.txt names at the amd3.6 tag, and the
+# tarball carries the two find_package() targets third_party/amd asks for --
+# MLIR at ${LLVM_LIBRARY_DIR}/cmake/mlir and LLD at the sibling cmake/lld -- plus
+# the lld/Common/Driver.h triton_amd.cc includes. Mirrored on our filestore: the
+# Azure blob is the one link that stalls on a CN runner.
+ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
+ARG LLVM_HASH=f6ded0be
+ARG LLVM_TARBALL=llvm-${LLVM_HASH}-ubuntu-x64.tar.gz
+ARG LLVM_DIR=/opt/llvm-${LLVM_HASH}-ubuntu-x64
+# amd is one of FlagTree's default backends, so the nvidia backend is compiled
+# too and setup.py wants its CUDA toolkits. They are staged here rather than
+# fetched from developer.download.nvidia.com at build time.
+ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
+ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LLVM_SYSPATH=${LLVM_DIR}
+
+# python 3.12 (deadsnakes) because the amd runtime is 3.12 and the wheel has to
+# wear cp312. The PPA is wired by hand: add-apt-repository goes through
+# Launchpad's REST API and the runner's proxy answers that CONNECT with 500.
+#
+# The marker is written last, so a build that died halfway is retried rather
+# than trusted, and a published builder turns this whole step into a no-op.
+RUN set -eu; \
+    if [ -f /opt/flagtree-build-env.ready ]; then \
+        echo ">>> build environment already staged in the base image"; \
+        exit 0; \
+    fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl \
+        git wget \
+    && curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg \
+    && echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build binutils \
+        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
+        libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+        libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+        python3.12 python3.12-venv python3.12-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && mkdir -p "${LLVM_DIR}" /root/.triton \
+    && cd /tmp \
+    && for i in 1 2 3 4 5; do \
+         wget -q --tries=3 --timeout=120 "${FILESTORE}/llvm/${LLVM_TARBALL}" -O "${LLVM_TARBALL}" && break; \
+         echo ">>> download ${LLVM_TARBALL} attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && for i in 1 2 3 4 5; do \
+         wget -q --tries=3 --timeout=120 "${DEPS_BASE}/${TRITON_DEPS_TARBALL}" -O "${TRITON_DEPS_TARBALL}" && break; \
+         echo ">>> download ${TRITON_DEPS_TARBALL} attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && tar -xzf "${LLVM_TARBALL}" -C "${LLVM_DIR}" --strip-components=1 \
+    && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
+    && rm -f /tmp/*.tar.gz \
+    && test -f "${LLVM_DIR}/include/lld/Common/Driver.h" \
+    && test -f "${LLVM_DIR}/lib/cmake/lld/LLDConfig.cmake" \
+    && test -f "${LLVM_DIR}/lib/cmake/mlir/MLIRConfig.cmake" \
+    && test -f /root/.triton/json/include/nlohmann/json.hpp \
+    && test -d /root/.triton/nvidia/cudart \
+    && test -d /root/.triton/nvidia/cupti \
+    && printf '%s\n' "${LLVM_HASH}" > /opt/flagtree-build-env.llvm \
+    && touch /opt/flagtree-build-env.ready
+
+COPY patch-flagtree-version.py /usr/local/bin/patch-flagtree-version.py
+
+FROM builder AS flagtree
+
+# Stage-scoped: BuildKit inherits a parent stage's ARGs into a `FROM parent`
+# child, the legacy builder does not, and the older amd nodes run the legacy one.
+ARG http_proxy=
+ARG https_proxy=
+ARG no_proxy=
+
+# The release configs.yaml pins for this backend; a daily run overrides both.
+ARG FLAGTREE_VERSION=0.7.0+amd3.6
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_VERSION}
+ARG FLAGTREE_WHEEL_NAME=flagtree
+ARG FLAGTREE_PYPI_KEY=
+# No prebuilt .so is an ABI counterparty here, so this is not metax's pin -- it
+# reproduces the vendor wheel's pybind11 internals v11, which is what lets the
+# two be A/B'd.
+ARG PYBIND11_SPEC=pybind11==3.0.1
+ARG MAX_JOBS=32
+
+# The staleness gate is the point of this block: LLVM_SYSPATH makes FlagTree skip
+# its own download and trust the tree silently, so the hash stage 1 recorded is
+# compared against the source about to be compiled. .git goes after its sha is
+# read, because FlagTree appends "+git<sha>" whenever `git rev-parse` answers.
+RUN git config --global http.version HTTP/1.1 \
+    && for i in 1 2 3 4 5 6 7 8; do \
+         git clone --branch "${FLAGTREE_VERSION}" --depth 1 \
+           https://github.com/flagos-ai/flagtree /opt/flagtree && break; \
+         echo ">>> flagtree clone attempt $i failed, retrying in 5s..."; \
+         rm -rf /opt/flagtree; sleep 5; \
+       done \
+    && test -d /opt/flagtree/.git \
+    && staged_hash="$(cat /opt/flagtree-build-env.llvm 2>/dev/null || true)" \
+    && test -n "${staged_hash}" \
+    && source_hash="$(head -c 8 /opt/flagtree/cmake/llvm-hash.txt)" \
+    && if [ "${source_hash}" != "${staged_hash}" ]; then \
+         echo "ERROR: the builder staged LLVM ${staged_hash}, FlagTree is on ${source_hash}" >&2; \
+         exit 1; \
+       fi \
+    && echo ">>> LLVM ${staged_hash} matches the staged tree" \
+    && python3.12 /usr/local/bin/patch-flagtree-version.py /opt/flagtree \
+    && sha8="$(git -C /opt/flagtree rev-parse --short=8 HEAD)" \
+    && if [ -e /opt/flagtree/setup.cfg ]; then \
+         echo "ERROR: FlagTree now ships its own setup.cfg, which would be" >&2; \
+         echo "       overwritten below. Move the carrier to that file instead." >&2; \
+         exit 1; \
+       fi \
+    && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
+         "${sha8}" > /opt/flagtree/setup.cfg \
+    && rm -rf /opt/flagtree/.git \
+    && cd /opt/flagtree \
+    && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
+    && python3.12 -m pip install --no-cache-dir "${PYBIND11_SPEC}" \
+    && export FLAGTREE_BACKEND=amd \
+    && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
+    && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
+    && export FLAGTREE_PYPI_KEY="${FLAGTREE_PYPI_KEY}" \
+    && export TRITON_BUILD_PROTON=OFF \
+    && export USE_FLAGCX=OFF \
+    && export MAX_JOBS="${MAX_JOBS}" \
+    && for i in 1 2 3 4 5; do \
+         python3.12 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
+       done \
+    && ls -la /wheels/*.whl
+
+# No TRITON_APPEND_CMAKE_ARGS Release override, for the reason kunlunxin gives:
+# an optimization level is not a packaging detail for a compiler, and this line's
+# whole point is to be a counterpart of the vendor wheel. Measured: the two
+# libtriton.so are 889.9 MB and 892.3 MB, so they are the same build type.
+# The objdump gate above still proves the result is 22.04-loadable.
+
+# The 22.04 floor is a gate, not a claim: a symbol newer than this image's glibc
+# aborts on an older node before main(). The wheel is also expected to carry
+# both default backends, which is what makes it a drop-in for the vendor wheel.
+RUN printf '%s\n' \
+      'import glob, importlib.metadata as md, os, re, subprocess, sys, tempfile, zipfile' \
+      '' \
+      'whl = glob.glob("/wheels/*.whl")[0]' \
+      'name = os.path.basename(whl)' \
+      'ver = name.split("-")[1]' \
+      'if "git" in ver:' \
+      '    print("FAIL: dirty wheel version " + ver)' \
+      '    sys.exit(1)' \
+      'if "cp312" not in name:' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp312)")' \
+      '    sys.exit(1)' \
+      'print("OK: wheel " + name)' \
+      '' \
+      'd = tempfile.mkdtemp()' \
+      'z = zipfile.ZipFile(whl)' \
+      'z.extractall(d)' \
+      'entries = z.namelist()' \
+      'for want in ("triton/backends/amd/compiler.py", "triton/backends/amd/driver.py",' \
+      '             "triton/_C/libtriton.so"):' \
+      '    if want not in entries:' \
+      '        print("FAIL: " + want + " missing from the wheel")' \
+      '        sys.exit(1)' \
+      'print("OK: amd backend + libtriton.so are in the wheel")' \
+      '' \
+      'so = os.path.join(d, "triton", "_C", "libtriton.so")' \
+      'syms = subprocess.check_output(["objdump", "-T", so], text=True, errors="replace")' \
+      'forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]' \
+      'hits = [f for f in forbidden if f in syms]' \
+      'if hits:' \
+      '    print("FAIL: 22.04-incompatible symbols in libtriton.so: " + str(hits))' \
+      '    sys.exit(1)' \
+      'maxglibc = max(set(re.findall(r"GLIBC_[0-9.]+", syms)),' \
+      '               key=lambda v: [int(x) for x in v[6:].split(".")])' \
+      'print("OK: libtriton.so is 22.04-clean (max " + maxglibc + ")")' \
+      '' \
+      'blob = open(so, "rb").read()' \
+      'got = sorted(set(re.findall(rb"__pybind11_internals_v(\d+)", blob)))' \
+      'import pybind11' \
+      'hdr = os.path.join(pybind11.get_include(), "pybind11", "detail", "internals.h")' \
+      'm = re.search(r"#\s*define\s+PYBIND11_INTERNALS_VERSION\s+(\d+)", open(hdr).read())' \
+      'want = m.group(1).encode()' \
+      'if got != [want]:' \
+      '    print("FAIL: libtriton.so pybind11 internals " + str(got) + ", this build'"'"'s pybind11 " + pybind11.__version__ + " provides [" + repr(want) + "]")' \
+      '    sys.exit(1)' \
+      'print("OK: libtriton.so carries pybind11 internals v" + want.decode())' \
+    > /tmp/gate.py \
+    && python3.12 /tmp/gate.py
+
+# Smoke test: install and import, then assert the three things the .git removal,
+# the setup.cfg carrier and FLAGTREE_BACKEND=amd are each responsible for.
+RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
+    && env -u PYTHONPATH python3.12 -c "\
+import importlib.metadata as md, triton;\
+from triton.backends import backends;\
+from triton._C.libtriton import amd as _amd;\
+print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', sorted(backends.keys()));\
+assert 'amd' in backends, sorted(backends.keys());\
+urls = md.metadata('${FLAGTREE_WHEEL_NAME}').get_all('Project-URL') or [];\
+print('OK', [u for u in urls if u.startswith('Source-Commit')]);\
+assert any(u.startswith('Source-Commit, https://github.com/flagos-ai/flagtree/commit/') for u in urls), urls;\
+assert md.version('${FLAGTREE_WHEEL_NAME}') == '${FLAGTREE_WHEEL_VERSION}', md.version('${FLAGTREE_WHEEL_NAME}');\
+assert 'git' not in md.version('${FLAGTREE_WHEEL_NAME}')"

@@ -20,9 +20,9 @@ are worth gating on.
 
 | Question | Decision |
 |---|---|
-| Why source-build | Self-owned, reproducible, A/B baseline against the vendor wheel; closes the glibc/ABI and provenance gaps the vendor wheels carry |
-| Build base | Bare `ubuntu:22.04` (glibc 2.35) for 9 backends, so the resulting `libtriton.so` loads on 22.04 nodes; the ascend pair starts from **its backend's runtime image** because the Ascend build needs CANN on the build machine |
-| One Containerfile per backend | Yes — 11 files beside `backends.yaml`, not one parameterised file; each backend's toolchain staging differs enough that a single file would grow a per-vendor `if` ladder (the metax pybind11/plugin pin is nothing like the ascend CANN line) |
+| Why source-build | Self-owned, reproducible, A/B baseline against the vendor wheel; closes the gaps each vendor wheel happens to carry — the glibc/ABI one for metax and iluvatar (24.04 builds), the provenance one for amd (a 22.04 build with no `Source-Commit`) |
+| Build base | Bare `ubuntu:22.04` (glibc 2.35) for 11 backends, so the resulting `libtriton.so` loads on 22.04 nodes; the ascend pair starts from **its backend's runtime image** because the Ascend build needs CANN on the build machine |
+| One Containerfile per backend | Yes — 13 files beside `backends.yaml`, not one parameterised file; each backend's toolchain staging differs enough that a single file would grow a per-vendor `if` ladder (the metax pybind11/plugin pin is nothing like the ascend CANN line) |
 | `--target builder` split | The builder stage is everything that does not depend on the FlagTree ref (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits staged into FlagTree's offline cache); the default target clones the ref and compiles on top. The stage is published, so a warm build pays for clone + compile only |
 | pybind11 | **Pinned** (`pybind11==3.0.1`), not just declared `>=`: it is an ABI contract — the prebuilt `metaxTritonPlugin.so` is compiled against pybind11 internals **v11**, and an unpinned build pulls 3.1.0 (internals **v12**) that imports fine but fails at kernel-compile time. The gate compares rather than asserting a literal, so pin and gate cannot drift |
 | glibc floor enforcement | A post-build **objdump gate** fails the build if any 22.04-incompatible symbol (`GLIBC_2.38`, `GLIBCXX_3.4.31/32`, `__isoc23_*`) reappears in `libtriton.so` |
