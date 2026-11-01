@@ -40,6 +40,13 @@ provenance 标记的页面，手写页请另起名字。
 - **P1**：`docs/vendors/<vendor>.md` —— 每厂商一份，只写「后果 + 指针」（设备
   flags 的坑、容器 runtime 特性、设备状态危险、smi 命令），硬上限约 60 行；
   flags 本身的权威源仍是 `.github/build-config.yml`。
-- **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用厂商页。
+- **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用厂商页
+  （随各线下次验证顺手改，不单独开批）。
+- **P1**：`node-ops` 技能拆走厂商段（ascend §7/§7b、各节点 owner §9、磁盘 §8
+  的具体数值），只留平台无关纪律。
+- **P2**：补两个技能 `publish-wheel`、`rollout-app-version`；现有 4 个技能的
+  Trigger / NOT-for 边界收紧。
 - **P3**：`scripts/docs/check_knowledge.py` —— 校验索引完整性（workflow 表齐全、
   技能引用的路径存在、无孤立文档、厂商页齐全），接进 CI。
+- **P4**：仓库外 user memory 里的项目状态类文件迁入本仓库对应 docs（仓是公开的，
+  迁入前必须脱敏：凭证、代理地址、内网拓扑、`/home/<user>` 路径一律不入库）。
