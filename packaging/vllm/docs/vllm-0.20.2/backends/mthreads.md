@@ -146,6 +146,26 @@ Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 t
 1. **repack & upload (+flagos)** —— ✅ 已完成：vllm / xgrammar / compressed-tensors
 1. **更大模型 / TP>1 / graph** —— ⬜：仅测过 DeepSeek-8B + eager + TP=1
 1. **非 yarn 模型覆盖** —— ⬜：可选，验证更广 rope 路径
+1. **flagtree 侧 flash 误编译的后续** —— ⬜：见下节，0.6.1 之后未复验
+
+### 附：FlagTree 侧 flash kernel 误编译（2026-08-07 探针，FlagTree 专属）
+
+调试 ModelRunnerOutput 乱码时旁路查出的独立缺陷，与本节的 mul 门控**无关**：
+
+- 现象：`flag_gems.flash_attn_varlen_func` 在 MTT S5000 上输出错误 —— FlagTree
+  `0.6.0+mthreads3.6` 下 `max_abs_diff` 2.94（causal ~4），vendor triton
+  `3.6.0+git89458660` 下 0.0055 / 0.0087（bf16 正常量级）。basic op（add / silu /
+  matmul）两者均精确。
+- 定位：`pip uninstall flagtree` + `compiler triton` 后 flash 正确；kernel 各部件
+  （`tl.dot` 单发、`make_block_ptr`、boundary padding、`exp2` vs `exp`、PV dot）
+  逐个隔离测试均精确 → **误编译在 FlagTree fork 的 mthreads 后端（`tl.dot` +
+  block-ptr 批次/多头 lower），不在 flag_gems，也不在厂商工具链**。
+- 处置：走 vendor triton（镜像已备 `compiler triton`，T 路径）。**注意与 0.6.1 的
+  修复不是同一件事** —— [0.24.0 §9.3](../../vllm-0.24.0/backends/mthreads.md) 记录的
+  0.6.1 修的是 `fexp2` 的 codegen SIGABRT（pow 路径），本缺陷在 0.6.1 之后未复验。
+- enflame 的同类嫌疑已排除：GCU300 上早前看到的 "2.9" 是 **编译拒绝假象**（int64
+  philox 参数被 `ENABLE_I64_CHECK` 挡下，kernel 从未运行），换成 int32 flash kernel
+  后两编译器均正确（0.0078 / 0.0076）。该误编译**仅 mthreads 一家**。
 
 **相关提交：** `main` 478de6b（repack）、[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)（递归 `+flagos` pin）；
 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）

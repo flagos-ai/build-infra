@@ -243,7 +243,7 @@ sglang_fl` 可导入、serve ready ~100s、3/3 ct=144。镜像标签
 ### 6.4 与 vllm 线结论的关系
 
 vllm 线在 4.4.0 上判 **T 不可交付**（vendor corex triton 3.1.0 存在不可修复缺陷，
-[vllm §14.4](../../../vllm/docs/vllm-0.24.0/backends/iluvatar.md)）。sglang 这边
+[vllm §14.4](../../../../vllm/docs/vllm-0.24.0/backends/iluvatar.md)）。sglang 这边
 T 路径**通过** —— 差别在于本轮 T 的失败点不在厂商工具链，而在我们自己注入的
 no-op 上（#8）。这不推翻 vllm 的结论（那是 vllm 侧算子路径的实证），但说明
 "4.4.0 的 triton 一律不可用"不是可以外推的前提：**同一个 SDK 上，sglang 的 T

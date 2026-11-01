@@ -2,8 +2,8 @@
 
 > 本镜像为交付形态（app 镜像，wheel 单步安装线）。
 >
-> 相关记录见 [vllm-0.20.2/backends/sunrise.md](vllm-0.20.2/backends/sunrise.md) 与
-> [`vllm-verification-matrix.md`](vllm-verification-matrix.md)（sunrise 行）。
+> 相关记录见 [vllm-0.20.2/backends/sunrise.md](../vllm-0.20.2/backends/sunrise.md) 与
+> [`vllm-verification-matrix.md`](../vllm-verification-matrix.md)（sunrise 行）。
 
 ## 1. 镜像位置
 
@@ -92,7 +92,7 @@ curl http://localhost:8031/v1/completions \
 > 分支 wheel（CUSTOM 形态，
 > `get_name()`="CUSTOM"）。CUSTOM 注册是 0.24.0 移植的核心改动，app-image
 > 的 import 级验证证明其在 0.20.2 下注册可用；serve 级回归证据见
-> [vllm-0.24.0/backends/sunrise.md](vllm-0.24.0/backends/sunrise.md)。
+> [vllm-0.24.0/backends/sunrise.md](../vllm-0.24.0/backends/sunrise.md)。
 
 ## 6. 注意事项
 
@@ -101,4 +101,4 @@ curl http://localhost:8031/v1/completions \
   （矩阵"Qwen3-4B"约定在此格不适用）。
 - F 路径依赖 rebuilt flagtree wheel（md5 `924b1c0d`）；若镜像未烘焙该
   wheel，FlagTree flash-attn decode 会挂死（根因见
-  [vllm-0.20.2 §2.9](vllm-0.20.2/backends/sunrise.md)）。
+  [vllm-0.20.2 §2.9](../vllm-0.20.2/backends/sunrise.md)）。

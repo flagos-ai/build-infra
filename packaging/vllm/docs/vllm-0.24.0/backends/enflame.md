@@ -28,7 +28,7 @@
 0.20.2 落库时已标注：slot_mapping 与 fa_utils 的绑定耦合 vLLM v1 worker/attention 布局，须对齐
 0.24.0 后重新推导。移植后的形态：
 
-- **KV 写路径按 0.24.0 基线** —— [playbook §2](playbook.md) 第 5 点的 `forward_includes_kv_cache_update`
+- **KV 写路径按 0.24.0 基线** —— [playbook §2](../playbook.md) 第 5 点的 `forward_includes_kv_cache_update`
   修复（[VPF #421](https://github.com/flagos-ai/vllm-plugin-FL/pull/421)）是本移植的前提；本 PR 不重复处理该属性。
 - **注意力走 vLLM 原生 FLASH_ATTN** —— `gcu.yaml` 的 `attention_backend` 首位仍是 `vendor:gcu`，但胜出
   实现返回原生 FA2 后端路径（`gcu.py` 的 `attention_backend()`）；`impl/flash_attn_backend.py` 把厂商

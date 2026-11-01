@@ -207,6 +207,10 @@ Still outstanding: metax124 (and other nodes) daemon.json lacks
 a dockerd restart, not done. When a node fills up again, use this section to
 locate it before deleting images.
 
+When the fix is "move the data directory to another volume" rather than "kill
+the stuck container", follow `docs/runner-disk-migration.md` (Docker
+`data-root` alone is not enough — containerd's snapshot root is separate).
+
 ### 9. Each node's runner user differs — know it before verifying
 
 Verify scripts must run on a real checkout, and each node's checkout location

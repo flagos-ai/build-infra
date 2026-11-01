@@ -267,7 +267,7 @@ backend"，2026-08-19 合并）新增完整 kunlunxin vendor backend，kunlunxin
 
 上述三处编译失败在 **vLLM 0.20.2 线已不构成阻塞**，0.20.2 双编译器路径均 E2E
 通过（FlagTree 7/7、triton 3.6.0 3/3，serve + 推理连贯，详见
-[vllm-0.20.2/backends/kunlunxin.md](vllm-0.20.2/backends/kunlunxin.md)）。两条绕过路径：
+[vllm-0.20.2/backends/kunlunxin.md](../vllm-0.20.2/backends/kunlunxin.md)）。两条绕过路径：
 
 1. **厂商插件层 [VPF #268](https://github.com/flagos-ai/vllm-plugin-FL/pull/268)**
    （vllm-plugin-FL）：新增 xtorch_ops 原生 attention
