@@ -43,17 +43,36 @@ CI 在 `.github/workflows/knowledge-index.yml`。规则背后的纪律是
 [agent-protocol.md §4](agent-protocol.md#4-索引即入口)：**每线 README 是唯一入口，
 其他文档必须从某处的索引可达**。新增一个不进索引的文档，这个检查会拦下来。
 
-## 待落地（知识层重构，2026-11-01）
+## 待落地
 
 - **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用
   `docs/vendors/`（随各线下次验证顺手改，不单独开批）。
+
+### docs 生成管线
+
+- **并发 race 会掉包版本**：`auto/base-descriptions` 上两个并发 run 会丢包版本记录
+  （git、vim），因为 accumulate job 只合并当前 run 的 artifact；单次干净 run 结果
+  正确。低优先，workaround = 不并发手动触发。
+- **`docs/data/images.yaml` 位置太隐蔽**：它是 `gen_data.py` 的产物、喂
+  `gen_descriptions.py` 与 `extract_versions.py`，git-ignored 且藏在子目录下，
+  新贡献者发现不了。重构时移到显眼位置，并同步所有引用点
+  （`gen_data.py`、`gen_descriptions.py`、`extract_versions.py`、`verify_base.py`、
+  `missing_versions.py` 及 workflow）。
+- **`status_matrix.<app>.yaml` 布局**：验证格在顶层
+  `scenarios.inference.verification`，而设施布尔（`deps_app` / `launch_docs` /
+  `image_tag` / `prs`）在 `backends.<backend>`，同一个后端的状态被劈成两处。
+  目标是把 {T,F} 并进 `backends/<backend>`；联动面 = `render_status_matrix.py`
+  读逻辑、`record_image.py` 的行编辑定位、`verify-*` record 脚本、
+  `docs/status-matrix.md` schema、`gen_data.py`。改动时保留 `note` 列语义
+  （见 `docs/status-matrix.md`）。
 
 ## 已收口
 
 - **P4（仓库外 memory 迁仓）—— 2026-11-02 完成。** 结论：**这批文件多数不是"待迁入"，
   而是仓库文档的副本**。逐条比对 22 个文件后，只有少数厂商轴事实是仓库里没有的，
-  已并入 `docs/vendors/{ascend,cambricon,tsingmicro}.md`；其余要么已在本仓库
+  已并入 `docs/vendors/` 与各组件设计文档；其余要么已在本仓库
   （逐后端记录、`packaging/*/DESIGN.md`、`docs/vendors/`、`configs.yaml` 注释），
   要么是**会话状态**（进行到哪、谁在做哪条线）——后者本就不该进 memory，
   见 [`agent-protocol.md` §7](agent-protocol.md#7-仓库外-memory-的边界)。
   新增的 §7 同时给出边界：memory 是按工作目录共享的，不能当多会话的协调面。
+  收尾时 memory 从 22 个文件降到 4 个。
