@@ -35,6 +35,15 @@ SDK 叫 MUSA（torch fork 是 `torch_musa`，distributed 后端叫 MCCL）。
   而 FlagTree 只按目录名认它的 cache，不比对版本。
 - `importlib.metadata` 只看到当前激活的编译器：观感上的 triton `NOT_INSTALLED`
   是「当前是 flagtree」的意思，不是 triton 缺失。
+- **编译器切换的坑按 runtime 版本分**：runtime 2.1.1 把 flagtree 装在 `/flagos`
+  的 site-packages 里，`compiler triton` 只加 `/opt/triton` 不剥 `/flagos`，于是
+  entry_points 收得到 `/flagos` dist-info 的 mthreads 入口、而 `/opt/triton` 里没有
+  那个模块 → `No module named triton.backends.mthreads`。2.1.2 起 flagtree 移到
+  `/opt/flagtree`（不在 site-packages），切换时两个 side dir 都剥，才修好。
+  **验证要在 2.1.2 及以后的 runtime 上做**，在 2.1.1 上炸的 T 路径不代表编译器坏。
+- **5.2.0 的 triton pin 与镜像不一致**：`configs.yaml` 写 `triton==3.6.0`，而该后端
+  runtime 里实装的是 `3.6.0+git89458660`（那本是 4.3.6 的值）。重跑 runtime 之前先
+  对齐，否则 pin 改不动镜像里的东西。
 - FlagCX 侧：mthreads 行链接 `musart` + `mccl`，断言
   `/usr/local/musa/include/{musa_runtime.h,mccl.h}`；vendor 只出 `.deb`。
 

@@ -86,6 +86,7 @@ wheel tag `cp311-cp311-linux_aarch64`。
   杀进程）。910B4 实测：blk=128 全范围可用；blk=256 安全区 = hs≤64 或 hs==256；
   blk=512 仅 hs≤32 或 hs==256。**生产风险 = Llama 类 hs=128 × megatron 默认 blk=256
   → patch 必须加 guard**（RL 配方 blk=256/hs=16 在安全区）。
+  该算子**支持 bf16**（hs=16/blk=256/bf16 探针 diff=0.0000），走它不需要 dtype 转换。
 - **prefill 走 `npu_fusion_attention(..., "TND", ...)`**：`triu(ones(bool),1)` 即精确 varlen
   causal mask。**KV 必须先按 block_table 索引再 reshape** —— 反过来是错位垃圾。
 
