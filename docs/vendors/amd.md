@@ -32,7 +32,9 @@ Radeon PRO W7900），宿主机驱动 6.16.13。
   **从不 pip 安装**，而 `amd-smi` CLI 不暴露 Python API → **`amdsmi` 必须是 runtime 的
   pip 依赖**。缺它时平台解析成 `UnspecifiedPlatform`，`create_engine_config()` 报
   `Device string must not be empty`，而 `device_count()` 根本走不到。
-- torch 2.11.0+rocm7.2 的 Requires-Dist 是 **`triton-rocm==3.6.0`（不是 `triton`）**；
+- torch 2.13.0+rocm7.2 的 Requires-Dist 是 **`triton-rocm==3.7.1`（不是 `triton`）**；
+  它自身的 triton 下限仍是 3.6（`_TRITON_MINIMUM_VERSION_MINOR`），所以 FlagTree
+  `0.7.0+amd3.6`（内含 triton 3.6.0）可以与之共存 —— 没有 amd3.7 的 FlagTree tag；
   FlagTree 的另一个默认后端是 nvidia，所以 amd 的 wheel 构建会连 nvidia 后端一起编，
   需要把 CUDA redists 备好。
 - amd 的 flagtree 构建**必须有 LLD**（`find_package(LLD REQUIRED CONFIG)` +

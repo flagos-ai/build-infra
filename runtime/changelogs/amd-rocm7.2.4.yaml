@@ -22,6 +22,22 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: >-
+      Moves this backend's torch closure to the versions vLLM 0.32 pins:
+      torch 2.13.0+rocm7.2, torchvision 0.28.0+rocm7.2, and the ROCm triton
+      that torch 2.13 declares — triton-rocm 3.7.1 instead of 3.6.0.
+      torchaudio stays at 2.11.0+rocm7.2, which is what 0.32 pins too.
+      FlagTree stays at 0.7.0+amd3.6: no amd3.7 tag exists yet, and torch
+      2.13's own floor is triton 3.6, so the default compiler keeps working
+      against the newer vendor triton.
+    reason_zh: |-
+      该后端的 torch 闭包升到 vLLM 0.32 所钉的版本：torch 2.13.0+rocm7.2、
+      torchvision 0.28.0+rocm7.2，以及 torch 2.13 声明的 ROCm triton
+      —— triton-rocm 3.7.1（不再是 3.6.0）。torchaudio 保持 2.11.0+rocm7.2，
+      这也是 0.32 所钉的版本。FlagTree 保持 0.7.0+amd3.6：目前没有 amd3.7 tag，
+      而 torch 2.13 自身的下限是 triton 3.6，因此默认编译器仍可与较新的 vendor
+      triton 共存。
+    upstream_prs: []
+  - reason: >-
       Adds amdsmi 7.0.2 to this backend's runtime dependencies. vLLM's ROCm
       platform probe is amdsmi-only — it no longer falls back to `torch.version.hip`.
       The base image ships ROCm's amdsmi source tree under /opt/rocm/share/amd_smi

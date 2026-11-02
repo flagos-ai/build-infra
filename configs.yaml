@@ -186,10 +186,12 @@ vendors:
       # (release_flaggems.py VENDOR_MAP has no HIP/ROCM). Revisit when it lands.
       # cmake_backend: hip
       
-      # torch==2.11.0+rocm7.2 Requires-Dist triton-rocm==3.6.0, not triton.
+      # torch==2.13.0+rocm7.2 Requires-Dist triton-rocm==3.7.1, not triton.
       # Source: https://download.pytorch.org/whl/rocm7.2/triton-rocm/
-      # (triton_rocm-3.6.0-cp312-cp312-linux_x86_64.whl).
-      triton: triton-rocm==3.6.0
+      # (triton_rocm-3.7.1-cp312-cp312-linux_x86_64.whl).
+      triton: triton-rocm==3.7.1
+      # Bundles triton 3.6.0: there is no amd3.7 FlagTree tag yet, and torch
+      # 2.13's floor is 3.6 (_TRITON_MINIMUM_VERSION_MINOR), so the two hold.
       flagtree: flagtree==0.7.0+amd3.6
       env:
         base:
@@ -199,9 +201,9 @@ vendors:
           PATH: /opt/rocm/bin:$PATH
           LD_LIBRARY_PATH: /opt/rocm/lib
       deps:
-        - torch==2.11.0+rocm7.2
+        - torch==2.13.0+rocm7.2
         - torchaudio==2.11.0+rocm7.2
-        - torchvision==0.26.0+rocm7.2
+        - torchvision==0.28.0+rocm7.2
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
