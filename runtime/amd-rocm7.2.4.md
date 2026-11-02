@@ -73,6 +73,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-02 12:16:13*
+
+Moves this backend's torch closure to the versions vLLM 0.32 pins: torch 2.13.0+rocm7.2, torchvision 0.28.0+rocm7.2, and the ROCm triton that torch 2.13 declares — triton-rocm 3.7.1 instead of 3.6.0. torchaudio stays at 2.11.0+rocm7.2, which is what 0.32 pins too. FlagTree stays at 0.7.0+amd3.6: no amd3.7 tag exists yet, and torch 2.13's own floor is triton 3.6, so the default compiler keeps working against the newer vendor triton.
+
 *2026-11-01 10:52:01*
 
 Adds amdsmi 7.0.2 to this backend's runtime dependencies. vLLM's ROCm platform probe is amdsmi-only — it no longer falls back to `torch.version.hip`. The base image ships ROCm's amdsmi source tree under /opt/rocm/share/amd_smi but never installs it, and the amd-smi CLI does not expose the Python API.
