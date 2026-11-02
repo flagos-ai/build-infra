@@ -1,0 +1,57 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Knowledge Index
+
+# The knowledge layer's index rules are stated in docs/README.md and
+# docs/agent-protocol.md but were enforced by nothing, so they drifted: the
+# workflow table missed files, a document became unreachable, a vendor had no
+# page. scripts/docs/check_knowledge.py turns each rule into a check. It reads
+# the whole tracked tree, not the diff — the rules are about the tree — so any
+# markdown, workflow or configs.yaml change triggers it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'CLAUDE.md'
+      - 'configs.yaml'
+      - '**/*.md'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'CLAUDE.md'
+      - 'configs.yaml'
+      - '**/*.md'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null || \
+            python3 -m pip install --user --break-system-packages pyyaml
+
+      - name: Check the knowledge indexes
+        run: python3 scripts/docs/check_knowledge.py

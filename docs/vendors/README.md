@@ -3,6 +3,27 @@
 一个厂商一页（`docs/vendors/<vendor>.md`，键 = `configs.yaml` 的 vendor）。本目录
 回答的问题是：**换 app、换 app 版本都仍然成立的那条平台事实，写在哪。**
 
+## 厂商页索引
+
+[amd](amd.md) ·
+[ascend](ascend.md) ·
+[cambricon](cambricon.md) ·
+[enflame](enflame.md) ·
+[hygon](hygon.md) ·
+[iluvatar](iluvatar.md) ·
+[kunlunxin](kunlunxin.md) ·
+[metax](metax.md) ·
+[mthreads](mthreads.md) ·
+[nvidia](nvidia.md) ·
+[spacemit](spacemit.md) ·
+[sunrise](sunrise.md) ·
+[thead](thead.md) ·
+[tsingmicro](tsingmicro.md)
+
+本节只做导航：backend key 与厂商能力写在各自的页里（`configs.yaml` 是它们的
+上游事实源）。新增厂商页时必须在此加一行 —— `scripts/docs/check_knowledge.py`
+校验本表与 `configs.yaml` 的 vendor 集合一致。
+
 ## 收什么、不收什么
 
 收（变化轴 = 厂商）：
