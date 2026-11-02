@@ -76,6 +76,11 @@ bodies, commit messages, AND chat replies (rule 12/13 below).
     detours before success — the final recipe is one; the n failures along the
     way have no reproduction value. Stronger than "write less": delete it,
     don't keep it as background.
+14. **State the decision, not the obvious.** Two prunings for commit bodies and
+    PR descriptions: no "verified: …" claim (a patch being verified is common
+    sense; cite the verification record instead of asserting the claim), and
+    no enumeration of platforms *not* affected — name the affected path and why
+    it sits there, then stop.
 
 ### Language
 
