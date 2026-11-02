@@ -45,6 +45,8 @@ F 列是「—」，**只有 T 会被验证**。看到 cambricon 的格只有 T 
 - **`num_warps` 上限 4**（超了只 warn，属噪音）；**NRAM 每核上限 524288**：
   4096 宽的 tile 在 `num_stages=2` 必然超（nw=4 → 609024，nw=1 → 856400），
   所以 `BLOCK_SIZE1=4096` 永远赢不了，是纯崩溃触发器。
+- **高级索引要求所有索引 dtype 一致**：`int64` 行 + `int32` 列 → `NOT_SUPPORTED`。
+  逐条 setitem 写法在别的厂商能过，在这里必须先统一 dtype。
 - **`bench()` 里挂掉的 autotune 不会自愈**：`RuntimeError: PassManager::run failed`
   （`AutoTileForTritonPass` 的 `tensor.expand_shape` 维度断言）在 `autotuner.py:160 _bench`
   抛出，但**不在** triton 的 `(OutOfResources, CompileTimeAssertionFailure, PTXASError)`
