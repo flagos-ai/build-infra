@@ -66,6 +66,9 @@ TSM Runtime。python 3.10，torch 是 `torch-txda`（PrivateUse1）。
   心跳正常、PCI D0 —— 表面健康）。容器重启不解决，驱动层状态跨容器。
   **恢复 = 驱动级 reset（FLR / unbind+rebind / 用户重置驱动），属节点级操作，须先获授权。**
   调试期停 serve 一律优雅停（先 APIServer 再 EngineCore），别 SIGKILL。
+  **容器侧判据**（Python 层的报错只能说明"起不来"，证明驱动没唤醒卡的是这一段）：
+  `/app/log/hpgr_*.log` 出现 `failed to exit low power` + `DeviceMgr init failed` +
+  `Invalid deviceId: 0`。
 - **一张 TX8110 只有一个 compute 上下文**：被卡死进程占住后任何提交都被拒
   （`failed to submit ... compute job: -110`，内部重试表现为 CPU 100% 假旋转）。
   **同一时刻绝不要有两个进程碰同一张卡。**
