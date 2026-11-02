@@ -1,0 +1,85 @@
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Hygon BW1000
+- **Host driver:** 6.4.2-V2.1.0
+- **Container toolkit** *(optional)*: dcu-container-toolkit >= 1.3.0
+
+## Image contents
+
+### Built on
+
+`harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.10:2.3.0`
+
+### Python
+
+3.12
+
+### Major Python packages
+
+- `apex==1.7.0+dtk2610.torch2130.2610221147.gfa848d`
+- `flag_gems==5.4.0`
+- `flagcx==0.14.1+dtk2610`
+- `flagtree==0.7.0+hcu3.6`
+- `flash_attn==2.8.4+dtk2610.torch2130.2610211904.g0f1a5a`
+- `numpy==1.26.4`
+- `torch==2.13.0+dtk2610.2610261432.gefb4e1`
+- `torchaudio==2.11.0+dtk2610.torch2130.2610221109.g1da530`
+- `torchvision==0.28.0+dtk2610.torch2130.2610212003.gac691b`
+- `triton==3.7.0+dtk2610.torch2130.2610212057.g024953` *(alternative)*
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+### Choosing a FlagTree version
+
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
+
+## Launch
+
+**With the container toolkit** *(optional)*:
+
+```bash
+docker run --rm -it \
+  -e DCU_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.10:2.3.0 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it \
+  --device /dev/kfd \
+  --device /dev/mkfd \
+  --device /dev/dri \
+  --group-add video \
+  -v /opt/hyhal:/opt/hyhal \
+  --security-opt seccomp=unconfined \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.10:2.3.0 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+hy-smi
+```
+
+## Changelog
+
+### 2.3.0
+
+*2026-11-01 02:02:26*
+
+- First release of this backend's runtime image: python 3.12 with the DTK
+  26.10 torch closure (torch 2.13.0, torchvision 0.28.0, torchaudio 2.11.0,
+  apex 1.7.0, flash_attn 2.8.4, numpy 1.26.4), FlagTree 0.7.0+hcu3.6 and
+  FlagGems 5.4.0, above the 26.10 base image.
+- flagcx==0.14.1+dtk2610 is now a runtime dependency: FlagTree resolves
+  libflagcx.so to the package's copy instead of the one triton/_C bundles.
