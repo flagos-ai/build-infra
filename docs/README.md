@@ -69,8 +69,9 @@ CI 在 `.github/workflows/knowledge-index.yml`。规则背后的纪律是
 ## 已收口
 
 - **P4（仓库外 memory 迁仓）—— 2026-11-02 完成。** 结论：**这批文件多数不是"待迁入"，
-  而是仓库文档的副本**。逐条比对 22 个文件后，只有少数厂商轴事实是仓库里没有的，
-  已并入 `docs/vendors/` 与各组件设计文档；其余要么已在本仓库
+  而是仓库文档的副本**。逐条比对后，仓库里没有的那些已按变化轴各归其位：厂商事实 →
+  `docs/vendors/`，机制 → 对应组件的 `DESIGN.md` / `WHEEL-DESIGN.md`，仓库契约 →
+  `CLAUDE.md`，待办 → 本文件的待落地节；其余要么已在本仓库
   （逐后端记录、`packaging/*/DESIGN.md`、`docs/vendors/`、`configs.yaml` 注释），
   要么是**会话状态**（进行到哪、谁在做哪条线）——后者本就不该进 memory，
   见 [`agent-protocol.md` §7](agent-protocol.md#7-仓库外-memory-的边界)。
