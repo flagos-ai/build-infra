@@ -39,14 +39,15 @@ title: "amd-rocm7.2.4"
 
 ### Major Python packages
 
+- `amdsmi==7.0.2`
 - `flag_gems==5.4.0`
 - `flagcx==0.14.1+rocm7.2.4`
 - `flagtree==0.7.0+amd3.6`
 - `numpy==1.26.4`
-- `torch==2.11.0+rocm7.2`
+- `torch==2.13.0+rocm7.2`
 - `torchaudio==2.11.0+rocm7.2`
-- `torchvision==0.26.0+rocm7.2`
-- <span class="muted"><code class="plain">triton-rocm==3.6.0</code></span>
+- `torchvision==0.28.0+rocm7.2`
+- <span class="muted"><code class="plain">triton-rocm==3.7.1</code></span>
 
 ### Switch compiler
 
