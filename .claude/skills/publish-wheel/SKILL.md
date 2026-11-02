@@ -204,3 +204,9 @@ contract, not documentation debt.
   version (`flagtree-wheel-daily.yml`); a manual dispatch skips that check only
   where the server has Nexus redeploy on. A silent no-op is the failure to
   expect, so confirm the artifact on the index rather than trusting the job.
+- **Downloading a wheel under a generic name breaks the published link.** A
+  hosted download serves the file under the `href` basename, and the `#sha256=`
+  fragment on the same link is computed over the original bytes. Renaming the
+  download to something like `wheel.whl` leaves the index pointing at a name
+  that no longer resolves and a checksum that no longer matches. Keep the
+  filename the build produced — it is the PEP 427 name for a reason.

@@ -41,6 +41,16 @@ compile native code and therefore need a container and a floor.
 | Deb version duality | The `.deb` carries **two** versions that must agree: the changelog's (what apt sees) and the wheel's (what setuptools_scm writes into `dist-info` and `_version.py`). The build derives the wheel version from the stamped changelog (`5.4.0~rc2.post4-1 → 5.4.0rc2.post4` — Debian `~` is PEP 440 ``), passes it as `--build-arg FLAGGEMS_VERSION` → `SETUPTOOLS_SCM_PRETEND_VERSION` (pretend is fine here: the deb build context has no `.git`), then reads both back out of the installed package and fails on mismatch |
 | Deb build env | `docker build` from upstream's `Dockerfile.deb`, `--network=host`, targeting `deb-output`. The published `5.4.0~rc2.post4` once held a `5.3.5` wheel because upstream's helper passed no `--build-arg` — the release path builds here with it, and gates on the `ARG` existing |
 
+### The NPU cpp wheel must not dispatch unguarded
+
+`torch_npu`'s `_copy_from` has no PrivateUse1 kernel, so an unguarded dispatch in
+the cpp wheel recurses — `to_cpu → to() → _to_copy` → segfault — instead of
+falling back. FlagGems #4962 fixes it by dropping the `aten_patch.cpp`
+REGISTER_AND_LOG and the `ExcludeDispatchKeyGuard` in `copy.cpp`. `torch_musa` is
+unaffected because it does ship that kernel. The acceptance gate for the cpp
+wheel is `readelf -d` (DT_NEEDED / RPATH, in `scripts/build_cpp_wheel.sh`), not
+objdump — the objdump gate belongs to the FlagTree line.
+
 ## Not here
 
 - The FlagGems source itself, and its `packaging/debian/` definition — both upstream.
