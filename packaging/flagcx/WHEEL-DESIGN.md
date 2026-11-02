@@ -242,6 +242,11 @@ consumer can see is guaranteed to exist. A consumer locates them from `flagcx.__
 from an install prefix, which is also what the deb line's consumers are being moved to — see the
 path-resolution half of #570.
 
+The `.so` and the `.bc` are one switch, not two: `COMPILE_KERNEL=1` — implied by any row that states
+`bitcode_arch` — is what puts the device net-construction kernels into `libflagcx.so`. Without it
+`flagcxDevNetSizeOf()` degrades to 0 and the `.bc` describes an empty backend, so a row that ships
+the bitcode while skipping the flag ships a bitcode file with nothing in it.
+
 ### `_C.so` binds to the torch it was built against
 
 The extension does not carry torch: `flagcxWork` derives from `c10d::Work` and overrides only some

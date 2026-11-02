@@ -16,8 +16,9 @@
 # Prints the wheel-uploader image ref, derived the way every other image ref in
 # this repo is: host and prefix from .github/build-config.yml, tag from
 # configs.yaml's stack version. The upload steps call this instead of spelling
-# the ref out, so the twelve of them and the workflow that publishes the image
-# cannot drift apart.
+# the ref out, so the callers and the workflow that publishes the image cannot
+# drift apart. Not every wheel line is migrated to upload-wheels.sh yet; the
+# rest still twine inside their own build image.
 #
 # Usage:  UPLOAD_IMAGE="$(packaging/upload/image-ref.sh)"
 #

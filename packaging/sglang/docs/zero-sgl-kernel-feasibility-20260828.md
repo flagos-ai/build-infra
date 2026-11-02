@@ -2,8 +2,9 @@
 
 ## 背景与目标
 
-per-backend 编译 sgl-kernel 的路线已叫停（见 `sglang-release-packaging-research.md`：
-sgl-kernel 是 ABI 绑定二进制，随 (后端, python, torch) 变，逐个厂商要求提供编译件不现实）。
+per-backend 编译 sgl-kernel 的路线已叫停（sgl-kernel 是 ABI 绑定二进制，随
+(后端, python, torch) 变，逐个厂商要求提供编译件不现实；判定过程已随
+`sglang-release-packaging-research.md` 一并删除，结论保留在 `decisions.md`）。
 本文重新审视 sglang-plugin-FL 的设计，回答：**能否用 flag_gems 替换算子、完全不依赖 sgl-kernel？**
 
 分析基线：
