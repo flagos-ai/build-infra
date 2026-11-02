@@ -35,11 +35,17 @@ provenance 标记的页面，手写页请另起名字。
 `docs/content/` 是 Hugo 站点（`contentDir: content/en`），面向用户而非 agent；
 本文件的规则不约束它。
 
+## 索引校验
+
+知识层的四条索引规则（workflow 表齐全、技能边界与路径可解析、无孤立文档、厂商页
+齐全）由 `scripts/docs/check_knowledge.py` 校验 —— 规则原文在该脚本的文件头。
+CI 在 `.github/workflows/knowledge-index.yml`。规则背后的纪律是
+[agent-protocol.md §4](agent-protocol.md#4-索引即入口)：**每线 README 是唯一入口，
+其他文档必须从某处的索引可达**。新增一个不进索引的文档，这个检查会拦下来。
+
 ## 待落地（知识层重构，2026-11-01）
 
 - **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用
   `docs/vendors/`（随各线下次验证顺手改，不单独开批）。
-- **P3**：`scripts/docs/check_knowledge.py` —— 校验索引完整性（workflow 表齐全、
-  技能引用的路径存在、无孤立文档、厂商页齐全），接进 CI。
 - **P4**：仓库外 user memory 里的项目状态类文件迁入本仓库对应 docs（仓是公开的，
   迁入前必须脱敏：凭证、代理地址、内网拓扑、`/home/<user>` 路径一律不入库）。

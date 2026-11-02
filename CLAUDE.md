@@ -169,10 +169,12 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `record-wheel-info.yml` | Records a release's `pypi_index`/`python`/`os`/`arch` into `packaging/packages.yaml` (see `docs/wheel-info.md`) |
 | `bundle.yml` | Builds a bundled artifact set for a stack version |
 | `verify-runtime.yml` / `verify-driver.yml` / `verify-cpp-fixes.yml` / `status-matrix-consistency.yml` | Verify image content, driver reachability, cpp fixes, generated-output drift (matrices + app pages) |
+| `knowledge-index.yml` | Runs `scripts/docs/check_knowledge.py`: CLAUDE.md workflow and skill tables, skill path claims, unreachable documents, vendor page coverage |
 | `upload-nexus.yml`, `sync-to-remote.yaml`, `auto-approve.yml`, `release-verify-selftest.yml`, `sdk-reminder.yml` | Nexus upload, GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder |
 
 This table must stay complete: a new workflow file belongs here in the same PR.
-(An automated check is planned, see `docs/README.md` → 待落地.)
+`scripts/docs/check_knowledge.py` (workflow `knowledge-index.yml`) fails the
+build when it is not.
 
 `builders.txt` lists the GitHub accounts allowed to manually trigger the image
 build workflows (checked by `authorize` in each workflow).

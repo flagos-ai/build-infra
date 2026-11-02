@@ -39,6 +39,7 @@
 | `docs/extract_versions.py` | gendoc：在镜像内抽取系统包版本 → TSV | ✅ |
 | `docs/upload_descriptions.py` | pubdoc：把描述推到 Harbor | ✅ |
 | `docs/missing_versions.py` | 查漏：哪些后端缺版本 TSV | ✅ |
+| `docs/check_knowledge.py` | 知识层索引校验（workflow 表 / 技能边界 / 孤立文档 / 厂商页） | ✅ |
 
 `docs/` 子目录 = 文档/描述生成流水线（上方 `docs` 各线），与顶层 `docs/` 站点目录
 不是一回事：顶层放 Hugo 站点与人读文档，这里放生成它的脚本。
