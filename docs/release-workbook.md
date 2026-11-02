@@ -227,6 +227,12 @@ git push -f origin vX.Y.Z
 
 tag 含义：**这个 commit 上的整套 FlagOS 软件栈（base → runtime → FlagGems → runtime 重建）已经过验证。**
 
+用 `-f` 移动 tag 而不是每次新建，是这套多后端多层的结构决定的：一次发版里，
+base / runtime / FlagGems / app 各自的验证是分别落地再合进 main 的，中间允许改动，
+没有哪一刻能对应"全套冻结"。与其为每层各发一个 tag，不如让 `vX.Y.Z` 始终指向
+"当前这一整套"，靠 reflog 留改动轨迹。所以**读一个 tag 时要读它指到的 commit，
+不要假设 tag 之后目标没动过**。
+
 ## 未决改进
 
 - [ ] **泛化自动重试机制** — `gendoc-base.yml` 的 accumulate 已有自触发重试模式

@@ -157,6 +157,12 @@ plugin commit 必须仍是某个在册（即 OPEN）PR 的 head。已合并的 P
   `--check` 也只比它该写的那批，于是遗留的页面照样会被推去 Harbor（同样 404）。
   撤回要连带删掉生成物（PR #1547 的做法），这道闸不代劳。
 
+### record 的 auto-PR base 跟着触发 ref 走
+
+`record_image.py` 开 PR 时 base 取 `GITHUB_REF_NAME`（`scripts/git_ops.py`），
+所以 **workflow 用 `--ref <非 main 分支>` 触发时，record 的 auto-PR 会开在
+那个分支上，内容到不了 main**。非 main 触发之后一律回头看一眼 auto-PR 的 base。
+
 ## 使用
 
 ```bash
