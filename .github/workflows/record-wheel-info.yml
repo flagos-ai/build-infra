@@ -89,8 +89,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .wheel-info
-          if compgen -G ".wheel-info-dl/*/*.tsv" > /dev/null; then
-            cat .wheel-info-dl/*/*.tsv >> .wheel-info/manifest.tsv
+          # One directory per artifact when the pattern matches several, but the
+          # artifact's files land directly in the download path when it matches
+          # exactly one — so the depth varies and a fixed-depth glob misses one
+          # of the two. Reading only `*/*.tsv` made a single-backend run record
+          # nothing, leaving the catalog without the row.
+          found=false
+          while IFS= read -r f; do
+            cat "$f" >> .wheel-info/manifest.tsv
+            found=true
+          done < <(find .wheel-info-dl -name '*.tsv' -type f 2>/dev/null | sort)
+          if [ "$found" = true ]; then
             echo ">>> publishing rows:"
             cat .wheel-info/manifest.tsv
             echo "have=true" >> "$GITHUB_OUTPUT"
