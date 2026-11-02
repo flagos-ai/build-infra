@@ -317,14 +317,17 @@ py_value() {
     printf '%s\n' "$out" | sed -n "s/^${marker}=//p"
 }
 
-# An importable flagcx is a different artifact: every assertion below would
+# A preinstalled flagcx is a different artifact: every assertion below would
 # describe that copy while reading as a pass for this one. The container is a
-# throwaway, so the preinstalled copy is uninstalled rather than the run being
-# refused — the row's own runtime image may legitimately carry the wheel as a
-# dep (nvidia-cuda13.3 installs it for PR #1266), and after the uninstall the
-# assertions can describe this wheel alone. The image's working directory is
-# left out of the probe — a source tree checked out there would answer it.
-if (cd /tmp && "$PY" -c 'import flagcx') >/dev/null 2>&1; then
+# throwaway, so it is uninstalled rather than refused — a row's runtime image
+# may legitimately carry the wheel as a dep — and the working directory is left
+# out of the probe so a checked-out source tree cannot answer it.
+#
+# The test is the installed metadata, not importability: pip keys its own
+# "already installed" skip on metadata, so the two diverge exactly when the
+# preinstalled wheel cannot load — the install no-ops and the failure names a
+# symbol from the wheel that was never installed.
+if (cd /tmp && "$PY" -c 'import importlib.metadata as m; m.version("flagcx")') >/dev/null 2>&1; then
     echo "$IMAGE already carries a flagcx — uninstalling it so this wheel is the only artifact under test"
     "$PY" -m pip uninstall -y flagcx
 fi
