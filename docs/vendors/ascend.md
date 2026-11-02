@@ -81,13 +81,13 @@ wheel tag `cp311-cp311-linux_aarch64`。
 
 ## 平台级 kernel / op 地雷
 
-- **`torch_npu.atb._npu_paged_attention_v2` 只在 (block_size, head_size) 的稀疏格子上
-  算对，其余静默算错**（无报错，输出保持 init 值 → 零注意力 → 垃圾 logits；hs>256 则是
-  aicore 异常杀进程）。910B4/CANN 9.0.0 实测：blk=128 全范围可用；blk=256 安全区 =
-  hs≤64 或 hs==256；blk=512 仅 hs≤32 或 hs==256。**生产风险 = Llama 类 hs=128 +
-  megatron 默认 blk=256 → patch 必须加 guard**；RL 配方（blk=256, hs=16, bf16）在安全区。
-- **prefill 走 `npu_fusion_attention(..., "TND", ...)`**：`triu(ones(bool),1)` 即精确
-  varlen causal mask。**KV 必须先按 block_table 索引再 reshape+trim** —— 反过来是错位垃圾。
+- **`torch_npu.atb._npu_paged_attention_v2` 只在 (block_size, head_size) 的稀疏格子上算对，
+  其余静默算错**（无报错，输出保持 init 值 → 零注意力 → 垃圾 logits；hs>256 则 aicore 异常
+  杀进程）。910B4 实测：blk=128 全范围可用；blk=256 安全区 = hs≤64 或 hs==256；
+  blk=512 仅 hs≤32 或 hs==256。**生产风险 = Llama 类 hs=128 × megatron 默认 blk=256
+  → patch 必须加 guard**（RL 配方 blk=256/hs=16 在安全区）。
+- **prefill 走 `npu_fusion_attention(..., "TND", ...)`**：`triu(ones(bool),1)` 即精确 varlen
+  causal mask。**KV 必须先按 block_table 索引再 reshape** —— 反过来是错位垃圾。
 
 ## 指针
 
