@@ -1,13 +1,13 @@
 ---
 name: update-backend
 description: >-
-  Update or upgrade a backend's build config: bump deps / compiler (flagtree,
-  triton) / SDK / python / version for one backend or across many backends,
-  including the flat-tag stack version bump. Trigger on update a backend /
-  upgrade flagtree / bump flag_gems / upgrade torch / change deps / stack
-  version bump / 升级. Also covers the RARE add-a-new-backend flow. NOT for:
-  app-line version upgrades (vllm 0.24.0, megatron 0.18.2 — those have their
-  own per-version docs), or verifying a failing cell (see verify-app-backend).
+  Update or upgrade a backend's BUILD layer: bump deps / compiler (flagtree,
+  triton) / SDK / python, or the flat-tag stack version, for one backend or
+  across many backends. Trigger on update a backend / upgrade flagtree / bump
+  flag_gems / upgrade torch / change deps / stack version bump / 升级后端.
+  Also covers the RARE add-a-new-backend flow. NOT for: taking an app to a new
+  version (see rollout-app-version), publishing a component wheel (see
+  publish-wheel), or verifying one failing cell (see verify-app-backend).
 ---
 
 # Update / Upgrade a Backend
@@ -192,8 +192,8 @@ Follow `update-backend` for the shared steps, with these additions up front:
 - Verify-cell flow: `.claude/skills/verify-app-backend/SKILL.md`
 - Node mechanics: `.claude/skills/node-ops/SKILL.md`
 - Runners/device flags: `.github/build-config.yml`
-- App-line version upgrades: `packaging/<app>/docs/<app>-<ver>/` (their own
-  four-piece docs — NOT this skill)
+- App-line version upgrades: `.claude/skills/rollout-app-version/SKILL.md`
+  (a different axis — the backend's build layer does not move for it)
 
 ## Why these exist
 

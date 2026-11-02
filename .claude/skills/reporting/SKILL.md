@@ -3,10 +3,12 @@ name: reporting
 description: >-
   Report-writing and chat-reply discipline for docs, PR bodies, commit bodies,
   and conversation replies. Use when: writing or editing any markdown report
-  (packaging/*/docs, base/runtime pages), a PR description or commit message,
-  or replying in chat about work done. Trigger on write a report / summarize /
-  PR body / commit message. NOT for: code comments (their own 3-line rule), or
-  writing code.
+  (packaging/*/docs, base/runtime pages, per-version records), a PR description
+  or commit message, or replying in chat about work done. Trigger on write a
+  report / summarize / PR body / commit message / 写报告 / 提交说明. NOT for:
+  code comments (their own 3-line rule), writing code, or the mechanics of the
+  work being reported (see node-ops / verify-app-backend / publish-wheel /
+  rollout-app-version).
 ---
 
 # Reporting

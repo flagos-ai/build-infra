@@ -6,7 +6,8 @@ description: >-
   node, F/T dual-compiler discipline, symbol write-back, and failure debug
   handoff. Trigger on verify an app image / a backend cell is ⬜ or red /
   status-matrix cell / dual-compiler / F path / T path. NOT for: node ssh
-  mechanics (see node-ops) or writing reports (see reporting).
+  mechanics (see node-ops), creating the cell in the first place — a new app
+  version (see rollout-app-version) — or writing the report (see reporting).
 ---
 
 # Verify App Backend

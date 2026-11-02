@@ -39,8 +39,6 @@ provenance 标记的页面，手写页请另起名字。
 
 - **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用
   `docs/vendors/`（随各线下次验证顺手改，不单独开批）。
-- **P2**：补两个技能 `publish-wheel`、`rollout-app-version`；现有 4 个技能的
-  Trigger / NOT-for 边界收紧。
 - **P3**：`scripts/docs/check_knowledge.py` —— 校验索引完整性（workflow 表齐全、
   技能引用的路径存在、无孤立文档、厂商页齐全），接进 CI。
 - **P4**：仓库外 user memory 里的项目状态类文件迁入本仓库对应 docs（仓是公开的，

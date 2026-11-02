@@ -70,6 +70,8 @@ skill references; skills never duplicate them (agent-protocol layer 1).
 | `reporting` | write a report / PR body / commit message / chat summary | `docs/agent-protocol.md` |
 | `update-backend` | bump deps/compiler/SDK/version for a backend or across backends; add a new backend (rare) | `configs.yaml`, `scripts/base_image_status.py`, `docs/status-matrix.md` |
 | `verify-app-backend` | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
+| `rollout-app-version` | take an app (vllm / sglang / megatron training+rl) to a new version | `packaging/README.md`, `docs/status-matrix.md`, `docs/changelog.md` |
+| `publish-wheel` | build + publish a component wheel to a vendor PyPI index; add a new publish line | `docs/wheel-info.md`, `CLAUDE.md` workflow table, `packaging/upload/` |
 
 Loading discipline: check the skill before acting; facts a skill references
 are read from the docs it names, never restated inside the skill.
