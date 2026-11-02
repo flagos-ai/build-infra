@@ -6,7 +6,8 @@ wheel tag `cp311-cp311-linux_aarch64`。
 
 ## 平台与设备
 
-- 设备枚举命令 `npu-smi info`。
+- 设备枚举命令 `npu-smi info`（runtime 镜像自带 `/usr/local/bin/npu-smi`；raw 档多挂的
+  `/usr/local/sbin/npu-smi` 只是补 raw 场景的路径 —— 不要据此推断"镜像里没有 npu-smi"）。
 - **index 是 die，不是卡**：一张 910C 卡 = 两个 die。`ASCEND_VISIBLE_DEVICES` 必须给
   显式 index 列表（`all` 会让容器创建直接失败）；容器内 `npu-smi info` **需要至少一个
   完整 die 对**（任何一对都行），单 die / 半板报 `-9005`，无 davinci 报 `-8005`，
@@ -36,6 +37,9 @@ wheel tag `cp311-cp311-linux_aarch64`。
   **这是已关闭的决定** —— 不要提议「修」`base/ascend-*` 让非 bash 消费者可用。
 - 双编译器同属这一类（`/opt/flagtree`、`/opt/triton` 都不在 site-packages，激活的那个
   靠 `PYTHONPATH`）—— 平台无关的探针纪律见 `.claude/skills/node-ops/SKILL.md` §7。
+- **`docker exec` 必须带 `bash -lc`**：裸 exec 走的是 Dockerfile 烘的**短版** env，
+  `torch_npu` import 直接崩。也不要自己在 `LD_LIBRARY_PATH` 前面补 devlib —— 那里的
+  `libascend_hal` 是**存根**，没有 `rtGetDevMsg`，补上反而设备初始化失败。
 - `set_env.sh` 必须在 `bash -c` 里 source，不能放在 RUN 的 `/bin/sh`（dash）下：dash 下
   该脚本可能调 `exit`，在 `|| true` 兜住之前就静默杀掉整个 RUN。NNAL/ATB 的 `set_env.sh`
   必须在 CANN 的**之后** source：否则 `ATB_HOME_PATH` 与 ATB lib 路径缺失，`libatb.so`
@@ -74,6 +78,16 @@ wheel tag `cp311-cp311-linux_aarch64`。
 - ⚠️ **绿格可能是偶然的**：vllm 0.20.2/T 黑名单漏了 `repeat_interleave_*`，vendor rope
   首次 decode 编译失败后**静默回退** `default.flagos` rope，掩盖了 0.24.0 黑名单才暴露的
   上游缺陷。**跨栈搬运 ✅ 前先 diff 两侧黑名单。**
+
+## 平台级 kernel / op 地雷
+
+- **`torch_npu.atb._npu_paged_attention_v2` 只在 (block_size, head_size) 的稀疏格子上算对，
+  其余静默算错**（无报错，输出保持 init 值 → 零注意力 → 垃圾 logits；hs>256 则 aicore 异常
+  杀进程）。910B4 实测：blk=128 全范围可用；blk=256 安全区 = hs≤64 或 hs==256；
+  blk=512 仅 hs≤32 或 hs==256。**生产风险 = Llama 类 hs=128 × megatron 默认 blk=256
+  → patch 必须加 guard**（RL 配方 blk=256/hs=16 在安全区）。
+- **prefill 走 `npu_fusion_attention(..., "TND", ...)`**：`triu(ones(bool),1)` 即精确 varlen
+  causal mask。**KV 必须先按 block_table 索引再 reshape** —— 反过来是错位垃圾。
 
 ## 指针
 

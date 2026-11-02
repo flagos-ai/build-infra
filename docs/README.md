@@ -47,5 +47,13 @@ CI 在 `.github/workflows/knowledge-index.yml`。规则背后的纪律是
 
 - **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用
   `docs/vendors/`（随各线下次验证顺手改，不单独开批）。
-- **P4**：仓库外 user memory 里的项目状态类文件迁入本仓库对应 docs（仓是公开的，
-  迁入前必须脱敏：凭证、代理地址、内网拓扑、`/home/<user>` 路径一律不入库）。
+
+## 已收口
+
+- **P4（仓库外 memory 迁仓）—— 2026-11-02 完成。** 结论：**这批文件多数不是"待迁入"，
+  而是仓库文档的副本**。逐条比对 22 个文件后，只有少数厂商轴事实是仓库里没有的，
+  已并入 `docs/vendors/{ascend,cambricon,tsingmicro}.md`；其余要么已在本仓库
+  （逐后端记录、`packaging/*/DESIGN.md`、`docs/vendors/`、`configs.yaml` 注释），
+  要么是**会话状态**（进行到哪、谁在做哪条线）——后者本就不该进 memory，
+  见 [`agent-protocol.md` §7](agent-protocol.md#7-仓库外-memory-的边界)。
+  新增的 §7 同时给出边界：memory 是按工作目录共享的，不能当多会话的协调面。
