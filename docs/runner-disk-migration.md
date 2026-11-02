@@ -77,6 +77,24 @@ df -h /
 Description workflow 需要从本地镜像中运行 `dpkg-query` 提取系统包版本。
 清理应放在 description workflow 的 commit + push 步骤之后。
 
+## 节点侧：容器起不来 = clone3 被 seccomp 拦
+
+节点上的 Docker 是 **20.10.8**，其内置 seccomp profile 早于 moby 的 clone3 修复
+（20.10.10 才把 clone3 映射为 ENOSYS），于是 `clone3` 直接返回 **EPERM**；而
+Ubuntu 24.04 的 glibc 2.39 **只在 ENOSYS 时回落 `clone`** → 一切走
+`posix_spawn` / `system()` / `popen()` / pthread 的子进程创建全灭（apt 的
+Post-Invoke hook、`curl` 的 getaddrinfo、uv 的 Tokio executor 同源）。边界：
+plain `fork()` 走 `clone`，是好的。
+
+修法：取一份 stock profile，在 `syscalls` 里加一条 `clone3` 的**无条件放行**，
+`daemon.json` 挂 `"seccomp-profile"` 指向它，然后**整服务 `systemctl restart
+docker`**。
+
+两条走不通的路，别再试：`errnoRet` 在这条链路上是惰性的，所以上游那条
+「让 clone3 返回 ENOSYS 好让 glibc 回落」的写法在这里不成立，放行是唯一解；
+profile 不随 SIGHUP 重载（20.10.8 的 reload 路径没有这段逻辑），只 `reload`
+会以为改了没生效。
+
 ## 节点状态
 
 | 节点 | Docker data-root | Containerd root | 状态 |

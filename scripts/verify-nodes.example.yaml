@@ -7,6 +7,10 @@
 #
 # All aliases hop through bastion.aiops.baai.ac.cn (Port 2224). Rule 22: after
 # ssh, `su -` to a non-root user (secure/tengqm) before acting on the node.
+#
+# This file and runners.overrides in .github/build-config.yml are two
+# INDEPENDENT maps, both keyed by backend and both edited by hand. Always read
+# the current value; never infer a runner label from a past successful run.
 
 nvidia-cuda12.8: h20
 nvidia-cuda13.3: h20

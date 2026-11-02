@@ -185,6 +185,11 @@ build workflows (checked by `authorize` in each workflow).
 All self-hosted: default is `[self-hosted, h20]` (x86_64).
 Ascend backends override to aarch64 CANN nodes (`cann850` / `cann9`). Defined in `build-config.yml` runners.overrides.
 
+GitHub-hosted runners were tried and dropped for one reason: pushing the ~10 GB
+images to the in-country registry over the public network is far slower than a
+LAN push from a self-hosted node. Anything that pushes images must run
+self-hosted.
+
 ### Adding a new backend
 
 The full flow (including the far more common update/upgrade path) lives in
