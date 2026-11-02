@@ -66,7 +66,7 @@ skill references; skills never duplicate them (agent-protocol layer 1).
 
 | Skill | Trigger | Docs entry |
 |---|---|---|
-| `node-ops` | ssh to a verify node, drive a debug container, repro a failed cell | `scripts/verify-nodes.example.yaml`, `docs/verify-orchestrator.md` §5 |
+| `node-ops` | ssh to a verify node, drive a debug container, repro a failed cell | `scripts/verify-nodes.example.yaml`, `docs/verify-orchestrator.md` §5, `docs/vendors/<vendor>.md` |
 | `reporting` | write a report / PR body / commit message / chat summary | `docs/agent-protocol.md` |
 | `update-backend` | bump deps/compiler/SDK/version for a backend or across backends; add a new backend (rare) | `configs.yaml`, `scripts/base_image_status.py`, `docs/status-matrix.md` |
 | `verify-app-backend` | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
