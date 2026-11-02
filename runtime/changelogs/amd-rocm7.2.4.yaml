@@ -37,6 +37,7 @@ tags:
       而 torch 2.13 自身的下限是 triton 3.6，因此默认编译器仍可与较新的 vendor
       triton 共存。
     upstream_prs: []
+    date: '2026-11-02T10:07:12.762Z'
   - reason: >-
       Adds amdsmi 7.0.2 to this backend's runtime dependencies. vLLM's ROCm
       platform probe is amdsmi-only — it no longer falls back to `torch.version.hip`.

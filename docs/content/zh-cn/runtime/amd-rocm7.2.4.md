@@ -95,6 +95,15 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-02 10:07:12*
+
+该后端的 torch 闭包升到 vLLM 0.32 所钉的版本：torch 2.13.0+rocm7.2、
+torchvision 0.28.0+rocm7.2，以及 torch 2.13 声明的 ROCm triton
+—— triton-rocm 3.7.1（不再是 3.6.0）。torchaudio 保持 2.11.0+rocm7.2，
+这也是 0.32 所钉的版本。FlagTree 保持 0.7.0+amd3.6：目前没有 amd3.7 tag，
+而 torch 2.13 自身的下限是 triton 3.6，因此默认编译器仍可与较新的 vendor
+triton 共存。
+
 *2026-11-01 10:52:01*
 
 为该后端的 runtime 依赖新增 amdsmi 7.0.2。vLLM 的 ROCm 平台探测只认 amdsmi，
