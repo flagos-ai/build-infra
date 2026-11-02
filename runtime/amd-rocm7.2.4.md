@@ -17,14 +17,15 @@
 
 ### Major Python packages
 
+- `amdsmi==7.0.2`
 - `flag_gems==5.4.0`
 - `flagcx==0.14.1+rocm7.2.4`
 - `flagtree==0.7.0+amd3.6`
 - `numpy==1.26.4`
-- `torch==2.11.0+rocm7.2`
+- `torch==2.13.0+rocm7.2`
 - `torchaudio==2.11.0+rocm7.2`
-- `torchvision==0.26.0+rocm7.2`
-- `triton-rocm==3.6.0` *(alternative)*
+- `torchvision==0.28.0+rocm7.2`
+- `triton-rocm==3.7.1` *(alternative)*
 
 ### Switch compiler
 
@@ -72,6 +73,10 @@ rocm-smi
 ## Changelog
 
 ### 2.3.0
+
+*2026-11-02 12:16:13*
+
+Moves this backend's torch closure to the versions vLLM 0.32 pins: torch 2.13.0+rocm7.2, torchvision 0.28.0+rocm7.2, and the ROCm triton that torch 2.13 declares — triton-rocm 3.7.1 instead of 3.6.0. torchaudio stays at 2.11.0+rocm7.2, which is what 0.32 pins too. FlagTree stays at 0.7.0+amd3.6: no amd3.7 tag exists yet, and torch 2.13's own floor is triton 3.6, so the default compiler keeps working against the newer vendor triton.
 
 *2026-11-01 10:52:01*
 

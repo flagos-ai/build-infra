@@ -39,14 +39,15 @@ title: "amd-rocm7.2.4"
 
 ### 主要 Python 软件包
 
+- `amdsmi==7.0.2`
 - `flag_gems==5.4.0`
 - `flagcx==0.14.1+rocm7.2.4`
 - `flagtree==0.7.0+amd3.6`
 - `numpy==1.26.4`
-- `torch==2.11.0+rocm7.2`
+- `torch==2.13.0+rocm7.2`
 - `torchaudio==2.11.0+rocm7.2`
-- `torchvision==0.26.0+rocm7.2`
-- <span class="muted"><code class="plain">triton-rocm==3.6.0</code></span>
+- `torchvision==0.28.0+rocm7.2`
+- <span class="muted"><code class="plain">triton-rocm==3.7.1</code></span>
 
 ### 切换编译器
 
@@ -94,6 +95,14 @@ rocm-smi
 ## 更新日志
 
 ### 2.3.0
+
+*2026-11-02 12:16:13*
+
+该后端的 torch 闭包升到 torch 2.13.0+rocm7.2、torchvision 0.28.0+rocm7.2，
+以及 torch 2.13 声明的 ROCm triton 即 triton-rocm 3.7.1（不再是 3.6.0）。
+torchaudio 保持 2.11.0+rocm7.2。FlagTree 保持 0.7.0+amd3.6：目前没有 amd3.7 tag，
+而 torch 2.13 自身的下限是 triton 3.6，因此默认编译器仍可与较新的 vendor
+triton 共存。
 
 *2026-11-01 10:52:01*
 
