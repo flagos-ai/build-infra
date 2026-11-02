@@ -2,11 +2,11 @@
 name: node-ops
 description: >-
   Node-verification operating disciplines for GPU/NPU backend verification and
-  debugging. Use when: ssh-ing into a verify node (h20/hw25/metax124/...),
-  driving a persistent debug container, reproducing a failed cell, cleaning up
-  stale containers, or judging slow-vs-hung. Trigger on verify/repro/debug on
-  a node. NOT for: editing workflows or scripts (that is plain code work), or
-  local-only repo operations (no ssh involved).
+  debugging. Use when: ssh-ing into a verify node, driving a persistent debug
+  container, reproducing a failed cell, cleaning up stale containers, or judging
+  slow-vs-hung. Trigger on verify/repro/debug on a node. NOT for: editing
+  workflows or scripts (that is plain code work), or local-only repo operations
+  (no ssh involved). Vendor-specific device facts live in docs/vendors/, not here.
 ---
 
 # Node Operations
@@ -17,17 +17,18 @@ Verification and debugging happen on remote GPU/NPU nodes reached through SSH
 aliases (h20, hw25, metax124, ...). These disciplines are hard-won and
 platform-agnostic: every one of them caused a false conclusion or a wasted
 loop at least once. Read this skill before the first `ssh` of a session; the
-facts (which alias maps to which backend, what the node's checkout looks like)
-live in `scripts/verify-nodes.example.yaml` and the per-version
-`packaging/<app>/docs/` backends records — referenced, not duplicated here.
+facts (which alias maps to which backend) live in
+`scripts/verify-nodes.example.yaml`, and everything that is true of *one*
+vendor (device nodes, launcher behaviour, hazards, cold-start magnitudes)
+lives in `docs/vendors/<vendor>.md` — referenced, not duplicated here.
 
 ## Prerequisites
 
 - SSH aliases configured in `~/.ssh/config` (map in
   `scripts/verify-nodes.example.yaml`, git-ignored copy = `verify-nodes.local.yaml`).
 - Permission allowlist for ssh/scp/docker already granted in settings.
-- The node's own checkout of build-infra (per-node user/owner differs — see
-  §4), kept on latest main.
+- The node's own checkout of build-infra (per-node user/owner differs — see §9),
+  kept on latest main.
 
 ## Standard flow
 
@@ -57,20 +58,22 @@ and check the device is free:
 
 ```bash
 docker ps
-cnmon   # or nvidia-smi / npu-smi info / hy-smi / mx-smi per vendor
+<device-enumeration command>   # see docs/vendors/<vendor>.md, or
+                               # `.github/build-config.yml` verify.vendors
 ```
 
 `docker rm -f` any stale containers from earlier sessions — especially ones
 with the same name or holding the same die/card. Stale containers silently
 hold devices and produce **fake failures**:
 
-- cambricon: `Free memory ... < 0.6 utilization` despite a healthy image.
-- ascend: dies occupied → `npu-smi` HBM well above baseline (~3.4GB/die idle
-  for 910B4); host `npu-smi` never tells you a container holds a die.
-- **"out of memory" / "device busy" → check residual containers first, not
-  the image.** On ascend, `path string is NULL` / `DrvMngGetConsoleLogLevel
-  failed (ret=4)` / `dcmi -8020` also spam PASSING job logs — not failure
-  signals; the only real gate is `torch.npu.device_count()`.
+- **"out of memory" / "device busy" / "0 devices visible" → check residual
+  containers and orphaned worker processes first, not the image.** The
+  per-vendor signature (what the fake failure looks like, which host-side
+  probe lies, what the clean baseline is, whether the orphan matches
+  `docker ps`) lives in `docs/vendors/<vendor>.md` (section 设备状态危险 or
+  平台与设备) — read that before concluding a device fault.
+- A container that exited is not necessarily a container that let go. Kill,
+  don't pause, and re-check `device_count` afterwards.
 
 Also mandatory: verification serve containers must mount
 `-v /data/models:/data/models:ro`. Missing it yields `HFValidationError: Repo
@@ -95,7 +98,8 @@ arrives, move.
 
 ### 5. Slow vs hung: judge by metrics increment, not client timeout
 
-NPU cold-start JIT is extremely slow (hw25 T 872s, hw26 F longer). Three rules:
+NPU cold-start JIT is extremely slow — first-request times in the tens of
+minutes are normal on several vendors. Three rules:
 
 - **Client timeout ≠ server failure.** `curl -m N` expiring only means this
   side gave up; the server may still be working. First step after a timeout =
@@ -109,6 +113,9 @@ NPU cold-start JIT is extremely slow (hw25 T 872s, hw26 F longer). Three rules:
 
 Correct posture for long requests: background curl (no short timeout) + active
 polling of metrics increments — not a foreground fixed-timeout retry loop.
+A verification harness with a fixed short client timeout will score a healthy
+cold start as a failure; widen it (per-vendor magnitudes in
+`docs/vendors/<vendor>.md`).
 
 ### 6. Node verify = refresh the repo checkout first, never "grab anything"
 
@@ -136,76 +143,64 @@ git fetch origin && git merge --ff-only origin/main
   repo is stale and you don't want to refresh, pin with
   `--stack-version <ver>`.
 
-### 7. Ascend: use `bash` for probes inside containers, never `sh`
+### 7. Probe through `bash`, never a bare binary — the shell decides the environment
 
-`base/ascend-*` images publish the full CANN env ONLY to bash consumers: the
-build sources CANN's `set_env.sh` into `/etc/profile.d/vendor.sh` and sets
-`ENV BASH_ENV=/etc/bash_env.sh` so `bash -c` auto-reads it. The hand-written
-`ENV LD_LIBRARY_PATH` is a short floor missing the driver dirs — `sh`/dash,
-`docker run <img> <binary>` (no shell) and systemd get that floor, and
-`libascend_dump/ml/trace` fails to find `libascend_hal.so`.
+**How you exec decides what the process sees.** Two mechanisms make a
+non-bash probe lie:
 
-Consequence: **`docker run <img> sh /path/probe.sh` fails falsely;
-`bash /path/probe.sh` reflects reality.** A FlagCX .deb was misjudged as
-defective for exactly this reason (the .deb was fine; the harness used `sh`).
+1. **Dual-compiler activation is bash-only for every backend.** The runtime
+   (flagtree `/opt/flagtree`, vendor triton `/opt/triton`, neither in
+   site-packages) activates the default compiler through
+   `BASH_ENV=/etc/bash_env.sh` → sources `/etc/profile.d/*.sh` (zz-flagos.sh
+   runs last, auto-`compiler flagtree` when no side dir is on PYTHONPATH). The
+   side dir on `PYTHONPATH` is what makes `import triton` and `import flag_gems`
+   work. A bare `docker exec <c> python3 -c ...` has no shell → no BASH_ENV →
+   empty `PYTHONPATH` → `import triton` fails. A blank `PYTHONPATH` seen from a
+   non-bash exec is a **probe artifact, not the image being broken**.
+2. **Some vendor SDKs publish their env only to bash consumers** — see
+   `docs/vendors/<vendor>.md` (section 容器内环境 or 平台与设备) for which, and
+   for what the non-bash failure looks like. There the floor in the image is
+   short, so `docker run <img> sh probe.sh` **fails falsely** while
+   `bash probe.sh` reflects reality.
 
-The short floor is FINAL — do not propose fixing `base/ascend-*`. Bash is the
-standard call (all docs' launch commands end in `bash`); rebuilding all 20
-images (4 base + 4 runtime + 12 app, plus per-backend re-verification) buys
-only dev/non-bash convenience.
+Rules:
 
-To diagnose LD_LIBRARY_PATH-class issues, run two probes side by side:
-`docker run $I printenv LD_LIBRARY_PATH` (no shell = floor) vs
-`docker run $I bash -c 'echo $LD_LIBRARY_PATH'` (with vendor.sh = full).
-
-### 7b. BASH_ENV + `compiler`: bash-only, and *how* you exec decides everything
-
-The dual-compiler runtime (flagtree `/opt/flagtree`, vendor triton `/opt/triton`,
-neither in site-packages) activates its default compiler through
-`BASH_ENV=/etc/bash_env.sh` → sources `/etc/profile.d/*.sh` (zz-flagos.sh
-runs last, auto-`compiler flagtree` when no side dir is on PYTHONPATH). The
-compiler side dir is what makes `import triton` and `import flag_gems` work —
-flag_gems *requires* triton, and `supports_paged_attention()` degrades to the
-flash-attn version gate (assert fires, RL dies at `attention.py:1105`) when
-flag_gems can't import triton. This bit me as a *false negative* on a metax
-RL repro: I probed with `docker exec <c> python3 -c ...` (no shell = NO
-BASH_ENV → empty PYTHONPATH → `import triton` fails → asserted it was a
-wheel/env bug). Same container, `docker exec <c> bash -c '...'` or
-`bash /script.sh` → BASH_ENV applies → triton/flag_gems import fine → RL E2E
-passes. Rules:
-
-- **Probe through `bash` (or a `bash script.sh`), never a bare `python3`/
-  `sh`/`docker run <img> <binary>`** — that is the "vllm way" and it also
-  matches every docs launch command (they all end in `bash`).
+- **Probe through `bash` (or `bash script.sh`), never a bare `python3`, `sh`,
+  or `docker run <img> <binary>`.** This matches every docs launch command —
+  they all end in `bash`.
 - `compiler` does NOT need explicit sourcing: BASH_ENV already sourced
   zz-flagos.sh; `compiler flagtree >/dev/null` is only needed to *switch*.
-  A blank `PYTHONPATH` seen from a non-bash exec is a probe artifact, not the
-  image being broken.
-- Corollary: a RL/training repro that hangs at the flash-attn gate is
-  *first* an exec-rig question (bash vs not), *before* suspecting the wheel.
-  Non-login `bash script.sh` reads BASH_ENV (non-interactive bash does), so a
-  script run that way is fine — but an `sh`-invoked script is not.
+- Non-login `bash script.sh` reads BASH_ENV (non-interactive bash does), so a
+  script run that way is fine — an `sh`-invoked script is not.
+- **A failed import or a missing library path is a rig question before it is a
+  wheel/env question.** Re-run the same probe under `bash` before concluding
+  anything — a RL/training repro that dies at the flash-attn gate is the classic
+  instance (flag_gems can't import triton → `supports_paged_attention()`
+  degrades to the flash-attn version gate → an unrelated-looking assert).
+- To diagnose an env-class issue, run two probes side by side:
+  `docker run $I printenv LD_LIBRARY_PATH` (no shell = floor) vs
+  `docker run $I bash -c 'echo $LD_LIBRARY_PATH'` (with the profile scripts =
+  full). The difference localizes the mechanism.
 
 ### 8. Node disk full → check container json.log first, not images
 
 `docker system df`'s `containers` row counts only the writable layer (same for
-`docker ps --size`) — NOT `/data/docker/containers/<id>/<id>-json.log`. So a
-full node can show `du` saying 24T while `docker system df` says 16GB — the
-gap is all json.log. Images and build cache are usually irrelevant at that
-scale (metax124: images 470G + build cache 212G vs one log 26T).
+`docker ps --size`) — NOT `docker/data-root/containers/<id>/<id>-json.log`. A
+full node can therefore show `du` reporting the volume nearly full while
+`docker system df` reports a few GB; the gap is all json.log.
 
-Root cause was a job that neither failed nor finished: no `log-opts` in
-daemon.json (json-file unbounded), a stuck orphan container's process looping
-on errors at ~39MB/s for 5 days.
+Root cause is usually a job that neither failed nor finished: no `log-opts` in
+daemon.json (json-file unbounded) plus a stuck orphan container looping on
+errors at tens of MB/s for days.
 
 Remedy: `docker rm -f <id>` kills the stuck process AND the whole log in one
-command (26T log vs 4.0T after). `truncate -s 0` is temporary — the loop
-refills it.
+command. `truncate -s 0` is temporary — the loop refills it.
 
-Still outstanding: metax124 (and other nodes) daemon.json lacks
+Still outstanding: several nodes' daemon.json lacks
 `"log-opts": {"max-size": "100m", "max-file": "3"}` — a global change needing
 a dockerd restart, not done. When a node fills up again, use this section to
-locate it before deleting images.
+locate it before deleting images. Exact node-by-node numbers and the migration
+state are in `docs/runner-disk-migration.md`.
 
 When the fix is "move the data directory to another volume" rather than "kill
 the stuck container", follow `docs/runner-disk-migration.md` (Docker
@@ -214,17 +209,16 @@ the stuck container", follow `docs/runner-disk-migration.md` (Docker
 ### 9. Each node's runner user differs — know it before verifying
 
 Verify scripts must run on a real checkout, and each node's checkout location
-and owner differ. Don't reuse the previous node's assumptions. Canonical
-example map (per-node): kunlunxin `secure` at `/home/secure/build-infra`;
-ix15 `tengqm` (not secure) at `/home/tengqm/build-infra`; h20 `secure` at
-`/home/secure/build-infra` (general-purpose test node — Ubuntu 24.04, git
-2.43, python3.12 with `packaging`, docker 29.1.3, proxy already in env;
-best place for hardware-independent script/git experiments).
+and owner differ. Don't reuse the previous node's assumptions. The alias →
+backend map is `scripts/verify-nodes.example.yaml` (local copy
+`verify-nodes.local.yaml`); who owns the checkout per node is not committed —
+ask, or infer it from the checkout's owner rather than from the last node you
+worked on.
 
-Two ix15 pitfalls: (1) a shared checkout where `app/sglang` was root-owned →
-any ff/checkout fails `cannot create directory ... Permission denied` —
-`chown` back to the runner user; (2) a fresh clone checks out clean (no
-existing changes blocking), so when a shared checkout is dirty with someone
+Two recurring pitfalls: (1) a shared checkout where some subdirectory is
+root-owned → any ff/checkout fails `cannot create directory ... Permission
+denied` — `chown` back to the runner user; (2) a fresh clone checks out clean
+(no existing changes blocking), so when a shared checkout is dirty with someone
 else's WIP, clone a second copy into your own verify dir and delete it after.
 
 ### 10. SSH: non-pty exec channels are dead; pty sessions are the usable command channel
@@ -279,19 +273,17 @@ out-wait it with a bigger WAIT. Also: a local pipe feeding `sed -n '/start/,/end
 buffers the whole run — the log file stays 0 bytes during the run, looking
 like "nothing ran" — don't wrap polling in a range sed.
 
-### 11. CANN-node runner restart kills in-flight jobs — not a build failure
+### 11. A runner restart kills in-flight jobs — not a build failure
 
-`flagtree-wheel.yml`'s `ascend-cann8.5.0` had two consecutive `upload=true`
-builds (114 / 147 min) end `cancelled` — not a build or workflow problem:
-both cancellation timestamps (13:26, 16:27) match the runner listener's
-restart times on hw26 **minute-for-minute** — `Runner_<ts>.log` filenames in
-`/home/secure/actions-runner/_diag/` timestamped seconds after the
-cancellations, worker log same-minute `Cancellation/Shutdown message
-received`, then SIGINT/SIGTERM killing the docker process. Trigger is at the
-listener side: `BrokerMessageListener` → `SocketException (125) Operation
-canceled` / `The HTTP request timed out after 00:01:40` (node→GitHub channel
-timeout → reconnect → restart). A third dispatch 22 min later succeeded with
-no code-path difference.
+A job that ends `cancelled` mid-build, with no code-path difference between it
+and a later successful dispatch, is usually a runner-listener restart on the
+node, not a build problem. Signature: the cancellation timestamp matches a
+`Runner_<ts>.log` filename in `<checkout>/actions-runner/_diag/` to the minute;
+the worker log shows `Cancellation/Shutdown message received` then
+SIGINT/SIGTERM killing the docker process. Trigger is at the listener side:
+`BrokerMessageListener` → `SocketException (125) Operation canceled` /
+`The HTTP request timed out after 00:01:40` (node→GitHub channel timeout →
+reconnect → restart).
 
 **One-command discriminator (cancelled vs self-failure):** in
 `gh api .../actions/runs/<id>/jobs`, the job has `runner_name` set and its
@@ -300,11 +292,11 @@ wrap-up (`Cleaning up orphan processes` → `Terminate orphan process:
 (docker)`) — i.e. the build process was killed, not failed. Then match the
 cancellation minute against `_diag/Runner_*.log` timestamps.
 
-Implication: during slow GitHub periods (AscendNPU-IR builds clone hundreds
-of MB in real time, measured ~1.5 MB/min), a job sits exposed in the restart
-window; poll-and-redispatch is correct, but confirm with the discriminator
-first that it is not a code problem, and after TWO same-cause cancellations
-STOP and ask the user — don't retry indefinitely.
+Implication: during slow GitHub periods (a build that clones hundreds of MB
+in real time, measured ~1.5 MB/min), a job sits exposed in the restart window;
+poll-and-redispatch is correct, but confirm with the discriminator first that
+it is not a code problem, and after TWO same-cause cancellations STOP and ask
+the user — don't retry indefinitely.
 
 ### 12. Feeding scripts over ssh + wait loops: four traps
 
@@ -329,7 +321,10 @@ is handiest, but:
 
 ## Facts index
 
-- Node↔alias map, per-node checkout owner: `scripts/verify-nodes.example.yaml`
+- Node↔alias map: `scripts/verify-nodes.example.yaml` (local copy
+  `verify-nodes.local.yaml`, git-ignored)
+- Vendor platform facts (device nodes, launcher behaviour, hazards, cold-start
+  magnitudes): `docs/vendors/<vendor>.md`
 - Verify script conventions + task-card contract: `docs/verify-orchestrator.md` §5
 - Status-matrix symbol semantics: `docs/status-matrix.md`
 - F/T dual-compiler discipline: `verify-app-backend` skill (top rule)
@@ -343,10 +338,14 @@ is handiest, but:
   monitoring vs 30 min to find and fix 9 problems.)
 - Cleaning residual containers is mandatory because stale containers hold
   devices and produce fake failures that read as image defects (three
-  separate incidents; the quantitative rule is the HBM baseline).
-- `bash`-not-`sh` on ascend is a documented FINAL decision: the short floor is
-  kept, bash is standard, and 20-image rebuild was judged not worth it for
-  non-bash convenience. Do not re-litigate.
+  separate incidents across three vendors).
+- Probing through `bash` is mandatory because the runtime activates its
+  compiler, and some vendors publish their SDK env, only to bash consumers —
+  a bare exec therefore sees a *different environment* than the one the app
+  runs in, and reports it as a defect.
+- Runner restarts killing in-flight jobs is a node-side fact, not a build
+  fact: the discriminator (§11) exists so a cancelled job is not debugged as
+  a code problem.
 
 ## Done when
 
@@ -363,7 +362,11 @@ is handiest, but:
 - Two same-cause runner-restart cancellations → stop, ask the user.
 - A node's disk genuinely full and `log-opts` still unset → it is a
   pre-existing global gap; report with exact numbers, do not delete images.
-- Anything that looks like an ascend image defect on a `sh`-run probe → re-run
+- Anything that looks like an image defect on a non-`bash` probe → re-run
   with `bash` before concluding (see §7).
+- A vendor-specific device hazard you cannot clear with `docker rm -f` /
+  killing the orphan process → check `docs/vendors/<vendor>.md` (设备状态危险)
+  for what recovery actually costs (some need a node-level reset); escalate
+  with the device command's output.
 - A "hung" serve that is actually just slow → §5; if metrics show no
   increment past a generous deadline, escalate with the numbers.

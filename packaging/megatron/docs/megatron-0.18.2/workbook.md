@@ -106,7 +106,7 @@ T 路径 `compiler triton` 切 `/opt/triton`），其余用镜像默认态。
 引擎经 flag_gems `flash_attn_varlen_func` paged 分派跑通。hygon flash_attn 2.8.3
 本就 ≥2.7.3，保持 varlen 路径，不受影响。两平台均无垫片、F/T 双路径 ✅。
 
-> 探针教训（node-ops §7b）：容器内一律经 `bash` 执行（BASH_ENV 自动激活默认
+> 探针教训（node-ops §7）：容器内一律经 `bash` 执行（BASH_ENV 自动激活默认
 > compiler）；裸 `python3`/`sh` 探针看不到 compiler side dir，`import triton` 失败
 > 是探针姿势问题，不是镜像缺陷。
 

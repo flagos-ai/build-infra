@@ -20,7 +20,7 @@
 | runner 的 Docker/containerd 数据目录迁移 | [`runner-disk-migration.md`](runner-disk-migration.md) |
 | 某应用某版本的验证历史 | `packaging/<app>/docs/<app>-<ver>/`（入口是该目录的 README） |
 | 某打包线的设计（为什么这样做） | `packaging/<comp>/DESIGN.md`（跑法看同目录 README） |
-| 某厂商的平台事实 | `docs/vendors/<vendor>.md`（随 P1 落地，见下） |
+| 某厂商的平台事实（设备、工具链、坑） | [`vendors/<vendor>.md`](vendors/)（怎么收见该目录 README） |
 | 脚本索引 | `scripts/README.md` |
 | 打包目录骨架与引用维护清单 | `packaging/README.md` |
 | 流程技能（做什么、何时停下问） | `.claude/skills/`，按 frontmatter 的 Trigger / NOT-for 选择 |
@@ -37,13 +37,8 @@ provenance 标记的页面，手写页请另起名字。
 
 ## 待落地（知识层重构，2026-11-01）
 
-- **P1**：`docs/vendors/<vendor>.md` —— 每厂商一份，只写「后果 + 指针」（设备
-  flags 的坑、容器 runtime 特性、设备状态危险、smi 命令），硬上限约 60 行；
-  flags 本身的权威源仍是 `.github/build-config.yml`。
-- **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用厂商页
-  （随各线下次验证顺手改，不单独开批）。
-- **P1**：`node-ops` 技能拆走厂商段（ascend §7/§7b、各节点 owner §9、磁盘 §8
-  的具体数值），只留平台无关纪律。
+- **P1**：`packaging/*/docs/**` 的 39 个后端记录里，厂商范围内容改为引用
+  `docs/vendors/`（随各线下次验证顺手改，不单独开批）。
 - **P2**：补两个技能 `publish-wheel`、`rollout-app-version`；现有 4 个技能的
   Trigger / NOT-for 边界收紧。
 - **P3**：`scripts/docs/check_knowledge.py` —— 校验索引完整性（workflow 表齐全、
