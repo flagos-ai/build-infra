@@ -130,7 +130,9 @@
   冲突；因此合并放在唯一的记录作业中，无论扇出多少路都只有一个提交者。
 - **下载 artifact 不能使用 `merge-multiple`。** 各作业上传的 artifact 内部
   文件名相同（均为 `manifest.tsv`），展开到同一目录会互相覆盖，只剩一份。
-  因此保持「一个 artifact 一个目录」，按 `.wheel-info-dl/*/*.tsv` 收集。
+  因此保持「一个 artifact 一个目录」。注意 pattern 只命中一个 artifact 时
+  `download-artifact` 会把文件直接摊进下载路径、不建子目录，所以收集按路径
+  递归查找 `*.tsv`，不能写死目录层级。
 
 ## 作业形态
 
