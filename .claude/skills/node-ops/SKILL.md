@@ -4,9 +4,10 @@ description: >-
   Node-verification operating disciplines for GPU/NPU backend verification and
   debugging. Use when: ssh-ing into a verify node, driving a persistent debug
   container, reproducing a failed cell, cleaning up stale containers, or judging
-  slow-vs-hung. Trigger on verify/repro/debug on a node. NOT for: editing
-  workflows or scripts (that is plain code work), or local-only repo operations
-  (no ssh involved). Vendor-specific device facts live in docs/vendors/, not here.
+  slow-vs-hung. Trigger on verify/repro/debug on a node. NOT for: the cell walk
+  itself (see verify-app-backend), editing workflows or scripts (that is plain
+  code work), or local-only repo operations (no ssh involved). Vendor-specific
+  device facts live in docs/vendors/, not here.
 ---
 
 # Node Operations
