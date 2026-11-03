@@ -21,6 +21,7 @@ ascend-cann8.5.0: hw26
 ascend-cann8.5.0-910c: hw114
 ascend-cann9.0.0: hw25
 ascend-cann9.0.0-910c: hw115
+ascend-cann9.2.1: hw03
 cambricon-neuware4.4.3: cambricon
 cambricon-neuware4.7.2: cambricon
 enflame-tops1.9.10: enflame

@@ -501,6 +501,44 @@ vendors:
         - CANN 910C Ops 9.0.0 (aarch64) # Ascend-cann-A3-ops_9.0.0_linux-aarch64.run
         - CANN NNAL 9.0.0 (aarch64)     # Ascend-cann-nnal_9.0.0_linux-aarch64.run
 
+    # CANN 9.2.1 — the line the torch 2.13 / triton 3.6 stack runs on. 910B only:
+    # the A3 (910C) ops package is published, but no node is labelled for it, so
+    # a 910C twin here would be a row nothing can build or verify.
+    #
+    # python 3.12, not 3.11: the torch 2.13.0 / torch_npu 2.13.0 / torchvision
+    # 0.28.0 / torchaudio 2.11.0 wheels on flagos-pypi-ascend are cp312-only.
+    # That is why the base image drops the deadsnakes PPA the 9.0.0 line needs.
+    #
+    # triton_ascend 3.6.0 ships as an overlay over upstream triton 3.6.0 (the
+    # same shape as 9.0.0's 3.5.0 + 3.2.1 pair). Both are cp312 here.
+    #
+    # flagtree is deliberately absent for now: the build sequence is base →
+    # runtime-without-FlagTree → FlagTree builder → FlagTree wheel → refreshed
+    # runtime. FlagTree has no CANN 9.2.x pin yet, and an empty `flagtree:`
+    # leaves triton as the compiler rather than failing the build.
+    cann9.2.1:
+      extras: ascend-cann921
+      hardware: ["Ascend 910B"]
+      driver: "26.1.1"
+      python: "3.12"
+      cmake_backend: NPU
+      triton: triton==3.6.0
+      triton_post_install:
+        - triton_ascend==3.6.0
+      deps:
+        - torch==2.13.0+cpu
+        - torch-npu==2.13.0
+        - torchvision==0.28.0+cpu
+        - torchaudio==2.11.0+cpu
+        - numpy==1.26.4
+        - cann-shmem==1.6.0
+        # flagcx is not pinned yet: flagos-pypi-ascend carries no CANN 9.2.1
+        # build, so this line waits on the FlagCX builder + wheel step.
+      sdk:
+        - CANN Toolkit 9.2.1 (aarch64)  # Ascend-cann_9.2.1_linux-aarch64.run
+        - CANN 910B Ops 9.2.1 (aarch64) # Ascend-cann-910b-ops_9.2.1_linux-aarch64.run
+        - CANN NNAL 9.2.1 (aarch64)     # Ascend-cann-nnal_9.2.1_linux-aarch64.run
+
   cambricon:
     neuware4.4.3:
       extras: cambricon
