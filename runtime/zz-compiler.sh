@@ -33,6 +33,13 @@
 #   compiler flagtree        — switch to FlagTree (default when present)
 #   compiler triton          — switch to the vendor Triton
 #   compiler flagtree <ver>  — install that FlagTree version, then switch to it
+#   compiler index           — print the indexes a version request would use
+#
+# The index a version request is fetched from is normally this image's own
+# (see _flagtree_index_url).  `compiler flagtree <ver> --index-url <url>` overrides
+# it for that one call: a caller whose egress differs per destination — proxy for
+# some hosts, direct for others — has to know the URL before the install runs,
+# and `compiler index` lets it ask.
 #
 # FlagTree releases on its own cadence, and a bump would otherwise mean
 # rebuilding every image above the runtime. So a different version can also be
@@ -100,19 +107,24 @@ _flagtree_index_url() {
 _flagtree_install_version() {
     # Install ${1} into /opt/flagtree, leaving the baked tree in place until it
     # succeeded. Returns 1 on failure (caller warns and keeps the default).
-    local ver="$1" staged="/opt/flagtree.new" index src ok=1
+    # ${2}, when given, is the only index used — see _flagtree_ensure_version.
+    local ver="$1" explicit_index="${2:-}" staged="/opt/flagtree.new" index src ok=1
     local -a sources=()
 
     command -v pip >/dev/null 2>&1 || { echo "flagtree ${ver}: pip not found" >&2; return 1; }
 
-    # This image's own vendor index first, the shared lane second — sequential
-    # attempts, not `--extra-index-url`. Two indexes in one pool let another
-    # lane's build win: 0.7.0+tileir3.6 outranks a vendor's plain 0.7.0, so a
-    # pooled lookup for `0.6.1` on nvidia took tileir's wheel, which then
-    # brought up no driver at all.
-    index=$(_flagtree_index_url)
-    sources=("$index")
-    [ "$index" != "$_flagtree_fallback_index" ] && sources+=("$_flagtree_fallback_index")
+    if [ -n "$explicit_index" ]; then
+        sources=("$explicit_index")
+    else
+        # This image's own vendor index first, the shared lane second — sequential
+        # attempts, not `--extra-index-url`. Two indexes in one pool let another
+        # lane's build win: 0.7.0+tileir3.6 outranks a vendor's plain 0.7.0, so a
+        # pooled lookup for `0.6.1` on nvidia took tileir's wheel, which then
+        # brought up no driver at all.
+        index=$(_flagtree_index_url)
+        sources=("$index")
+        [ "$index" != "$_flagtree_fallback_index" ] && sources+=("$_flagtree_fallback_index")
+    fi
 
     rm -rf "$staged"
     for src in "${sources[@]}"; do
@@ -167,10 +179,14 @@ _flagtree_ensure_version() {
     # does nothing, while the *same* version requested in a fresh container is
     # fetched again — which is what makes a rebuilt wheel of an unchanged
     # version reachable.
-    local want="${1:-}"
+    #
+    # ${2} is an optional explicit index. A caller that routes egress per
+    # destination (proxy for some hosts, direct for others) has to know the URL
+    # before the install runs; the built-in sources are not visible to it.
+    local want="${1:-}" index="${2:-}"
     [ -n "$want" ] || return 0
     _flagtree_version_satisfied "$want" && return 0
-    _flagtree_install_version "$want" || return 1
+    _flagtree_install_version "$want" "$index" || return 1
     echo "flagtree ${want}: active" >&2
 }
 
@@ -193,14 +209,44 @@ _compiler_import_triton() {
 }
 
 compiler() {
-    local dir=""
+    local dir="" want="" index=""
 
     case "${1:-}" in
         flagtree)
-            if [ -n "${2:-}" ]; then
+            shift
+            # Version is positional and optional; --index-url may follow either
+            # it or the subcommand on its own.
+            if [ -n "${1:-}" ] && [ "${1#-}" = "$1" ]; then
+                want="$1"
+                shift
+            fi
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --index-url)
+                        index="${2:-}"
+                        if [ -z "$index" ]; then
+                            echo "compiler: --index-url needs a URL" >&2
+                            return 1
+                        fi
+                        shift 2
+                        ;;
+                    --index-url=*)
+                        index="${1#--index-url=}"
+                        shift
+                        ;;
+                    *)
+                        echo "compiler: unknown argument '$1'" >&2
+                        return 1
+                        ;;
+                esac
+            done
+            if [ -n "$want" ]; then
                 # Install-on-demand: the one-off cost is the reason a FlagTree
                 # bump no longer forces a rebuild of every image above this one.
-                _flagtree_ensure_version "$2" || return 1
+                _flagtree_ensure_version "$want" "$index" || return 1
+            elif [ -n "$index" ]; then
+                echo "compiler: --index-url only applies when a version is given" >&2
+                return 1
             fi
             if [ ! -d /opt/flagtree/triton ]; then
                 echo "flagtree: not available on this backend" >&2
@@ -214,6 +260,15 @@ compiler() {
                 return 1
             fi
             dir="/opt/triton"
+            ;;
+        index)
+            # Read-only: report where a version request would be fetched from,
+            # in the order _flagtree_install_version tries them. A caller that
+            # picks egress per destination needs the URLs before the install runs.
+            index=$(_flagtree_index_url)
+            echo "$index"
+            [ "$index" != "$_flagtree_fallback_index" ] && echo "$_flagtree_fallback_index"
+            return 0
             ;;
         ""|status|help)
             # Show availability + what's active, and make sure the default
@@ -241,11 +296,14 @@ compiler() {
             fi
             ;;
         *)
-            echo "Usage: compiler [flagtree|triton] [version]" >&2
+            echo "Usage: compiler [flagtree|triton|index] [version] [--index-url <url>]" >&2
             echo "  compiler                  show status" >&2
             echo "  compiler flagtree         switch to FlagTree (default)" >&2
             echo "  compiler triton           switch to Triton" >&2
             echo "  compiler flagtree <ver>   install that FlagTree version, then switch to it" >&2
+            echo "  compiler flagtree <ver> --index-url <url>" >&2
+            echo "                            install from that index instead of the built-in ones" >&2
+            echo "  compiler index            print the indexes a version request would use" >&2
             return 1
             ;;
     esac
