@@ -1,8 +1,9 @@
 # ascend（昇腾）
 
 backend key：`ascend-cann8.5.0` / `ascend-cann9.0.0`（910B）以及各自的
-`ascend-cann8.5.0-910c` / `ascend-cann9.0.0-910c`（910C）。全部 aarch64、python 3.11、
-wheel tag `cp311-cp311-linux_aarch64`。
+`ascend-cann8.5.0-910c` / `ascend-cann9.0.0-910c`（910C），外加 910B 的
+`ascend-cann9.2.1`。全部 aarch64；除 9.2.1 外都是 python 3.11 + wheel tag
+`cp311-cp311-linux_aarch64`，**9.2.1 是 python 3.12（`cp312`）**。
 
 ## 平台与设备
 
@@ -13,8 +14,8 @@ wheel tag `cp311-cp311-linux_aarch64`。
   完整 die 对**（任何一对都行），单 die / 半板报 `-9005`，无 davinci 报 `-8005`，
   设备被占用报 `-8020`。
 - **910C 是独立后端，不是 910B 的 tag 后缀**：只有 ops 包按芯片拆（token `910b` vs `A3`），
-  但 CANN / flagtree / torch / flag_gems 在四条线之间都不同，**三条线（910B-8.5.0 /
-  910B-9.0.0 / 910C 对）的结论不得互相套用**；跨变体差异多数源于 flagtree 版本。
+  但 CANN / flagtree / torch / flag_gems 在各条线之间都不同，**四条线（910B-8.5.0 /
+  910B-9.0.0 / 910B-9.2.1 / 910C 对）的结论不得互相套用**；跨变体差异多数源于 flagtree 版本。
 - **910C 节点上容器 toolkit 已不再映射 davinci die**：非 privileged 启动
   `torch.npu.device_count()=0`（drvRetCode 87 / aclInit 507899），**`--privileged` 必需**；
   910B 上加它不回退。
@@ -72,6 +73,18 @@ wheel tag `cp311-cp311-linux_aarch64`。
   逐算子黑名单试过（用户否决整片屏蔽），清完崩溃后吞吐仍是病理的 ~0.05 tok/s（OFF 为
   10.2 tok/s），故回到整片关闭这一背书基线；黑名单保留作文档，OFF 下 inert。
   调黑名单**不要**用 `*_FLAGOS_*` 环境变量：它**整体替换** yaml 列表。
+- **9.2.1 的 flagtree 不是与 CANN 匹配的构建，而是复用 3.5 线的
+  `0.7.1a1+ascend3.5`（cp312，flagos-pypi-ascend 上唯一 cp312 的 ascend wheel）**。
+  没有可匹配的上游：FlagTree 的 ascend 后端只存在于 `triton_v3.5.x`，其
+  `setup_tools/utils/ascend.py` 的 `ASCEND_NPU_IR_PINS` 无 9.2.x 条目，且变体探测读
+  `ascend_toolkit_install.info` —— CANN 9.x 只写 `ascend_all_cann_install.info`，
+  于是**静默**落到 9.0.0 默认 pin（AscendNPU-IR v1.2.x），而 9.2.1 的 bishengir 自报
+  `2.0.0 (efb7141581c0)`。harbor 上的 `FlagTree-AscendNPU-IR` fork 最新分支也停在
+  v1.2.x，补齐意味着在别人的仓里移植一整套 MLIR dialect。
+  **实测这个错配不咬人**：23 个 vllm 关键 op 文件三臂（本 pin / vendor triton 3.6 /
+  9.0.0 自带 flagtree）失败集几乎重合（80F·138P / 77F·141P / 81F·137P），`507035`
+  向量核错误只出现在 9.0.0 臂的 `moe_align_block_size`。**9.3+ 若 bishengir 再跳版，
+  先修这套 pin 探测再用。**
 - 平台签名（认出来就别当 app bug）：标量/零 grid launch → `coreDim is invalid (value 0)`；
   喂给 `_npu_reshape_and_cache` 的 k/v 是 2D flat → `ATB op setup failed` / `507035`
   （**硬要求 3D head 布局**）。
