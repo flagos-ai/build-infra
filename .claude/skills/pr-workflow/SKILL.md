@@ -28,8 +28,20 @@ user**, so anything posted appears under their own identity.
 
 ## 1. Does this need a PR, and how many
 
-- **A diff over ~5 lines goes through a PR.** A typo or a single config value
-  may go straight in; nothing else may be pushed to main directly.
+- **Every change lands through a PR. No exceptions, no direct pushes.** Not to
+  `main`, and not a branch that is not the head of a PR — pushing a branch is
+  how a PR gets opened, so the branch and the PR are one act and never the
+  branch alone. The rule has no size threshold: a one-character typo, a single
+  config value, a branch created only to run a build, a repo where the account
+  holds `admin` are all covered. "It is my branch", "it is throwaway", "nobody
+  reviews it", "I only need it to build once" are not exemptions.
+- **Nothing is pushed before it has been verified.** A branch reaches the
+  remote only once its content has been built, run, or otherwise checked — by
+  the person or the agent pushing it, not by whoever reads the PR. Pushing an
+  unverified branch to open a PR off it inverts the order: review is for a
+  change that already works, and a reviewer cannot supply the verification the
+  author skipped. "Open the PR first and verify after" is not a workflow, and
+  the PR being open does not make the content reviewed.
 - **One logical concern per PR.** Config changes, repack logic, a new script,
   a workflow: separate PRs, even when they land the same day. A reviewer should
   grasp "what changed and why" in a few minutes. Mechanical renames across many
@@ -81,6 +93,13 @@ unaffected platforms, no dead-end routes — are `reporting`'s.
 - **Never merge an upstream PR.** PRs to any other repo are merged by that
   repo's maintainers. Only build-infra is ours to merge, and in practice the
   user does it. Never bypass review with an admin merge.
+- **Holding `admin` on a repo is not permission to skip review there.** `gh` is
+  authenticated as the user, so an admin-level write lands under a maintainer's
+  name with no review behind it — the highest-privilege account in the project
+  is exactly the one whose actions other people cannot undo. Treat
+  `permissions.admin: true` as a reason for more care, never as an exemption:
+  push a branch, open the PR, wait. If a step seems to need the admin bit, that
+  is a question for the user, not a call to make alone.
 - **Artifacts built off a PR head need per-instance approval.** Building a
   wheel, tagging an image, or dispatching a workflow against an unmerged head
   is a user decision each time; the default is to wait for the merge. A pending
@@ -115,12 +134,16 @@ this repo's rules. Merging someone else's repo crosses a line the project does
 not own, and using an admin flag to do it is the one case where that was tried.
 Building off an unmerged head makes an artifact whose source is unknown a week
 later, and the merge is what makes the source final. Long review replies bury
-the answer the reviewer asked for.
+the answer the reviewer asked for. A direct push is invisible: the change
+exists in the tree with no record of who decided it, no diff anyone agreed to,
+and no point at which a wrong assumption could be caught — the record a PR
+leaves is the only thing that makes the change reversible by someone other than
+its author.
 
 ## Done when
 
-- The branch was cut from a fetched `origin/main`, and carries only this
-  concern's files.
+- The branch was verified before it was pushed, and was cut from a fetched
+  `origin/main`; it carries only this concern's files.
 - Every checklist item holds, disclosure line last.
 - Any artifact built off a PR head had explicit per-instance approval.
 - Merged: local branch gone; an upstream PR registered in its status matrix.
@@ -134,6 +157,18 @@ the answer the reviewer asked for.
   related → cut a fresh branch, unless it is a fix to that same unmerged PR.
 - **Tempted to merge an upstream PR to unblock a downstream step** → stop and
   ask; the plan is to work around an unmerged PR, not to merge it.
+- **Tempted to push a branch directly because it exists only for a build or a
+  test** → no. The branch goes up as a PR; an experiment's branch is no more
+  exempt than a fix. A branch nobody is expected to review is still a branch
+  someone else may pull and build from.
+- **About to use a force-push, an admin merge, a branch-protection bypass, or
+  any other privileged operation because the API allows it** → stop. The
+  account has admin on our repos; that raises the bar rather than lowering it.
+  Ask the user first.
+- **Tempted to push a branch first and verify it afterwards, because the PR is
+  where the result would be visible** → no. Verify first; the branch goes up
+  with the result already in hand. An unverified branch is not a draft for
+  someone else to finish checking.
 - **A CI failure on an upstream PR** → fix only what is ours and say so; do not
   promise green.
 - **PR body creeping past ~15 lines** → cut the Why to its decisive reason and
