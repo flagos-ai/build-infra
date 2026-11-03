@@ -38,6 +38,11 @@ runners:
     ascend-cann9.0.0: [self-hosted, cann900, 910b]
     ascend-cann8.5.0-910c: [self-hosted, cann850, 910c]
     ascend-cann9.0.0-910c: [self-hosted, cann900, 910c]
+    # hw03, registered as an org-level runner in flagos-ai rather than a
+    # repo-level one, so it never appears in this repo's runner list. It
+    # carries the single label `cann921` — the default 910b label was not
+    # added, and a label the runner does not have queues the job forever.
+    ascend-cann9.2.1: [self-hosted, cann921]
     cambricon-neuware4.4.3: [self-hosted, cambricon]
     cambricon-neuware4.7.2: [self-hosted, cambricon]
     enflame-tops1.9.10: [self-hosted, tops1106]
