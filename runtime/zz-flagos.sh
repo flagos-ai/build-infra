@@ -22,9 +22,13 @@
 # (/opt/flagtree, default) and the vendor Triton (/opt/triton) are not in
 # site-packages, so they are reachable only through PYTHONPATH.
 #
-#   compiler [flagtree|triton] [version|latest]
+#   compiler [flagtree|triton|index] [version|latest] [--index-url <url>]
 #   docker run -e FLAGTREE_VERSION=<ver|latest> <runtime|app image> ...
 #   docker run -e FLAGGEMS_VERSION=<ver|latest> <runtime|app image> ...
+#
+# --index-url names the one index an explicit version is fetched from, for a
+# caller that routes egress per destination and so needs the address up front;
+# `compiler index` prints the ones this image would reach.
 #
 # A request that cannot be honoured STOPS the container: running a different
 # FlagTree than the one asked for is a stack the caller did not ask for.
@@ -47,6 +51,8 @@ _compiler_side_dirs="/opt/flagtree /opt/triton"
 # call the package, and which env var carries the request. A package joins by
 # adding an arm to each and defining _<pkg>_satisfied, _<pkg>_install_exact,
 # _<pkg>_install_latest and _<pkg>_installed_version.
+# _<pkg>_install_exact takes the version and, optionally, the one index to use
+# instead of the ones this image knows (_flagos_ensure passes it through).
 _flagos_pkg_marker() {
     case "$1" in
         flagtree) printf '%s' "/opt/flagtree/.daily-latest" ;;
@@ -277,19 +283,24 @@ _flagtree_swap_in() {
 _flagtree_install_exact() {
     # Install ${1} into /opt/flagtree, leaving the baked tree in place until it
     # succeeded. Returns 1 on failure (the caller stops the container).
-    local ver="$1" staged="/opt/flagtree.new" index src ok=1 reachable=0
+    # ${2}, when given, is the only index used — see _flagos_ensure.
+    local ver="$1" only_index="${2:-}" staged="/opt/flagtree.new" index src ok=1 reachable=0
     local -a sources=()
 
     command -v pip >/dev/null 2>&1 || { echo "flagtree ${ver}: pip not found" >&2; return 1; }
 
-    # This image's own vendor index first, the shared lane second — sequential
-    # attempts, not `--extra-index-url`. Two indexes in one pool let another
-    # lane's build win: 0.7.0+tileir3.6 outranks a vendor's plain 0.7.0, so a
-    # pooled lookup for `0.6.1` on nvidia took tileir's wheel, which then
-    # brought up no driver at all.
-    index=$(_flagos_index_vendor)
-    sources=("$index")
-    [ "$index" != "$_flagos_vendor_fallback_index" ] && sources+=("$_flagos_vendor_fallback_index")
+    if [ -n "$only_index" ]; then
+        sources=("$only_index")
+    else
+        # This image's own vendor index first, the shared lane second — sequential
+        # attempts, not `--extra-index-url`. Two indexes in one pool let another
+        # lane's build win: 0.7.0+tileir3.6 outranks a vendor's plain 0.7.0, so a
+        # pooled lookup for `0.6.1` on nvidia took tileir's wheel, which then
+        # brought up no driver at all.
+        index=$(_flagos_index_vendor)
+        sources=("$index")
+        [ "$index" != "$_flagos_vendor_fallback_index" ] && sources+=("$_flagos_vendor_fallback_index")
+    fi
 
     rm -rf "$staged"
     for src in "${sources[@]}"; do
@@ -515,7 +526,13 @@ _flagos_ensure() {
     # satisfied, or no request at all — has to cost nothing: one readdir, no
     # interpreter start, no network. The same version in a fresh container is
     # still fetched again, which is what makes a rebuilt wheel reachable.
-    local pkg="$1" want="${2:-}" force="${3:-}"
+    # ${4} is an optional index that replaces the ones this image knows, for an
+    # explicit version only. A caller whose egress differs per destination — a
+    # proxy for some hosts, direct for others — decides that from the address the
+    # install is about to reach, and the built-in indexes are not visible to it.
+    # `latest` takes none: it means this backend's daily line, which is the daily
+    # index plus the per-backend distribution name, not a version to find elsewhere.
+    local pkg="$1" want="${2:-}" force="${3:-}" only_index="${4:-}"
     local marker failed
     [ -n "$want" ] || return 0
     marker=$(_flagos_pkg_marker "$pkg")
@@ -528,6 +545,11 @@ _flagos_ensure() {
     # hand (compiler flagtree <ver>) passes force and tries regardless.
     if [ -z "$force" ] && [ -r "$failed" ] && [ "$(cat "$failed")" = "$want" ]; then
         echo "${pkg} ${want}: the request already failed in this container" >&2
+        return 1
+    fi
+
+    if [ -n "$only_index" ] && [ "$want" = latest ]; then
+        echo "${pkg} latest: an index cannot be given for latest" >&2
         return 1
     fi
 
@@ -550,7 +572,7 @@ _flagos_ensure() {
     # dropped explicitly rather than relied on to leave with the replaced tree:
     # the rest of the container must not trust a record for a build that is gone.
     "_${pkg}_satisfied" "$want" && return 0
-    if "_${pkg}_install_exact" "$want"; then
+    if "_${pkg}_install_exact" "$want" "$only_index"; then
         _flagos_clear_failed "$pkg"
         [ -n "$marker" ] && rm -f "$marker"
         echo "${pkg} ${want}: active" >&2
@@ -577,15 +599,45 @@ _compiler_import_triton() {
 }
 
 compiler() {
-    local dir=""
+    local dir="" want="" only_index=""
 
     case "${1:-}" in
         flagtree)
-            if [ -n "${2:-}" ]; then
+            shift
+            # The version stays positional and optional; --index-url may follow it
+            # or stand alone after the subcommand.
+            if [ -n "${1:-}" ] && [ "${1#-}" = "$1" ]; then
+                want="$1"
+                shift
+            fi
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --index-url)
+                        only_index="${2:-}"
+                        if [ -z "$only_index" ]; then
+                            echo "compiler: --index-url needs a URL" >&2
+                            return 1
+                        fi
+                        shift 2
+                        ;;
+                    --index-url=*)
+                        only_index="${1#--index-url=}"
+                        shift
+                        ;;
+                    *)
+                        echo "compiler: unknown argument '$1'" >&2
+                        return 1
+                        ;;
+                esac
+            done
+            if [ -n "$want" ]; then
                 # Install-on-demand: the one-off cost is the reason a FlagTree
                 # bump no longer forces a rebuild of every image above this one.
                 # By hand, so it retries even where container start gave up.
-                _flagos_ensure flagtree "$2" force || return 1
+                _flagos_ensure flagtree "$want" force "$only_index" || return 1
+            elif [ -n "$only_index" ]; then
+                echo "compiler: --index-url only applies when a version is given" >&2
+                return 1
             fi
             if [ ! -d /opt/flagtree/triton ]; then
                 echo "flagtree: not available on this backend" >&2
@@ -599,6 +651,21 @@ compiler() {
                 return 1
             fi
             dir="/opt/triton"
+            ;;
+        index)
+            # Read-only: the indexes this image would reach, labelled by role.
+            # A caller that picks its egress per destination needs the addresses
+            # before an install runs, not after one failed.
+            local vendor daily mirror
+            vendor=$(_flagos_index_vendor)
+            echo "vendor    ${vendor}"
+            [ "$vendor" != "$_flagos_vendor_fallback_index" ] \
+                && echo "vendor    ${_flagos_vendor_fallback_index}  (fallback)"
+            daily=$(_flagos_index_daily)
+            [ -n "$daily" ] && echo "daily     ${daily}"
+            mirror=$(_flagos_index_mirror)
+            [ -n "$mirror" ] && echo "mirror    ${mirror}"
+            return 0
             ;;
         ""|status|help)
             # Show availability + what's active, and make sure the default
@@ -626,12 +693,15 @@ compiler() {
             fi
             ;;
         *)
-            echo "Usage: compiler [flagtree|triton] [version|latest]" >&2
+            echo "Usage: compiler [flagtree|triton|index] [version|latest] [--index-url <url>]" >&2
             echo "  compiler                  show status" >&2
             echo "  compiler flagtree         switch to FlagTree (default)" >&2
             echo "  compiler triton           switch to Triton" >&2
             echo "  compiler flagtree <ver>   install that FlagTree version, then switch to it" >&2
             echo "  compiler flagtree latest  install this backend's newest daily build" >&2
+            echo "  compiler flagtree <ver> --index-url <url>" >&2
+            echo "                            install from that index instead of this image's" >&2
+            echo "  compiler index            print the indexes this image would reach" >&2
             return 1
             ;;
     esac
