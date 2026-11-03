@@ -102,5 +102,5 @@ npu-smi info
 *2026-11-03 10:55:38*
 
 - 首次交付：CANN 9.2.1 —— toolkit、910B ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
-- 携带 python 3.12 而非 3.11。本线所服务的 torch 2.13.0 / torch_npu 2.13.0 在 flagos-pypi-ascend 上只有 cp312 包，而 CANN 的 `set_env.sh` 会把自己的 python 目录放进 PYTHONPATH，因此基础解释器必须与 runtime venv 一致。noble 自带 3.12，故无需 cann9.0.0 线使用的 deadsnakes PPA。
+- 携带 python 3.12 而非 3.11。本线服务 torch 2.13.0 / torch_npu 2.13.0。
 - SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。
