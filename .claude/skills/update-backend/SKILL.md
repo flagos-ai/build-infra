@@ -35,6 +35,35 @@ spec/verify/record steps; only the first two sections differ.
 - F/T verification access on the affected node (see `verify-app-backend` +
   `node-ops` skills).
 
+## 0. Read discipline — an enumeration is not a plan
+
+A scope-narrowed task ("build the base image for X", "only the base this
+round") must not widen by grep. Enumerating the change surface with
+`grep <old-backend-key>` returns an **unordered set**, and a set has no "now"
+coordinate: it mixes the files this round edits with files a later layer's own
+flow fills, and with generated pages nobody may touch. Walking that set in hit
+order is how an agent ends up reading an app status matrix while building a
+base image — a file that changes no decision this round.
+
+Bucket the enumeration first, by **whether this round touches it** (not by
+whether it mentions the key), then read only bucket ①:
+
+1. **this round's edit set** — the only bucket that enters Read;
+2. **filled later** by the layer's own flow or a human (app status matrices, a
+   wheel pin for a wheel not yet built);
+3. **generated** — never hand-edited.
+
+A ②/③ file enters the *list*, not the context. Reading one needs a reason
+that survives "what decision does this change today?".
+
+The flow's numbered steps are the ordered plan; grep only locates. When the
+enumeration crosses into another layer, stop and confirm the scope with the
+user — one question costs less than the reads it prevents. The same holds
+after a context compaction: a pending-task list can contain the agent's own
+earlier enumeration, reworded as a requirement. Check each line against the
+user's words and against this flow's numbered steps; a line matching neither
+is a candidate to drop, not an instruction.
+
 ## Standard flow
 
 ### 1. Classify the change (propagation scope)
@@ -167,7 +196,13 @@ review-gated PR; package version bumps surface there. Don't hand-edit
 
 ## Add a new backend (rare)
 
-Follow `update-backend` for the shared steps, with these additions up front:
+Follow `update-backend` for the shared steps, with these additions up front.
+**The five steps below are the ordered plan — work them in order and let the
+layer decide when the next one opens; do not let a grep of the new key
+re-order them.** Steps 1–3 are what a first delivery needs; 4–5 open only once
+an image exists to declare or a node exists to verify on. Building the base
+image alone authorizes only step 1 plus the configs.yaml/runner/changelog
+edits that §2 requires — nothing from steps 4–5:
 
 1. `base/<vendor>-<backend>` Containerfile (new vendor SDK on Ubuntu 24.04).
 2. configs.yaml `vendors.<vendor>.<backend>` full spec (deps/env/deps_app/
@@ -225,6 +260,11 @@ Follow `update-backend` for the shared steps, with these additions up front:
 
 ## Failure modes / escalate
 
+- **A cross-layer read dressed as prep work** (§0): the enumeration listed a
+  next-layer file and the agent read it "to be ready". If the file's content
+  does not change a decision this round, it is a ②/③ file — list it, don't
+  read it. Same signature after a compaction: a pending item that matches
+  neither the user's words nor this flow's steps.
 - **"Redundant" or "stale" claims without a query first** (rule 4's trap):
   before proposing to delete/merge a config field, run the query that decides
   it (`git tag --contains <sha>`, `git log -S`, grep current tree). A value
