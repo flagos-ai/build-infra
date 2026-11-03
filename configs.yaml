@@ -512,10 +512,14 @@ vendors:
     # triton_ascend 3.6.0 ships as an overlay over upstream triton 3.6.0 (the
     # same shape as 9.0.0's 3.5.0 + 3.2.1 pair). Both are cp312 here.
     #
-    # flagtree is deliberately absent for now: the build sequence is base →
-    # runtime-without-FlagTree → FlagTree builder → FlagTree wheel → refreshed
-    # runtime. FlagTree has no CANN 9.2.x pin yet, and an empty `flagtree:`
-    # leaves triton as the compiler rather than failing the build.
+    # flagtree has no CANN 9.2.x pin of its own, so this line reuses the 3.5
+    # line's published wheel: flagtree 0.7.1a1+ascend3.5 (cp312) is the only
+    # ascend build on flagos-pypi-ascend that matches python 3.12, and it
+    # carries the AscendNPU-IR v1.2.x pin rather than one matched to 9.2.1's
+    # bishengir v2.0.0. Built-and-verified rather than upstream-matched:
+    # the vllm-critical op subset lands at parity with the vendor 3.6 triton
+    # on the same image and with the 9.0.0 line's own flagtree (see
+    # docs/vendors/ascend.md). Revisit when FlagTree grows a 9.2.x pin.
     cann9.2.1:
       extras: ascend-cann921
       hardware: ["Ascend 910B"]
@@ -523,6 +527,7 @@ vendors:
       python: "3.12"
       cmake_backend: NPU
       triton: triton==3.6.0
+      flagtree: flagtree==0.7.1a1+ascend3.5
       triton_post_install:
         - triton_ascend==3.6.0
       deps:
