@@ -104,9 +104,6 @@ npu-smi info
 - First delivery: CANN 9.2.1 — toolkit, the 910B ops package and NNAL — on
   aarch64 ubuntu:24.04.
 - Carries python 3.12 rather than 3.11. The torch 2.13.0 / torch_npu 2.13.0
-  stack this line exists for is cp312-only on flagos-pypi-ascend, and
-  CANN's `set_env.sh` puts its own python tree on PYTHONPATH, so the base
-  interpreter has to equal the runtime venv's. noble ships 3.12, so the
-  deadsnakes PPA the cann9.0.0 line needs is not installed here.
+  stack this line exists for is cp312-only.
 - The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
   time, so nothing has to be sourced inside the container.
