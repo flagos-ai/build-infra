@@ -537,8 +537,9 @@ vendors:
         - torchaudio==2.11.0+cpu
         - numpy==1.26.4
         - cann-shmem==1.6.0
-        # flagcx is not pinned yet: flagos-pypi-ascend carries no CANN 9.2.1
-        # build, so this line waits on the FlagCX builder + wheel step.
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.1+cann9.2.1
       sdk:
         - CANN Toolkit 9.2.1 (aarch64)  # Ascend-cann_9.2.1_linux-aarch64.run
         - CANN 910B Ops 9.2.1 (aarch64) # Ascend-cann-910b-ops_9.2.1_linux-aarch64.run
