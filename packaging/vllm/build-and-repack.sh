@@ -136,6 +136,19 @@ print(toolkit if toolkit else raw)
 ")
 fi
 
+# Outbound access on some runner nodes (the ascend ones) is proxy-only: the
+# runner exports HTTP(S)_PROXY and nothing resolves without them — pip dies on
+# NameResolutionError for both Aliyun and the internal index. Relay whatever the
+# runner has, verbatim, into the steps that reach the network; the verify
+# script relays the same set. no_proxy is passed as-is rather than extended:
+# only the runner knows which endpoints are internal.
+PROXY_ENV_ARGS=()
+for _proxy_var in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY; do
+    if [[ -n "${!_proxy_var:-}" ]]; then
+        PROXY_ENV_ARGS+=(-e "${_proxy_var}")
+    fi
+done
+
 CONTAINER="vllm-build-${VENDOR}-${BACKEND}"
 
 # ── Clean up previous run ───────────────────────────────────────────────
@@ -220,6 +233,7 @@ fi
 docker run -d --name "$CONTAINER" \
     -v "${WORK_DIR}:${WORK_DIR}" \
     ${DOCKER_RUN_FLAGS:-} \
+    "${PROXY_ENV_ARGS[@]}" \
     "$BUILD_IMAGE" sleep infinity
 
 # ── Build + repack ──────────────────────────────────────────────────────

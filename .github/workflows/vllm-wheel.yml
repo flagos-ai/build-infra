@@ -160,8 +160,14 @@ jobs:
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
           img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}"
           echo ">>> uploading $(ls /tmp/vllm-repack-${vendor}-${backend}/output/*.whl | xargs -n1 basename) to ${pypi_repo}"
+          # Same egress rule as the build script: some runners (ascend) are
+          # proxy-only, so pip cannot resolve EXTRA_PYPI and twine cannot reach
+          # the index without the runner's proxy. Bare `-e VAR` relays it only
+          # when set, and leaves it unset otherwise.
           docker run --rm \
             -e NEXUS_TOKEN \
+            -e http_proxy -e https_proxy -e HTTP_PROXY -e HTTPS_PROXY \
+            -e no_proxy -e NO_PROXY \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
             -v "/tmp/vllm-repack-${vendor}-${backend}:/work" \
