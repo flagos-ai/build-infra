@@ -182,6 +182,12 @@ jobs:
       # The repack line's wheel version (e.g. 0.24.0+flagos) is the catalog
       # version, and the filename spells it, so the version column is left
       # empty and read from the file.
+      #
+      # Only vllm's own wheel is a catalog entry. output/ also holds the
+      # repacked indirect deps (xgrammar, compressed-tensors,
+      # opencv-python-headless) — uploaded to the same index, but vllm's private
+      # matched set: vllm's METADATA pins each to its exact +flagos version, so
+      # pip installs them with vllm and nothing addresses them on their own.
       - name: Record the publish event in the manifest
         if: ${{ inputs.upload }}
         run: |
@@ -192,10 +198,9 @@ jobs:
           backend="${matrix_name#*-}"
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
-          for w in /tmp/vllm-repack-${vendor}-${backend}/output/*.whl; do
-            printf '%s\t%s\t%s\t%s\n' "vllm" "" "${pypi_repo}" "$(basename "$w")" \
-              >> .wheel-info/manifest.tsv
-          done
+          w=$(ls /tmp/vllm-repack-${vendor}-${backend}/output/vllm-*.whl)
+          printf '%s\t%s\t%s\t%s\n' "vllm" "" "${pypi_repo}" "$(basename "$w")" \
+            >> .wheel-info/manifest.tsv
 
       - name: Upload the wheel-info manifest
         if: ${{ inputs.upload }}
