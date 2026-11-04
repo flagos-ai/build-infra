@@ -32,6 +32,7 @@ tags:
       flagcx==0.14.1+cann9.2.1，因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把
       libflagcx.so 解析到该包中的副本，而不是 triton/_C 自带的那份。镜像其余内容不变。
     upstream_prs: []
+    date: '2026-11-04T07:42:15.915Z'
   - reason: |-
       - First delivery of this backend's runtime image. It layers the python 3.12
         torch closure — torch 2.13.0+cpu, torch-npu 2.13.0, torchvision 0.28.0
