@@ -736,6 +736,35 @@ wheels:
     arch:
     - linux_x86_64
     - linux_aarch64
+  - version: 0.28.0+flagos
+    pypi_index:
+    - flagos-pypi-amd
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-enflame
+    - flagos-pypi-hygon
+    - flagos-pypi-iluvatar
+    - flagos-pypi-metax
+    - flagos-pypi-nvidia
+    - flagos-pypi-sunrise
+    - flagos-pypi-tsingmicro
+    desc_zh: vLLM 0.28.0 的 FlagOS repack 版推理部署框架安装包。
+    desc_en: FlagOS repack of the vLLM 0.28.0 inference/serving framework.
+    notes: 针对 aarch64 提供 cp311 版本，针对 x86_64 提供 cp310 与 cp312 版本。同一 index 上配套发布的 xgrammar
+      / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes_en: Provides cp311 wheels for aarch64 and cp310/cp312 wheels for x86_64.
+      The matching xgrammar / compressed-tensors / opencv-python-headless published
+      on the same index are installed by vllm's own dependency pins and get no separate
+      entry.
+    python:
+    - cp310
+    - cp311
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+    - linux_aarch64
 - name: vllm-plugin-fl
   short_name: vllm-plugin-FL
   versions:
@@ -1145,6 +1174,7 @@ sources:
   versions:
   - 0.20.2
   - 0.24.0
+  - 0.28.0
   notes: 本站分发的 wheel 由该源码加本地补丁 repack 而成。
   notes_en: The wheels distributed here are repacked from this source with local patches.
 - name: vllm-plugin-fl
