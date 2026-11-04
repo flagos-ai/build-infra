@@ -101,6 +101,13 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-04 14:05:09*
+
+- 重推补上首次构建未能写入的 OCI provenance 标签：
+  `org.opencontainers.image.revision`、`.created` 与 `last-updated`。
+- 镜像内容不变。缺少 revision 标签时，`scripts/base_image_status.py`
+  会把这个后端报成 UNKNOWN，无法判断已推送镜像是否落后于 HEAD。
+
 *2026-11-03 10:55:38*
 
 - 首次交付：CANN 9.2.1 —— toolkit、910B ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。

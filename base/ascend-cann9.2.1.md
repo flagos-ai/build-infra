@@ -79,6 +79,14 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-04 14:05:09*
+
+- Re-push with the OCI provenance labels the first build could not write:
+  `org.opencontainers.image.revision`, `.created` and `last-updated`.
+- Image content is unchanged. Without the revision label,
+  `scripts/base_image_status.py` reports this backend UNKNOWN and cannot
+  answer whether the pushed image is behind HEAD.
+
 *2026-11-03 10:55:38*
 
 - First delivery: CANN 9.2.1 — toolkit, the 910B ops package and NNAL — on
