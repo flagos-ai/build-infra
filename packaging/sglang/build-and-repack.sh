@@ -67,7 +67,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-VENDOR="${VENDOR_BACKEND%-*}"
+# The vendor is the first dash-separated segment, not everything before the
+# last one: a backend key may carry dashes of its own (ascend-cann9.0.0-910c),
+# and `%-*` would turn that one into the vendor "ascend-cann9.0.0" — an image
+# ref that does not exist and a pypi index that is not the backend's. This is
+# the same split the verify scripts and both containerfile call sites use.
+VENDOR="${VENDOR_BACKEND%%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
 
 # ── Paths ───────────────────────────────────────────────────────────────
