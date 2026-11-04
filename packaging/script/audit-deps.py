@@ -45,7 +45,14 @@ Usage:
 
 Exit status: 0 = clean, 1 = a watched package is declared (or a pinned watch
 entry's declared constraint is unsatisfiable).
+
+The audit step runs on the CI runner itself rather than in an image, and the
+ascend runners' `/usr/bin/python3` is 3.7.9, so the floor here is 3.7. The
+``from __future__ import annotations`` below is what keeps the ``list[str]``
+signatures from being evaluated at import.
 """
+
+from __future__ import annotations
 
 import argparse
 import re
@@ -107,10 +114,11 @@ def _version_key(v: str) -> tuple[int, ...]:
     scope; a segment without a leading digit counts as 0.
     """
     v = v.split("+", 1)[0]  # drop local version
-    return tuple(
-        int(m.group(1)) if (m := _DIGIT_RE.match(seg)) else 0
-        for seg in v.split(".")
-    )
+    keys = []
+    for seg in v.split("."):
+        m = _DIGIT_RE.match(seg)
+        keys.append(int(m.group(1)) if m else 0)
+    return tuple(keys)
 
 
 def _pad(t: tuple[int, ...], n: int) -> tuple[int, ...]:
