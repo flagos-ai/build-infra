@@ -36,6 +36,7 @@ tags:
         V1 model runner。
       - 该 wheel 不再声明 `torch` 依赖，安装时不会在 DEPS 阶段拉入第二个 torch。
     upstream_prs: []
+    date: '2026-11-04T11:53:19.657Z'
   - reason: |-
       - First release of this backend's runtime image: python 3.12 with the DTK
         26.10 torch closure (torch 2.13.0, torchvision 0.28.0, torchaudio 2.11.0,
