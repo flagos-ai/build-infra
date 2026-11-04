@@ -78,7 +78,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-VENDOR="${VENDOR_BACKEND%-*}"
+# The vendor is the first dash-separated segment, not everything before the
+# last one: backend keys carry dashes of their own (ascend-cann9.0.0-910c), and
+# `%-*` turns that one into the vendor "ascend-cann9.0.0", i.e. an image ref
+# that does not exist and a pypi index that is not the backend's.
+VENDOR="${VENDOR_BACKEND%%-*}"
 BACKEND="${VENDOR_BACKEND#*-}"
 
 # ── Paths ───────────────────────────────────────────────────────────────
