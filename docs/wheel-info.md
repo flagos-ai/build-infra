@@ -178,8 +178,8 @@
 
 未接入，且属于有意为之：
 
-- `flaggems-wheel`、`flagtree-wheel`、`flagtree-wheel-daily`、`flagtree-builder`
-  四个 workflow 明确不接入。前三个的版本号带日期
+- `flaggems-wheel`、`flaggems-vllm-wheel`、`flagtree-wheel`、`flagtree-wheel-daily`、
+  `flagtree-builder` 五个 workflow 明确不接入。前四个的版本号带日期
   （如 `0.7.1.dev<date>`），与上面 megatron 的情形同构；`flagtree-builder` 只发布
   构建镜像，不出 wheel。
 - `megatron-wheel` 的 provenance 构建（版本号形如 `0.17.1+fl.<date>.g<sha>`）
