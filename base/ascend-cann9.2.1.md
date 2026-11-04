@@ -80,9 +80,7 @@ npu-smi info
 *2026-11-04 14:05:09*
 
 - Re-push with the OCI provenance labels the first build could not write:
-  `org.opencontainers.image.revision`, `.created` and `last-updated`. The
-  `cann921` runner had no git in `PATH`, so the build stamped no commit
-  and no timestamp.
+  `org.opencontainers.image.revision`, `.created` and `last-updated`.
 - Image content is unchanged. Without the revision label,
   `scripts/base_image_status.py` reports this backend UNKNOWN and cannot
   answer whether the pushed image is behind HEAD.
