@@ -22,7 +22,7 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
 | Chip variants | No wheel variant per chip (910B/910C) — the chip is not a build input |
 | Version label | PEP 440 local version label, derived from the backend key minus its `{vendor}-` prefix |
 | Install contract | Exact pin only (`==`). A `>=` range is satisfied by every variant |
-| Upload target | `flagos-pypi-{vendor}` (`configs.yaml:124`) — index per vendor, artifacts per backend |
+| Upload target | `flagos-pypi-{vendor}` (`configs.yaml:148`) — index per vendor, artifacts per backend |
 
 ## Why one wheel per backend
 
@@ -37,9 +37,9 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
   `Ascend-cann-toolkit_…`. Both state which environment the build runs in, not what it does.)
 - **The deb line declines the same gamble.** Every multi-backend vendor except ascend has exactly
   one `default_for_vendor: true` variant; ascend has none. That flag is what makes a variant answer
-  to the unqualified `Provides: libflagcx-<vendor>` (`flagcx-config.py:195`), so no ascend package
+  to the unqualified `Provides: libflagcx-<vendor>` (`flagcx-config.py:484`), so no ascend package
   claims to stand in for another.
-- What deb can do and a wheel cannot: deb ships five ascend packages because each installs into a
+- What deb can do and a wheel cannot: deb ships four ascend packages because each installs into a
   per-SDK image, which resolves the SDK axis at install time. A wheel has no equivalent exit — see
   Install contract below.
 
@@ -343,11 +343,11 @@ the build would otherwise run where there is no clang and fail one stage later, 
   unaffected, because the flags are what the verify script would have used anyway.
 - **Version label** `0.13.0+cann9.0.0`, derived from the backend key the way `_build_config.py`
   derives its adaptor flag from `ADAPTOR_MAP` — never hand-written. Dropping the `{vendor}-` prefix
-  was checked against all 20 backends: no two vendors collide on the remainder, so the label stays
+  was checked against all 23 backends: no two vendors collide on the remainder, so the label stays
   unambiguous even if wheels are gathered into one wheelhouse or handed to a customer.
 - **The pin belongs in per-backend config, not in operator memory** — the shape `configs.yaml`
-  already uses for `flaggems:` (read at `scripts/build_runtime.py:302`, recorded as the OCI label
-  `flagos.flaggems` at `:333`). Recording it as a label is what makes "which backend is installed
+  already uses for `flaggems:` (read at `scripts/build_runtime.py:300`, recorded as the OCI label
+  `flagos.flaggems` at `:326`). Recording it as a label is what makes "which backend is installed
   here" queryable after the fact.
 - **A `--check` gate** in the style of `flagcx-config.py --check`: a version label without its backend
   suffix fails the build, rather than producing a wheel that silently overwrites its predecessor.
@@ -398,11 +398,11 @@ The megatron wheel line takes the other stance — `stamp_version.py` writes
 
 **Resolved 2026-09-22: both stances, chosen by the ref.** `flagcx-wheel.yml` takes the ref per
 dispatch, and setuptools_scm turns it into the version — so a release tag produces
-`<the tag's version>+<row label>` (which is why the label is what tells twenty vendor wheels of one
-commit apart), and a branch produces a `.dev<distance>` build. The version is then never typed for a
-tag build: set-matrix derives each row's pin from the tag and that row's label, so one dispatch can
-publish twenty rows. Publishing a branch build still needs `wheel_version`, because the distance is
-something only the build knows.
+`<the tag's version>+<row label>` (which is why the label is what tells twenty-three vendor wheels of
+one commit apart), and a branch produces a `.dev<distance>` build. The version is then never typed
+for a tag build: set-matrix derives each row's pin from the tag and that row's label, so one
+dispatch can publish twenty-three rows. Publishing a branch build still needs `wheel_version`,
+because the distance is something only the build knows.
 
 **Bitcode follows the ref, not the row.** `backends.yaml` states `bitcode_arch` as a fact of the row,
 but whether a given ref has the row's `bindings/ir` Makefile is a fact of the ref — iluvatar's landed
