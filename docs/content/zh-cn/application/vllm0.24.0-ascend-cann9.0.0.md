@@ -63,6 +63,7 @@ IMG=harbor.baai.ac.cn/flagos-app/vllm0.24.0-ascend-cann9.0.0:2.3.0-0.3.0
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -72,6 +73,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
@@ -81,6 +83,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG vllm-serve --model <path> --port 9000
 ```
@@ -91,6 +94,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \
@@ -106,6 +110,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \
@@ -121,6 +126,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \

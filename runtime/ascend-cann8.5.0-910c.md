@@ -49,6 +49,7 @@ Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems re
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann8.5.0-910c:2.3.0 bash
 ```
@@ -57,6 +58,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \
