@@ -10,7 +10,7 @@ for**, instead of the two it ships today.
 
 ## Context
 
-build-infra builds base + runtime images for **20 backends across 11 vendors**, and FlagCX
+build-infra builds base + runtime images for **23 backends across 12 vendors**, and FlagCX
 has a working `makefiles/<backend>.mk` plus a `USE_*_ADAPTOR`-guarded CCL adaptor for
 essentially every one of them. What FlagCX ships today is installable packages for exactly
 **two**: `nvidia` and `metax`, via a hand-enumerated flow (a `Package:` stanza per vendor,
@@ -30,7 +30,7 @@ top. Only the deb format is in scope; RPM is deferred and the FlagCX repo's own
 | Question | Decision |
 |---|---|
 | Home | `build-infra/packaging/flagcx/` — self-contained, zero FlagCX changes |
-| Scope | All 20 buildable backends, including `nvidia` and `metax` |
+| Scope | All 23 buildable backends, including `nvidia` and `metax` |
 | Format | **deb only this round.** RPM deferred and untouched |
 | Build environment | build-infra **base** images (runtime `/ -build` images only if a base proves insufficient) |
 | Existing FlagCX deb flow | Superseded by this path. Retiring `build-deb.yml` / `upload-nexus.yml` is a **later, separate FlagCX PR** — both producers coexist harmlessly because this path publishes only on an explicit `publish` dispatch, and to a repo of its own |
@@ -214,8 +214,8 @@ github.com proves unreachable from the runners — the same escape hatch `packag
 ### 5. `debian/` overlay
 
 **`control.in`** — one binary-package stanza per package, rendered per backend, carrying
-`Architecture:` (arm64 for the 4 Ascend CANN backends, amd64 for the other 16),
-`Depends: libc6 (>= <floor>)` (glibc 2.39 for the 16 Ubuntu 24.04 bases, 2.35 for the 4
+`Architecture:` (arm64 for the 4 Ascend CANN backends, amd64 for the other 15),
+`Depends: libc6 (>= <floor>)` (glibc 2.39 for the 16 Ubuntu 24.04 bases, 2.35 for the 3
 Ubuntu 22.04 ones), and provenance fields `X-FlagCX-Build-Image` / `X-FlagCX-Backend` /
 `X-FlagCX-Build-Infra-Version`.
 
@@ -306,11 +306,16 @@ Makefile has no `-soname` flag and stays untouched.
 
 ### 6. Backend triage
 
-**20 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
-du ×1, iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1, kunlunxin ×1): their `makefiles/*.mk`
+**19 backends ready** (nvidia ×2, metax ×2, cambricon ×2, enflame ×2, ascend ×4,
+du ×1, iluvatar_corex ×2, musa ×2, sunrise ×1, tsm ×1): their `makefiles/*.mk`
 defaults and the base-image SDK layout agree. Every probe that was owed is
 answered in `backends.yaml` as `assert` + `vendor_lib_dirs`, which is where the answer stays
 actionable — the note below only names what cannot be delivered.
+
+Four rows are registered with `deb:` off and produce no package: `kunlunxin-xre5.37.1` (below),
+and `ascend-cann9.2.1`, `hygon-dtk26.10`, `amd-rocm7.2.4`, which joined the roster for their
+runtime and wheel lines and still owe this channel its probe. The wheel channel has no such tail —
+all 23 rows carry it.
 
 **`kunlunxin-xre5.37.1` is delivered through the wheel channel only**, and its `deb:` stays
 `enabled: false`. This section used to record it as undeliverable from its base image, on two
@@ -390,7 +395,7 @@ PR to another repo is opened.
 1. `nvidia.mk` / `nvidia_gencode.mk` fail **silently** on a missing header or compiler rather
    than erroring. Mitigation: the registry `assert` list, run before the build, and a negative
    test that proves it fires.
-2. `apt-get install` of the deb toolchain must reach a working mirror in 20 different base
+2. `apt-get install` of the deb toolchain must reach a working mirror in 19 different base
    images, some of which are air-gapped vendor SDK images. Each image already does
    `apt-get install` at build time, so this should hold — but it is unverified for the
    `-910c`/vendor-only images and is the likeliest first failure.

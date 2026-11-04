@@ -94,8 +94,10 @@ before pushing. Nothing goes stale the way the runtime-based builder did — a s
 records no runtime digest — and the glibc floor the wheel carries is asserted at the artifact, by
 the `.so` gate in `wheel-build-in-container.sh`, not remembered here as an image digest.
 
-The three rows are built, verified and published; the nvidia acceptance test was run on h20
-against `21f8b5f`, the hygon one on hygon25:
+All nineteen builder-enabled rows are built, verified and published: the two nvidia rows, whose
+acceptance test is the bitcode compile, and seventeen vendor rows, whose acceptance test is the
+torch/SDK probe. Three carry a dated measurement — the nvidia pair drawn from a run on h20 against
+`21f8b5f`, the hygon one from its own node:
 
 | Row | At | Acceptance |
 |---|---|---|
@@ -107,11 +109,18 @@ The two sizes are the band's calibration as well as the record: the CCL branch p
 `nccl_device`'s device-side implementation, which is what separates them by a factor of seven, and
 the numbers do not move with the compiler.
 
+Every other vendor row's probe is the same shape as hygon's: `import torch` against the SDK the
+image carries, plus the row's bridge where the bridge does not open the device at import. Where it
+does — sunrise's `torch-ptpu`, tsingmicro's `torch_txda` — the probe dlopens instead: the two
+sonames FlagCX's own link names (`libpccl` + `libtangrt_shared`, `libhpgr` + `libtccl`), or, on
+tsingmicro, the `txops` binding import, which does not probe. `verify-flagcx-builder.sh`'s header
+states the case for each.
+
 ## Wheels
 
-One wheel per backend, built in the backend's runtime image — or, on a row that publishes a builder
-image, in that image instead (the nvidia rows, which have no clang; hygon, whose wheel needs the
-22.04 floor).
+One wheel per backend, built in the backend's runtime image — or in the row's builder image where it
+publishes one, which is every row whose runtime carries no toolchain or whose wheel needs the 22.04
+floor.
 
 ```bash
 packaging/flagcx/build-flagcx-wheel.sh --list
@@ -144,64 +153,59 @@ measurement. A consumer that wants only the bitcode can locate the package with
 
 ### State
 
-Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty rows carry it —
-so the two columns here are what has actually run, and they answer different questions. **Built +
-verified** is the wheel installed from the file alone into a container of the row's runtime image,
+Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty-three rows carry
+it — so the two columns here are what has actually run, and they answer different questions. **Built
++ verified** is the wheel installed from the file alone into a container of the row's runtime image,
 on the row's own node, by the CI verify job unless the entry says otherwise. **Published** is the
 pin the vendor index serves, which is the only column a user's `pip install` can see.
 
+Every published pin is a build off the release tag `v0.14.1` — the version string carries no
+`.dev<distance>`, which is what says the build sat on the tag itself.
+
 | Row | Built + verified | Published |
 |---|---|---|
-| `ascend-cann8.5.0` | 2026-10-19 | `0.14.0+cann8.5.0` |
-| `ascend-cann8.5.0-910c` | 2026-10-19 | `0.14.0+cann8.5.0.910c` |
-| `ascend-cann9.0.0` | 2026-10-19 | `0.14.0+cann9.0.0` |
-| `ascend-cann9.0.0-910c` | 2026-10-19 | `0.14.0+cann9.0.0.910c` |
-| `cambricon-neuware4.4.3` | 2026-10-09 | `0.14.0+neuware4.4.3` |
-| `cambricon-neuware4.7.2` | 2026-10-17 | `0.14.0+neuware4.7.2` |
-| `enflame-tops1.9.10` | 2026-10-18 | `0.14.0+tops1.9.10` |
-| `enflame-tops1.10.6` | 2026-10-18 | `0.14.0+tops1.10.6` |
-| `hygon-dtk26.04` | 2026-10-17 | `0.14.0+dtk2604` |
-| `iluvatar-corex4.4.0` | 2026-10-18 | `0.14.0+corex4.4.0` |
-| `iluvatar-corex4.5.0` | 2026-10-18 | `0.14.0+corex4.5.0` |
-| `kunlunxin-xre5.37.1` | 2026-10-09 | `0.14.0+xre5.37.1` |
-| `metax-maca3.7.2.1` | 2026-10-18 | `0.14.0+maca3.7.2.1` |
-| `metax-maca3.8.1.3` | 2026-10-18 | `0.14.0+maca3.8.1.3` |
-| `mthreads-musa4.3.6` | 2026-10-09 | `0.14.0+musa4.3.6` |
-| `mthreads-musa5.2.0` | 2026-10-09 | `0.14.0+musa5.2.0` |
-| `nvidia-cuda12.8` | 2026-10-17 | `0.14.0+cuda12.8` |
-| `nvidia-cuda13.3` | 2026-10-17 | `0.14.0+cuda13.3` |
-| `sunrise-tangrt1.2.0` | 2026-10-19 | `0.14.0+tangrt1.2.0` |
-| `tsingmicro-tsm260610` | 2026-10-20 | `0.14.0+tsm260610` |
+| `amd-rocm7.2.4` | 2026-11-02 | `0.14.1+rocm7.2.4` |
+| `ascend-cann8.5.0` | 2026-10-28 | `0.14.1+cann8.5.0` |
+| `ascend-cann8.5.0-910c` | 2026-10-28 | `0.14.1+cann8.5.0.910c` |
+| `ascend-cann9.0.0` | 2026-11-04 | `0.14.1+cann9.0.0` |
+| `ascend-cann9.0.0-910c` | 2026-10-28 | `0.14.1+cann9.0.0.910c` |
+| `ascend-cann9.2.1` | 2026-11-04 | `0.14.1+cann9.2.1` |
+| `cambricon-neuware4.4.3` | 2026-10-28 | `0.14.1+neuware4.4.3` |
+| `cambricon-neuware4.7.2` | 2026-10-28 | `0.14.1+neuware4.7.2` |
+| `enflame-tops1.9.10` | 2026-10-28 | `0.14.1+tops1.9.10` |
+| `enflame-tops1.10.6` | 2026-10-28 | `0.14.1+tops1.10.6` |
+| `hygon-dtk26.04` | 2026-10-28 | `0.14.1+dtk2604` |
+| `hygon-dtk26.10` | 2026-11-01 | `0.14.1+dtk2610` |
+| `iluvatar-corex4.4.0` | 2026-10-29 | `0.14.1+corex4.4.0` |
+| `iluvatar-corex4.5.0` | 2026-10-29 | `0.14.1+corex4.5.0` |
+| `kunlunxin-xre5.37.1` | 2026-10-29 | `0.14.1+xre5.37.1` |
+| `metax-maca3.7.2.1` | 2026-10-28 | `0.14.1+maca3.7.2.1` |
+| `metax-maca3.8.1.3` | 2026-10-28 | `0.14.1+maca3.8.1.3` |
+| `mthreads-musa4.3.6` | 2026-10-28 | `0.14.1+musa4.3.6` |
+| `mthreads-musa5.2.0` | 2026-10-28 | `0.14.1+musa5.2.0` |
+| `nvidia-cuda12.8` | 2026-10-29 | `0.14.1+cuda12.8` |
+| `nvidia-cuda13.3` | 2026-10-29 | `0.14.1+cuda13.3` |
+| `sunrise-tangrt1.2.0` | 2026-10-28 | `0.14.1+tangrt1.2.0` |
+| `tsingmicro-tsm260610` | 2026-10-28 | `0.14.1+tsm260610` |
 
-Every published pin is a build off the release tag `v0.14.0`, so the pins differ only in the row
-label, and the pin is what tells two vendors' builds of one commit apart. All twenty rows were
-built, verified and published off that tag; eighteen of them in a single dispatch on 2026-10-09,
-and the two remaining ascend rows (`cann8.5.0`, `cann9.0.0`) finished on 2026-10-10 after the
-publish-only failures on their nodes (the docker `~/.docker/config.json` proxies stale `noProxy`
-left tencent/PyPI on the proxy path, which answered CONNECT 500; removing the proxies entry let
-those nodes reach the tencent mirror directly). The two nvidia pins were re-published on
-2026-10-17 after the wheel moved onto the self-contained 22.04 builder (PR #1372, and the bundle
-smoke flip back to 22.04 in PR #1376) — same pins, now 22.04-clean — which is why their date
-differs from the original dispatch. hygon's pin was re-published on 2026-10-17 after
-its wheel moved onto the 22.04 builder (PR #1380) — same pin, now 22.04-clean — which is why its
-date differs from the other nineteen. cambricon-neuware4.7.2's pin was re-published the same way
-on 2026-10-17, off its own 22.04 builder (PR #1389) — same pin, now 22.04-clean. The two metax pins
-were re-published on 2026-10-18 off the shared metax 22.04 builder (PR #1394) — same pins, now
-22.04-clean. The two enflame pins were re-published the same way on 2026-10-18, off the shared
-enflame 22.04 builder (PR #1398) — same pins, now 22.04-clean (max GLIBC_2.34, no forbidden
-symbols). The two iluvatar pins were re-published the same way, off the shared iluvatar 22.04
-builder, on the same day — same pins, now 22.04-clean. The four ascend pins were re-published the
-same way on 2026-10-19, off the shared `Containerfile.builder-vendor-ascend` 22.04 builder — same
-pins, now 22.04-clean (max GLIBC_2.34, no forbidden symbols); 910b and 910c of one CANN version
-still build the same wheel bytes, only the label differs. The sunrise pin was re-published the same
-way on 2026-10-19, off its own `Containerfile.builder-vendor-sunrise` 22.04 builder (PR #1418) —
-same pin, now 22.04-clean (`_C*.so` max GLIBC_2.32, `libflagcx.so` GLIBC_2.34, no forbidden
-symbols); its SDK-floor proof is a dlopen of libpccl/libtangrt_shared rather than the bridge import,
-because torch-ptpu probes the device in a constructor and aborts device-less. The tsingmicro pin was
-re-published the same way on 2026-10-20, off its own `Containerfile.builder-vendor-tsm` 22.04 builder
-(PR #1422) — same pin, now 22.04-clean (`_C*.so` max GLIBC_2.32, `libflagcx.so` GLIBC_2.34, no
-forbidden symbols); its SDK-floor proof is `import txops` plus a dlopen of libhpgr/libtccl rather
-than `import torch_txda`, whose TXDAHooks constructor probes the device and aborts device-less. The release re-publish builds with
+Column 2 is the date the wheel was last built and verified on its node. Most rows carry 2026-10-28,
+the dispatch that took the 0.14.1 generation across the roster; a handful finished in later
+dispatches, because their row entered the roster later or their job failed in its own line first.
+The version column is what says which build a pin is — a date never does.
+
+Two things the table does not show. `ascend-cann9.2.1` is the ascend family's only `cp312` wheel —
+the other four are `cp311`, because 9.2.1 is the first runtime image on python 3.12 — so no
+sibling's wheel can stand in for it. And the three rows that joined the roster after `v0.14.0` was
+tagged (`ascend-cann9.2.1`, `hygon-dtk26.10`, `amd-rocm7.2.4`) have no 0.14.0 build at all; every
+other row still serves its own, so an older pin remains installable.
+
+Every wheel here is 22.04-clean in the two objects that carry the linkage —
+`flagcx/lib/libflagcx.so` and `_C*.so` link at most GLIBC 2.35 and none of `GLIBCXX_3.4.31/32` or
+`__isoc23_*`. That is not incidental: it is what the builder channel exists for, and the `.so` gate
+in `wheel-build-in-container.sh` fails the build rather than let a wheel link past it. Four rows
+reach the floor with no builder of their own (`cambricon-neuware4.4.3`, `kunlunxin-xre5.37.1` and the
+two musa rows) because their base images are 22.04 to begin with.
+
 `bitcode=false`: iluvatar's `bindings/ir` Makefile (FlagCX #668) is not in the `v0.14.0` tag, so a
 release wheel carries no `libflagcx_device.bc`; the bitcode ships in the daily dev-pin build off
 `main`, which is what the `bitcode` input defaults to `true` for (see `--no-bitcode` in
