@@ -27,15 +27,19 @@ deb has per-package names, `Provides:`, and apt's repo/suite; pip has none of th
 ## Why one wheel per backend
 
 - **The build cannot tell same-vendor backends apart, and that is not evidence that they agree.**
-  Every build-side field is identical across a vendor's backends: ascend's four rows differ in
+  Every build-side field is identical across a vendor's backends: ascend's five rows differ in
   nothing at all (`make_flag`, `make_env`, `vendor_libs`, `assert`, `arch`, `glibc_floor`), and the
   other multi-backend vendors differ only in `deb`/`apt`/`glibc_floor`, which no build reads.
   Identical fields mean FlagCX has no knob for the difference — "cannot see it", not "the same".
+  (The five ascend rows *are* told apart, by the builder image they build in rather than by any
+  FlagCX input: 9.2.1 is the first with a different python — 3.12, the runtime image's own, so the
+  wheel tag separates it — and the first whose toolkit arrives as `Ascend-cann_…` instead of
+  `Ascend-cann-toolkit_…`. Both state which environment the build runs in, not what it does.)
 - **The deb line declines the same gamble.** Every multi-backend vendor except ascend has exactly
   one `default_for_vendor: true` variant; ascend has none. That flag is what makes a variant answer
   to the unqualified `Provides: libflagcx-<vendor>` (`flagcx-config.py:195`), so no ascend package
   claims to stand in for another.
-- What deb can do and a wheel cannot: deb ships four ascend packages because each installs into a
+- What deb can do and a wheel cannot: deb ships five ascend packages because each installs into a
   per-SDK image, which resolves the SDK axis at install time. A wheel has no equivalent exit — see
   Install contract below.
 
@@ -89,14 +93,19 @@ step would add), so its verification is the torch import (see
 `verify-flagcx-builder.sh`) rather than the `make` the nvidia rows run. ascend is the same shape on
 arm64: its vendor torch is `torch==<ver>+cpu` plus the `torch-npu` bridge, so `import torch` is
 pure-CPU and the SDK-floor proof is `import torch_npu`, which dlopens the CANN toolkit libs. One
-recipe (`Containerfile.builder-vendor-ascend`) serves all four rows because flagcx links only
+recipe (`Containerfile.builder-vendor-ascend`) serves all five rows because flagcx links only
 `-ltorch_npu -lascendcl -lhccl`. The toolkit alone does not ship those link-time presences —
 `libhccl.so` and the canonical `<hccl/hccl.h>` come in the chip ops package, which also wires the
 arch-rooted `lib64/devlib/include` links — so the recipe installs toolkit **plus** the ops package
 (no nnal/ATB: the import never reaches it), and the 910b/910c split reaches the builder as the ops
 installer's chip token (`builder.ops_product`, 910b vs A3). Two rows of one CANN version still
-build the same wheel bytes, since the wheel links the sonames only, never the ops binaries. Only
-`sdk_version` and `ops_product` differ across rows (they name the two installers). sunrise is the same
+build the same wheel bytes, since the wheel links the sonames only, never the ops binaries. Four
+inputs differ across rows: `sdk_version`, `toolkit_product` and `ops_product`, which together spell
+the two installer filenames — the toolkit's own name changed (`Ascend-cann-toolkit_<ver>_…run` on
+8.5.0, `Ascend-cann_<ver>_…run` from 9.0.0 with the toolkit inside and no separate `-toolkit` file),
+so that token is stated per row like the chip token is — and `python_version`, the row's own:
+3.11 through 9.0.0, 3.12 on 9.2.1, because the wheel is a `cp3X` extension and the tag has to
+match the runtime image it is delivered to. sunrise is the same
 shape back on amd64, python 3.10 from jammy itself, torch `2.11.0+cpu` plus the `torch-ptpu` bridge:
 its SDK (TangRT/PCCL/taDNN/taBLAS, four installers) and torch are all already 22.04-clean, so the
 builder is the enflame shape — toolchain floor only, no reglib work. The one thing that differs is

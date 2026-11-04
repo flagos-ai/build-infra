@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# FlagCX build-toolchain image for the four ascend rows' wheels: the vendor-SDK
+# FlagCX build-toolchain image for the five ascend rows' wheels: the vendor-SDK
 # twin of Containerfile.builder, self-contained on ubuntu:22.04 so the wheel's
 # glibc floor is 2.35 and it installs on the bundle's physical 22.04 hosts. No
 # clang/bitcode/NCCL — ascend.mk compiles nothing device-side and links only
@@ -30,13 +30,24 @@
 # specific (910b vs A3), so OPS_PRODUCT is a per-row input. The wheel bytes it
 # builds still come out identical for two rows of one CANN version — the wheel
 # links the sonames only, not the ops binaries — so the recipe stays shared and
-# the per-row inputs are just SDK_VERSION and OPS_PRODUCT.
+# the per-row inputs are SDK_VERSION, TOOLKIT_PRODUCT, OPS_PRODUCT and
+# PYTHON_VERSION.
+#
+# TOOLKIT_PRODUCT is stated rather than derived for the same reason OPS_PRODUCT
+# is: CANN renamed the toolkit bundle between the versions this family spans.
+# 8.5.0 ships `Ascend-cann-toolkit_<ver>_…run`; from 9.0.0 the toolkit also
+# arrives inside `Ascend-cann_<ver>_…run`; and by 9.2.1 the `-toolkit` spelling
+# is gone (that file 404s), so the token between `Ascend-` and the version is the
+# rename itself. PYTHON_VERSION is per-row because the wheel is a cp3X extension
+# and has to match the interpreter the row's runtime image runs: 3.11 through
+# 9.0.0, 3.12 from 9.2.1. Both come from deadsnakes on jammy.
 
 FROM ubuntu:22.04
 
 # After FROM: a pre-FROM ARG is not in scope for the RUNs below.
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/ascend
 ARG SDK_VERSION
+ARG TOOLKIT_PRODUCT
 ARG OPS_PRODUCT
 ARG BUILDER_ASSERT
 ARG TORCH_PIN
@@ -55,8 +66,9 @@ ARG https_proxy=
 # The node's own value, not a second copy here that could silently win.
 ARG no_proxy=
 
-# python 3.11 via deadsnakes on jammy (jammy's own is the 3.11.0~rc1 snapshot,
-# which predates the final ABI the torch cp311 wheels were built against).
+# python from deadsnakes on jammy, at the row's own minor version (jammy's own
+# is the 3.11.0~rc1 snapshot, which predates the final ABI the torch cp3X wheels
+# were built against, and the 9.2.1 row is 3.12 anyway).
 # libgflags/libgoogle-glog are the build-only headers torch's c10/util headers
 # reach; the manylinux_2_28 torch wheel needs the numa/gomp/gfortran/elf
 # runtime libs its auditwheel baseline assumes.
@@ -72,16 +84,19 @@ RUN set -eux; \
          > /etc/apt/sources.list.d/deadsnakes.list; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        python3.11 python3.11-venv python3.11-dev \
+        "python${PYTHON_VERSION}" "python${PYTHON_VERSION}-venv" \
+        "python${PYTHON_VERSION}-dev" \
         libgflags-dev libgoogle-glog-dev \
         libnuma1 libgomp1 libgfortran5 libelf1; \
     rm -rf /var/lib/apt/lists/*
 
-# The CANN toolkit, one installer per row (SDK_VERSION names it). The toolkit
-# alone does not ship hccl: the next step installs the chip ops package, which
-# is what provides libhccl.so, the canonical <hccl/hccl.h> and the
-# arch-rooted lib64/devlib/include links — exactly as base/<key> depends on it.
-ENV CANN_PACKAGE="Ascend-cann-toolkit_${SDK_VERSION}_linux-aarch64.run"
+# The CANN toolkit, one installer per row. The filename's middle token is the
+# row's toolkit_product (8.5.0: cann-toolkit; 9.2.1: cann, the bundle that ships
+# the toolkit inside it). The toolkit alone does not ship hccl: the next step
+# installs the chip ops package, which is what provides libhccl.so, the
+# canonical <hccl/hccl.h> and the arch-rooted lib64/devlib/include links —
+# exactly as base/<key> depends on it.
+ENV CANN_PACKAGE="Ascend-${TOOLKIT_PRODUCT}_${SDK_VERSION}_linux-aarch64.run"
 RUN set -eux; \
     curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
         -o /cann.run "${FILE_STORE}/${CANN_PACKAGE}"; \
@@ -135,14 +150,14 @@ RUN env | LC_ALL=C sort > /tmp/_v_before && \
 # +cpu resolves there while their own deps resolve on the mirror. torch-npu
 # pins torch exactly (Requires-Dist: torch==<ver>), and PEP 440's == ignores the
 # local part, so torch==<ver>+cpu satisfies it — the same joint install the
-# runtime's deps list makes. cann-shmem rides along only on the 9.0.0 rows,
-# where it is non-empty (the 8.5.0 deps list has no cann-shmem token).
+# runtime's deps list makes. cann-shmem rides along only where the row's deps
+# list carries it (9.0.0 and 9.2.1; the 8.5.0 rows have no such token).
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 RUN set -eux; \
-    python3.11 -m ensurepip --upgrade; \
-    python3.11 -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
-    python3.11 -m venv /flagos; \
+    "python${PYTHON_VERSION}" -m ensurepip --upgrade; \
+    "python${PYTHON_VERSION}" -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
+    "python${PYTHON_VERSION}" -m venv /flagos; \
     /flagos/bin/pip install --no-cache-dir --upgrade pip; \
     /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
         ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \

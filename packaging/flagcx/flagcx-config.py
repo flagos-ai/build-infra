@@ -127,6 +127,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_torch_gcu", "builder_torch_npu", "builder_cannshmem",
     "builder_torch_ptpu", "builder_torch_txda", "builder_txops",
     "builder_sdk_version", "builder_aten_version", "builder_ops_product",
+    "builder_toolkit_product",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
@@ -632,6 +633,14 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # per-row input. Stated, not derived: A3 is not in the key.
             entry["builder_ops_product"] = (spec.get("builder") or {}).get(
                 "ops_product"
+            ) or ""
+            # CANN renamed the toolkit bundle between 8.5.0 and 9.x — the file
+            # is `Ascend-cann-toolkit_<ver>_…run` on 8.5.0 and `Ascend-cann_<ver>_…run`
+            # (toolkit inside it) from 9.0.0 — so the token between `Ascend-` and
+            # the version is a per-row input for exactly the reason ops_product
+            # is: deriving it from the version would restate the rename here.
+            entry["builder_toolkit_product"] = (spec.get("builder") or {}).get(
+                "toolkit_product"
             ) or ""
             # Not under `builder:` in the registry: nothing in the image depends
             # on either, so a block that also holds what the image installs would

@@ -214,6 +214,7 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "BUILDER_EXTRA_APT=$BUILDER_EXTRA_APT" \
             --build-arg "SDK_VERSION=$BUILDER_SDK_VERSION" \
             --build-arg "ATEN_VERSION=$BUILDER_ATEN_VERSION" \
+            --build-arg "TOOLKIT_PRODUCT=$BUILDER_TOOLKIT_PRODUCT" \
             --build-arg "OPS_PRODUCT=$BUILDER_OPS_PRODUCT" \
             --build-arg "BUILDER_ASSERT=$BUILDER_ASSERT" \
             --build-arg "TORCH_PIN=$BUILDER_TORCH" \
