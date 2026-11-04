@@ -61,6 +61,7 @@ title: "hygon-dtk26.10"
 
 - Hygon DTK 26.10
 - Hygon DTK LLVM
+- Hygon DTK AICC LLVM
 
 ## 启动
 
@@ -93,7 +94,7 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-10-31 13:41:54 · `115dccef47d6`*
+*更新时间: 2026-11-04 19:09:38 · `3df7685aaa0d`*
 
 ## 更新日志
 

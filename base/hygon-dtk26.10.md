@@ -39,6 +39,7 @@ Explicitly installed; the version is the one baked into this image:
 
 - Hygon DTK 26.10
 - Hygon DTK LLVM
+- Hygon DTK AICC LLVM
 
 ## Launch
 
@@ -71,7 +72,7 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-10-31 13:41:54 · `115dccef47d6`*
+*Last updated: 2026-11-04 19:09:38 · `3df7685aaa0d`*
 
 ## Changelog
 
