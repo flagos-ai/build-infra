@@ -22,6 +22,21 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Vendor triton moves to `3.7.0+dtk2610.torch2120.2611032029.g56f888`: its
+        `nvidia` driver no longer claims the device, so `hcu` is the only active
+        driver and Triton is no longer disabled at startup. Under the previous
+        `torch2130` build both `amd`/`nvidia` probing and the DTK CUDA stub left
+        two drivers active, so every serve fell back to the V1 model runner.
+      - The wheel declares no `torch` requirement, so it installs without
+        dragging a second torch into the DEPS step.
+    reason_zh: |-
+      - vendor triton 升级到 `3.7.0+dtk2610.torch2120.2611032029.g56f888`：其 `nvidia`
+        驱动不再抢占设备，只有 `hcu` 处于 active，启动时 Triton 不再被整体禁用。此前的
+        `torch2130` 版本下 DTK 的 CUDA stub 使两个驱动同时 active，每次 serve 都退回
+        V1 model runner。
+      - 该 wheel 不再声明 `torch` 依赖，安装时不会在 DEPS 阶段拉入第二个 torch。
+    upstream_prs: []
+  - reason: |-
       - First release of this backend's runtime image: python 3.12 with the DTK
         26.10 torch closure (torch 2.13.0, torchvision 0.28.0, torchaudio 2.11.0,
         apex 1.7.0, flash_attn 2.8.4, numpy 1.26.4), FlagTree 0.7.0+hcu3.6 and

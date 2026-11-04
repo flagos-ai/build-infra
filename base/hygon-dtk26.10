@@ -25,7 +25,11 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ARG SDK_PACKAGE=DTK-26.10-Ubuntu24.04-x86_64.tar.gz
+# Two aillvm packages, both required; see the LLVM section below for why.
 ARG LLVM_PACKAGE=dtk_llvm.run
+ARG LLVM_PACKAGE_SHA256=f4a42b7fdb2586a9b8b3ceb87dee86ba9f705e5dd2ff2b5cdc60340e986276a8
+ARG AICC_PACKAGE=dtk_llvm_aicc-2.0.0+dtk2610.2611032005.ge358cd-x86_64.run
+ARG AICC_PACKAGE_SHA256=2eca83675ce0c17a185628a54608c213c7e1954e5b660435e7b8ca42b0d6d11b
 # ROCm-aware Open MPI built for this line; see the MPI section below.
 ARG OPENMPI_DEB=openmpi-rocm_5.0.8-1_jammy_amd64.deb
 ARG OPENMPI_DEB_SHA256=0ec0cbcd951db8df25208d93cd99135019acb15877dec6c5b6e8910e1d97db82
@@ -59,10 +63,31 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /dtk.tar.gz ${FILE_STOR
     && ln -sf /opt/dtk-26.10 /opt/dtk \
     && rm /dtk.tar.gz
 
-# ── Install LLVM DTK ───────────────────────────────────────────
+# ── Install LLVM DTK (two packages, both required) ────────────
+# The two are layered, not alternatives. dtk_llvm.run carries aillvm as clang-18
+# only; the aicc package installs a whole second aillvm (clang-22, LLVM 22.0.0,
+# i64 numRecords in make.buffer.rsrc) over the same directory and keeps the
+# clang-18 the first one left behind.
+#
+# Both are needed because the two compiler paths refuse opposite halves:
+#   - FlagTree's bundled libtriton emits IR only clang-18 parses, so the F path
+#     needs clang-18 to exist (the vendor triton 3.7.0 flags/IR need clang-22).
+#   - DTK's aillvm ships no HCU MLIR dialect (ROCDLHCUOps.td), so FlagTree
+#     cannot be built against it at all -- it still has to borrow this clang.
+# Dropping either one turns one of F/T red; the pair is the only combination
+# that currently passes both. Retire dtk_llvm.run once FlagTree's hcu LLVM
+# aligns with clang-22.
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /llvm.run  ${FILE_STORE}/hygon/${LLVM_PACKAGE} \
+    && echo "${LLVM_PACKAGE_SHA256}  /llvm.run" | sha256sum -c - \
     && bash /llvm.run --dtk_dir /opt/dtk-26.10 \
-    && rm /llvm.run
+    && rm /llvm.run \
+    && curl --retry 5 --retry-delay 5 --retry-all-errors -o /aicc.run ${FILE_STORE}/hygon/${AICC_PACKAGE} \
+    && echo "${AICC_PACKAGE_SHA256}  /aicc.run" | sha256sum -c - \
+    && bash /aicc.run --dtk_dir /opt/dtk-26.10 \
+    && rm /aicc.run \
+    && test -x /opt/dtk-26.10/aillvm/bin/clang-18 \
+    && test -x /opt/dtk-26.10/aillvm/bin/clang-22 \
+    && test -f /opt/dtk-26.10/aillvm/lib/cmake/mlir/MLIRConfig.cmake
 
 # ── Capture vendor SDK env into profile.d ──────────────────────
 # NOTE: The /opt/dtk-26.10/env.sh needs to be sourced before using

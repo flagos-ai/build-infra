@@ -73,4 +73,5 @@ backend key：`nvidia-cuda12.8` / `nvidia-cuda13.3`。x86_64、python 3.12，平
 - 逐后端记录：`packaging/{vllm,sglang,megatron}/docs/*/backends/nvidia.md`
 - 编译链与 repack 口径：`packaging/vllm/docs/vllm-0.24.0/playbook.md`
 - 编译器构建事实：`packaging/flagtree/README.md`（nvidia builder 段）
-- NVIDIA 驱动误判他厂商的完整报告：`packaging/vllm/docs/handoffs/hygon-triton-3.7.0-dtk2610-defects.md`
+- NVIDIA 驱动 `is_active()` 误认他厂商设备的机制（症状、复现、DTK CUDA stub 的角色，
+  以及 hygon wheel 里已落地的改法）：`packaging/vllm/docs/handoffs/hygon-triton-3.7.0-dtk2610-defects.md`

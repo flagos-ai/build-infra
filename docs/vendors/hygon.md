@@ -36,15 +36,26 @@ backend key：`hygon-dtk26.04` / `hygon-dtk26.10`。芯片在代码里叫 **DCU*
 - torch fork 用 **numpy 1.x C ABI** 编译：镜像若装 numpy 2.x，`tensor.numpy()` 报
   `_ARRAY_API not found` / `Numpy is not available`。矩阵统一 `numpy==1.26.4` 即为此。
   这是**硬约束**（`<2`），不可 fake；opencv 的 `numpy>=2` 是可绕的元数据下限。
-- 编译器后端是 **`aillvm`（clang-18）**，由 `llvm_subdir = "aillvm" if rocm_path.name == "dtk"` 选中。
+- 编译器后端是 **`aillvm`**，由 `llvm_subdir = "aillvm" if rocm_path.name == "dtk"` 选中。
   镜像里没有 DTK 的 LLVM 包时，kernel 编译失败会报**误导性的**
   `HSACOError("File operation failed: ...")` —— 曾据此误判「flagtree 不能编译 hcu kernel」，
   实为镜像缺 LLVM 包，补上后两个编译器都能编。
+- **两个 clang 必须并存**：`base/hygon-dtk26.10` 装两个 aillvm 包 —— `dtk_llvm.run` 留下
+  clang-18，`dtk_llvm_aicc` 在同一目录上再铺一套 clang-22（`bin/clang -> clang-22`）。
+  两条编译器路径各只认一个：vendor triton 3.7.0 传 clang-22 才有的
+  `-amdgpu-disable-backoff-barrier=false` / `-fp-fuse=fast` 并产出 clang-22 时代的 IR；
+  flagtree 自带 libtriton 的 IR 则只有 clang-18 能解析（`nocreateundeforpoison` 一类属性）。
+  只留任一个 clang，F 或 T 必有一条为红。
+- flagtree 的 hcu 后端依赖**只有自家 LLVM 树才有**的 HCU MLIR dialect（`ROCDLHCUOps.td` 的
+  `mmac_f32_16x16x8f32`、`hcu_matrix_load_32X16_b16` 等）；DTK 的 aillvm 只有 LLVM-IR 层的
+  `IntrinsicsHCU.td`，没有这个 dialect —— 所以 flagtree **不能**改用 DTK 的 LLVM 重建，
+  clang-18 只能以叠加包的形式保留。
 - flagtree 的 hcu 后端曾漏 `kernel.metadata.cluster_dims`，torch 2.9 的 `make_launcher`
   无条件读它 → KV-cache profiling 期 `AttributeError`（flagtree `0.6.2a1+hcu3.6` 已修）。
-- DTK 26.10 的 vendor triton 3.7.0 有两个**应用层无法绕开**的缺陷（误判 nvidia driver
-  为 active → Triton 被整体禁用；hcu 后端产出 clang-22 时代的 flag/IR 而本机 clang 18），
-  详见 `packaging/vllm/docs/handoffs/hygon-triton-3.7.0-dtk2610-defects.md`。
+- DTK 26.10 的 vendor triton 3.7.0 曾有两个**应用层无法绕开**的缺陷（`nvidia` driver
+  误判为 active → Triton 被整体禁用；hcu 后端产出 clang-22 时代的 flag/IR 而本机只有
+  clang-18）。两者在 `3.7.0+dtk2610.torch2120` 与并存 clang-22 之后都已消失。
+  根因与复现见 `packaging/vllm/docs/handoffs/hygon-triton-3.7.0-dtk2610-defects.md`。
   DTK 26.04 的 3.5.1 无 `hcu` 后端，不命中。
 - FlagCX 侧：hygon 的适配族名是 **`du`** 而不是 `hygon`（决定 `Provides: libflagcx-<vendor>`）；
   DTK 不导出 `CUDA_PATH`，`DEVICE_HOME`/`CCL_HOME` 必须显式钉；`libnccl.so` 是指向

@@ -12,6 +12,23 @@ Qwen3-4B
 
 ---
 
+## 状态：两处均已解除（2026-11-04）
+
+本报告是 `3.7.0+dtk2610.torch2130.2610212057.g024953` 那一版的现场记录，两份现场
+（诊断与复现）仍然有效。缺陷本身已不适用于当前镜像：
+
+1. **问题 1 由新 wheel 修复。** `3.7.0+dtk2610.torch2120.2611032029.g56f888` 的
+   `nvidia` 驱动不再抢占设备，实测驱动视图 `{'amd': False, 'hcu': True, 'nvidia': False}`
+   —— 恰一个 active driver，Triton 不再被禁用。
+2. **问题 2 由并存 clang-22 解决。** 该 wheel 的 hcu 后端要的就是 clang-22 的 flag
+   与 IR 属性；基础镜像现在同时装 clang-18 与 clang-22（`base/hygon-dtk26.10`），
+   T 路径编译通过。**clang-18 不能撤**：flagtree 自带 libtriton 的 IR 只有 clang-18
+   能解析，而 flagtree 无法改用 DTK 的 LLVM 重建（DTK 的 aillvm 不含它依赖的 HCU
+   MLIR dialect，见 `docs/vendors/hygon.md`）。两个 clang 因此是长期并存项，不是
+   过渡状态。
+
+---
+
 ## TL;DR
 
 两处缺陷都在这个 triton 包内、彼此独立，**应用/插件层无法绕过**：
@@ -91,10 +108,10 @@ for k, v in backends.items():
     print(k, v.driver.is_active())"     # amd False / hcu True / nvidia True
 ```
 
-### 处置（待厂商）
+### 处置
 
 `nvidia` 驱动按 `amd` 同样方式中性化（或让 `is_active()` 也走 `hcu` 的判定），
-使本平台恰好一个 active driver。
+使本平台恰好一个 active driver。**已在 `torch2120` 那一版落地。**
 
 ---
 
@@ -153,10 +170,12 @@ clang-18 解析不了新属性关键字：
 
 即缺的不是某个二进制，而是接口代差。
 
-### 处置（待厂商）
+### 处置
 
 以 DTK 26.10 实际携带的 aillvm 重建 hcu 后端，或按 clang 主版本分派参数与
-IR 属性（`PMD_PATH` 分支已有同类先例）。
+IR 属性（`PMD_PATH` 分支已有同类先例）。**实际走的是第三条路**：基础镜像把
+clang-22 一并装上，让该后端继续按 clang-22 工作 —— 之所以能这么选，是因为
+flagtree 侧撤不掉 clang-18（见文首状态段与 `docs/vendors/hygon.md`）。
 
 ---
 

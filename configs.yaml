@@ -798,7 +798,7 @@ vendors:
       hardware: ["Hygon BW1000"]
       driver: "6.4.2-V2.1.0"
       python: "3.12"
-      triton: triton==3.7.0+dtk2610.torch2130.2610212057.g024953
+      triton: triton==3.7.0+dtk2610.torch2120.2611032029.g56f888
       flagtree: flagtree==0.7.0+hcu3.6
       flagtree_daily: flagtree-hcu-dtk2610
       deps:
@@ -813,7 +813,11 @@ vendors:
         - flagcx==0.14.1+dtk2610
       sdk:
         - Hygon DTK 26.10      # DTK-26.10-Ubuntu24.04-x86_64.tar.gz
-        - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
+        # Both aillvm packages are installed: dtk_llvm.run leaves clang-18 and
+        # the aicc package adds clang-22 on top. The two compiler paths each
+        # need one of them -- see base/hygon-dtk26.10.
+        - Hygon DTK LLVM       # dtk_llvm.run (clang-18)
+        - Hygon DTK AICC LLVM  # dtk_llvm_aicc-2.0.0+dtk2610.2611032005.ge358cd-x86_64.run (clang-22)
 
   iluvatar:
     corex4.4.0:
