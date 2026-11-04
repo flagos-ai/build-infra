@@ -670,6 +670,18 @@ wheels:
     - linux
     arch:
     - linux_x86_64
+  - version: flagcx==0.14.1+cann9.2.1
+    pypi_index: flagos-pypi-ascend
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_aarch64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
