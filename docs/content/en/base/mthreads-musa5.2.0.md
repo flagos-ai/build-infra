@@ -37,21 +37,21 @@ title: "mthreads-musa5.2.0"
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.9ubuntu3
-- `ca-certificates` — 20260601~22.04.1
-- `cmake` — 3.22.1
-- `curl` — 7.81.0
-- `g++` — 11.2.0
-- `gcc` — 11.2.0
-- `git` — 2.34.1
-- `libelf1` — 0.186
-- `libgfortran5` — 12.3.0
-- `libnuma-dev` — 2.0.14
-- `libopenmpi-dev` — 4.1.2
-- `libpython3-dev` — 3.10.6
-- `openmpi-bin` — 4.1.2
-- `unzip` — 6.0
-- `vim` — 8.2.3995
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `git`
+- `libelf1`
+- `libgfortran5`
+- `libnuma-dev`
+- `libopenmpi-dev`
+- `libpython3-dev`
+- `openmpi-bin`
+- `unzip`
+- `vim`
 
 ### SDK components
 
@@ -93,8 +93,6 @@ Inside the container, confirm the accelerator is visible:
 ```bash
 mthreads-gmi
 ```
-
-*Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
 
 ## Changelog
 

@@ -105,6 +105,8 @@ npu-smi info
 
 - 重推补上首次构建未能写入的 OCI provenance 标签：
   `org.opencontainers.image.revision`、`.created` 与 `last-updated`。
+  `cann921` runner 当时 `PATH` 里没有 git，构建因此既没有记录 commit
+  也没有记录时间戳。
 - 镜像内容不变。缺少 revision 标签时，`scripts/base_image_status.py`
   会把这个后端报成 UNKNOWN，无法判断已推送镜像是否落后于 HEAD。
 
