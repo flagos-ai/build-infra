@@ -132,6 +132,16 @@
 #                 <hccl/hccl.h>, and the chip token (910b vs A3) is not in the
 #                 key. Stated for the same reason as sdk_version: the filename
 #                 must not be re-derived at build time.
+#   builder.toolkit_product
+#                 the Ascend toolkit bundle's middle token, ascend only. CANN
+#                 changed the filename across the versions this family spans:
+#                 8.5.0 ships `Ascend-cann-toolkit_<ver>_linux-aarch64.run`,
+#                 9.0.0 answers to both that and `Ascend-cann_<ver>_…run`, and
+#                 on 9.2.1 the -toolkit spelling 404s — `Ascend-cann_<ver>_…run`
+#                 is the only one. Stated rather than derived from sdk_version
+#                 for the same reason as ops_product: the rename is the fact,
+#                 and a derivation would have to encode which versions answer
+#                 to which spelling.
 #   bitcode_arch  BITCODE_LIB_ARCH for the device-bitcode build, stated and not
 #                 derived. The only derivation available is the gencode table in
 #                 FlagCX's makefiles/nvidia_gencode.mk, and copying that table
@@ -418,6 +428,7 @@ ascend-cann8.5.0:
     enabled: true
     containerfile: Containerfile.builder-vendor-ascend
     sdk_version: "8.5.0"
+    toolkit_product: cann-toolkit
     ops_product: 910b
 
 ascend-cann8.5.0-910c:
@@ -438,6 +449,7 @@ ascend-cann8.5.0-910c:
     enabled: true
     containerfile: Containerfile.builder-vendor-ascend
     sdk_version: "8.5.0"
+    toolkit_product: cann-toolkit
     ops_product: A3
 
 ascend-cann9.0.0:
@@ -457,6 +469,9 @@ ascend-cann9.0.0:
     enabled: true
     containerfile: Containerfile.builder-vendor-ascend
     sdk_version: "9.0.0"
+    # Both spellings resolve on 9.0.0; this row keeps the one its published
+    # builder was verified with. Only 9.2.1 has no choice (`cann`).
+    toolkit_product: cann-toolkit
     ops_product: 910b
 
 ascend-cann9.0.0-910c:
@@ -477,7 +492,31 @@ ascend-cann9.0.0-910c:
     enabled: true
     containerfile: Containerfile.builder-vendor-ascend
     sdk_version: "9.0.0"
+    toolkit_product: cann-toolkit
     ops_product: A3
+
+ascend-cann9.2.1:
+  vendor: ascend
+  make_flag: USE_ASCEND
+  arch: arm64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [ascendcl, hccl]
+  assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
+  # deb/rpm are off (their probe is a separate concern); the wheel is what this
+  # line is for, and it is the family's first cp312 because the row's python is
+  # the runtime image's own 3.12, matching the CANN 9.2.1 base. Its builder is
+  # the shared 22.04 ascend recipe; toolkit_product is `cann` because the 9.2.1
+  # -toolkit-spelled installer does not exist.
+  deb: {enabled: false, default_for_vendor: false}
+  wheel: {enabled: true}
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-ascend
+    sdk_version: "9.2.1"
+    toolkit_product: cann
+    ops_product: 910b
 
 # ── probed in-container: enabled, or still owing one probe ─────────────────
 
