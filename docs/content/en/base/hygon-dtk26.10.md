@@ -99,6 +99,18 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-04 11:35:10*
+
+- The aicc aillvm package joins `dtk_llvm.run`, so the image now carries
+  clang-18 and clang-22 side by side and the vendor triton 3.7.0 can
+  compile again. Two compiler paths need one each: vendor triton 3.7.0
+  passes clang-22-only flags and emits clang-22-only IR, while FlagTree's
+  bundled libtriton emits IR that only clang-18 parses. Either clang
+  alone leaves one of the two paths red.
+- Both LLVM installers are now checksum-pinned, like the Open MPI
+  package in this image, and the step asserts that clang-18, clang-22
+  and MLIRConfig.cmake all landed.
+
 *2026-10-31 07:11:14*
 
 - ROCm-aware Open MPI 5.0.8 is installed from
