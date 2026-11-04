@@ -68,6 +68,7 @@ title: "ascend-cann9.2.1"
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.2.1:2.3.0 bash
 ```
@@ -76,6 +77,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \

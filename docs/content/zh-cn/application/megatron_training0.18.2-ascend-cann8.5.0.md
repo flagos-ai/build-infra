@@ -60,6 +60,7 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.18.2-ascend-cann8.5.0:2.2.0-
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -69,6 +70,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG
 ```
@@ -78,6 +80,7 @@ docker run --rm -it \
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG megatron-train --model-type GPT
 ```
@@ -88,6 +91,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \
@@ -103,6 +107,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \
@@ -118,6 +123,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \
