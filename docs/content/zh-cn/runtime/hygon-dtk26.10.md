@@ -97,6 +97,14 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-04 11:53:19*
+
+- vendor triton 升级到 `3.7.0+dtk2610.torch2120.2611032029.g56f888`：其 `nvidia`
+  驱动不再抢占设备，只有 `hcu` 处于 active，启动时 Triton 不再被整体禁用。此前的
+  `torch2130` 版本下 DTK 的 CUDA stub 使两个驱动同时 active，每次 serve 都退回
+  V1 model runner。
+- 该 wheel 不再声明 `torch` 依赖，安装时不会在 DEPS 阶段拉入第二个 torch。
+
 *2026-11-01 02:02:26*
 
 - 该后端 runtime 镜像的首次发布：python 3.12 加 DTK 26.10 的 torch 闭包（torch 2.13.0、

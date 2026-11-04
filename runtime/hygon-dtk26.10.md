@@ -75,6 +75,16 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-04 11:53:19*
+
+- Vendor triton moves to `3.7.0+dtk2610.torch2120.2611032029.g56f888`: its
+  `nvidia` driver no longer claims the device, so `hcu` is the only active
+  driver and Triton is no longer disabled at startup. Under the previous
+  `torch2130` build both `amd`/`nvidia` probing and the DTK CUDA stub left
+  two drivers active, so every serve fell back to the V1 model runner.
+- The wheel declares no `torch` requirement, so it installs without
+  dragging a second torch into the DEPS step.
+
 *2026-11-01 02:02:26*
 
 - First release of this backend's runtime image: python 3.12 with the DTK
