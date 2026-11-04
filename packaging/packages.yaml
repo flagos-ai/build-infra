@@ -744,6 +744,7 @@ wheels:
     - flagos-pypi-enflame
     - flagos-pypi-hygon
     - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
     - flagos-pypi-metax
     - flagos-pypi-nvidia
     - flagos-pypi-sunrise
