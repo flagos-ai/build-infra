@@ -35,6 +35,13 @@ the joined entry carries — the .deb channel derives deb_package and the contro
 relationships, the wheel channel the wheel_* identity fields, the builder
 channel the image ref it publishes, built on the row's runtime image. The
 joining and the drift alarm are the same in all three.
+
+This runs on the CI runner's own `python3`, not inside an image — the build and
+verify scripts source `--build-inputs` out of the host shell. The ascend runners
+carry a 3.7 system python (see `docs/vendors/ascend.md`), so the floor here is
+3.7: no walrus, no `str.removeprefix`, and PEP 585 annotations only because
+`from __future__ import annotations` defers them. `build_input_var` spells out
+its prefix strip for exactly that reason.
 """
 
 from __future__ import annotations
@@ -514,8 +521,11 @@ def build_input_var(field: str, channel: str = "deb") -> str:
     control.in is rendered from the same set, so the deb channel's names are
     load-bearing; each channel's are its own.
     """
-    prefix = channel.upper()
-    return f"{prefix}_" + field.removeprefix(f"{channel}_").upper()
+    # Not `field.removeprefix(...)`: the runners' python3 is the floor this
+    # script has to meet (see the module docstring), and that method is 3.9.
+    own = channel + "_"
+    stem = field[len(own):] if field.startswith(own) else field
+    return channel.upper() + "_" + stem.upper()
 
 
 def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict]:

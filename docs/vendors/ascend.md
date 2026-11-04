@@ -65,6 +65,11 @@ backend key：`ascend-cann8.5.0` / `ascend-cann9.0.0`（910B）以及各自的
 
 ## 供应商工具链
 
+- **910B 节点的宿主 python 是 3.7.9**（hw03 / hw04 的 `/usr/bin/python3`；910C 的
+  hw114/hw115 是 3.9.9）。`packaging/flagcx/` 的 config / build / verify 脚本都在
+  **宿主**上跑而不是在镜像里，所以这些脚本的 python 下限是 3.7：不能用 walrus、
+  `str.removeprefix`（3.9）、或在 import 期求值的 PEP 585 注解。容器内的 3.11/3.12
+  与这条无关。
 - 两个编译器树**都自报 `triton.__version__ == 3.2.0`**，必须按编译器分别设
   `TRITON_CACHE_DIR`，否则 cache 互相污染。
 - `flag_gems` 需要可 import 的 triton；import 不到时 `supports_paged_attention()` 退化成
