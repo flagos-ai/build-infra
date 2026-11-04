@@ -37,6 +37,7 @@ tags:
       - 两个 LLVM 安装包现在都像本镜像里的 Open MPI 包一样以校验和固定，并断言
         clang-18、clang-22 与 MLIRConfig.cmake 三者都已落盘。
     upstream_prs: []
+    date: '2026-11-04T11:35:10.823Z'
   - date: '2026-10-31T07:11:14.007Z'
     reason: |-
       - ROCm-aware Open MPI 5.0.8 is installed from

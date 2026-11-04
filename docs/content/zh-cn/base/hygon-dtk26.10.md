@@ -99,6 +99,15 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-04 11:35:10*
+
+- aicc 的 aillvm 包与 `dtk_llvm.run` 并存，镜像因此同时带 clang-18 与 clang-22，
+  vendor triton 3.7.0 得以重新编译。两条编译器路径各需其一：vendor triton 3.7.0
+  传 clang-22 专有的参数、产出 clang-22 专有的 IR，而 FlagTree 自带的 libtriton
+  产出的 IR 只有 clang-18 能解析。只留任一个 clang，两条路径必有一条为红。
+- 两个 LLVM 安装包现在都像本镜像里的 Open MPI 包一样以校验和固定，并断言
+  clang-18、clang-22 与 MLIRConfig.cmake 三者都已落盘。
+
 *2026-10-31 07:11:14*
 
 - 从 `flagos-filestore/hygon/openmpi-rocm_5.0.8-1_jammy_amd64.deb` 安装带
