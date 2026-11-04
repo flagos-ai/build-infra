@@ -672,12 +672,24 @@ wheels:
     - linux_x86_64
   - version: flagcx==0.14.1+cann9.2.1
     pypi_index: flagos-pypi-ascend
-    desc_zh: ''
-    desc_en: ''
+    desc_zh: 面向昇腾（Ascend）CANN 9.2.1 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Ascend CANN 9.2.1.
     notes: ''
     notes_en: ''
     python:
     - cp312
+    os:
+    - linux
+    arch:
+    - linux_aarch64
+  - version: flagcx==0.14.1+cann9.0.0
+    pypi_index: flagos-pypi-ascend
+    desc_zh: 面向昇腾（Ascend）CANN 9.0.0 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Ascend CANN 9.0.0.
+    notes: ''
+    notes_en: ''
+    python:
+    - cp311
     os:
     - linux
     arch:
