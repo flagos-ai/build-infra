@@ -18,6 +18,7 @@
 # shortcode (correspondence table) and the base/runtime catalog name column.
 
 vendors:
+  amd:        { en: AMD,             zh: AMD }
   nvidia:     { en: NVIDIA,          zh: 英伟达 }
   ascend:     { en: Ascend,          zh: 昇腾 }
   cambricon:  { en: Cambricon,       zh: 寒武纪 }
