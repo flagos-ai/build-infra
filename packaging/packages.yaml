@@ -694,6 +694,18 @@ wheels:
     - linux
     arch:
     - linux_aarch64
+  - version: flagcx==0.14.1+dtk2610
+    pypi_index: flagos-pypi-hygon
+    desc_zh: 面向海光（Hygon）DTK 26.10 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Hygon DTK 26.10.
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
