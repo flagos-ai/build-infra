@@ -60,6 +60,7 @@ IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-ascend-cann8.5.0-910c:2.2.0-0
 ```bash
 docker run --rm -it \
   --privileged \
+  --shm-size=1g \
   -e ASCEND_VISIBLE_DEVICES=0,1 \
   $IMG bash
 ```
@@ -73,6 +74,7 @@ docker run --rm -it \
 
 ```bash
 docker run --rm -it \
+  --shm-size=1g \
   --device /dev/davinci0 \
   --device /dev/davinci1 \
   --device /dev/davinci_manager \

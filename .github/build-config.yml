@@ -106,8 +106,16 @@ run:
       # 910C nodes AND the 910B nodes (hw25/hw26): --privileged does not
       # regress the 910B path (toolkit gives npu_count 2, privileged gives 8;
       # both run the E2E exit 0).
-      toolkit: "--privileged -e ASCEND_VISIBLE_DEVICES=0,1"
-      raw: "--device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
+      #
+      # --shm-size: the default 64 MB /dev/shm is not enough for flag_gems to
+      # import. Its libentry decorator takes a multiprocessing.Lock per kernel,
+      # and the SemLock allocation fails with ENOSPC — the import then dies as
+      # "Failed to import vendor extra lib: [Errno 28] No space left on device",
+      # which reads as flag_gems FAIL on a sound image. 64 MB fails, 96 MB
+      # imports; 1g leaves a serving process headroom. Both tiers carry it: the
+      # limit is in the container, not in how the device was mapped.
+      toolkit: "--privileged --shm-size=1g -e ASCEND_VISIBLE_DEVICES=0,1"
+      raw: "--shm-size=1g --device /dev/davinci0 --device /dev/davinci1 --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc -v /usr/local/Ascend/driver:/usr/local/Ascend/driver -v /usr/local/dcmi:/usr/local/dcmi -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi"
     hygon:
       toolkit: "-e DCU_VISIBLE_DEVICES=all"
       # Note: needs BOTH kfd nodes — /dev/kfd alone leaves power/perf N/A and hy-smi
