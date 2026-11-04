@@ -48,7 +48,7 @@ title: "hygon-dtk26.10"
 - `torch==2.13.0+dtk2610.2610261432.gefb4e1`
 - `torchaudio==2.11.0+dtk2610.torch2130.2610221109.g1da530`
 - `torchvision==0.28.0+dtk2610.torch2130.2610212003.gac691b`
-- <span class="muted"><code class="plain">triton==3.7.0+dtk2610.torch2130.2610212057.g024953</code></span>
+- <span class="muted"><code class="plain">triton==3.7.0+dtk2610.torch2120.2611032029.g56f888</code></span>
 
 ### Switch compiler
 
