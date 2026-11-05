@@ -20,6 +20,7 @@
 | runner 的 Docker/containerd 数据目录迁移 | [`runner-disk-migration.md`](runner-disk-migration.md) |
 | 某应用某版本的验证历史 | `packaging/<app>/docs/<app>-<ver>/`（入口是该目录的 README） |
 | 某打包线的设计（为什么这样做） | `packaging/<comp>/DESIGN.md`（跑法看同目录 README） |
+| repack 工具与 repack 链（做什么、tag 怎么定） | [`packaging/script/README.md`](../packaging/script/README.md) |
 | 某厂商的平台事实（设备、工具链、坑） | [`vendors/<vendor>.md`](vendors/)（怎么收见该目录 README） |
 | 脚本索引 | `scripts/README.md` |
 | 打包目录骨架与引用维护清单 | `packaging/README.md` |
