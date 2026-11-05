@@ -31,15 +31,48 @@ ARG no_proxy=
 # with 500. The LLVM keeps the vendor's filename and its own top-level name,
 # because that name IS hcu.py's cache key -- FlagTree re-downloads a cache it
 # does not recognize by that exact name.
+#
+# TWO LLVM TREES, because that key carries the revision. hcu.py names the tree
+# it wants `hcu-llvm22-<commit>`, and the two refs this stage serves ask for
+# different commits: the daily tracks `main`, which moved to 188a510 on
+# 2026-11-05 (FlagTree 65094ea8, the TLE-raw work), while this file's own
+# default ref -- the release configs.yaml pins -- still names b0ca808. A stage
+# holding only one sends the other's build back to the network, which is how
+# run 41994270870 failed.
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
-ARG LLVM_TARBALL=hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64_v0.5.0.tar.gz
-ARG LLVM_DIR=hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64
+ARG LLVM_TARBALL=hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64.tar.gz
+ARG LLVM_DIR=hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64
+ARG LLVM_TARBALL_LEGACY=hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64_v0.5.0.tar.gz
+ARG LLVM_DIR_LEGACY=hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64
+
+# hcu.py's second cache entry, a single device bitcode file rather than a tree,
+# and the one input whose cache key is a FILE: `store(file=..., md5_digest=...)`
+# compares the digest instead of the directory name. It is copied into
+# /opt/dtk/dushmem/lib/ at build time; the md5 asserted below is the 8 hex
+# characters hcu.py carries, and it fails the build if upstream rotates the blob
+# without moving the pin.
+ARG DUSHMEM_TARBALL=libdushmem_device_gfx936_bc.tar.gz
+ARG DUSHMEM_FILE=libdushmem_device_gfx936.bc
+ARG DUSHMEM_MD5=f6260239
+
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 3.10 is the 22.04 system interpreter, and the one this backend's runtime
 # pins -- no deadsnakes here, so no PPA to wire by hand.
+#
+# libzstd-dev is for the 188a510 tree's CMake exports, not for a link this file
+# chooses: its LLVMExports.cmake and LLDTargets.cmake put `zstd::libzstd_shared`
+# in INTERFACE_LINK_LIBRARIES, and LLVM's own Findzstd.cmake (shipped inside the
+# staged tree) creates that target only from a located libzstd -- a plain
+# `find_package(LLVM)` never touches those files, so the tree looks usable right
+# up until the wheel build's configure, which then fails on a target that was
+# never made. Only the -dev package supplies the `libzstd.so` CMake links
+# against plus zstd.h; 22.04's `libzstd.so.1` is the runtime soname alone. The
+# resulting libtriton.so gains a NEEDED entry on libzstd.so.1, checked present
+# in both hygon runtime images. The b0ca808 tree needs none of this -- it
+# predates the zstd-enabled build, which is why hcu-dtk2610 is untouched.
 RUN set -eu; \
     if [ -f /opt/flagtree-build-env.ready ]; then \
         echo ">>> build environment already staged in the base image"; \
@@ -49,24 +82,32 @@ RUN set -eu; \
         ca-certificates git wget curl binutils \
         build-essential cmake ninja-build \
         zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        libzstd-dev \
         python3.10 python3.10-dev python3.10-venv python3-pip \
     && rm -rf /var/lib/apt/lists/* \
     && printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
     && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
     && mkdir -p /root/.flagtree/hcu /root/.triton \
     && cd /tmp \
-    && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+    && for f in "${LLVM_TARBALL}" "${LLVM_TARBALL_LEGACY}" "${DUSHMEM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
          for i in 1 2 3 4 5; do \
            wget -q --tries=3 --timeout=60 "${DEPS_BASE}/${f}" -O "${f}" && break; \
            echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
          done; \
        done \
     && tar -xzf "${LLVM_TARBALL}" -C /root/.flagtree/hcu \
+    && tar -xzf "${LLVM_TARBALL_LEGACY}" -C /root/.flagtree/hcu \
+    && tar -xzf "${DUSHMEM_TARBALL}" -C /root/.flagtree/hcu \
     && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
     && rm -f /tmp/*.tar.gz \
     && test -f "/root/.flagtree/hcu/${LLVM_DIR}/bin/FileCheck" \
     && test -f "/root/.flagtree/hcu/${LLVM_DIR}/lib/cmake/mlir/MLIRConfig.cmake" \
     && test -f "/root/.flagtree/hcu/${LLVM_DIR}/lib/cmake/lld/LLDConfig.cmake" \
+    && test -f "/root/.flagtree/hcu/${LLVM_DIR_LEGACY}/bin/FileCheck" \
+    && test -f "/root/.flagtree/hcu/${LLVM_DIR_LEGACY}/lib/cmake/mlir/MLIRConfig.cmake" \
+    && test -f "/root/.flagtree/hcu/${LLVM_DIR_LEGACY}/lib/cmake/lld/LLDConfig.cmake" \
+    && test -f "/root/.flagtree/hcu/${DUSHMEM_FILE}" \
+    && test "$(md5sum "/root/.flagtree/hcu/${DUSHMEM_FILE}" | cut -c1-8)" = "${DUSHMEM_MD5}" \
     && test -f /root/.triton/json/include/nlohmann/json.hpp \
     && test -d /root/.triton/nvidia/cudart \
     && test -d /root/.triton/nvidia/cupti \
