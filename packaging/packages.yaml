@@ -746,6 +746,7 @@ wheels:
     - flagos-pypi-iluvatar
     - flagos-pypi-kunlunxin
     - flagos-pypi-metax
+    - flagos-pypi-mthreads
     - flagos-pypi-nvidia
     - flagos-pypi-sunrise
     - flagos-pypi-tsingmicro
