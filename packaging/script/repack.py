@@ -42,7 +42,10 @@ Design:
 """
 
 import argparse
+import base64
+import csv
 import hashlib
+import io
 import os
 import re
 import shutil
@@ -130,6 +133,13 @@ _LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+\n?", re.MULTILINE | re.IGNOR
 _DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
 _VERSION_LOCAL_RE = re.compile(r"^Version:\s*(.+?)\+.+$", re.MULTILINE | re.IGNORECASE)
 _WHEEL_TAG_RE = re.compile(r"^Tag:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
+_ROOT_IS_PURELIB_RE = re.compile(r"^Root-Is-Purelib:\s*.+$", re.MULTILINE | re.IGNORECASE)
+
+# A wheel is pure when nothing in it is bound to one interpreter or one
+# platform: no compiled extension, no .data/ tree (installed per-platform).
+# The tag cannot be trusted to say this — see _honest_wheel_tag.
+_NATIVE_SUFFIXES = (".so", ".pyd", ".dylib", ".dll")
+PURE_TAG = "py3-none-any"
 
 
 def _downgrade_metadata_version(text: str) -> str:
@@ -207,12 +217,33 @@ def _read_wheel_file(whl_path: Path, dist_info_dir: str) -> str:
 def _get_wheel_tag(wheel_text: str) -> str:
     """Extract the Tag value from a WHEEL file."""
     m = _WHEEL_TAG_RE.search(wheel_text)
-    return m.group(1).strip() if m else "py3-none-any"
+    return m.group(1).strip() if m else PURE_TAG
 
 
 def _rewrite_wheel_tag(wheel_text: str, new_tag: str) -> str:
     """Replace the Tag line in a WHEEL file."""
     return _WHEEL_TAG_RE.sub(f"Tag: {new_tag}", wheel_text)
+
+
+def _honest_wheel_tag(whl_path: Path, wheel_text: str) -> tuple[str, str]:
+    """Return (wheel_text, tag) with the tag this wheel's contents justify.
+
+    setuptools-rust stamps the *build* interpreter's tag as soon as a Rust
+    extension is declared, compiled or not: vllm's empty build comes out with
+    no `.so`, no `.data/`, and `Tag: cp312-cp312-linux_x86_64`. That tag
+    refuses interpreters the wheel's own Requires-Python admits. So the tag is
+    read off the members, never inherited.
+    """
+    with zipfile.ZipFile(whl_path) as z:
+        names = z.namelist()
+    if any(n.endswith(_NATIVE_SUFFIXES) for n in names) or any(".data/" in n for n in names):
+        return wheel_text, _get_wheel_tag(wheel_text)
+    if _get_wheel_tag(wheel_text) == PURE_TAG:
+        return wheel_text, PURE_TAG
+    print(f"    fold tag to {PURE_TAG}: no compiled member and no .data/ in the wheel")
+    folded = _rewrite_wheel_tag(wheel_text, PURE_TAG)
+    folded = _ROOT_IS_PURELIB_RE.sub("Root-Is-Purelib: true", folded)
+    return folded, PURE_TAG
 
 
 def _parse_requires_dist_body(body: str) -> tuple[str, str, str] | None:
@@ -303,6 +334,77 @@ def read_wheel_metadata(whl_path: Path) -> tuple[str, str]:
     raise ValueError(f"No .dist-info/METADATA found in {whl_path}")
 
 
+def _record_digest(data: bytes) -> str:
+    """RECORD's hash column: sha256, urlsafe base64, padding stripped."""
+    digest = hashlib.sha256(data).digest()
+    return "sha256=" + base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
+def _rewrite_record(record_text: str, members: set[str], renames: dict[str, str],
+                    new_contents: dict[str, tuple[str, int]]) -> str:
+    """Rewrite RECORD rows so the manifest describes the wheel being written.
+
+    rename for the relocated .dist-info, rehash for the content this repack
+    rewrote, drop for a row with no member behind it (an inconsistent input
+    must not be re-inherited). pip recomputes RECORD on install, so this only
+    matters to an unpacker or an integrity scan.
+
+    Parsed as CSV, not split on commas: member paths may contain commas.
+    """
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    for row in csv.reader(io.StringIO(record_text)):
+        if not row:
+            continue
+        path = renames.get(row[0], row[0])
+        if path not in members:
+            print(f"    drop stale RECORD row: {row[0]}")
+            continue
+        if path in new_contents:
+            digest, size = new_contents[path]
+            writer.writerow([path, digest, size])
+        elif path.endswith("/RECORD"):
+            # PEP 427: the RECORD row for itself carries neither hash nor size.
+            writer.writerow([path, "", ""])
+        else:
+            writer.writerow([path] + list(row[1:]))
+    return out.getvalue()
+
+
+def _verify_wheel_integrity(whl_path: Path):
+    """Fail if the written wheel disagrees with its own RECORD.
+
+    Read back from the finished file, never from what the writer intended:
+    the point is to catch a repack that rewrote members without carrying the
+    manifest along.
+    """
+    with zipfile.ZipFile(whl_path) as z:
+        names = {i.filename for i in z.infolist()}
+        record = next((n for n in names if n.endswith(".dist-info/RECORD")), None)
+        if record is None:
+            raise RuntimeError(f"{whl_path.name}: no .dist-info/RECORD to check")
+        problems = []
+        for row in csv.reader(io.StringIO(z.read(record).decode("utf-8"))):
+            if not row:
+                continue
+            path, digest = row[0], (row[1] if len(row) > 1 else "")
+            if path == record:
+                continue
+            if path not in names:
+                problems.append(f"listed but not in the archive: {path}")
+                continue
+            if not digest.startswith("sha256="):
+                continue
+            data = z.read(path)
+            if digest != _record_digest(data) or (len(row) > 2 and row[2] != str(len(data))):
+                problems.append(f"hash/size mismatch: {path}")
+        if problems:
+            raise RuntimeError(
+                f"{whl_path.name}: RECORD does not describe the archive "
+                f"({len(problems)} row(s)):\n  " + "\n  ".join(problems[:10])
+            )
+
+
 def rewrite_wheel(src: Path, dst: Path, metadata_text: str, dist_info_dir: str,
                   old_dist_info_dir=None, wheel_text=None):
     """Copy src → dst, replacing METADATA content. Handles src == dst safely.
@@ -323,26 +425,55 @@ def rewrite_wheel(src: Path, dst: Path, metadata_text: str, dist_info_dir: str,
     else:
         _rewrite_wheel_impl(src, dst, metadata_text, dist_info_dir,
                            old_dist_info_dir, wheel_text)
+    _verify_wheel_integrity(dst)
 
 
 def _rewrite_wheel_impl(src: Path, dst: Path, metadata_text: str,
                          dist_info_dir: str, old_dist_info_dir: str,
                          wheel_text=None):
     rename_dir = old_dist_info_dir != dist_info_dir
+
+    # The bytes this repack writes, so RECORD can describe the resulting
+    # archive rather than the one that went in.
+    new_contents: dict[str, tuple[str, int]] = {}
+    meta_bytes = metadata_text.encode("utf-8")
+    new_contents[f"{dist_info_dir}/METADATA"] = (_record_digest(meta_bytes), len(meta_bytes))
+    wheel_bytes = wheel_text.encode("utf-8") if wheel_text is not None else None
+    if wheel_bytes is not None:
+        new_contents[f"{dist_info_dir}/WHEEL"] = (_record_digest(wheel_bytes), len(wheel_bytes))
+
     with zipfile.ZipFile(src) as zin:
+        renames: dict[str, str] = {}
+        if rename_dir:
+            for name in zin.namelist():
+                if name.startswith(f"{old_dist_info_dir}/"):
+                    renames[name] = f"{dist_info_dir}/{name[len(old_dist_info_dir) + 1:]}"
+        # The archive being written: a RECORD row with no member behind it is
+        # dropped rather than re-inherited.
+        members = {renames.get(n, n) for n in zin.namelist()}
+
         with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
-                data = zin.read(item.filename)
                 old_path = item.filename
-                if rename_dir and old_path.startswith(f"{old_dist_info_dir}/"):
-                    new_path = f"{dist_info_dir}/{old_path[len(old_dist_info_dir) + 1:]}"
-                    item = zipfile.ZipInfo(new_path, item.date_time)
+                if old_path in renames:
+                    # ZipInfo() starts blank; carry the source entry's own
+                    # attributes or the relocation silently changes how the
+                    # member is stored.
+                    moved = zipfile.ZipInfo(renames[old_path], item.date_time)
+                    moved.compress_type = item.compress_type
+                    moved.external_attr = item.external_attr
+                    moved.create_system = item.create_system
+                    item = moved
                 if old_path == f"{old_dist_info_dir}/METADATA":
-                    zout.writestr(item, metadata_text)
-                elif wheel_text is not None and old_path == f"{old_dist_info_dir}/WHEEL":
-                    zout.writestr(item, wheel_text)
+                    zout.writestr(item, meta_bytes)
+                elif wheel_bytes is not None and old_path == f"{old_dist_info_dir}/WHEEL":
+                    zout.writestr(item, wheel_bytes)
+                elif old_path == f"{old_dist_info_dir}/RECORD":
+                    zout.writestr(item, _rewrite_record(
+                        zin.read(old_path).decode("utf-8"), members, renames,
+                        new_contents))
                 else:
-                    zout.writestr(item, data)
+                    zout.writestr(item, zin.read(old_path))
 
 
 def sha256_file(path: Path) -> str:
@@ -674,11 +805,12 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     meta_text, dist_info_dir = read_wheel_metadata(whl_path)
     all_rd = parse_requires_dist(meta_text)
 
-    # Preserve the source wheel's platform Tag (e.g. binary deps like
-    # opencv-python-headless ship cp37-abi3-manylinux_2_28_x86_64).  Without
-    # this the output filename would default to py3-none-any and disagree
-    # with the internal WHEEL Tag, producing an invalid/mistagged wheel.
-    src_wheel_tag = _get_wheel_tag(_read_wheel_file(whl_path, dist_info_dir))
+    # Same rule as the top-level wheel: a dep that carries a compiled member
+    # keeps the platform tag its build earned (opencv-python-headless ships
+    # cp37-abi3-manylinux_2_28_x86_64), one that carries none is the same file
+    # on every interpreter and is tagged so.
+    src_wheel_text, src_wheel_tag = _honest_wheel_tag(
+        whl_path, _read_wheel_file(whl_path, dist_info_dir))
 
     removed = []
     for rd in all_rd:
@@ -756,13 +888,13 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     with open(manifest_path, "w", encoding="utf-8") as f:
         yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
-    # Rewrite wheel with updated metadata.  Preserve the source platform Tag
-    # so binary deps (e.g. opencv cp37-abi3-manylinux_2_28_x86_64) keep a
-    # filename that matches their internal WHEEL Tag.
+    # Rewrite wheel with updated metadata, carrying the honest tag into both
+    # the WHEEL file and the filename so the two cannot disagree.
     output_name = wheel_name_to_filename(name, f"{version}+flagos", src_wheel_tag)
     output_path = OUTPUT_DIR / output_name
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
-                  old_dist_info_dir if old_dist_info_dir != dist_info_dir else None)
+                  old_dist_info_dir if old_dist_info_dir != dist_info_dir else None,
+                  src_wheel_text)
 
     whl_path.unlink()  # cleanup original
 
@@ -860,9 +992,11 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
         dist_info_dir = f"{base}+flagos.dist-info"
         print(f"  update dist-info dir: {old_dist_info_dir} -> {dist_info_dir}")
 
-    # Read WHEEL file to determine the platform tag
-    wheel_text = _read_wheel_file(whl_path, old_dist_info_dir)
-    wheel_tag = _get_wheel_tag(wheel_text)
+    # Read the WHEEL file, then settle on the tag the members justify: the
+    # empty build's tag names the interpreter that ran the build, not one the
+    # wheel is bound to.
+    wheel_text, wheel_tag = _honest_wheel_tag(
+        whl_path, _read_wheel_file(whl_path, old_dist_info_dir))
 
     all_rd = parse_requires_dist(meta_text)
 
@@ -935,12 +1069,12 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
             else:
                 print(f"  WARNING: could not pin {dep_name} (not found in METADATA)")
 
-    # 7. Rewrite top-level wheel with updated metadata
+    # 7. Rewrite top-level wheel with updated metadata. The WHEEL file is
+    # passed even when the tag did not move, so RECORD can describe it.
     output_name = wheel_name_to_filename(pkg_name or "package", pkg_version or "0.0.0", wheel_tag)
     output_path = OUTPUT_DIR / output_name
-    # Pass None for wheel_text to keep original WHEEL file
     rewrite_wheel(whl_path, output_path, new_meta, dist_info_dir,
-                  old_dist_info_dir, wheel_text=None)
+                  old_dist_info_dir, wheel_text)
 
     # 8. Write top-level manifest (now includes recursive results)
     # Use version with +flagos for manifest filename
