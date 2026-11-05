@@ -47,6 +47,7 @@ tags:
         `materialize_cow_storage`，改为 `materialize_cow`，旧 wheel 因此留下一个
         未定义符号、import 即失败（amd 行在同一次升级上撞到同一个断裂）。
     upstream_prs: []
+    date: '2026-11-05T13:14:42.949Z'
   - date: '2026-10-25T09:46:58.169Z'
     reason: >-
       This image gains the container-start version request: `-e

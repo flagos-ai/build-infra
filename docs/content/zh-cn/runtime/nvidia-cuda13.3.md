@@ -99,6 +99,20 @@ nvidia-smi
 
 ### 2.3.0
 
+*2026-11-05 13:14:42*
+
+- 本后端的 torch 依赖闭包升到 2.13：torch 2.13.0+cu130、torchvision
+  0.28.0+cu130，以及 torch 2.13 自身声明的 triton 3.7.1（取代 T 路径上的
+  3.6.0）。
+- torchaudio 保持 2.11.0+cu130：cu130 索引上没有更新的 torchaudio，且
+  2.11.0 那个 wheel 根本没有声明 requires-dist，因此与上面的 torch 版本
+  无关。
+- FlagTree 保持 0.7.0，且自带 triton，所以新 pin 只影响 T 路径，F 路径仍是
+  原来的编译器。
+- flagcx wheel 针对 2.13 头文件重建：torch 2.13 去掉了 c10 的
+  `materialize_cow_storage`，改为 `materialize_cow`，旧 wheel 因此留下一个
+  未定义符号、import 即失败（amd 行在同一次升级上撞到同一个断裂）。
+
 *2026-10-25 09:46:58*
 
 该镜像新增容器启动时的版本请求：`-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>` 可覆盖镜像内烘焙的版本，在应用启动前从镜像自带的索引解析。`latest` 取 daily 线上最新的 wheel。无法满足的请求会以非零退出码终止容器，而不是让它以另一个版本运行。镜像烘焙了这些请求所读取的文件，其中包含把容器内的 FlagGems 安装约束到本镜像自身 pin 的 constraints 文件。
