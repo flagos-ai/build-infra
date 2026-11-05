@@ -77,6 +77,21 @@ nvidia-smi
 
 ### 2.3.0
 
+*2026-11-05 13:14:42*
+
+- Moves this backend's torch closure to 2.13: torch 2.13.0+cu130,
+  torchvision 0.28.0+cu130, and the triton that torch 2.13 declares —
+  triton 3.7.1, replacing 3.6.0 on the fallback path.
+- torchaudio stays at 2.11.0+cu130: the cu130 index carries no newer
+  torchaudio, and the 2.11.0 wheel declares no requires-dist at all, so
+  it is version-independent of the torch above it.
+- FlagTree stays at 0.7.0 and bundles its own triton, so the new pin
+  moves the T path only; the F path keeps the compiler it had.
+- The flagcx wheel is rebuilt against the 2.13 headers: torch 2.13
+  dropped c10's `materialize_cow_storage` in favour of `materialize_cow`,
+  which left the old wheel with an undefined symbol on import (the amd
+  row hit the same break on the same bump).
+
 *2026-10-25 09:46:58*
 
 This image gains the container-start version request: `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>` override the versions baked in, resolved from the image's own indexes before the application starts. `latest` takes the newest wheel on the daily line. A request that cannot be honoured stops the container with a non-zero exit rather than letting it run on a different version. The image bakes the files those requests read, among them the constraints file that holds an in-container FlagGems install to this image's own pins.
