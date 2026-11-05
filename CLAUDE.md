@@ -172,7 +172,7 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `bundle.yml` | Builds a bundled artifact set for a stack version |
 | `verify-runtime.yml` / `verify-driver.yml` / `verify-cpp-fixes.yml` / `status-matrix-consistency.yml` | Verify image content, driver reachability, cpp fixes, generated-output drift (matrices + app pages) |
 | `knowledge-index.yml` | Runs `scripts/docs/check_knowledge.py`: CLAUDE.md workflow and skill tables, skill path claims, unreachable documents, vendor page coverage |
-| `upload-nexus.yml`, `sync-to-remote.yaml`, `auto-approve.yml`, `release-verify-selftest.yml`, `sdk-reminder.yml` | Nexus upload, GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder |
+| `sync-to-remote.yaml`, `auto-approve.yml`, `release-verify-selftest.yml`, `sdk-reminder.yml` | GitCode sync, maintainer-PR auto-approve, release self-test, SDK reminder |
 
 This table must stay complete: a new workflow file belongs here in the same PR.
 `scripts/docs/check_knowledge.py` (workflow `knowledge-index.yml`) fails the
