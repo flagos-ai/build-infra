@@ -101,17 +101,17 @@ glibc floor is a packaging decision even though `--check` cross-checks it agains
 image's own Ubuntu release.
 
 ```yaml
-nvidia-cuda12.8:
+nvidia-cuda13.3:
   vendor: nvidia
   arch: amd64
   glibc_floor: "2.39"                  # the base's Ubuntu 24.04; 22.04 bases carry "2.35"
   make_flag: USE_NVIDIA                # from plugin/torch/_build_config.py ADAPTOR_TO_MAKE_FLAG
-  apt: [cuda-nvcc-12-8, libnccl-dev]   # on top of the base image
+  apt: [cuda-nvcc-13-3, libnccl-dev]   # on top of the base image
   make_env: {DEVICE_HOME: /usr/local/cuda, CCL_HOME: /usr}
   vendor_libs: [cuda, cudart, nccl]    # the vendor libs dh_shlibdeps must not try to resolve
   vendor_lib_dirs: [/usr/local/cuda/compat]  # where dpkg-shlibdeps has to go to *find* them
   assert: [/usr/include/nccl.h]
-  deb: {enabled: true, default_for_vendor: true}
+  deb: {enabled: true, default_for_vendor: false}
 ```
 
 `apt`, `make_env`, `assert`, `vendor_libs` and `vendor_lib_dirs` are exactly the fields the

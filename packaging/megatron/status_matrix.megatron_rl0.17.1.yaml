@@ -65,7 +65,7 @@ backends:
     image_tag: "2.2.0-0.2.3"
     prs:
       - https://github.com/NVIDIA/Megatron-LM/pull/6709
-    note: "RL 场景未实测（本轮只过构建 + training gate）"
+    note: "RL 场景未实测（本轮只过构建 + training gate）；且 cuda12.8 已冻结（torch 2.13 无 cu128 wheel），本行 ⬜ 不会再有结论 —— 冻结依据见 docs/vendors/nvidia.md"
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true

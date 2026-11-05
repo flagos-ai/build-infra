@@ -34,6 +34,12 @@ same superset plus the per-backend app-layer env vars
 megatron_training0.17.1 resolves to the bare name vllm / megatron_training) serialized as
 "KEY=value\n...".  Only backends whose deps_app carries the app
 key are included (key presence = verified in the app's matrix).
+
+A backend whose configs.yaml spec sets ``enabled: false`` is frozen: it is in
+no matrix this script emits, on any mode, and a note naming it goes to stderr.
+That is what makes the freeze effective — the workflows read their matrix from
+here, so a frozen backend's images, its app images and everything built on top
+of it stop rebuilding together. See scripts/backend_enabled.py.
 """
 
 # The annotations below use PEP 604 (`str | None`), a runtime error before 3.10,
@@ -50,6 +56,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app_public import public_name
+from backend_enabled import frozen_backends
 
 
 def find_repo_root() -> Path:
@@ -279,7 +286,10 @@ def main():
     runners = build_config.get("runners") or {}
 
     all_backends = list(buildable_backends(repo_root, configs))
-    buildable = {name for name, has_file in all_backends if has_file}
+    frozen = set(frozen_backends(configs))
+    buildable = {
+        name for name, has_file in all_backends if has_file and name not in frozen
+    }
     skipped = [name for name, has_file in all_backends if not has_file]
 
     if skipped:
@@ -287,15 +297,22 @@ def main():
             f"note: skipping backends with no base/ file: {', '.join(sorted(skipped))}",
             file=sys.stderr,
         )
+    if frozen:
+        print(
+            f"note: skipping frozen backends (enabled: false in configs.yaml): "
+            f"{', '.join(sorted(frozen))}",
+            file=sys.stderr,
+        )
 
     if args.backends:
         unknown = [n for n in args.backends if n not in buildable]
         for n in unknown:
-            print(f"warning: '{n}' is not a buildable base backend, ignoring",
-                  file=sys.stderr)
+            why = "is frozen (enabled: false in configs.yaml)" if n in frozen else \
+                "is not a buildable base backend"
+            print(f"warning: '{n}' {why}, ignoring", file=sys.stderr)
         selected = [n for n in args.backends if n in buildable]
     else:
-        selected = [name for name, has_file in all_backends if has_file]
+        selected = [name for name, has_file in all_backends if name in buildable]
 
     if args.app:
         # App builds are gated by deps_app key presence (key presence = the

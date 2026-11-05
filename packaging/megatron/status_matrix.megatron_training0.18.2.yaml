@@ -105,6 +105,7 @@ backends:
     image_tag: "2.2.0-0.3.0"
     prs:
     - https://github.com/NVIDIA/Megatron-LM/pull/6709
+    note: "cuda12.8 已冻结（torch 2.13 无 cu128 wheel）：post_training/inference 的 ⬜ 不会再有结论，依据见 docs/vendors/nvidia.md"
   nvidia-cuda13.3:
     deps_app: true
     launch_docs: true

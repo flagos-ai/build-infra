@@ -40,6 +40,18 @@
 # The backend name (e.g. "cuda12.8") matches base/{vendor}-{backend}.
 #
 # Backend spec fields:
+#   "enabled:"         — false freezes the backend: it leaves every build matrix
+#                        (base, runtime and the app images on it) while its spec,
+#                        the images already on the registry and its docs stay.
+#                        scripts/backend_enabled.py is the one resolver, shared
+#                        by the build side and the status reports, so no two
+#                        consumers can disagree about what is still built.
+#                        A stack version bump does not lift the freeze: the
+#                        frozen backend keeps the tag it was last built at, so
+#                        the flat tag never claims a rebuild that did not
+#                        happen. The record of WHY lives on the vendor's fact
+#                        page (docs/vendors/) — this field is the mechanism.
+#                        Absent = enabled; only a literal false freezes.
 #   "extras:"          — FlagGems pyproject extra name, passed verbatim as the
 #                        EXTRAS_GROUP build-arg (`pip install ".[<extras>]"`).
 #                        Opaque to build-infra; the naming is owned by FlagGems.
@@ -216,7 +228,15 @@ vendors:
         - ROCm 7.2.4 (x86_64)
 
   nvidia:
+    # Frozen 2026-11-05, not deleted: torch 2.13 publishes no cu128 wheel (the
+    # cu128 track tops out at 2.11.0), so this line cannot follow the stack's
+    # torch and its reason to exist has gone. Its images, docs and app lines
+    # stay as published — the freeze only drops it from the build matrices.
+    # Its images therefore stay at the 2.3.0 tag the freeze happened under:
+    # a later stack version bump must not be read as covering this line.
+    # Why and what replaced it: docs/vendors/nvidia.md.
     cuda12.8:
+      enabled: false
       extras: nvidia-cuda128
       hardware: ["NVIDIA H20"]   # TODO: add other validated NVIDIA GPUs
       driver: "610.43.02"
@@ -275,10 +295,17 @@ vendors:
       driver: "610.43.02"
       python: "3.12"
       cmake_backend: CUDA
-      triton: triton==3.6.0
+      # torch 2.13 declares `triton==3.7.1`, so the T path moves with it (amd's
+      # rocm row is the same move: triton-rocm==3.7.1). Source:
+      # https://download.pytorch.org/whl/cu130/triton/
+      triton: triton==3.7.1
       # 0.7.0 links its flagcx against the flagcx wheel's libflagcx.so (PR
       # #1266), not triton/_C/libflagcx.so (libcudart.so.12, absent on CUDA 13) —
       # the flagcx wheel for cuda13.3 (flagcx-0.14.0+cuda13.3) is a dep.
+      # Unchanged by the torch bump: FlagTree bundles its own triton, so the
+      # pin above moves only the T path. Verify the pair on-node in the same
+      # rebuild (amd's rocm row carries the same flagtree 0.7.0 / triton 3.7.1
+      # pairing).
       flagtree: flagtree==0.7.0
       flagtree_daily: flagtree-nvidia
       env:
@@ -302,26 +329,31 @@ vendors:
             # the sampler off at the app layer.
             VLLM_USE_FLASHINFER_SAMPLER: "0"
       deps:
-        - torch==2.11.0+cu130
+        - torch==2.13.0+cu130
+        # Stays at 2.11.0: the cu130 index carries no newer torchaudio, and the
+        # 2.11.0 wheel declares no requires-dist at all, so it is version-
+        # independent of the torch above.
         - torchaudio==2.11.0+cu130
-        - torchvision==0.26.0+cu130
+        - torchvision==0.28.0+cu130
         - numpy==1.26.4
         # 0.7.0's flagcx resolution prefers the flagcx wheel package's
         # libflagcx.so (PR #1266); without it, triton/_C/libflagcx.so (which
         # links libcudart.so.12, absent here) is the fallback and the TLE
         # import OSError from #1234 returns. The +cuda13.3 wheel links
-        # libcudart.so.13, present in this image.
+        # libcudart.so.13, present in this image. Rebuilt against torch 2.13
+        # headers: torch 2.13 removed c10's materialize_cow_storage in favour
+        # of materialize_cow, which is what the amd row hit on the same bump.
         - flagcx==0.14.0+cuda13.3
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
-        # flash-attn wheel source-built with ABI locked to torch 2.11.0+cu130
+        # flash-attn wheel source-built with ABI locked to torch 2.13.0+cu130
         # (build-time torch == runtime torch; see cuda12.8 comment).
         megatron_rl0.17.1:
-          - flash_attn==2.8.3.post1+fl.cu130.torch211
+          - flash_attn==2.8.3.post1+fl.cu130.torch213
         # rl deps re-verified for 0.18.2: same ABI pins hold on cuda13.3.
         megatron_rl0.18.2:
-          - flash_attn==2.8.3.post1+fl.cu130.torch211
+          - flash_attn==2.8.3.post1+fl.cu130.torch213
         vllm0.20.2: []
         vllm0.24.0: []
       sdk:

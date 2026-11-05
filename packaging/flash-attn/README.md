@@ -4,7 +4,7 @@ Builds a source-compiled `flash_attn` wheel, ABI-locked to a specific
 nvidia runtime image's torch. This is the **only self-built nvidia
 deps_app package**: Megatron's RL dynamic-batching engine
 hard-depends on flash-attn ≥ 2.7.3, and no usable binary wheel exists
-for torch 2.10/2.11.
+for torch 2.10/2.13.
 
 ## Why self-built
 
@@ -28,7 +28,7 @@ One wheel per backend, distinguished by the PEP 440 local segment:
 | Backend | Runtime torch | WHEEL_TAG | Wheel |
 |---|---|---|---|
 | nvidia-cuda12.8 | `2.10.0+cu128` | `fl.cu128.torch210` | `flash_attn-2.8.3.post1+fl.cu128.torch210-cp312-cp312-linux_x86_64.whl` |
-| nvidia-cuda13.3 | `2.11.0+cu130` | `fl.cu130.torch211` | `flash_attn-2.8.3.post1+fl.cu130.torch211-cp312-cp312-linux_x86_64.whl` |
+| nvidia-cuda13.3 | `2.13.0+cu130` | `fl.cu130.torch213` | `flash_attn-2.8.3.post1+fl.cu130.torch213-cp312-cp312-linux_x86_64.whl` |
 
 ## Build
 

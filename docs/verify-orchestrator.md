@@ -290,7 +290,7 @@ worker 回合结束约定：每条结果必以终态符号（✅/❌/⛔/？）�
 
 - **Phase 0**：本文档（已完成）。
 - **Phase 1**：driver + debug-loop + worker contract，接线已有 4 app。先在一
-  小片后端（nvidia-cuda12.8 + 一个非 nvidia 后端）跑通完整闭环，再铺全量。此
+  小片后端（nvidia-cuda13.3 + 一个非 nvidia 后端）跑通完整闭环，再铺全量。此
   阶段确定 debug-loop 的常驻方式（launchd / cron / 手动常驻）与 worker 权限白名单。
 - **Phase 2**：sglang / verl 脚手架（§4.3）+ schema 枚举扩展（§4.4）。
 

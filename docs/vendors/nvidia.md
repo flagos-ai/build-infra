@@ -1,9 +1,20 @@
 # nvidia（CUDA）
 
-backend key：`nvidia-cuda12.8` / `nvidia-cuda13.3`。x86_64、python 3.12，平台 H20
-（megatron 线另有 H100 记录）。**这是唯一 app 层发布名与 backend 名不同的厂商**：
+backend key：`nvidia-cuda12.8`（**已冻结**）/ `nvidia-cuda13.3`。x86_64、python 3.12，
+平台 H20（megatron 线另有 H100 记录）。**这是唯一 app 层发布名与 backend 名不同的厂商**：
 `…-nvidia-cuda12.8` 对外发成 `…-generic-12.8`（同 tag、同内容），按厂商字符串查找
 制品路径会落空。
+
+## cuda12.8 已冻结（2026-11-05）
+
+- **原因：torch 2.13 没有 cu128 的 wheel**（cu128 轨道止于 2.11.0）。这条线因此无法跟随
+  全栈的 torch —— 不是驱动的问题（610.43.02 与 CUDA 13 兼容），是 wheel 不存在，它存在的
+  意义没了，`configs.yaml` 里标 `enabled: false`。
+- **冻结 = 退出所有构建矩阵，不删除、不重建**：已推送的镜像、文档、app 线留在原处仍可拉取，
+  镜像停在冻结时的 `2.3.0` tag（后续版本号提升不覆盖它，扁平 tag 因此不会声称一次并未发生
+  的重建）。机制与判定处见 `scripts/backend_enabled.py`；状态矩阵里它的 ⬜ cell 保留为记录，
+  但 verify driver 不再收集（没有新镜像可验）。
+- 后续只维护 cuda13.3；下一条新 GPU 线按新增后端流程另开，不在本条上解冻。
 
 ## 平台与设备
 
@@ -15,6 +26,10 @@ backend key：`nvidia-cuda12.8` / `nvidia-cuda13.3`。x86_64、python 3.12，平
   `run.vendors.nvidia`。
 - 12.8 与 13.3 都是 python 3.12，**同一个 cp312 wheel 可跨 CUDA 版本用**（12.8 构建的
   wheel 在 cu130 上单步安装即通过）；跨 OS/架构（aarch64）未验。
+- cuda13.3 的 torch 闭包：torch 2.13.0+cu130 / torchvision 0.28.0+cu130，**torchaudio
+  停在 2.11.0+cu130**（cu130 索引没有更新的 torchaudio，且 2.11.0 的 wheel 不声明任何
+  requires-dist，与 torch 版本无关）。T 路径 triton 随之升到 3.7.1（torch 2.13 自己声明
+  的版本）；FlagTree 保持 0.7.0，它自带 triton，只影响 T 路径。
 
 ## 供应商工具链（会污染其他厂商的结论）
 
@@ -33,7 +48,9 @@ backend key：`nvidia-cuda12.8` / `nvidia-cuda13.3`。x86_64、python 3.12，平
   `has_triton_tle` 的 ImportError 探针 → `deps` 里必须钉 `flagcx==0.14.0+cuda13.3`
   （用它自己的 `libcudart.so.13`），否则回退到 `triton/_C/libflagcx.so` 就复现。
 - **flash-attn 的 ABI 锁死 build-time torch == runtime torch**，故按后端打 tag
-  （`+fl.cu128.torch210`、`+fl.cu130.torch211`）；它是 RL 动态引擎的硬依赖。
+  （`+fl.cu128.torch210`、`+fl.cu130.torch213`）；它是 RL 动态引擎的硬依赖。
+  **torch 一升就必须重编**：tag 里的 torch 段就是 build-time torch，旧 wheel 的
+  `.so` 在新 torch 上 import 即报 undefined symbol。
 - **插件源码安装必须 `--no-build-isolation`**：构建隔离会自己下载 `torch>=2.7.1`
   （约 2.4 GB）并**用那个 torch 编插件**，直接破坏镜像里匹配好的版本矩阵。
 - flagtree 的 nvidia 后端**没有 `register_cache` 钩子**（metax/sunrise/iluvatar 有），
