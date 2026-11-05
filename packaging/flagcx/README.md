@@ -97,7 +97,9 @@ the `.so` gate in `wheel-build-in-container.sh`, not remembered here as an image
 All nineteen builder-enabled rows are built, verified and published: the two nvidia rows, whose
 acceptance test is the bitcode compile, and seventeen vendor rows, whose acceptance test is the
 torch/SDK probe. Three carry a dated measurement — the nvidia pair drawn from a run on h20 against
-`21f8b5f`, the hygon one from its own node:
+`21f8b5f`, the hygon one from its own node. `nvidia-cuda12.8` is frozen in configs.yaml
+(`enabled: false`), so it is in no builder matrix now and its row below stands as the record of a
+measurement already taken, not as a row still rebuilt:
 
 | Row | At | Acceptance |
 |---|---|---|

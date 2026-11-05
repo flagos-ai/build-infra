@@ -18,7 +18,7 @@ name: Flash-Attn Wheel
 # (optionally) upload them to the internal PyPI.
 #
 # GitHub prebuilt wheels are ABI-locked to torch 2.8 (newest cu12 =
-# 2.8.3.post1+cu12torch2.8) and die on import against torch 2.10/2.11
+# 2.8.3.post1+cu12torch2.8) and die on import against torch 2.10/2.13
 # (`undefined symbol: c10_cuda_check_implementation`), and FA3/FA4 have
 # no usable wheels — so the nvidia megatron_rl app images need a
 # self-built wheel (packaging/flash-attn/Containerfile).
@@ -27,7 +27,7 @@ name: Flash-Attn Wheel
 # backend map below must match configs.yaml's torch for that backend:
 #
 #   nvidia-cuda12.8  BASE_IMAGE=cuda:12.8.0-devel  torch 2.10.0+cu128  fl.cu128.torch210
-#   nvidia-cuda13.3  BASE_IMAGE=cuda:13.3.0-devel  torch 2.11.0+cu130  fl.cu130.torch211
+#   nvidia-cuda13.3  BASE_IMAGE=cuda:13.3.0-devel  torch 2.13.0+cu130  fl.cu130.torch213
 #
 # WHEEL_TAG becomes the PEP 440 local segment (FLASH_ATTN_LOCAL_VERSION),
 # so both wheels coexist on flagos-pypi-nvidia without clobbering.
@@ -44,9 +44,12 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend to build for: nvidia-cuda12.8 / nvidia-cuda13.3'
+        description: 'Backend to build for: nvidia-cuda13.3 / nvidia-cuda12.8'
         type: string
-        default: nvidia-cuda12.8
+        # cuda13.3 first and by default: cuda12.8 is frozen in configs.yaml, and
+        # its wheel is already published at the ABI tag its frozen line pins, so
+        # a default run there would rebuild an artifact nothing consumes.
+        default: nvidia-cuda13.3
       flash_attn_version:
         description: 'flash-attn version to compile (megatron gate requires >= 2.7.3)'
         type: string
@@ -97,8 +100,8 @@ jobs:
               ;;
             nvidia-cuda13.3)
               echo "base_image=nvcr.io/nvidia/cuda:13.3.0-devel-ubuntu24.04" >> "$GITHUB_OUTPUT"
-              echo "torch_version=2.11.0+cu130" >> "$GITHUB_OUTPUT"
-              echo "wheel_tag=fl.cu130.torch211" >> "$GITHUB_OUTPUT"
+              echo "torch_version=2.13.0+cu130" >> "$GITHUB_OUTPUT"
+              echo "wheel_tag=fl.cu130.torch213" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "ERROR: unknown backend '${{ inputs.backend }}'" >&2

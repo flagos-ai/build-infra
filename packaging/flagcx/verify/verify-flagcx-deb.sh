@@ -17,8 +17,8 @@
 #
 # Usage:
 #   verify-flagcx-deb.sh --backend metax-maca3.8.1.3 dist/*.deb
-#   verify-flagcx-deb.sh --backend nvidia-cuda12.8 --floor-image ubuntu:24.04 dist/*.deb
-#   verify-flagcx-deb.sh --backend nvidia-cuda12.8 --floor-image ubuntu:24.04 \
+#   verify-flagcx-deb.sh --backend nvidia-cuda13.3 --floor-image ubuntu:24.04 dist/*.deb
+#   verify-flagcx-deb.sh --backend nvidia-cuda13.3 --floor-image ubuntu:24.04 \
 #       --apt-url URL --apt-key key.asc --apt-only dist/*.deb
 #
 # Options:

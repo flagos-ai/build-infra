@@ -270,7 +270,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 | 后端 | deps_app 落库 | 启动文档 | 镜像发布 | 备注 |
 |---|---|---|---|---|
-| CUDA 12.8 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
+| CUDA 12.8 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate）；且 cuda12.8 已冻结（torch 2.13 无 cu128 wheel），本行 ⬜ 不会再有结论 —— 冻结依据见 docs/vendors/nvidia.md |
 | CUDA 13.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变） |
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | RL E2E 已在 910C 上跑通（hw114，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁 |
@@ -313,7 +313,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 | 后端 | deps_app 落库 | 启动文档 | 镜像发布 | 备注 |
 |---|---|---|---|---|
-| CUDA 12.8 | ✅ | ✅ | ✅ | — |
+| CUDA 12.8 | ✅ | ✅ | ✅ | cuda12.8 已冻结（torch 2.13 无 cu128 wheel）：post_training/inference 的 ⬜ 不会再有结论，依据见 docs/vendors/nvidia.md |
 | CUDA 13.3 | ✅ | ✅ | ✅ | 0.18.2 成功配方（2026-09-26 on-node）：F/T 双路径设 FLAGCX_BITCODE_PATH=/opt/flagtree/triton/backends/nvidia/lib/libflagcx_device.bc （flagtree 自带 .bc）后 E2E 通过，loss 1.087099E+01 与 cuda12.8 逐位一致。env 已固化 configs.yaml env.runtime，runtime+app 镜像 rebuild 后默认可用；现推 2.2.0-0.3.0 未含 env，F 路径需显式注入，T 路径无此问题 |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | — |
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | — |

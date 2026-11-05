@@ -63,6 +63,13 @@ REGISTRY = HERE / "backends.yaml"
 MATRIX_SCRIPT = REPO / "scripts" / "generate_matrix.py"
 BUILD_CONFIG = REPO / ".github" / "build-config.yml"
 
+# The one resolver for configs.yaml `enabled: false` — shared with the build
+# side so this gate cannot call a deliberate freeze drift. scripts/ is not a
+# package (and the ascend runners' python 3.7 forbids relying on namespace
+# packages), so the directory goes on the path explicitly.
+sys.path.insert(0, str(REPO / "scripts"))
+from backend_enabled import frozen_backends  # noqa: E402
+
 # Fields that are lists in the registry and strings in the CI matrix — a build
 # arg can only be a string, and the workflow passes every field through as one.
 LIST_FIELDS = ("apt", "vendor_libs", "vendor_lib_dirs", "assert")
@@ -757,13 +764,18 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
     }[channel]
     problems: list[str] = []
     matrix_keys = {entry["name"] for entry in matrix}
+    # A frozen backend (configs.yaml `enabled: false`) is absent from the matrix
+    # on purpose, so its enabled rows here are not the drift this alarm exists
+    # for. generate_matrix.py prints the freeze note on stderr; naming it a
+    # second time as a problem would make lifting a freeze look like a fix.
+    frozen = set(frozen_backends(load_configs()))
 
     for key in sorted(matrix_keys - set(registry)):
         problems.append(
             f"{key}: in the runtime matrix but not in backends.yaml — it is "
             f"buildable but has no packaging entry"
         )
-    for key in sorted(set(registry) - matrix_keys):
+    for key in sorted(set(registry) - matrix_keys - frozen):
         # generate_matrix.py prints its own note for these (no base/ file);
         # only an *enabled* one is drift, since it could never be built.
         if (registry[key].get(channel) or {}).get("enabled"):

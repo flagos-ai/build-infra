@@ -101,12 +101,12 @@ ARG no_proxy=
 # key is fetched and the source line written directly. The codename is jammy
 # because this image is ubuntu:22.04 by design.
 #
-# python3.12 is hardcoded rather than templated from PYTHON_VERSION: both rows
-# this file currently builds (nvidia-cuda12.8, nvidia-cuda13.3) are python 3.12
-# in configs.yaml, and a bump means editing this line — the same trade
-# packaging/flagtree/nvidia-cuda already made. PYTHON_VERSION is still asserted
-# by the probe below, so a row that moved would fail loudly rather than build
-# with the wrong interpreter.
+# python3.12 is hardcoded rather than templated from PYTHON_VERSION: the row
+# this file currently builds (nvidia-cuda13.3 — cuda12.8 is frozen in
+# configs.yaml, so it is in no builder matrix) is python 3.12, and a bump means
+# editing this line — the same trade packaging/flagtree/nvidia-cuda already
+# made. PYTHON_VERSION is still asserted by the probe below, so a row that moved
+# would fail loudly rather than build with the wrong interpreter.
 #
 # libgflags-dev/libgoogle-glog-dev are here rather than in Containerfile.wheel
 # because they are build-only headers (torch's c10/util/Flags.h and Logging.h

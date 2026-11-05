@@ -41,7 +41,10 @@ installed compiler path is exercised explicitly rather than the runtime
 default.
 
 Terminal symbols (✅/❌/⛔/？) and "—" (compiler absent on the backend) are
-skipped; only ⬜ columns become cells. See docs/verify-orchestrator.md.
+skipped; only ⬜ columns become cells. A backend frozen in configs.yaml
+(``enabled: false``) is skipped whole — its ⬜ cells stay in the matrix as the
+record of where the line stopped, but nothing is built for them to verify.
+See docs/verify-orchestrator.md.
 
 Usage:
     python scripts/verify_collect_cells.py                       # all 4 apps
@@ -58,6 +61,7 @@ from pathlib import Path
 
 import yaml
 
+from backend_enabled import frozen_backends
 from vllm_plugin import pin as vllm_plugin_pin
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -111,9 +115,12 @@ PENDING = "⬜"
 COMPILER_FLAG = {"F": "flagtree", "T": "triton"}
 
 
+def stack_configs() -> dict:
+    return yaml.safe_load((REPO_ROOT / "configs.yaml").read_text()) or {}
+
+
 def stack_version() -> str:
-    configs = yaml.safe_load((REPO_ROOT / "configs.yaml").read_text())
-    return configs["version"]
+    return stack_configs()["version"]
 
 
 def runtime_image(backend: str, version: str) -> str:
@@ -172,9 +179,18 @@ def collect(app: str, version: str, backends: set[str] | None) -> list[dict]:
     meta = APP_VERIFY[app]
     scenario = meta["scenario"]
     verification = matrix.get("scenarios", {}).get(scenario, {}).get("verification", {})
+    # A frozen backend (configs.yaml `enabled: false`) keeps its ⬜ cells — the
+    # freeze drops it from the build matrices, and nothing is being built for it
+    # to verify against. Collecting them would dispatch cells that can only fail
+    # at `docker pull` of a runtime the freeze deliberately stopped rebuilding,
+    # and each failure would read as owed work on a line that is closed by
+    # design. Same resolver as the build side; see scripts/backend_enabled.py.
+    frozen = set(frozen_backends(stack_configs()))
     cells = []
     for backend, syms in verification.items():
         if backends is not None and backend not in backends:
+            continue
+        if backend in frozen:
             continue
         for compiler in _pending_compilers(syms):
             verify_args = meta["verify_args"]
@@ -210,6 +226,18 @@ def main() -> None:
     apps = args.app if args.app else list(APP_VERIFY)
     backends = set(args.backend) if args.backend else None
     version = stack_version()
+    frozen = set(frozen_backends(stack_configs()))
+    if backends:
+        # Naming a frozen backend would otherwise return an empty matrix, which
+        # reads as "this app has no pending cells" rather than "this line is
+        # closed" — the two want different responses.
+        named = sorted(backends & frozen)
+        if named:
+            print(
+                f"note: skipping frozen backends (enabled: false in configs.yaml): "
+                f"{', '.join(named)}",
+                file=sys.stderr,
+            )
     cells = [cell for app in apps for cell in collect(app, version, backends)]
 
     out = {"include": cells}

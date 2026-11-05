@@ -36,9 +36,12 @@ on:
         type: string
         default: vllm
       backend:
-        description: 'Backend key (e.g. nvidia-cuda12.8)'
+        description: 'Backend key (e.g. nvidia-cuda13.3)'
         type: string
-        default: nvidia-cuda12.8
+        # cuda13.3, not the 12.8 row it replaced: cuda12.8 is frozen in
+        # configs.yaml (torch 2.13 publishes no cu128 wheel), so a bundle built
+        # against it would pin a torch the stack has moved off.
+        default: nvidia-cuda13.3
       push:
         description: 'Upload the tarball to flagos-filestore/bundle/'
         type: boolean

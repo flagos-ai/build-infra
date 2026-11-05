@@ -18,7 +18,7 @@
 # Builds a source-compiled flash_attn wheel ABI-locked to the
 # target runtime's torch. GitHub prebuilt wheels are ABI-locked
 # to torch 2.8 (newest cu12 = 2.8.3.post1+cu12torch2.8) and die
-# on import against torch 2.10/2.11:
+# on import against torch 2.10/2.13:
 #   undefined symbol: c10_cuda_check_implementation
 # Megatron's RL dynamic-batching engine hard-depends on
 # flash-attn >= 2.7.3 (attention.py:943 gate) and FA3/FA4 have
@@ -33,7 +33,7 @@
 # torch version. Two nvidia backends -> two wheels:
 #
 #   nvidia-cuda12.8   torch 2.10.0+cu128  WHEEL_TAG=fl.cu128.torch210
-#   nvidia-cuda13.3   torch 2.11.0+cu130  WHEEL_TAG=fl.cu130.torch211
+#   nvidia-cuda13.3   torch 2.13.0+cu130  WHEEL_TAG=fl.cu130.torch213
 #
 # WHEEL_TAG becomes the PEP 440 local segment (upstream's
 # FLASH_ATTN_LOCAL_VERSION) so both wheels coexist on the vendor

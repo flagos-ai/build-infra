@@ -60,6 +60,8 @@ Status values:
     UP_TO_DATE  pushed :{tag} reflects HEAD's build inputs and config
     OUTDATED    build inputs and/or config changed since the pushed image
     NOT_BUILT   no :{tag} tag in Harbor yet — must build
+    FROZEN      configs.yaml sets enabled: false — deliberately not rebuilt,
+                so the staleness below it is the intended state, not owed work
     UNKNOWN     could not determine (see detail column)
 
 Usage:
@@ -87,6 +89,7 @@ from pathlib import Path
 import yaml
 
 from base_image_status import HarborAuth, credentials, image_labels
+from backend_enabled import frozen_backends
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -121,8 +124,8 @@ RUNTIME_BACKEND_KEYS = (
 )
 
 
-def load_context() -> tuple[str, str, str, list[str], str]:
-    """Return (host, runtime-project, version, names, flaggems)."""
+def load_context() -> tuple[str, str, str, list[str], str, set[str]]:
+    """Return (host, runtime-project, version, names, flaggems, frozen names)."""
     configs = yaml.safe_load((REPO_ROOT / "configs.yaml").read_text()) or {}
     build = yaml.safe_load((REPO_ROOT / ".github" / "build-config.yml").read_text()) or {}
     registry = build.get("registry") or {}
@@ -133,7 +136,7 @@ def load_context() -> tuple[str, str, str, list[str], str]:
 
     vendors = configs.get("vendors") or {}
     names = sorted(f"{v}-{b}" for v, backends in vendors.items() for b in backends)
-    return host, project, version, names, flaggems
+    return host, project, version, names, flaggems, set(frozen_backends(configs))
 
 
 def build_inputs_changed(revision: str) -> bool | None:
@@ -222,7 +225,7 @@ def main() -> None:
     ap.add_argument("--tag", help="Harbor tag to inspect (default: configs.yaml version)")
     args = ap.parse_args()
 
-    host, project, version, names, flaggems = load_context()
+    host, project, version, names, flaggems, frozen = load_context()
     if not host:
         sys.exit("registry.host missing from .github/build-config.yml")
     if not version:
@@ -248,6 +251,15 @@ def main() -> None:
     ) -> dict:
         """Check one backend row against Harbor + git history."""
         entry = {"name": display_name, "tag": query_tag, "built": "", "status": "", "detail": ""}
+        if display_name in frozen:
+            # Same reasoning as base_image_status: a frozen line is behind by
+            # design, and reporting NOT_BUILT at the current tag would read as
+            # a build that is owed.
+            entry.update(
+                status="FROZEN",
+                detail="enabled: false in configs.yaml — not rebuilt by design",
+            )
+            return entry
         try:
             labels = image_labels(auth, repo, query_tag)
         except urllib.error.URLError as e:

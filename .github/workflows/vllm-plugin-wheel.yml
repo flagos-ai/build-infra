@@ -131,7 +131,7 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose runtime image builds the wheel (e.g. nvidia-cuda12.8). "all" = build once in the default image and upload to every vendor index.'
+        description: 'Backend whose runtime image builds the wheel (e.g. nvidia-cuda13.3). "all" = build once in the default image and upload to every vendor index.'
         type: string
         default: all
       plugin_ref:
@@ -199,7 +199,10 @@ jobs:
           # The reference build image for backend=all. Any row would do — the
           # wheel does not depend on it — so this is the platform the vllm
           # work is verified on first, not a constraint on the artifact.
-          DEFAULT_BUILD_BACKEND: nvidia-cuda12.8
+          # cuda13.3, not the 12.8 row it replaced: cuda12.8 is frozen in
+          # configs.yaml, so naming it here fails the resolve job outright
+          # (generate_matrix.py drops it from every matrix).
+          DEFAULT_BUILD_BACKEND: nvidia-cuda13.3
         run: |
           set -euo pipefail
           if [[ "${BACKEND}" == "all" ]]; then
@@ -607,8 +610,15 @@ jobs:
                                    capture_output=True, text=True, check=True)
               inc = json.loads(out.stdout)["include"]
               if not inc:
-                  print(f"{name}: not in the runtime matrix", file=sys.stderr)
-                  sys.exit(1)
+                  # A frozen row (configs.yaml `enabled: false`) is absent by
+                  # design: its runtime image stops rebuilding, so there is no
+                  # build env left to compile the plugin's .so in and no app
+                  # image on it to install the result into. Skip it the way
+                  # generate_matrix does (it prints its own note) rather than
+                  # failing the whole native plan on a deliberate freeze.
+                  print(f"{name}: frozen or not in the runtime matrix — skipping",
+                        file=sys.stderr)
+                  continue
               row = inc[0]
               # runson is a JSON-encoded array STRING (generate_matrix emits it
               # verbatim); fromjson at runs-on unpacks it.

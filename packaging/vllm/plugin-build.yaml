@@ -21,7 +21,10 @@
 # fan-out) — presence here is what selects the native build, nothing else.
 # The wheel is built inside that backend's runtime image (build env == delivery
 # env), so each row's .so links the exact torch/ABI the app image runs against,
-# and uploads to that vendor's own index only.
+# and uploads to that vendor's own index only. A row for a backend frozen in
+# configs.yaml (`enabled: false`) stays here as the record of how that line was
+# built, but names no runtime image any more — vllm-plugin-wheel.yml's
+# plan-native skips it rather than failing the plan (see scripts/backend_enabled.py).
 #
 # Why this exists: the pure-python wheel carries no weak_ref_tensor provider, so
 # vllm_fl falls back to `("weak_ref_tensor", lambda t: t)` — a strong reference —

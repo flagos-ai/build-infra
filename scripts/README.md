@@ -8,6 +8,7 @@
 | 脚本 | 用途 | CI 引用 |
 |---|---|---|
 | `generate_matrix.py` | 从 configs.yaml 生成 CI matrix JSON（trigger/runtime/verify 等 workflow 的矩阵源） | ✅ |
+| `backend_enabled.py` | configs.yaml `enabled: false`（冻结后端）的唯一判定处，build 侧与状态报告共用 | — |
 | `build_base.py` | 构建 base 镜像（`--dry-run` / `--push`） | ✅ |
 | `build_runtime.py` | 构建 runtime 镜像（解析 configs.yaml DEPS/编译器/FlagGems 版本 → build args） | — |
 | `base_image_status.py` | 读已推送 base 镜像 revision/version OCI label，判定镜像是否过期 | — |
