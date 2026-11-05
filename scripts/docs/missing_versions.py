@@ -27,7 +27,14 @@ def main() -> None:
     expected = {i["name"] for i in matrix.get("include", [])}
 
     ver_dir = ROOT / "versions"
-    got = {f.stem for f in ver_dir.glob("*.tsv")} if ver_dir.is_dir() else set()
+    # A 0-byte TSV is not a collected backend (see collect_version_tsvs.py);
+    # the runtime line's metadata-only TSVs carry their ``#`` headers, so they
+    # are never empty.
+    got = (
+        {f.stem for f in ver_dir.glob("*.tsv") if f.stat().st_size > 0}
+        if ver_dir.is_dir()
+        else set()
+    )
     missing = expected - got
 
     # Machine line for the caller: COUNT len(got) len(expected)

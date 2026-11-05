@@ -71,6 +71,20 @@ def _label() -> str:
     return "unknown"
 
 
+def _collected(versions_dir: Path) -> list[Path]:
+    """The TSVs that actually carry data — the ones completeness is measured on.
+
+    A 0-byte TSV is not a collected backend. The runtime line's media-tagless
+    backends legitimately ship a metadata-only TSV (no package rows, just the
+    ``#`` headers), but that file is never empty, so a size check separates the
+    two. Counting by filename alone let a truncated restore make 20 lost
+    backends look collected.
+    """
+    if not versions_dir.is_dir():
+        return []
+    return [f for f in versions_dir.glob("*.tsv") if f.stat().st_size > 0]
+
+
 def _missing(versions_dir: Path, expected_backends: list[str] | None = None) -> tuple[list[str], int]:
     """Return (missing_names, expected_count).
 
@@ -79,7 +93,7 @@ def _missing(versions_dir: Path, expected_backends: list[str] | None = None) -> 
     enumerates every backend — correct for a full run, wrong for a scoped one)."""
     if expected_backends is not None:
         expected_set = set(expected_backends)
-        got = {f.stem for f in versions_dir.glob("*.tsv")} if versions_dir.is_dir() else set()
+        got = {f.stem for f in _collected(versions_dir)}
         missing = sorted(expected_set - got)
         return missing, len(expected_set)
 
@@ -131,10 +145,10 @@ def main() -> None:
     # backends are restored from the state branch by the workflow before this
     # script runs, and download-artifact fetches the fresh per-backend ones,
     # so we always end up with the full set.
-    prev = len(list(versions_dir.glob("*.tsv"))) if retry > 0 else 0
+    prev = len(_collected(versions_dir)) if retry > 0 else 0
     for tsv in remote_dir.glob("*.tsv"):
         shutil.copy2(tsv, versions_dir / tsv.name)
-    now = len(list(versions_dir.glob("*.tsv")))
+    now = len(_collected(versions_dir))
     print(f"After merging: {now} (was {prev})", file=sys.stderr)
 
     # Check completeness.
@@ -155,7 +169,7 @@ def main() -> None:
     # Also include a verify summary: counts of success/failure/skipped from the
     # metadata headers in each collected TSV.
     verify_counts = {"success": 0, "failure": 0, "skipped": 0}
-    for tsv in versions_dir.glob("*.tsv"):
+    for tsv in _collected(versions_dir):
         head = tsv.read_text()[:256]
         m = re.search(r"^# verify: (success|failure|skipped)", head, re.MULTILINE)
         if m:

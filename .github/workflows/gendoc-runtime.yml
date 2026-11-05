@@ -210,11 +210,12 @@ jobs:
           pattern: versions-*
           merge-multiple: true
 
-      # Restore previously-collected TSVs from the state branch so that
-      # backends not refreshed this retry retain their data across runs.
-      # On retry=0 the state branch doesn't exist yet — that's fine, we
-      # start fresh.
-      # For scoped runs, only restore TSVs for the backends being collected.
+      # Restore state from the state branch. `git checkout <tree> -- <path>`
+      # rather than `git show <tree>:<path> > <path>`: the shell truncates the
+      # redirect target before `git show` runs, and `git show` then writes into
+      # the file it is reading — every restore lands an empty TSV, which the
+      # completeness check counts as a collected backend because it matches on
+      # filename.
       - name: Restore state from previous retries
         env:
           GIT_AUTHOR_NAME: flagos-ci
@@ -234,7 +235,7 @@ jobs:
             else
               for bk in ${SCOPE}; do
                 f="versions/${bk}.tsv"
-                if git show "FETCH_HEAD:${f}" > "${f}" 2>/dev/null; then
+                if git checkout FETCH_HEAD -- "${f}" 2>/dev/null; then
                   echo "  Restored ${bk}.tsv"
                 fi
               done
