@@ -301,7 +301,7 @@ vendors:
       triton: triton==3.7.1
       # 0.7.0 links its flagcx against the flagcx wheel's libflagcx.so (PR
       # #1266), not triton/_C/libflagcx.so (libcudart.so.12, absent on CUDA 13) —
-      # the flagcx wheel for cuda13.3 (flagcx-0.14.0+cuda13.3) is a dep.
+      # the flagcx wheel for cuda13.3 (flagcx-0.14.1+cuda13.3) is a dep.
       # Unchanged by the torch bump: FlagTree bundles its own triton, so the
       # pin above moves only the T path. Verify the pair on-node in the same
       # rebuild (amd's rocm row carries the same flagtree 0.7.0 / triton 3.7.1
@@ -340,10 +340,14 @@ vendors:
         # libflagcx.so (PR #1266); without it, triton/_C/libflagcx.so (which
         # links libcudart.so.12, absent here) is the fallback and the TLE
         # import OSError from #1234 returns. The +cuda13.3 wheel links
-        # libcudart.so.13, present in this image. Rebuilt against torch 2.13
-        # headers: torch 2.13 removed c10's materialize_cow_storage in favour
-        # of materialize_cow, which is what the amd row hit on the same bump.
-        - flagcx==0.14.0+cuda13.3
+        # libcudart.so.13, present in this image. The 0.14.0 wheel was built
+        # against pre-2.13 headers, where c10's materialize_cow_storage still
+        # existed; torch 2.13 replaced it with materialize_cow, and flagcx is a
+        # privateuse1 backend torch auto-loads, so the undefined symbol broke
+        # `import torch` itself. The wheel's build env is the flagcx builder
+        # image, whose torch pin is read from this same deps list — that image
+        # rebuilds first.
+        - flagcx==0.14.1+cuda13.3
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
