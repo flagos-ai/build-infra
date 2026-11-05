@@ -30,6 +30,13 @@ backend key：`nvidia-cuda12.8`（**已冻结**）/ `nvidia-cuda13.3`。x86_64�
   停在 2.11.0+cu130**（cu130 索引没有更新的 torchaudio，且 2.11.0 的 wheel 不声明任何
   requires-dist，与 torch 版本无关）。T 路径 triton 随之升到 3.7.1（torch 2.13 自己声明
   的版本）；FlagTree 保持 0.7.0，它自带 triton，只影响 T 路径。
+- **flagcx 的 ABI 同样锁死 build-time torch**：torch 2.13 去掉了 c10 的
+  `materialize_cow_storage`（改为 `materialize_cow`），旧 wheel 的 `_C.so` 留下未定义符号。
+  而 `flagcx` 是 torch 的 privateuse1 后端扩展、会被 torch 自动加载，因此**符号不匹配时
+  连 `import torch` 都失败**（报 `Failed to load the backend extension: flagcx`，掩盖了
+  真正的 undefined symbol）。它的构建环境是 `flagos-dev/flagcx-builder-nvidia-cuda13.3`
+  ——该镜像的 torch pin 取自 configs.yaml `deps`，所以 **torch 一升，flags 顺序是
+  builder 镜像 → wheel → runtime**（builder 里装的是哪个 torch，编出的 `.so` 就绑哪个）。
 
 ## 供应商工具链（会污染其他厂商的结论）
 

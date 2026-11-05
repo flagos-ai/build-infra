@@ -103,13 +103,14 @@ measurement already taken, not as a row still rebuilt:
 
 | Row | At | Acceptance |
 |---|---|---|
-| `nvidia-cuda13.3` | h20 | clang 22, `sm_120`, CCL branch — 2,021,740 B of bitcode |
+| `nvidia-cuda13.3` | h20 | clang 22, `sm_120`, CCL branch — 2,021,320 B of bitcode and a 28,383-byte wrapper header |
 | `nvidia-cuda12.8` | h20 | clang 22, `sm_90`, Default branch — 274,820 B |
 | `hygon-dtk26.04` | hygon25 | torch 2.9.0+das.opt1.dtk2604 imports against DTK 26.04 (no bitcode) |
 
 The two sizes are the band's calibration as well as the record: the CCL branch pulls in
-`nccl_device`'s device-side implementation, which is what separates them by a factor of seven, and
-the numbers do not move with the compiler.
+`nccl_device`'s device-side implementation, which is what separates them by a factor of seven.
+The byte count inside a branch moves (this row has measured 2,021,740 B and 2,021,320 B), so what a
+builder is held to is the branch: `verify-flagcx-builder.sh` asserts the order of magnitude.
 
 Every other vendor row's probe is the same shape as hygon's: `import torch` against the SDK the
 image carries, plus the row's bridge where the bridge does not open the device at import. Where it
@@ -186,14 +187,17 @@ Every published pin is a build off the release tag `v0.14.1` — the version str
 | `mthreads-musa4.3.6` | 2026-10-28 | `0.14.1+musa4.3.6` |
 | `mthreads-musa5.2.0` | 2026-10-28 | `0.14.1+musa5.2.0` |
 | `nvidia-cuda12.8` | 2026-10-29 | `0.14.1+cuda12.8` |
-| `nvidia-cuda13.3` | 2026-10-29 | `0.14.1+cuda13.3` |
+| `nvidia-cuda13.3` | 2026-11-05 | `0.14.1+cuda13.3` |
 | `sunrise-tangrt1.2.0` | 2026-10-28 | `0.14.1+tangrt1.2.0` |
 | `tsingmicro-tsm260610` | 2026-10-28 | `0.14.1+tsm260610` |
 
 Column 2 is the date the wheel was last built and verified on its node. Most rows carry 2026-10-28,
 the dispatch that took the 0.14.1 generation across the roster; a handful finished in later
 dispatches, because their row entered the roster later or their job failed in its own line first.
-The version column is what says which build a pin is — a date never does.
+The version column is what says which build a pin is — a date never does, which is exactly why
+`nvidia-cuda13.3` carries a later date at an unchanged pin: its 2026-11-05 build is the same
+`0.14.1+cuda13.3` rebuilt against the torch 2.13 headers, and it replaced the artifact of that
+name in the index rather than adding to it.
 
 Two things the table does not show. `ascend-cann9.2.1` is the ascend family's only `cp312` wheel —
 the other four are `cp311`, because 9.2.1 is the first runtime image on python 3.12 — so no
