@@ -767,6 +767,28 @@ wheels:
     arch:
     - linux_x86_64
     - linux_aarch64
+  - version: 0.32.0+flagos
+    pypi_index:
+    - flagos-pypi-amd
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-enflame
+    - flagos-pypi-hygon
+    - flagos-pypi-iluvatar
+    - flagos-pypi-metax
+    - flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp311
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
+    - linux_aarch64
 - name: vllm-plugin-fl
   short_name: vllm-plugin-FL
   versions:
