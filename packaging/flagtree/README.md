@@ -177,7 +177,7 @@ and the `Source-Commit` carrier in `setup.cfg`, which is the same
 
 The same shape as `enflame` — bare `ubuntu:22.04`, apt toolchain, the backend's
 prebuilt LLVM and the shared triton toolkits into FlagTree's offline cache — with
-two differences.
+these differences.
 
 **It is the system python 3.10, not a deadsnakes 3.12.** `configs.yaml` pins
 `hygon-dtk26.04` at python 3.10, so the wheel has to wear `cp310`; 22.04 ships
@@ -188,12 +188,45 @@ no-op and `third_party/hcu/backend/include/hip/**` is tracked in git, so nothing
 outside the staged LLVM is needed to compile — and hcu is on cmake's gcc flag
 list, not the clang one. LLD is a `find_package(LLD REQUIRED CONFIG)` in
 `third_party/hcu/CMakeLists.txt`, resolved against `LLD_DIR`, which CMakeLists
-defaults to `${LLVM_LIBRARY_DIR}/cmake/lld`; the staged LLVM ships that file
-along with `liblldCommon.a`/`liblldELF.a`, so no `lld-14` package is staged. The
-same tree supplies `bin/FileCheck`, which CMakeLists copies into the wheel.
+defaults to `${LLVM_LIBRARY_DIR}/cmake/lld`; the staged LLVM ships that config
+there, and the archives it names (`liblldCommon.a`, `liblldELF.a`, ...) under
+`lib/` — `LLDTargets.cmake` carries no `IMPORTED_LOCATION`, so the CMake package
+and the archives it points at both have to be present and are not in the same
+directory. No `lld-14` package is staged. The same tree supplies `bin/FileCheck`,
+which CMakeLists copies into the wheel.
 
-**Two settings that must stay unset.** `hcu.py`'s one `register_cache` entry
-short-circuits on `LLVM_SYSPATH` (`pre_hook=check_env(...)`), so exporting it
+**One apt package the staged LLVM does require.** The 188a510 tree is built with
+zstd support, so its `LLVMExports.cmake` and `LLDTargets.cmake` list
+`zstd::libzstd_shared` in `INTERFACE_LINK_LIBRARIES`, and the `Findzstd.cmake`
+inside that tree creates the target only from a libzstd it can locate — header
+and `libzstd.so` both. `find_package(LLVM)` on its own never reads those files,
+so the builder stage passes without it and only the wheel build's configure
+fails, on a target that was never made. `libzstd-dev` is what supplies them;
+22.04's `libzstd.so.1` is the runtime soname alone. The wheel's `libtriton.so`
+consequently gains a `NEEDED libzstd.so.1`, which both hygon runtime images
+carry. The `b0ca808` tree predates the zstd-enabled build and needs none of it.
+
+**The staged inputs are keyed by name, and one key carries the revision.**
+FlagTree adopts a cache under the name it asked for and re-downloads from the
+vendor's ks3 bucket otherwise, so every staged name has to be exactly `hcu.py`'s.
+The LLVM's is `hcu-llvm22-<commit>-glibc2.35-...`, so it moves when the LLVM
+commit moves: `main` has named `188a510` since FlagTree `65094ea8` (the TLE-raw
+work), while the tag `configs.yaml` pins for the 26.04 runtime still names
+`b0ca808`. This stage therefore holds **both** trees, so the daily (which tracks
+`main`) and the release build (which builds the tag) each find theirs; a stage
+holding one sends the other's build to ks3, which is how run 41994270870 failed
+under the CI proxy.
+
+The second entry is a different kind of key. `libdushmem_device_gfx936.bc` is a
+single file, matched by `md5_digest` (`f6260239`, the first 8 hex characters)
+rather than by directory name, and its `copy_dst_path` is `/opt/dtk/dushmem/lib/`
+— FlagTree copies it out of the cache at build time, so the stage only has to
+hold it in the cache, and the 26.04 stage needs no DTK for that. The builder
+asserts the digest, which is what fails the build if upstream rotates the blob
+without moving the pin.
+
+**Two settings that must stay unset.** The LLVM entry short-circuits on
+`LLVM_SYSPATH` (`pre_hook=check_env(...)`), so exporting it
 sends the build to the vendor's ks3 bucket instead of the staged tree; and
 `TRITON_OFFLINE_BUILD` makes `get_thirdparty_packages` raise unless
 `JSON_SYSPATH` is set too. Staging the cache without either variable is what
@@ -214,10 +247,12 @@ and the image supplies it there.
 
 ## Hygon builder (`hcu-dtk2610`)
 
-The 26.10 twin of `hcu`: same staged LLVM + triton deps, same
-`FLAGTREE_BACKEND=hcu`, so everything in the `hcu` section above still holds —
-same `install_extension` no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no
-pybind11 pin. Two differences.
+The 26.10 twin of `hcu`: same triton deps, same `FLAGTREE_BACKEND=hcu`, so
+everything in the `hcu` section above still holds — same `install_extension`
+no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no pybind11 pin. Its
+staged LLVM is the single `b0ca808` tree, which is the one the tag this stage
+builds names (`0.7.0+hcu3.6`), and it needs no dushmem blob: that entry arrived
+on `main` after the tag. Three differences.
 
 **A deadsnakes 3.12, not the system 3.10.** The 26.10 runtime pins python 3.12
 (`torch==2.13.0+dtk2610` is cp312-only), so the wheel has to wear `cp312` or the

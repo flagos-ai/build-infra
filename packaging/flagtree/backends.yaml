@@ -181,9 +181,10 @@ backends:
       wheel_tag: cp312-cp312-linux_x86_64
 
   # Like enflame: the same shape as metax's stage (apt toolchain, the backend's
-  # prebuilt LLVM and the shared triton deps into FlagTree's cache), with the
-  # 22.04 system python 3.10 rather than deadsnakes, which is the interpreter
-  # hygon's runtime pins.
+  # prebuilt LLVM trees and the shared triton deps into FlagTree's cache), with
+  # the 22.04 system python 3.10 rather than deadsnakes, which is the
+  # interpreter hygon's runtime pins. Two trees, because hcu.py keys one by the
+  # LLVM commit and this row serves refs on either side of that move.
   hcu:
     containerfile: hcu
     builder_image: flagtree-builder-hcu
@@ -195,12 +196,24 @@ backends:
         commands: [git, cmake, ninja, make, wget, curl]
         files:
           - /root/.triton/json/include/nlohmann/json.hpp
+          # What the 188a510 tree's CMake exports resolve their zstd link
+          # interface against: an absent libzstd-dev leaves this stage passing
+          # and the wheel build's configure failing.
+          - /usr/include/zstd.h
           # CMakeLists copies this into the wheel; the build fails without it.
+          # Both trees: the cache key carries hcu.py's revision, so the stage
+          # holds one per ref this file serves (see the Containerfile).
+          - /root/.flagtree/hcu/hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/bin/FileCheck
           - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/bin/FileCheck
+          # hcu.py's second cache entry: a file, keyed by md5 rather than by
+          # name, copied to /opt/dtk/dushmem/lib/ when the ref has that dir.
+          - /root/.flagtree/hcu/libdushmem_device_gfx936.bc
         dirs:
           # The two find_package() contracts in this backend's CMakeLists:
           # MLIR via the default MLIR_DIR, LLD via hcu's explicit find_package.
           # Neither is an apt package, so both have to come from the staged LLVM.
+          - /root/.flagtree/hcu/hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/mlir
+          - /root/.flagtree/hcu/hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/lld
           - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/mlir
           - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/lld
           # hcu's CMakeLists adds third_party/nvidia and setup.py copies the
@@ -215,11 +228,12 @@ backends:
       # cp310: the 22.04 system interpreter, same as sunrise.
       wheel_tag: cp310-cp310-linux_x86_64
 
-  # The 26.10 twin of hcu: same staged LLVM + triton deps, same FLAGTREE_BACKEND,
-  # but the interpreter is a deadsnakes 3.12 (torch 2.13.0 is cp312-only, so the
-  # wheel has to wear cp312 for the dtk26.10 runtime to resolve it) and the stage
-  # installs the DTK 26.10 Ubuntu22.04 SDK. A distinct dist_name keeps the two
-  # lines' daily wheels from colliding on flagos-pypi-daily.
+  # The 26.10 twin of hcu: same staged LLVM tree + triton deps, same
+  # FLAGTREE_BACKEND, but the interpreter is a deadsnakes 3.12 (torch 2.13.0 is
+  # cp312-only, so the wheel has to wear cp312 for the dtk26.10 runtime to
+  # resolve it) and the stage installs the DTK 26.10 Ubuntu22.04 SDK. A distinct
+  # dist_name keeps the two lines' daily wheels from colliding on
+  # flagos-pypi-daily.
   hcu-dtk2610:
     containerfile: hcu-dtk2610
     builder_image: flagtree-builder-hcu-dtk2610
