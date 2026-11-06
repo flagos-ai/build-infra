@@ -794,13 +794,11 @@ wheels:
       xgrammar / compressed-tensors / opencv-python-headless published on the same
       index are installed by vllm's own dependency pins and get no separate entry.
     python:
-    - cp311
-    - cp312
+    - py3
     os:
-    - linux
+    - any
     arch:
-    - linux_x86_64
-    - linux_aarch64
+    - any
 - name: vllm-plugin-fl
   short_name: vllm-plugin-FL
   versions:
