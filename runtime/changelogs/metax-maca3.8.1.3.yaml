@@ -21,7 +21,7 @@ image: flagos-runtime-metax-maca3.8.1.3
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-11-06T11:26:30.893Z'
     reason: >-
       Adds the native MACA operator libraries to the venv: `mcoplib`
       (0.4.8+maca3.8.0.25.torch2.10) and the `deep_gemm` (0.1.0+maca0.4.8.10)
