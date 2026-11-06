@@ -40,13 +40,13 @@ title: "nvidia-cuda13.3"
 ### 主要 Python 软件包
 
 - `flag_gems==5.4.0`
-- `flagcx==0.14.0+cuda13.3`
+- `flagcx==0.14.1+cuda13.3`
 - `flagtree==0.7.0`
 - `numpy==1.26.4`
-- `torch==2.11.0+cu130`
+- `torch==2.13.0+cu130`
 - `torchaudio==2.11.0+cu130`
-- `torchvision==0.26.0+cu130`
-- <span class="muted"><code class="plain">triton==3.6.0</code></span>
+- `torchvision==0.28.0+cu130`
+- <span class="muted"><code class="plain">triton==3.7.1</code></span>
 
 ### 切换编译器
 
