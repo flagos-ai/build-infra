@@ -1156,6 +1156,21 @@ wheels:
     - any
     arch:
     - any
+- name: flash-attn
+  short_name: flash-attn
+  versions:
+  - version: 2.8.3.post1+fl.cu130.torch213
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - cp312
+    os:
+    - linux
+    arch:
+    - linux_x86_64
 sources:
 - name: flagtree
   short_name: FlagTree
