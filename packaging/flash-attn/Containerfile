@@ -152,9 +152,16 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
 # setup.py's NinjaBuildExtension imports psutil at class-definition
 # time; setup_requires lists packaging/psutil/ninja. einops is the
 # runtime install_requires (needed by the smoke import below).
+# wheel>=0.46, and --ignore-installed to obtain it: apt's 0.42.0 comes
+# in as a python3-pip dependency that pip cannot uninstall (no RECORD),
+# and setup.py's `from wheel.bdist_wheel import ...` binds to it. Below
+# 0.46 that copy rewrites the METADATA version header down to 2.1 while
+# keeping the Dynamic: lines setuptools 84 writes — a combination twine
+# rejects at upload. 0.46+ delegates to setuptools' own bdist_wheel.
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      --ignore-installed \
       --index-url "${EXTRA_PYPI}" \
-      "setuptools" "wheel" "ninja" "packaging" "psutil" "einops"
+      "setuptools" "wheel>=0.46" "ninja" "packaging" "psutil" "einops"
 
 # --- Source: aliyun sdist --------------------------------------
 
@@ -220,6 +227,16 @@ expected = "Version: %s+%s" % (os.environ["FLASH_ATTN_VERSION"],
 assert expected in meta, "version mismatch: want %r, got %r" % (
     expected, [l for l in meta.splitlines() if l.startswith("Version:")])
 print("METADATA:", expected, "OK")
+
+# A Dynamic: field is only legal from metadata 2.2 — twine refuses the
+# upload otherwise, and the build itself would have looked green.
+md_version = [l for l in meta.splitlines() if l.startswith("Metadata-Version:")][0]
+dynamic = [l for l in meta.splitlines() if l.startswith("Dynamic:")]
+minor = tuple(int(p) for p in md_version.split(":")[1].split("."))
+assert not dynamic or minor >= (2, 2), \
+    "%s carries %d Dynamic: field(s), which needs metadata 2.2" % (
+        md_version, len(dynamic))
+print("Metadata-Version:", md_version, "| Dynamic:", len(dynamic), "OK")
 PY
 
 # --- Smoke: install + ABI load ---------------------------------
