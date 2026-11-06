@@ -38,8 +38,12 @@ never installs the identity.
 
 ## Not here
 
-- metax `mcoplib` (fused kernels) — separate follow-up, blocked on a `maca3.8.1`/`torch2.10`
-  mcoplib wheel existing on `flagos-pypi-metax`.
+- metax `mcoplib` (fused kernels) — blocked, and not on the wheel's availability: the
+  wheel exists on `flagos-pypi-metax`, but its `_C` extension registers `TORCH_LIBRARY(_C)`
+  the same way `vllm_fl._C` does, so importing both aborts the process at plugin load.
+  Since metax builds the native plugin (`metax_mxcc` in `plugin-build.yaml`), the two
+  cannot share an image until vllm_fl's `csrc/registration.h` switches to
+  `TORCH_LIBRARY_FRAGMENT`.
 - A plugin-side fail-safe guard (force `cudagraph_mode=NONE` when no real weak-ref provider
   exists) — upstream vllm-plugin-FL change, not this repo.
 

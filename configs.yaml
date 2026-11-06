@@ -1128,12 +1128,13 @@ vendors:
         - flashinfer==0.2.6+metax3.8.1.0torch2.10
         - flash_linear_attention==0.5.0+metax3.8.1.0torch2.10
         - flash_mla==1.0.1+metax3.8.1.0torch2.10
-        # mcoplib supplies native MACA MoE top-k / attention cache-merge ops;
-        # the plugin treats it as optional (falls back to bundled Triton + a
-        # Torch top-k bridge when absent) but owns the ops when present.
-        # deep_gemm ships in the same vendor package and is pinned alongside it.
-        - mcoplib==0.4.8+maca3.8.0.25.torch2.10
-        - deep_gemm==0.1.0+maca0.4.8.10
+        # mcoplib is deliberately absent: its `_C` extension registers
+        # TORCH_LIBRARY(_C) exactly as vllm_fl._C does, so a process importing
+        # both aborts at plugin load (SIGABRT, c10::Error "Only a single
+        # TORCH_LIBRARY can be used to register the namespace _C"). metax builds
+        # the native plugin (plugin-build.yaml metax_mxcc), so the two cannot
+        # coexist; revisit only after vllm_fl's csrc moves to
+        # TORCH_LIBRARY_FRAGMENT.
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
