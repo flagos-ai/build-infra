@@ -722,20 +722,30 @@ wheels:
     arch:
     - any
   - version: 0.24.0+flagos
-    pypi_index: flagos-pypi-hosted
+    pypi_index:
+    - flagos-pypi-hosted
+    - flagos-pypi-amd
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-enflame
+    - flagos-pypi-hygon
+    - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
+    - flagos-pypi-metax
+    - flagos-pypi-mthreads
+    - flagos-pypi-nvidia
+    - flagos-pypi-sunrise
+    - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.24.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.24.0 inference/serving framework.
     notes: 针对 aarch64 提供 cp311 版本，针对 x86_64 提供 cp310 与 cp312 版本。
     notes_en: Provides cp311 wheels for aarch64 and cp310/cp312 wheels for x86_64.
     python:
-    - cp310
-    - cp311
-    - cp312
+    - py3
     os:
-    - linux
+    - any
     arch:
-    - linux_x86_64
-    - linux_aarch64
+    - any
   - version: 0.28.0+flagos
     pypi_index:
     - flagos-pypi-amd
@@ -759,14 +769,11 @@ wheels:
       on the same index are installed by vllm's own dependency pins and get no separate
       entry.
     python:
-    - cp310
-    - cp311
-    - cp312
+    - py3
     os:
-    - linux
+    - any
     arch:
-    - linux_x86_64
-    - linux_aarch64
+    - any
   - version: 0.32.0+flagos
     pypi_index:
     - flagos-pypi-amd
@@ -775,8 +782,12 @@ wheels:
     - flagos-pypi-enflame
     - flagos-pypi-hygon
     - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
     - flagos-pypi-metax
+    - flagos-pypi-mthreads
     - flagos-pypi-nvidia
+    - flagos-pypi-sunrise
+    - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.32.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.32.0 inference/serving framework.
     notes: 针对 aarch64 提供 cp311 与 cp312 版本，针对 x86_64 提供 cp312 版本；vLLM 0.32.0 要求 Python
@@ -787,13 +798,11 @@ wheels:
       xgrammar / compressed-tensors / opencv-python-headless published on the same
       index are installed by vllm's own dependency pins and get no separate entry.
     python:
-    - cp311
-    - cp312
+    - py3
     os:
-    - linux
+    - any
     arch:
-    - linux_x86_64
-    - linux_aarch64
+    - any
 - name: vllm-plugin-fl
   short_name: vllm-plugin-FL
   versions:
