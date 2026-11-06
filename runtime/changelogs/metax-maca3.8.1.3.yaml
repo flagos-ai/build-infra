@@ -21,6 +21,21 @@ image: flagos-runtime-metax-maca3.8.1.3
 tags:
 - tag: 2.3.0
   entries:
+  - date: ''
+    reason: >-
+      Rebuild to withdraw `mcoplib` and `deep_gemm`, which #1670 added and
+      #1672 removed. mcoplib's `_C` extension registers `TORCH_LIBRARY(_C)` the
+      same way vllm_fl's native `_C` does, so the image aborted at vLLM plugin
+      load (`c10::Error: Only a single TORCH_LIBRARY can be used to register
+      the namespace _C`) — the served image was unusable. The venv is back to
+      its pre-#1670 dependency set.
+    reason_zh: |-
+      重建以撤回 `mcoplib` 与 `deep_gemm`（#1670 引入、#1672 移除）。mcoplib 的 `_C`
+      扩展与 vllm_fl 原生 `_C` 同样以 `TORCH_LIBRARY(_C)` 注册，导致镜像在加载
+      vLLM 插件时直接 abort（`c10::Error: Only a single TORCH_LIBRARY can be used
+      to register the namespace _C`），已推送的镜像无法使用。venv 恢复为 #1670 之前的
+      依赖集。
+    upstream_prs: []
   - date: '2026-10-25T09:44:28.078Z'
     reason: >-
       This image gains the container-start version request: `-e
