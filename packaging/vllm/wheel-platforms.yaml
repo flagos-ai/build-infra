@@ -1,0 +1,47 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The vllm wheel build matrix (.github/workflows/vllm-wheel.yml reads this file
+# verbatim — it only folds in the stack version and runs one job per row).
+#
+# A repacked vllm set is a function of (python, arch) alone — the empty build
+# compiles nothing, the top-level wheel folds to py3-none-any, and the repacked
+# deps resolve to the same bytes for every backend on that platform. So one
+# build per platform serves every index that platform's backends use, and these
+# four rows are what used to be a 22-row per-backend matrix.
+#
+# Each row is the whole truth of one platform, nothing hidden in the workflow:
+#   name       the backend whose runtime image builds + repacks the set — that
+#              platform's first backend in configs.yaml (its python IS the
+#              platform; move a backend's python there and it moves to the row
+#              whose image carries that python, or it stops being represented).
+#   runson     the runner, as .github/build-config.yml lists it for that backend.
+#   pypi_repos every flagos-pypi-<vendor> the set is uploaded to: the vendors
+#              whose backends share this (python, arch). The whole set lands on
+#              each because the top-level wheel pins its deps to ==<ver>+flagos,
+#              which under PEP 440 only an index carrying that exact local
+#              version can satisfy — split the set and the pin is unsatisfiable.
+include:
+  - name: amd-rocm7.2.4            # python 3.12, x86_64
+    runson: '["self-hosted", "amd"]'
+    pypi_repos: flagos-pypi-amd flagos-pypi-cambricon flagos-pypi-enflame flagos-pypi-hygon flagos-pypi-iluvatar flagos-pypi-metax flagos-pypi-nvidia
+  - name: cambricon-neuware4.4.3   # python 3.10, x86_64
+    runson: '["self-hosted", "cambricon"]'
+    pypi_repos: flagos-pypi-cambricon flagos-pypi-hygon flagos-pypi-kunlunxin flagos-pypi-mthreads flagos-pypi-sunrise flagos-pypi-tsingmicro
+  - name: ascend-cann9.0.0         # python 3.11, aarch64
+    runson: '["self-hosted", "cann900", "910b"]'
+    pypi_repos: flagos-pypi-ascend
+  - name: ascend-cann9.2.1         # python 3.12, aarch64
+    runson: '["self-hosted", "cann921"]'
+    pypi_repos: flagos-pypi-ascend

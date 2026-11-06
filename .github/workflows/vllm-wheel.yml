@@ -14,48 +14,52 @@
 
 name: VLLM Wheel
 
-# Build + repack vllm wheels for one (or all) backend(s), and optionally
-# upload them to the per-vendor PyPI. This is the CI consolidation of the
-# manual packaging/vllm/build-and-repack.sh — same build (runtime
-# flagos-runtime-{vendor}-{backend}:{version} image, all backends =
-# VLLM_TARGET_DEVICE=empty source build; nvidia unified onto the empty mode
-# 2026-08-23, the former standard pip-download mode is retired), same repack
-# (packaging/script/repack.py + config.yaml), same per-vendor
-# upload target.
+# Build + repack the vllm wheel set, then fan it out to the vendor PyPI
+# indexes. This is the CI consolidation of the manual
+# packaging/vllm/build-and-repack.sh — same build (a runtime
+# flagos-runtime-{vendor}-{backend}:{version} image, VLLM_TARGET_DEVICE=empty
+# source build), same repack (packaging/script/repack.py + config.yaml).
 #
-# Why per-backend at all: the repack runs inside that backend's runtime image
-# and the resulting set is published to that vendor's index, which is the only
-# index carrying the `+flagos` versions the top-level wheel pins its deps to.
-# (vllm >= 0.24.0 declares a Rust extension, so setuptools stamps the build
-# interpreter's tag; nothing compiles without cargo, and repack folds the tag
-# to py3-none-any — see packaging/script/README.md.) Repacking strips the
-# torch chain and pins the binary deps (opencv, xgrammar) to the vendor
-# matrix. The app image installs this wheel single-step
-# (vllm==<version>+flagos), never touching the runtime matrix.
+# ONE JOB PER PLATFORM, NOT PER BACKEND. A repacked set is a function of
+# (python, arch) alone: the empty build produces no compiled member, the
+# repacked top-level wheel is py3-none-any, and the repacked deps come from the
+# public indexes at the version the wheel declares. So every backend that
+# shares a (python, arch) resolves the same bytes, and the four platform rows
+# below replace what used to be a 22-row per-backend matrix — see
+# packaging/script/README.md.
 #
-# Note: per-vendor vllm_version defaults are not yet in configs.yaml — pass
-# --vllm-version / the vllm_version input explicitly.
+# Each row builds in ONE backend's runtime image (that platform's first
+# backend in configs.yaml) and uploads the whole set to every index that
+# platform serves. The set stays whole on each index because the top-level
+# wheel pins its deps to `==<version>+flagos`, and under PEP 440 a local
+# version is satisfyable only by an index that carries it — so an index that
+# received the top-level wheel without its deps would have an unsatisfiable
+# pin, and one that received the deps alone would serve nothing.
 #
-# Upload target defaults to flagos-pypi-<vendor>. There is no schedule:
-# uploads are manual.
+# The platform → index map is stated in set-matrix below, not derived: it is
+# four rows, and a reviewer reading them is the check. Adding a backend, or
+# moving one to another python, means editing the row it belongs to.
+#
+# Upload target defaults to the row's pypi_repos list; pypi_repo overrides it
+# with a single index. There is no schedule: uploads are manual.
 
 on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose runtime image repacks the wheel (e.g. ascend-cann9.0.0, or "all")'
+        description: 'Platform row to build: a backend name (e.g. amd-rocm7.2.4), or "all" for every row'
         type: string
-        default: ascend-cann9.0.0
+        default: all
       vllm_version:
         description: 'vLLM version to build (e.g. 0.24.0)'
         type: string
         default: 0.24.0
       upload:
-        description: 'upload the repacked +flagos wheel(s) to the vendor PyPI'
+        description: 'upload the repacked +flagos wheel set to the vendor PyPI'
         type: boolean
         default: false
       pypi_repo:
-        description: 'Nexus PyPI repo (default flagos-pypi-<vendor>)'
+        description: 'Upload to this single Nexus PyPI repo instead of the row''s index list'
         type: string
         default: ''
 
@@ -80,18 +84,26 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
+      # The matrix IS packaging/vllm/wheel-platforms.yaml. This step only reads
+      # it, folds in the stack version from configs.yaml, and (for a single-row
+      # dispatch) keeps the one row whose name matches. No logic lives here that
+      # the table does not already state.
       - id: set-matrix
         run: |
-          if [[ "${{ inputs.backend }}" == "all" ]]; then
-            python3 scripts/generate_matrix.py --runtime > matrix.json
-          else
-            python3 scripts/generate_matrix.py --runtime ${{ inputs.backend }} > matrix.json
-          fi
+          set -euo pipefail
+          python3 - "${{ inputs.backend }}" > matrix.json <<'PY'
+          import json, sys, yaml
+          sel = sys.argv[1] if len(sys.argv) > 1 else "all"
+          rows = yaml.safe_load(open("packaging/vllm/wheel-platforms.yaml"))["include"]
+          version = yaml.safe_load(open("configs.yaml"))["version"]
+          include = [dict(r, version=version) for r in rows
+                     if sel in ("", "all") or r["name"] == sel]
+          print(json.dumps({"include": include}))
+          PY
           cat matrix.json
           echo "matrix=$(jq -c . matrix.json)" >> "$GITHUB_OUTPUT"
 
@@ -114,11 +126,10 @@ jobs:
       # /tmp/vllm-repack-<vendor>-<backend>/output on the runner host.
       # HTTPS_PROXY is not needed: the build pulls vllm source from the
       # internal filestore / aliyun, never github.com.
-      - name: Build + repack the vllm wheel
+      - name: Build + repack the vllm wheel set
         run: |
           set -euo pipefail
-          # STACK_VERSION comes from the matrix; the script also needs pyyaml
-          # on the runner, which set-matrix already installed.
+          # STACK_VERSION is left to the script, which reads configs.yaml.
           bash packaging/vllm/build-and-repack.sh \
             "${{ matrix.name }}" \
             --vllm-version "${VLLM_VERSION}"
@@ -139,14 +150,14 @@ jobs:
             --watch numpy==1.26.4 --watch vllm \
             "/tmp/vllm-repack-${vendor}-${backend}/output/"*.whl
 
-      # Upload only when explicitly requested. Runs from inside the runtime
-      # image (no host python needed); the secret travels via `-e
-      # NEXUS_TOKEN` so it never appears in a process list or image layer.
-      - name: Upload to vendor PyPI
+      # The whole set goes to every index this platform serves — the top-level
+      # wheel and the exact xgrammar / opencv-python-headless /
+      # compressed-tensors it was repacked against. Runs on the uploader image
+      # (packaging/upload/), never the runner's own python.
+      - name: Upload to the vendor PyPI indexes
         if: ${{ inputs.upload }}
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
-          EXTRA_PYPI: ${{ matrix.extra_pypi }}
         run: |
           set -euo pipefail
           if [ -z "${NEXUS_TOKEN:-}" ]; then
@@ -158,34 +169,16 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
-          pypi_repo="${{ inputs.pypi_repo }}"
-          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
-          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${{ matrix.name }}:${STACK_VERSION}"
-          echo ">>> uploading $(ls /tmp/vllm-repack-${vendor}-${backend}/output/*.whl | xargs -n1 basename) to ${pypi_repo}"
-          # Same egress rule as the build script: some runners (ascend) are
-          # proxy-only, so pip cannot resolve EXTRA_PYPI and twine cannot reach
-          # the index without the runner's proxy. Bare `-e VAR` relays it only
-          # when set, and leaves it unset otherwise.
-          docker run --rm \
-            -e NEXUS_TOKEN \
-            -e http_proxy -e https_proxy -e HTTP_PROXY -e HTTPS_PROXY \
-            -e no_proxy -e NO_PROXY \
-            -e pypi_repo="${pypi_repo}" \
-            -e EXTRA_PYPI="${EXTRA_PYPI}" \
-            -v "/tmp/vllm-repack-${vendor}-${backend}:/work" \
-            "${img}" \
-            bash -euo pipefail -c '
-              # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
-              # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
-              # parse -> twine aborts before upload. pkginfo >=1.11 reads 2.4.
-              /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
-              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
-              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-              /flagos/bin/twine upload \
-                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
-                --non-interactive \
-                /work/output/*.whl
-            '
+          work_dir="/tmp/vllm-repack-${vendor}-${backend}"
+          # pypi_repos already carries full flagos-pypi-<vendor> names; a
+          # single pypi_repo input overrides the whole fan-out with one index.
+          repos="${{ inputs.pypi_repo }}"
+          repos="${repos:-${{ matrix.pypi_repos }}}"
+          echo ">>> uploading $(ls "${work_dir}/output/"*.whl | xargs -n1 basename) to ${repos}"
+          WHEEL_UPLOAD_REPO="${repos}" \
+          WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
+          WHEEL_UPLOAD_MOUNT="${work_dir}/output:/wheels:ro" \
+          bash packaging/upload/upload-wheels.sh
 
       # The repack line's wheel version (e.g. 0.24.0+flagos) is the catalog
       # version, and the filename spells it, so the version column is left
@@ -193,10 +186,11 @@ jobs:
       #
       # Only vllm's own wheel is a catalog entry. output/ also holds the
       # repacked indirect deps (xgrammar, compressed-tensors,
-      # opencv-python-headless) — uploaded to the same index, but vllm's private
-      # matched set: vllm's METADATA pins each to its exact +flagos version, so
-      # pip installs them with vllm and nothing addresses them on their own.
-      - name: Record the publish event in the manifest
+      # opencv-python-headless) — uploaded to the same indexes, but vllm's
+      # private matched set: vllm's METADATA pins each to its exact +flagos
+      # version, so pip installs them with vllm and nothing addresses them on
+      # their own. One line per index, matching what the upload walked.
+      - name: Record the publish events in the manifest
         if: ${{ inputs.upload }}
         run: |
           set -euo pipefail
@@ -204,11 +198,13 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
-          pypi_repo="${{ inputs.pypi_repo }}"
-          pypi_repo="${pypi_repo:-flagos-pypi-${vendor}}"
+          repos="${{ inputs.pypi_repo }}"
+          repos="${repos:-${{ matrix.pypi_repos }}}"
           w=$(ls /tmp/vllm-repack-${vendor}-${backend}/output/vllm-*.whl)
-          printf '%s\t%s\t%s\t%s\n' "vllm" "" "${pypi_repo}" "$(basename "$w")" \
-            >> .wheel-info/manifest.tsv
+          for repo in ${repos}; do
+            printf '%s\t%s\t%s\t%s\n' "vllm" "" "${repo}" "$(basename "$w")" \
+              >> .wheel-info/manifest.tsv
+          done
 
       - name: Upload the wheel-info manifest
         if: ${{ inputs.upload }}
@@ -230,7 +226,7 @@ jobs:
           matrix_name="${{ matrix.name }}"
           vendor="${matrix_name%%-*}"
           backend="${matrix_name#*-}"
-          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${vendor}-${backend}:${STACK_VERSION}"
+          img="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${matrix_name}:${STACK_VERSION}"
           docker rm -f "vllm-build-${vendor}-${backend}" 2>/dev/null || true
           docker run --rm -v "/tmp/vllm-repack-${vendor}-${backend}:/work" "${img}" rm -rf /work 2>/dev/null || true
           rm -rf "/tmp/vllm-repack-${vendor}-${backend}" 2>/dev/null || true
