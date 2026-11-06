@@ -27,12 +27,8 @@
 #   --upload               After repacking, twine-upload the +flagos wheels
 #                          to the per-vendor PyPI (flagos-pypi-<vendor>).
 #                          Opt-in: uploading publishes artifacts, so it never
-#                          runs by default. All repacked wheels stay per-vendor
-#                          alongside that backend's torch/flag_gems/flagtree —
-#                          the binary deps (opencv, xgrammar) are ABI-bound to
-#                          the vendor image's (python, arch), and keeping the
-#                          matched vllm+deps set on one index avoids split-index
-#                          fragility on a vllm version bump.
+#                          runs by default. See the upload target below for
+#                          why the whole set stays on one index.
 #
 # Env:
 #   STACK_VERSION        Override the stack version read from configs.yaml
@@ -109,12 +105,14 @@ fi
 BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND}:${STACK_VERSION}"
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 
-# Upload target.  Everything stays on the per-vendor index: the binary deps
-# (opencv, xgrammar) are ABI-bound to this vendor image's (python, arch), and
-# keeping the whole matched set — vllm + its exact xgrammar/opencv/compressed-
-# tensors — on one index is what makes a vllm version bump safe (re-repack
-# regenerates a coherent set; no split-index skew reintroducing the torch/
-# triton leak).
+# Upload target.  The whole repacked set — vllm plus the exact
+# xgrammar/opencv/compressed-tensors it was repacked against — goes on the
+# vendor index, because the top-level wheel pins those deps to `==<ver>+flagos`
+# and a local version is satisfyable only by an index that carries it. The
+# public fallback serves only upstream versions, so splitting the set would
+# leave that pin unsatisfiable. (Same bytes do appear on other vendors'
+# indexes; what the index provides here is the resolver's entry point, not
+# isolation.)
 UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
 
 # ptpu vendors (e.g. sunrise) abort in torch at import when no device is

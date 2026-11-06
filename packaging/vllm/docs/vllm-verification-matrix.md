@@ -304,8 +304,12 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 **跨版本事实**
 
-- 0.24.0 empty wheel 绑定 `cp312-cp312-linux_x86_64`，0.20.2 是 `py3-none-any`
-  （纯 Python，可跨 cp 复用）。
+- ~~0.24.0 empty wheel 绑定 `cp312-cp312-linux_x86_64`，0.20.2 是 `py3-none-any`~~
+  —— 该绑定是 `setuptools-rust` 的构建器 tag，不是 wheel 的内容：empty 构建无
+  cargo，产物 0 `.so`、0 `.data/`。repack 现按成员判定 tag（
+  [build-infra #1657](https://github.com/flagos-ai/build-infra/pull/1657)），
+  三条线（0.20.2 / 0.24.0 / 0.32.0）重发后同为 `py3-none-any`；索引上现存的
+  `cp3xx` 制品早于该修复。
 - **cp312 wheel 跨 CUDA 版本可复用**（实测）：cuda12.8 构建的 `vllm-0.24.0+flagos`
   wheel 在 cuda13.3（torch 2.11.0+cu130）上单步安装运行 ✅。是否可跨 OS/架构
   （如 aarch64）仍待验证。
