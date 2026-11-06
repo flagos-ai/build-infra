@@ -23,12 +23,14 @@ name: VLLM Wheel
 # (packaging/script/repack.py + config.yaml), same per-vendor
 # upload target.
 #
-# Why the wheel at all: vllm >= 0.24.0 ships rust frontend components, so the
-# wheel is ABI-bound to the vendor image's (python, arch) — there is no
-# py3-none-any wheel (user correction, 2026-08-18). Repacking strips the
+# Why per-backend at all: the repack runs inside that backend's runtime image
+# and the resulting set is published to that vendor's index, which is the only
+# index carrying the `+flagos` versions the top-level wheel pins its deps to.
+# (vllm >= 0.24.0 declares a Rust extension, so setuptools stamps the build
+# interpreter's tag; nothing compiles without cargo, and repack folds the tag
+# to py3-none-any — see packaging/script/README.md.) Repacking strips the
 # torch chain and pins the binary deps (opencv, xgrammar) to the vendor
-# matrix; keeping the matched set on one index is what makes a vllm version
-# bump safe. The app image installs this wheel single-step
+# matrix. The app image installs this wheel single-step
 # (vllm==<version>+flagos), never touching the runtime matrix.
 #
 # Note: per-vendor vllm_version defaults are not yet in configs.yaml — pass

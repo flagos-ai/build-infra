@@ -20,7 +20,7 @@ METADATA, recording every change in a .deps-manifest.yaml for traceability.
 
 Usage:
     python repack.py /path/to/vllm-0.25.1-xxx.whl
-    python repack.py --extra-indexes https://... vllm.whl
+    python repack.py --extra-index https://... vllm.whl
 
 By default the script also recursively audits every retained dependency:
 any dep whose own METADATA declares torch / triton / nvidia is repacked
@@ -31,13 +31,14 @@ output/ — a single directory ready for upload to a vendor PyPI.
 Pass --no-recurse to skip this and only repack the top-level wheel.
 
 Design:
-    - Only blacklisted deps (torch_chain, cuda_only, orphaned) are stripped
-      from the top-level wheel's Requires-Dist.
+    - The top-level strip rules come from config.yaml (torch_chain,
+      cuda_only, orphaned); a name not declared by this wheel cannot fire.
     - Indirect deps that declare torch/triton are discovered automatically
       by pip-resolving the repacked wheel's retained deps, downloading each,
       and inspecting its METADATA.  No manual "also_repack" list.
-    - No version suffix — pip + --extra-index-url to vendor PyPI ensures the
-      repacked wheel is used, without uv-style auto-upgrade behavior.
+    - The wheel is stamped `+flagos` and every repacked dep is pinned to
+      `==<version>+flagos` in the top-level Requires-Dist, so the set stays
+      together on the vendor index that carries those local versions.
     - The default download index is https://mirrors.aliyun.com/pypi/simple/
 """
 

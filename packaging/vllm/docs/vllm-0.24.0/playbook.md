@@ -18,9 +18,10 @@
    可以跨 Python 版本复用。0.24.0 的 empty wheel 变成 `cp312-cp312-linux_x86_64`。
    只要声明了 Rust 扩展，即使不编译任何 `.so` 文件，Wheel 也会被标记为与 CPython 版本相关。
 
-   三个后果：Wheel 与 Python 小版本绑定，目前意味着需要 3.10、3.11、3.12 三个版本的后端。
-   相同 Python 小版本的 Wheel 包是否可跨平台使用待测试给结论。
-   另外 Wheel 中目前没有编译 Rust 库，意味着 `VLLM_USE_RUST_FRONTEND` 必须保持默认值 "0"。
+   但这只是**构建器**的标记，不是 wheel 的内容：容器里没有 cargo，产物里
+   0 个 `.so`、0 个 `.data/`。当时据此按 Python 小版本分别构建，repack 现在改按
+   成员判定 tag，该产物落 `py3-none-any`（[build-infra #1657](https://github.com/flagos-ai/build-infra/pull/1657)）。
+   Wheel 中没有编译 Rust 库，意味着 `VLLM_USE_RUST_FRONTEND` 必须保持默认值 "0"。
 
 3. **xgrammar 必须重新打包**：xgrammar 是 vLLM 的配套库。0.20.2 解析到 0.1.x，其中不带
    Torch/Triton 依赖的声明，因此不用处理。0.24.0 解析到 0.2.3，声明了对 `torch>=1.10.0`
