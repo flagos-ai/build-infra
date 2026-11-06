@@ -769,14 +769,11 @@ wheels:
       on the same index are installed by vllm's own dependency pins and get no separate
       entry.
     python:
-    - cp310
-    - cp311
-    - cp312
+    - py3
     os:
-    - linux
+    - any
     arch:
-    - linux_x86_64
-    - linux_aarch64
+    - any
   - version: 0.32.0+flagos
     pypi_index:
     - flagos-pypi-amd
