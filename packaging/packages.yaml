@@ -738,8 +738,12 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.24.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.24.0 inference/serving framework.
-    notes: 针对 aarch64 提供 cp311 版本，针对 x86_64 提供 cp310 与 cp312 版本。
-    notes_en: Provides cp311 wheels for aarch64 and cp310/cp312 wheels for x86_64.
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。配套发布的 xgrammar
+      / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
+      The matching xgrammar / compressed-tensors / opencv-python-headless published on
+      the same index are installed by vllm's own dependency pins and get no separate
+      entry.
     python:
     - py3
     os:
@@ -762,9 +766,9 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.28.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.28.0 inference/serving framework.
-    notes: 针对 aarch64 提供 cp311 与 cp312 版本，针对 x86_64 提供 cp310 与 cp312 版本。同一 index 上配套发布的
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的
       xgrammar / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
-    notes_en: Provides cp311/cp312 wheels for aarch64 and cp310/cp312 wheels for x86_64.
+    notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
       The matching xgrammar / compressed-tensors / opencv-python-headless published
       on the same index are installed by vllm's own dependency pins and get no separate
       entry.
@@ -790,13 +794,12 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.32.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.32.0 inference/serving framework.
-    notes: 针对 aarch64 提供 cp311 与 cp312 版本，针对 x86_64 提供 cp312 版本；vLLM 0.32.0 要求 Python
-      >= 3.11，故无 cp310 wheel。同一 index 上配套发布的 xgrammar / compressed-tensors / opencv-python-headless
-      由 vllm 自身的依赖直接安装，不单列条目。
-    notes_en: Provides cp311/cp312 wheels for aarch64 and cp312 wheels for x86_64;
-      vLLM 0.32.0 requires Python >= 3.11, so there is no cp310 wheel. The matching
-      xgrammar / compressed-tensors / opencv-python-headless published on the same
-      index are installed by vllm's own dependency pins and get no separate entry.
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的
+      xgrammar / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
+      The matching xgrammar / compressed-tensors / opencv-python-headless published on
+      the same index are installed by vllm's own dependency pins and get no separate
+      entry.
     python:
     - py3
     os:
