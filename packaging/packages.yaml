@@ -1157,14 +1157,17 @@ wheels:
     arch:
     - any
 - name: flash-attn
-  short_name: flash-attn
+  short_name: FlashAttention
   versions:
   - version: 2.8.3.post1+fl.cu130.torch213
     pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向通用 GPU 环境 13.3 的 FlashAttention 注意力算子安装包，供 Megatron RL 的动态 batching
+      路径使用。
+    desc_en: FlashAttention attention-operator wheel for Generic GPU 13.3, used by
+      Megatron RL's dynamic-batching path.
+    notes: 由源码编译，运行时 ABI 与构建时的 torch 2.13.0+cu130 绑定，不能用于其他 torch 版本。
+    notes_en: Source-built; its runtime ABI is bound to the build-time torch 2.13.0+cu130,
+      so it does not work with other torch versions.
     python:
     - cp312
     os:
@@ -1304,3 +1307,16 @@ sources:
   url: https://github.com/flagos-ai/FlagOS-Compressor/archive/refs/tags/v{version}.tar.gz
   versions:
   - 0.1.0
+- name: flash-attn
+  short_name: FlashAttention
+  desc_zh: FlashAttention 快速注意力算子库源代码，用于模型训练与推理。
+  desc_en: Source for FlashAttention, the fast attention-operator library used in
+    model training and inference.
+  url: https://files.pythonhosted.org/packages/source/f/flash-attn/flash_attn-{version}.tar.gz
+  versions:
+  - 2.8.3.post1
+  notes: 取上游 PyPI sdist 而非 GitHub tag 包——后者的 csrc/cutlass 是空目录（submodule 未展开），只有 sdist
+    内置了编译所需的 cutlass。
+  notes_en: The upstream PyPI sdist, not the GitHub tag archive — the latter's csrc/cutlass
+    is an empty submodule directory, and only the sdist vendors the cutlass the build
+    needs.
