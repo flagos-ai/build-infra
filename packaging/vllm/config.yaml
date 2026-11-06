@@ -39,17 +39,12 @@ remove_torch_chain:
   - torchcodec
   - torch-c-dlpack-ext
 
-# NVIDIA / CUDA-only packages — meaningless on non-CUDA platforms.
-# (vllm 0.24.0's cuda.txt also declares the vendor kernel libs below.)
-remove_cuda_only:
-  - PyNvVideoCodec
-  - nvidia-cudnn-frontend
-  - nvidia-cutlass-dsl
-  - nvtx
-  - numba
-  - humming-kernels
-  - quack-kernels
-  - tokenspeed-mla
+# NVIDIA / CUDA-only packages. Empty: they reach a build only through
+# requirements/cuda.txt, and the empty build's Requires-Dist comes from
+# requirements/common.txt alone, which declares none of them — so an entry
+# here could never fire. A CUDA-only package that did arrive would come
+# through cuda.txt, i.e. from a build this wheel is not.
+remove_cuda_only: []
 
 # Packages whose only consumer was stripped above (no other consumers left).
 remove_orphaned: []
