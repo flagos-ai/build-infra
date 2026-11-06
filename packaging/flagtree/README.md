@@ -237,6 +237,24 @@ so the gate has nothing to read a pin off. It asserts the invariant instead:
 `libtriton.so` and every other tagged `.so` in `triton/_C` carry the same
 pybind11 internals version as the `pybind11` the build installed.
 
+**Not on the daily line's release path.** The daily publishes `flagtree-hcu` at
+`<base>.dev<date>`, a different distribution and version, so the
+`flagtree==0.7.0+hcu3.6` this backend's runtime pins never comes from it. That
+version comes from `flagtree-wheel.yml` with `target=hcu`, which `prepare` maps
+to the `hygon-dtk26.04` runtime row for the hygon runner label and the
+`flagos-pypi-hygon` index. It passes no `BUILDER_IMAGE`, so like `iluvatar` it
+cold-builds from bare `ubuntu:22.04` — this stage needs no published builder.
+
+The two hygon targets are one FlagTree line at two interpreters, and the split is
+forced by the vendor's own wheels rather than by anything here: `dtk2604` ships
+torch/apex/flash-attn/triton for cp310 only and `dtk2610` for cp312 only, so a
+venv on either line can install only that line's flagtree. Both targets build the
+tag `configs.yaml` pins and publish `0.7.0+hcu3.6` — the version segments are
+identical on purpose, because only the file can differ, and pip picks by
+interpreter. The cp310 file is what makes a one-line pin work for both:
+`pip install flagtree==0.7.0+hcu3.6` resolves to whichever of the two its
+interpreter can install.
+
 **Verified on a BW1000 node** (hygon25, 2026-10-20). The wheel built on the
 published builder imports on the `flagos-runtime-hygon-dtk26.04` image and runs
 a real kernel: `import triton` reports triton 3.6.0 with `backends == ['hcu']`,
@@ -280,7 +298,9 @@ runtime. `prepare` maps the target to the `hygon-dtk26.10` runtime row for its
 runner labels and vendor index, and passes no `BUILDER_IMAGE`, so this stage
 cold-builds from bare `ubuntu:22.04` like `iluvatar`. A daily wheel does not
 substitute for it: that line publishes `flagtree-hcu-dtk2610` at
-`<base>.dev<date>`, a different project and version.
+`<base>.dev<date>`, a different project and version. The sibling `target=hcu`
+builds the same version for the 26.04 line's cp310 — the two targets and why the
+version is shared are in the `hcu` section above.
 
 ## Tsingmicro builder (`tsingmicro`)
 

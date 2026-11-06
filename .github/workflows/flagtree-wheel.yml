@@ -16,14 +16,20 @@ name: FlagTree Wheel
 
 # Builds a packaging/flagtree/<target> wheel and optionally uploads it to the
 # vendor PyPI. Two target families: self-contained Containerfiles (metax /
-# nvidia-cuda / iluvatar / sunrise / hcu-dtk2610), and the ascend pair, whose
-# build machine is
+# nvidia-cuda / iluvatar / sunrise / hcu / hcu-dtk2610), and the ascend pair,
+# whose build machine is
 # its backend's runtime image and which is therefore named after that backend —
 # the Containerfile, this workflow's target and generate_matrix.py's backend name
 # are the same string. `prepare` resolves what that difference implies: the runner
 # labels and the vendor index, and — for the ascend pair only — the cold base.
 # The Containerfile's gates fail `docker build` on an unusable wheel, so a bad
 # wheel never reaches extract/upload.
+#
+# The two hcu targets are one FlagTree line built for two interpreters: `hcu` is
+# the 26.04 line's cp310 and `hcu-dtk2610` the 26.10 line's cp312. They publish
+# the same version (`0.7.0+hcu3.6`) to the same index, because a `==` pin has to
+# select the right FILE for whichever interpreter is asking — see the hygon
+# section of packaging/flagtree/README.md.
 
 on:
   workflow_dispatch:
@@ -37,6 +43,7 @@ on:
           - amd
           - iluvatar
           - sunrise
+          - hcu
           - hcu-dtk2610
           - ascend-cann9.0.0
           - ascend-cann8.5.0
@@ -101,8 +108,12 @@ jobs:
           # iluvatar and amd targets are the plain vendor names, and which CoreX
           # or ROCm line each means is the runtime image's business, not a guess
           # from the string.
-          # hcu-dtk2610 maps explicitly: `hcu` alone would resolve to the 26.04
-          # line, whose pin is a cp310 wheel this target does not build.
+          # The two hcu targets map to the two hygon lines and are NOT
+          # interchangeable: the Containerfiles differ in interpreter (cp310 vs
+          # deadsnakes cp312) and in the LLVM cache key their default ref asks
+          # for, so each target is the only one that builds its line's wheel.
+          # Both resolve the same hygon runner label and vendor index, which is
+          # why the mapping cannot be inferred from either.
           #
           # `in_base` marks the targets whose build machine IS that backend's
           # runtime image. They take the same `BUILDER_IMAGE` arg every other
@@ -114,6 +125,7 @@ jobs:
             ascend-cann*) backend="$TARGET";                in_base=yes ;;
             iluvatar)     backend="iluvatar-corex4.5.0";    in_base=no  ;;
             amd)          backend="amd-rocm7.2.4";          in_base=no  ;;
+            hcu)          backend="hygon-dtk26.04";         in_base=no  ;;
             hcu-dtk2610)  backend="hygon-dtk26.10";         in_base=no  ;;
           esac
           if [ -z "$backend" ]; then
