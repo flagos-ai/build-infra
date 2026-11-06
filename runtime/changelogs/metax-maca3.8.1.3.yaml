@@ -21,6 +21,16 @@ image: flagos-runtime-metax-maca3.8.1.3
 tags:
 - tag: 2.3.0
   entries:
+  - date: ''
+    reason: >-
+      Adds the native MACA operator libraries to the venv: `mcoplib`
+      (0.4.8+maca3.8.0.25.torch2.10) and the `deep_gemm` (0.1.0+maca0.4.8.10)
+      that ships with it. mcoplib lets the vLLM plugin run MACA's native MoE
+      top-k and attention cache-merge operators instead of the bundled Triton
+      and Torch fallbacks it uses when the library is absent.
+    reason_zh: |-
+      向 venv 加入 MACA 原生算子库：`mcoplib`（0.4.8+maca3.8.0.25.torch2.10）及随其一同发布的 `deep_gemm`（0.1.0+maca0.4.8.10）。有了 mcoplib，vLLM 插件即可调用 MACA 原生的 MoE top-k 与注意力 cache-merge 算子，而非库缺失时所用的 Triton 与 Torch 兜底实现。
+    upstream_prs: []
   - date: '2026-10-25T09:44:28.078Z'
     reason: >-
       This image gains the container-start version request: `-e
