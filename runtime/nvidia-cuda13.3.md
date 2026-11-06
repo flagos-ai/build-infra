@@ -77,6 +77,10 @@ nvidia-smi
 
 ### 2.3.0
 
+*2026-11-06 00:29:36*
+
+The flagcx wheel is rebuilt against the torch 2.13 headers and the pin moves to flagcx==0.14.1+cuda13.3: the previous wheel left c10's `materialize_cow_storage` undefined, which broke `import torch` itself. Nothing else about the image changes.
+
 *2026-11-05 13:14:42*
 
 - Moves this backend's torch closure to 2.13: torch 2.13.0+cu130,
@@ -87,10 +91,6 @@ nvidia-smi
   it is version-independent of the torch above it.
 - FlagTree stays at 0.7.0 and bundles its own triton, so the new pin
   moves the T path only; the F path keeps the compiler it had.
-- The flagcx wheel is rebuilt against the 2.13 headers: torch 2.13
-  dropped c10's `materialize_cow_storage` in favour of `materialize_cow`,
-  which left the old wheel with an undefined symbol on import (the amd
-  row hit the same break on the same bump).
 
 *2026-10-25 09:46:58*
 

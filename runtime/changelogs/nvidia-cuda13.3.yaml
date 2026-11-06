@@ -31,6 +31,7 @@ tags:
       此前的 wheel 留下 c10 的 `materialize_cow_storage` 未定义符号，使
       `import torch` 本身就失败。镜像其余内容不变。
     upstream_prs: []
+    date: '2026-11-06T00:29:36.739Z'
   - reason: >-
       - Moves this backend's torch closure to 2.13: torch 2.13.0+cu130,
         torchvision 0.28.0+cu130, and the triton that torch 2.13 declares —

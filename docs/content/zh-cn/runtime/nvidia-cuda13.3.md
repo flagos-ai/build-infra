@@ -99,6 +99,10 @@ nvidia-smi
 
 ### 2.3.0
 
+*2026-11-06 00:29:36*
+
+flagcx wheel 针对 torch 2.13 头文件重建，pin 移到 flagcx==0.14.1+cuda13.3： 此前的 wheel 留下 c10 的 `materialize_cow_storage` 未定义符号，使 `import torch` 本身就失败。镜像其余内容不变。
+
 *2026-11-05 13:14:42*
 
 - 本后端的 torch 依赖闭包升到 2.13：torch 2.13.0+cu130、torchvision
@@ -109,9 +113,6 @@ nvidia-smi
   无关。
 - FlagTree 保持 0.7.0，且自带 triton，所以新 pin 只影响 T 路径，F 路径仍是
   原来的编译器。
-- flagcx wheel 针对 2.13 头文件重建：torch 2.13 去掉了 c10 的
-  `materialize_cow_storage`，改为 `materialize_cow`，旧 wheel 因此留下一个
-  未定义符号、import 即失败（amd 行在同一次升级上撞到同一个断裂）。
 
 *2026-10-25 09:46:58*
 
