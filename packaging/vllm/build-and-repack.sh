@@ -211,6 +211,32 @@ if [[ -d "$SCRIPT_DIR/patches" ]]; then
     done
 fi
 
+# Drop the upstream requires-python gate before the build. pip reads it from
+# pyproject.toml and refuses to build the wheel on an interpreter below the
+# floor (0.32.0 declares >=3.11, which kills the py3.10 backends' empty build
+# before anything compiles). The floor is upstream's packaging/QA pin, not a
+# runtime contract — the real floor is what the on-node verification says, same
+# reasoning as the repack-side strip (build-infra #1664). Removing the key, not
+# rewriting it, so no version is hard-coded here. A tree without the key is left
+# untouched (no key = no gate), so this is a no-op where upstream set no floor.
+PYPROJECT="${WORK_DIR}/src/vllm/pyproject.toml"
+if [[ -f "${PYPROJECT}" ]]; then
+    echo "==> Dropping requires-python from pyproject.toml …"
+    python3 - "${PYPROJECT}" <<'PY'
+import re, sys
+path = sys.argv[1]
+text = open(path).read()
+# The key lives under [project]; match the whole logical line (it is a single
+# quoted string in vllm's pyproject, never a multi-line array).
+new = re.sub(r'(?m)^\s*requires-python\s*=.*\n', '', text)
+if new != text:
+    open(path, "w").write(new)
+    print("    removed requires-python")
+else:
+    print("    no requires-python key — nothing to drop")
+PY
+fi
+
 # ── Start build container ───────────────────────────────────────────────
 
 echo "==> Image:  ${BUILD_IMAGE}"
