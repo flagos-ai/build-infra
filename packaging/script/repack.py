@@ -133,6 +133,7 @@ _LICENSE_EXPRESSION_RE = re.compile(r"^License-Expression:\s*.+$", re.MULTILINE 
 _LICENSE_FILE_RE = re.compile(r"^License-File:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
 _DYNAMIC_RE = re.compile(r"^Dynamic:\s*.+\n?", re.MULTILINE | re.IGNORECASE)
 _VERSION_LOCAL_RE = re.compile(r"^Version:\s*(.+?)\+.+$", re.MULTILINE | re.IGNORECASE)
+_REQUIRES_PYTHON_RE = re.compile(r"^Requires-Python:\s*.+$\n?", re.MULTILINE | re.IGNORECASE)
 _WHEEL_TAG_RE = re.compile(r"^Tag:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
 _ROOT_IS_PURELIB_RE = re.compile(r"^Root-Is-Purelib:\s*.+$", re.MULTILINE | re.IGNORECASE)
 
@@ -181,6 +182,18 @@ def _downgrade_metadata_version(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text
+
+
+def _drop_requires_python(text: str) -> str:
+    """Remove the Requires-Python line.
+
+    The declared floor is upstream's packaging/QA pin, not a runtime
+    dependency — 0.32.0's >=3.11 only reflects five names moving from
+    typing_extensions to typing. pip enforces the line at install, so leaving
+    it in refuses interpreters the wheel does run on; the real floor is what
+    the on-node verification says.
+    """
+    return _REQUIRES_PYTHON_RE.sub("", text)
 
 
 def _strip_local_version(text: str) -> str:
@@ -853,6 +866,7 @@ def repack_dep(name: str, version: str, extra_indexes: list[str],
     # Now update this dep's METADATA with +flagos versions of sub-deps
     new_meta = _strip_requires_dist_lines(meta_text, strip_set)
     new_meta = _downgrade_metadata_version(new_meta)
+    new_meta = _drop_requires_python(new_meta)
 
     # Pin sub-dependency versions to their exact +flagos version.
     if sub_repacked_deps:
@@ -1038,6 +1052,7 @@ def repack_top_level(whl_path: Path, extra_indexes: list[str], recurse: bool = T
 
     new_meta = _strip_requires_dist_lines(meta_text, names_to_remove)
     new_meta = _downgrade_metadata_version(new_meta)
+    new_meta = _drop_requires_python(new_meta)
     # Note: +flagos suffix already added to meta_text above, no need to add again
 
     # 5. Recursive indirect dep audit + repack
