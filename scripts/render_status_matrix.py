@@ -103,7 +103,7 @@ BACKENDS = [
     "mthreads-musa5.2.0",
     "spacemit-spacemit",
     "sunrise-tangrt1.2.0",
-    "thead-ppu2.0.0",
+    "thead-ppu2.1.0",
     "tsingmicro-tsm260610",
 ]
 

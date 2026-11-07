@@ -103,7 +103,7 @@ kunlunxin klx_* + ascend sgl_kernel_npu（见 `../zero-sgl-kernel-feasibility-20
 - cp311 → ascend×2（aarch64，容器内编译）
 - cp310 → hygon / mthreads×2 / cambricon / kunlunxin / tsingmicro / sunrise
 
-thead-ppu2.0.0 + spacemit 无基础镜像，排除。同一 python 的后端可共享 wheel
+spacemit 无基础镜像、thead-ppu2.1.0 无 app 层（未配 deps_app），排除。同一 python 的后端可共享 wheel
 上传各自 index。
 
 ### 5.5 metax JIT 缺口 fallback 必须落进交付形态（2026-08-29）

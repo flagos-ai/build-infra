@@ -85,7 +85,7 @@ DEFAULT_NODES = {
     "mthreads-musa5.2.0": "mthreads",
     "sunrise-tangrt1.2.0": "sunrise",
     "tsingmicro-tsm260610": "tsm",
-    "thead-ppu2.0.0": "thead",
+    "thead-ppu2.1.0": "thead",
 }
 
 GIT_IDENTITY = {
