@@ -37,4 +37,4 @@ tags:
       - 携带 `/usr/local/PPU_SDK` 下的 PPU_SDK v2.1.0（ppu-smi、CUDA 兼容头文件、HGGC 13.3），且刻意不含 torch/triton —— Python 栈完全由 runtime 的 venv 承担，与其他后端一致。
       - 补齐厂商镜像缺的两件事：cmake + libpython3-dev，以及把 pip 索引指向栈镜像站而非厂商 PAI 平台端点。
     upstream_prs: []
-    date: ''
+    date: '2026-11-07T02:41:49.815Z'
