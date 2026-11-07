@@ -1315,6 +1315,9 @@ vendors:
       extras: thead
       hardware: ["T-Head ZW810E"]
       driver: "2.0.0"
+      # Target platform surfaced in the base/runtime image descriptions
+      # (gen_descriptions renders it as the "Applicable platform" line).
+      platform: "Aliyun PAI-DSW"
       python: "3.12"
       # No cmake_backend: FlagGems' release map (scripts/release_flaggems.py
       # VENDOR_MAP) has no PPU backend, so there is no cpp wheel to build.
