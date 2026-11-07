@@ -272,7 +272,21 @@ jobs:
               exit 1
             fi
           fi
+          # A tag must reach the clone as a tag, not as its resolved commit:
+          # the wheel's version is derived by git describe, and checking out the
+          # sha drops the tag ref, so describe falls back to an ancestor tag and
+          # the public version drifts (v0.14.1 built off its sha came out
+          # 0.14.2.dev2). A branch or a 40-hex sha stays pinned to the sha — a
+          # branch moves, and a non-tag build names itself
+          # `.dev<distance>+<date>.<node>` regardless of which ref it checked out.
+          if awk -v tag="refs/tags/${FLAGCX_REF}" \
+            '$2 == tag { found = 1 } $2 == tag "^{}" { found = 1 } END { exit !found }' <<<"${refs}"; then
+            checkout_ref="${FLAGCX_REF}"
+          else
+            checkout_ref="${sha}"
+          fi
           echo "FLAGCX_SHA=${sha}" >> "$GITHUB_ENV"
+          echo "FLAGCX_CHECKOUT_REF=${checkout_ref}" >> "$GITHUB_ENV"
           echo ">>> ${FLAGCX_REF} -> ${sha}"
       - name: Build the wheel
         env:
@@ -285,7 +299,7 @@ jobs:
           # host would only be a third place that can disagree.
           packaging/flagcx/build-flagcx-wheel.sh \
             --backend "$MATRIX_NAME" \
-            --ref "$FLAGCX_SHA" \
+            --ref "$FLAGCX_CHECKOUT_REF" \
             --out packaging/flagcx/dist \
             ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       - name: Upload the wheel
