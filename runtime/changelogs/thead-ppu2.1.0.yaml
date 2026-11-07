@@ -41,4 +41,4 @@ tags:
         安装在 /opt/triton 作为厂商侧回退，用 `compiler triton` 切换。无 cpp FlagGems
         wheel：FlagGems 发布映射中没有 PPU 后端。
     upstream_prs: []
-    date: ''
+    date: '2026-11-07T03:18:12.809Z'

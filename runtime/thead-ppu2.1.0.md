@@ -1,0 +1,73 @@
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** T-Head ZW810E
+- **Host driver:** 2.0.0
+
+## Image contents
+
+### Built on
+
+`harbor.baai.ac.cn/flagos-base/flagos-base-thead-ppu2.1.0:2.3.0`
+
+### Python
+
+3.12
+
+### Major Python packages
+
+- `flag_gems==5.4.0`
+- `flagtree==0.7.0+ppu3.6`
+- `numpy==1.26.4`
+- `torch==2.10.0+v0.1.0.ppu2.1.1`
+- `triton==3.5.0+v0.2.0.ppu2.1.1` *(alternative)*
+
+### Switch compiler
+
+This image includes both FlagTree (default) and Triton. To switch, run `compiler triton` inside the container. Use `compiler flagtree` to switch back, or `compiler` to check the active compiler.
+
+### Choosing a FlagTree version
+
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+
+### Choosing a FlagGems version
+
+Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems release before the application starts — no rebuild. `-e FLAGGEMS_VERSION=latest` takes the newest build on the **daily** line instead, which leads the next release; it is the newest on that line, not the newest compared to what the image already carries. The wheel is about 13 MB and is fetched once per container. An in-container install keeps the rest of the stack as built, and a request that cannot be met stops the container rather than starting on a different FlagGems.
+
+## Launch
+
+Start an interactive shell (works with docker or podman):
+
+```bash
+docker run --rm -it \
+  --privileged \
+  --shm-size=512g \
+  --ipc host \
+  --network host \
+  -v /dev:/dev \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-thead-ppu2.1.0:2.3.0 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+ppu-smi
+```
+
+## Changelog
+
+### 2.3.0
+
+*2026-11-07 03:18:12*
+
+- First delivery of this backend's runtime image, layered on the PPU
+  2.1.0 base. It installs the python 3.12 closure into the uv venv: torch
+  2.10.0+v0.1.0.ppu2.1.1 and numpy 1.26.4, with FlagGems 5.4.0.
+- torch and triton are T-Head's real vendor wheels (build-line tag
+  ppu2.1.1) pulled from flagos-pypi-thead, not the vendor's sdist stubs.
+- FlagTree is the default compiler at 0.7.0+ppu3.6; triton
+  3.5.0+v0.2.0.ppu2.1.1 installs beside it in /opt/triton as the vendor
+  fallback, switched with `compiler triton`. No cpp FlagGems wheel: the
+  FlagGems release map has no PPU backend.
