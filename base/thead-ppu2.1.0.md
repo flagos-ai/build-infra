@@ -1,5 +1,6 @@
 ## Prerequisites
 
+- **Applicable platform:** Aliyun PAI-DSW
 - **Architecture:** x86_64
 - **Chip models:** T-Head ZW810E
 - **Host driver:** 2.0.0
