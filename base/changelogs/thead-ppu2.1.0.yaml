@@ -1,0 +1,40 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+
+image: flagos-base-thead-ppu2.1.0
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: T-Head PPU 2.1.0 on Ubuntu 24.04, x86_64.
+      - The layer is vendored, not installed: T-Head ships the PPU SDK only
+        inside their PAI-DSW training image, so this base takes that image and
+        drops its platform entrypoint (`/home/pai/bin/entrypoint`, a DSW
+        harness). There is no installer package and nothing on the filestore
+        to build from.
+      - Carries PPU_SDK v2.1.0 at `/usr/local/PPU_SDK` (ppu-smi, the
+        CUDA-compat headers, HGGC 13.3) and deliberately no torch/triton — the
+        runtime venv owns the whole Python stack, as on every other backend.
+      - Adds the two things the vendor image lacks for our purposes: cmake +
+        libpython3-dev, and a pip index pointed at the stack mirror instead of
+        the vendor's PAI platform endpoint.
+    reason_zh: |-
+      - 首次交付：平头哥 PPU 2.1.0，x86_64，基于 Ubuntu 24.04。
+      - 该层是「直接引用」而非安装：T-Head 只把 PPU SDK 放在其 PAI-DSW 训练镜像里，因此本 base 直接取该镜像并摘掉其平台 entrypoint（`/home/pai/bin/entrypoint`，DSW 启动器）。既没有安装包，filestore 上也没有可构建的源码。
+      - 携带 `/usr/local/PPU_SDK` 下的 PPU_SDK v2.1.0（ppu-smi、CUDA 兼容头文件、HGGC 13.3），且刻意不含 torch/triton —— Python 栈完全由 runtime 的 venv 承担，与其他后端一致。
+      - 补齐厂商镜像缺的两件事：cmake + libpython3-dev，以及把 pip 索引指向栈镜像站而非厂商 PAI 平台端点。
+    upstream_prs: []
+    date: ''

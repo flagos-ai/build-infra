@@ -1,0 +1,47 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Base image for T-Head PPU 2.1.0 on Ubuntu 24.04.
+#
+# Vendored, not installed: the only PPU SDK T-Head ships us is baked into their
+# PAI-DSW training image (~25 GB, Aliyun in-country only) — no installer, no
+# tarball. So we take that image verbatim and fix the two things that stop it
+# being a base. It already carries PPU_SDK v2.1.0 at /usr/local/PPU_SDK
+# (ppu-smi, CUDA-compat headers, HGGC 13.3) and no torch/triton — the runtime
+# venv owns the Python stack, as on every backend.
+
+FROM youyu-registry.cn-wulanchabu.cr.aliyuncs.com/train/torch:pai-dsw
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The vendor image's ENTRYPOINT is /home/pai/bin/entrypoint, a DSW harness that
+# re-execs CMD; FlagOS images are entered directly, so clear it.
+ENTRYPOINT []
+CMD ["bash"]
+
+# Repoint pip off the baked-in Aliyun PAI platform index, so a bare
+# `pip install` (runtime's pip upgrade, downstream apps) doesn't resolve there.
+ENV PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+
+# Vendor image ships the compiler but not cmake; the app layer and C++ extension
+# builds need it. libpython3-dev covers extensions against the vendor python.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      cmake libpython3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
