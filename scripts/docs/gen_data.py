@@ -520,6 +520,7 @@ def main():
                         "arch": arch,
                         "hardware": spec.get("hardware") or [],
                         "driver": spec.get("driver", ""),
+                        "platform": spec.get("platform", ""),
                         "system_packages": _dedup(sys_pkgs),
                         "sdk": sdk,
                         "env": env.get("base") or {},

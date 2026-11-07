@@ -2,6 +2,11 @@
 
 backend key：`thead-ppu2.1.0`（T-Head ZW810E），PPU 2.1.0 SDK 线。
 
+> **适用平台：阿里云 PAI-DSW。** base 直接 `FROM` 平头哥的 PAI-DSW 训练镜像，
+> runtime 叠在其上，整条线在 PAI-DSW 环境里构建+验证——base/runtime 的镜像描述里
+> 也标了「适用平台」一行。本质上可移植到物理机；迁移裸机前按惯例先实测设备可见性与
+> SDK 行为即可。
+
 ## base 镜像是「直接引用」，不是安装
 
 平头哥不出 SDK 安装包，也不在 filestore 上放 SDK 源码 —— PPU SDK 只存在于其

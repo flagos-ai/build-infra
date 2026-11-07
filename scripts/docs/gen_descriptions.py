@@ -95,6 +95,7 @@ STRINGS = {
         "architecture": "Architecture",
         "chip_models": "Chip models",
         "host_driver": "Host driver",
+        "platform": "Applicable platform",
         "toolkit": "Container toolkit",
         "toolkit_optional": "*(optional)*",
         "toolkit_tooltip": "only for the toolkit launch below; the plain docker/podman command needs none",
@@ -143,6 +144,7 @@ STRINGS = {
         "architecture": "架构",
         "chip_models": "芯片型号",
         "host_driver": "宿主机驱动",
+        "platform": "适用平台",
         "toolkit": "容器工具包",
         "toolkit_optional": "*(可选)*",
         "toolkit_tooltip": "仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装",
@@ -410,6 +412,9 @@ def _prerequisites(entry: dict, s: dict, web: bool, hardware: list[str] | None =
     page prints the generic model of a vendor-neutral vendor, not the SKU."""
     base = entry["base"]
     lines = [f"## {s['prerequisites']}", ""]
+    platform = base.get("platform") or ""
+    if platform:
+        lines.append(f"- **{s['platform']}:** {platform}")
     lines.append(f"- **{s['architecture']}:** {base.get('arch', '')}")
     hw = base.get("hardware") or [] if hardware is None else hardware
     if hw:
