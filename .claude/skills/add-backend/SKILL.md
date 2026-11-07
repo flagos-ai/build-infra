@@ -155,9 +155,14 @@ rename — leave it and raise it.
 - **Runner label with no runner** queues the job forever — confirm the runner
   (org-level runners do not show in the repo's runner list; absence there is
   not absence of a runner).
-- **A base build that fails on the runner environment** (e.g. no docker-socket
-  permission) is a node-provisioning gap, not a repo defect — report it and do
-  not retry the same-cause failure blindly (`node-ops`).
+- **A base build that fails on the runner environment** is a node-provisioning
+  gap, not a repo defect — report and fix it on the node, do not retry the
+  same-cause failure blindly (`node-ops`). The one seen so far: a
+  docker-socket `permission denied`. A process's supplementary groups are
+  fixed at start, so adding the runner's user to the `docker` group does not
+  reach the already-running runner — restart it from a fresh login (check
+  `/proc/<pid>/status` Groups). On an ephemeral VM, bake the membership in
+  before the runner autostarts, or it recurs on every rebuild.
 - **Tempted to open the app layer before an image exists** → steps 1–3 are a
   first delivery; 4 opens only once there is an image to declare or a node to
   verify on.
