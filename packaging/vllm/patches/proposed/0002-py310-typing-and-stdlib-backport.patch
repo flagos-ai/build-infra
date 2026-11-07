@@ -1,0 +1,535 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# vLLM 0.32.0 declares requires-python >=3.11 (pyproject.toml:34), but the
+# floor is a by-product of an import cleanup, not a runtime dependency: 0.32
+# moved five names (Self / Never / Required / NotRequired / assert_never) from
+# typing_extensions back to typing, and those only exist in typing from 3.11.
+# Same five names, by source:  0.24.0 typing=0 / typing_extensions=28 files;
+# 0.28.0 typing=0 / typing_extensions=32; 0.32.0 typing=37 / typing_extensions=0.
+# 37 files carry the five names; 2 more carry datetime.UTC. Total 39.
+#
+# Zero 3.11-only runtime features are used (no ExceptionGroup / except* /
+# TaskGroup / tomllib / StrEnum / PEP 695 generics); the single sys.version_info
+# gate (distributed/utils.py:41, USE_SCHED_YIELD) already falls back to
+# time.sleep(0). typing_extensions >= 4.10 is already in
+# requirements/common.txt:30 and carries all five names.
+#
+# This patch makes the tree importable and servable on Python 3.10. Scope is
+# vllm/ only: tests/ and tools/ are not shipped in the wheel, so leaving them
+# alone keeps the patch surface minimal. Verified on py3.10 (torch 2.8.0 /
+# 2.9.0 / 2.11.0): import vllm, vllm.v1.engine.core.EngineCore and
+# vllm.entrypoints.openai.api_server all import clean.
+#
+# Registered but NOT enabled: this lives in patches/proposed/, which
+# build-and-repack.sh's `"$SCRIPT_DIR"/patches/*.patch` glob does not reach, so
+# today's wheels are unaffected. Promote it to patches/ when a py3.10 backend
+# is actually attempted.
+#
+# Rebase on every vLLM bump, in the same pass as
+# 0001-parallel-state-symm-mem-guard.patch. Generic hunks (diff -u from the
+# pristine tarball), so a failed hunk means the source drifted — fail loudly.
+#
+# requires-python itself is NOT relaxed here on purpose: pip enforces
+# Requires-Python at metadata time, so a py3.10 backend also needs either
+# `--ignore-requires-python` at install or a relaxed declaration. That is a
+# one-line edit to pyproject.toml plus a repack-side Requires-Python rewrite,
+# decided when the first py3.10 backend is actually attempted — see
+# packaging/vllm/docs/vllm-0.32.0-torch-floor.html §6.1.
+--- a/vllm/benchmarks/sweep/plot.py
++++ b/vllm/benchmarks/sweep/plot.py
+@@ -8,7 +8,8 @@
+ from functools import partial
+ from pathlib import Path
+ from types import TracebackType
+-from typing import TYPE_CHECKING, ClassVar, Self
++from typing import TYPE_CHECKING, ClassVar
++from typing_extensions import Self
+ 
+ from typing_extensions import override
+ 
+--- a/vllm/benchmarks/sweep/serve_workload.py
++++ b/vllm/benchmarks/sweep/serve_workload.py
+@@ -4,7 +4,8 @@
+ import math
+ from dataclasses import dataclass, fields
+ from pathlib import Path
+-from typing import ClassVar, Literal, assert_never, get_args
++from typing import ClassVar, Literal, get_args
++from typing_extensions import assert_never
+ 
+ import numpy as np
+ 
+--- a/vllm/benchmarks/sweep/server.py
++++ b/vllm/benchmarks/sweep/server.py
+@@ -6,7 +6,7 @@
+ import subprocess
+ import time
+ from types import TracebackType
+-from typing import Self
++from typing_extensions import Self
+ 
+ import requests
+ 
+--- a/vllm/config/engram.py
++++ b/vllm/config/engram.py
+@@ -1,7 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+-from typing import TYPE_CHECKING, Self
++from typing import TYPE_CHECKING
++from typing_extensions import Self
+ 
+ from pydantic import model_validator
+ 
+--- a/vllm/config/lora.py
++++ b/vllm/config/lora.py
+@@ -2,7 +2,8 @@
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+ import os
+-from typing import TYPE_CHECKING, Any, Literal, Self
++from typing import TYPE_CHECKING, Any, Literal
++from typing_extensions import Self
+ 
+ import torch
+ from pydantic import ConfigDict, Field, model_validator
+--- a/vllm/config/parallel.py
++++ b/vllm/config/parallel.py
+@@ -5,7 +5,8 @@
+ import socket
+ from collections.abc import Callable
+ from datetime import timedelta
+-from typing import TYPE_CHECKING, Any, Literal, Self, overload
++from typing import TYPE_CHECKING, Any, Literal, overload
++from typing_extensions import Self
+ 
+ import regex as re
+ import torch
+--- a/vllm/config/profiler.py
++++ b/vllm/config/profiler.py
+@@ -2,7 +2,8 @@
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+ import os
+-from typing import Any, Literal, Self
++from typing import Any, Literal
++from typing_extensions import Self
+ 
+ from pydantic import Field, model_validator
+ 
+--- a/vllm/config/scheduler.py
++++ b/vllm/config/scheduler.py
+@@ -3,7 +3,8 @@
+ 
+ from collections.abc import Callable
+ from dataclasses import InitVar
+-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, cast
++from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
++from typing_extensions import Self
+ 
+ from pydantic import Field, field_validator
+ 
+--- a/vllm/config/speculative.py
++++ b/vllm/config/speculative.py
+@@ -4,7 +4,8 @@
+ import copy
+ import functools
+ from collections.abc import Callable, Mapping
+-from typing import TYPE_CHECKING, Any, Literal, Self, get_args
++from typing import TYPE_CHECKING, Any, Literal, get_args
++from typing_extensions import Self
+ 
+ from pydantic import Field, SkipValidation, field_validator, model_validator
+ 
+--- a/vllm/config/structured_outputs.py
++++ b/vllm/config/structured_outputs.py
+@@ -1,7 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+-from typing import Any, Literal, Self
++from typing import Any, Literal
++from typing_extensions import Self
+ 
+ from pydantic import model_validator
+ 
+--- a/vllm/config/watermarking.py
++++ b/vllm/config/watermarking.py
+@@ -2,7 +2,8 @@
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+ import hashlib
+-from typing import Literal, Self
++from typing import Literal
++from typing_extensions import Self
+ 
+ from pydantic import Field, model_validator
+ 
+--- a/vllm/distributed/weight_transfer/base.py
++++ b/vllm/distributed/weight_transfer/base.py
+@@ -11,10 +11,10 @@
+     ClassVar,
+     Generic,
+     Protocol,
+-    Self,
+     TypeVar,
+     runtime_checkable,
+ )
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/distributed/weight_transfer/ipc_engine.py
++++ b/vllm/distributed/weight_transfer/ipc_engine.py
+@@ -4,7 +4,8 @@
+ 
+ import pickle
+ from dataclasses import asdict, dataclass
+-from typing import TYPE_CHECKING, Any, ClassVar, Self
++from typing import TYPE_CHECKING, Any, ClassVar
++from typing_extensions import Self
+ 
+ import pybase64 as base64
+ import torch
+--- a/vllm/distributed/weight_transfer/m2n_trainer.py
++++ b/vllm/distributed/weight_transfer/m2n_trainer.py
+@@ -15,7 +15,8 @@
+ 
+ from concurrent.futures import Future, ThreadPoolExecutor
+ from dataclasses import dataclass, field
+-from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
++from typing import TYPE_CHECKING, Any, ClassVar, cast
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/distributed/weight_transfer/nccl_engine.py
++++ b/vllm/distributed/weight_transfer/nccl_engine.py
+@@ -5,7 +5,8 @@
+ from collections.abc import Iterator
+ from concurrent.futures import ThreadPoolExecutor
+ from dataclasses import asdict, dataclass
+-from typing import TYPE_CHECKING, ClassVar, Self
++from typing import TYPE_CHECKING, ClassVar
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/distributed/weight_transfer/sharded_rdt_trainer.py
++++ b/vllm/distributed/weight_transfer/sharded_rdt_trainer.py
+@@ -24,7 +24,8 @@
+ from collections.abc import Callable, Collection
+ from concurrent.futures import ThreadPoolExecutor
+ from dataclasses import asdict, dataclass, field
+-from typing import Any, ClassVar, Self
++from typing import Any, ClassVar
++from typing_extensions import Self
+ 
+ import ray
+ import torch
+--- a/vllm/distributed/weight_transfer/sparse_nccl_engine.py
++++ b/vllm/distributed/weight_transfer/sparse_nccl_engine.py
+@@ -11,7 +11,8 @@
+ from concurrent.futures import ThreadPoolExecutor
+ from contextlib import nullcontext
+ from dataclasses import asdict, dataclass
+-from typing import TYPE_CHECKING, ClassVar, Self
++from typing import TYPE_CHECKING, ClassVar
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/entrypoints/pooling/embed/serving.py
++++ b/vllm/entrypoints/pooling/embed/serving.py
+@@ -1,6 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+-from typing import TypeAlias, assert_never, cast
++from typing import TypeAlias, cast
++from typing_extensions import assert_never
+ 
+ from fastapi.responses import JSONResponse, Response, StreamingResponse
+ 
+--- a/vllm/entrypoints/pooling/pooling/serving.py
++++ b/vllm/entrypoints/pooling/pooling/serving.py
+@@ -1,6 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+-from typing import assert_never, cast
++from typing import cast
++from typing_extensions import assert_never
+ 
+ from fastapi.responses import JSONResponse, Response, StreamingResponse
+ 
+--- a/vllm/entrypoints/pooling/scoring/typing.py
++++ b/vllm/entrypoints/pooling/scoring/typing.py
+@@ -1,7 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ from dataclasses import dataclass
+-from typing import Required, TypeAlias
++from typing import TypeAlias
++from typing_extensions import Required
+ 
+ from typing_extensions import TypedDict
+ 
+--- a/vllm/entrypoints/serve/tokenize/api_router.py
++++ b/vllm/entrypoints/serve/tokenize/api_router.py
+@@ -3,7 +3,7 @@
+ 
+ 
+ from http import HTTPStatus
+-from typing import assert_never
++from typing_extensions import assert_never
+ 
+ from fastapi import APIRouter, Depends, FastAPI, Request
+ from fastapi.responses import JSONResponse
+--- a/vllm/inputs/engine.py
++++ b/vllm/inputs/engine.py
+@@ -3,7 +3,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ from collections.abc import Mapping, Sequence
+-from typing import TYPE_CHECKING, Literal, NotRequired, TypeAlias, assert_never
++from typing import TYPE_CHECKING, Literal, TypeAlias
++from typing_extensions import NotRequired, assert_never
+ 
+ from typing_extensions import TypedDict
+ 
+--- a/vllm/inputs/llm.py
++++ b/vllm/inputs/llm.py
+@@ -3,7 +3,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ from collections.abc import Mapping, Sequence
+-from typing import TYPE_CHECKING, Any, NotRequired, TypeAlias, TypeVar, final
++from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, final
++from typing_extensions import NotRequired
+ 
+ from typing_extensions import TypedDict
+ 
+--- a/vllm/model_executor/kernels/linear/base.py
++++ b/vllm/model_executor/kernels/linear/base.py
+@@ -3,7 +3,8 @@
+ 
+ from abc import ABC, abstractmethod
+ from dataclasses import dataclass
+-from typing import Any, ClassVar, Generic, Self, TypeVar
++from typing import Any, ClassVar, Generic, TypeVar
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/model_executor/kernels/linear/scaled_mm/BlockScaledMMLinearKernel.py
++++ b/vllm/model_executor/kernels/linear/scaled_mm/BlockScaledMMLinearKernel.py
+@@ -3,7 +3,8 @@
+ 
+ from abc import ABC, abstractmethod
+ from dataclasses import dataclass
+-from typing import ClassVar, Self
++from typing import ClassVar
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/model_executor/model_loader/utils.py
++++ b/vllm/model_executor/model_loader/utils.py
+@@ -6,7 +6,8 @@
+ import time
+ import warnings
+ from contextlib import contextmanager, nullcontext
+-from typing import Any, assert_never
++from typing import Any
++from typing_extensions import assert_never
+ 
+ import torch
+ from torch import nn
+--- a/vllm/model_executor/models/interfaces.py
++++ b/vllm/model_executor/models/interfaces.py
+@@ -21,11 +21,11 @@
+     ClassVar,
+     Literal,
+     Protocol,
+-    Self,
+     TypeAlias,
+     overload,
+     runtime_checkable,
+ )
++from typing_extensions import Self
+ 
+ import numpy as np
+ import torch
+--- a/vllm/models/deepseek_v4/common/mm_preprocess.py
++++ b/vllm/models/deepseek_v4/common/mm_preprocess.py
+@@ -22,7 +22,8 @@
+ 
+ import math
+ from collections.abc import Mapping, Sequence
+-from typing import Any, assert_never
++from typing import Any
++from typing_extensions import assert_never
+ 
+ import numpy as np
+ import torch
+--- a/vllm/multimodal/parse.py
++++ b/vllm/multimodal/parse.py
+@@ -13,8 +13,8 @@
+     TypeAlias,
+     TypeGuard,
+     TypeVar,
+-    assert_never,
+ )
++from typing_extensions import assert_never
+ 
+ import numpy as np
+ import torch
+--- a/vllm/multimodal/processing/processor.py
++++ b/vllm/multimodal/processing/processor.py
+@@ -13,8 +13,8 @@
+     NamedTuple,
+     Protocol,
+     TypeAlias,
+-    assert_never,
+ )
++from typing_extensions import assert_never
+ 
+ import torch
+ from typing_extensions import TypeVar
+--- a/vllm/renderers/chat_utils.py
++++ b/vllm/renderers/chat_utils.py
+@@ -17,7 +17,6 @@
+     Final,
+     Generic,
+     Literal,
+-    Required,
+     TypeAlias,
+     TypeVar,
+     Union,
+@@ -25,6 +24,7 @@
+     get_args,
+     get_origin,
+ )
++from typing_extensions import Required
+ 
+ from openai.types.chat import (
+     ChatCompletionAssistantMessageParam,
+--- a/vllm/snapshot/manifest.py
++++ b/vllm/snapshot/manifest.py
+@@ -6,7 +6,8 @@
+ import os
+ import stat
+ from pathlib import Path
+-from typing import Annotated, Any, Literal, Self
++from typing import Annotated, Any, Literal
++from typing_extensions import Self
+ 
+ from pydantic import (
+     BaseModel,
+--- a/vllm/snapshot/runtime.py
++++ b/vllm/snapshot/runtime.py
+@@ -24,7 +24,7 @@
+ from collections.abc import Iterable
+ from contextlib import suppress
+ from dataclasses import dataclass
+-from datetime import UTC, datetime
++from datetime import datetime, timezone
+ from pathlib import Path
+ from typing import NoReturn
+ 
+--- a/vllm/tokenizers/registry.py
++++ b/vllm/tokenizers/registry.py
+@@ -4,7 +4,8 @@
+ from dataclasses import dataclass, field
+ from functools import lru_cache
+ from pathlib import Path
+-from typing import TYPE_CHECKING, assert_never, cast
++from typing import TYPE_CHECKING, cast
++from typing_extensions import assert_never
+ 
+ import huggingface_hub
+ from typing_extensions import TypeVar
+--- a/vllm/usage/usage_lib.py
++++ b/vllm/usage/usage_lib.py
+@@ -69,7 +69,7 @@
+ 
+ 
+ def _get_current_timestamp_ns() -> int:
+-    return int(datetime.datetime.now(datetime.UTC).timestamp() * 1e9)
++    return int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1e9)
+ 
+ 
+ def _detect_cloud_provider() -> str:
+--- a/vllm/utils/collection_utils.py
++++ b/vllm/utils/collection_utils.py
+@@ -8,7 +8,8 @@
+ import math
+ from collections import defaultdict
+ from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence
+-from typing import Generic, Literal, TypeVar, assert_never, overload
++from typing import Generic, Literal, TypeVar, overload
++from typing_extensions import assert_never
+ 
+ from typing_extensions import TypeIs
+ 
+--- a/vllm/utils/import_utils.py
++++ b/vllm/utils/import_utils.py
+@@ -12,7 +12,8 @@
+ import sys
+ from functools import cache
+ from types import ModuleType
+-from typing import Any, Never
++from typing import Any
++from typing_extensions import Never
+ 
+ import regex as re
+ 
+--- a/vllm/v1/kv_cache_interface.py
++++ b/vllm/v1/kv_cache_interface.py
+@@ -12,7 +12,8 @@
+ from fractions import Fraction
+ from functools import cached_property
+ from math import prod
+-from typing import TYPE_CHECKING, Self, TypeVar
++from typing import TYPE_CHECKING, TypeVar
++from typing_extensions import Self
+ 
+ import torch
+ 
+--- a/vllm/v1/metrics/perf.py
++++ b/vllm/v1/metrics/perf.py
+@@ -10,7 +10,8 @@
+ from abc import ABC, abstractmethod
+ from collections.abc import Iterable
+ from dataclasses import asdict, dataclass, field
+-from typing import Any, Protocol, Self
++from typing import Any, Protocol
++from typing_extensions import Self
+ 
+ import prometheus_client
+ import torch
+#
+# ── Not covered here ────────────────────────────────────────────────────
+#
+# torch 2.7.1 is a separate, LOWER floor that has nothing to do with Python:
+# vllm/ir/tolerances.py:32 references torch.float4_e2m1fn_x2 at module level,
+# and that dtype first appears in torch 2.8. The file is byte-identical across
+# 0.24.0 / 0.28.0 / 0.32.0, so cambricon-neuware4.4.3 and iluvatar-corex4.4.0
+# already pay it today — the plugin covers it at vllm_fl/__init__.py:9-19
+# (`_torch.float4_e2m1fn_x2 = _torch.uint8`), and it lands before vllm.ir: a
+# vllm.platform_plugins entry point running the same sentinel was measured to
+# clear the floor on py3.10 + torch 2.7.1, EngineCore and api_server both.
+# Only matters here because a py3.10 backend on torch 2.7.1 needs that plugin
+# loaded in the same process.
