@@ -196,24 +196,11 @@ review-gated PR; package version bumps surface there. Don't hand-edit
 
 ## Add a new backend (rare)
 
-Follow `update-backend` for the shared steps, with these additions up front.
-**The five steps below are the ordered plan — work them in order and let the
-layer decide when the next one opens; do not let a grep of the new key
-re-order them.** Steps 1–3 are what a first delivery needs; 4–5 open only once
-an image exists to declare or a node exists to verify on. Building the base
-image alone authorizes only step 1 plus the configs.yaml/runner/changelog
-edits that §2 requires — nothing from steps 4–5:
-
-1. `base/<vendor>-<backend>` Containerfile (new vendor SDK on Ubuntu 24.04).
-2. configs.yaml `vendors.<vendor>.<backend>` full spec (deps/env/deps_app/
-   compilers) + `app_public` for a NEW vendor (`scripts/app_public.py` reads
-   it; the public name must never round-trip into the backend key).
-3. `build-config.yml`: `runners.overrides.<backend>`, `run.vendors.<vendor>`
-   (device flags), `verify.vendors.<vendor>` (smi command).
-4. Matrix + status matrix: `generate_matrix.py` row, `BACKENDS` list,
-   `status_matrix.<app>.yaml` declaration. **Device flags unknown (new
-   vendor) → ask the user before building; launch docs inherit these flags.**
-5. `verify-nodes.example.yaml` + local alias for the node.
+Standing up a brand-new backend (a new vendor SDK line) is its own flow — see
+the `add-backend` skill. It shares every rebuild / verify / record step below;
+what differs is the front-loaded net-new declarations (the key, the base
+Containerfile, the configs block, the build-config entries) and the
+layer-by-layer first delivery.
 
 ## Facts index
 
