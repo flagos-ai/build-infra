@@ -9,6 +9,7 @@ vLLM 各版本 repack（empty 构建 + `+flagos` + 单步安装）的验证记�
 | [vllm-verification-matrix.md](vllm-verification-matrix.md) | 验证状态矩阵（每单元格 = 后端 × 版本 × 编译器，仅记录状态；状态块由 `scripts/render_status_matrix.py` 自动生成） |
 | [vllm-0.20.2/index.md](vllm-0.20.2/index.md) | 0.20.2 版验证报告（背景、后端索引、决策） |
 | [vllm-0.24.0/index.md](vllm-0.24.0/index.md) | 0.24.0 版验证报告（TL;DR、背景、metax 总览、遗留事项） |
+| [vllm-0.32.0-torch-floor.html](vllm-0.32.0-torch-floor.html) | 评估：0.32.0 的 `torch >= 2.13` / `python >= 3.11` 两个下限有多硬；0.32 落地的真实阻塞、本地实测（py3.10 empty wheel + import 级）与版本取舍。配套草案补丁：`packaging/vllm/patches/proposed/0002-py310-typing-and-stdlib-backport.patch`（未启用） |
 | [handoffs/](handoffs/) | 交给厂商/上游的根因报告（每份一个缺陷） |
 | [ascend-vllm-0.24.0.md](handoffs/ascend-vllm-0.24.0.md) | 910B app 镜像交付说明（2.1.2 那一版的实测启动命令与检查点） |
 | [sunrise-vllm-0.20.2.md](handoffs/sunrise-vllm-0.20.2.md) | PTPU app 镜像交付说明；含 FlagTree 解码挂死的回退与注意事项 |

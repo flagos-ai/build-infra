@@ -1,0 +1,530 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>vLLM 0.32.0 的 torch 下限评估</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --surface-2:#edf0f4; --surface-3:#e4e9ef;
+  --ink:#17202e; --ink-dim:#5b6574; --ink-faint:#8b94a1;
+  --line:#dbe1e8; --line-strong:#c6cfda;
+  --accent:#2f5bd8; --accent-soft:#e7ecfb; --accent-ink:#2449b5;
+  --ok:#1e8a4c; --ok-bg:#e1f3e8; --ok-line:#bfe2cd;
+  --a:#0d7d7d; --a-bg:#e0f1f1; --a-line:#bcdddd;
+  --b:#a06a00; --b-bg:#f6ecd8; --b-line:#e6d3ab;
+  --c:#c2410c; --c-bg:#f8e5dc; --c-line:#ebc3b2;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1218; --surface:#151c26; --surface-2:#1b2330; --surface-3:#222c3b;
+    --ink:#e8edf4; --ink-dim:#93a0b0; --ink-faint:#6b7787;
+    --line:#2a3342; --line-strong:#39465a;
+    --accent:#7ea3ff; --accent-soft:#1d2945; --accent-ink:#9db9ff;
+    --ok:#3fcf80; --ok-bg:#13301f; --ok-line:#23573a;
+    --a:#3ab8b8; --a-bg:#0e2b2b; --a-line:#1f4a4a;
+    --b:#dda03c; --b-bg:#2e2413; --b-line:#55421e;
+    --c:#e06a3f; --c-bg:#31170f; --c-line:#5a2c1d;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1218; --surface:#151c26; --surface-2:#1b2330; --surface-3:#222c3b;
+  --ink:#e8edf4; --ink-dim:#93a0b0; --ink-faint:#6b7787;
+  --line:#2a3342; --line-strong:#39465a;
+  --accent:#7ea3ff; --accent-soft:#1d2945; --accent-ink:#9db9ff;
+  --ok:#3fcf80; --ok-bg:#13301f; --ok-line:#23573a;
+  --a:#3ab8b8; --a-bg:#0e2b2b; --a-line:#1f4a4a;
+  --b:#dda03c; --b-bg:#2e2413; --b-line:#55421e;
+  --c:#e06a3f; --c-bg:#31170f; --c-line:#5a2c1d;
+}
+body{background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  line-height:1.65; -webkit-font-smoothing:antialiased}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.wrap{max-width:1000px;margin:0 auto;padding:44px 28px 72px}
+code{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:.88em;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:4px;
+  padding:1px 5px;color:var(--ink);white-space:nowrap}
+
+/* hero */
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent-ink);font-weight:600;margin-bottom:14px}
+h1{font-size:clamp(25px,3.6vw,36px);line-height:1.22;font-weight:700;letter-spacing:-.01em;
+  text-wrap:balance}
+.thesis{margin-top:14px;max-width:68ch;color:var(--ink-dim);font-size:15.5px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:4px 10px;border-radius:6px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);font-weight:500}
+.chip.warn{background:var(--b-bg);border-color:var(--b-line);color:var(--b)}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin-top:24px}
+.nav a{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:4px 10px;border-radius:6px;
+  background:var(--surface);border:1px solid var(--line);color:var(--ink-dim);text-decoration:none}
+.nav a:hover{border-color:var(--accent);color:var(--accent-ink)}
+
+/* sections */
+.sec{margin-top:48px}
+.sec-eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.sec-title{font-size:21px;font-weight:700;margin-top:4px;text-wrap:balance;
+  scroll-margin-top:24px}
+.sec-sub{color:var(--ink-dim);font-size:14px;margin-top:6px;max-width:74ch}
+p.sub{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-faint);margin-top:26px}
+h3{font-size:15.5px;font-weight:700;margin-top:28px;scroll-margin-top:24px}
+p{margin-top:12px;font-size:14px;color:var(--ink-dim);max-width:78ch}
+p b,li b,td b{color:var(--ink);font-weight:600}
+ul,ol{margin-top:12px;padding-left:22px;font-size:14px;color:var(--ink-dim)}
+li{margin-top:6px;line-height:1.7}
+li::marker{color:var(--ink-faint)}
+
+/* tables */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;margin-top:16px;font-size:13px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tbl th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);
+  padding:9px 13px;border-bottom:1px solid var(--line)}
+.tbl td{padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top;
+  color:var(--ink-dim);line-height:1.6}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td:first-child{color:var(--ink);font-weight:500}
+.tbl td code{white-space:normal;word-break:break-word}
+
+/* verdict + callouts */
+.verdict{margin-top:18px;border:1px solid var(--ok-line);background:var(--ok-bg);
+  border-radius:8px;padding:16px 18px}
+.verdict .vt{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ok)}
+.verdict p{margin-top:8px;color:var(--ink);font-size:14px;max-width:none}
+.note{margin-top:16px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 8px 8px 0;padding:12px 16px;font-size:13.5px;color:var(--ink-dim);line-height:1.7}
+.note b{color:var(--ink)}
+.warn{margin-top:18px;border-left:3px solid var(--b);background:var(--b-bg);
+  border-radius:0 8px 8px 0;padding:12px 16px;font-size:13.5px;color:var(--ink-dim);line-height:1.7}
+.warn b{color:var(--b)}
+
+/* code */
+pre{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:14px 16px;overflow-x:auto}
+pre code{background:none;border:none;padding:0;font-size:12.5px;line-height:1.75;
+  white-space:pre;color:var(--ink-dim)}
+
+/* footer */
+.foot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--ink-faint);line-height:1.75}
+.foot b{color:var(--ink-dim);font-weight:600}
+
+@media (max-width:760px){
+  .wrap{padding:32px 18px 56px}
+  .tbl{font-size:12.5px}
+  .tbl th,.tbl td{padding:8px 10px}
+  code{white-space:normal;word-break:break-word}
+}
+</style>
+
+<header class="wrap">
+  <div class="eyebrow">flagos · vllm · packaging</div>
+  <h1>vLLM 0.32.0 的 <code>torch &gt;= 2.13</code> 是否严格</h1>
+  <p class="thesis">评估 vLLM 0.32.0（<code>pyproject.toml</code> 声明 <code>torch == 2.13.0</code>、<code>requires-python &gt;=3.11</code>）
+  能否落在一个 torch 2.11 / Python 3.10 的栈上。结论：两个下限都是上游的打包声明，不是 API 契约——torch 2.11
+  可通过 empty 构建与 import，Python 3.10 可经一条纯 import 改写补丁跑通到 serve 入口。</p>
+  <div class="meta">
+    <span class="chip">范围：静态审计 + 本机 import/构建/符号探针</span>
+    <span class="chip warn">未做：Linux 上的 serve 实测（§8）</span>
+    <span class="chip">torch 2.11 可通过 empty 构建与 import</span>
+    <span class="chip">py3.10 empty wheel 已构建并安装成功</span>
+    <span class="chip">py3.10 可由一条 39 文件补丁绕过</span>
+  </div>
+  <nav class="nav">
+    <a href="#s1">§1 结论</a>
+    <a href="#s2">§2 三处出处</a>
+    <a href="#s3">§3 门控语义</a>
+    <a href="#s4">§4 实测</a>
+    <a href="#s5">§5 失去的东西</a>
+    <a href="#s6">§6 真正的阻塞</a>
+    <a href="#s6-4">§6.4 Python 下限</a>
+    <a href="#s6-5">§6.5 torch 2.7.1</a>
+    <a href="#s7">§7 版本取舍</a>
+    <a href="#s8">§8 证据与边界</a>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <section class="sec" id="s1">
+    <div class="sec-eyebrow">§ 1</div>
+    <div class="sec-title">结论</div>
+    <p class="sub">torch 下限</p>
+    <div class="verdict">
+      <div class="vt">torch ≥ 2.13 不是 API 契约</div>
+      <p><code>torch &gt;= 2.13</code> 是上游的<strong>打包 / QA pin</strong>，不是 API 契约。vLLM 全树没有一处
+      因为 torch 版本低而拒绝启动；每一处版本判断都在为<strong>旧</strong> torch 打补丁，或探测<strong>新</strong>
+      torch 的优化开关。torch 2.11 能通过 empty 构建与 import，失去的只有 inductor 优化。</p>
+    </div>
+    <p class="sub">Python 下限</p>
+    <div class="verdict">
+      <div class="vt">Python ≥ 3.11 不是运行时依赖</div>
+      <p><code>requires-python &gt;=3.11</code> 是 0.32 一次 <strong>import 清理的副产品</strong>：它把五个名字
+      （<code>Self</code> / <code>Never</code> / <code>Required</code> / <code>NotRequired</code> /
+      <code>assert_never</code>）从 <code>typing_extensions</code> 收回到 <code>typing</code>，而这些名字
+      3.11 才进 <code>typing</code>。全树没有用到任何 3.11 独有的运行时特性，一条纯 import 改写补丁
+      （37 个文件 + 2 个 <code>datetime</code> 文件）即可在 py3.10 上跑到 serve 入口；
+      py3.10 的 empty wheel 已构建并安装验证（§6.4）。</p>
+    </div>
+    <p>因此 0.32.0 落不下来的原因不在 torch / Python，而在另外两处硬边界：<strong>CUDA 侧运行时依赖的版本天花板</strong>，
+    以及 <strong>py3.10 路线所要求的补丁常驻</strong>（§6）。</p>
+  </section>
+
+  <section class="sec" id="s2">
+    <div class="sec-eyebrow">§ 2</div>
+    <div class="sec-title"><code>torch == 2.13.0</code> 的三处出处，逐个看</div>
+    <table class="tbl">
+      <thead>
+        <tr><th>出处</th><th>实际形态</th><th>对本仓的效力</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>pyproject.toml:10</code>、<code>PKG-INFO</code> <code>Requires-Dist: torch==2.13.0</code></td>
+          <td>精确 pin（连 <code>&gt;=</code> 都不是），由 <code>requirements/cuda.txt</code> 继承</td>
+          <td>被 <code>packaging/vllm/config.yaml</code> 的 <code>remove_torch_chain</code> 整条剥掉，不进 <code>+flagos</code> wheel</td>
+        </tr>
+        <tr>
+          <td><code>CMakeLists.txt:71-72</code> <code>TORCH_SUPPORTED_VERSION_{CUDA,ROCM} "2.13.0"</code></td>
+          <td><code>:186</code>/<code>:200</code> 是 <code>message(WARNING)</code></td>
+          <td>empty 模式（<code>VLLM_TARGET_DEVICE=empty</code> → <code>ext_modules = []</code>）不跑 CMake，连 <code>find_package(Torch)</code> 都不发生——正是 <code>build-and-repack.sh</code> 全后端（含 nvidia）走的模式</td>
+        </tr>
+        <tr>
+          <td>运行时断言</td>
+          <td>全树 grep 无 <code>torch &gt;= 2.13</code> 类 raise；<code>compilation/wrapper.py:183</code> 的报错触发条件是 <code>aot_compile</code> 属性缺失，与版本号无关</td>
+          <td>无</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><code>CMakeLists.txt:385-388</code> 那段 2.13 专属改动（stableivalue 头文件 hotfix）自带
+    <code>VERSION_GREATER_EQUAL "2.13" AND VERSION_LESS "2.14"</code> 门控，在旧 torch 上不执行。</p>
+  </section>
+
+  <section class="sec" id="s3">
+    <div class="sec-eyebrow">§ 3</div>
+    <div class="sec-title">版本门控的语义：兜底旧 torch，而非索要新 torch</div>
+    <p>同一组文件（<code>env_override.py</code>、<code>compilation/{compiler_interface,backends}.py</code>、
+    <code>config/compilation.py</code>）在三个版本上的版本字面量直方图：</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>版本</th><th>门控字面量</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0.24.0</td><td><code>2.12.0.dev</code>×6, <code>2.10.0</code>×4, <code>2.9.0</code>×2, <code>2.9.0.dev</code>×2, <code>2.11.0</code>×2, <code>2.9.1</code>, <code>2.6</code>, <code>2.13.0.dev</code>, <code>2.11.0.dev</code></td></tr>
+        <tr><td>0.28.0</td><td>与 0.24.0 完全相同</td></tr>
+        <tr><td>0.32.0</td><td>同上，另加 <code>2.16.0.dev</code>×1</td></tr>
+      </tbody>
+    </table>
+    <p>0.32.0 相对 0.28.0 只多一个门控点（<code>env_override.py:968</code>，pattern-matcher 补丁的上界），
+    <strong>没有把任何门控抬到 2.13</strong>。<code>2.13.0.dev</code> 那一处在 0.24.0 就已存在，内容是
+    <code>compile_kwargs["donate_graph_module"] = True</code>——新 torch 的优化开关，旧 torch 上跳过。</p>
+    <p>反向证据更直接：</p>
+    <ul>
+      <li><code>env_override.py:716</code> 注释原文 <span class="mono">"minimum supported torch is 2.12"</span>；</li>
+      <li><code>env_override.py</code> 中 2.9 / 2.10 / 2.11 的补丁块（<code>constrain_to_fx_strides</code>、
+      <code>FxGraphCachePickler</code>、cpp <code>indirect_assert</code>）全是为旧 torch 补 API；</li>
+      <li><code>compilation/backends.py:604</code> <code>has_tuple_return = is_torch_equal_or_newer("2.12.0.dev")</code>
+      ——2.11 的 <code>split_module</code> 无此 kwarg，故旧 torch 上主动不传。</li>
+    </ul>
+  </section>
+
+  <section class="sec" id="s4">
+    <div class="sec-eyebrow">§ 4</div>
+    <div class="sec-title">实测：torch 2.11.0 下 import 0.32.0</div>
+    <p>在 torch 2.11.0 环境里对<strong>未改动的</strong> 0.32.0 源码树执行 <code>import vllm</code>，成功并报出
+    自己的版本号 <code>0.32.0</code>。逐符号扫描的对照结果：</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>扫描</th><th>torch 2.11.0</th><th>torch 2.13.0</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>import vllm</code></td><td>通过</td><td>通过</td></tr>
+        <tr><td><code>from torch.* import ...</code> 全部 32 条</td><td>全部解析</td><td>全部解析</td></tr>
+        <tr><td>1246 条 <code>torch.*</code> 点路径中缺失</td><td>22 条</td><td>23 条</td></tr>
+      </tbody>
+    </table>
+    <p>两份缺失集合的差集只有两条：</p>
+    <ul>
+      <li><code>torch.utils.cpp_extension.CUDA_HOME</code> —— 探测脚本的 artifact，非 vLLM 引用；</li>
+      <li><code>torch.accelerator.empty_host_cache</code> —— <strong>0.32.0 已用 <code>try/except AttributeError</code> 包住</strong>
+      （<code>distributed/parallel_state.py:2555-2559</code>）。</li>
+    </ul>
+    <p>其余 22 条在 <strong>2.13 上同样缺失</strong>，因此不构成版本判别项。</p>
+    <p>2.13 新增、2.11 缺失的私有 API 只有三处，且都有退路：</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>API</th><th>使用点</th><th>2.11 上的行为</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>torch._C._accelerator_getAllocatorSettings</code></td>
+          <td><code>v1/worker/gpu_worker.py:416</code></td>
+          <td><code>getattr(..., None)</code> 落回 <code>torch.cuda.memory._snapshot()["allocator_settings"]</code></td>
+        </tr>
+        <tr>
+          <td><code>torch._grouped_mm</code></td>
+          <td><code>fused_moe/experts/moonep_experts.py:58</code></td>
+          <td>仅 MoonEP 模型路径不可用</td>
+        </tr>
+        <tr>
+          <td><code>torch._inductor.fx_passes.joint_graph</code></td>
+          <td><code>compilation/compiler_interface.py:778</code></td>
+          <td>整个块在 <code>try/except Exception</code> 内</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note">
+      值得注意：<b>0.32.0 在这一点上比 0.24.0 / 0.28.0 对旧 torch 更友好。</b>0.24 / 0.28 直接读
+      <code>PYTORCH_CUDA_ALLOC_CONF</code> 环境变量并恢复 <code>SIZE_MAX</code>，0.32 改走 allocator
+      settings，而它的回退分支（<code>torch.cuda.memory._snapshot()</code>）在 torch 2.11 的 C++
+      （<code>torch/csrc/cuda/Module.cpp</code>）里已经存在。
+    </div>
+  </section>
+
+  <section class="sec" id="s5">
+    <div class="sec-eyebrow">§ 5</div>
+    <div class="sec-title">torch 2.11 上失去的东西</div>
+    <p>全部是 inductor 编译优化，不影响正确性：</p>
+    <ul>
+      <li><code>donate_graph_module</code>（≥2.13.dev）</li>
+      <li><code>split_module(tuple_return=True)</code>（≥2.12.dev）</li>
+      <li>pregrad pass 跳过（≥2.12.dev）——旧 torch 上由 monkeypatch
+      <code>torch._inductor.compile_fx._recursive_pre_grad_passes</code> 达成同等效果</li>
+      <li>mega-AOT 默认开启（≥2.12.dev）</li>
+      <li>assert 合并成一次（≥2.12）——旧 torch 上 <code>config/compilation.py:924-943</code> 把
+      <code>size_asserts</code> / <code>alignment_asserts</code> / <code>scalar_asserts</code> 降到
+      "仅 DEBUG 打开"，即断言密度下降但语义不变</li>
+    </ul>
+    <p>triton 侧不成问题：torch 2.11 要求 <code>triton==3.6.0</code>，torch 2.13 要求 <code>3.7.1</code>，
+    但后者内部下限是 <code>_TRITON_MINIMUM_VERSION_MINOR = 6</code>
+    （<code>torch/_native/triton_utils.py:29</code>），即 2.13 容忍 triton 3.6——这正是 AMD 栈保留
+    FlagTree 0.7.0（内含 triton 3.6）的依据。</p>
+  </section>
+
+  <section class="sec" id="s6">
+    <div class="sec-eyebrow">§ 6</div>
+    <div class="sec-title">真正的阻塞</div>
+
+    <h3 id="s6-1">6.1 Python 下限：0.32.0 声明 <code>&gt;=3.11</code>，但可绕过</h3>
+    <p>0.24.0 / 0.28.0 是 <code>&gt;=3.10</code>，0.32.0 抬到 <code>&gt;=3.11,&lt;3.15</code>。这个声明本身
+    是硬的（pip 在 metadata 阶段就拦下 py3.10），但<strong>它约束的东西不是 3.11 的能力，而是 3.11 才补齐的
+    <code>typing</code> 名字</strong>，实测可绕过 —— 见 §6.4。</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>Python</th><th>后端</th><th>原样声明</th><th>加补丁后</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>3.10（7 个）</td>
+          <td>cambricon-neuware4.4.3、hygon-dtk26.04、kunlunxin-xre5.37.1、mthreads-musa4.3.6、mthreads-musa5.2.0、sunrise-tangrt1.2.0、tsingmicro-tsm260610</td>
+          <td>否</td>
+          <td><b>可</b>（§6.4）</td>
+        </tr>
+        <tr>
+          <td>3.11（4 个）</td>
+          <td>ascend-cann8.5.0、ascend-cann8.5.0-910c、ascend-cann9.0.0、ascend-cann9.0.0-910c</td>
+          <td>是</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>3.12（13 个）</td>
+          <td>nvidia×2、amd-rocm7.2.4、hygon-dtk26.10、cambricon-neuware4.7.2、enflame×2、iluvatar×2、metax×2、spacemit、thead</td>
+          <td>是</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 id="s6-2">6.2 CUDA 侧运行时依赖天花板</h3>
+    <p>0.32.0 的 <code>requirements/cuda.txt</code> 相对 0.24.0 新增一整批 NVIDIA 专属依赖，全部落在
+    <code>config.yaml remove_cuda_only</code> 里：<code>torchcodec&gt;=0.14</code>、
+    <code>PyNvVideoCodec==2.0.4</code>、<code>flashinfer-python==0.7.0.post1</code>、
+    <code>tilelang==0.1.12</code>、<code>nvtx==0.2.15</code>、<code>instanttensor&gt;=0.2.2</code>、
+    <code>nvidia-cutlass-dsl[cu13]==4.8.0</code>、<code>quack-kernels==0.6.5</code>、
+    <code>tokenspeed-mla==0.2.15</code>、<code>humming-kernels[cu13]==0.1.17</code>。非 CUDA 后端拿不到这些的
+    vendor 变体。</p>
+    <p><code>requirements/common.txt</code> 的公共面同样上抬：<code>transformers &gt;= 5.16.1, &lt; 5.20.0</code>、
+    <code>huggingface_hub &gt;= 1.31.0</code>、<code>tokenizers &gt;= 0.23.2</code>、
+    <code>openai &gt;= 2.25.0</code>、<code>pillow &gt;= 12.3.0</code>、<code>mcp &gt;= 2.0.0, &lt; 3.0.0</code>、
+    <code>oss-harmony &gt;= 0.0.11</code>。</p>
+
+    <h3 id="s6-3">6.3 升 torch 自身的 ABI 代价</h3>
+    <p>已经付过一次：AMD 从 torch 2.11.0+rocm7.2 迁到 2.13.0+rocm7.2 时，torch 2.13 不再导出
+    <code>materialize_cow_storage</code>（改为 <code>StorageImpl.h</code> 内联），迫使
+    <code>flagcx 0.14.1+rocm7.2.4</code> 重新构建。这类代价按后端各付一次，与 vLLM 的版本号无关。</p>
+
+    <h3 id="s6-4">6.4 Python 下限可绕过：一条 39 文件的 import 改写</h3>
+    <p>把 py3.11 相对 py3.10 新增的<strong>运行时</strong>特性全树扫一遍，命中为零：</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>特性</th><th>命中</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ExceptionGroup</code> / <code>except*</code></td><td>0</td></tr>
+        <tr><td><code>asyncio.TaskGroup</code> / <code>asyncio.timeout</code></td><td>0</td></tr>
+        <tr><td><code>tomllib</code> / <code>enum.StrEnum</code> / <code>contextlib.chdir</code> / <code>itertools.batched</code> / <code>hashlib.file_digest</code></td><td>0</td></tr>
+        <tr><td>PEP 695 泛型语法（3.12）</td><td>0</td></tr>
+      </tbody>
+    </table>
+    <p>唯一的 <code>sys.version_info</code> 闸门是 <code>distributed/utils.py:41</code>：
+    <code>USE_SCHED_YIELD = sys.version_info[:3] &gt;= (3, 11, 1)</code>。它自带回退
+    （<code>time.sleep(0)</code>），注释也写明原因（3.11.1 起 <code>os.sched_yield</code> 才释放 GIL）。
+    实测在 py3.10 上该值为 <code>False</code>，走回退分支。</p>
+    <p>真正构成间隔的是<strong>五个 <code>typing</code> 名字</strong>和<strong>一个 <code>datetime</code> 常量</strong>，
+    且改法极廉价：</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>缺什么</th><th>规模</th><th>改法</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>typing.Self</code> / <code>Never</code> / <code>Required</code> / <code>NotRequired</code> / <code>assert_never</code></td><td><b>37 个文件</b></td><td>改为从 <code>typing_extensions</code> import</td></tr>
+        <tr><td><code>datetime.UTC</code></td><td><b>2 个文件</b>（<code>snapshot/runtime.py</code>、<code>usage/usage_lib.py</code>）</td><td><code>datetime.timezone.utc</code></td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <b>零成本的关键：</b>0.32 的 <code>requirements/common.txt:30</code> 本来就声明
+      <code>typing_extensions &gt;= 4.10</code>，而 4.10 已含这五个名字 —— 这份依赖一直在装，只是没人用。
+      上游 0.32 做的是把这些 import 从 <code>typing_extensions</code> 收回 <code>typing</code>：
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr><th>版本</th><th><code>from typing import …</code></th><th><code>from typing_extensions import …</code></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0.24.0</td><td>0</td><td>28 个文件</td></tr>
+        <tr><td>0.28.0</td><td>0</td><td>32 个文件</td></tr>
+        <tr><td>0.32.0</td><td><b>37 个文件</b></td><td><b>0</b></td></tr>
+      </tbody>
+    </table>
+    <p>也就是说 <code>requires-python</code> 是这个清理动作的<strong>副产品</strong>，不是独立的技术决定。
+    补丁已拟好：<code>packaging/vllm/patches/proposed/0002-py310-typing-and-stdlib-backport.patch</code>
+    （39 个文件——37 个 <code>typing</code> + 2 个 <code>datetime</code>，全在 <code>vllm/</code> 内；<code>tests/</code>、<code>tools/</code> 不进 wheel 故未动），
+    与 <code>0001</code> 同机制、同挂载点。</p>
+    <p>实测（<code>VLLM_TARGET_DEVICE=empty</code>，源码树来自 filestore sdist）：</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>组合</th><th><code>import vllm</code></th><th><code>v1.engine.core.EngineCore</code></th><th><code>openai.api_server</code></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>py3.10 + torch 2.11.0</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>py3.10 + torch 2.9.0</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>py3.10 + torch 2.8.0</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>py3.10 + torch 2.7.1</td><td>✅</td><td>需 float4 垫片（§6.5）</td><td>✅</td></tr>
+      </tbody>
+    </table>
+    <p>empty wheel 亦已构建并安装成功：
+    <code>vllm-0.32.0+empty-cp310-cp310-*.whl</code>（无 <code>.so</code>，纯 Python payload），
+    装后三个入口 import 全通。构建只需改 <strong>1 行</strong>（<code>pyproject.toml:34</code> 的
+    <code>requires-python</code>），因为 pip 在 metadata 阶段就硬拦 py3.10；Linux 上
+    <code>VLLM_TARGET_DEVICE=empty</code> 会直接穿过设备自动探测分支（macOS 上的自动降级是本地取证 artifact）。</p>
+    <div class="warn">
+      <b>两个操作细节，供真正推进时用：</b>
+      <ul>
+        <li><code>packaging/script/repack.py</code> 只改 <code>Requires-Dist</code>，<b>不动
+        <code>Requires-Python</code></b>。所以 <code>+flagos</code> wheel 会带着 <code>&gt;=3.11</code> 出去，
+        py3.10 后端 <code>pip install</code> 仍被拦。走 py3.10 路线需二选一：源码补丁里放松声明，
+        或给 repack 加一条 strip，或安装时 <code>--ignore-requires-python</code>。</li>
+        <li>runtime 是 <code>uv venv /flagos --python ${PYTHON_VERSION}</code>，<b>一个后端只有一个 venv</b>，
+        「同时带 3.10 和 3.12」在一个后端内不可行；抬版是整栈动作。</li>
+      </ul>
+    </div>
+
+    <h3 id="s6-5">6.5 比 Python 更硬的地板：torch 2.7.1</h3>
+    <p><code>vllm/ir/tolerances.py:32</code> 在模块层直接引用 <code>torch.float4_e2m1fn_x2</code>，
+    而该 dtype <strong>torch 2.8 才出现</strong>。这条与 Python 版本无关，也<strong>不是 0.32 引入的</strong>：
+    该文件在 0.24.0 / 0.28.0 / 0.32.0 上 md5 完全相同（<code>9498757d…</code>），
+    0.24 与 0.28 在 torch 2.7.1 上栽在同一行。</p>
+    <p>现有覆盖来自插件 —— <code>vllm_fl/__init__.py:9-19</code> 在任何 <code>vllm.ir</code> import 之前
+    注入哨兵（<code>_torch.float4_e2m1fn_x2 = _torch.uint8</code>）。实测这条路径确实成立：
+    用一个等价的 <code>vllm.platform_plugins</code> entry point 打在 site-packages 里，
+    py3.10 + torch 2.7.1 上 <code>EngineCore</code> 与 <code>api_server</code> 均 import 通过
+    —— 说明 vLLM 装载插件早于 <code>vllm.ir</code>（<code>worker_base.py:10</code> 那个模块级
+    <code>import vllm.ir</code> 是插件装载之后才发生的）。</p>
+    <p>对 py3.10 七个后端的含义：只有 <strong>cambricon-neuware4.4.3（torch 2.7.1+cpu）</strong>需要这个垫片；
+    hygon-dtk26.04 / kunlunxin（2.9.0）、mthreads×2（2.9.0 / 2.9.1）、sunrise / tsingmicro（2.11.0）
+    都在 2.8 之上。</p>
+  </section>
+
+  <section class="sec" id="s7">
+    <div class="sec-eyebrow">§ 7</div>
+    <div class="sec-title">版本取舍</div>
+    <p>四个候选路径，按代价排序：</p>
+    <ol>
+      <li><b>0.28.0 优先。</b>同样 pin <code>torch == 2.13.0</code>，但 <code>requires-python</code> 仍是
+      <code>&gt;=3.10</code>，7 个 py3.10 后端不必先迁 Python，一个补丁都不用。<code>config.yaml</code> 的
+      <code>pin_indirect_per_version</code> 已经为 <code>0.28.0</code> / <code>0.32.0</code> 两条都写好
+      xgrammar 0.2.8。</li>
+      <li><b>0.32.0 + torch 2.11 对 py3.12 后端成立</b>：cambricon-neuware4.7.2、enflame-tops1.10.6、
+      nvidia-cuda13.3（均为 torch 2.11.0）。这是"torch 版本是唯一变量"的三个，仍需实测确认。</li>
+      <li><b>0.32.0 + py3.10 需要那条补丁常驻</b>（§6.4）。技术上门已开（wheel 已构建、serve 入口已 import），
+      但真实代价是<strong>维护面</strong>：偏离上游 CI 覆盖区间（0.32 只跑 3.11–3.14），补丁要跟每个新版本重打，
+      且 7 个后端要各跑一遍 F/T 验证。另有 <code>Requires-Python</code> 未 strip 的安装细节要一并处理。</li>
+      <li><b>0.32.0 + py3.10 + 抬后端 Python</b>：最彻底，走 <code>update-backend</code>（vendor SDK 需提供
+      cp311/cp312 ABI + 重跑 runtime 与 app 验证），不是 app 版本推进能顺带完成的。</li>
+    </ol>
+  </section>
+
+  <section class="sec" id="s8">
+    <div class="sec-eyebrow">§ 8</div>
+    <div class="sec-title">证据与边界</div>
+    <p><strong>可复现的取证命令</strong>（源码取 filestore 同上游 sdist）：</p>
+<pre><code>curl -sL -o vllm-0.32.0.tar.gz \
+  https://resource.flagos.net/repository/flagos-filestore/vllm/vllm-0.32.0.tar.gz
+tar xzf vllm-0.32.0.tar.gz
+
+# 1. pin 的三种形态
+grep -n 'torch *=='            vllm-0.32.0/pyproject.toml
+grep -n 'Requires-Dist: torch' vllm-0.32.0/PKG-INFO
+grep -n 'TORCH_SUPPORTED_VERSION' vllm-0.32.0/CMakeLists.txt
+
+# 2. 门控直方图（与 0.24.0 / 0.28.0 同文件集对比）
+grep -rhoE '"2\.[0-9]+(\.[0-9]+)?(\.dev)?"' \
+  vllm-0.32.0/vllm/env_override.py \
+  vllm-0.32.0/vllm/compilation/{compiler_interface,backends}.py \
+  vllm-0.32.0/vllm/config/compilation.py | sort | uniq -c | sort -rn
+
+# 3. 有无硬性版本断言
+grep -rn "raise RuntimeError.*[Tt]orch" --include=*.py vllm-0.32.0/vllm/
+
+# 4. 2.13 新增私有 API 的使用点及退路
+grep -rn "_accelerator_getAllocatorSettings\|empty_host_cache\|_grouped_mm\|joint_graph" \
+  --include=*.py vllm-0.32.0/vllm/
+
+# 5. py3.11 专有运行时特性（应为 0）
+grep -rnE "ExceptionGroup|except\*|TaskGroup|tomllib|StrEnum|PEP 695 泛型" --include=*.py vllm-0.32.0/vllm/
+
+# 6. 五个 typing 名字的来源（typing 还是 typing_extensions）
+grep -rlE "^from typing import .*\b(Self|Never|Required|NotRequired|assert_never)\b" \
+  vllm-0.32.0/vllm/ | wc -l        # 0.32 → 32~37，0.24/0.28 → 0
+
+# 7. torch 2.7.1 的那条地板（0.24/0.28 同款）
+grep -rn "float4_e2m1fn_x2" vllm-0.32.0/vllm/ir/tolerances.py</code></pre>
+    <div class="warn">
+      <b>已做的验证</b>：本机（macOS / arm64）在 py3.10 上完成 <code>VLLM_TARGET_DEVICE=empty</code>
+      wheel 构建＋安装＋三个入口 import，并对 torch 2.7.1 / 2.8.0 / 2.9.0 / 2.11.0 各跑一遍；
+      补丁另经 <code>patch -p1 --dry-run</code> 与整树重放校验（应用后源码树与生成树逐字节相同）。
+      <br>
+      <b>未做的验证</b>：真实的 Linux 构建与 <b>serve 实测</b> 未执行——构建机上 Docker 无法访问任何 registry
+      （<code>reading HTTP CONNECT: unexpected EOF</code>），本地 <code>ubuntu</code> 镜像无 python3 且 apt
+      源不可达；CUDA / 加速器路径完全未触达（host 为 macOS，仅有 CPU torch 构建）。
+      <b>以上 py3.10 结论均为 import / metadata 级，不是推理级。</b>
+    </div>
+    <p><strong>建议的关闸实验</strong>（若采纳 §7 路径 2 或 3）：在 <code>enflame-tops1.10.6</code>
+    （py3.12 / torch 2.11.0+cpu）或 <code>cambricon-neuware4.7.2</code>（py3.12 / torch 2.11.0+cpu）上跑一格
+    empty wheel 构建 + 单步安装 + serve；若要验路径 3，则换成任一 py3.10 后端（如
+    <code>kunlunxin-xre5.37.1</code>，torch 2.9.0+cpu）并挂上 <code>0002</code> 补丁。
+    两者都走 <code>verify-app-backend</code> 的流程，结果回写本文件。</p>
+  </section>
+
+  <footer class="foot">
+    <b>对象</b>：vLLM 0.32.0，<code>pyproject.toml</code> 声明 <code>torch == 2.13.0</code>、
+    <code>requires-python &gt;=3.11</code>。<br>
+    <b>方法</b>：静态审计（pin 形态 / 门控直方图 / 私有 API 与 3.11 特性全树扫描）＋ 本机 py3.10 环境下的
+    empty 构建、安装与 import 探针（torch 2.7.1 / 2.8.0 / 2.9.0 / 2.11.0）。<br>
+    <b>关联件</b>：<code>packaging/vllm/patches/proposed/0002-py310-typing-and-stdlib-backport.patch</code>（拟稿，未启用）。<br>
+    <b>未覆盖</b>：Linux 构建、serve 实测、任何 CUDA / 加速器路径——边界见 §8。
+  </footer>
+
+</main>
