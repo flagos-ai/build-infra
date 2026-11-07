@@ -69,7 +69,8 @@ skill references; skills never duplicate them (agent-protocol layer 1).
 | `node-ops` | ssh to a verify node, drive a debug container, repro a failed cell | `scripts/verify-nodes.example.yaml`, `docs/verify-orchestrator.md` §5, `docs/vendors/<vendor>.md` |
 | `reporting` | write a report / PR body / commit message / chat summary | `docs/agent-protocol.md` |
 | `pr-workflow` | open a PR / cut a branch / reply to review / clean up after merge | `docs/agent-protocol.md` §6, `.github/builders.txt` |
-| `update-backend` | bump deps/compiler/SDK/version for a backend or across backends; add a new backend (rare) | `configs.yaml`, `scripts/base_image_status.py`, `docs/status-matrix.md` |
+| `update-backend` | bump deps/compiler/SDK/version for a backend or across backends | `configs.yaml`, `scripts/base_image_status.py`, `docs/status-matrix.md` |
+| `add-backend` | stand up a brand-new backend / vendor SDK line (base→runtime→app, one PR per layer) | `configs.yaml`, `.github/build-config.yml`, `docs/vendors/<vendor>.md` |
 | `verify-app-backend` | walk a status-matrix cell to F/T-passed + symbol write-back | `docs/status-matrix.md`, `docs/verify-orchestrator.md` |
 | `rollout-app-version` | take an app (vllm / sglang / megatron training+rl) to a new version | `packaging/README.md`, `docs/status-matrix.md`, `docs/changelog.md` |
 | `publish-wheel` | build + publish a component wheel to a vendor PyPI index; add a new publish line | `docs/wheel-info.md`, `CLAUDE.md` workflow table, `packaging/upload/` |
