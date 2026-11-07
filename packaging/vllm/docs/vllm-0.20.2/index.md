@@ -89,7 +89,7 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 | sunrise-tangrt1.2.0 | 0.6.0+sunrise3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
 | tsingmicro-tsm260610 | 0.7.0rc2+tsingmicro3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
 
-spacemit、thead-ppu2.0.0 无 app 镜像，不在表内。
+spacemit、thead-ppu2.1.0 无 app 镜像，不在表内。
 
 ### FlagTree 0.7.0rc2 的两个回归与降版
 
