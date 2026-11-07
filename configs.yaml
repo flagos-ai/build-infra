@@ -1307,16 +1307,25 @@ vendors:
         - taDNN 1.2.0          # tadnn-v1.2.0-linux-x86_64.tar.gz
         - taBLAS 1.2.0         # tablas-v1.2.0-linux-x86_64.tar.gz
 
-  # No base image yet. Has to run on PAI using Aliyun images
   thead:
-    ppu2.0.0:
+    # SDK 2.1.0 line — base/thead-ppu2.1.0 layers on T-Head's PAI-DSW image,
+    # which carries PPU_SDK v2.1.0. torch and triton resolve to real wheels
+    # uploaded to flagos-pypi-thead; these pins name them by version.
+    ppu2.1.0:
       extras: thead
       hardware: ["T-Head ZW810E"]
+      driver: "2.0.0"
       python: "3.12"
-      triton: triton==3.5.0+ppu2.0.0.oe
+      # No cmake_backend: FlagGems' release map (scripts/release_flaggems.py
+      # VENDOR_MAP) has no PPU backend, so there is no cpp wheel to build.
+      triton: triton==3.5.0+v0.2.0.ppu2.1.1
+      flagtree: flagtree==0.7.0+ppu3.6
       deps:
-        - torch==2.9.0+ppu2.0.0.oe
+        - torch==2.10.0+v0.1.0.ppu2.1.1
         - numpy==1.26.4
+      sdk:
+        # Baked into T-Head's PAI-DSW training image; no installer to run.
+        - PPU SDK 2.1.0 (x86_64)
 
   tsingmicro:
     tsm260610:
