@@ -111,9 +111,16 @@ esac
 echo ">>> version: $version  (commit $(git -C "$src" rev-parse --short=9 HEAD))"
 echo "$version" > "$src/build_tools/VERSION.txt"
 
+# NVTE_SKIP_SUBMODULE_CHECKS_DURING_BUILD: setup.py's git_check_submodules()
+# runs unconditionally and asserts the 3rdparty submodules (cutlass/cudnn/...)
+# are checked out — but the clone above is --filter=blob:none and inits no
+# submodules, and TE_FL_SKIP_CUDA compiles none of the native code that would
+# need them. The env var is setup.py's own documented escape hatch for exactly
+# this (the assertion message names it).
 echo ">>> building pure-Python wheel (TE_FL_SKIP_CUDA=1, NVTE_RELEASE_BUILD=1)"
 mkdir -p "$OUTDIR"
 TE_FL_SKIP_CUDA=1 NVTE_RELEASE_BUILD=1 NVTE_NO_LOCAL_VERSION=1 \
+  NVTE_SKIP_SUBMODULE_CHECKS_DURING_BUILD=1 \
   "$py" -m pip wheel "$src" --no-deps -w "$OUTDIR"
 
 wheel="$(ls -t "$OUTDIR"/transformer_engine-*.whl 2>/dev/null | head -1)"
