@@ -738,11 +738,11 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.24.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.24.0 inference/serving framework.
-    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。配套发布的 xgrammar
-      / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。配套发布的 xgrammar / compressed-tensors
+      / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
     notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
-      The matching xgrammar / compressed-tensors / opencv-python-headless published on
-      the same index are installed by vllm's own dependency pins and get no separate
+      The matching xgrammar / compressed-tensors / opencv-python-headless published
+      on the same index are installed by vllm's own dependency pins and get no separate
       entry.
     python:
     - py3
@@ -766,8 +766,8 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.28.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.28.0 inference/serving framework.
-    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的
-      xgrammar / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的 xgrammar / compressed-tensors
+      / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
     notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
       The matching xgrammar / compressed-tensors / opencv-python-headless published
       on the same index are installed by vllm's own dependency pins and get no separate
@@ -794,11 +794,11 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.32.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.32.0 inference/serving framework.
-    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的
-      xgrammar / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的 xgrammar / compressed-tensors
+      / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
     notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
-      The matching xgrammar / compressed-tensors / opencv-python-headless published on
-      the same index are installed by vllm's own dependency pins and get no separate
+      The matching xgrammar / compressed-tensors / opencv-python-headless published
+      on the same index are installed by vllm's own dependency pins and get no separate
       entry.
     python:
     - py3
@@ -1186,6 +1186,35 @@ wheels:
     - linux
     arch:
     - linux_x86_64
+- name: transformer_engine
+  short_name: transformer_engine
+  versions:
+  - version: 2.17.0+fl.0.3.0
+    pypi_index:
+    - flagos-pypi-amd
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-daily
+    - flagos-pypi-enflame
+    - flagos-pypi-hygon
+    - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
+    - flagos-pypi-metax
+    - flagos-pypi-mthreads
+    - flagos-pypi-spacemit
+    - flagos-pypi-sunrise
+    - flagos-pypi-thead
+    - flagos-pypi-tsingmicro
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python:
+    - py3
+    os:
+    - any
+    arch:
+    - any
 sources:
 - name: flagtree
   short_name: FlagTree
