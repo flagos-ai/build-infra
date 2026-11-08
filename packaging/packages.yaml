@@ -1186,6 +1186,43 @@ wheels:
     - linux
     arch:
     - linux_x86_64
+- name: transformer_engine
+  short_name: transformer_engine
+  versions:
+  - version: 2.17.0+fl.0.3.0
+    pypi_index:
+    - flagos-pypi-amd
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-daily
+    - flagos-pypi-enflame
+    - flagos-pypi-hygon
+    - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
+    - flagos-pypi-metax
+    - flagos-pypi-mthreads
+    - flagos-pypi-spacemit
+    - flagos-pypi-sunrise
+    - flagos-pypi-thead
+    - flagos-pypi-tsingmicro
+    desc_zh: TransformerEngine-FL 的插件派发层安装包，让 Megatron 等训练栈在非 NVIDIA
+      芯片上经 FlagGems/Triton 或厂商后端运行 Transformer 算子。
+    desc_en: TransformerEngine-FL dispatch-layer wheel — lets training stacks such as
+      Megatron run Transformer ops on non-NVIDIA chips via FlagGems/Triton or a vendor
+      backend.
+    notes: 纯 Python（py3-none-any，TE_FL_SKIP_CUDA 构建，无原生扩展），一个 wheel 服务所有非
+      NVIDIA 后端；NVIDIA 用官方 TransformerEngine，不在此列。公版段为上游 TE 版本，+fl.<FL 版本>
+      本地标签标记 FlagOS 构建。
+    notes_en: Pure Python (py3-none-any, built with TE_FL_SKIP_CUDA, no native extension);
+      one wheel serves every non-NVIDIA backend. NVIDIA uses the official TransformerEngine
+      and is excluded. The public segment is the upstream TE version; the +fl.<flver>
+      local label marks the FlagOS build.
+    python:
+    - py3
+    os:
+    - any
+    arch:
+    - any
 sources:
 - name: flagtree
   short_name: FlagTree
