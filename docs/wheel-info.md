@@ -171,8 +171,8 @@
 
 ## 已接入与未接入
 
-已接入，共 10 个 workflow：`flagcx-wheel`、`flaggems-release`（python 与 cpp
-两条构建线）、`flash-attn-wheel`、`flaglibs-wheel`、`vllm-wheel`、
+已接入，共 11 个 workflow：`flagcx-wheel`、`flaggems-release`（python 与 cpp
+两条构建线）、`te-fl-release`、`flash-attn-wheel`、`flaglibs-wheel`、`vllm-wheel`、
 `vllm-plugin-wheel`、`sglang-wheel`（build 与 shim 两个作业）、
 `sglang-plugin-wheel`、`megatron-wheel`、`flagos-compressor-wheel`。
 
