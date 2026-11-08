@@ -1,0 +1,132 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: TransformerEngine-FL Release Wheel
+
+# Build the pure-Python TransformerEngine-FL dispatch-layer wheel
+# (TE_FL_SKIP_CUDA=1, py3-none-any) once and push the SAME wheel to every
+# NON-NVIDIA vendor PyPI plus the daily index. NVIDIA uses the official
+# TransformerEngine and is never a lane — see packaging/transformer-engine/.
+#
+# There is no cpp/native matrix (unlike flaggems-release): this wheel carries no
+# native code, so one build serves every backend of every vendor.
+#
+# Wiring the pin into each vendor's configs.yaml deps is a separate, per-vendor
+# step gated on FlagGems op coverage — it is NOT done here (see DESIGN.md
+# "What is NOT decided here").
+
+on:
+  workflow_dispatch:
+    inputs:
+      te_fl_ref:
+        description: 'TE-FL tag/ref to build (e.g. "v2.17.0+fl.0.3.0")'
+        type: string
+        required: true
+      te_fl_version:
+        description: 'Full version <upstream>+fl.<flver> (required only for a non-tag ref; a release tag names its own)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  # ── pure-Python wheel, all non-NVIDIA vendor PyPIs ───────────────────
+  python-wheel:
+    needs: authorize
+    # Self-hosted runner for fast upload. The build itself is pure Python and
+    # runs anywhere.
+    runs-on: [self-hosted, h20]
+    env:
+      TE_FL_REF: ${{ inputs.te_fl_ref }}
+      TE_FL_VERSION: ${{ inputs.te_fl_version }}
+      NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Setup Python deps
+        run: |
+          mirror=$(grep "^mirror:" configs.yaml | sed 's/.*"\(.*\)"/\1/')
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages --index-url "$mirror" pyyaml
+          python3 -c "import twine" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages --index-url "$mirror" twine
+      - name: Build wheel
+        run: |
+          args=(--ref "$TE_FL_REF")
+          [ -n "$TE_FL_VERSION" ] && args+=(--version "$TE_FL_VERSION")
+          python3 scripts/release_te_fl.py build-python "${args[@]}"
+      - name: Upload to all non-NVIDIA vendor PyPIs
+        run: |
+          wheel=$(ls -t wheels/transformer_engine-*.whl 2>/dev/null | head -1)
+          python3 scripts/release_te_fl.py upload-python "$wheel"
+      - name: Record the publish events in the manifest
+        run: |
+          set -euo pipefail
+          mkdir -p .wheel-info
+          # One line per lane the upload above reached. The lane set is asked of
+          # release_te_fl.py (every non-NVIDIA vendor in configs.yaml + daily),
+          # so the record and the upload cannot drift.
+          mapfile -t lanes < <(python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          from release_te_fl import _load_configs, _pypi_urls
+          cfg = _load_configs()
+          urls = list(_pypi_urls(cfg).values())
+          if cfg.get("pypi_daily"):
+              urls.append(cfg["pypi_daily"])
+          for u in urls:
+              print(u.rstrip("/").removesuffix("/simple").rsplit("/", 1)[-1])
+          PY
+          )
+          echo ">>> publish lanes: ${lanes[*]}"
+          # Distribution name is the wheel's own stem; the version is in the
+          # filename. The record reads both off the file.
+          for w in wheels/*.whl; do
+            for lane in "${lanes[@]}"; do
+              printf '%s\t%s\t%s\t%s\n' "$(basename "$w" | cut -d- -f1)" "" \
+                "${lane}" "$(basename "$w")" >> .wheel-info/manifest.tsv
+            done
+          done
+      - name: Upload the wheel-info manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: wheel-info-manifest-${{ github.run_id }}-python
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
+
+  # Records what the publish step above uploaded into packaging/packages.yaml;
+  # the job body is shared — see record-wheel-info.yml.
+  record-wheel-info:
+    needs: [python-wheel]
+    if: ${{ always() && needs.python-wheel.result == 'success' && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: te-fl-release

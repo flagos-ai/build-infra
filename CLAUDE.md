@@ -165,6 +165,7 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `flagtree-wheel-daily.yml` | Daily (01:37 UTC) + manual FlagTree wheel per backend → `flagos-pypi-daily` as `flagtree-<backend>`, one matrix row per `daily:`-enabled entry in `packaging/flagtree/backends.yaml`, on that backend's published builder stage (see `packaging/flagtree/README.md`) |
 | `flagtree-builder.yml` | Publishes `--target builder` of every `packaging/flagtree` Containerfile that has one, one matrix row per backend in `packaging/flagtree/backends.yaml`; the daily builds the wheel on top of it |
 | `flaggems-release.yml` | FlagGems release wheels: python + cpp wheels → all vendor indexes, `update-config` PR |
+| `te-fl-release.yml` | TransformerEngine-FL dispatch-layer wheel (pure-Python, `TE_FL_SKIP_CUDA=1`) → every non-NVIDIA vendor index + daily (see `packaging/transformer-engine/DESIGN.md`) |
 | `native-deb.yml` / `native-rpm.yml` / `noarch-deb.yml` / `noarch-rpm.yml` | Component repos' deb/rpm release paths to the Nexus repositories |
 | `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `sglang-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml`, `flagos-compressor-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes (`flagtree-wheel.yml` is manual-only; the daily line is its own file) |
 | `flaggems-deb.yml` | FlagGems `.deb` release path |
