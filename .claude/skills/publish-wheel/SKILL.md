@@ -129,6 +129,12 @@ other's manifests. It opens a review-gated PR on `auto/wheel-info-<workflow>`;
 merging it, and writing the human-owned fields of a new package's catalog entry,
 is the human step.
 
+- **Dispatch the release from `main`, not a feature branch.** The record PR's
+  base is the run's `GITHUB_REF_NAME`, so a run dispatched off a branch (e.g. to
+  verify a build fix before merge) lands its catalog PR on that branch, and
+  `packages.yaml` on `main` silently gains no entry. Prove the fix another way,
+  or re-home the record by hand after.
+
 ### 6. Adding a new publish line
 
 A new line copies the shape, not the content: an `authorize` job, a matrix or
