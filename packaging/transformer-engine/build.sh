@@ -59,7 +59,26 @@ python3 -m venv "$workdir/venv"
 py="$workdir/venv/bin/python"
 
 echo ">>> cloning TransformerEngine-FL @ ${TE_FL_REF} (with tags)"
-git clone --quiet "$TE_FL_REPO" "$src"
+# The self-hosted runners' github https chokes on this repo's full-history pack:
+# a plain clone runs for minutes, then the HTTP/2 stream is cancelled mid-pack
+# (`curl 92 ... CANCEL`, `early EOF`, `invalid index-pack output`). Two mitigations,
+# the same ones the flagtree clone uses: pin HTTP/1.1 (the cancel is an HTTP/2
+# stream fault), and `--filter=blob:none` so only refs/trees transfer up front —
+# the pack that was timing out shrinks by orders of magnitude, and every ref/tag
+# is still present so the tag-derived version below resolves. Retry for the
+# transient remainder; blobs for the one checked-out tree are fetched lazily,
+# over HTTP/1.1 too (config persists in the clone).
+for i in 1 2 3 4 5; do
+  rm -rf "$src"
+  if git -c http.version=HTTP/1.1 clone --quiet --filter=blob:none \
+       "$TE_FL_REPO" "$src"; then
+    git -C "$src" config http.version HTTP/1.1
+    break
+  fi
+  echo ">>> clone attempt $i failed, retrying in 5s..." >&2
+  sleep 5
+done
+test -d "$src/.git" || { echo "ERROR: clone of $TE_FL_REPO failed" >&2; exit 1; }
 git -C "$src" fetch --quiet --tags --force origin || true
 git -C "$src" checkout --quiet "$TE_FL_REF"
 
