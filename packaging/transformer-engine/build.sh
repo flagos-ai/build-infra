@@ -16,25 +16,14 @@
 
 # Build the pure-Python TransformerEngine-FL wheel (the plugin dispatch layer).
 #
-# TE_FL_SKIP_CUDA=1 makes setup.py emit no native extensions (ext_modules=[]),
-# so the wheel is platform-independent (py3-none-any) and needs no vendor
-# toolchain — a plain script, not a container build. Only the FL (FlagGems /
-# Triton) and reference backends live in this wheel; a vendor's own native TE
-# (transformer_engine_<vendor>) and FlagGems are discovered at runtime, not
-# bundled here. See DESIGN.md.
+# Build the pure-Python TransformerEngine-FL dispatch-layer wheel
+# (TE_FL_SKIP_CUDA=1 -> py3-none-any, no native ext). Non-NVIDIA only.
+# Why this shape, why not NVIDIA, and how the version is formed: DESIGN.md.
 #
-# This line is NON-NVIDIA ONLY. On NVIDIA the native kernels ARE stock TE and
-# the dispatch layer buys nothing (it would even default to the slower flagos
-# path), so NVIDIA uses the official TransformerEngine instead — see DESIGN.md.
+# Version: written into the clone's VERSION.txt before the build, as the
+# release tag minus its `v` (or TE_FL_VERSION); must carry a +fl.<flver> label.
 #
-# Version: TE-FL carries no setuptools_scm; te_version.py reads
-# build_tools/VERSION.txt. That file holds only the upstream TE version on every
-# tag (e.g. v2.17.0+fl.0.3.0 has VERSION.txt=2.17.0), and the FL version lives in
-# the tag name alone. So the full wheel version `<upstream>+fl.<flver>` is
-# produced HERE, by writing it into VERSION.txt of the throwaway clone before the
-# build. The string is the release tag minus its leading `v` (or TE_FL_VERSION if
-# set). NVTE_RELEASE_BUILD=1 then stops te_version.py appending a +<sha>, which
-# would make a second `+` (invalid PEP 440).
+# Uploading is the workflow's job; this only builds. Output: $OUTDIR/*.whl.
 #
 # Uploading is the workflow's job; this only builds. Output: $OUTDIR/*.whl.
 #
@@ -59,15 +48,9 @@ python3 -m venv "$workdir/venv"
 py="$workdir/venv/bin/python"
 
 echo ">>> cloning TransformerEngine-FL @ ${TE_FL_REF} (with tags)"
-# The self-hosted runners' github https chokes on this repo's full-history pack:
-# a plain clone runs for minutes, then the HTTP/2 stream is cancelled mid-pack
-# (`curl 92 ... CANCEL`, `early EOF`, `invalid index-pack output`). Two mitigations,
-# the same ones the flagtree clone uses: pin HTTP/1.1 (the cancel is an HTTP/2
-# stream fault), and `--filter=blob:none` so only refs/trees transfer up front —
-# the pack that was timing out shrinks by orders of magnitude, and every ref/tag
-# is still present so the tag-derived version below resolves. Retry for the
-# transient remainder; blobs for the one checked-out tree are fetched lazily,
-# over HTTP/1.1 too (config persists in the clone).
+# The self-hosted runners' github https cancels mid-pack on this repo's
+# full-history clone (HTTP/2 stream fault). HTTP/1.1 + --filter=blob:none (the
+# flagtree clone's mitigations) shrink and stabilize it; retry the remainder.
 for i in 1 2 3 4 5; do
   rm -rf "$src"
   if git -c http.version=HTTP/1.1 clone --quiet --filter=blob:none \
@@ -98,9 +81,8 @@ if [ -z "$version" ]; then
   fi
 fi
 
-# The FL build must declare its FL version — a bare upstream string (2.17.0, no
-# +fl.<flver>) would be indistinguishable from stock TE on the index and defeats
-# the local-label ownership guard. Refuse it.
+# The +fl.<flver> local label is what tells this wheel from stock TE on the
+# index (DESIGN.md) — refuse a bare upstream version.
 case "$version" in
   *+*fl.*) : ;;
   *) echo "ERROR: version '$version' carries no '+fl.<flver>' local label." >&2
@@ -111,9 +93,15 @@ esac
 echo ">>> version: $version  (commit $(git -C "$src" rev-parse --short=9 HEAD))"
 echo "$version" > "$src/build_tools/VERSION.txt"
 
-echo ">>> building pure-Python wheel (TE_FL_SKIP_CUDA=1, NVTE_RELEASE_BUILD=1)"
+echo ">>> building pure-Python wheel (TE_FL_SKIP_CUDA=1)"
 mkdir -p "$OUTDIR"
-TE_FL_SKIP_CUDA=1 NVTE_RELEASE_BUILD=1 NVTE_NO_LOCAL_VERSION=1 \
+# NVTE_SKIP_SUBMODULE_CHECKS: the blob:none clone inits no submodules and
+# skip-cuda needs none (setup.py's own escape hatch). No NVTE_RELEASE_BUILD —
+# it strips the PyTorch deps the wheel must declare; NVTE_NO_LOCAL_VERSION
+# keeps the version clean alone. NVTE_FRAMEWORK=pytorch stops get_frameworks()
+# also declaring jax/flax (both present in the build env).
+TE_FL_SKIP_CUDA=1 NVTE_NO_LOCAL_VERSION=1 NVTE_FRAMEWORK=pytorch \
+  NVTE_SKIP_SUBMODULE_CHECKS_DURING_BUILD=1 \
   "$py" -m pip wheel "$src" --no-deps -w "$OUTDIR"
 
 wheel="$(ls -t "$OUTDIR"/transformer_engine-*.whl 2>/dev/null | head -1)"
