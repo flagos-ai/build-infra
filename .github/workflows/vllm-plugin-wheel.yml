@@ -776,7 +776,8 @@ jobs:
           # cuda13.3 both land on flagos-pypi-nvidia). Same resolver as the app
           # build's pin (scripts/vllm_plugin.py), so the label the wheel carries
           # and the label the app derives cannot drift.
-          version=$(norm "$(python3 scripts/vllm_plugin.py pin "${{ matrix.name }}" "${version}")")
+          # Absolute path: CWD is the plugin clone (${WORK}/src), not build-infra.
+          version=$(norm "$(python3 "${GITHUB_WORKSPACE}/scripts/vllm_plugin.py" pin "${{ matrix.name }}" "${version}")")
           echo ">>> native label: ${version}"
           {
             echo "PLUGIN_SHA=${sha}"
