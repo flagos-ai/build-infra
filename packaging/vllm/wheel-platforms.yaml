@@ -19,7 +19,11 @@
 # compiles nothing, the top-level wheel folds to py3-none-any, and the repacked
 # deps resolve to the same bytes for every backend on that platform. So one
 # build per platform serves every index that platform's backends use, and these
-# four rows are what used to be a 22-row per-backend matrix.
+# rows are what used to be a 22-row per-backend matrix.
+#
+# nvidia-cuda13.3 is the exception: mode=standard downloads the prebuilt wheel
+# (compiled CUDA kernels), so it is device-specific and gets its own lane rather
+# than sharing the amd row. (nvidia-cuda12.8 is deprecated.)
 #
 # Each row is the whole truth of one platform, nothing hidden in the workflow:
 #   name       the backend whose runtime image builds + repacks the set — that
@@ -27,6 +31,7 @@
 #              platform; move a backend's python there and it moves to the row
 #              whose image carries that python, or it stops being represented).
 #   runson     the runner, as .github/build-config.yml lists it for that backend.
+#   mode       `standard` for nvidia's non-empty lane; omitted = empty (default).
 #   pypi_repos every flagos-pypi-<vendor> the set is uploaded to: the vendors
 #              whose backends share this (python, arch). The whole set lands on
 #              each because the top-level wheel pins its deps to ==<ver>+flagos,
@@ -35,7 +40,11 @@
 include:
   - name: amd-rocm7.2.4            # python 3.12, x86_64
     runson: '["self-hosted", "amd"]'
-    pypi_repos: flagos-pypi-amd flagos-pypi-cambricon flagos-pypi-enflame flagos-pypi-hygon flagos-pypi-iluvatar flagos-pypi-metax flagos-pypi-nvidia
+    pypi_repos: flagos-pypi-amd flagos-pypi-cambricon flagos-pypi-enflame flagos-pypi-hygon flagos-pypi-iluvatar flagos-pypi-metax
+  - name: nvidia-cuda13.3          # python 3.12, x86_64 — NON-EMPTY (standard)
+    runson: '["self-hosted", "h20"]'
+    mode: standard
+    pypi_repos: flagos-pypi-nvidia
   - name: cambricon-neuware4.4.3   # python 3.10, x86_64
     runson: '["self-hosted", "cambricon"]'
     pypi_repos: flagos-pypi-cambricon flagos-pypi-hygon flagos-pypi-kunlunxin flagos-pypi-mthreads flagos-pypi-sunrise flagos-pypi-tsingmicro

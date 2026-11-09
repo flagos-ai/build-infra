@@ -20,13 +20,17 @@ name: VLLM Wheel
 # flagos-runtime-{vendor}-{backend}:{version} image, VLLM_TARGET_DEVICE=empty
 # source build), same repack (packaging/script/repack.py + config.yaml).
 #
-# ONE JOB PER PLATFORM, NOT PER BACKEND. A repacked set is a function of
-# (python, arch) alone: the empty build produces no compiled member, the
-# repacked top-level wheel is py3-none-any, and the repacked deps come from the
-# public indexes at the version the wheel declares. So every backend that
-# shares a (python, arch) resolves the same bytes, and the four platform rows
-# below replace what used to be a 22-row per-backend matrix — see
+# ONE JOB PER PLATFORM, NOT PER BACKEND. An empty-mode repacked set is a
+# function of (python, arch) alone: the empty build produces no compiled member,
+# the repacked top-level wheel is py3-none-any, and the repacked deps come from
+# the public indexes at the version the wheel declares. So every backend that
+# shares a (python, arch) resolves the same bytes, and the platform rows below
+# replace what used to be a 22-row per-backend matrix — see
 # packaging/script/README.md.
+#
+# nvidia-cuda13.3 is the exception: mode=standard downloads the prebuilt wheel,
+# so it has its own lane uploading only to flagos-pypi-nvidia. The mode is a
+# per-row field in wheel-platforms.yaml, passed to the script as --mode below.
 #
 # Each row builds in ONE backend's runtime image (that platform's first
 # backend in configs.yaml) and uploads the whole set to every index that
@@ -132,8 +136,10 @@ jobs:
         run: |
           set -euo pipefail
           # STACK_VERSION is left to the script, which reads configs.yaml.
+          # matrix.mode is empty for rows without the key → script default (empty).
           bash packaging/vllm/build-and-repack.sh \
             "${{ matrix.name }}" \
+            --mode "${{ matrix.mode }}" \
             --vllm-version "${VLLM_VERSION}"
 
       - name: Audit the wheel dependencies

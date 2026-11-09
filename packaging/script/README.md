@@ -21,8 +21,9 @@ vllm / sglang 两条 repack 线共用的工具层，不属任何 app。
 `.github/workflows/<app>-wheel.yml`（CI），两者跑的是同一条链。
 
 剥除规则按 app 分：`packaging/<app>/config.yaml` 是权威处，文件头写了每条规则的
-判据。repack 不做任何硬件相关的构建——各后端产物同为 empty wheel，差异只在
-vendor 镜像提供的解释器与架构。
+判据。多数后端产物同为 empty wheel，差异只在 vendor 镜像提供的解释器与架构；
+例外是 nvidia-cuda13.3，走 standard 模式（下载上游预编译 wheel 再 repack），带真实
+CUDA kernel。
 
 ## tag 与 RECORD
 
