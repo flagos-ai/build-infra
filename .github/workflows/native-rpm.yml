@@ -507,6 +507,9 @@ jobs:
           mapfile -t rpms < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.rpm' ! -name '*.src.rpm' | sort)
           [ "${#rpms[@]}" -gt 0 ] || { echo "::error::the build produced no binary rpm"; exit 1; }
           mkdir -p out && cp "${rpms[@]}" out/
+          # Read back by the publish job, which has to learn the suite from
+          # inside the artifact rather than from its name -- see there.
+          echo "${{ matrix.suite }}" > out/SUITE
           echo "built=yes" >> "$GITHUB_OUTPUT"
           echo "Built ${#rpms[@]} package(s):"
           for r in "${rpms[@]}"; do
@@ -519,7 +522,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ inputs.target }}-rpm-${{ matrix.suite }}-${{ matrix.arch }}
-          path: src/out/*.rpm
+          path: |
+            src/out/*.rpm
+            src/out/SUITE
           retention-days: 7
 
   verify:
@@ -641,8 +646,13 @@ jobs:
     if: ${{ inputs.publish }}
     runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
-      # One directory per suite, named after the artifact. The action rather
-      # than `gh run download`: the self-hosted runners carry no gh CLI.
+      # The action rather than `gh run download`: the self-hosted runners
+      # carry no gh CLI. Where it puts the files depends on how many artifacts
+      # the pattern matched: several each get a directory named after them,
+      # a lone one is extracted straight into `pkg`. A target with one valid
+      # row -- FlagTree-ascend, openEuler 24.03 on aarch64 alone -- is the lone
+      # case, so the step below reads the suite from the SUITE file the build
+      # wrote into the artifact and never from a directory name.
       - name: Download the .rpm packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -664,13 +674,14 @@ jobs:
           echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
           uploaded=0
           attempted=0
+          # Each artifact holds the packages of one suite and architecture
+          # and a SUITE file naming the suite (written by the build job).
+          mapfile -t markers < <(find pkg -name SUITE | sort)
+          [ "${#markers[@]}" -gt 0 ] || { echo "::error::no package directory under pkg/"; exit 1; }
           # Empty means every suite this target was built for, not every
           # suite there is: most targets have no image for some of them.
           if [ -z "${SUITES:-}" ]; then
-            # One artifact directory per suite and architecture; no suite name
-            # contains a dash, so the trailing segment is the architecture.
-            SUITES=$(find pkg -mindepth 1 -maxdepth 1 -type d -name "${TARGET}-rpm-*" -printf '%f\n' \
-              | sed "s/^${TARGET}-rpm-//; s/-[^-]*$//" | sort -u | tr '\n' ' ')
+            SUITES=$(cat "${markers[@]}" | sort -u | tr '\n' ' ')
           fi
           for suite in ${SUITES}; do
             # Each suite gets the rpm built for that distribution and no other:
@@ -678,13 +689,15 @@ jobs:
             # package links against that distribution's libraries. Every
             # architecture of the suite goes into the same repository, which
             # serves them all from one set of metadata.
-            mapfile -t dirs < <(find pkg -mindepth 1 -maxdepth 1 -type d -name "${TARGET}-rpm-${suite}-*" | sort)
-            if [ "${#dirs[@]}" -eq 0 ]; then
+            rpms=()
+            for m in "${markers[@]}"; do
+              [ "$(cat "$m")" = "${suite}" ] || continue
+              mapfile -t -O "${#rpms[@]}" rpms < <(find "$(dirname "$m")" -name '*.rpm' ! -name '*.src.rpm' | sort)
+            done
+            if [ "${#rpms[@]}" -eq 0 ]; then
               echo "::error::nothing was built for '${suite}' - it failed or was skipped"
               exit 1
             fi
-            mapfile -t rpms < <(find "${dirs[@]}" -name '*.rpm' ! -name '*.src.rpm' | sort)
-            [ "${#rpms[@]}" -gt 0 ] || { echo "::error::no binary rpm for '${suite}'"; exit 1; }
             repo="${NEXUS_REPO_BASE}/flagos-yum-${suite}/"
             for r in "${rpms[@]}"; do
               attempted=$((attempted + 1))
