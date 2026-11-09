@@ -40,7 +40,7 @@
 include:
   - name: amd-rocm7.2.4            # python 3.12, x86_64
     runson: '["self-hosted", "amd"]'
-    pypi_repos: flagos-pypi-amd flagos-pypi-cambricon flagos-pypi-enflame flagos-pypi-hygon flagos-pypi-iluvatar flagos-pypi-metax
+    pypi_repos: flagos-pypi-amd flagos-pypi-cambricon flagos-pypi-enflame flagos-pypi-hygon flagos-pypi-iluvatar flagos-pypi-metax flagos-pypi-thead
   - name: nvidia-cuda13.3          # python 3.12, x86_64 — NON-EMPTY (standard)
     runson: '["self-hosted", "h20"]'
     mode: standard
