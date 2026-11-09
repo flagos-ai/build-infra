@@ -39,19 +39,11 @@ remove_torch_chain:
   - torchcodec
   - torch-c-dlpack-ext
 
-# CUDA-only packages from vllm's requirements/cuda.txt. They appear only in the
-# standard-mode (nvidia prebuilt) wheel's Requires-Dist; strip so the repacked
-# wheel uses the image's own torch/cuda. Inert for empty wheels (never read
-# cuda.txt). Reconcile against the built wheel's METADATA — may drift per version.
-remove_cuda_only:
-  - PyNvVideoCodec
-  - nvidia-cudnn-frontend
-  - nvidia-cutlass-dsl
-  - nvtx
-  - numba
-  - humming-kernels
-  - quack-kernels
-  - tokenspeed-mla
+# Empty: verified inert. Even the standard-mode nvidia prebuilt wheel
+# (0.24.0 / 0.32.0) declares none of the old cuda.txt kernel libs in its
+# Requires-Dist; its accelerator deps (flashinfer / tilelang / xgrammar / …)
+# are kept and repacked. Argue a name here from the built wheel, not cuda.txt.
+remove_cuda_only: []
 
 # Packages whose only consumer was stripped above (no other consumers left).
 remove_orphaned: []
