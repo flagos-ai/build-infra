@@ -17,10 +17,11 @@
 """Native-wheel identity of a vllm-plugin-FL backend.
 
 A backend listed in packaging/vllm/plugin-build.yaml installs the native wheel
-its own runtime image built (`0.3.0+cuda12.8`); every other backend installs
+its own runtime image built (`0.3.0+maca3.8.1.3`); every other backend installs
 the pure-python one (`0.3.0`). The label is what keeps the install honest: on
 one index a bare `==0.3.0` resolves to whichever local build is newest, which
-may be another backend's `.so`.
+may be another backend's `.so`. nvidia is the exception — a single native
+backend on its index (cuda12.8 retired), so its wheel carries no label.
 
 The pin and the image tag are deliberately different: the pin carries the
 label, the tag carries the public version only — the repository segment already
@@ -29,9 +30,9 @@ parse it (the verify driver's pin recovery, the record step's plugin-commit
 drift gate). Shared by the wheel build, the app build, the docs pages and the
 verify driver, so the two forms cannot drift.
 
-    python scripts/vllm_plugin.py label  nvidia-cuda12.8
-    python scripts/vllm_plugin.py pin    nvidia-cuda12.8 0.3.0
-    python scripts/vllm_plugin.py public nvidia-cuda12.8 0.3.0+cuda12.8
+    python scripts/vllm_plugin.py label  metax-maca3.8.1.3
+    python scripts/vllm_plugin.py pin    metax-maca3.8.1.3 0.3.0
+    python scripts/vllm_plugin.py public metax-maca3.8.1.3 0.3.0+maca3.8.1.3
 """
 
 import sys
@@ -51,6 +52,10 @@ def label(backend: str) -> str:
     The fold is hand-rolled because the docs pipeline installs pyyaml and
     nothing else.
     """
+    # nvidia retired cuda12.8: a single native backend on flagos-pypi-nvidia,
+    # nothing to disambiguate, so its wheel carries no label.
+    if backend.startswith("nvidia-"):
+        return ""
     with PLUGIN_BUILD.open() as f:
         if backend not in (yaml.safe_load(f) or {}).get("backends", {}):
             return ""
