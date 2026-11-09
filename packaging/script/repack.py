@@ -704,8 +704,10 @@ def resolve_dep_versions(meta_text: str, extra_indexes: list[str],
         nn = _normalize(rd["name"])
         if nn in exclude:
             continue
-        if rd["extra"] is not None:
-            continue
+        # A dep requested with its own extra (humming-kernels[cu13]) is still
+        # installed, and its base Requires-Dist can declare torch/triton — audit
+        # it by base name. Only skip deps gated behind THIS wheel's extras
+        # (; extra == …), which pip installs only when that extra is asked for.
         if "; extra" in rd["raw"]:
             continue
 
