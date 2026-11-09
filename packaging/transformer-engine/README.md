@@ -61,3 +61,13 @@ python3 scripts/release_te_fl.py upload-python  wheels/transformer_engine-2.17.0
 
 `NEXUS_TOKEN` (`user:token`) is required for upload. NVIDIA is never a lane —
 see `NON_TE_FL_VENDORS` in the script and the reason in `DESIGN.md`.
+
+## Installing the wheel
+
+The wheel declares its runtime deps (`torch>=2.1`, `einops`, `onnx`,
+`onnxscript`, `nvdlfw-inspect`, `pydantic`, …) — `import
+transformer_engine.pytorch` needs them. The vendor index holds none of these,
+so an install resolves them elsewhere: pass `--extra-index-url` for a PyPI
+mirror, or pre-provide them in the runtime/app image. Installing with
+`--index-url <vendor>` alone fails on `pydantic`/`onnxscript` not found.
+
