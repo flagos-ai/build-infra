@@ -738,11 +738,11 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.24.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.24.0 inference/serving framework.
-    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。配套发布的 xgrammar
-      / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。配套发布的 xgrammar / compressed-tensors
+      / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
     notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
-      The matching xgrammar / compressed-tensors / opencv-python-headless published on
-      the same index are installed by vllm's own dependency pins and get no separate
+      The matching xgrammar / compressed-tensors / opencv-python-headless published
+      on the same index are installed by vllm's own dependency pins and get no separate
       entry.
     python:
     - py3
@@ -766,8 +766,8 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.28.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.28.0 inference/serving framework.
-    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的
-      xgrammar / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的 xgrammar / compressed-tensors
+      / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
     notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
       The matching xgrammar / compressed-tensors / opencv-python-headless published
       on the same index are installed by vllm's own dependency pins and get no separate
@@ -794,18 +794,18 @@ wheels:
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.32.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.32.0 inference/serving framework.
-    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的
-      xgrammar / compressed-tensors / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
+    notes: 顶层 wheel 为 py3-none-any（纯 Python，跨解释器通用）。同一 index 上配套发布的 xgrammar / compressed-tensors
+      / opencv-python-headless 由 vllm 自身的依赖直接安装，不单列条目。
     notes_en: The top-level wheel is py3-none-any (pure Python, interpreter-agnostic).
-      The matching xgrammar / compressed-tensors / opencv-python-headless published on
-      the same index are installed by vllm's own dependency pins and get no separate
+      The matching xgrammar / compressed-tensors / opencv-python-headless published
+      on the same index are installed by vllm's own dependency pins and get no separate
       entry.
     python:
-    - py3
+    - cp38
     os:
-    - any
+    - linux
     arch:
-    - any
+    - linux_x86_64
 - name: vllm-plugin-fl
   short_name: vllm-plugin-FL
   versions:
@@ -1205,14 +1205,13 @@ wheels:
     - flagos-pypi-sunrise
     - flagos-pypi-thead
     - flagos-pypi-tsingmicro
-    desc_zh: TransformerEngine-FL 的插件派发层安装包，让 Megatron 等训练栈在非 NVIDIA
-      芯片上经 FlagGems/Triton 或厂商后端运行 Transformer 算子。
-    desc_en: TransformerEngine-FL dispatch-layer wheel — lets training stacks such as
-      Megatron run Transformer ops on non-NVIDIA chips via FlagGems/Triton or a vendor
-      backend.
-    notes: 纯 Python（py3-none-any，TE_FL_SKIP_CUDA 构建，无原生扩展），一个 wheel 服务所有非
-      NVIDIA 后端；NVIDIA 用官方 TransformerEngine，不在此列。公版段为上游 TE 版本，+fl.<FL 版本>
-      本地标签标记 FlagOS 构建。
+    desc_zh: TransformerEngine-FL 的插件派发层安装包，让 Megatron 等训练栈在非 NVIDIA 芯片上经 FlagGems/Triton
+      或厂商后端运行 Transformer 算子。
+    desc_en: TransformerEngine-FL dispatch-layer wheel — lets training stacks such
+      as Megatron run Transformer ops on non-NVIDIA chips via FlagGems/Triton or a
+      vendor backend.
+    notes: 纯 Python（py3-none-any，TE_FL_SKIP_CUDA 构建，无原生扩展），一个 wheel 服务所有非 NVIDIA 后端；NVIDIA
+      用官方 TransformerEngine，不在此列。公版段为上游 TE 版本，+fl.<FL 版本> 本地标签标记 FlagOS 构建。
     notes_en: Pure Python (py3-none-any, built with TE_FL_SKIP_CUDA, no native extension);
       one wheel serves every non-NVIDIA backend. NVIDIA uses the official TransformerEngine
       and is excluded. The public segment is the upstream TE version; the +fl.<flver>
