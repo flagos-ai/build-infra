@@ -89,32 +89,34 @@ _OS_ARCH = {
     "any": ("any", "any"),
 }
 
-# Canonical sort orders for the machine lists: python tags oldest to newest with
-# py3 last, the two linux arch tags before any, and the hosted lane leading a
-# multi-lane index list. Fixed orders (not alphabetical) so a render is
-# deterministic whichever order events arrived in.
-_PY_SORT = {"cp310": 0, "cp311": 1, "cp312": 2, "cp313": 3, "py3": 99}
-_ARCH_SORT = {"linux_x86_64": 0, "linux_aarch64": 1, "any": 99}
+# Canonical sort order for one pypi_index list: `flagos-pypi-hosted` first, then
+# alphabetical. Fixed so a render is deterministic whichever order events arrived
+# in. python/os/arch are scalars now, so they need no order.
 
 # A version row's key order. A row created here has to match what a hand-written
 # one looks like, or the merge would silently reformat the file around it.
 _ROW_KEYS = ("version", "pypi_index", "desc_zh", "desc_en", "notes", "notes_en",
              "python", "os", "arch")
+# Machine fields the record may write. python/os/arch are scalars because a row
+# is one wheel: several values there would describe a product that does not
+# exist (an aarch64 wheel on every index). Only pypi_index may hold a list —
+# the same bytes hosted on several lanes.
 _MACHINE_FIELDS = ("pypi_index", "python", "os", "arch")
 
 
 # ── manifest → catalog merge ────────────────────────────────────────────────
 
 
-def _parse_wheel(filename: str) -> tuple[str, str, str] | None:
-    """Return (version, python_tag, arch) from a wheel filename, or None."""
+def _parse_wheel(filename: str) -> tuple[str, str, str, str] | None:
+    """Return (version, python_tag, os, arch) from a wheel filename, or None."""
     m = _WHEEL_RE.match(filename)
     if not m:
         return None
     plat = m.group("plat")
     if plat not in _OS_ARCH:
         return None
-    return m.group("version"), m.group("py"), _OS_ARCH[plat][1]
+    os_, arch = _OS_ARCH[plat]
+    return m.group("version"), m.group("py"), os_, arch
 
 
 def _manifest_rows(manifest: Path) -> list[tuple[str, str, str, str]]:
@@ -149,43 +151,26 @@ def _canonical_indexes(indexes) -> str | list[str]:
 def _as_list(value) -> list[str]:
     if value is None:
         return []
-    return list(value) if isinstance(value, list) else [value]
+    if isinstance(value, list):
+        return [v for v in value if v]
+    return [value] if value else []
 
 
-def _merge_event(row: dict, index: str, py: str, arch: str) -> bool:
-    """Union one publish event's machine facts into a version row; True if changed.
+def _merge_event(row: dict, index: str, py: str, os_: str, arch: str) -> bool:
+    """Union one publish event's index into a row; True if changed.
 
-    Unchanged means the event was already recorded — that is the whole
-    idempotency story, so it has to be answered by comparing the row, not by
-    remembering the event somewhere else.
+    The row is one wheel (version + python + os + arch), so the only thing an
+    event can contribute is another lane carrying the same bytes. Unchanged
+    means the event was already recorded — that is the whole idempotency story,
+    so it has to be answered by comparing the row, not by remembering the event
+    somewhere else.
     """
     indexes = _as_list(row.get("pypi_index")) + [index]
-    if py == "py3":
-        # A pure wheel is py3-none-any, and a row describes one kind of wheel.
-        # An event that changes the row's kind replaces its machine lists rather
-        # than merging into them: `py3` beside `cp312`, or `any` beside
-        # `linux_x86_64`, would describe a wheel that cannot exist.
-        pys, oss, archs = ["py3"], ["any"], ["any"]
-    else:
-        if _as_list(row.get("python")) == ["py3"]:
-            pys, oss, archs = [], [], []
-        else:
-            pys = _as_list(row.get("python"))
-            oss = _as_list(row.get("os"))
-            archs = _as_list(row.get("arch"))
-        if py not in pys:
-            pys.append(py)
-        if arch not in archs:
-            archs.append(arch)
-        os_ = _OS_ARCH.get(arch, ("linux", arch))[0]
-        if os_ not in oss:
-            oss.append(os_)
-
     new = {
         "pypi_index": _canonical_indexes(indexes),
-        "python": sorted(pys, key=lambda p: _PY_SORT.get(p, 99)),
-        "os": sorted(oss),
-        "arch": sorted(archs, key=lambda a: _ARCH_SORT.get(a, 99)),
+        "python": py,
+        "os": os_,
+        "arch": arch,
     }
     changed = False
     for field, value in new.items():
@@ -202,20 +187,30 @@ def _find_package(data: dict, pkg: str) -> dict | None:
     return None
 
 
-def _find_version(pkg_block: dict, version: str) -> dict | None:
+def _find_wheel(pkg_block: dict, version: str, py: str, os_: str, arch: str) -> dict | None:
+    """The row for one specific wheel: same version AND same platform triple.
+
+    A version can carry several rows (cp310/linux_x86_64, cp310/linux_aarch64,
+    …), so the platform is part of the row's identity, not a value inside it.
+    """
     for v in pkg_block.get("versions", []):
-        if v.get("version") == version:
+        if (v.get("version") == version and v.get("python") == py
+                and v.get("os") == os_ and v.get("arch") == arch):
             return v
     return None
 
 
-def _new_row(version: str) -> dict:
+def _new_row(version: str, py: str, os_: str, arch: str) -> dict:
     row = {k: None for k in _ROW_KEYS}
     row["version"] = version
     for k in ("desc_zh", "desc_en", "notes", "notes_en"):
         row[k] = ""
     for k in ("python", "os", "arch"):
-        row[k] = []
+        row[k] = ""
+    row["pypi_index"] = ""
+    row["python"] = py
+    row["os"] = os_
+    row["arch"] = arch
     return row
 
 
@@ -227,7 +222,7 @@ def _apply_manifest(data: dict, manifest: Path) -> tuple[int, list[str]]:
         parsed = _parse_wheel(filename)
         if not parsed:
             sys.exit(f"Error: cannot parse wheel filename: {filename}")
-        _version, py, arch = parsed
+        _version, py, os_, arch = parsed
 
         pkg_block = _find_package(data, pkg)
         if pkg_block is None:
@@ -237,12 +232,13 @@ def _apply_manifest(data: dict, manifest: Path) -> tuple[int, list[str]]:
             pkg_block = {"name": pkg, "short_name": pkg, "versions": []}
             data.setdefault("wheels", []).append(pkg_block)
             notes.append(f"new package `{pkg}`: fill in short_name, desc_zh, desc_en")
-        row = _find_version(pkg_block, version)
+        row = _find_wheel(pkg_block, version, py, os_, arch)
         if row is None:
-            row = _new_row(version)
+            row = _new_row(version, py, os_, arch)
             pkg_block.setdefault("versions", []).append(row)
-            notes.append(f"new version `{pkg} {version}`: fill in desc_zh, desc_en")
-        if _merge_event(row, index, py, arch):
+            notes.append(
+                f"new wheel `{pkg} {version} {py}/{arch}`: fill in desc_zh, desc_en")
+        if _merge_event(row, index, py, os_, arch):
             changed += 1
     return changed, notes
 
