@@ -37,7 +37,8 @@ name: VLLM Plugin Wheel
 #   native (the `build-native` job): per-backend. The backends listed in
 #   packaging/vllm/plugin-build.yaml compile the plugin's own `vllm_fl._C`
 #   extension (the host-side weak_ref_tensor op) inside their OWN runtime image
-#   and upload to their own vendor index. This restores the genuinely weak
+#   and upload to their own vendor index. `backend` selects one native row;
+#   "all" builds every one. This restores the genuinely weak
 #   reference vllm's cudagraph capture needs — the pure-python wheel's identity
 #   fallback is a strong reference that leaks VRAM per captured graph and OOMs
 #   large models (see flagos-ai/build-infra#1428 hygon, #1431 MetaX). A native
@@ -131,7 +132,7 @@ on:
   workflow_dispatch:
     inputs:
       backend:
-        description: 'Backend whose runtime image builds the wheel (e.g. nvidia-cuda13.3). "all" = build once in the default image and upload to every vendor index.'
+        description: 'Backend whose runtime image builds the wheel (e.g. nvidia-cuda13.3). Selects the native row too — only that backend''s native wheel builds. "all" = pure build in the default image + every native backend.'
         type: string
         default: all
       plugin_ref:
@@ -595,14 +596,20 @@ jobs:
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
       - id: plan
+        env:
+          BACKEND: ${{ inputs.backend }}
         run: |
           set -euo pipefail
           python3 - <<'PY' > matrix.json
-          import json, subprocess, sys, yaml
+          import json, os, subprocess, sys, yaml
 
           data = yaml.safe_load(open("packaging/vllm/plugin-build.yaml"))["backends"]
+          # backend selects ONE native row; "all"/"" build every native backend.
+          sel = os.environ.get("BACKEND", "all")
           rows = []
           for name, cfg in data.items():
+              if sel not in ("", "all") and name != sel:
+                  continue
               # The runtime matrix already carries runson / image_tag /
               # flagos_pypi / extra_pypi — reuse it rather than re-derive.
               out = subprocess.run(["python3", "scripts/generate_matrix.py",
@@ -629,7 +636,10 @@ jobs:
                   "flagos_pypi": row["flagos_pypi"],
                   "extra_pypi": row["extra_pypi"],
               })
-          if not rows:
+          # Empty under all/"" is a real misconfiguration; empty under a named
+          # backend just means it has no native row — emit [] and let
+          # build-native's include[0] guard skip it.
+          if not rows and sel in ("", "all"):
               print("no native backends in packaging/vllm/plugin-build.yaml",
                     file=sys.stderr)
               sys.exit(1)
