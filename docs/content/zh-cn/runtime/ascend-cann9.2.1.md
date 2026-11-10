@@ -102,6 +102,11 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-10 09:09:56*
+
+重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+缓存，而不再每次都重新下载 wheel（#1709）。镜像其余内容不变。
+
 *2026-11-04 07:42:15*
 
 flagcx 0.14.1+cann9.2.1 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.1+cann9.2.1，因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，而不是 triton/_C 自带的那份。镜像其余内容不变。

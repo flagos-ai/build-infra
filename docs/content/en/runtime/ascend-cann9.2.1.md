@@ -102,6 +102,10 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-10 09:09:56*
+
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.
+
 *2026-11-04 07:42:15*
 
 flagcx 0.14.1+cann9.2.1 becomes a runtime dependency on this backend: configs.yaml deps: now pins flagcx==0.14.1+cann9.2.1, so the DEPS install pulls it from the vendor index and FlagTree resolves libflagcx.so to the package's copy instead of the one triton/_C bundles. Nothing else about the image changes.
