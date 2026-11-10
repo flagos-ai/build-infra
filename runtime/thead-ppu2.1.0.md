@@ -61,6 +61,10 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-10 09:01:19*
+
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.
+
 *2026-11-07 03:18:12*
 
 - First delivery of this backend's runtime image, layered on the PPU
