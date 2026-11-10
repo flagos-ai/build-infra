@@ -35,7 +35,7 @@ tags:
       heel 的索引（#1613）。厂商 SDK 的 env 脚本覆盖 PATH 后，会重新置顶 venv 前缀（#1486）。镜像其余内容不变
       。
     upstream_prs: []
-    date: ''
+    date: '2026-11-10T09:01:48.668Z'
   - date: '2026-10-25T09:44:40.318Z'
     reason: >-
       This image gains the container-start version request: `-e

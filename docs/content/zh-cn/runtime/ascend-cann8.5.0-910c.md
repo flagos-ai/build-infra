@@ -104,6 +104,13 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-10 09:01:48*
+
+重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+缓存，而不再每次都重新下载 wheel（#1709）。FlagTree 版本请求同时支持显式 `--index-url`，用于指定唯一取 w
+heel 的索引（#1613）。厂商 SDK 的 env 脚本覆盖 PATH 后，会重新置顶 venv 前缀（#1486）。镜像其余内容不变
+。
+
 *2026-10-25 09:44:40*
 
 该镜像新增容器启动时的版本请求：`-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>` 可覆盖镜像内烘焙的版本，在应用启动前从镜像自带的索引解析。`latest` 取 daily 线上最新的 wheel。无法满足的请求会以非零退出码终止容器，而不是让它以另一个版本运行。镜像烘焙了这些请求所读取的文件，其中包含把容器内的 FlagGems 安装约束到本镜像自身 pin 的 constraints 文件。在 SDK env 以绝对方式赋值 PATH 的厂商基础镜像（ascend、hygon）上，profile 相关逻辑还会在该赋值之后重新声明 venv 前缀：否则 `pip` 会解析到系统解释器或解析不到，请求也就无法执行。
