@@ -401,6 +401,14 @@ jobs:
             llvm_clang=$(find /root/.flagtree/ascend -maxdepth 3 -name clang -print -quit)
             test -n "$llvm_clang" && test -x "$llvm_clang"
             "$llvm_clang" --version
+            # A zstd-enabled LLVM tree puts zstd::libzstd_shared in its exported
+            # link interface and can only build once libzstd-dev is staged; the
+            # 9.0.0 line tree predates that and needs none of it. Assert only
+            # when the tree is actually that kind, so both CANN lines pass.
+            exports=$(find /root/.flagtree/ascend -maxdepth 4 -path "*/cmake/llvm/LLVMExports.cmake" -print -quit)
+            if [ -n "$exports" ] && grep -q "zstd::libzstd_shared" "$exports"; then
+                test -f /usr/include/zstd.h
+            fi
             echo ">>> staged ascend deps; $(grep -m1 ^version= "$info") at $ASCEND_HOME, clang $llvm_clang"
           '
 
