@@ -41,6 +41,10 @@ bodies, commit messages, AND chat replies (rule 12/13 below).
 
 4. **Minimal, no repetition.** A fact appears once; later references point to
    it (link/section number). Cut redundant modifiers and restated narratives.
+   A tip that applies to every runtime/app image equally (local cache, version
+   override) lives once in the hand-written
+   `docs/content/{en,zh-cn}/usage/_index.md` ("Using the images"), never injected
+   into per-backend generated pages — that copies one note across 23 pages.
 5. **Every real defect named in a report carries a disposition** — a fix, or
    an explicit todo. A defect without one leaves the reader unsure who does
    what next.

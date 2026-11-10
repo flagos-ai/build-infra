@@ -192,7 +192,11 @@ compiler).
 `scripts/docs/gen_data.py` → images.yaml → `gen_descriptions.py` (base/runtime pages).
 The gendoc workflows extract the versions from the built images and open a
 review-gated PR; package version bumps surface there. Don't hand-edit
-`base/*.md` / `runtime/*.md`.
+`base/*.md` / `runtime/*.md`. And don't run `gen_descriptions.py` to **write
+files** locally (`VERSIONS_DIR=…`): it renders pages without the Changelog
+section, so a plain file-write wipes the committed `## Changelog` off every page.
+Local use is a stdout preview only (`gen_descriptions.py <backend>`); file writes
+belong to the gendoc workflow.
 
 ## Add a new backend (rare)
 
