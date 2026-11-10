@@ -101,6 +101,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # version:, which the tag/version-label check covers.
 RUNTIME_BUILD_INPUTS = [
     "runtime/Containerfile",
+    # COPY'd in at build time (Containerfile `COPY zz-flagos.sh`), so editing it
+    # changes the image without touching the Containerfile itself — the only such
+    # file in the build context.
+    "runtime/zz-flagos.sh",
     "scripts/build_runtime.py",
 ]
 
