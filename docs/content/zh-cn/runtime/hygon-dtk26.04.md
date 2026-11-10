@@ -96,6 +96,12 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-10 09:26:16*
+
+重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+缓存，而不再每次都重新下载 wheel（#1709）。FlagTree 版本请求同时支持显式 `--index-url`，用于指定唯一取 w
+heel 的索引（#1613）。镜像其余内容不变。
+
 *2026-10-27 03:24:06*
 
 基础镜像新增 libgoogle-glog0v6t64。vllm-plugin-FL 的原生构建（0.3.0+dtk26.4）链接 libglog.so.1 —— torch 的 c10 头文件在编译期引入 glog —— 而该厂商 SDK 不提供这个 soname，导致插件的 `vllm_fl._C` 无法导入、app 镜像无法提供服务。镜像其余内容不变。

@@ -96,6 +96,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-10 09:01:05*
+
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). Nothing else about the image changes.
+
 *2026-11-02 12:16:13*
 
 Moves this backend's torch closure to the versions vLLM 0.32 pins: torch 2.13.0+rocm7.2, torchvision 0.28.0+rocm7.2, and the ROCm triton that torch 2.13 declares — triton-rocm 3.7.1 instead of 3.6.0. torchaudio stays at 2.11.0+rocm7.2, which is what 0.32 pins too. FlagTree stays at 0.7.0+amd3.6: no amd3.7 tag exists yet, and torch 2.13's own floor is triton 3.6, so the default compiler keeps working against the newer vendor triton.

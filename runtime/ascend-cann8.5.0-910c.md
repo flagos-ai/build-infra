@@ -82,6 +82,10 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-10 09:01:48*
+
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). The venv PATH prefix is re-asserted after a vendor SDK env script overwrites it (#1486). Nothing else about the image changes.
+
 *2026-10-25 09:44:40*
 
 This image gains the container-start version request: `-e FLAGTREE_VERSION=<ver|latest>` and `-e FLAGGEMS_VERSION=<ver|latest>` override the versions baked in, resolved from the image's own indexes before the application starts. `latest` takes the newest wheel on the daily line. A request that cannot be honoured stops the container with a non-zero exit rather than letting it run on a different version. The image bakes the files those requests read, among them the constraints file that holds an in-container FlagGems install to this image's own pins. On the vendor bases whose SDK env assigns PATH absolutely (ascend, hygon), the profile plumbing also re-asserts the venv prefix after that assignment: `pip` was otherwise resolving to the system interpreter, or to none, before the request could run.

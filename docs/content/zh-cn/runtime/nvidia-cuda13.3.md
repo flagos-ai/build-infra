@@ -99,6 +99,11 @@ nvidia-smi
 
 ### 2.3.0
 
+*2026-11-10 10:44:29*
+
+重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+缓存，而不再每次都重新下载 wheel（#1709）。镜像其余内容不变。
+
 *2026-11-06 00:29:36*
 
 flagcx wheel 针对 torch 2.13 头文件重建，pin 移到 flagcx==0.14.1+cuda13.3： 此前的 wheel 留下 c10 的 `materialize_cow_storage` 未定义符号，使 `import torch` 本身就失败。镜像其余内容不变。
