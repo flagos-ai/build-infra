@@ -78,13 +78,13 @@ jobs:
           want = (os.environ.get("SELECTED") or "").split()
           data = yaml.safe_load(open("packaging/flagtree/backends.yaml"))["backends"]
 
-          def runtime_image(backend):
-              # The same matrix the runtime images are built from, so the tag
-              # cannot drift from the image it names.
+          def runtime_row(backend):
+              # The same matrix the runtime images are built from, so the tag and
+              # interpreter cannot drift from the image they name.
               out = subprocess.run(["python3", "scripts/generate_matrix.py",
                                     "--runtime", backend],
                                    capture_output=True, text=True, check=True)
-              return json.loads(out.stdout)["include"][0]["image_tag"]
+              return json.loads(out.stdout)["include"][0]
 
           rows = []
           for name, cfg in data.items():
@@ -100,8 +100,14 @@ jobs:
               # machine IS the runtime image). Resolved here, on ubuntu-latest,
               # rather than on the build runner.
               cold_base = ""
+              expected_python = ""
               if (b.get("base_image") or "") == "runtime":
-                  cold_base = runtime_image(name)
+                  rr = runtime_row(name)
+                  cold_base = rr["image_tag"]
+                  # The ascend verify step checks the interpreter exactly, and the
+                  # CANN lines differ (3.11 vs 3.12), so it reads the version from
+                  # the same configs the runtime image is built from.
+                  expected_python = str(rr["python_version"])
               # A row that declares a `verify` block gets the generic step
               # below. Refuse an empty one there rather than here: a block that
               # says nothing would pass the step having asserted nothing, which
@@ -127,6 +133,8 @@ jobs:
                   # than "{}" so the step's `if:` can test it at all.
                   "verify": json.dumps(verify) if verify else "",
                   "cold_base": cold_base,
+                  # Exact interpreter for the ascend verify step; "" elsewhere.
+                  "expected_python": expected_python,
               })
 
           unknown = [w for w in want if w not in data]
@@ -367,11 +375,15 @@ jobs:
         if: ${{ matrix.verify_stage == 'ascend' }}
         env:
           IMAGE_REF: ${{ steps.ref.outputs.image }}
+          WANT_PY: ${{ matrix.expected_python }}
         run: |
           set -euo pipefail
-          docker run --rm "$IMAGE_REF" bash -euo pipefail -c '
+          docker run --rm -e WANT_PY "$IMAGE_REF" bash -euo pipefail -c '
             test -f /opt/flagtree-build-env.ready
-            python3 -c "import sys; assert sys.version_info[:2] == (3, 11)"
+            # The interpreter for this CANN line (3.11 or 3.12), read from configs
+            # by the plan job; still an exact match, not a range.
+            got=$(python3 -c "import sys;print(sys.version_info[0],sys.version_info[1])")
+            test "$got" = "${WANT_PY/./ }"
             python3 -m pip --version
             command -v git >/dev/null
             test -d "$ASCEND_HOME"
