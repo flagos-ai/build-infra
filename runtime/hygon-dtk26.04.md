@@ -74,6 +74,10 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-10 09:26:16*
+
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). Nothing else about the image changes.
+
 *2026-10-27 03:24:06*
 
 The base image gains libgoogle-glog0v6t64. The vllm-plugin-FL native build (0.3.0+dtk26.4) links libglog.so.1 — torch's c10 headers pull glog in at compile time — and this vendor's SDK ships no such soname, so the plugin's `vllm_fl._C` failed to import and the app image could not serve. Nothing else about the image changes.
