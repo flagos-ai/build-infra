@@ -46,6 +46,7 @@ on:
           - hcu
           - hcu-dtk2610
           - ascend-cann9.0.0
+          - ascend-cann9.2.1
           - ascend-cann8.5.0
         default: metax
       flagtree_version:
