@@ -21,6 +21,21 @@ image: flagos-runtime-metax-maca3.7.2.1
 tags:
 - tag: 2.3.0
   entries:
+  - reason: >-
+      Rebuild to ship the current in-image helper script: the `compiler`
+      script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
+      instead of re-downloading the wheel every time (#1709). The FlagTree
+      version request also accepts an explicit `--index-url`, which selects
+      the one index the wheel is fetched from (#1613). The venv PATH prefix is
+      re-asserted after a vendor SDK env script overwrites it (#1486). Nothing
+      else about the image changes.
+    reason_zh: |-
+      重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+      缓存，而不再每次都重新下载 wheel（#1709）。FlagTree 版本请求同时支持显式 `--index-url`，用于指定唯一取 w
+      heel 的索引（#1613）。厂商 SDK 的 env 脚本覆盖 PATH 后，会重新置顶 venv 前缀（#1486）。镜像其余内容不变
+      。
+    upstream_prs: []
+    date: ''
   - date: '2026-10-25T09:48:30.664Z'
     reason: >-
       This image gains the container-start version request: `-e

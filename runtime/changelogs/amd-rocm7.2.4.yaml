@@ -22,6 +22,19 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: >-
+      Rebuild to ship the current in-image helper script: the `compiler`
+      script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
+      instead of re-downloading the wheel every time (#1709). The FlagTree
+      version request also accepts an explicit `--index-url`, which selects
+      the one index the wheel is fetched from (#1613). Nothing else about the
+      image changes.
+    reason_zh: |-
+      重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+      缓存，而不再每次都重新下载 wheel（#1709）。FlagTree 版本请求同时支持显式 `--index-url`，用于指定唯一取 w
+      heel 的索引（#1613）。镜像其余内容不变。
+    upstream_prs: []
+    date: ''
+  - reason: >-
       Moves this backend's torch closure to the versions vLLM 0.32 pins:
       torch 2.13.0+rocm7.2, torchvision 0.28.0+rocm7.2, and the ROCm triton
       that torch 2.13 declares — triton-rocm 3.7.1 instead of 3.6.0.

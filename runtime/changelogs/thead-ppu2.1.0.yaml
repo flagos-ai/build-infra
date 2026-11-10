@@ -21,6 +21,16 @@ image: flagos-runtime-thead-ppu2.1.0
 tags:
 - tag: 2.3.0
   entries:
+  - reason: >-
+      Rebuild to ship the current in-image helper script: the `compiler`
+      script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
+      instead of re-downloading the wheel every time (#1709). Nothing else
+      about the image changes.
+    reason_zh: |-
+      重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
+      缓存，而不再每次都重新下载 wheel（#1709）。镜像其余内容不变。
+    upstream_prs: []
+    date: ''
   - reason: |-
       - First delivery of this backend's runtime image, layered on the PPU
         2.1.0 base. It installs the python 3.12 closure into the uv venv: torch
