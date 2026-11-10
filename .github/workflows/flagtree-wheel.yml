@@ -173,9 +173,17 @@ jobs:
         run: |
           set -euo pipefail
           test -f "$TARGET" || { echo "ERROR: packaging/flagtree/$TARGET not found" >&2; exit 1; }
+          # The ascend builders name their ref ARG FLAGTREE_REF, not
+          # FLAGTREE_VERSION: their base is the runtime image, whose zz-flagos.sh
+          # reads FLAGTREE_VERSION as a pip version request in every shell, so a
+          # ref there would be installed as a package. The other backends keep
+          # FLAGTREE_VERSION; passing the wrong name is a silent no-op, hence the
+          # branch.
+          ref_arg=FLAGTREE_VERSION
+          case "$TARGET" in ascend-cann*) ref_arg=FLAGTREE_REF ;; esac
           build_args=()
           if [ -n "${FLAGTREE_VERSION:-}" ]; then
-            build_args+=(--build-arg "FLAGTREE_VERSION=${FLAGTREE_VERSION}")
+            build_args+=(--build-arg "${ref_arg}=${FLAGTREE_VERSION}")
           fi
           if [ -n "${FLAGTREE_WHEEL_VERSION:-}" ]; then
             build_args+=(--build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}")
