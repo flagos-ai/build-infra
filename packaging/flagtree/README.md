@@ -22,9 +22,9 @@ wheel is self-owned and reproducible — and an A/B baseline against the vendor'
 The `nvidia-cuda` / `amd` / `metax` / `sunrise` / `iluvatar` / `enflame` /
 `tsingmicro` / `mthreads` / `kunlunxin` builders start from a plain Ubuntu 22.04
 (old glibc: the resulting `libtriton.so` must load on 22.04 nodes).
-The `ascend-cann9.0.0` / `ascend-cann8.5.0` pair's builder stage instead starts
-from **the backend's runtime image**, because FlagTree's Ascend build needs CANN
-on the build machine — see the section below.
+The `ascend-cann9.0.0` / `ascend-cann9.2.1` / `ascend-cann8.5.0` set's builder
+stage instead starts from **the backend's runtime image**, because FlagTree's
+Ascend build needs CANN on the build machine — see the section below.
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
@@ -40,6 +40,7 @@ on the build machine — see the section below.
 | `mthreads`   | FlagTree for Moore Threads (MUSA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `kunlunxin`  | FlagTree for Kunlunxin (XPU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
+| `ascend-cann9.2.1` | FlagTree for Ascend, CANN 9.2.1 (aarch64 / cp312), builder + wheel | `flagos-runtime-ascend-cann9.2.1` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann8.5.0` |
 
 The `metax` builder was written because MetaX's own wheel
