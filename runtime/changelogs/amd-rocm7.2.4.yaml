@@ -33,7 +33,7 @@ tags:
       缓存，而不再每次都重新下载 wheel（#1709）。FlagTree 版本请求同时支持显式 `--index-url`，用于指定唯一取 w
       heel 的索引（#1613）。镜像其余内容不变。
     upstream_prs: []
-    date: ''
+    date: '2026-11-10T09:01:05.011Z'
   - reason: >-
       Moves this backend's torch closure to the versions vLLM 0.32 pins:
       torch 2.13.0+rocm7.2, torchvision 0.28.0+rocm7.2, and the ROCm triton
