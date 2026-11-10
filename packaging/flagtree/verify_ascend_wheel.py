@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Build gates for the ascend FlagTree wheels (ascend-cann9.0.0, ascend-cann8.5.0):
-fail the build on a wheel the ascend backends cannot use.
+"""Build gates for the ascend FlagTree wheels (ascend-cann9.0.0, ascend-cann9.2.1,
+ascend-cann8.5.0): fail the build on a wheel the ascend backends cannot use.
 
 A file rather than a Dockerfile heredoc: the CANN build nodes still run Docker's
 legacy builder, which has no heredoc support.
@@ -42,9 +42,13 @@ EXTRA_TREES = (
     "triton/extension",
     "triton/experimental/tle/language/dsa/ascend",
 )
-# The runtime images run cp311 on aarch64. A wheel tagged otherwise means the
-# build ran with the wrong interpreter or on the wrong runner.
-ARCH_TAG = "-cp311-cp311-linux_aarch64"
+# The wheel must wear the tag of the interpreter that will install it. This gate
+# runs under the runtime image's own python3, so the expectation is derived from
+# the running interpreter rather than pinned: the CANN lines differ (3.11 on
+# 9.0.0/8.5.0, 3.12 on 9.2.1), and a fixed tag fails the other line. A wrong tag
+# still means the build ran with the wrong interpreter or on the wrong runner.
+_CP = f"cp{sys.version_info[0]}{sys.version_info[1]}"
+ARCH_TAG = f"-{_CP}-{_CP}-linux_{platform.machine()}"
 # The install-info file names CANN ships, in preference order.
 INSTALL_INFO_FILES = ("ascend_toolkit_install.info", "ascend_all_cann_install.info")
 
@@ -115,7 +119,7 @@ def main():
         fail(f"dirty wheel version '{ver}' (expected clean, no git<sha> suffix)")
     if ARCH_TAG not in base:
         fail(f"wheel '{base}' not tagged {ARCH_TAG}")
-    print(f"OK: clean wheel version '{ver}', cp311/aarch64")
+    print(f"OK: clean wheel version '{ver}', {_CP}/{platform.machine()}")
 
     expected = os.environ.get("CANN_VERSION", "")
     found = cann_version()
