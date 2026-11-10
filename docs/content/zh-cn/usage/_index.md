@@ -88,6 +88,32 @@ FlagGems 修复的办法。
 
 装不上时容器同样直接起不来，原因与 FlagTree 那条相同——具体表现见上一节。
 
+## 从本地缓存安装
+
+上面的版本覆盖，以及你自己新增的任何包，都会在容器启动时从索引下载。在跑很多容器
+的宿主机上，从宿主机挂入一个持久缓存，wheel 就只取一次，而不是每个容器取一次。
+
+**pip**——覆盖安装（FlagTree、Triton、FlagGems）和你自己的 `pip install` 都认
+`PIP_CACHE_DIR`：
+
+```bash
+docker run -v /host/pip-cache:/mnt/pip-cache -e PIP_CACHE_DIR=/mnt/pip-cache \
+    <runtime 或 app 镜像> ...
+```
+
+**uv**——向镜像环境（`/flagos`）执行 `uv pip install` 时认 `UV_CACHE_DIR`：
+
+```bash
+docker run -v /host/uv-cache:/mnt/uv-cache -e UV_CACHE_DIR=/mnt/uv-cache \
+    <runtime 或 app 镜像> ...
+```
+
+加 `-e UV_LINK_MODE=copy` 可消除「缓存与环境不在同一文件系统」时 uv 打出的告警；
+加 `-e UV_DEFAULT_INDEX=<索引>` 让 uv 继续走境内索引，而不是 PyPI.org。
+
+pip 和 uv 各自维护独立的缓存，宿主机按用户实际使用的那个来预热。缓存仅在条目来自
+相同索引、且平台与 Python 和容器一致时命中。
+
 ## 按需构建
 
 base 镜像是手动构建的，不会每次变更都触发（厂商 SDK 变更不频繁）：

@@ -99,8 +99,8 @@ _flagtree_daily_file="/etc/flagos/flagtree-daily"
 # Bound the network wait of an install — a launch must not sit on an index that
 # is not answering. pip's default (5 retries x 15s connect) measured 103s against
 # a blackholed index; one retry measured 36s, and the healthy path is unaffected
-# (2.0s -> 2.6s). Every retry is a fresh cache entry anyway, since these installs
-# run with --no-cache-dir.
+# (2.0s -> 2.6s). Every retry re-downloads from scratch regardless — pip does not
+# resume a partial download — so bounding them loses no cached progress.
 _flagos_pip_net_opts=(--retries 1 --timeout 15)
 
 # Reachability pre-flight, asked before pip is allowed to try: curl is asked only
@@ -225,11 +225,16 @@ _flagos_pip_install() {
     # first, so an index that does not answer is settled by one short connection
     # attempt and the caller gets the URL and the reason rather than a wall of
     # retry warnings. Returns 2 when unreachable, pip's own status otherwise.
+    #
+    # Drop --no-cache-dir when a pip cache is mounted (PIP_CACHE_DIR at an existing
+    # dir): --no-cache-dir would otherwise override it. Unset/default stays no-cache.
     local pkg="$1" what="$2" index="$3" rc=0
     shift 3
     _flagos_probe "$pkg" "$what" "$index" || rc=$?
     [ "$rc" -eq 0 ] || return "$rc"
-    pip install "${_flagos_pip_net_opts[@]}" "$@"
+    local -a cache_opts=(--no-cache-dir)
+    [ -n "${PIP_CACHE_DIR:-}" ] && [ -d "${PIP_CACHE_DIR}" ] && cache_opts=()
+    pip install "${_flagos_pip_net_opts[@]}" "${cache_opts[@]}" "$@"
 }
 
 _flagos_index_vendor() {
@@ -310,7 +315,7 @@ _flagtree_install_exact() {
         # Exit 2 means the index was unreachable and has been reported; the other
         # source is still worth trying, since the two need not be the same host.
         local rc=0
-        _flagos_pip_install flagtree "$ver" "$src" --no-deps --no-cache-dir \
+        _flagos_pip_install flagtree "$ver" "$src" --no-deps \
                 --index-url "$src" --target "$staged" "flagtree==${ver}" >&2 || rc=$?
         if [ "$rc" -eq 0 ]; then
             ok=0
@@ -360,7 +365,7 @@ _flagtree_install_latest() {
     # pool with the vendor index (the same reason _flagtree_install_exact walks
     # its sources sequentially instead of using --extra-index-url).
     local rc=0
-    _flagos_pip_install flagtree latest "$index" --pre --no-deps --no-cache-dir \
+    _flagos_pip_install flagtree latest "$index" --pre --no-deps \
             --index-url "$index" --target "$staged" "$dist" >&2 || rc=$?
     if [ "$rc" -ne 0 ]; then
         rm -rf "$staged"
@@ -490,7 +495,7 @@ _flaggems_install_exact() {
     # question `latest` is not asking. No --no-deps either — unlike the FlagTree
     # tree, site-packages is where the venv's own dependencies belong.
     local rc=0
-    _flagos_pip_install flaggems "$ver" "$index" --no-cache-dir --pre \
+    _flagos_pip_install flaggems "$ver" "$index" --pre \
             --index-url "$index" "${args[@]}" "flag_gems==${ver}" >&2 || rc=$?
     if [ "$rc" -ne 0 ]; then
         # 2 = the probe reported it and already said why. Otherwise the reason is
