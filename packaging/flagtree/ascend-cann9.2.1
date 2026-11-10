@@ -106,10 +106,11 @@ ARG no_proxy=
 ARG FLAGTREE_VERSION=triton_v3.5.x
 # OUR label for the FlagTree line, not the vendor's. It tracks the branch: this
 # one is the 3.5 line, which this CANN line labels 0.7.1a1, and configs.yaml pins
-# 0.7.1a1+ascend3.5. The UTC date is what marks a rebuild.
+# 0.7.1a1+ascend3.5.
 ARG FLAGTREE_BASE_VERSION=0.7.1a1+ascend3.5
-# blank = "<FLAGTREE_BASE_VERSION>.<UTC date>"
-ARG FLAGTREE_WHEEL_VERSION=
+# A release publishes the clean base version -- what a client's `==` pin selects.
+# The daily line passes its own dated version, so the date lives there, not here.
+ARG FLAGTREE_WHEEL_VERSION=${FLAGTREE_BASE_VERSION}
 # The distribution name; the daily line would set its own, this line's default
 # keeps publishing plain `flagtree`.
 ARG FLAGTREE_WHEEL_NAME=flagtree
@@ -157,7 +158,7 @@ RUN unset PYTHONPATH \
          "${sha8}" > /opt/flagtree-src/setup.cfg \
     && PIP_INDEX_URL="${EXTRA_PYPI}" pip install --no-cache-dir -r python/requirements.txt \
     && pip install --no-cache-dir "pybind11==${PYBIND11_VERSION}" "nanobind==${NANOBIND_VERSION}" \
-    && _ver="${FLAGTREE_WHEEL_VERSION:-${FLAGTREE_BASE_VERSION}.$(date -u +%Y%m%d)}" \
+    && _ver="${FLAGTREE_WHEEL_VERSION}" \
     && echo ">>> wheel version: ${_ver}" \
     && export FLAGTREE_BACKEND=ascend FLAGTREE_WHEEL_VERSION="${_ver}" \
     && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \

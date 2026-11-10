@@ -807,7 +807,7 @@ local one, so what a wheel line pulls is the image this repo built.
 | FlagTree branch (default) | `triton_v3.5.x` (build dir = repo root) | `triton_v3.2.x` (build dir = `python/`) |
 | Prebuilt LLVM | `llvm-7d5de303-…-compat_v0.6.0` | `llvm-a66376b0-…-compat_v0.3.0` |
 | triton build deps | `build-deps-triton_3.5.x-linux-aarch64` | `build-deps-triton_3.2.x-linux-aarch64` |
-| Wheel version | `0.7.0+ascend3.5.<UTC date>` | `0.6.0+ascend3.2.<UTC date>` |
+| Wheel version | `0.7.0+ascend3.5` | `0.6.0+ascend3.2` |
 
 The default ref is a **vendor release branch, not `main`**: the two CANN lines
 track their own (3.5 for CANN 9.0.0, 3.2 for CANN 8.5.0) and neither follows
@@ -865,8 +865,9 @@ Notes that apply only here:
   version alone — matching the vendor, which ships a single `+ascend3.5` /
   `+ascend3.2` wheel.
 - The wheel version is **ours**, not the vendor's release label: it says which
-  FlagTree line the wheel came from, and the UTC date makes a rebuild
-  distinguishable from the vendor's wheel of the same line.
+  FlagTree line the wheel came from. A release publishes the clean version (no
+  date), which is what `configs.yaml`'s `==` pin selects; the daily line carries
+  the UTC date so a daily build is distinguishable from the release.
 - The base image is the runtime image at the stack version (`configs.yaml
   version:`), which a version bump reaches later than the base images. Until it is
   published, `flagtree-wheel.yml`'s `base_image` input takes another tag of the
@@ -967,8 +968,9 @@ Useful build args (see the Containerfile for the full list):
   `pip wheel`, and `FLAGTREE_PYPI_KEY`
   (md5-gated in FlagTree's `setup.py`) is the other route for a caller that holds
   the secret.
-  On the ascend pair it defaults to `FLAGTREE_BASE_VERSION.<UTC date>` instead
-  (the ref and the wheel label are two separate knobs there).
+  On the ascend pair it defaults to `FLAGTREE_BASE_VERSION` too (the ref and the
+  wheel label are two separate knobs there, but a release still publishes the
+  clean version; only the daily line adds its date).
 - `FLAGTREE_WHEEL_NAME` — the distribution name FlagTree's `setup.py` publishes
   under. Default `flagtree`; the daily line sets `flagtree-<backend>` (see below).
 - `FLAGTREE_PYPI_KEY` — unlocks the clean version (md5-gated in FlagTree's
