@@ -760,13 +760,13 @@ abort on a third-party package whose `*_SYSPATH` is unset — the check that kee
 the staging honest. What is staged for `~/.triton` is the triton-deps tarball,
 rooted at `.triton/` and therefore unpacked with `--strip-components=1`.
 
-## Ascend builders (`ascend-cann9.0.0` / `ascend-cann8.5.0`)
+## Ascend builders (`ascend-cann9.0.0` / `ascend-cann9.2.1` / `ascend-cann8.5.0`)
 
-The Ascend pair differs from the builders above in one structural way: **its
+The Ascend lines differ from the builders above in one structural way: **their
 builder stage's cold base is the backend's own runtime image**, not a plain
-Ubuntu — so its `BUILDER_IMAGE` default is a registry ref rather than
-`ubuntu:22.04`, and a cold build pulls that image. The pair is also named after
-the backend rather than the FlagTree line it builds, so the Containerfile name,
+Ubuntu — so their `BUILDER_IMAGE` default is a registry ref rather than
+`ubuntu:22.04`, and a cold build pulls that image. They are also named after
+the backend rather than the FlagTree line they build, so the Containerfile name,
 `flagtree-wheel.yml`'s `target` and `generate_matrix.py`'s backend name are one
 string.
 
@@ -774,12 +774,13 @@ FlagTree's Ascend build reads the CANN version *on the build machine* and uses i
 to select the AscendNPU-IR branch/commit (`python/setup_tools/utils/ascend.py`,
 `ASCEND_NPU_IR_PINS`); AscendNPU-IR is then compiled from source into the build
 and the Ascend plugin links CANN's BiShengIR dialects. Building on
-`flagos-runtime-ascend-cann{9.0.0,8.5.0}` makes that pairing automatic — the pin
-follows the CANN the wheel will actually run against — and the image is already a
-complete toolchain for the build (python 3.11 venv with pip/ninja/pybind11,
-gcc/make/cmake/binutils, git/curl/tar, torch + torch_npu), so the builder stage
-adds no apt step: only the two prebuilt inputs below. Same rule as the Megatron
-wheel builder: build env == delivery env.
+`flagos-runtime-ascend-cann{9.0.0,9.2.1,8.5.0}` makes that pairing automatic —
+the pin follows the CANN the wheel will actually run against — and the image is
+already a complete toolchain for the build (a 3.11 or 3.12 venv with
+pip/ninja/pybind11, gcc/make/cmake/binutils, git/curl/tar, torch + torch_npu).
+The `9.0.0` and `8.5.0` stages therefore add no apt step; `9.2.1` adds exactly
+one (`libzstd-dev`, see the table's note below). Same rule as the Megatron wheel
+builder: build env == delivery env.
 
 **Two stages, one file**, the shape the other four have. `--target builder` is
 the runtime image plus the two prebuilt inputs staged into FlagTree's offline
@@ -790,32 +791,45 @@ the marker guard is a no-op, which is what spares a warm build the ~2.4 GB of
 prebuilt deps (LLVM 2198.6 MiB + triton deps 238.0 MiB on the 9.0.0 line).
 
 Both stages are **published** (2026-10-18, `flagtree-builder.yml` run
-39130538293 with `push: true`). Manifest digests, as the registry reported them
-on push:
+39130538293 with `push: true`; the `9.2.1` row on 2026-11-10, run 42778955533).
+Manifest digests, as the registry reported them on push:
 
 ```
 flagos-dev/flagtree-builder-ascend-cann9.0.0:2.3.0  sha256:c8ec13f3b309902bbfddcbc02929e93b81d9de863da325af033d8f5cfe7a006c
+flagos-dev/flagtree-builder-ascend-cann9.2.1:2.3.0  sha256:0ff5feb379c4b01271f76346890e20f36e6d1e69e75aa5c97395c30afc0f4f75
 flagos-dev/flagtree-builder-ascend-cann8.5.0:2.3.0  sha256:26398afb000b13ec24e9418b5722deafcb1ada244dc31d29906be7ac59efe6fa
 ```
 
 The push step then reads each ref back and compares the served image against the
 local one, so what a wheel line pulls is the image this repo built.
 
-| | `ascend-cann9.0.0` | `ascend-cann8.5.0` |
-|---|---|---|
-| Base image | `flagos-runtime-ascend-cann9.0.0:{version}` | `flagos-runtime-ascend-cann8.5.0:{version}` |
-| FlagTree branch (default) | `triton_v3.5.x` (build dir = repo root) | `triton_v3.2.x` (build dir = `python/`) |
-| Prebuilt LLVM | `llvm-7d5de303-…-compat_v0.6.0` | `llvm-a66376b0-…-compat_v0.3.0` |
-| triton build deps | `build-deps-triton_3.5.x-linux-aarch64` | `build-deps-triton_3.2.x-linux-aarch64` |
-| Wheel version | `0.7.0+ascend3.5` | `0.6.0+ascend3.2` |
+| | `ascend-cann9.0.0` | `ascend-cann9.2.1` | `ascend-cann8.5.0` |
+|---|---|---|---|
+| Base image | `flagos-runtime-ascend-cann9.0.0:{version}` | `flagos-runtime-ascend-cann9.2.1:{version}` | `flagos-runtime-ascend-cann8.5.0:{version}` |
+| Interpreter | py3.11 (`cp311`) | py3.12 (`cp312`) | py3.11 (`cp311`) |
+| FlagTree branch (default) | `triton_v3.5.x` (build dir = repo root) | `triton_v3.5.x` (build dir = repo root) | `triton_v3.2.x` (build dir = `python/`) |
+| Prebuilt LLVM | `llvm-7d5de303-…-compat_v0.6.0` (python311) | `llvm-7d5de303-…-compat_v0.7.0` (python312) | `llvm-a66376b0-…-compat_v0.3.0` (python311) |
+| triton build deps | `build-deps-triton_3.5.x-linux-aarch64` | `build-deps-triton_3.5.x-linux-aarch64` | `build-deps-triton_3.2.x-linux-aarch64` |
+| Wheel version | `0.7.0+ascend3.5` | `0.7.1a1+ascend3.5` | `0.6.0+ascend3.2` |
 
-The default ref is a **vendor release branch, not `main`**: the two CANN lines
-track their own (3.5 for CANN 9.0.0, 3.2 for CANN 8.5.0) and neither follows
-upstream's tip, which is what the layout note in the table reflects — 3.5 keeps
-`setup.py` at the repo root, 3.2 keeps it in `python/`. The wheel's version label
-keeps the vendor's `+ascend3.5` / `+ascend3.2` spelling — that is what the
-`configs.yaml` pins and the backend docs reference — while the file is named
-after the backend.
+The default ref is a **vendor release branch, not `main`**: each CANN line
+tracks its own (3.5 for CANN 9.0.0 and 9.2.1, 3.2 for CANN 8.5.0) and none
+follows upstream's tip, which is what the layout note in the table reflects —
+3.5 keeps `setup.py` at the repo root, 3.2 keeps it in `python/`. The wheel's
+version label keeps the vendor's `+ascend3.5` / `+ascend3.2` spelling — that is
+what the `configs.yaml` pins and the backend docs reference — while the file is
+named after the backend.
+
+**9.2.1 is the one cp312 line, and the only one whose LLVM carries zstd.** Its
+runtime pins python 3.12 (torch 2.13.0 is cp312-only), so it needs the
+`python312-compat` LLVM — the mlir `python_packages` there are interpreter-bound
+and a py311 tree cannot serve a cp312 build. That `v0.7.0` tree is also built
+with zstd support, so its `LLVMExports.cmake` / `LLDTargets.cmake` list
+`zstd::libzstd_shared` and the builder stage installs `libzstd-dev`; the
+`v0.6.0` tree predates that build and needs none of it, which is why 9.0.0 never
+surfaced it. 9.2.1 reuses the 3.5 line's AscendNPU-IR `v1.2.x` pin even though
+its bishengir reports 2.0.0 — measured harmless on-node (see
+`docs/vendors/ascend.md`); revisit when 9.3+ moves bishengir again.
 
 Notes that apply only here:
 
