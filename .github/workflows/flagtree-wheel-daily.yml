@@ -310,10 +310,18 @@ jobs:
           BUILDER_IMAGE: ${{ matrix.builder_image }}
         run: |
           set -euo pipefail
+          # The ascend builders name their ref ARG FLAGTREE_REF, not
+          # FLAGTREE_VERSION: their base is the runtime image, whose zz-flagos.sh
+          # reads FLAGTREE_VERSION as a pip version request in every shell, so a
+          # ref there would be installed as a package. The other backends keep
+          # FLAGTREE_VERSION; passing the wrong name is a silent no-op, hence the
+          # branch.
+          ref_arg=FLAGTREE_VERSION
+          case "$TARGET" in ascend-cann*) ref_arg=FLAGTREE_REF ;; esac
           # FLAGTREE_VERSION unconditionally: the daily builds the Containerfile's
           # default (wheel) target, and every backend's wheel stage takes the ref.
           build_args=(
-            --build-arg "FLAGTREE_VERSION=${FLAGTREE_REF}"
+            --build-arg "${ref_arg}=${FLAGTREE_REF}"
             --build-arg "FLAGTREE_WHEEL_VERSION=${FLAGTREE_WHEEL_VERSION}"
             --build-arg "FLAGTREE_WHEEL_NAME=${FLAGTREE_WHEEL_NAME}"
             --build-arg "BUILDER_IMAGE=${BUILDER_IMAGE}"

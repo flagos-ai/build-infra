@@ -79,7 +79,13 @@ ARG no_proxy=
 
 # FlagTree ref to build: branch, tag or sha. Pin a sha for a release. The default
 # is the branch this CANN line's fixes land on, not upstream's main.
-ARG FLAGTREE_VERSION=triton_v3.5.x
+#
+# Named FLAGTREE_REF, NOT FLAGTREE_VERSION like the other backends' builders: an
+# ARG is injected into every RUN as an environment variable, and this build's
+# base IS the runtime image, whose zz-flagos.sh reads FLAGTREE_VERSION as a pip
+# version request in every shell (BASH_ENV, sourced before the RUN body). A ref
+# such as `triton_v3.5.x` would reach `pip install flagtree==triton_v3.5.x`.
+ARG FLAGTREE_REF=triton_v3.5.x
 # OUR label for the FlagTree line, not the vendor's. It tracks the branch: this
 # one is the 3.5 line, which upstream labels 0.7.0, and configs.yaml pins
 # 0.7.0+ascend3.5.
@@ -112,7 +118,7 @@ RUN export GIT_HTTP_CONNECT_TIMEOUT=15 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LO
     && for i in 1 2 3 4 5 6 7 8; do \
          rm -rf /opt/flagtree-src && git init -q /opt/flagtree-src \
            && git -C /opt/flagtree-src remote add origin https://github.com/flagos-ai/flagtree \
-           && git -C /opt/flagtree-src fetch --depth 1 origin "${FLAGTREE_VERSION}" \
+           && git -C /opt/flagtree-src fetch --depth 1 origin "${FLAGTREE_REF}" \
            && git -C /opt/flagtree-src checkout -q FETCH_HEAD && break; \
          echo ">>> flagtree fetch attempt $i failed, retrying in 5s..."; \
          sleep 5; \
