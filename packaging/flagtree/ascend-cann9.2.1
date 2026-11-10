@@ -59,12 +59,24 @@ SHELL ["/bin/bash", "-c"]
 # already in the image, and the guard is what skips it. No --noproxy carve-out:
 # curl reads the relayed proxy args, and this bucket being reached directly is the
 # CANN runners' no_proxy to say -- not a value to invent here.
+#
+# libzstd-dev is here for the staged LLVM's CMake exports, not for a link this
+# file chooses -- the same reason hcu's 188a510 tree needs it. The
+# python312-compat_v0.7.0 tree is built with zstd support, so its
+# LLVMExports.cmake and LLDTargets.cmake list `zstd::libzstd_shared` in
+# INTERFACE_LINK_LIBRARIES, and the Findzstd.cmake inside that tree creates the
+# target only from a libzstd it can locate. The 9.0.0 line's python311-compat
+# tree predates that build and needs none of it, which is why this never showed
+# up there. The resulting libtriton.so gains a NEEDED entry on libzstd.so.1,
+# which ubuntu:24.04 carries.
 RUN set -eu; \
     if [ -f /opt/flagtree-build-env.ready ]; then \
         echo ">>> build environment already staged in the base image"; \
         exit 0; \
     fi; \
-    mkdir -p /root/.flagtree/ascend /root/.triton \
+    apt-get update && apt-get install -y --no-install-recommends libzstd-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /root/.flagtree/ascend /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
          for i in 1 2 3 4 5; do \
