@@ -77,6 +77,10 @@ nvidia-smi
 
 ### 2.3.0
 
+*2026-11-10 10:44:29*
+
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.
+
 *2026-11-06 00:29:36*
 
 The flagcx wheel is rebuilt against the torch 2.13 headers and the pin moves to flagcx==0.14.1+cuda13.3: the previous wheel left c10's `materialize_cow_storage` undefined, which broke `import torch` itself. Nothing else about the image changes.
