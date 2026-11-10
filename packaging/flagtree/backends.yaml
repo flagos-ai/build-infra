@@ -437,11 +437,10 @@ backends:
       verify_stage: ascend
       base_image: runtime
     daily:
-      # Off until a build here has been through the cann921 node. The 9.2.1
-      # release wheel (0.7.1a1+ascend3.5 cp312) is already on flagos-pypi-ascend,
-      # but this repo-reproducible line has not run yet; flip to true after the
-      # first green builder + wheel build on the node.
-      enabled: false
+      # On: the builder stage is published and the 9.2.1 wheel builds green end
+      # to end on the cann921 node (2026-11-10), including the pybind11 internals
+      # check against the runtime's 3.12 venv.
+      enabled: true
       dist_name: flagtree-ascend-cann9.2.1
       # The 0.7.1-era line, same as the other current backends; dist_name carries
       # the ascend identity, so the daily version is the date alone.
