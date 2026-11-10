@@ -103,6 +103,36 @@ A request that cannot be met stops the container exactly as a FlagTree request
 does, and for the same reason — see the section above for what that looks like
 under docker and kubernetes.
 
+## Installing from a local cache
+
+The version overrides above, and any package you add yourself, download from an
+index at container start. On a host that runs many containers, mount a persistent
+cache from the host so a wheel is fetched once rather than once per container.
+
+**pip** — the override installs (FlagTree, Triton, FlagGems) and your own
+`pip install` both honour `PIP_CACHE_DIR`:
+
+```bash
+docker run -v /host/pip-cache:/mnt/pip-cache -e PIP_CACHE_DIR=/mnt/pip-cache \
+    <runtime-or-app-image> ...
+```
+
+**uv** — `uv pip install` into the image's environment (`/flagos`) honours
+`UV_CACHE_DIR`:
+
+```bash
+docker run -v /host/uv-cache:/mnt/uv-cache -e UV_CACHE_DIR=/mnt/uv-cache \
+    <runtime-or-app-image> ...
+```
+
+Add `-e UV_LINK_MODE=copy` to silence the warning uv prints when the cache sits on
+a different filesystem than the environment, and `-e UV_DEFAULT_INDEX=<index>` to
+keep uv on the in-country index instead of PyPI.org.
+
+pip and uv keep separate caches, so a host warms whichever its users run. A cache
+only hits for an entry fetched from the same index, on the same platform and
+Python the container uses.
+
 ## Building on demand
 
 Base images are built manually, not on every change (vendor SDKs change rarely):
