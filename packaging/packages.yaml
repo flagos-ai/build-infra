@@ -607,6 +607,7 @@ wheels:
     - flagos-pypi-metax
     - flagos-pypi-mthreads
     - flagos-pypi-sunrise
+    - flagos-pypi-thead
     - flagos-pypi-tsingmicro
     desc_zh: vLLM 0.32.0 的 FlagOS repack 版推理部署框架安装包。
     desc_en: FlagOS repack of the vLLM 0.32.0 inference/serving framework.
