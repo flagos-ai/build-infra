@@ -39,6 +39,15 @@ wheels:
     python: cp311
     os: linux
     arch: linux_aarch64
+  - version: 0.7.1a1+ascend3.5
+    pypi_index: flagos-pypi-ascend
+    desc_zh: 面向昇腾（Ascend）的 FlagTree 编译器安装包，基于 Triton 3.5。
+    desc_en: FlagTree compiler wheel for Ascend, built against Triton 3.5.
+    notes: 适用于 CANN 9.2.1 环境（python 3.12）。
+    notes_en: For CANN 9.2.1 environments (python 3.12).
+    python: cp312
+    os: linux
+    arch: linux_aarch64
   - version: 0.7.0+enflame3.6
     pypi_index: flagos-pypi-enflame
     desc_zh: 面向燧原（Enflame）的 FlagTree 编译器安装包，基于 Triton 3.6。
@@ -1087,6 +1096,7 @@ sources:
   - 0.7.0+triton3.5
   - 0.6.0+ascend3.2
   - 0.7.0+ascend3.5
+  - 0.7.1a1+ascend3.5
   - 0.7.0+enflame3.6
   - 0.7.0+hcu3.6
   - 0.6.1+iluvatar3.6
