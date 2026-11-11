@@ -431,6 +431,25 @@ pre code{background:none;border:none;padding:0;font-size:12.5px;line-height:1.75
       </ul>
     </div>
 
+    <h3 id="s6-4-1">6.4.1 实测确认（2026-11-11，kunlunxin app 镜像）</h3>
+    <p>上面 §6.4 的 import 结论是 macOS 上 CPU torch 得到的。2026-11-11 在真实 Linux 构建上验证了一次：
+    <code>kunlunxin-xre5.37.1</code>（py3.10 / torch 2.9.0+cu129 / XRE 5.37.1）的 vllm 0.32.0 app 镜像
+    构建成功、装包成功，但<strong>镜像验证步在 <code>import vllm</code> 处中断</strong>：</p>
+<pre><code>File "/flagos/lib/python3.10/site-packages/vllm/utils/import_utils.py", line 15, in &lt;module&gt;
+  from typing import Any, Never
+ImportError: cannot import name 'Never' from 'typing'</code></pre>
+    <p>两点值得记下：</p>
+    <ul>
+      <li><b>失败点与 §6.4 预测的完全一致</b>——第一处撞上的正是 <code>typing.Never</code>，
+      且发生在 <code>vllm.utils.import_utils</code> 这个所有模块的公共入口，说明补丁不挂就跑不到 serve 入口。</li>
+      <li><b>wheel 没有 <code>Requires-Python</code></b>（<code>vllm-0.32.0+flagos-py3-none-any.whl</code> 的
+      METADATA 只有 <code>Requires-Dist: typing_extensions&gt;=4.10</code>），所以 pip 不会拦、装得进去，
+      故障推迟到 import 才暴露——这正是上面那条「repack 不动 <code>Requires-Python</code>」的实际后果，
+      只不过方向相反：声明没了，拦截也没了，错误从安装期挪到了运行期。</li>
+    </ul>
+    <p>结论不变：kunlunxin 走 0.32.0 必须挂 <code>0002</code> 补丁（§7 路径 3），或把该后端抬到 py3.11+
+    （路径 4）。在补丁落地前，<code>deps_app.vllm0.32.0</code> 不应为任何 py3.10 后端开启。</p>
+
     <h3 id="s6-5">6.5 比 Python 更硬的地板：torch 2.7.1</h3>
     <p><code>vllm/ir/tolerances.py:32</code> 在模块层直接引用 <code>torch.float4_e2m1fn_x2</code>，
     而该 dtype <strong>torch 2.8 才出现</strong>。这条与 Python 版本无关，也<strong>不是 0.32 引入的</strong>：
@@ -506,10 +525,9 @@ grep -rn "float4_e2m1fn_x2" vllm-0.32.0/vllm/ir/tolerances.py</code></pre>
       wheel 构建＋安装＋三个入口 import，并对 torch 2.7.1 / 2.8.0 / 2.9.0 / 2.11.0 各跑一遍；
       补丁另经 <code>patch -p1 --dry-run</code> 与整树重放校验（应用后源码树与生成树逐字节相同）。
       <br>
-      <b>未做的验证</b>：真实的 Linux 构建与 <b>serve 实测</b> 未执行——构建机上 Docker 无法访问任何 registry
-      （<code>reading HTTP CONNECT: unexpected EOF</code>），本地 <code>ubuntu</code> 镜像无 python3 且 apt
-      源不可达；CUDA / 加速器路径完全未触达（host 为 macOS，仅有 CPU torch 构建）。
-      <b>以上 py3.10 结论均为 import / metadata 级，不是推理级。</b>
+      <b>未做的验证</b>：<b>serve 实测</b>未执行；CUDA / 加速器路径未在此机触达（host 为 macOS，仅有 CPU
+      torch 构建）。真实的 Linux 构建已在 2026-11-11 补上，但只到 import 级且未挂补丁——结论见 §6.4.1。
+      <b>未经补丁的 py3.10 后端，结论是「跑不到 serve 入口」，不是「能跑」。</b>
     </div>
     <p><strong>建议的关闸实验</strong>（若采纳 §7 路径 2 或 3）：在 <code>enflame-tops1.10.6</code>
     （py3.12 / torch 2.11.0+cpu）或 <code>cambricon-neuware4.7.2</code>（py3.12 / torch 2.11.0+cpu）上跑一格
