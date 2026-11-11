@@ -42,12 +42,14 @@
                 {{ $active := or (eq $currentPage .) (in $currentPage.RelPermalink .RelPermalink) }}
                 {{ if .Pages }}
                     <li class="sidebar-dropdown {{ if eq $.Site.Params.docs.sidebarIcons true -}}{{ else }}no-icon{{ end }} {{ if $active }}current active{{ end }}">
-                        <button class="btn">
+                        <a class="sidebar-root-link sidebar-section-link" href="{{ .RelPermalink }}">
                             {{ if eq $.Site.Params.docs.sidebarIcons true -}}
                                 <i class="material-icons me-2">{{- .Params.icon | default "notes" }}</i>
                             {{ end }}
                             {{- .Title }}
-                        </button>
+                        </a>
+                        <button class="btn sidebar-section-toggle" type="button"
+                                aria-label="{{ T "sidebar_toggle_section" }}: {{ .Title }}"></button>
                         <div class="sidebar-submenu {{ if $active }}d-block{{ end }}">
                             <ul>
                                 {{ range .Pages.ByWeight }}
