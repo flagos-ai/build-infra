@@ -19,6 +19,18 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Installs libjpeg-turbo8 (libjpeg.so.8) and libpng16-16t64, the two
+        system codecs torchvision's image.so links for torchvision.io. libpng
+        was already present in the vendor image; libjpeg was not, so
+        torchvision imported with a "Failed to load image extension" warning
+        and torchvision.io JPEG decode was unavailable.
+    reason_zh: |-
+      - 安装 libjpeg-turbo8（libjpeg.so.8）与 libpng16-16t64，这是 torchvision
+        的 image.so 为 torchvision.io 链接的两个系统编解码库。libpng 厂商镜像里
+        本就有，libjpeg 则没有，导致 torchvision 导入时报「Failed to load image
+        extension」告警、torchvision.io 的 JPEG 解码不可用。
+    upstream_prs: []
+  - reason: |-
       - First delivery: T-Head PPU 2.1.0 on Ubuntu 24.04, x86_64.
       - The layer is vendored, not installed: T-Head ships the PPU SDK only
         inside their PAI-DSW training image, so this base takes that image and
