@@ -38,9 +38,12 @@ ENV PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
 
 # Vendor image ships the compiler but not cmake; the app layer and C++ extension
 # builds need it. libpython3-dev covers extensions against the vendor python.
+# libjpeg-turbo8 provides libjpeg.so.8, which torchvision's image.so links for
+# torchvision.io JPEG codecs (libpng16 is already in the vendor image); without
+# it torchvision imports with a "Failed to load image extension" warning.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      cmake libpython3-dev \
+      cmake libpython3-dev libjpeg-turbo8 libpng16-16t64 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
