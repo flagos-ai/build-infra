@@ -130,3 +130,6 @@ other = "开箱即用的大模型推理服务，内置结构化输出支持。�
 
 [app_version]
 other = "版本"
+
+[sidebar_toggle_section]
+other = "展开或折叠该分区"

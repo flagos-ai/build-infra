@@ -131,3 +131,6 @@ other = "A ready-to-run inference service for large language models, with struct
 
 [app_version]
 other = "Version"
+
+[sidebar_toggle_section]
+other = "Toggle section"
