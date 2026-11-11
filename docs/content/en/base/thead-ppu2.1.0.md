@@ -38,6 +38,8 @@ title: "thead-ppu2.1.0"
 Explicitly installed; the version is the one baked into this image:
 
 - `cmake` — 3.28.3
+- `libjpeg-turbo8` — 2.1.5
+- `libpng16-16t64` — 1.6.43
 - `libpython3-dev` — 3.12.3
 
 ### SDK components
@@ -66,7 +68,7 @@ Inside the container, confirm the accelerator is visible:
 ppu-smi
 ```
 
-*Last updated: 2026-11-07 10:31:44 · `2b51e8a5d0bd`*
+*Last updated: 2026-11-11 20:26:55 · `fa9555c212ea`*
 
 ## Changelog
 
