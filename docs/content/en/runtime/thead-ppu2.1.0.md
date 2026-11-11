@@ -85,6 +85,14 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-11 12:06:55*
+
+- Adds torchvision 0.25.0+v0.1.0.ppu2.1.1 and torchaudio
+  2.10.0+v0.1.0.ppu2.1.1 to the python 3.12 closure, so the PPU runtime
+  carries the same torch-ecosystem triplet the other vendor runtimes do.
+- Both are T-Head's real cp312 vendor wheels, transloaded onto
+  flagos-pypi-thead the same way torch is.
+
 *2026-11-10 09:01:19*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.
