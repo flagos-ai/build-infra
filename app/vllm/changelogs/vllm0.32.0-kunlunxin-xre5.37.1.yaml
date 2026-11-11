@@ -46,7 +46,7 @@ tags:
         the vllm-plugin-FL `v0.5.0.dev0` tag: it carries `vllm_fl._C` and
         registers `weak_ref_tensor` on the CUDA dispatch key, without which
         vLLM's cudagraph capture leaks VRAM per captured graph.
-      - Adds `flaggems_vllm==0.3.0.dev20261110` as an app-layer dependency:
+      - Adds `flaggems_vllm==0.3.0.dev20261111` as an app-layer dependency:
         the 0.5.0-dev plugin's FlagGems backend imports it for its core ops
         (silu/gelu/rotary/moe/attention/mla) and does not declare it.
     reason_zh: |-
@@ -55,7 +55,7 @@ tags:
       - 安装 native 插件构建 `0.5.0.dev0+xre5.37.1`，取自 vllm-plugin-FL 的
         `v0.5.0.dev0` tag：它携带 `vllm_fl._C` 并在 CUDA dispatch key 上注册
         `weak_ref_tensor`，否则 vLLM 的 cudagraph 捕获会按图泄漏显存。
-      - 新增 app 层依赖 `flaggems_vllm==0.3.0.dev20261110`：0.5.0-dev 插件的
+      - 新增 app 层依赖 `flaggems_vllm==0.3.0.dev20261111`：0.5.0-dev 插件的
         FlagGems 后端为其核心算子（silu/gelu/rotary/moe/attention/mla）import
         该包，但插件自身未声明它。
     upstream_prs: []
