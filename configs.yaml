@@ -1020,6 +1020,8 @@ vendors:
         megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
         vllm0.20.2: []
         vllm0.24.0: []
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261110
         sglang0.5.18:
           # Serve hard-dep: sglang 0.5.18 imports compressed_tensors unconditionally
           - compressed-tensors==0.17.0+flagos
