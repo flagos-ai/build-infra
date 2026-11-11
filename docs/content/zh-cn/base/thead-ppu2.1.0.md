@@ -72,6 +72,13 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-11 12:28:40*
+
+- 安装 libjpeg-turbo8（libjpeg.so.8）与 libpng16-16t64，这是 torchvision
+  的 image.so 为 torchvision.io 链接的两个系统编解码库。libpng 厂商镜像里
+  本就有，libjpeg 则没有，导致 torchvision 导入时报「Failed to load image
+  extension」告警、torchvision.io 的 JPEG 解码不可用。
+
 *2026-11-07 02:41:49*
 
 - 首次交付：平头哥 PPU 2.1.0，x86_64，基于 Ubuntu 24.04。

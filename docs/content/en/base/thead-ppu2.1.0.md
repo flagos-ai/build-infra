@@ -72,6 +72,14 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-11 12:28:40*
+
+- Installs libjpeg-turbo8 (libjpeg.so.8) and libpng16-16t64, the two
+  system codecs torchvision's image.so links for torchvision.io. libpng
+  was already present in the vendor image; libjpeg was not, so
+  torchvision imported with a "Failed to load image extension" warning
+  and torchvision.io JPEG decode was unavailable.
+
 *2026-11-07 02:41:49*
 
 - First delivery: T-Head PPU 2.1.0 on Ubuntu 24.04, x86_64.

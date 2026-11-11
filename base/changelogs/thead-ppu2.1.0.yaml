@@ -30,6 +30,7 @@ tags:
         本就有，libjpeg 则没有，导致 torchvision 导入时报「Failed to load image
         extension」告警、torchvision.io 的 JPEG 解码不可用。
     upstream_prs: []
+    date: '2026-11-11T12:28:40.893Z'
   - reason: |-
       - First delivery: T-Head PPU 2.1.0 on Ubuntu 24.04, x86_64.
       - The layer is vendored, not installed: T-Head ships the PPU SDK only
