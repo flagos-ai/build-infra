@@ -57,6 +57,32 @@ docker run -e FLAGTREE_VERSION=latest <runtime 或 app 镜像> ...
 它会下载约 120 MB，需要容器启动时能出网；每个容器只取一次，同容器内后续 shell
 直接复用，下一个容器再取新发布的。
 
+### 镜像中安装的 FlagTree commit
+
+commit 不在版本号中。发布版的版本号标识 FlagTree 分支，同一分支可以构建多个
+commit；每日版的版本号仅附加构建日期。commit 记录在 wheel 元数据中：
+
+```bash
+pip show -v flagtree | grep Source-Commit
+# Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/1fc73811
+```
+
+这是查询发布版 `flagtree` 发行包的方式。每日构建注册为独立的发行包，按后端命名；
+镜像将包名记录在 `/etc/flagos/flagtree-daily`：
+
+```bash
+pip show -v "$(cat /etc/flagos/flagtree-daily)" | grep Source-Commit
+```
+
+也可以直接读取元数据：
+
+```bash
+python -c "import importlib.metadata as m; \
+           print(m.metadata('$(cat /etc/flagos/flagtree-daily)').get_all('Project-URL'))"
+```
+
+相同版本的两次构建产生字节不同的 wheel，commit URL 是区分它们的唯一字段。
+
 **指定的版本装不上时，容器直接起不来。** 跑着不是你要的那个 FlagTree 的容器，
 并不是你要的东西，而下游没有任何东西会告诉你——所以请求被拒绝：原因写到 stderr，
 退出码非零。`docker run` 返回 1；在 kubernetes 下 pod 进入 `Error`（进而

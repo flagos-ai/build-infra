@@ -62,6 +62,35 @@ egress at container start; the fetch happens once per container, so later shells
 in the same container reuse it, and the next container picks up whatever was
 published since.
 
+### Which FlagTree commit is installed?
+
+The commit is not in the version. A release version identifies the FlagTree line,
+and multiple commits may be built under one; a daily version adds only the build
+date. The commit is recorded in the wheel's metadata:
+
+```bash
+pip show -v flagtree | grep Source-Commit
+# Project-URL: Source-Commit, https://github.com/flagos-ai/flagtree/commit/1fc73811
+```
+
+This queries the release `flagtree` distribution. A daily build registers a
+separate distribution, named per backend; the image records the name in
+`/etc/flagos/flagtree-daily`:
+
+```bash
+pip show -v "$(cat /etc/flagos/flagtree-daily)" | grep Source-Commit
+```
+
+The metadata can also be read directly:
+
+```bash
+python -c "import importlib.metadata as m; \
+           print(m.metadata('$(cat /etc/flagos/flagtree-daily)').get_all('Project-URL'))"
+```
+
+Two builds of the same version produce byte-different wheels, and the commit URL
+is the only field that distinguishes them.
+
 **When the requested version cannot be installed, the container stops.** A
 container running a FlagTree other than the one asked for is not what was asked
 for, and nothing downstream would say so — so the request is refused, the reason
