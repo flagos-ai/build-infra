@@ -21,6 +21,19 @@ image: flagos-runtime-thead-ppu2.1.0
 tags:
 - tag: 2.3.0
   entries:
+  - reason: |-
+      - Adds torchvision 0.25.0+v0.1.0.ppu2.1.1 and torchaudio
+        2.10.0+v0.1.0.ppu2.1.1 to the python 3.12 closure, so the PPU runtime
+        carries the same torch-ecosystem triplet the other vendor runtimes do.
+      - Both are T-Head's real cp312 vendor wheels, transloaded onto
+        flagos-pypi-thead the same way torch is.
+    reason_zh: |-
+      - python 3.12 闭包中加入 torchvision 0.25.0+v0.1.0.ppu2.1.1 与 torchaudio
+        2.10.0+v0.1.0.ppu2.1.1，使 PPU runtime 与其他厂商 runtime 一样带齐
+        torch 生态三件套。
+      - 两者均为平头哥真实的 cp312 厂商 wheel，与 torch 一样转存到
+        flagos-pypi-thead。
+    upstream_prs: []
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`

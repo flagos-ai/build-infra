@@ -21,6 +21,8 @@
 - `flagtree==0.7.0+ppu3.6`
 - `numpy==1.26.4`
 - `torch==2.10.0+v0.1.0.ppu2.1.1`
+- `torchaudio==2.10.0+v0.1.0.ppu2.1.1`
+- `torchvision==0.25.0+v0.1.0.ppu2.1.1`
 - `triton==3.5.0+v0.2.0.ppu2.1.1` *(alternative)*
 
 ### Switch compiler
