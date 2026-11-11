@@ -46,7 +46,22 @@ on:
         description: 'component and package class to build'
         type: choice
         required: true
-        options: [libtriton_jit, FlagTree, FlagDNN, FlagTensor, FlagFFT, flagtree-cpu]
+        options:
+          - libtriton_jit
+          - FlagTree
+          - FlagTree-metax
+          - FlagTree-amd
+          - FlagTree-enflame
+          - FlagTree-ppu
+          - FlagTree-tileir
+          - FlagTree-hcu
+          - FlagTree-mthreads
+          - FlagTree-tsingmicro
+          - FlagTree-xpu
+          - FlagDNN
+          - FlagTensor
+          - FlagFFT
+          - flagtree-cpu
       ref:
         description: >-
           git ref to build. Leave empty to use the ref this target is pinned to
@@ -137,6 +152,10 @@ jobs:
           # deps: FlagOS packages the build needs, fetched from the target's
           # own apt repository into packaging/debian/local-deps/.
           base=''
+          # script_arg: one positional argument for the build script, for a
+          # repository whose script packages more than one thing. Empty for
+          # every target whose script takes none.
+          script_arg=''
           deps=''
           ppa=''
           # publish_runs_on: where the upload job runs. The hosted runners
@@ -173,6 +192,38 @@ jobs:
               outdir=dist/output
               suites=ubuntu24.04
               image=ubuntu:24.04
+              publish_runs_on='["self-hosted", "h20"]' ;;
+            FlagTree-metax|FlagTree-amd|FlagTree-enflame|FlagTree-ppu|FlagTree-tileir|FlagTree-hcu|FlagTree-mthreads|FlagTree-tsingmicro|FlagTree-xpu)
+              # The other package class out of FlagTree: python3-flagtree-<vendor>
+              # assembled from the wheel the vendor's delivery workflow has
+              # already published to flagos-pypi-<vendor>, where the FlagTree
+              # target above compiles its own. The script takes the backend as
+              # its argument and reads everything vendor-specific from the
+              # repository's packaging/backends.conf; the suite is repeated
+              # here because this step runs before the clone and the suite
+              # decides which repository the package is published into.
+              # One target per vendor rather than one target with a backend
+              # dimension, like FlagTree-ascend in native-rpm.yml: the suites
+              # differ, and a dispatch publishes one package class.
+              repo=FlagTree
+              script=packaging/debian/build-helpers/build-flagtree.sh
+              script_arg=${TARGET#FlagTree-}
+              outdir=dist/output
+              # The per-vendor rows landed with flagos-ai/FlagTree#1417 after
+              # the 0.7.0 tag, so no tag carries them yet; the version comes
+              # from the changelog on main until one does.
+              ref=main
+              ver=''
+              # Each vendor's wheel is built against one Ubuntu's toolchain
+              # and Python, which is the one its row in backends.conf names.
+              case "${script_arg}" in
+                hcu|mthreads|tsingmicro|xpu)
+                  suites=ubuntu22.04
+                  image=ubuntu:22.04 ;;
+                *)
+                  suites=ubuntu24.04
+                  image=ubuntu:24.04 ;;
+              esac
               publish_runs_on='["self-hosted", "h20"]' ;;
             FlagDNN)
               repo=FlagDNN
@@ -232,6 +283,7 @@ jobs:
             echo "script=${script}"
             echo "outdir=${outdir}"
             echo "base=${base}"
+            echo "script_arg=${script_arg}"
             echo "deps=${deps}"
             echo "ppa=${ppa}"
             echo "publish_runs_on=${publish_runs_on}"
@@ -420,9 +472,13 @@ jobs:
       - name: Build the .deb packages
         if: ${{ steps.cfg.outputs.build_arch == 'true' }}
         working-directory: src
+        env:
+          SCRIPT_ARG: ${{ steps.cfg.outputs.script_arg }}
         run: |
           set -euo pipefail
-          bash "${{ steps.cfg.outputs.script }}" ${{ steps.cfg.outputs.base }}
+          # ${VAR:+"${VAR}"} so a target without a script argument passes
+          # none, rather than an empty positional the script would read as one.
+          bash "${{ steps.cfg.outputs.script }}" ${{ steps.cfg.outputs.base }} ${SCRIPT_ARG:+"${SCRIPT_ARG}"}
           # Every package, not the first one: these builds produce a runtime
           # and a -dev package, and taking one would silently drop the other.
           mapfile -t debs < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.deb' | sort)
@@ -503,6 +559,15 @@ jobs:
             # where the .so is a symlink owned by the runtime package, so the
             # check then found no library at all and failed a sound build.
             for pkg in $(for d in /pkg/*.deb; do dpkg-deb -f "$d" Package; done); do
+              # What the package itself exports. A backend plugin takes its
+              # MLIR symbols from the libtriton.so that loads it, in the same
+              # package; the loader never walks that edge, so ldd reports the
+              # symbols undefined although the package resolves them itself.
+              # nm prints a versioned symbol as name@@version; ldd names the
+              # symbol alone.
+              dpkg -L "$pkg" | grep -E "\.so($|\.)" | while read -r s; do
+                [ -f "$s" ] && nm -D --defined-only "$s" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//"
+              done | sort -u > /tmp/defined-by-package
               for so in $(dpkg -L "$pkg" | grep -E "\.so($|\.)" || true); do
                 [ -f "$so" ] || continue
                 checked=$((checked + 1))
@@ -521,21 +586,28 @@ jobs:
                 depends=$(dpkg-query -W -f="\${Depends}" "$owner" | tr ",|" "\n\n" | sed -E "s/^ +//; s/[ (:].*//")
                 for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
                   provider=$(dpkg -S "*/$lib" 2>/dev/null | head -1 | cut -d: -f1)
-                  if [ -n "$provider" ] && ! printf "%s\n" "$depends" | grep -qx "$provider"; then
+                  if [ "$provider" = "$owner" ]; then
+                    # Shipped next to the library that needs it, outside the
+                    # loader path; whoever loads the package finds it by rpath.
+                    echo "  $(basename "$so"): $lib shipped by the package itself"
+                  elif [ -n "$provider" ] && ! printf "%s\n" "$depends" | grep -qx "$provider"; then
                     echo "$(basename "$so"): $lib is provided by an installed package but not declared"
                     exit 1
+                  else
+                    echo "  $(basename "$so"): $lib left to the environment"
                   fi
-                  echo "  $(basename "$so"): $lib left to the environment"
                   missing=$((missing + 1))
                 done
                 # A missing library takes every symbol it defines with it, so this
                 # only means anything once they are all present.
                 if [ "$missing" -gt 0 ]; then
                   echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
-                # Python extension modules leave Py*/_Py* to the interpreter.
-                elif ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -qvE "undefined symbol: _?Py"; then
+                # Python extension modules leave Py*/_Py* to the interpreter,
+                # and a plugin leaves what its host in the same package exports.
+                elif undefined=$(ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
+                                   | awk "{print \$3}" | grep -vxF -f /tmp/defined-by-package); [ -n "$undefined" ]; then
                   echo "$(basename "$so") has undefined symbols:"
-                  ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | head -5
+                  printf "%s\n" "$undefined" | head -5
                   exit 1
                 else
                   echo "  $(basename "$so"): links resolve"
