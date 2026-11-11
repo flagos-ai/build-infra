@@ -750,6 +750,15 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: 0.5.0.dev0+xre5.37.1
+    pypi_index: flagos-pypi-kunlunxin
+    desc_zh: 面向 vLLM 0.32.0 线的 FlagOS 插件安装包，取自 vllm-plugin-FL 0.5.0-dev 分支，为昆仑芯 P800（XRE 5.37.1）后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel built from the vllm-plugin-FL 0.5.0-dev branch for the vLLM 0.32.0 line, extending vLLM operators and serving on Kunlunxin P800 (XRE 5.37.1).
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference for CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback.
+    python: cp310
+    os: linux
+    arch: linux_x86_64
 - name: megatron-core
   short_name: Megatron-LM-FL
   versions:
