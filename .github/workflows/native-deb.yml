@@ -563,8 +563,10 @@ jobs:
               # MLIR symbols from the libtriton.so that loads it, in the same
               # package; the loader never walks that edge, so ldd reports the
               # symbols undefined although the package resolves them itself.
+              # nm prints a versioned symbol as name@@version; ldd names the
+              # symbol alone.
               dpkg -L "$pkg" | grep -E "\.so($|\.)" | while read -r s; do
-                [ -f "$s" ] && nm -D --defined-only "$s" 2>/dev/null | awk "{print \$NF}"
+                [ -f "$s" ] && nm -D --defined-only "$s" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//"
               done | sort -u > /tmp/defined-by-package
               for so in $(dpkg -L "$pkg" | grep -E "\.so($|\.)" || true); do
                 [ -f "$so" ] || continue
