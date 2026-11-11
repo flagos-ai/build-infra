@@ -85,6 +85,14 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-11 12:06:55*
+
+- python 3.12 闭包中加入 torchvision 0.25.0+v0.1.0.ppu2.1.1 与 torchaudio
+  2.10.0+v0.1.0.ppu2.1.1，使 PPU runtime 与其他厂商 runtime 一样带齐
+  torch 生态三件套。
+- 两者均为平头哥真实的 cp312 厂商 wheel，与 torch 一样转存到
+  flagos-pypi-thead。
+
 *2026-11-10 09:01:19*
 
 重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip

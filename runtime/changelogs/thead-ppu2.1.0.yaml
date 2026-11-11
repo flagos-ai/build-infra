@@ -34,6 +34,7 @@ tags:
       - 两者均为平头哥真实的 cp312 厂商 wheel，与 torch 一样转存到
         flagos-pypi-thead。
     upstream_prs: []
+    date: '2026-11-11T12:06:55.060Z'
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
