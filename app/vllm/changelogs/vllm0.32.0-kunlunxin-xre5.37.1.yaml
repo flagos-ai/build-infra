@@ -1,0 +1,61 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog. Schema:
+#   image:  repo image name (no tag)
+#   tags:   one block per tag that has been published, newest first. Only the
+#           latest (registry-resident) tag carries entries; superseded tags
+#           are folded into its entries as history — the registry no longer
+#           holds them, so this file is their only trace.
+#   entries: ordered newest first; one entry per substantive change.
+#     date:        push_time, backfilled by the app-image workflow after push.
+#                  Empty while a build is pending review/gate.
+#     reason:      why this rebuild happened — the change that matters for
+#                  THIS image (not the mechanical bump). Human-written
+#                  markdown, one item per bullet; published beside the image.
+#     reason_zh:   the same reason in Chinese, same structure (one item per
+#                  bullet). Required on a new entry; absent on the entries
+#                  dated before the field existed.
+#     upstream_prs: PENDING PRs in OTHER repos (vllm-plugin-FL / FlagGems /
+#                  ...) that this build is waiting on — a tracking list, so a
+#                  merged PR does not belong here (its change is already in
+#                  the tag being built). build-infra PRs are the delivery
+#                  action itself and are NOT listed here.
+
+
+image: vllm0.32.0-kunlunxin-xre5.37.1
+tags:
+- tag: 2.3.0-0.5.0.dev0
+  entries:
+  - date: ''
+    reason: |-
+      - First vllm 0.32.0 image on kunlunxin, on the FlagOS 2.3.0 stack
+        (runtime xre5.37.1, FlagGems 5.4.0, FlagTree 0.7.0+xpu3.6).
+      - Installs the native plugin build `0.5.0.dev0+xre5.37.1`, taken from
+        the vllm-plugin-FL `v0.5.0.dev0` tag: it carries `vllm_fl._C` and
+        registers `weak_ref_tensor` on the CUDA dispatch key, without which
+        vLLM's cudagraph capture leaks VRAM per captured graph.
+      - Adds `flaggems_vllm==0.3.0.dev20261110` as an app-layer dependency:
+        the 0.5.0-dev plugin's FlagGems backend imports it for its core ops
+        (silu/gelu/rotary/moe/attention/mla) and does not declare it.
+    reason_zh: |-
+      - 昆仑芯上 vllm 0.32.0 的首次交付，基于 FlagOS 2.3.0 stack
+        （runtime xre5.37.1、FlagGems 5.4.0、FlagTree 0.7.0+xpu3.6）。
+      - 安装 native 插件构建 `0.5.0.dev0+xre5.37.1`，取自 vllm-plugin-FL 的
+        `v0.5.0.dev0` tag：它携带 `vllm_fl._C` 并在 CUDA dispatch key 上注册
+        `weak_ref_tensor`，否则 vLLM 的 cudagraph 捕获会按图泄漏显存。
+      - 新增 app 层依赖 `flaggems_vllm==0.3.0.dev20261110`：0.5.0-dev 插件的
+        FlagGems 后端为其核心算子（silu/gelu/rotary/moe/attention/mla）import
+        该包，但插件自身未声明它。
+    upstream_prs: []
