@@ -43,6 +43,13 @@ URL」的规矩转存到索引：
 |---|---|
 | torch | `2.10.0+v0.1.0.ppu2.1.1` |
 | triton | `3.5.0+v0.2.0.ppu2.1.1` |
+| torchvision | `0.25.0+v0.1.0.ppu2.1.1` |
+| torchaudio | `2.10.0+v0.1.0.ppu2.1.1` |
+
+torchvision / torchaudio 从厂商的 `pypi_generic` 目录取真 wheel（`pypi_index`
+上的 5 KB `setup.py` 只是按平台回拉真 wheel 的存根）。两者带编译扩展，
+转存时保留厂商的 `cp312-cp312-linux_x86_64` 文件名与平台标签；torch 当初被
+改名为 `py3-none-any` 是厂商自己的打包选择，不要套用到这两个上。
 
 ## 指针
 
