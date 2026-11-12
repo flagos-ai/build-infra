@@ -34,6 +34,7 @@ tags:
       - 为厂商 flagos-pypi-hygon 上的真实 cp310 wheel；pin 保留 wheel 的
         构建日期+git 后缀，因索引文件名带着它。
     upstream_prs: []
+    date: '2026-11-12T01:34:37.485Z'
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
