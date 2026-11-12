@@ -20,6 +20,18 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - The image now carries the CoreX driver userspace: libcuda.so.1,
+        libixml.so and ixsmi are unpacked from the bundled driver installer into
+        /usr/local/corex. The first build ran only the SDK installer, so
+        `import torch` failed in the runtime with "libcuda.so.1: cannot open
+        shared object file".
+    reason_zh: |-
+      - 镜像现在带上 CoreX 驱动用户态：从随包驱动安装器解出 libcuda.so.1、
+        libixml.so 与 ixsmi 到 /usr/local/corex。首次构建只跑了 SDK 安装器，
+        导致 runtime 中 `import torch` 报 "libcuda.so.1: cannot open shared
+        object file"。
+    upstream_prs: []
+  - reason: |-
       - First corex5.0.1 base image: Iluvatar CoreX 5.0.1 SDK and driver 5.0.1,
         CUDA header 260604 and CMake 3.31.8 on Ubuntu 24.04. This line succeeds
         the retired corex4.4.0 and moves the stack to torch 2.13.
