@@ -960,9 +960,9 @@ vendors:
         - torchaudio==2.11.0+corex.5.0.1
         - torchvision==0.28.0+corex.5.0.1
         - numpy==1.26.4
-        # flagcx intentionally omitted: no +corex5.0.1 flagcx wheel exists yet
-        # (it needs its own build). FlagTree falls back to the triton/_C-bundled
-        # libflagcx.so until a +corex5.0.1 flagcx is published on the index.
+        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
+        # the package's libflagcx.so, and a local label needs an exact pin.
+        - flagcx==0.14.1+corex5.0.1
       sdk:
         - Corex Runtime 5.0.1      # corex-installer-linux64-5.0.1_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip

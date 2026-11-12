@@ -20,6 +20,14 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Installs the newly published `flagcx==0.14.1+corex5.0.1`, so FlagTree
+        links the package's `libflagcx.so` instead of the copy `triton/_C`
+        bundles. Nothing else about the image changes.
+    reason_zh: |-
+      - 装上新发布的 `flagcx==0.14.1+corex5.0.1`，FlagTree 因而链接该包的
+        `libflagcx.so`，而不是 `triton/_C` 内置的那份。镜像其余内容不变。
+    upstream_prs: []
+  - reason: |-
       - Rebuilt on the base that now installs `libopenmpi3t64`, so `import torch`
         finds `libmpi.so.40` (through `torch_nvshmem`) and the flagcx wheel can
         be imported in this runtime. Nothing else about the image changes.
