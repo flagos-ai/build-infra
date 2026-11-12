@@ -97,6 +97,14 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-12 01:34:37*
+
+- Adds torchaudio 2.9.0+das.opt1.dtk2604.torch290 to the python 3.10
+  closure, so the DTK 26.04 runtime carries the full torch-ecosystem
+  triplet (torch/torchvision/torchaudio) that multimodal models need.
+- It is the vendor's real cp310 wheel on flagos-pypi-hygon; the pin keeps
+  the wheel's build-date+git suffix because the index name carries it.
+
 *2026-11-10 09:26:16*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). Nothing else about the image changes.

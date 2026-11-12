@@ -97,6 +97,14 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-12 01:34:37*
+
+- python 3.10 闭包中加入 torchaudio 2.9.0+das.opt1.dtk2604.torch290，使
+  DTK 26.04 runtime 带齐多模态模型所需的 torch 生态三件套
+  （torch/torchvision/torchaudio）。
+- 为厂商 flagos-pypi-hygon 上的真实 cp310 wheel；pin 保留 wheel 的
+  构建日期+git 后缀，因索引文件名带着它。
+
 *2026-11-10 09:26:16*
 
 重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
