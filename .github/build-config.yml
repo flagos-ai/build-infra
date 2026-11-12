@@ -43,6 +43,11 @@ runners:
     # carries the single label `cann921` — the default 910b label was not
     # added, and a label the runner does not have queues the job forever.
     ascend-cann9.2.1: [self-hosted, cann921]
+    # The 910C pair (hw114/hw115) carries `ascend` + `910c` — deliberately not
+    # the `cann850`/`cann900` CANN-version labels above, so this row can move to
+    # 9.2.1 without relabelling the nodes or colliding with the older lines'
+    # rows. Both nodes already run driver 26.1.1, the floor this version needs.
+    ascend-cann9.2.1-910c: [self-hosted, ascend, 910c]
     cambricon-neuware4.4.3: [self-hosted, cambricon]
     cambricon-neuware4.7.2: [self-hosted, cambricon]
     enflame-tops1.9.10: [self-hosted, tops1106]
