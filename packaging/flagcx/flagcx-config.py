@@ -830,19 +830,15 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
         # glibc_floor is a deb requirement (see REQUIRED_ENABLED) and a wheel
         # makes no such claim — its platform tag is linux_x86_64, which says
         # both more and less. A wheel row that states one anyway is
-        # cross-checked here like any other.
-        if "glibc_floor" in spec:
-            implied = base_image_glibc(key)
-            if implied is None:
-                problems.append(
-                    where + "could not read a single Ubuntu release from base/" + key
-                    + " — glibc_floor cannot be cross-checked"
-                )
-            elif str(spec["glibc_floor"]) != implied:
-                problems.append(
-                    where + f"glibc_floor {spec['glibc_floor']} disagrees with the "
-                    f"base image's Ubuntu release (implies {implied})"
-                )
+        # cross-checked here like any other — but only against a base that names
+        # a release: a non-ubuntu base (thead's PAI-DSW image) names none, so its
+        # floor is the human-verified value, not one implied from the FROM.
+        implied = base_image_glibc(key) if "glibc_floor" in spec else None
+        if implied is not None and str(spec["glibc_floor"]) != implied:
+            problems.append(
+                where + f"glibc_floor {spec['glibc_floor']} disagrees with the "
+                f"base image's Ubuntu release (implies {implied})"
+            )
 
         if not enabled:
             continue
