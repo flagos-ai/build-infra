@@ -861,68 +861,6 @@ vendors:
         - Hygon DTK AICC LLVM  # dtk_llvm_aicc-2.0.0+dtk2610.2611032005.ge358cd-x86_64.run (clang-22)
 
   iluvatar:
-    corex4.4.0:
-      extras: iluvatar-corex440
-      hardware: ["Iluvatar BI-V150"]
-      driver: "4.4.0"
-      python: "3.12"
-      cmake_backend: IX
-      triton: triton==3.1.0+corex.4.4.0
-      flagtree: flagtree==0.6.1+iluvatar3.6
-      flagtree_daily: flagtree-iluvatar
-      env:
-        base:
-          COREX_ROOT: /usr/local/corex
-          PATH: /usr/local/corex/bin:$PATH
-          LD_LIBRARY_PATH: /usr/local/corex/lib
-        runtime:
-          # flag_gems 5.4.0's FlagTune cost model probes flagtree's exception
-          # contract. The 0.6.x flagtree here ships a partial flagtune (no
-          # runtime/errors.py), so its errors are outside the fallback set and
-          # abort the operator instead of degrading. Verified on-node.
-          USE_FLAGTUNE_COST_MODEL: "0"
-        app:
-          sglang:
-            TORCHINDUCTOR_COMPILE_THREADS: "1"
-            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
-            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
-      deps:
-        - torch==2.7.1+corex.4.4.0
-        - torchaudio==2.7.1+corex.4.4.0
-        - torchvision==0.22.1+corex.4.4.0
-        - numpy==1.26.4
-        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
-        # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+corex4.4.0
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
-        vllm0.20.2: []
-        vllm0.24.0: []
-        sglang0.5.18:
-          # Serve hard-dep: sglang 0.5.18 imports compressed_tensors unconditionally
-          - compressed-tensors==0.17.0+flagos
-          # flagtree's iluvatar overlay reaches a test-support module on a
-          # production path: triton/spec/iluvatar/triton/testing.py::nvsmi does
-          # `from triton._internal_testing import is_corex`, and that module
-          # imports pytest at module level. Reported upstream
-          # (https://github.com/flagos-ai/FlagTree/issues/1142); drop this once
-          # it stops reaching for a test module at runtime.
-          - pytest
-          # Import-face flashinfer stub (sglang-plugin-FL addon/flashinfer-shim).
-          - flashinfer-shim==0.1.0
-          # This SDK pins torch 2.7.1, and sglang 0.5.18 imports two torch
-          # surfaces that exist only from 2.8: the renamed
-          # torch.cuda.memory allocator entry points, and
-          # torch.distributed._symmetric_memory. The shim supplies both at
-          # interpreter start — the scheduler worker imports them before any
-          # sglang plugin loads, so a plugin-side patch cannot reach them.
-          - torch-compat-shim==0.1.0
-      sdk:
-        - Corex Runtime 4.4.0      # corex-installer-linux64-4.4.0_x86_64_10.2.run
-        - CUDA Header files 260604 # cuda-header-260604.zip
-        - CMake (Iluvatar) 3.31.8  # cmake-3.31.8+corex.4.4.0-linux-x86_64.sh
-
     corex4.5.0:
       extras: iluvatar-corex450
       hardware: ["Iluvatar BI-V150"]
@@ -971,6 +909,35 @@ vendors:
         - Corex Runtime 4.5.0      # corex-installer-linux64-4.5.0_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
         - CMake (Iluvatar) 3.31.8  # cmake-3.31.8+corex.4.5.0.20260804-linux-x86_64.sh
+
+    corex5.0.1:
+      extras: iluvatar-corex501
+      hardware: ["Iluvatar BI-V150"]
+      driver: "5.0.1"
+      python: "3.12"
+      cmake_backend: IX
+      triton: triton==3.6.0+corex.5.0.1
+      # flagtree is iluvatar's generic 0.7.1a1+iluvatar3.6 build (the same wheel
+      # corex4.5.0 uses); there is no corex5.0.1-specific flagtree on the index.
+      flagtree: flagtree==0.7.1a1+iluvatar3.6
+      flagtree_daily: flagtree-iluvatar
+      env:
+        base:
+          COREX_ROOT: /usr/local/corex
+          PATH: /usr/local/corex/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/corex/lib
+      deps:
+        - torch==2.13.0+corex.5.0.1
+        - torchaudio==2.11.0+corex.5.0.1
+        - torchvision==0.28.0+corex.5.0.1
+        - numpy==1.26.4
+        # flagcx intentionally omitted: no +corex5.0.1 flagcx wheel exists yet
+        # (it needs its own build). FlagTree falls back to the triton/_C-bundled
+        # libflagcx.so until a +corex5.0.1 flagcx is published on the index.
+      sdk:
+        - Corex Runtime 5.0.1      # corex-installer-linux64-5.0.1_x86_64_10.2.run
+        - CUDA Header files 260604 # cuda-header-260604.zip
+        - CMake (Iluvatar) 3.31.8  # cmake-3.31.8+corex.5.0.1-linux-x86_64.sh
 
   kunlunxin:
     xre5.37.1:

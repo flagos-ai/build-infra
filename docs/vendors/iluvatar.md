@@ -1,7 +1,11 @@
 # iluvatar（天数智芯）
 
-backend key：`iluvatar-corex4.4.0` / `iluvatar-corex4.5.0`。芯片 BI-V150，SDK 叫 CoreX，
+backend key：`iluvatar-corex4.5.0` / `iluvatar-corex5.0.1`。芯片 BI-V150，SDK 叫 CoreX，
 工具链根 `/usr/local/corex`，FlagTree/triton 后端名 **`IX`**，编译器是 **corex clang**。
+
+> `iluvatar-corex4.4.0` 自 FlagOS 2.3.0 起退役，由 `corex5.0.1` 接替。下文仍保留若干
+> 4.4.0 的历史细节（triton 3.1.0 误编译、仅 F 交付等），待 5.0.1 on-node 验证后随
+> app/verify PR 一并改写；5.0.1 的 F/T 交付形态在验证前不臆测。
 
 ## 平台与设备
 
@@ -11,8 +15,9 @@ backend key：`iluvatar-corex4.4.0` / `iluvatar-corex4.5.0`。芯片 BI-V150，S
   **`(7, 1)`** —— 这是 CoreX 的兼容标签，**不是 NVIDIA SM 等级**，别喂给任何按 SM 分支的逻辑
   （sglang 侧就是被它触发了强制 fp16 + "sm75 only"）。`device="xpu"` 会报
   `Torch not compiled with XPU enabled`。
-- 两条线差异很大：4.4.0 锁 **torch 2.7.1**（低于一切 "torch ≥ 2.8" 的 API 下限），
-  4.5.0 锁 **torch 2.10.0**；flagtree 也不同（`0.6.1+iluvatar3.6` vs `0.7.1a1+iluvatar3.6`）。
+- 现役两条线：4.5.0 锁 **torch 2.10.0**，5.0.1 锁 **torch 2.13.0**；flagtree 同为
+  `0.7.1a1+iluvatar3.6`，triton 分别是 `3.2.0+corex.4.5.0` 与 `3.6.0+corex.5.0.1`。
+  （已退役的 4.4.0 曾锁 torch 2.7.1，低于 "torch ≥ 2.8" 的 API 下限，故当时需 torch-compat-shim。）
 - 节点任务只能由有 docker 权限的账号跑（这个厂商的验证节点上只有一个账号有权限）；
   **卡 0 留给镜像构建**，验证用 `IX_VISIBLE_DEVICES=<n>` 换卡。看不到设备 / docker 被拒
   是账号问题，不是镜像缺陷。具体是哪台机、哪个账号见 `scripts/verify-nodes.local.yaml`
