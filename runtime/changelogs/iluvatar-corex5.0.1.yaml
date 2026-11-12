@@ -27,6 +27,7 @@ tags:
       - 基于补上 CoreX 驱动用户态（libcuda.so.1、libixml.so、ixsmi）的 base
         重建，使本 runtime 中 `import torch` 可用。镜像其余内容不变。
     upstream_prs: []
+    date: '2026-11-12T09:48:29.403Z'
   - reason: |-
       - First corex5.0.1 runtime image: the corex5.0.1 base plus the python 3.12
         venv, torch 2.13.0 / torchvision 0.28.0 / torchaudio 2.11.0 / triton
