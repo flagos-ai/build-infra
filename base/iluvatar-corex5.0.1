@@ -13,19 +13,20 @@
 # limitations under the License.
 
 # ============================================================
-# Base image for Iluvatar Corex 4.4.0 on Ubuntu 24.04
+# Base image for Iluvatar Corex 5.0.1 on Ubuntu 24.04
 # ============================================================
 # History:
-# - 20260605: Initial version
+# - 20261112: Initial version
 FROM ubuntu:24.04 AS builder
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 # ── Build arguments ────────────────────────────────────────────
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
-ARG SDK_INSTALLER=corex-installer-linux64-4.4.0_x86_64_10.2.run
+ARG SDK_INSTALLER=corex-installer-linux64-5.0.1_x86_64_10.2.run
+ARG DRIVER_INSTALLER=corex-driver-linux64-5.0.1_x86_64.run
 ARG CUDA_HEADER=cuda-header-260604.zip
-ARG CMAKE_PKG=cmake-3.31.8+corex.4.4.0-linux-x86_64.sh
+ARG CMAKE_PKG=cmake-3.31.8+corex.5.0.1-linux-x86_64.sh
 
 ARG DEBIAN_FRONTEND=noninteractive
 
