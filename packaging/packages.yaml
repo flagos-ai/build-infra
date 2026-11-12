@@ -553,10 +553,10 @@ wheels:
     arch: linux_x86_64
   - version: flagcx==0.14.1+corex5.0.1
     pypi_index: flagos-pypi-iluvatar
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向天数智芯（Iluvatar）Corex 5.0.1 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Iluvatar Corex 5.0.1.
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
     python: cp312
     os: linux
     arch: linux_x86_64
