@@ -22,10 +22,9 @@ tags:
   - reason: |-
       - First corex5.0.1 runtime image: the corex5.0.1 base plus the python 3.12
         venv, torch 2.13.0 / torchvision 0.28.0 / torchaudio 2.11.0 / triton
-        3.6.0 (all +corex.5.0.1), FlagTree and FlagGems. Successor to the retired
-        corex4.4.0 line.
+        3.6.0 (all +corex.5.0.1), FlagTree and FlagGems.
     reason_zh: |-
       - 首个 corex5.0.1 runtime 镜像：corex5.0.1 base 之上加 python 3.12 venv、
         torch 2.13.0 / torchvision 0.28.0 / torchaudio 2.11.0 / triton 3.6.0
-        （均 +corex.5.0.1）、FlagTree 与 FlagGems。接替已退役的 corex4.4.0 线。
+        （均 +corex.5.0.1）、FlagTree 与 FlagGems。
     upstream_prs: []
