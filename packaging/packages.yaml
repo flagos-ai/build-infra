@@ -543,10 +543,10 @@ wheels:
     arch: linux_x86_64
   - version: flagcx==0.14.1+ppu2.1.0
     pypi_index: flagos-pypi-thead
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向平头哥（T-Head）PPU 2.1.0 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for T-Head PPU 2.1.0.
+    notes: 仅用于云端 24.04 PAI-DSW 环境（PPU SDK 仅内置于该镜像），wheel 链接 glibc 2.39，不在 22.04 交付包内。
+    notes_en: Cloud-only on 24.04 PAI-DSW (the PPU SDK exists only in that image); the wheel links glibc 2.39 and is not part of the 22.04 bundle.
     python: cp312
     os: linux
     arch: linux_x86_64
