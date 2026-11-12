@@ -94,6 +94,25 @@ builder, so an arg declared only above is empty on the runners that use the
 latter. The gate compares rather than asserting a literal — the plugin is the
 contract, and reading it back means the pin and the gate cannot drift apart.
 
+It also **stages a slice of the MACA SDK**, because FlagTree 0.7.1 turned
+FlagPrism (its profiler/debugger) **on by default for the metax backend**
+(upstream #1496), and FlagPrism's metax path needs the SDK: a configure-time
+`find_path(... REQUIRED)` for `mcpti/mcpti.h` and `mcr/mc_runtime_api.h`, and a
+link-time `find_library` for `libmcpti` / `libmcruntime`. Without it `cmake`
+aborts before a single object compiles, which is what reddened the metax daily
+the first night after #1496 landed (the daily tracks `main`). The slice is
+copied from the backend's own base image — the SDK the runtime ships, so the
+headers cannot drift from it — and is kept to the 224 MB the two interfaces
+actually read: the full `include/` closure (103 MB; `mcpti.h` and `mcr/` pull in
+`maca.h`, `common/`, `EGL/`) and the six libs `libmcruntime` loads (121 MB),
+versus `/opt/maca/lib`'s 7.3 GB. Their glibc floor is 2.14 / GLIBCXX 3.4.22, so
+the 22.04 symbol gate stays green. The copy is a `COPY --from`, so unlike the
+marker-guarded cache above it re-materialises on a warm build; the cost is a
+224 MB layer off the cached base image, not a re-download. One real consequence:
+FlagPrism links `libmcruntime` into `libtriton.so`, so `import triton` now needs
+`/opt/maca/lib` on the loader path — present in the metax runtime image, but a
+new coupling for the daily wheel installed anywhere else.
+
 ## Builders
 
 Some of these Containerfiles split their build environment into a `--target

@@ -322,6 +322,15 @@ jobs:
             test -d /root/.flagtree/metax/metax-llvm19
             test -f /root/.flagtree/metax/metaxTritonPlugin.so
             test -f /root/.triton/json/include/nlohmann/json.hpp
+            # The MACA slice FlagPrism links for the metax backend (ON by default
+            # upstream): the two headers its find_path REQUIREs, and the libs its
+            # find_library resolves -- SONAME links included, since the loader
+            # reads those names.
+            test -f /opt/maca/include/mcpti/mcpti.h
+            test -f /opt/maca/include/mcr/mc_runtime_api.h
+            test -f /opt/maca/lib/libmcpti.so
+            test -f /opt/maca/lib/libmcruntime.so
+            test -L /opt/maca/lib/libmcanalyzer.so.1.10
             # FlagTree compares only the first 8 characters (setup_helper.py).
             echo ">>> staged metax deps; plugin md5 prefix $(md5sum /root/.flagtree/metax/metaxTritonPlugin.so | cut -c1-8)"
           '
