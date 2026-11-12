@@ -29,6 +29,7 @@ tags:
         `libmpi.so.40` —— torch 经 `torch_nvshmem` 访问它（`libtorch.so` 等五个
         torch 库带该 NEEDED 条目），缺了它 runtime 中 `import torch` 失败。
     upstream_prs: []
+    date: '2026-11-12T14:13:03.635Z'
   - reason: |-
       - The image now carries the CoreX driver userspace: libcuda.so.1,
         libixml.so and ixsmi are unpacked from the bundled driver installer into
