@@ -156,7 +156,7 @@ measurement. A consumer that wants only the bitcode can locate the package with
 
 ### State
 
-Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty-three rows carry
+Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty-four rows carry
 it — so the two columns here are what has actually run, and they answer different questions. **Built
 + verified** is the wheel installed from the file alone into a container of the row's runtime image,
 on the row's own node, by the CI verify job unless the entry says otherwise. **Published** is the
@@ -179,8 +179,8 @@ Every published pin is a build off the release tag `v0.14.1` — the version str
 | `enflame-tops1.10.6` | 2026-10-28 | `0.14.1+tops1.10.6` |
 | `hygon-dtk26.04` | 2026-10-28 | `0.14.1+dtk2604` |
 | `hygon-dtk26.10` | 2026-11-01 | `0.14.1+dtk2610` |
-| `iluvatar-corex4.4.0` | 2026-10-29 | `0.14.1+corex4.4.0` |
 | `iluvatar-corex4.5.0` | 2026-10-29 | `0.14.1+corex4.5.0` |
+| `iluvatar-corex5.0.1` | 2026-11-12 | `0.14.1+corex5.0.1` |
 | `kunlunxin-xre5.37.1` | 2026-10-29 | `0.14.1+xre5.37.1` |
 | `metax-maca3.7.2.1` | 2026-10-28 | `0.14.1+maca3.7.2.1` |
 | `metax-maca3.8.1.3` | 2026-10-28 | `0.14.1+maca3.8.1.3` |
@@ -189,6 +189,7 @@ Every published pin is a build off the release tag `v0.14.1` — the version str
 | `nvidia-cuda12.8` | 2026-10-29 | `0.14.1+cuda12.8` |
 | `nvidia-cuda13.3` | 2026-11-05 | `0.14.1+cuda13.3` |
 | `sunrise-tangrt1.2.0` | 2026-10-28 | `0.14.1+tangrt1.2.0` |
+| `thead-ppu2.1.0` | 2026-11-12 | `0.14.1+ppu2.1.0` |
 | `tsingmicro-tsm260610` | 2026-10-28 | `0.14.1+tsm260610` |
 
 Column 2 is the date the wheel was last built and verified on its node. Most rows carry 2026-10-28,
