@@ -27,6 +27,7 @@ tags:
       - 装上新发布的 `flagcx==0.14.1+corex5.0.1`，FlagTree 因而链接该包的
         `libflagcx.so`，而不是 `triton/_C` 内置的那份。镜像其余内容不变。
     upstream_prs: []
+    date: '2026-11-12T14:54:16.328Z'
   - reason: |-
       - Rebuilt on the base that now installs `libopenmpi3t64`, so `import torch`
         finds `libmpi.so.40` (through `torch_nvshmem`) and the flagcx wheel can
