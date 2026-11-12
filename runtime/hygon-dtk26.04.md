@@ -24,6 +24,7 @@
 - `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
 - `numpy==1.26.4`
 - `torch==2.9.0+das.opt1.dtk2604`
+- `torchaudio==2.9.0+das.opt1.dtk2604.torch290.202604011034.geaa9e4`
 - `torchvision==0.24.0+das.opt1.dtk2604.torch290`
 - `triton==3.5.1+das.opt1.dtk2604.torch290` *(alternative)*
 

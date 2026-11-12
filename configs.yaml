@@ -809,6 +809,10 @@ vendors:
         - apex==1.7.0+das.opt1.dtk2604.torch290
         - flash_attn==2.8.3+das.opt1.dtk2604.torch290
         - torch==2.9.0+das.opt1.dtk2604
+        # The vendor uploaded torchaudio with its build-date+git suffix intact,
+        # unlike the clean torchvision tag; the == pin must carry the full string
+        # or it will not resolve on the index.
+        - torchaudio==2.9.0+das.opt1.dtk2604.torch290.202604011034.geaa9e4
         - torchvision==0.24.0+das.opt1.dtk2604.torch290
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
