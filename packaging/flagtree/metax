@@ -19,11 +19,27 @@
 # Extract: id=$(docker create flagtree-metax:0.7.0); docker cp $id:/wheels ./wheels
 
 # TWO STAGES, ONE FILE. `--target builder` is the build machine (apt toolchain,
-# python 3.12, the three prebuilt metax inputs), published by
-# flagtree-builder.yml; the default target builds the wheel on top of it. It is
-# also the one knob that separates a cold build from a warm one -- pointing this
-# at the published stage turns everything below it into a no-op, via its marker.
+# python 3.12, the three prebuilt metax inputs plus the MACA SDK slice FlagPrism
+# links), published by flagtree-builder.yml; the default target builds the wheel
+# on top of it. It is also the one knob that separates a cold build from a warm
+# one -- pointing this at the published stage turns everything below it into a
+# no-op, via its marker.
 ARG BUILDER_IMAGE=ubuntu:22.04
+
+# FlagPrism's metax backend needs the MACA SDK: headers at configure time
+# (`find_path ... REQUIRED` for mcpti/mcpti.h and mcr/mc_runtime_api.h) and
+# libmcpti/libmcruntime at link time. It is ON by default for metax as of
+# FlagTree 0.7.1 (upstream #1496), so a builder without the SDK fails configure.
+#
+# Taken from the SDK's own base image rather than a new filestore tarball: the
+# header tree is a 103 MB closure (mcpti.h and mcr/ include maca.h, common/,
+# EGL/), and a copy of it must move in lockstep with the SDK the runtime image
+# ships -- the base image IS that SDK, so nothing can drift. Only the six .so
+# files the two interfaces load are copied (121 MB), not /opt/maca/lib's 7.3 GB.
+# Their glibc floor is 2.14 / GLIBCXX 3.4.22, so the 22.04 wheel gate is safe.
+ARG MACA_IMAGE=harbor.baai.ac.cn/flagos-base/flagos-base-metax-maca3.8.1.3:2.3.0
+FROM ${MACA_IMAGE} AS maca
+
 FROM ${BUILDER_IMAGE} AS builder
 
 # Proxy is consumed during build only -- an ARG is not persisted in the image.
@@ -73,6 +89,7 @@ RUN set -eu; \
         libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
         libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+        libnuma1 libelf1 \
         python3.12 python3.12-venv python3.12-dev \
     && rm -rf /var/lib/apt/lists/* \
     && python3.12 -m ensurepip --upgrade \
@@ -100,6 +117,41 @@ RUN set -eu; \
 # FlagTree looks at, which then deletes the tree and fetches json from github --
 # the network step the staging exists to remove. The assertions above name the
 # post-strip paths for the same reason: they are what the build reads.
+
+# The MACA SDK slice FlagPrism's metax backend needs. Not part of the guarded RUN
+# above, because a COPY --from cannot be marker-skipped: on a warm build (builder
+# = the published stage, which already carries this) it re-materializes from the
+# cached maca image, which is why only the 224 MB that two interfaces touch moves
+# -- the whole include tree (mcpti.h/mcr pull in maca.h, common/, EGL/) and the
+# six libs libmcruntime loads, not /opt/maca/lib's 7.3 GB. The three SONAME
+# symlinks are recreated: the libs' own DT_NEEDED names them (…so.1.10, not
+# …so.1.10.0), and an explicit-file COPY does not carry a directory's symlinks.
+# (libnuma1/libelf1 are in the apt layer above for the same reason: the linker
+# resolves these libs' own DT_NEEDED when it links libmcruntime into libtriton.)
+COPY --from=maca /opt/maca/include /opt/maca/include
+COPY --from=maca \
+     /opt/maca/lib/libmcpti.so \
+     /opt/maca/lib/libmcruntime.so \
+     /opt/maca/lib/libmccompiler.so \
+     /opt/maca/lib/libmcanalyzer.so.1.10.0 \
+     /opt/maca/lib/libmxc-runtime64.so.1.3.0 \
+     /opt/maca/lib/libmxkw.so.1.0.6 \
+     /opt/maca/lib/
+RUN cd /opt/maca/lib \
+    && ln -sf libmcanalyzer.so.1.10.0  libmcanalyzer.so.1.10 \
+    && ln -sf libmxc-runtime64.so.1.3.0 libmxc-runtime64.so.1 \
+    && ln -sf libmxkw.so.1.0.6          libmxkw.so.1 \
+    && test -f /opt/maca/include/mcpti/mcpti.h \
+    && test -f /opt/maca/include/mcr/mc_runtime_api.h
+
+# MACA_PATH is the first HINT FlagPrism's find_path/find_library read; the lib dir
+# is on the loader path so the wheel's post-build `import triton` -- which now
+# pulls libmcruntime through libtriton.so's FlagPrism profiler -- can resolve it.
+# The builder stage starts from bare ubuntu with no LD_LIBRARY_PATH, so this sets
+# rather than prepends (a `:${LD_LIBRARY_PATH}` would expand to a stray trailing
+# colon -- CWD on the loader path -- and BuildKit warns on the undefined var).
+ENV MACA_PATH=/opt/maca \
+    LD_LIBRARY_PATH=/opt/maca/lib
 
 FROM builder AS flagtree
 
