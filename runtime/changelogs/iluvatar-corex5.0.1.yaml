@@ -28,3 +28,4 @@ tags:
         torch 2.13.0 / torchvision 0.28.0 / torchaudio 2.11.0 / triton 3.6.0
         （均 +corex.5.0.1）、FlagTree 与 FlagGems。
     upstream_prs: []
+    date: '2026-11-12T07:50:26.999Z'
