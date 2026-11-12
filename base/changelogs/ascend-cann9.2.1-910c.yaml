@@ -1,0 +1,41 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+
+image: flagos-base-ascend-cann9.2.1-910c
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: CANN 9.2.1 — the toolkit, the 910C (A3) ops package and
+        NNAL — on aarch64 ubuntu:24.04.
+      - Only the ops package is chip-specific: this variant takes the `A3` token
+        rather than `910b`; toolkit and NNAL are shared with the 910B line of
+        the same CANN version.
+      - Carries python 3.12, matching the 910B row: the torch 2.13 stack this
+        line exists for is cp312-only, and noble ships 3.12 so no PPA is needed.
+      - The 910C build nodes' docker 20.10.8 seccomp profile blocks `clone3`, so
+        the apt `Post-Invoke` hooks are dropped; the build also takes the
+        runner's proxy as build arguments, since these nodes have no direct
+        egress.
+      - The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
+        time, so nothing has to be sourced inside the container.
+    reason_zh: |-
+      - 首次交付：CANN 9.2.1 —— toolkit、910C（A3） ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
+      - 只有 ops 包与芯片相关：该变体取 `A3` 标记而非 `910b`；toolkit 和 NNAL 与同一 CANN 版本的 910B 线共用。
+      - 携带 python 3.12，与 910B 行一致：本线服务 torch 2.13 栈，而该栈只有 cp312；noble 自带 3.12，无需 PPA。
+      - 910C 构建节点的 docker 20.10.8 seccomp profile 会挡 `clone3`，因此移除 apt 的 `Post-Invoke` hook；构建还把 runner 的代理作为 build arg 传入，因为这些节点没有直连出口。
+      - SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。
+    upstream_prs: []

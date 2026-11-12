@@ -582,6 +582,35 @@ vendors:
         - CANN 910B Ops 9.2.1 (aarch64) # Ascend-cann-910b-ops_9.2.1_linux-aarch64.run
         - CANN NNAL 9.2.1 (aarch64)     # Ascend-cann-nnal_9.2.1_linux-aarch64.run
 
+    # 910C twin of cann9.2.1. Only the ops package is chip-split
+    # (Ascend-cann-A3-ops_<ver>_linux-aarch64.run).
+    # flagcx is pinned to the same `+cann9.2.1` wheel the 910B row carries.
+    # No python split: the 9.2.1 line is cp312 already.
+    cann9.2.1-910c:
+      extras: ascend-cann921-910c
+      hardware: ["Ascend 910C"]
+      driver: "26.1.1"
+      python: "3.12"
+      cmake_backend: NPU
+      triton: triton==3.6.0
+      flagtree: flagtree==0.7.1a1+ascend3.5
+      flagtree_daily: flagtree-ascend-cann9-2-1
+      triton_post_install:
+        - triton_ascend==3.6.0
+      deps:
+        - torch==2.13.0+cpu
+        - torch-npu==2.13.0
+        - torchvision==0.28.0+cpu
+        - torchaudio==2.11.0+cpu
+        - numpy==1.26.4
+        - cann-shmem==1.6.0
+        # Shared with the 910B row of this CANN version -- see the block comment.
+        - flagcx==0.14.1+cann9.2.1
+      sdk:
+        - CANN Toolkit 9.2.1 (aarch64)  # Ascend-cann_9.2.1_linux-aarch64.run
+        - CANN 910C Ops 9.2.1 (aarch64) # Ascend-cann-A3-ops_9.2.1_linux-aarch64.run
+        - CANN NNAL 9.2.1 (aarch64)     # Ascend-cann-nnal_9.2.1_linux-aarch64.run
+
   cambricon:
     neuware4.4.3:
       extras: cambricon
