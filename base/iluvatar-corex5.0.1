@@ -48,6 +48,16 @@ RUN curl -o corex-installer.run ${FILE_STORE}/iluvatar/${SDK_INSTALLER} \
   && bash /corex-installer.run --silent --toolkit \
   && rm /corex-installer.run
 
+# Install driver userspace (libcuda/libixml/ixsmi); kernel module can't load in-container
+RUN curl -o /corex-driver.run ${FILE_STORE}/iluvatar/${DRIVER_INSTALLER} \
+  && bash /corex-driver.run --noexec --target /tmp/drv >/dev/null \
+  && mkdir -p /usr/local/corex/lib /usr/local/corex/bin \
+  && cp /tmp/drv/corex/lib64/libcuda.so.1 /usr/local/corex/lib/ \
+  && cp /tmp/drv/corex/lib64/libixml.so /usr/local/corex/lib/ \
+  && cp /tmp/drv/corex/bin/ixsmi /usr/local/corex/bin/ \
+  && ln -s libcuda.so.1 /usr/local/corex/lib/libcuda.so \
+  && rm -rf /tmp/drv /corex-driver.run
+
 # Install Corex CMake
 # The installer cd's into the prefix, so it has to exist first.
 RUN mkdir -p /opt/cmake-corex \
