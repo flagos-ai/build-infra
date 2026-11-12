@@ -148,6 +148,11 @@ if not so_files:
     print("FAIL: the wheel carries no libflagcx.so and no _C*.so", file=sys.stderr)
     sys.exit(1)
 
+# ppu ships cloud-only on 24.04 (no 22.04 build path), never in the 22.04 bundle.
+if os.environ.get("WHEEL_ADAPTOR") == "ppu":
+    print("OK: ppu is outside the 22.04 bundle — 2.35 gate not applicable")
+    sys.exit(0)
+
 forbidden = ["GLIBC_2.38", "GLIBCXX_3.4.31", "GLIBCXX_3.4.32", "__isoc23_"]
 
 for so in so_files:
