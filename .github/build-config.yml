@@ -29,6 +29,18 @@ registry:
     # App images live under flagos-app
     app: flagos-app
 
+# Names that resolve only from a few build nodes' /etc/hosts.
+#
+# `docker build` containers inherit the daemon host's resolv.conf but NOT its
+# /etc/hosts, so a name that lives only there is invisible inside RUN. Keyed by
+# base Containerfile name; scripts/build_base.py resolves each entry on the
+# runner and hands the address to docker as --add-host. A node that cannot
+# resolve the name builds without the flag, so this stays a per-node fact rather
+# than a hardcoded address. Today only the 910C pair (hw114/hw115) carries it.
+internal_hosts:
+  ascend-cann9.2.1-910c:
+    - resource-inner.flagos.net
+
 # Runner labels for backends
 runners:
   default: [self-hosted, h20]
