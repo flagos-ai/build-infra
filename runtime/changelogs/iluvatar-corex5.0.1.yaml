@@ -20,6 +20,14 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Rebuilt on the base that now carries the CoreX driver userspace
+        (libcuda.so.1, libixml.so, ixsmi), so `import torch` works in this
+        runtime. Nothing else about the image changes.
+    reason_zh: |-
+      - 基于补上 CoreX 驱动用户态（libcuda.so.1、libixml.so、ixsmi）的 base
+        重建，使本 runtime 中 `import torch` 可用。镜像其余内容不变。
+    upstream_prs: []
+  - reason: |-
       - First corex5.0.1 runtime image: the corex5.0.1 base plus the python 3.12
         venv, torch 2.13.0 / torchvision 0.28.0 / torchaudio 2.11.0 / triton
         3.6.0 (all +corex.5.0.1), FlagTree and FlagGems.
