@@ -36,6 +36,7 @@ Examples:
 
 import argparse
 import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -107,6 +108,39 @@ def default_registry(repo_root: Path) -> str | None:
     return host or None
 
 
+def internal_hosts(repo_root: Path, name: str) -> list[str]:
+    """`--add-host` args for names that only some build nodes can resolve.
+
+    A `docker build` container inherits the daemon host's resolv.conf but not
+    its /etc/hosts, so a name the node carries only there (Nexus's inner
+    endpoint on the 910C pair) is invisible inside RUN. The address is looked up
+    on the runner rather than written down: a node that cannot resolve it gets
+    no flag and keeps building the way it did before.
+    """
+    config_path = repo_root / ".github" / "build-config.yml"
+    if not config_path.exists():
+        return []
+    try:
+        import yaml
+    except ImportError:
+        return []
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f) or {}
+    hosts = (cfg.get("internal_hosts") or {}).get(name) or []
+    args = []
+    for host in hosts:
+        try:
+            ip = socket.gethostbyname(host)
+        except OSError:
+            print(
+                f"note: {host} does not resolve here — building without --add-host",
+                file=sys.stderr,
+            )
+            continue
+        args += ["--add-host", f"{host}:{ip}"]
+    return args
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Build FlagOS base container images",
@@ -166,6 +200,7 @@ def main():
     }
 
     cmd = ["docker", "build", "-f", str(containerfile)]
+    cmd += internal_hosts(repo_root, args.name)
     for k, v in labels.items():
         if v:
             cmd += ["--label", f"{k}={v}"]
