@@ -20,6 +20,15 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Rebuilt on the base that now installs `libopenmpi3t64`, so `import torch`
+        finds `libmpi.so.40` (through `torch_nvshmem`) and the flagcx wheel can
+        be imported in this runtime. Nothing else about the image changes.
+    reason_zh: |-
+      - 基于补装 `libopenmpi3t64` 的 base 重建，使 `import torch` 能找到
+        `libmpi.so.40`（经 `torch_nvshmem`），flagcx wheel 因而可在本 runtime
+        中导入。镜像其余内容不变。
+    upstream_prs: []
+  - reason: |-
       - Rebuilt on the base that now carries the CoreX driver userspace
         (libcuda.so.1, libixml.so, ixsmi), so `import torch` works in this
         runtime. Nothing else about the image changes.
