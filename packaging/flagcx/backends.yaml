@@ -518,6 +518,24 @@ ascend-cann9.2.1:
     toolkit_product: cann
     ops_product: 910b
 
+ascend-cann9.2.1-910c:
+  vendor: ascend
+  make_flag: USE_ASCEND
+  arch: arm64
+  glibc_floor: "2.39"
+  apt: []
+  make_env: {}
+  vendor_libs: [ascendcl, hccl]
+  assert: [/usr/local/Ascend/ascend-toolkit/latest/include/hccl/hccl.h]
+  # The 910C twin of cann9.2.1. Off every channel: it differs from the 910B row
+  # only in the ops package it installs, which no FlagCX build reads, so the row
+  # would produce a second artifact for one pin (`flagcx==0.14.1+cann9.2.1`, the
+  # one both rows' configs.yaml deps carry) and --check refuses two rows sharing
+  # a label. Stated here because --check reads a runtime-matrix row with no
+  # packaging entry as drift.
+  deb: {enabled: false, default_for_vendor: false}
+  wheel: {enabled: false}
+
 # ── probed in-container: enabled, or still owing one probe ─────────────────
 
 hygon-dtk26.04:
