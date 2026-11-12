@@ -92,6 +92,12 @@ ixsmi
 
 ### 2.3.0
 
+*2026-11-12 14:13:03*
+
+- `libopenmpi3t64` 提供 corex 5.0.1 的 `libnvshmem_host.so` 所需的
+  `libmpi.so.40` —— torch 经 `torch_nvshmem` 访问它（`libtorch.so` 等五个
+  torch 库带该 NEEDED 条目），缺了它 runtime 中 `import torch` 失败。
+
 *2026-11-12 09:22:38*
 
 - 镜像现在带上 CoreX 驱动用户态：从随包驱动安装器解出 libcuda.so.1、

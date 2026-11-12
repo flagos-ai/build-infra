@@ -92,6 +92,13 @@ ixsmi
 
 ### 2.3.0
 
+*2026-11-12 14:13:03*
+
+- `libopenmpi3t64` provides the `libmpi.so.40` that corex 5.0.1's
+  `libnvshmem_host.so` needs — torch reaches it through `torch_nvshmem`
+  (`libtorch.so` and four more of its libraries carry the NEEDED entry),
+  so `import torch` fails in the runtime without it.
+
 *2026-11-12 09:22:38*
 
 - The image now carries the CoreX driver userspace: libcuda.so.1,
