@@ -21,6 +21,19 @@ image: flagos-runtime-hygon-dtk26.04
 tags:
 - tag: 2.3.0
   entries:
+  - reason: |-
+      - Adds torchaudio 2.9.0+das.opt1.dtk2604.torch290 to the python 3.10
+        closure, so the DTK 26.04 runtime carries the full torch-ecosystem
+        triplet (torch/torchvision/torchaudio) that multimodal models need.
+      - It is the vendor's real cp310 wheel on flagos-pypi-hygon; the pin keeps
+        the wheel's build-date+git suffix because the index name carries it.
+    reason_zh: |-
+      - python 3.10 闭包中加入 torchaudio 2.9.0+das.opt1.dtk2604.torch290，使
+        DTK 26.04 runtime 带齐多模态模型所需的 torch 生态三件套
+        （torch/torchvision/torchaudio）。
+      - 为厂商 flagos-pypi-hygon 上的真实 cp310 wheel；pin 保留 wheel 的
+        构建日期+git 后缀，因索引文件名带着它。
+    upstream_prs: []
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
