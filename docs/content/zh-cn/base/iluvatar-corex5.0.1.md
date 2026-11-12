@@ -92,6 +92,13 @@ ixsmi
 
 ### 2.3.0
 
+*2026-11-12 09:22:38*
+
+- 镜像现在带上 CoreX 驱动用户态：从随包驱动安装器解出 libcuda.so.1、
+  libixml.so 与 ixsmi 到 /usr/local/corex。首次构建只跑了 SDK 安装器，
+  导致 runtime 中 `import torch` 报 "libcuda.so.1: cannot open shared
+  object file"。
+
 *2026-11-12 05:17:06*
 
 - 首个 corex5.0.1 base 镜像：Ubuntu 24.04 上的天数 CoreX 5.0.1 SDK 与驱动

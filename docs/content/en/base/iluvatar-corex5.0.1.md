@@ -92,6 +92,14 @@ ixsmi
 
 ### 2.3.0
 
+*2026-11-12 09:22:38*
+
+- The image now carries the CoreX driver userspace: libcuda.so.1,
+  libixml.so and ixsmi are unpacked from the bundled driver installer into
+  /usr/local/corex. The first build ran only the SDK installer, so
+  `import torch` failed in the runtime with "libcuda.so.1: cannot open
+  shared object file".
+
 *2026-11-12 05:17:06*
 
 - First corex5.0.1 base image: Iluvatar CoreX 5.0.1 SDK and driver 5.0.1,

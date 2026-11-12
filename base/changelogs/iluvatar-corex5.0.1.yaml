@@ -31,6 +31,7 @@ tags:
         导致 runtime 中 `import torch` 报 "libcuda.so.1: cannot open shared
         object file"。
     upstream_prs: []
+    date: '2026-11-12T09:22:38.602Z'
   - reason: |-
       - First corex5.0.1 base image: Iluvatar CoreX 5.0.1 SDK and driver 5.0.1,
         CUDA header 260604 and CMake 3.31.8 on Ubuntu 24.04. This line succeeds
