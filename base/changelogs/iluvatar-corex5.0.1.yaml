@@ -20,6 +20,16 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - `libopenmpi3t64` provides the `libmpi.so.40` that corex 5.0.1's
+        `libnvshmem_host.so` needs — torch reaches it through `torch_nvshmem`
+        (`libtorch.so` and four more of its libraries carry the NEEDED entry),
+        so `import torch` fails in the runtime without it.
+    reason_zh: |-
+      - `libopenmpi3t64` 提供 corex 5.0.1 的 `libnvshmem_host.so` 所需的
+        `libmpi.so.40` —— torch 经 `torch_nvshmem` 访问它（`libtorch.so` 等五个
+        torch 库带该 NEEDED 条目），缺了它 runtime 中 `import torch` 失败。
+    upstream_prs: []
+  - reason: |-
       - The image now carries the CoreX driver userspace: libcuda.so.1,
         libixml.so and ixsmi are unpacked from the bundled driver installer into
         /usr/local/corex. The first build ran only the SDK installer, so
