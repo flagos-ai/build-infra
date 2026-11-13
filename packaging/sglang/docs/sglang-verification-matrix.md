@@ -69,7 +69,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 摩尔线程 | MUSA 4.3.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
 | 摩尔线程 | MUSA 5.2.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/92 | OPEN |
 | 曦望 | TANGRT 1.2.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/103 | OPEN |
-| 天数智芯 | COREX 4.4.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/105 | OPEN |
 
 <!-- /status-matrix:verification -->
 

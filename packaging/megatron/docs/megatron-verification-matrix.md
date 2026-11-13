@@ -194,11 +194,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 | 已合并 |
 | 曦望 | TANGRT 1.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/181 | 已合并 |
 | 清微智能 | TSM 260610 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/180 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
 
 <!-- /status-matrix:verification -->
 
