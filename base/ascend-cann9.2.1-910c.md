@@ -1,0 +1,92 @@
+## Prerequisites
+
+- **Architecture:** aarch64
+- **Chip models:** Ascend 910C
+- **Host driver:** 26.1.1
+- **Container toolkit** *(optional)*: Ascend-docker-runtime >= 6.0.RC3
+
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
+
+Explicitly installed; the version is the one baked into this image:
+
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `git` — 2.43.0
+- `libelf1`
+- `libpython3-dev` — 3.12.3
+- `make` — 4.3
+- `net-tools` — 2.10
+- `pciutils` — 3.10.0
+- `python3-pip` — 24.0+dfsg
+- `python3.12` — 3.12.3
+- `python3.12-dev` — 3.12.3
+- `unzip` — 6.0
+- `vim` — 9.1.0016
+
+### SDK components
+
+- CANN Toolkit 9.2.1 (aarch64)
+- CANN 910C Ops 9.2.1 (aarch64)
+- CANN NNAL 9.2.1 (aarch64)
+
+## Launch
+
+**With the container toolkit** *(optional)*:
+
+```bash
+docker run --rm -it \
+  --privileged \
+  --shm-size=1g \
+  -e ASCEND_VISIBLE_DEVICES=0,1 \
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.2.1-910c:2.3.0 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it \
+  --shm-size=1g \
+  --device /dev/davinci0 \
+  --device /dev/davinci1 \
+  --device /dev/davinci_manager \
+  --device /dev/devmm_svm \
+  --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+  -v /usr/local/dcmi:/usr/local/dcmi \
+  -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi \
+  harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.2.1-910c:2.3.0 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+npu-smi info
+```
+
+*Last updated: 2026-11-13 07:44:26 · `7ff9e0561ff4`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-11-13 00:45:50*
+
+- First delivery: CANN 9.2.1 — toolkit, the 910C (A3) ops package and
+  NNAL — on aarch64 ubuntu:24.04. Toolkit and NNAL are shared with the
+  910B line; only the ops package is chip-specific.
+- Carries python 3.12. The torch 2.13.0 / torch_npu 2.13.0 stack this
+  line exists for is cp312-only.
+- The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
+  time, so nothing has to be sourced inside the container.
