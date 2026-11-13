@@ -395,6 +395,52 @@ backends:
       # tsingmicro.
       wheel_tag: cp310-cp310-linux_x86_64
 
+  ppu:
+    containerfile: ppu
+    builder_image: flagtree-builder-ppu
+    # The backend's own node, same as every other row: these builds touch no
+    # device, but a refresh of every backend must not queue on one runner.
+    runson: ["self-hosted", "thead"]
+    disk_min_gb: 60
+    builder:
+      # Declared as data rather than as a second copy of amd's step: the stage is
+      # amd's -- bare ubuntu, LLVM through LLVM_SYSPATH, the shared triton deps.
+      # ppu is in FlagTree's default+extend codegen group, so the build compiles
+      # third_party/amd too and inherits its find_package(LLD), which is why the
+      # LLD files are asserted here. It does not inherit amd's 22.04 base: the
+      # vendor wheel is a 24.04 build already, so there is no older glibc floor
+      # to buy and no interpreter PPA to stage.
+      verify:
+        python: "3.12"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /usr/local/bin/patch-flagtree-version.py
+          # The find_package() contract third_party/amd makes and the header
+          # triton_amd.cc includes. Spelled out, not ${LLVM_SYSPATH}: the generic
+          # step quotes every path, so a variable would be asserted literally.
+          - /opt/llvm-f6ded0be-ubuntu-x64/include/lld/Common/Driver.h
+          - /opt/llvm-f6ded0be-ubuntu-x64/lib/cmake/lld/LLDConfig.cmake
+          - /opt/llvm-f6ded0be-ubuntu-x64/lib/cmake/mlir/MLIRConfig.cmake
+          # nvidia and amd are compiled alongside ppu, so setup.py copies their
+          # CUDA redists out of these caches; json is what proton and the PPU
+          # headers include.
+          - /root/.triton/json/include/nlohmann/json.hpp
+          - /opt/build-venv/bin/python3.12
+        dirs:
+          - /root/.triton/nvidia/cudart
+          - /root/.triton/nvidia/cupti
+    daily:
+      # The first main wheel was A/B'd against the vendor 0.7.0+ppu3.6 in the
+      # thead-ppu2.1.0 runtime: identical maxdiff on the nine-op sweep and on
+      # torch.compile.
+      enabled: true
+      dist_name: flagtree-ppu
+      version_base: "0.7.1"
+      # Upstream's main, which is where the ppu backend lives: there is no
+      # vendor-named branch for it, and no ppu tag on the 0.7.1 line yet.
+      ref: main
+      wheel_tag: cp312-cp312-linux_x86_64
+
   ascend-cann9.0.0:
     containerfile: ascend-cann9.0.0
     builder_image: flagtree-builder-ascend-cann9.0.0

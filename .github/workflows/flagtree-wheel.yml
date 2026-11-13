@@ -41,6 +41,7 @@ on:
           - metax
           - nvidia-cuda
           - amd
+          - ppu
           - iluvatar
           - sunrise
           - hcu
@@ -126,6 +127,7 @@ jobs:
             ascend-cann*) backend="$TARGET";                in_base=yes ;;
             iluvatar)     backend="iluvatar-corex4.5.0";    in_base=no  ;;
             amd)          backend="amd-rocm7.2.4";          in_base=no  ;;
+            ppu)          backend="thead-ppu2.1.0";         in_base=no  ;;
             hcu)          backend="hygon-dtk26.04";         in_base=no  ;;
             hcu-dtk2610)  backend="hygon-dtk26.10";         in_base=no  ;;
           esac

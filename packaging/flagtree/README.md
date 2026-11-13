@@ -25,6 +25,8 @@ The `nvidia-cuda` / `amd` / `metax` / `sunrise` / `iluvatar` / `enflame` /
 The `ascend-cann9.0.0` / `ascend-cann9.2.1` / `ascend-cann8.5.0` set's builder
 stage instead starts from **the backend's runtime image**, because FlagTree's
 Ascend build needs CANN on the build machine — see the section below.
+`ppu` is a plain Ubuntu **24.04**: its vendor wheel is a 24.04 build already, so
+there is no older floor to buy (see its section).
 
 | File         | Target             | Base                        |
 |--------------|--------------------|-----------------------------|
@@ -39,6 +41,7 @@ Ascend build needs CANN on the build machine — see the section below.
 | `tsingmicro` | FlagTree for Tsingmicro (TX8), builder + wheel | Ubuntu 22.04 + staged clang 22 |
 | `mthreads`   | FlagTree for Moore Threads (MUSA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `kunlunxin`  | FlagTree for Kunlunxin (XPU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `ppu`        | FlagTree for T-Head PPU 2.1.0, builder + wheel | Ubuntu 24.04 |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
 | `ascend-cann9.2.1` | FlagTree for Ascend, CANN 9.2.1 (aarch64 / cp312), builder + wheel | `flagos-runtime-ascend-cann9.2.1` |
 | `ascend-cann8.5.0` | FlagTree for Ascend, CANN 8.5.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann8.5.0` |
@@ -118,11 +121,11 @@ new coupling for the daily wheel installed anywhere else.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All thirteen have one. For `nvidia-cuda`, `amd`,
+into FlagTree's offline cache). All fifteen have one. For `nvidia-cuda`, `amd`,
 `metax`, `sunrise`, `iluvatar`, `enflame`, `hcu`, `hcu-dtk2610`, `tsingmicro`,
 `mthreads` and `kunlunxin`
-the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default;
-for the
+the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default,
+and for `ppu` from a bare `ubuntu:24.04` (see its section); for the
 ascend pair its cold value is the backend's runtime image, which is why
 `backends.yaml` marks those rows `base_image: runtime` and the builder line
 resolves their `BUILDER_IMAGE` from `generate_matrix.py --runtime` instead of
@@ -140,8 +143,8 @@ plugin's md5 prefix, which is what FlagTree compares it against) — or a `verif
 block, which is the same assertions as data: the interpreter, the executables,
 the paths. The block is rendered by one generic step, so a backend staged like
 its predecessors needs a row and no workflow step at all. `enflame`, `hcu`,
-`hcu-dtk2610`, `tsingmicro`, `mthreads` and `kunlunxin` are the six of those;
-the six named steps each say something a path list cannot.
+`hcu-dtk2610`, `tsingmicro`, `mthreads`, `kunlunxin` and `ppu` are the seven of
+those; the six named steps each say something a path list cannot.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
 
@@ -651,6 +654,53 @@ that is the design's — the nvidia payload `get_excluded_package_data()` drops,
 `configs.yaml` declares `flagtree_daily: flagtree-amd`, so
 `-e FLAGTREE_VERSION=latest` reaches the line from this backend's runtime image.
 
+## PPU builder (`ppu`)
+
+For provenance, and only that: the vendor's `0.7.0+ppu3.6` wheel on
+`flagos-pypi-thead` carries **no `Project-URL` at all**, so nothing in it names
+the commit it was built from.
+
+Not a glibc line, and so **not** a 22.04 build unlike every other bare-ubuntu
+stage: the vendor wheel is a 24.04 build itself — its `libtriton.so` carries
+`GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1)` and needs `GLIBC_2.38` /
+`GLIBCXX_3.4.32` — so there is no older floor to buy. This stage is a plain
+`ubuntu:24.04` with the distro's own python 3.12 in a venv at
+`/opt/build-venv` (24.04's interpreter is PEP 668 externally-managed, and every
+install here is a build tool), no deadsnakes PPA.
+
+**No PPU SDK is staged, and none is needed.** `third_party/ppu` compiles against
+libc/std headers only (its `acblas_*.h` declare the handful of HGGC types they
+name), nothing `find_package()`s a PPU component, and `$PPU_HOME` / `libhggc.so`
+/ `ppu-llc` are all resolved lazily at kernel-compile and launch time — on the
+node, where the SDK is.
+
+**What it does need is `amd`'s staging.** `ppu` is in FlagTree's
+default+extend codegen group, so `TRITON_CODEGEN_BACKENDS` is
+nvidia + amd + ppu: the build compiles `third_party/amd`, which
+`find_package(LLD REQUIRED CONFIG PATHS "${LLD_DIR}" NO_DEFAULT_PATH)`s and
+includes `lld/Common/Driver.h`; and `setup.py` copies the nvidia backend's CUDA
+redists out of `~/.triton/nvidia/{cudart,cupti}`. The stage therefore takes the
+same two inputs `amd` does — LLVM `f6ded0be` (which is also what
+`cmake/llvm-hash.txt` names on upstream's `main`) and
+`build-deps-triton_3.6.x-linux-x64.tar.gz`, whose `json/` also supplies the
+`nlohmann/json.hpp` proton and the PPU headers include.
+
+`TRITON_BUILD_PROTON=OFF`, as on `amd` / `sunrise` / `iluvatar`. `USE_FLAGCX=OFF`
+for the reason every row gives, and one more: `ppu` is not in FlagTree's
+`FLAGCX_SUPPORT_BACKENDS`, so the flagcx submodule is never fetched for it.
+
+**On the daily line.** The first `main` wheel was A/B'd in the
+`thead-ppu2.1.0` runtime against the vendor `0.7.0+ppu3.6`: identical `maxdiff`
+on the nine-op sweep and on `torch.compile` (`add`/`mul`/`relu` exact, the rest
+between 7e-09 and 8e-02 on both trees — the matmul gap is the reference
+matmul's own fp32 accumulation order, not a backend difference). The file delta
+is the design's: the vendor wheel carries the 15 `triton/profiler/*` entries
+that `TRITON_BUILD_PROTON=OFF` drops plus `triton/flagtune/runtime/graph_benchmark.py`,
+and this wheel carries main-tree additions the 0.7.0 tag predates
+(`triton/experimental/tle/...`, `triton/spec/metax/...`). `configs.yaml` declares
+`flagtree_daily: flagtree-ppu`, so `-e FLAGTREE_VERSION=latest` reaches the line
+from this backend's runtime image.
+
 ## Iluvatar builder (`iluvatar`)
 
 Same reason as `metax`: the vendor's own wheel is built on Ubuntu 24.04. Measured
@@ -992,6 +1042,10 @@ docker build --build-arg BUILDER_IMAGE=flagtree-builder-ascend-cann9.0.0:ci \
 # amd: bare ubuntu, no ROCm on the build machine.
 docker build -t flagtree-amd:0.7.0 -f amd .
 docker build --build-arg BUILDER_IMAGE=flagtree-builder-amd:ci -t flagtree-amd:0.7.0 -f amd .
+
+# ppu: bare ubuntu:24.04, no PPU SDK on the build machine.
+docker build -t flagtree-ppu:0.7.0+ppu3.6 -f ppu .
+docker build --build-arg BUILDER_IMAGE=flagtree-builder-ppu:ci -t flagtree-ppu:0.7.0+ppu3.6 -f ppu .
 ```
 
 Useful build args (see the Containerfile for the full list):
@@ -999,7 +1053,8 @@ Useful build args (see the Containerfile for the full list):
 - `FLAGTREE_VERSION` — FlagTree git branch/tag/sha to build; also the wheel version
   string (default `0.7.0` for `nvidia-cuda`, `0.7.0+amd3.6` for `amd`,
   `0.7.0+metax3.6` for `metax`,
-  `0.7.1a1+iluvatar3.6` for `iluvatar`, `0.7.0+sunrise3.6` for `sunrise`). This
+  `0.7.1a1+iluvatar3.6` for `iluvatar`, `0.7.0+sunrise3.6` for `sunrise`,
+  `0.7.0+ppu3.6` for `ppu`). This
   is the single version knob, and each default is the release the stack pins in
   `configs.yaml`: the wheel's version is what a client's `pip` ends up with, so
   the two are meant to agree.
@@ -1018,6 +1073,7 @@ Useful build args (see the Containerfile for the full list):
   `setup.py`). Set by no caller in this repo.
 - `BUILDER_IMAGE` — the staged builders (every Containerfile here has one). The
   image stage 1 builds on; defaults to `ubuntu:22.04` (the cold build) except on
+  `ppu`, which defaults to `ubuntu:24.04`, and on
   the ascend pair, whose cold base is the backend's runtime image and is therefore
   a registry ref. Pointing it at the published builder stage makes stage 1 a no-op
   — see the builder sections above. This is also the arg `flagtree-wheel.yml`'s
@@ -1042,7 +1098,7 @@ publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
 `flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin`,
-`flagtree-amd` and the ascend pair today. The release line
+`flagtree-amd`, `flagtree-ppu` and the ascend pair today. The release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
 
