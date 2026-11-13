@@ -98,7 +98,7 @@ rocm-smi
 
 *2026-11-13 07:28:41*
 
-镜像带有该后端的 daily 线发布名，因此 `-e FLAGTREE_VERSION=latest` 可在其上解析： 容器以 daily 索引上最新的 `flagtree-amd` wheel 启动，该版本领跑下一个 release。
+镜像带有该后端的 daily 线发布名，因此 `-e FLAGTREE_VERSION=latest` 可在其上解析：容器以 daily 索引上最新的 `flagtree-amd` wheel 启动，该版本领跑下一个 release。
 
 *2026-11-10 09:01:05*
 
