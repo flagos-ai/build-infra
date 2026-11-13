@@ -643,6 +643,14 @@ wheel. The measurements agree — the two `libtriton.so` differ by 2.5 MB out of
 ~891 MB and carry the same 8 debug sections. The 22.04 objdump gate still runs,
 so what the wheel may carry is bounded even at the default build type.
 
+**On the daily line.** The first `main` wheel was A/B'd against the vendor one in
+the `amd-rocm7.2.4` runtime (2026-11-13), the same way the tag build was before
+it: identical `maxdiff` on all nine ops and on `torch.compile`, and a file delta
+that is the design's — the nvidia payload `get_excluded_package_data()` drops,
+`triton/profiler`, and proton — rather than a difference in the amd code.
+`configs.yaml` declares `flagtree_daily: flagtree-amd`, so
+`-e FLAGTREE_VERSION=latest` reaches the line from this backend's runtime image.
+
 ## Iluvatar builder (`iluvatar`)
 
 Same reason as `metax`: the vendor's own wheel is built on Ubuntu 24.04. Measured
@@ -1033,9 +1041,8 @@ ascend pair record the source commit (see below).
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
-`flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin` and the ascend
-pair today (`flagtree-amd`'s row exists but is off — see its section). The
-release line
+`flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin`,
+`flagtree-amd` and the ascend pair today. The release line
 (`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
 `flagtree` to the vendor indexes.
 

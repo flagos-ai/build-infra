@@ -88,11 +88,7 @@ backends:
     builder:
       verify_stage: amd
     daily:
-      # Off until a `main` build has been through the backend's own nodes. The
-      # 0.7.0+amd3.6 tag build was A/B'd against the vendor wheel in the amd
-      # runtime (op sweep + torch.compile, both trees), which is what the
-      # Containerfile's gates encode; `main` is a different tree.
-      enabled: false
+      enabled: true
       dist_name: flagtree-amd
       version_base: "0.7.1"
       ref: main
