@@ -20,8 +20,8 @@
 # compiler is the SDK's own clang, so the SDK's clang + llvm tools (opt,
 # llvm-dis, llvm-as, llvm-nm) produce and validate the .bc. The .bc triple is
 # bi-iluvatar-ilurt, not nvptx64, so the nvidia f6ded0be clang constraint does
-# not apply; the SDK's clang (18.1.8 on 4.4.0, 22.1.0git on 4.5.0) and its llvm
-# tools link at most GLIBC_2.16, so the whole toolchain is 22.04-safe.
+# not apply; the SDK's clang and its llvm tools link at most GLIBC_2.16, so the
+# whole toolchain is 22.04-safe.
 
 FROM ubuntu:22.04
 
@@ -77,7 +77,7 @@ RUN set -eux; \
     rm -rf /tmp/partial_install_cuda_header /cuda-header.zip
 
 # The SDK, one .run installer per row. sdk_version is the installer's own
-# spelling (4.4.0, or 4.5.0.20260804) rather than the key's, so the two rows
+# spelling (4.5.0.20260804, or 5.0.1) rather than the key's, so the two rows
 # share the recipe while each fetches its own filenames.
 ENV SDK_INSTALLER="corex-installer-linux64-${SDK_VERSION}_x86_64_10.2.run" \
     CMAKE_PKG="cmake-3.31.8+corex.${SDK_VERSION}-linux-x86_64.sh" \
@@ -94,13 +94,9 @@ RUN set -eux; \
     rm -f /cmake.sh; \
     /opt/cmake-corex/bin/cmake --version
 
-# The driver step is gated on the toolkit's own answer rather than a version
-# string: 4.4.0's toolkit ships libcuda.so.1, 4.5.0's does not (it lives in
-# the driver installer) — which is why base/iluvatar-corex4.5.0 extracts the
-# driver's userspace (libcuda/libixml/ixsmi) while base/iluvatar-corex4.4.0
-# has no such step. The builder mirrors that: it fetches and extracts the
-# driver only when the SDK just installed came without libcuda.so.1, so the
-# image's libcuda comes from the same place base/<key>'s does either way.
+# Gated on the toolkit's own answer rather than a version string: the 4.5.0 and
+# 5.0.1 toolkits ship no libcuda.so.1 (it lives in the driver installer), and
+# base/<key> extracts it from there — this mirrors that, either way.
 RUN set -eux; \
     if [ ! -e /usr/local/corex/lib/libcuda.so.1 ]; then \
         curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \

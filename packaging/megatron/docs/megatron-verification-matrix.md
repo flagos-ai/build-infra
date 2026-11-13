@@ -54,7 +54,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.9.10 | ⬜ | ⬜ |
 | 燧原 | TOPS 1.10.6 | ⬜ | ⬜ |
 | 海光 | DTK 26.04 | ⬜ | ⬜ |
-| 天数智芯 | COREX 4.4.0 | ⬜ | ⬜ |
 | 天数智芯 | COREX 4.5.0 | ⬜ | ⬜ |
 | 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ⬜ |
@@ -91,7 +90,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.9.10 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 燧原 | TOPS 1.10.6 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 海光 | DTK 26.04 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 天数智芯 | COREX 4.4.0 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 天数智芯 | COREX 4.5.0 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
@@ -172,11 +170,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 燧原 | TOPS 1.10.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/131 | 已合并 |
 | 海光 | DTK 26.04 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/122 | 已合并 |
 | 海光 | DTK 26.04 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
-| 天数智芯 | COREX 4.4.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
 | 天数智芯 | COREX 4.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
 | 天数智芯 | COREX 4.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
 | 天数智芯 | COREX 4.5.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
@@ -238,7 +231,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
 | DTK 26.04 | ✅ | ✅ | ✅ | — |
-| COREX 4.4.0 | ✅ | ✅ | ✅ | — |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | — |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | — |
@@ -281,7 +273,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | DTK 26.04 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
-| COREX 4.4.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |
 | COREX 4.5.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |
 | XRE 5.37.1 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |

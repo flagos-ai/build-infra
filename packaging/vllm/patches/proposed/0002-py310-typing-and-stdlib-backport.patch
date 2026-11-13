@@ -526,8 +526,7 @@
 # torch 2.7.1 is a separate, LOWER floor that has nothing to do with Python:
 # vllm/ir/tolerances.py:32 references torch.float4_e2m1fn_x2 at module level,
 # and that dtype first appears in torch 2.8. The file is byte-identical across
-# 0.24.0 / 0.28.0 / 0.32.0, so cambricon-neuware4.4.3 and iluvatar-corex4.4.0
-# already pay it today — the plugin covers it at vllm_fl/__init__.py:9-19
+# 0.24.0 / 0.28.0 / 0.32.0, so cambricon-neuware4.4.3 already pays it today — the plugin covers it at vllm_fl/__init__.py:9-19
 # (`_torch.float4_e2m1fn_x2 = _torch.uint8`), and it lands before vllm.ir: a
 # vllm.platform_plugins entry point running the same sentinel was measured to
 # clear the floor on py3.10 + torch 2.7.1, EngineCore and api_server both.

@@ -89,7 +89,7 @@ platform tag（`py3-none-any`），不伪造 `cp38-abi3-manylinux_2_35_x86_64`�
 - **缓存干扰** —— ⬜：未系统测试 pip 缓存是否跳过版本比较
 - **跨后端正式验证矩阵** —— ✅ hygon + iluvatar：两者均直接复用 mthreads 打的
   `+flagos` wheel，单步安装零泄漏（[§2.4](backends/hygon.md)、
-  [§2.5](backends/iluvatar.md)）——两次跨后端实证
+  [§2.12](backends/iluvatar.md)）——两次跨后端实证
 
 **若跨后端回归发现 pip 选错版本，备选：** 改用 `0.20.2.post1`（非本地
 版本，排序明确高于 `0.20.2`）。
@@ -121,10 +121,9 @@ wheel 误标成 `py3-none-any`，恰好因 5 个后端都是 cp310 x86_64 而未
 > （vllm + 匹配的 xgrammar/opencv/compressed-tensors）同索引原子更新，无跨索引
 > 错配。代价仅是 6.7MB 的通用 vllm wheel 在各 vendor 索引各存一份——微不足道。
 
-**已实证（✅ hygon [§2.4](backends/hygon.md)、iluvatar [§2.5](backends/iluvatar.md)）：**
+**已实证（✅ hygon [§2.4](backends/hygon.md)、iluvatar [§2.12](backends/iluvatar.md)）：**
 mthreads 上打包上传到 `flagos-pypi-mthreads` 的三个 `+flagos` wheel，在 Hygon
-与 iluvatar 上原样单步安装、零 torch/numpy/triton 泄漏（iluvatar 上 wheel
-安装本身成功，推理另因厂商工具链过旧受阻，与 wheel 通用性无关）。技术前提
+与 iluvatar 上原样单步安装、零 torch/numpy/triton 泄漏。技术前提
 （empty wheel 与后端无关）成立；剩下的是**上传自动化**，非可行性问题。
 
 **待实现（⬜）：**
