@@ -83,23 +83,10 @@ npu-smi info
 
 *2026-11-13 00:45:50*
 
-- First delivery: CANN 9.2.1 — the toolkit, the 910C (A3) ops package and
-  NNAL — on aarch64 ubuntu:24.04.
-- Only the ops package is chip-specific: this variant takes the `A3` token
-  rather than `910b`; toolkit and NNAL are shared with the 910B line of
-  the same CANN version.
-- Carries python 3.12, matching the 910B row: the torch 2.13 stack this
-  line exists for is cp312-only, and noble ships 3.12 so no PPA is needed.
-- The 910C build nodes' docker 20.10.8 seccomp profile blocks `clone3`, so
-  the apt `Post-Invoke` hooks are dropped; the build also takes the
-  runner's proxy as build arguments, since these nodes have no direct
-  egress.
+- First delivery: CANN 9.2.1 — toolkit, the 910C (A3) ops package and
+  NNAL — on aarch64 ubuntu:24.04. Toolkit and NNAL are shared with the
+  910B line; only the ops package is chip-specific.
+- Carries python 3.12. The torch 2.13.0 / torch_npu 2.13.0 stack this
+  line exists for is cp312-only.
 - The SDK environment is captured into `/etc/profile.d/vendor.sh` at build
   time, so nothing has to be sourced inside the container.
-- The three SDK packages come off the Nexus internal endpoint
-  (`http://resource-inner.flagos.net:20800`): `resource.flagos.net` does
-  not resolve on hw114/hw115, and the internal port is plain HTTP.
-- That name lives only in the nodes' `/etc/hosts`, which build containers
-  do not inherit, so `build-config.yml` `internal_hosts` makes
-  `build_base.py` pass it in as `--add-host` with the address resolved on
-  the runner.

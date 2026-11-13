@@ -106,9 +106,6 @@ npu-smi info
 *2026-11-13 00:45:50*
 
 - 首次交付：CANN 9.2.1 —— toolkit、910C（A3） ops 包和 NNAL —— 基于 aarch64 ubuntu:24.04。
-- 只有 ops 包与芯片相关：该变体取 `A3` 标记而非 `910b`；toolkit 和 NNAL 与同一 CANN 版本的 910B 线共用。
-- 携带 python 3.12，与 910B 行一致：本线服务 torch 2.13 栈，而该栈只有 cp312；noble 自带 3.12，无需 PPA。
-- 910C 构建节点的 docker 20.10.8 seccomp profile 会挡 `clone3`，因此移除 apt 的 `Post-Invoke` hook；构建还把 runner 的代理作为 build arg 传入，因为这些节点没有直连出口。
+  toolkit 与 NNAL 和 910B 线共用，只有 ops 包与芯片相关。
+- 携带 python 3.12。本线服务 torch 2.13.0 / torch_npu 2.13.0。
 - SDK 环境在构建时固化进 `/etc/profile.d/vendor.sh`，容器内无需 source。
-- 三个 SDK 安装包改从 Nexus 内网端点取（`http://resource-inner.flagos.net:20800`）：`resource.flagos.net` 在 hw114/hw115 上解析不到，内网端口走明文 HTTP。
-- 该名字只存在于节点的 `/etc/hosts`，而构建容器不继承它，因此 `build-config.yml` 的 `internal_hosts` 让 `build_base.py` 以 `--add-host` 传入，地址在 runner 上解析。
