@@ -94,7 +94,6 @@ BACKENDS = [
     "enflame-tops1.9.10",
     "enflame-tops1.10.6",
     "hygon-dtk26.04",
-    "iluvatar-corex4.4.0",
     "iluvatar-corex4.5.0",
     "kunlunxin-xre5.37.1",
     "metax-maca3.7.2.1",

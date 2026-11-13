@@ -94,13 +94,9 @@ RUN set -eux; \
     rm -f /cmake.sh; \
     /opt/cmake-corex/bin/cmake --version
 
-# The driver step is gated on the toolkit's own answer rather than a version
-# string: 4.4.0's toolkit ships libcuda.so.1, 4.5.0's does not (it lives in
-# the driver installer) — which is why base/iluvatar-corex4.5.0 extracts the
-# driver's userspace (libcuda/libixml/ixsmi) while base/iluvatar-corex4.4.0
-# has no such step. The builder mirrors that: it fetches and extracts the
-# driver only when the SDK just installed came without libcuda.so.1, so the
-# image's libcuda comes from the same place base/<key>'s does either way.
+# Gated on the toolkit's own answer rather than a version string: the 4.5.0 and
+# 5.0.1 toolkits ship no libcuda.so.1 (it lives in the driver installer), and
+# base/<key> extracts it from there — this mirrors that, either way.
 RUN set -eux; \
     if [ ! -e /usr/local/corex/lib/libcuda.so.1 ]; then \
         curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \

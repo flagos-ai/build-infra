@@ -358,10 +358,10 @@ the build would otherwise run where there is no clang and fail one stage later, 
 
 ## To verify before this is relied on
 
-- **PEP 440 normalization, per backend key** — whether `iluvatar-corex4.4.0` has to be pinned as
-  `+iluvatar.corex4.4.0`. The normalized string *is* the pin's value, so it has to be measured
-  rather than assumed. `iluvatar_corex`'s underscore already broke the deb name path once;
-  `flagcx-config.py` carries that note.
+- **PEP 440 normalization, per backend key** — measured on the published rows: the label is
+  published exactly as `wheel_label()` spells it (`+corex5.0.1`, `+cann9.2.1`), and nothing
+  downstream sees the raw backend key. `iluvatar_corex`'s underscore already broke the deb name
+  path once; `flagcx-config.py` carries that note.
 - **Whether Nexus, or whatever fronts it, decodes a literal `+` in a filename to a space.** Private
   registry, so the public PyPI rule does not bind it — but it has to be observed.
 - **The runtime layer, if a wheel's `.so` is ever asked to cross a vendor's SDKs.** Whether one
