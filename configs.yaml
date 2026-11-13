@@ -68,7 +68,7 @@
 #                        (one per CANN line), hygon's projects are `flagtree-hcu`
 #                        (26.04) and `flagtree-hcu-dtk2610` (26.10) after
 #                        FlagTree's own backend name, and cambricon /
-#                        spacemit / thead have no daily line at all. Absent =
+#                        spacemit have no daily line at all. Absent =
 #                        no daily line: `latest` refuses rather than guessing a
 #                        name. The spelling here is what pip is handed, and pip
 #                        canonicalizes it itself (PEP 503), so it need not match
@@ -1328,6 +1328,7 @@ vendors:
       # VENDOR_MAP) has no PPU backend, so there is no cpp wheel to build.
       triton: triton==3.5.0+v0.2.0.ppu2.1.1
       flagtree: flagtree==0.7.0+ppu3.6
+      flagtree_daily: flagtree-ppu
       deps:
         - torch==2.10.0+v0.1.0.ppu2.1.1
         # torchvision/torchaudio are T-Head's real cp312 wheels, transloaded
