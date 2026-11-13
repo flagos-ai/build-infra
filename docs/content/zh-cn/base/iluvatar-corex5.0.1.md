@@ -37,14 +37,15 @@ title: "iluvatar-corex5.0.1"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.2
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `unzip` — 6.0
-- `vim` — 9.1.0016
+- `build-essential`
+- `ca-certificates`
+- `curl`
+- `g++`
+- `gcc`
+- `git`
+- `libopenmpi3t64`
+- `unzip`
+- `vim`
 
 ### SDK 组件
 
@@ -85,8 +86,6 @@ docker run --rm -it \
 ```bash
 ixsmi
 ```
-
-*更新时间: 2026-11-12 11:58:07 · `69c87bb1b93f`*
 
 ## 更新日志
 

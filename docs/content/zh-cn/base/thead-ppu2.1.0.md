@@ -37,10 +37,10 @@ title: "thead-ppu2.1.0"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `cmake` — 3.28.3
-- `libjpeg-turbo8` — 2.1.5
-- `libpng16-16t64` — 1.6.43
-- `libpython3-dev` — 3.12.3
+- `cmake`
+- `libjpeg-turbo8`
+- `libpng16-16t64`
+- `libpython3-dev`
 
 ### SDK 组件
 
@@ -67,8 +67,6 @@ docker run --rm -it \
 ```bash
 ppu-smi
 ```
-
-*更新时间: 2026-11-11 20:26:55 · `fa9555c212ea`*
 
 ## 更新日志
 
