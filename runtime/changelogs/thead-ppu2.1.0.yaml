@@ -31,6 +31,7 @@ tags:
       `-e FLAGTREE_VERSION=latest` 可在其上解析：容器以 daily 索引上最新的
       `flagtree-ppu` wheel 启动，该版本领跑下一个 release。
     upstream_prs: []
+    date: '2026-11-13T13:46:46.969Z'
   - reason: |-
       - Adds torchvision 0.25.0+v0.1.0.ppu2.1.1 and torchaudio
         2.10.0+v0.1.0.ppu2.1.1 to the python 3.12 closure, so the PPU runtime
