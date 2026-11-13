@@ -205,6 +205,7 @@ vendors:
       # Bundles triton 3.6.0: there is no amd3.7 FlagTree tag yet, and torch
       # 2.13's floor is 3.6 (_TRITON_MINIMUM_VERSION_MINOR), so the two hold.
       flagtree: flagtree==0.7.0+amd3.6
+      flagtree_daily: flagtree-amd
       env:
         base:
           # Mirrors ENV from base image. No HIP_VISIBLE_DEVICES: HIP 7.2 takes
