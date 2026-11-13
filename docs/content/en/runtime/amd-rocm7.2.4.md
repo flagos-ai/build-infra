@@ -96,6 +96,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-13 07:28:41*
+
+The image carries this backend's daily-line distribution name, so `-e FLAGTREE_VERSION=latest` resolves on it: the container starts on the newest `flagtree-amd` wheel from the daily index, which leads the next release.
+
 *2026-11-10 09:01:05*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). Nothing else about the image changes.

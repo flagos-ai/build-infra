@@ -96,6 +96,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-13 07:28:41*
+
+镜像带有该后端的 daily 线发布名，因此 `-e FLAGTREE_VERSION=latest` 可在其上解析： 容器以 daily 索引上最新的 `flagtree-amd` wheel 启动，该版本领跑下一个 release。
+
 *2026-11-10 09:01:05*
 
 重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
