@@ -593,6 +593,10 @@ vendors:
       python: "3.12"
       cmake_backend: NPU
       triton: triton==3.6.0
+      # hw114/hw115, which build this row, reach the Nexus by its inner name
+      # only. Same repository paths, plain HTTP on 20800.
+      pypi_base: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-{vendor}/simple"
+      pypi_daily: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-daily/simple"
       flagtree: flagtree==0.7.1a1+ascend3.5
       flagtree_daily: flagtree-ascend-cann9-2-1
       triton_post_install:

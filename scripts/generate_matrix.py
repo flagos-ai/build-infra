@@ -156,8 +156,6 @@ def _runtime_matrix(
     runtime_prefix = prefixes.get("runtime", "flagos-runtime")
 
     stack_version = configs.get("version", "latest")
-    pypi_base_tpl = configs.get("pypi_base", "")
-    pypi_daily = configs.get("pypi_daily", "")
     mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
     flaggems_ver = configs.get("flaggems", "")
 
@@ -176,7 +174,12 @@ def _runtime_matrix(
             if host else f"flagos-runtime-{name}:{stack_version}"
         )
 
-        # Per-backend build args
+        # Per-backend build args. A row overrides the global index keys when its
+        # build nodes reach a different Nexus than the public one.
+        flagos_pypi = (
+            backend_info.get("pypi_base") or configs.get("pypi_base", "")
+        ).format(vendor=vendor)
+        daily_pypi = backend_info.get("pypi_daily") or configs.get("pypi_daily", "")
         deps = " ".join(backend_info.get("deps", []))
         cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
         cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
@@ -231,8 +234,8 @@ def _runtime_matrix(
             "flaggems_version": flaggems_ver,
             "base_image": base_img,
             "python_version": backend_info.get("python", "3.12"),
-            "flagos_pypi": pypi_base_tpl.format(vendor=vendor) if pypi_base_tpl else "",
-            "daily_pypi": pypi_daily,
+            "flagos_pypi": flagos_pypi,
+            "daily_pypi": daily_pypi,
             "extra_pypi": mirror,
             "deps": deps,
             "cpp_extra": cpp_extra,

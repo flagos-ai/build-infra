@@ -40,6 +40,11 @@ from pathlib import Path
 
 from version import image_version
 
+# The runtime build needs the same --add-host lookup as build_base.py: a backend
+# whose Nexus name lives only in its nodes' /etc/hosts is invisible inside a
+# build container, which inherits the daemon's resolv.conf but not its hosts.
+from build_base import internal_hosts
+
 import yaml
 
 
@@ -183,8 +188,10 @@ def resolve_build_args(
 ) -> dict[str, str]:
     """Resolve all docker build-arg values for a given backend."""
 
-    pypi_base = configs.get("pypi_base", "")
-    pypi_daily = configs.get("pypi_daily", "")
+    # A row overrides the global index keys when its build nodes reach a
+    # different Nexus than the public one.
+    pypi_base = backend_info.get("pypi_base") or configs.get("pypi_base", "")
+    pypi_daily = backend_info.get("pypi_daily") or configs.get("pypi_daily", "")
     mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
     # Dependencies: explicit vendor packages from configs.yaml deps: (torch,
@@ -327,6 +334,7 @@ def main():
     }
 
     cmd = ["docker", "build"]
+    cmd += internal_hosts(repo_root, f"{vendor}-{backend}")
     for key, value in build_args.items():
         cmd.extend(["--build-arg", f"{key}={value}"])
     for key, value in labels.items():
