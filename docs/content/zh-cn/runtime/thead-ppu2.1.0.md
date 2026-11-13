@@ -85,6 +85,10 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-13 13:46:46*
+
+镜像带有该后端的 daily 线发布名，因此 `-e FLAGTREE_VERSION=latest` 可在其上解析：容器以 daily 索引上最新的 `flagtree-ppu` wheel 启动，该版本领跑下一个 release。
+
 *2026-11-11 12:06:55*
 
 - python 3.12 闭包中加入 torchvision 0.25.0+v0.1.0.ppu2.1.1 与 torchaudio

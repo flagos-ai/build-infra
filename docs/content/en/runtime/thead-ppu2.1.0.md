@@ -85,6 +85,10 @@ ppu-smi
 
 ### 2.3.0
 
+*2026-11-13 13:46:46*
+
+The image carries this backend's daily-line distribution name, so `-e FLAGTREE_VERSION=latest` resolves on it: the container starts on the newest `flagtree-ppu` wheel from the daily index, which leads the next release.
+
 *2026-11-11 12:06:55*
 
 - Adds torchvision 0.25.0+v0.1.0.ppu2.1.1 and torchaudio
