@@ -20,8 +20,8 @@
 # compiler is the SDK's own clang, so the SDK's clang + llvm tools (opt,
 # llvm-dis, llvm-as, llvm-nm) produce and validate the .bc. The .bc triple is
 # bi-iluvatar-ilurt, not nvptx64, so the nvidia f6ded0be clang constraint does
-# not apply; the SDK's clang (18.1.8 on 4.4.0, 22.1.0git on 4.5.0) and its llvm
-# tools link at most GLIBC_2.16, so the whole toolchain is 22.04-safe.
+# not apply; the SDK's clang and its llvm tools link at most GLIBC_2.16, so the
+# whole toolchain is 22.04-safe.
 
 FROM ubuntu:22.04
 
@@ -77,7 +77,7 @@ RUN set -eux; \
     rm -rf /tmp/partial_install_cuda_header /cuda-header.zip
 
 # The SDK, one .run installer per row. sdk_version is the installer's own
-# spelling (4.4.0, or 4.5.0.20260804) rather than the key's, so the two rows
+# spelling (4.5.0.20260804, or 5.0.1) rather than the key's, so the two rows
 # share the recipe while each fetches its own filenames.
 ENV SDK_INSTALLER="corex-installer-linux64-${SDK_VERSION}_x86_64_10.2.run" \
     CMAKE_PKG="cmake-3.31.8+corex.${SDK_VERSION}-linux-x86_64.sh" \

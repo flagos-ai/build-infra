@@ -210,10 +210,10 @@ its own `-DUSE_ILUVATAR_ADAPTOR -DFLAGCX_COMM_TRAITS_DEFAULT` — iluvatar has n
 to spell, so there is no flag to pass and `FLAGCX_BITCODE_ADAPTOR_FLAGS` is never read for it. The
 compiler is the SDK's own clang (`COREX_CLANG ?= $(DEVICE_HOME)/bin/clang`) and the validation is
 its `llvm-dis`/`llvm-as`/`opt`/`llvm-nm`, all resolved from PATH, so the nvidia clang/LLVM 22 pin
-does not apply: the SDK's clang is 18.1.8 on 4.4.0 and 22.1.0git on 4.5.0, and both (with their
-llvm tools) link at most GLIBC_2.16. The `.bc` triple is `bi-iluvatar-ilurt`, not
-`nvptx64-nvidia-cuda`, so an iluvatar `.bc` is not flagtree-consumable — the f6ded0be snapshot
-constraint (which exists to satisfy flagtree's `parseIRFile` reader) is therefore moot on this row.
+does not apply: the SDK's clang, and its llvm tools, link at most GLIBC_2.16. The `.bc` triple is
+`bi-iluvatar-ilurt`, not `nvptx64-nvidia-cuda`, so an iluvatar `.bc` is not flagtree-consumable —
+the f6ded0be snapshot constraint (which exists to satisfy flagtree's `parseIRFile` reader) is
+therefore moot on this row.
 
 **Nothing goes stale.** The builder is self-contained, so a rebuilt runtime does not stale it the
 way it staled the runtime-based builder — the image records no runtime digest. The floor the wheel

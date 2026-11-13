@@ -625,9 +625,9 @@ iluvatar-corex4.5.0:
   # whether it accepts fedora or openEuler is the one thing left to try.
   rpm: {enabled: false, blocked_by: installer-reads-os-release}
   wheel: {enabled: true}
-  # Same 22.04 builder as the 4.4.0 row, for the same reason, plus bitcode.
-  # sdk_version is the installer's own spelling (4.5.0.20260804), not the
-  # key's: the recipe derives the installer/driver/cmake filenames from it.
+  # 22.04 for the wheel's glibc floor, and because this row also ships
+  # bitcode. sdk_version is the installer's own spelling (4.5.0.20260804), not
+  # the key's: the recipe derives the installer/driver/cmake filenames from it.
   builder:
     enabled: true
     containerfile: Containerfile.builder-vendor-iluvatar
