@@ -31,11 +31,6 @@ tags:
         ascend build that matches python 3.12; triton 3.6.0 with its
         triton_ascend 3.6.0 overlay sits beside it in /opt/triton as the vendor
         fallback, switched with `compiler triton`.
-      - Every wheel and the uv/setuptools fetches come off the Nexus internal
-        endpoint (`http://resource-inner.flagos.net:20800`) instead of
-        resource.flagos.net, which does not resolve on this row's build nodes
-        (hw114/hw115). The repository paths are unchanged; this row's
-        configs.yaml `nexus:` selects the host.
     reason_zh: |-
       - 该后端 runtime 镜像的首次发布。它在 CANN 9.2.1 910C 基础镜像之上叠加了 python 3.12 的
         torch 闭包 —— torch 2.13.0+cpu、torch-npu 2.13.0、torchvision 0.28.0、
@@ -44,8 +39,4 @@ tags:
       - FlagTree 是默认编译器，版本 0.7.1a1+ascend3.5 —— 与 python 3.12 匹配的已发布
         ascend 构建；triton 3.6.0 及其 triton_ascend 3.6.0 覆盖层安装在 /opt/triton，
         作为厂商侧回退，用 `compiler triton` 切换。
-      - 所有 wheel 以及 uv/setuptools 的下载都改从 Nexus 内网端点
-        （`http://resource-inner.flagos.net:20800`）获取，而不是 resource.flagos.net ——
-        后者在该行的构建节点（hw114/hw115）上解析不到。仓库路径不变；
-        由该行 configs.yaml 的 `nexus:` 选择主机。
     upstream_prs: []

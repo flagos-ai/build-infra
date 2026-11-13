@@ -593,12 +593,8 @@ vendors:
       python: "3.12"
       cmake_backend: NPU
       triton: triton==3.6.0
-      # hw114/hw115 build this row and cannot reach resource.flagos.net: the
-      # name does not resolve there, and the only route to the public host is
-      # the node proxy, which stalls at a few KB/s. Their Nexus is the same one
-      # on the inner name, plain HTTP on 20800, at LAN speed. Overrides the
-      # global index keys for this row only; the filestore fetches and pip's
-      # trusted host are derived from whichever index a row ends up with.
+      # hw114/hw115, which build this row, reach the Nexus by its inner name
+      # only. Same repository paths, plain HTTP on 20800.
       pypi_base: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-{vendor}/simple"
       pypi_daily: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-daily/simple"
       flagtree: flagtree==0.7.1a1+ascend3.5
