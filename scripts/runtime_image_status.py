@@ -125,6 +125,10 @@ RUNTIME_BACKEND_KEYS = (
     "flagtree",
     "triton",
     "triton_post_install",
+    # A row can override the global index keys with a Nexus only its build
+    # nodes reach, so these are per-backend runtime inputs too.
+    "pypi_base",
+    "pypi_daily",
 )
 
 

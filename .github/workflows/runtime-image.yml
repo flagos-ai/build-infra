@@ -229,10 +229,18 @@ jobs:
             fi
           fi
 
+          # Names a build node carries only in its /etc/hosts (build-config.yml
+          # internal_hosts). A build container inherits the daemon's
+          # resolv.conf but not its /etc/hosts, so the inner Nexus name has to
+          # be handed to docker explicitly. Empty where no entry exists, which
+          # is every backend but the 910C pair.
+          add_host_args="$(PYTHONPATH=scripts python3 -c "from pathlib import Path; from build_base import internal_hosts; print(' '.join(internal_hosts(Path('.'), '${{ matrix.name }}')))")"
+
           docker build \
             ${no_cache_arg} \
             ${label_args} \
             ${proxy_args} \
+            ${add_host_args} \
             --build-arg "BASE_IMAGE=${{ matrix.base_image }}" \
             --build-arg "PYTHON_VERSION=${{ matrix.python_version }}" \
             --build-arg "FLAGOS_PYPI=${{ matrix.flagos_pypi }}" \

@@ -86,12 +86,21 @@ ARG no_proxy
 ARG DEBIAN_FRONTEND=noninteractive
 
 # ── Install uv (arch-aware, from internal filestore) ──────────
-RUN curl -LsSf "https://resource.flagos.net/repository/flagos-filestore/utils/uv-$(uname -m)-0.11.30-linux-gnu.tar.gz" \
+# The filestore and the PyPI indexes are one Nexus, so the host is taken from
+# this row's index instead of being named here: a row whose build nodes reach a
+# different Nexus (configs.yaml pypi_base) carries the filestore with it.
+RUN _nexus="${FLAGOS_PYPI%%/repository/*}" \
+    && curl -LsSf "${_nexus}/repository/flagos-filestore/utils/uv-$(uname -m)-0.11.30-linux-gnu.tar.gz" \
     | tar xz -C /usr/local/bin --strip-components=1
 
-# ── CPython mirror — uv downloads standalone CPython from filestore
-# instead of GitHub (much faster from CN runners).
-ENV UV_PYTHON_INSTALL_MIRROR=https://resource.flagos.net/repository/flagos-filestore/uv-python
+# ── pip config: trust this row's Nexus ────────────────────────
+# pip ignores an index it has not been told to trust, and a Nexus reached over
+# plain HTTP is dropped without this. Set once as config because every install
+# below talks to that one host; an https row writes no file and is unaffected.
+RUN _nexus="${FLAGOS_PYPI%%/repository/*}" \
+    && case "${_nexus}" in \
+         http://*) printf '[global]\ntrusted-host = %s\n' "${_nexus#*://}" > /etc/pip.conf ;; \
+       esac
 
 # ── uv package index — routes `uv venv --seed` (pip/setuptools/wheel)
 # to the CN mirror instead of PyPI.org. This is uv's ONLY package-index
@@ -110,7 +119,8 @@ ENV UV_DEFAULT_INDEX=${EXTRA_PYPI} \
 # Python is installed by the vendor SDK and may not match the version
 # we need; runtime must control its own Python.
 # As a side effect, ~/.local/share/uv always exists for stage 2 COPY.
-RUN uv python install "${PYTHON_VERSION}" --python-preference only-managed -q
+RUN UV_PYTHON_INSTALL_MIRROR="${FLAGOS_PYPI%%/repository/*}/repository/flagos-filestore/uv-python" \
+    uv python install "${PYTHON_VERSION}" --python-preference only-managed -q
 
 # ── Create virtual environment ─────────────────────────────────
 RUN uv venv /flagos --python ${PYTHON_VERSION} --relocatable --seed
@@ -251,7 +261,6 @@ RUN _installed=1; \
     for i in 1 2 3; do \
       if PIP_INDEX_URL="${FLAGOS_PYPI}" \
          PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
-         PIP_TRUSTED_HOST="resource.flagos.net" \
          pip install --no-cache-dir --pre \
         "flag_gems==${FLAGGEMS_VERSION}"; then \
         _installed=0; break; \
@@ -262,7 +271,6 @@ RUN _installed=1; \
     if [ -n "${CPP_EXTRA}" ]; then \
       PIP_INDEX_URL="${FLAGOS_PYPI}" \
       PIP_EXTRA_INDEX_URL="${DAILY_PYPI} ${EXTRA_PYPI}" \
-      PIP_TRUSTED_HOST="resource.flagos.net" \
       pip install --no-cache-dir --pre \
         "flag-gems-${CPP_EXTRA}==${FLAGGEMS_VERSION}" 2>/dev/null \
         && echo "cpp extension ${CPP_EXTRA} installed" \
@@ -345,7 +353,11 @@ RUN mkdir -p /etc/flagos \
     && if [ -n "${FLAGOS_PYPI}" ]; then printf '%s\n' "${FLAGOS_PYPI}" > /etc/flagos/vendor-index; fi \
     && if [ -n "${DAILY_PYPI}" ]; then printf '%s\n' "${DAILY_PYPI}" > /etc/flagos/daily-index; fi \
     && if [ -n "${EXTRA_PYPI}" ]; then printf '%s\n' "${EXTRA_PYPI}" > /etc/flagos/mirror-index; fi \
-    && if [ -n "${FLAGTREE_DAILY_PKG}" ]; then printf '%s\n' "${FLAGTREE_DAILY_PKG}" > /etc/flagos/flagtree-daily; fi
+    && if [ -n "${FLAGTREE_DAILY_PKG}" ]; then printf '%s\n' "${FLAGTREE_DAILY_PKG}" > /etc/flagos/flagtree-daily; fi \
+    && _nexus="${FLAGOS_PYPI%%/repository/*}" \
+    && case "${_nexus}" in \
+         http://*) printf '[global]\ntrusted-host = %s\n' "${_nexus#*://}" > /etc/pip.conf ;; \
+       esac
 
 # ── The venv's own pins, for the in-container FlagGems install ──
 # After the /flagos COPY above, so pip freeze sees the final venv. It holds what
