@@ -48,3 +48,4 @@ tags:
       - 三个 SDK 安装包改从 Nexus 内网端点取（`http://resource-inner.flagos.net:20800`）：`resource.flagos.net` 在 hw114/hw115 上解析不到，内网端口走明文 HTTP。
       - 该名字只存在于节点的 `/etc/hosts`，而构建容器不继承它，因此 `build-config.yml` 的 `internal_hosts` 让 `build_base.py` 以 `--add-host` 传入，地址在 runner 上解析。
     upstream_prs: []
+    date: '2026-11-13T00:45:50.195Z'
