@@ -40,3 +40,4 @@ tags:
         ascend 构建；triton 3.6.0 及其 triton_ascend 3.6.0 覆盖层安装在 /opt/triton，
         作为厂商侧回退，用 `compiler triton` 切换。
     upstream_prs: []
+    date: '2026-11-13T04:40:10.131Z'
