@@ -730,6 +730,36 @@ mthreads-musa5.2.0:
   rpm: {enabled: false, blocked_by: vendor-ships-deb-only}
   wheel: {enabled: true}
 
+mthreads-musa5.3.0:
+  vendor: musa
+  make_flag: USE_MUSA
+  arch: amd64
+  # 2.39, unlike the two rows above: this line's base is ubuntu:24.04 (the SDK
+  # moved off 22.04 here), so `base_image_glibc` implies 2.39 and --check
+  # cross-checks it. The floor is also why this row is the first musa one to
+  # need a builder — the wheel must reach the bundle's physical 22.04 hosts.
+  glibc_floor: "2.39"
+  apt: []
+  # musa.mk states its own PLATFORM_EXTRA_SRCS (the default dev API backend), so
+  # no make_env is needed beyond the roots it already defaults correctly.
+  make_env: {}
+  vendor_libs: [musart, mccl]
+  assert: [/usr/local/musa/include/musa_runtime.h, /usr/local/musa/include/mccl.h]
+  vendor_lib_dirs: [/usr/local/musa/lib]
+  # deb off for now, like the other lines added after the 0.14.1 generation: the
+  # wheel and the builder are what this line is for, and the .deb's own probe is
+  # a separate concern.
+  deb: {enabled: false, default_for_vendor: false}
+  rpm: {enabled: false, blocked_by: vendor-ships-deb-only}
+  wheel: {enabled: true}
+  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35,
+  # and this row's runtime is 24.04. Installer filenames are constants in the
+  # recipe rather than a per-row sdk_version — one version does not spell four
+  # of them (driver and toolkit 5.3.0, MCCL 2.5.0.PH1, muDNN 3.5.0.PH1).
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-vendor-mthreads
+
 sunrise-tangrt1.2.0:
   vendor: sunrise
   make_flag: USE_SUNRISE

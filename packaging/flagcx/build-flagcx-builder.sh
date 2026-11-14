@@ -220,6 +220,7 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "TORCH_PIN=$BUILDER_TORCH" \
             --build-arg "TORCH_MLU_PIN=$BUILDER_TORCH_MLU" \
             --build-arg "TORCH_MLU_OPS_PIN=$BUILDER_TORCH_MLU_OPS" \
+            --build-arg "TORCH_MUSA_PIN=$BUILDER_TORCH_MUSA" \
             --build-arg "TORCH_GCU_PIN=$BUILDER_TORCH_GCU" \
             --build-arg "TORCH_NPU_PIN=$BUILDER_TORCH_NPU" \
             --build-arg "CANNSHMEM_PIN=$BUILDER_CANNSHMEM" \
