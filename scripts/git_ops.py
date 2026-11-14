@@ -115,6 +115,9 @@ def push_record_branch(branch: str, commit_msg: str, attempts: int = 5) -> None:
     """
     configure_git_identity()
     _git("checkout", "-B", branch, check=False)
+    # The branch point, captured before the record commit: the rebase below
+    # replays what this function created and nothing else.
+    base = _git("rev-parse", "HEAD").stdout.strip()
     _git("commit", "-m", commit_msg)
 
     last_error = ""
@@ -124,7 +127,13 @@ def push_record_branch(branch: str, commit_msg: str, attempts: int = 5) -> None:
         probe = _git("ls-remote", "origin", f"refs/heads/{branch}", check=False)
         upstream = branch if (probe.returncode == 0 and probe.stdout.strip()) else "main"
         _git("fetch", "origin", upstream, check=False)
-        if _git("rebase", f"origin/{upstream}", check=False).returncode != 0:
+        # --onto <upstream> <base>, not a plain `rebase origin/<upstream>`: the
+        # worktree may itself have started from a newer main than the record
+        # branch, and a plain rebase replays every commit it carries beyond the
+        # upstream — each of main's commits since the branch was cut, re-created
+        # under new hashes. The branch then forks from main instead of extending
+        # it, and its PR can never merge cleanly against the originals.
+        if _git("rebase", "--onto", f"origin/{upstream}", base, check=False).returncode != 0:
             _git("rebase", "--abort", check=False)
             # The rebase replays this commit onto the upstream's copy of the
             # same files; a conflict here is a real one, not a race.
