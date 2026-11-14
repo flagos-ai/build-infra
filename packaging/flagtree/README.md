@@ -40,6 +40,7 @@ there is no older floor to buy (see its section).
 | `hcu-dtk2610`| FlagTree for Hygon (DTK 26.10), builder + wheel | Ubuntu 22.04 + DTK 26.10 (cp312) |
 | `tsingmicro` | FlagTree for Tsingmicro (TX8), builder + wheel | Ubuntu 22.04 + staged clang 22 |
 | `mthreads`   | FlagTree for Moore Threads (MUSA), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
+| `mthreads-musa5.3.0` | FlagTree for Moore Threads (MUSA 5.3.0), builder + wheel | Ubuntu 22.04 (cp312) |
 | `kunlunxin`  | FlagTree for Kunlunxin (XPU), builder + wheel | Ubuntu 22.04 (glibc 2.35) |
 | `ppu`        | FlagTree for T-Head PPU 2.1.0, builder + wheel | Ubuntu 24.04 |
 | `ascend-cann9.0.0` | FlagTree for Ascend, CANN 9.0.0 (aarch64 / cp311), builder + wheel | `flagos-runtime-ascend-cann9.0.0` |
@@ -121,9 +122,9 @@ new coupling for the daily wheel installed anywhere else.
 Some of these Containerfiles split their build environment into a `--target
 builder` stage: everything that does not depend on the FlagTree ref being built
 (apt toolchain, interpreter, prebuilt LLVM / plugin / triton toolkits, staged
-into FlagTree's offline cache). All fifteen have one. For `nvidia-cuda`, `amd`,
+into FlagTree's offline cache). All sixteen have one. For `nvidia-cuda`, `amd`,
 `metax`, `sunrise`, `iluvatar`, `enflame`, `hcu`, `hcu-dtk2610`, `tsingmicro`,
-`mthreads` and `kunlunxin`
+`mthreads`, `mthreads-musa5.3.0` and `kunlunxin`
 the stage starts from a bare `ubuntu:22.04` and is the `BUILDER_IMAGE` default,
 and for `ppu` from a bare `ubuntu:24.04` (see its section); for the
 ascend pair its cold value is the backend's runtime image, which is why
@@ -143,7 +144,8 @@ plugin's md5 prefix, which is what FlagTree compares it against) — or a `verif
 block, which is the same assertions as data: the interpreter, the executables,
 the paths. The block is rendered by one generic step, so a backend staged like
 its predecessors needs a row and no workflow step at all. `enflame`, `hcu`,
-`hcu-dtk2610`, `tsingmicro`, `mthreads`, `kunlunxin` and `ppu` are the seven of
+`hcu-dtk2610`, `tsingmicro`, `mthreads`, `mthreads-musa5.3.0`, `kunlunxin` and
+`ppu` are the eight of
 those; the six named steps each say something a path list cannot.
 `flagtree-wheel-daily.yml` reads the same file for its rows. Adding a backend is
 one entry, not a new workflow and not a second job.
@@ -385,9 +387,16 @@ aborts at import, which is the same reason the build stage has no smoke test.
 The same shape as `hcu` — bare `ubuntu:22.04`, apt toolchain, the backend's
 prebuilt inputs into FlagTree's offline cache — with these differences.
 
-**It is the system python 3.10.** `configs.yaml` pins both mthreads backends at
-python 3.10, so the wheel has to wear `cp310`; 22.04 ships that interpreter, so
-there is no PPA to wire by hand.
+**The two musa lines are one FlagTree line at two interpreters.** The
+`mthreads` file is the 4.3.6/5.2.0 lines' `cp310` (the 22.04 system python, and
+what `configs.yaml` pins for both), and `mthreads-musa5.3.0` is the 5.3.0
+line's `cp312` (torch 2.13.0 is cp312-only) — the same split, and the same
+reason, as the `hcu`/`hcu-dtk2610` pair above. Both build the same version
+`0.7.0+mthreads3.6`: on this index the two lines' `pip install flagtree==` has
+to resolve the file whose interpreter tag matches, and only that distinguishes
+them. The `cp310` wheel installs on neither 5.3.0 runtime — pip refuses it with
+"not a supported wheel on this platform" — so the `cp312` file is not an
+upgrade of it but the only one that line can use.
 
 **Two prebuilt trees, and the local binary is the one that moves.**
 `mthreads.py` registers `mthreads-llvm22` and `mthreads_local_binary`. The first
@@ -419,6 +428,30 @@ to the vendor tree and prove nothing. The container needs
 `--device /dev/mtgpu.0 --device /dev/dri` (the flags `build-config.yml` records
 for this vendor); the driver imports no MUSA library at module scope, so the
 import alone does not need them, but the kernel launch does.
+
+**The `cp312` release wheel comes from `flagtree-wheel.yml` with
+`target=mthreads-musa5.3.0`**, which builds `0.7.0+mthreads3.6` as plain
+`flagtree` into `flagos-pypi-mthreads` — the name and version `configs.yaml`
+pins for the 5.3.0 runtime. `prepare` maps the target to the
+`mthreads-musa5.3.0` row for its runner labels and vendor index, and passes no
+`BUILDER_IMAGE`, so this stage cold-builds from bare `ubuntu:22.04`.
+
+**Verified on the same MTT S5000 node** (2026-11-15), at the version this line
+publishes rather than the release the cp310 row carries. The wheel built from
+the cold `ubuntu:22.04` stage — `flagtree-0.7.0+mthreads3.6-cp312-cp312-linux_x86_64.whl`,
+117,754,837 B, gate green (`libtriton.so` 22.04-clean at max GLIBC_2.34, pybind11
+internals v12 uniform across `_C`) — and on the `flagos-runtime-mthreads-musa5.3.0`
+image it installs under the 3.12 interpreter the runtime carries, `import triton`
+reports triton 3.6.0 with `backends == ['mthreads']`, and the same vector-add
+kernel returns `max abs err: 0.0` on an `MTT S5000`. Same wheel-to-its-own-directory
+install and same `--device /dev/mtgpu.0 --device /dev/dri` flags as the cp310 row.
+
+**Its `daily.enabled` is still false, and the reason has moved.** The daily line
+builds on the *published* builder stage (`flagtree-builder-mthreads-musa5.3.0`),
+and that stage has not been pushed — the wheel was built from the cold base, so
+what the row is waiting on is the stage, not the proof above. The dist_name
+`flagtree-mthreads-musa5.3.0` is reserved so the 5.3.0 line never collides with
+the `cp310` `flagtree-mthreads` project.
 
 ## Kunlunxin builder (`kunlunxin`)
 
