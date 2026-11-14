@@ -21,6 +21,7 @@ Explicitly installed; the version is the one baked into this image:
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
+- `libopenmpi3t64` — 4.1.6
 - `unzip` — 6.0
 - `vim` — 9.1.0016
 
@@ -64,7 +65,7 @@ Inside the container, confirm the accelerator is visible:
 ixsmi
 ```
 
-*Last updated: 2026-11-12 11:58:07 · `69c87bb1b93f`*
+*Last updated: 2026-11-12 21:36:52 · `1a2ee5aaa108`*
 
 ## Changelog
 
