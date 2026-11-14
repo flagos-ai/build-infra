@@ -216,13 +216,17 @@ jobs:
       # the file it is reading — every restore lands an empty TSV, which the
       # completeness check counts as a collected backend because it matches on
       # filename.
+      # The restore is never scoped to the backends this run retries: the run
+      # that finally collects the last missing backend is itself a scoped retry,
+      # and it is the one that renders the release's descriptions. Restoring
+      # only its own backend left every other backend's page refreshed with
+      # nothing — or, with no TSV at all, refused outright.
       - name: Restore state from previous retries
         env:
           GIT_AUTHOR_NAME: flagos-ci
           GIT_AUTHOR_EMAIL: noreply@flagos.net
           GIT_COMMITTER_NAME: flagos-ci
           GIT_COMMITTER_EMAIL: noreply@flagos.net
-          SCOPE: ${{ github.event.inputs.backend || 'all' }}
         run: |
           label="$(python3 -c 'import yaml;print(yaml.safe_load(open("configs.yaml"))["version"])' 2>/dev/null || echo 'unknown')"
           state_branch="auto/versions-${label}-state"
@@ -230,16 +234,7 @@ jobs:
             echo "Restoring state from ${state_branch}"
             git fetch origin "${state_branch}"
             mkdir -p versions
-            if [[ "${SCOPE}" == "all" ]]; then
-              git checkout FETCH_HEAD -- versions/
-            else
-              for bk in ${SCOPE}; do
-                f="versions/${bk}.tsv"
-                if git checkout FETCH_HEAD -- "${f}" 2>/dev/null; then
-                  echo "  Restored ${bk}.tsv"
-                fi
-              done
-            fi
+            git checkout FETCH_HEAD -- versions/
           else
             echo "No state branch (${state_branch}) — starting fresh"
             mkdir -p versions
@@ -283,7 +278,10 @@ jobs:
 
       # Persist collected TSVs to the state branch so they survive
       # across retries (each accumulate runs on a fresh ubuntu-latest VM).
-      # Each save is a full snapshot of versions/ — no incremental merge.
+      # The save merges into the previous snapshot instead of replacing it: a
+      # scoped retry restores only the backends it is retrying, so versions/
+      # holds a subset of what the branch already carries, and writing that
+      # subset as the new snapshot drops every other backend's TSV.
       - name: Save state for next retry
         if: always() && steps.collect.outcome == 'success'
         env:
@@ -300,32 +298,32 @@ jobs:
             exit 0
           fi
 
-          # Stage all TSV files so write-tree captures them (collect step
-          # copies them from versions-dl/ — they are untracked).
-          git add -f versions/*.tsv 2>/dev/null || true
-
-          # Build a tree of the versions/ directory contents, then wrap it
-          # in an outer tree so restore via checkout -- versions/ works.
-          inner_tree=$(git write-tree --prefix=versions/)
-          if [ -z "$inner_tree" ]; then
-            echo "Failed to create inner tree"
-            git restore --staged versions/ 2>/dev/null || true
-            exit 0
-          fi
-          outer_tree=$(printf "040000 tree %s\tversions" "$inner_tree" | git mktree)
-
-          # Use previous state commit as parent if it exists.
           parent=""
           if git ls-remote --heads origin "refs/heads/${state_branch}" | grep -q refs; then
-            parent=$(git rev-parse "origin/${state_branch}" 2>/dev/null || echo "")
+            git fetch origin "${state_branch}"
+            parent=$(git rev-parse FETCH_HEAD)
           fi
+
+          # A private index, so the snapshot is built from the previous tree
+          # plus this run's TSVs without disturbing the worktree's own index
+          # (collect stages versions/ into it).
+          state_index=$(mktemp -u)
+          export GIT_INDEX_FILE="$state_index"
+          if [ -n "$parent" ]; then
+            git read-tree "$parent"
+          fi
+          git add -f versions/*.tsv
+          outer_tree=$(git write-tree)
+          rm -f "$state_index"
+          unset GIT_INDEX_FILE
+
           parent_opt=""
           if [ -n "$parent" ]; then
             parent_opt="-p $parent"
           fi
           commit=$(echo "state:${label}" | git commit-tree "$outer_tree" $parent_opt)
           git push -f origin "${commit}:refs/heads/${state_branch}"
-          echo "Saved state to ${state_branch} (commit ${commit:0:12})"
+          echo "Saved state to ${state_branch} (commit ${commit:0:12}, $(git ls-tree -r --name-only "$commit" | grep -c '\.tsv$') TSVs)"
 
           # Unstage to keep working tree clean for the finalize step.
           git restore --staged versions/ 2>/dev/null || true
