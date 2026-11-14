@@ -35,3 +35,4 @@ tags:
       - 厂商驱动由其自带 `.deb` 安装，因此设备的用户态来自容器，构建工具链、OpenMPI 和 Python 开发头文件与 SDK 一并安装。
       - 这是 mthreads 第一条基于 24.04、也是第一条 Python 栈为 3.12 的线；解释器由 runtime 自带，系统解释器不是该行的。
     upstream_prs: []
+    date: '2026-11-14T08:07:35.606Z'
