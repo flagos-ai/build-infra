@@ -147,7 +147,25 @@ def _finalize(args) -> None:
     # hand-written page in a layer this PR won't touch would abort the run
     # via the provenance guard for nothing (see #1088).
     versions_dir = REPO_ROOT / "versions"
-    requested = sorted(f.stem for f in versions_dir.glob("*.tsv"))
+    # A zero-length TSV is not collected data — it is what a truncated restore
+    # leaves behind. With an empty set, gen_descriptions.py falls through to
+    # rendering every backend with no versions at all, which strips every
+    # package version from the pages and deletes their "Last updated" footer:
+    # a whole release's version record silently lost. Refuse instead, and keep
+    # the state branch — it is the only remaining copy of what was collected.
+    # The size test matches collect_version_tsvs.py: counting by filename alone
+    # has already made lost backends look collected once.
+    requested = sorted(
+        f.stem for f in versions_dir.glob("*.tsv") if f.stat().st_size > 0
+    )
+    if not requested:
+        print(
+            "::error::versions/ holds no collected version data — refusing to "
+            "render descriptions, which would strip every package version from "
+            "the pages. Re-run the extraction for the missing backends.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     subprocess.run(
         [sys.executable, str(REPO_ROOT / "scripts" / "docs" / "gen_descriptions.py"),
          "--layer", cfg["layer"]] + requested,
