@@ -23,14 +23,15 @@ tags:
   entries:
   - reason: |-
       - First delivery: MUSA 5.3.0 with MCCL 2.5.0 and muDNN 3.5.0 on
-        ubuntu:22.04, alongside the RC4.3.6 and 5.2.0 lines.
+        ubuntu:24.04, alongside the RC4.3.6 and 5.2.0 lines.
       - The vendor's driver is installed from its own `.deb`, so the device's
         userspace comes from the container, and the build toolchain, OpenMPI and
         the Python development headers are installed beside the SDK.
-      - This is the first mthreads line whose Python stack is 3.12; the runtime
-        brings its own interpreter, so the 22.04 system python is not the row's.
+      - This is the first mthreads line on 24.04 and the first whose Python
+        stack is 3.12; the runtime brings its own interpreter, so the system one
+        is not the row's.
     reason_zh: |-
-      - 首次交付：摩尔线程 MUSA 5.3.0 连同 MCCL 2.5.0 和 muDNN 3.5.0，基于 ubuntu:22.04，与 RC4.3.6、5.2.0 两条线并存。
+      - 首次交付：摩尔线程 MUSA 5.3.0 连同 MCCL 2.5.0 和 muDNN 3.5.0，基于 ubuntu:24.04，与 RC4.3.6、5.2.0 两条线并存。
       - 厂商驱动由其自带 `.deb` 安装，因此设备的用户态来自容器，构建工具链、OpenMPI 和 Python 开发头文件与 SDK 一并安装。
-      - 这是 mthreads 第一条 Python 栈为 3.12 的线；解释器由 runtime 自带，22.04 的系统 python 不是该行的。
+      - 这是 mthreads 第一条基于 24.04、也是第一条 Python 栈为 3.12 的线；解释器由 runtime 自带，系统解释器不是该行的。
     upstream_prs: []

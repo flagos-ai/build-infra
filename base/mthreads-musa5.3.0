@@ -13,11 +13,11 @@
 # limitations under the License.
 
 # ============================================================
-# Base image for MooreThreads MUSA 5.3.0 on Ubuntu 22.04
+# Base image for MooreThreads MUSA 5.3.0 on Ubuntu 24.04
 # ============================================================
-# Vendor's install.sh names 22.04 as its preferred OS; the runtime venv brings
-# its own 3.12 (uv-managed), so the 22.04 system interpreter is not the row's.
-FROM ubuntu:22.04
+# The 5.3.0 driver deb installs on 24.04, so this line keeps its newer libstdc++
+# rather than dropping to 22.04 as the other two did for the driver.
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
