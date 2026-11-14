@@ -36,7 +36,7 @@ Usage:
       --mode base --done true --count 14 --label 2.1.1
     python scripts/finalize_descriptions.py \\
       --mode base --done false --missing "nvidia-cuda13.3 sunrise-tangrt1.2.0" \\
-      --retry 3 --max-retries 50 --label 2.1.1
+      --retry 3 --max-retries 10 --label 2.1.1
 """
 
 from __future__ import annotations
@@ -276,7 +276,7 @@ def main() -> None:
     ap.add_argument("--verify-fail", type=int, default=0)
     ap.add_argument("--verify-skip", type=int, default=0)
     ap.add_argument("--retry", type=int, default=0)
-    ap.add_argument("--max-retries", type=int, default=50)
+    ap.add_argument("--max-retries", type=int, default=10)
     args = ap.parse_args()
 
     if args.done == "true":
