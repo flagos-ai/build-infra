@@ -269,6 +269,29 @@ jobs:
               print(f'{k}={d[k]}')
           " | tee -a "$GITHUB_OUTPUT"
 
+      # The extract job runs with continue-on-error, so a backend whose runner
+      # cannot start a container leaves the whole run green — deliberately, the
+      # retry absorbs it. That also means nothing on the run list or in the run
+      # view says a backend was never collected while the loop retries it; this
+      # is the only place that says so.
+      - name: Report collection status
+        if: always() && steps.collect.outcome == 'success'
+        env:
+          DONE: ${{ steps.collect.outputs.done }}
+          COUNT: ${{ steps.collect.outputs.count }}
+          MISSING: ${{ steps.collect.outputs.missing }}
+        run: |
+          {
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Collected | ${COUNT} backends |"
+            echo "| Missing | ${MISSING:-none} |"
+            echo "| Retry | ${RETRY_COUNT:-0}/${MAX_RETRIES:-10} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${DONE}" != "true" ] && [ -n "${MISSING}" ]; then
+            echo "::warning::Not collected (retry ${RETRY_COUNT:-0}/${MAX_RETRIES:-10}): ${MISSING} — its extract job failed on the runner."
+          fi
+
       # Persist collected TSVs to the state branch so they survive
       # across retries (each accumulate runs on a fresh ubuntu-latest VM).
       # The save merges into the previous snapshot instead of replacing it: a
