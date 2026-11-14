@@ -138,7 +138,8 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "name", "version", "builder_image", "builder_containerfile", "arch", "vendor",
     "builder_apt", "builder_extra_apt", "assert", "make_env",
     "builder_torch", "builder_torch_mlu", "builder_torch_mlu_ops",
-    "builder_torch_gcu", "builder_torch_npu", "builder_cannshmem",
+    "builder_torch_musa", "builder_torch_gcu", "builder_torch_npu",
+    "builder_cannshmem",
     "builder_torch_ptpu", "builder_torch_txda", "builder_txops",
     "builder_sdk_version", "builder_aten_version", "builder_ops_product",
     "builder_toolkit_product",
@@ -698,6 +699,13 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["builder_torch_mlu_ops"] = _deps_pin(
                 entry["deps"], "torch-mlu-ops"
             )
+            # torch_musa is the musa bridge, the same shape as torch_gcu/
+            # torch_npu: the package is spelled with an underscore in deps
+            # (`torch_musa==`), while its metadata name is the normalised
+            # `torch-musa` — the install pin and the metadata assertion are
+            # therefore two spellings of one package, which is why the pin is
+            # read here and compared against the normalised name there.
+            entry["builder_torch_musa"] = _deps_pin(entry["deps"], "torch_musa")
             entry["builder_torch_gcu"] = _deps_pin(entry["deps"], "torch-gcu")
             # The ascend bridge (torch_npu) is the same shape as torch_mlu/
             # torch_gcu: `import torch_npu` dlopens the CANN toolkit libs, so it
