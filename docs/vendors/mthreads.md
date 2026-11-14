@@ -8,7 +8,8 @@ backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`
 
 - 设备枚举命令 `mthreads-gmi`（raw 档把宿主二进制只读挂进容器）。
 - python 3.10 → cp310 wheel；5.3.0 起是 3.12 → cp312（该线只有 cp312 的 vendor
-  wheel，解释器由 runtime 自带，22.04 的系统 python 不参与）。
+  wheel；base 是 24.04，所以系统 python 是 3.12 本身，deadsnakes 只在 22.04 的
+  builder 里用）。
 - 各 backend 行的 vendor 包**不一样**：各自的 PyPI 索引里一个 SDK 一套 wheel，
   4.3.6 的 vendor triton 是定点构建（`3.6.0+git89458660`），5.2.0 是 `3.6.0`；
   5.3.0 的编译器发行名换成 **`triton-musa`**（`3.6.0+musa5.3.0`），不再是 `triton`。
@@ -18,6 +19,20 @@ backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`
 - **不带厂商容器 runtime 会得到一个误导性的 `0 active drivers`**：容器起得来，
   `import vllm_fl` 报无设备访问 —— 看起来像插件 bug，其实是 runtime 没给。
 - flags 原文见 `.github/build-config.yml` `run.vendors.mthreads`。
+- **2026-11-15 起 musa520 节点的 `--runtime mthreads` 整个起不来**：任何带
+  `MTHREADS_VISIBLE_DEVICES` 的 `docker run --runtime mthreads` 在 create 阶段失败，
+  报 `error discovering devices … error initializing MTML: unknown error: unknown`；
+  不带该环境变量则正常。dmesg 给的是 userspace/内核结构体大小错配
+  （`[mtvpu] ioctl_mgt_get_info, invalid info size, req:4, size:132, expected:196`）：
+  宿主装的 `mtml 2.1.0-linux` 发 132 字节的 info 结构，而 2026-11-14 新装的
+  `musa 5.3.0-server` 驱动要 196。**这是宿主 provisioning 问题，不是本仓缺陷**，
+  待处置：Nexus `/flagos-pypi` filestore 里有
+  `1966bc657_mtml_2.4.2-linux-R_amd64.deb`（包版本 `2.4.2-linux`）可升，
+  但动宿主的包要用户拍板，落定后 `docs/vendors/mthreads.md` 与
+  `.github/build-config.yml` 两侧都要跟着改。
+- 在该缺陷修复前，**raw 档（`--device /dev/mtgpu.0 --device /dev/dri`）可用且枚举正常**
+  （`torch.musa.device_count() == 8`）。FlagCX 的 `verify-flagcx-wheel.sh` 用的是
+  toolkit 档，所以它在这台节点上跑不完；builder 档的 probe 不用设备，不受影响。
 
 ## 供应商工具链（跨厂商结论在此失效）
 

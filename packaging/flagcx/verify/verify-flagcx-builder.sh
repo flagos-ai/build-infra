@@ -154,6 +154,7 @@ docker exec -i \
     -e TORCH_MLU_PIN="$BUILDER_TORCH_MLU" \
     -e TORCH_GCU_PIN="$BUILDER_TORCH_GCU" \
     -e TORCH_NPU_PIN="$BUILDER_TORCH_NPU" \
+    -e TORCH_MUSA_PIN="$BUILDER_TORCH_MUSA" \
     -e TORCH_PTPU_PIN="$BUILDER_TORCH_PTPU" \
     -e TORCH_TXDA_PIN="$BUILDER_TORCH_TXDA" \
     -e TXOPS_PIN="$BUILDER_TXOPS" \
@@ -190,6 +191,15 @@ if [ "$HAS_BITCODE" != "1" ]; then
     # torch_npu.
     if [ -n "$TORCH_NPU_PIN" ]; then
         TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_npu; print(">>> torch_npu imports against the vendor SDK (floor proof)")'
+    fi
+    # torch_musa is the mthreads bridge, and on that row the plain `import torch`
+    # already reaches part of the SDK (libtorch_cpu.so NEEDs libmusart.so.5), but
+    # the bridge's own NEEDED list is the whole closure — mudnn, mccl, musolver,
+    # musart, mufft — which is what the wheel links against. Unlike torch_ptpu and
+    # torch_txda it IS importable with no device: it prints its own
+    # "CreatePlatform failed!" and exits 0, so it carries the floor proof here.
+    if [ -n "$TORCH_MUSA_PIN" ]; then
+        TORCH_DEVICE_BACKEND_AUTOLOAD=0 /flagos/bin/python -c 'import torch_musa; print(">>> torch_musa imports against the vendor SDK (floor proof)")'
     fi
     # torch-ptpu is the sunrise bridge, but it is NOT importable here: its
     # extension probes the device in a constructor and aborts with no device

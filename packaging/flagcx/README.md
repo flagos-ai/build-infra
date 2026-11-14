@@ -94,10 +94,12 @@ before pushing. Nothing goes stale the way the runtime-based builder did — a s
 records no runtime digest — and the glibc floor the wheel carries is asserted at the artifact, by
 the `.so` gate in `wheel-build-in-container.sh`, not remembered here as an image digest.
 
-All nineteen builder-enabled rows are built, verified and published: the two nvidia rows, whose
-acceptance test is the bitcode compile, and seventeen vendor rows, whose acceptance test is the
-torch/SDK probe. Three carry a dated measurement — the nvidia pair drawn from a run on h20 against
-`21f8b5f`, the hygon one from its own node. `nvidia-cuda12.8` is frozen in configs.yaml
+All twenty builder-enabled rows are built and verified — the two nvidia rows, whose acceptance test
+is the bitcode compile, and eighteen vendor rows, whose acceptance test is the torch/SDK probe.
+Nineteen of the images are also in the registry; `mthreads-musa5.3.0`'s was built and verified on
+its own node and has not been pushed, which is a publish step the builder workflow runs. Four
+carry a dated measurement — the nvidia pair drawn from a run on h20 against `21f8b5f`, and the
+hygon and musa5.3.0 rows from their own nodes. `nvidia-cuda12.8` is frozen in configs.yaml
 (`enabled: false`), so it is in no builder matrix now and its row below stands as the record of a
 measurement already taken, not as a row still rebuilt:
 
@@ -106,6 +108,7 @@ measurement already taken, not as a row still rebuilt:
 | `nvidia-cuda13.3` | h20 | clang 22, `sm_120`, CCL branch — 2,021,320 B of bitcode and a 28,383-byte wrapper header |
 | `nvidia-cuda12.8` | h20 | clang 22, `sm_90`, Default branch — 274,820 B |
 | `hygon-dtk26.04` | hygon25 | torch 2.9.0+das.opt1.dtk2604 imports against DTK 26.04 (no bitcode) |
+| `mthreads-musa5.3.0` | musa520 | torch 2.13.0.post1+musa20261110 and `torch_musa` import against MUSA 5.3.0 (no bitcode) |
 
 The two sizes are the band's calibration as well as the record: the CCL branch pulls in
 `nccl_device`'s device-side implementation, which is what separates them by a factor of seven.
@@ -116,7 +119,9 @@ Every other vendor row's probe is the same shape as hygon's: `import torch` agai
 image carries, plus the row's bridge where the bridge does not open the device at import. Where it
 does — sunrise's `torch-ptpu`, tsingmicro's `torch_txda` — the probe dlopens instead: the two
 sonames FlagCX's own link names (`libpccl` + `libtangrt_shared`, `libhpgr` + `libtccl`), or, on
-tsingmicro, the `txops` binding import, which does not probe. `verify-flagcx-builder.sh`'s header
+tsingmicro, the `txops` binding import, which does not probe. `mthreads-musa5.3.0`'s bridge,
+`torch_musa`, is importable with no device — it prints `CreatePlatform failed!` and exits 0 — so it
+is the floor proof there rather than a dlopen substitute. `verify-flagcx-builder.sh`'s header
 states the case for each.
 
 ## Wheels
@@ -156,7 +161,7 @@ measurement. A consumer that wants only the bitcode can locate the package with
 
 ### State
 
-Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty-four rows carry
+Enablement is a field per row in `backends.yaml` (`wheel.enabled`), and all twenty-five rows carry
 it — so the two columns here are what has actually run, and they answer different questions. **Built
 + verified** is the wheel installed from the file alone into a container of the row's runtime image,
 on the row's own node, by the CI verify job unless the entry says otherwise. **Published** is the
@@ -186,6 +191,7 @@ Every published pin is a build off the release tag `v0.14.1` — the version str
 | `metax-maca3.8.1.3` | 2026-10-28 | `0.14.1+maca3.8.1.3` |
 | `mthreads-musa4.3.6` | 2026-10-28 | `0.14.1+musa4.3.6` |
 | `mthreads-musa5.2.0` | 2026-10-28 | `0.14.1+musa5.2.0` |
+| `mthreads-musa5.3.0` | 2026-11-15 | — |
 | `nvidia-cuda12.8` | 2026-10-29 | `0.14.1+cuda12.8` |
 | `nvidia-cuda13.3` | 2026-11-05 | `0.14.1+cuda13.3` |
 | `sunrise-tangrt1.2.0` | 2026-10-28 | `0.14.1+tangrt1.2.0` |
@@ -200,7 +206,11 @@ The version column is what says which build a pin is — a date never does, whic
 `0.14.1+cuda13.3` rebuilt against the torch 2.13 headers, and it replaced the artifact of that
 name in the index rather than adding to it.
 
-Two things the table does not show. `ascend-cann9.2.1` is the ascend family's only `cp312` wheel —
+Three things the table does not show. `mthreads-musa5.3.0`'s published column is empty: the wheel
+exists and was verified out of band, but the repo's `verify-flagcx-wheel.sh` starts its container
+with this vendor's `toolkit` flags (`--runtime mthreads`, `MTHREADS_VISIBLE_DEVICES=all`), and that
+container runtime is broken on the host, so the row has no CI-shaped verification to point at and
+nothing was pushed. `ascend-cann9.2.1` is the ascend family's only `cp312` wheel —
 the other four are `cp311`, because 9.2.1 is the first runtime image on python 3.12 — so no
 sibling's wheel can stand in for it. And the three rows that joined the roster after `v0.14.0` was
 tagged (`ascend-cann9.2.1`, `hygon-dtk26.10`, `amd-rocm7.2.4`) have no 0.14.0 build at all; every
@@ -211,7 +221,9 @@ Every wheel here is 22.04-clean in the two objects that carry the linkage —
 `__isoc23_*`. That is not incidental: it is what the builder channel exists for, and the `.so` gate
 in `wheel-build-in-container.sh` fails the build rather than let a wheel link past it. Four rows
 reach the floor with no builder of their own (`cambricon-neuware4.4.3`, `kunlunxin-xre5.37.1` and the
-two musa rows) because their base images are 22.04 to begin with.
+musa 4.3.6/5.2.0 pair) because their base images are 22.04 to begin with; `mthreads-musa5.3.0`
+is the exception among the musa rows — its base is 24.04, which is why it is the first one to need
+a builder.
 
 `bitcode=false`: iluvatar's `bindings/ir` Makefile (FlagCX #668) is not in the `v0.14.0` tag, so a
 release wheel carries no `libflagcx_device.bc`; the bitcode ships in the daily dev-pin build off

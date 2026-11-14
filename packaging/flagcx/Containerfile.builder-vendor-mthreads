@@ -1,0 +1,207 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# FlagCX build-toolchain image for the mthreads-musa5.3.0 wheel. Self-contained
+# on ubuntu:22.04 because this line's base is 24.04 and the wheel must reach the
+# bundle's 22.04 hosts; the SDK itself needs no reglib work (nothing it ships
+# links past GLIBC_2.27 / GLIBCXX_3.4.22). All four artifacts are required:
+# musa.mk links `-lmccl -lmusa`, libmusa lives only in the driver deb, and
+# torch_musa's NEEDED list is mudnn + mccl + musolver + musart + mufft.
+
+FROM ubuntu:22.04
+
+# After FROM: a pre-FROM ARG is not in scope for the RUNs below.
+ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/mthreads
+ARG BUILDER_ASSERT
+ARG TORCH_PIN
+ARG TORCH_MUSA_PIN
+ARG NUMPY_PIN
+ARG VENDOR_PYPI
+ARG EXTRA_PYPI
+ARG PYTHON_VERSION=3.12
+ARG RUNTIME_PREREQS
+
+# Never baked as ENV: the proxy is a build-time fact of one RUN.
+ARG HTTPS_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+# The node's own value, not a second copy here that could silently win.
+ARG no_proxy=
+
+# python 3.12 via deadsnakes (the hygon-dtk2610 wiring: the PPA is added by hand
+# because the runner's proxy answers api.launchpad.net with 500). libdrm2 and
+# dkms are the driver deb's two Depends — apt resolves them from jammy's own
+# suites, and the DKMS build inside a container is expected to fail and does not
+# affect the exit status (measured). patchelf is the libmusolver fix below.
+# libgflags/libgoogle-glog are the build-only headers torch's c10 headers reach;
+# the venv's ninja (runtime_prereqs) is what the extension build runs on.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates gnupg curl wget git unzip patchelf \
+        build-essential gcc g++ cmake \
+        libdrm2 dkms \
+        libnuma1 libgomp1 libgfortran5 libelf1; \
+    curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg; \
+    echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        python3.12 python3.12-venv python3.12-dev \
+        libgflags-dev libgoogle-glog-dev; \
+    rm -rf /var/lib/apt/lists/*
+
+# The four artifact names are constants rather than a templated SDK_VERSION: one
+# version does not spell four filenames here (the driver and the toolkit are
+# 5.3.0, MCCL is 2.5.0.PH1, muDNN is 3.5.0.PH1), so a single knob would need the
+# other three restated beside it. Same names base/mthreads-musa5.3.0 carries.
+ENV DRIVER=musa_5.3.0-server_amd64.deb \
+    TOOLKIT_PKG=musa_toolkits_5.3.0.tar.gz \
+    MCCL_PKG=mccl.2.5.0.PH1.tar.gz \
+    MUDNN_PKG=mudnn.3.5.0.PH1.tar.gz
+
+# The driver: /usr/lib/x86_64-linux-gnu/libmusa.so{,.1}, the only libmusa the
+# SDK ships. `apt-get install -fy <deb>` rather than `dpkg -x`, because it is
+# what base/<key> does and the package's own libc-bin trigger runs ldconfig.
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /driver.deb "${FILE_STORE}/${DRIVER}"; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -fy /driver.deb; \
+    rm -f /driver.deb; \
+    rm -rf /var/lib/apt/lists/*; \
+    test -e /usr/lib/x86_64-linux-gnu/libmusa.so
+
+# The toolkit, whose installer is a copy into /usr/local/musa-<version> plus the
+# /usr/local/musa symlink. Extracted out of /tmp so the 14 GB tree is not copied
+# twice: the installer's `cp -rvf ${workdir}/*` is what decides the destination
+# either way, and `musa_toolkits_install` is the symlink base/<key> enters by.
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /toolkits.tar.gz "${FILE_STORE}/${TOOLKIT_PKG}"; \
+    tar xzf /toolkits.tar.gz -C /tmp; \
+    cd /tmp/musa_toolkits_install; \
+    ./install.sh; \
+    cd /; \
+    rm -rf /tmp/musa_toolkits* /toolkits.tar.gz
+
+# libmusolver 1.8.0 calls the driver's muStreamSynchronize without declaring
+# libmusa.so.1 as NEEDED, so `import torch_musa` dies on an undefined symbol
+# unless the driver happens to be in scope already. Same fix, same file, same
+# assert as base/mthreads-musa5.3.0 — a builder without it fails the probe.
+RUN set -eux; \
+    patchelf --add-needed libmusa.so.1 /usr/local/musa/lib/libmusolver.so.1.8.0; \
+    readelf -d /usr/local/musa/lib/libmusolver.so.1.8.0 | grep -q 'NEEDED.*libmusa\.so\.1'
+
+ENV MUSA_HOME=/usr/local/musa \
+    PATH="/usr/local/musa/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/musa/lib"
+
+# MCCL and muDNN both install into /usr/local/musa by default, which is the
+# toolkit's own prefix (the two installers take -d/--prefix and neither is
+# passed: the default is the SDK root, and a different one would be a second
+# layout the wheel build and the runtime image do not share).
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /mccl.tar.gz "${FILE_STORE}/${MCCL_PKG}"; \
+    tar xzf /mccl.tar.gz -C /tmp; \
+    cd /tmp/mccl; \
+    ./install.sh; \
+    rm -rf /tmp/mccl /mccl.tar.gz
+
+RUN set -eux; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /mudnn.tar.gz "${FILE_STORE}/${MUDNN_PKG}"; \
+    tar xzf /mudnn.tar.gz -C /tmp; \
+    cd /tmp/mudnn; \
+    ./install_mudnn.sh; \
+    rm -rf /tmp/mudnn /mudnn.tar.gz
+
+# The row's SDK assert, checked here rather than as an unresolved symbol later.
+RUN set -eux; \
+    for path in ${BUILDER_ASSERT}; do \
+        test -e "$path" || { echo "assert: $path is missing" >&2; exit 1; }; \
+    done
+
+# Interpreter and torch, the two things the runtime image used to provide.
+# prereqs+numpy from the general mirror, torch/torch_musa from the vendor index
+# LAST so the +musa local versions resolve there while their own deps resolve on
+# the mirror. torch_musa declares only `packaging`, so the two install together
+# in one resolution exactly as the runtime's deps list asks for them.
+ENV VIRTUAL_ENV=/flagos \
+    PATH="/flagos/bin:${PATH}"
+RUN set -eux; \
+    python3.12 -m ensurepip --upgrade; \
+    python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
+    python3.12 -m venv /flagos; \
+    /flagos/bin/pip install --no-cache-dir --upgrade pip; \
+    /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
+        ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    for i in 1 2 3; do \
+        PIP_INDEX_URL="${EXTRA_PYPI}" \
+        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+        PIP_TRUSTED_HOST=resource.flagos.net \
+        /flagos/bin/pip install --no-cache-dir --pre \
+            "${TORCH_PIN}" "${TORCH_MUSA_PIN}" && break; \
+        echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
+    done
+
+# The probe the wheel build stands in for. Unlike hygon's pure-CPU torch, this
+# row's `import torch` already reaches the SDK — libtorch_cpu.so NEEDs
+# libmusart.so.5 — and `import torch_musa` reaches all of it (libmusa_python's
+# NEEDED list), so on this row the plain bridge import IS the SDK-floor proof
+# and needs no dlopen substitute: the extension prints its own diagnostic
+# ("CreatePlatform failed!", "MUSA driver initialization failed") and exits 0
+# with no device visible, which is why the assertions below are metadata and
+# version checks rather than a device query.
+#
+# torch_musa's metadata name is the normalised `torch-musa` while its pin is
+# spelled with the underscore, so the two are told apart here rather than in the
+# row: importlib.metadata takes either spelling and returns the one version.
+RUN set -eu; \
+    printf '%s\n' \
+      'import importlib' \
+      'import importlib.metadata' \
+      'import os' \
+      'import sys' \
+      'import sysconfig' \
+      '' \
+      'for name in ("torch", "setuptools", "setuptools_scm", "wheel", "packaging",' \
+      '             "torch.utils.cpp_extension"):' \
+      '    importlib.import_module(name)' \
+      '' \
+      'header = os.path.join(sysconfig.get_paths()["include"], "Python.h")' \
+      'assert os.path.exists(header), "no Python.h under %s" % header' \
+      '' \
+      'want_minor = int(os.environ["PYTHON_VERSION"].split(".", 1)[1])' \
+      'assert sys.version_info[:2] == (3, want_minor), "the venv is %s, the row says %s" % (sys.version_info[:2], os.environ["PYTHON_VERSION"])' \
+      '' \
+      'import torch' \
+      'want_torch = os.environ["TORCH_PIN"].split("==", 1)[1]' \
+      'have_torch = importlib.metadata.version("torch")' \
+      'assert have_torch == want_torch, "torch %s, the row pins %s" % (have_torch, want_torch)' \
+      '' \
+      'import torch_musa' \
+      'want_musa = os.environ["TORCH_MUSA_PIN"].split("==", 1)[1]' \
+      'have_musa = importlib.metadata.version("torch-musa")' \
+      'assert have_musa == want_musa, "torch-musa %s, the row pins %s" % (have_musa, want_musa)' \
+      'assert torch.musa.is_available() is not None' \
+      'print(">>> build env: %s, cp3%d, torch %s (metadata %s), torch_musa %s"' \
+      '      % (sys.executable, want_minor, torch.__version__,' \
+      '         have_torch, have_musa))' \
+    | TORCH_DEVICE_BACKEND_AUTOLOAD=0 PYTHON_VERSION="${PYTHON_VERSION}" \
+      TORCH_PIN="${TORCH_PIN}" TORCH_MUSA_PIN="${TORCH_MUSA_PIN}" \
+      /flagos/bin/python -
