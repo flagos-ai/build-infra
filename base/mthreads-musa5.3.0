@@ -51,6 +51,15 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /toolkits.tar.gz ${FILE
     && rm -fr /tmp/* \
     && rm /toolkits.tar.gz
 
+# libmusolver 1.8.0 calls the driver's muStreamSynchronize without declaring
+# libmusa.so.1 as NEEDED, so anything that dlopens it — torch_musa's _MUSAC
+# does — dies on an undefined symbol unless the driver is already in scope.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends patchelf \
+    && patchelf --add-needed libmusa.so.1 /usr/local/musa/lib/libmusolver.so.1.8.0 \
+    && readelf -d /usr/local/musa/lib/libmusolver.so.1.8.0 | grep -q 'NEEDED.*libmusa\.so\.1' \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV MUSA_HOME=/usr/local/musa
 ENV PATH="${MUSA_HOME}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="${MUSA_HOME}/lib"
