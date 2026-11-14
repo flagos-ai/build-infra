@@ -1231,6 +1231,29 @@ vendors:
         - MCCL 2.4.0              # mccl.2.4.0.PH1.tar.gz
         - muDNN 3.4.0             # mudnn.3.4.0.PH1.tar.gz
 
+    musa5.3.0:
+      hardware: ["MThreads MTT S5000"]
+      driver: "5.3.0-server"
+      python: "3.12"
+      cmake_backend: MUSA
+      triton: triton-musa==3.6.0+musa5.3.0
+      env:
+        base:
+          MUSA_HOME: /usr/local/musa
+          PATH: /usr/local/musa/bin:${PATH}
+          LD_LIBRARY_PATH: /usr/local/musa/lib
+      deps:
+        - torch==2.13.0.post1+musa20261110
+        - torch_musa==2.13.0.post1+musa20261110
+        - torchaudio==2.11.0.post2+musa20261110
+        - torchvision==0.28.0.post1+musa5.3.0
+        - mkl==2024.0.0
+        - numpy==1.26.4
+      sdk:
+        - MUSA Toolkits 5.3.0     # musa_toolkits_5.3.0.tar.gz
+        - MCCL 2.5.0              # mccl.2.5.0.PH1.tar.gz
+        - muDNN 3.5.0             # mudnn.3.5.0.PH1.tar.gz
+
   # No base image yet
   spacemit:
     spacemit:

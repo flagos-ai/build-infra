@@ -1,14 +1,17 @@
 # mthreads（摩尔线程）
 
-backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0`。芯片 MTT S5000（8×80GB），
-SDK 叫 MUSA（torch fork 是 `torch_musa`，distributed 后端叫 MCCL）。
+backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`。
+芯片 MTT S5000（8×80GB），SDK 叫 MUSA（torch fork 是 `torch_musa`，distributed
+后端叫 MCCL）。
 
 ## 平台与设备
 
 - 设备枚举命令 `mthreads-gmi`（raw 档把宿主二进制只读挂进容器）。
-- python 3.10 → cp310 wheel。
-- 两个 backend 行的 vendor 包**不一样**：各自的 PyPI 索引里一个 SDK 一套 wheel，
-  4.3.6 的 vendor triton 是定点构建（`3.6.0+git89458660`），5.2.0 是 `3.6.0`。
+- python 3.10 → cp310 wheel；5.3.0 起是 3.12 → cp312（该线只有 cp312 的 vendor
+  wheel，解释器由 runtime 自带，22.04 的系统 python 不参与）。
+- 各 backend 行的 vendor 包**不一样**：各自的 PyPI 索引里一个 SDK 一套 wheel，
+  4.3.6 的 vendor triton 是定点构建（`3.6.0+git89458660`），5.2.0 是 `3.6.0`；
+  5.3.0 的编译器发行名换成 **`triton-musa`**（`3.6.0+musa5.3.0`），不再是 `triton`。
 
 ## 启动容器
 

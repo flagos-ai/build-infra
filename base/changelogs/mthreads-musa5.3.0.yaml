@@ -1,0 +1,36 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by base-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-base-mthreads-musa5.3.0
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: MUSA 5.3.0 with MCCL 2.5.0 and muDNN 3.5.0 on
+        ubuntu:22.04, alongside the RC4.3.6 and 5.2.0 lines.
+      - The vendor's driver is installed from its own `.deb`, so the device's
+        userspace comes from the container, and the build toolchain, OpenMPI and
+        the Python development headers are installed beside the SDK.
+      - This is the first mthreads line whose Python stack is 3.12; the runtime
+        brings its own interpreter, so the 22.04 system python is not the row's.
+    reason_zh: |-
+      - 首次交付：摩尔线程 MUSA 5.3.0 连同 MCCL 2.5.0 和 muDNN 3.5.0，基于 ubuntu:22.04，与 RC4.3.6、5.2.0 两条线并存。
+      - 厂商驱动由其自带 `.deb` 安装，因此设备的用户态来自容器，构建工具链、OpenMPI 和 Python 开发头文件与 SDK 一并安装。
+      - 这是 mthreads 第一条 Python 栈为 3.12 的线；解释器由 runtime 自带，22.04 的系统 python 不是该行的。
+    upstream_prs: []
