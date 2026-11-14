@@ -342,6 +342,37 @@ backends:
       # cp310: the 22.04 system interpreter, same as sunrise, hcu and tsingmicro.
       wheel_tag: cp310-cp310-linux_x86_64
 
+  # The musa5.3.0 twin of mthreads: same staged LLVM and triton deps, but a
+  # deadsnakes 3.12 (torch 2.13.0 is cp312-only, and the cp310 file is refused by
+  # that runtime's pip). `daily.enabled` waits on a published builder stage.
+  mthreads-musa5.3.0:
+    containerfile: mthreads-musa5.3.0
+    builder_image: flagtree-builder-mthreads-musa5.3.0
+    runson: ["self-hosted", "musa520"]
+    disk_min_gb: 60
+    builder:
+      verify:
+        python: "3.12"
+        commands: [git, cmake, ninja, make, wget, curl]
+        files:
+          - /root/.triton/json/include/nlohmann/json.hpp
+          # Same two compiler-side files as the cp310 row: this file differs in
+          # its interpreter, not in what the mthreads backend stages.
+          - /root/.flagtree/mthreads/mthreads-llvm22/bin/clang
+          - /root/.flagtree/mthreads/mthreads-llvm22/bin/FileCheck
+          - /root/.flagtree/mthreads/mthreads_local_binary/llc
+          - /root/.flagtree/mthreads/mthreads_local_binary/ld.lld
+        dirs:
+          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir
+          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld
+    daily:
+      enabled: false
+      dist_name: flagtree-mthreads-musa5.3.0
+      version_base: "0.7.1"
+      ref: main
+      # cp312: the 5.3.0 line's interpreter (deps python 3.12).
+      wheel_tag: cp312-cp312-linux_x86_64
+
   kunlunxin:
     containerfile: kunlunxin
     builder_image: flagtree-builder-kunlunxin

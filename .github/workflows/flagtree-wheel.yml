@@ -46,6 +46,7 @@ on:
           - sunrise
           - hcu
           - hcu-dtk2610
+          - mthreads-musa5.3.0
           - ascend-cann9.0.0
           - ascend-cann9.2.1
           - ascend-cann8.5.0
@@ -130,6 +131,7 @@ jobs:
             ppu)          backend="thead-ppu2.1.0";         in_base=no  ;;
             hcu)          backend="hygon-dtk26.04";         in_base=no  ;;
             hcu-dtk2610)  backend="hygon-dtk26.10";         in_base=no  ;;
+            mthreads-musa5.3.0) backend="mthreads-musa5.3.0"; in_base=no  ;;
           esac
           if [ -z "$backend" ]; then
             echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
