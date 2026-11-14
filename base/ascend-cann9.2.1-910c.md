@@ -15,23 +15,23 @@
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.2
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `git`
 - `libelf1`
-- `libpython3-dev` — 3.12.3
-- `make` — 4.3
-- `net-tools` — 2.10
-- `pciutils` — 3.10.0
-- `python3-pip` — 24.0+dfsg
-- `python3.12` — 3.12.3
-- `python3.12-dev` — 3.12.3
-- `unzip` — 6.0
-- `vim` — 9.1.0016
+- `libpython3-dev`
+- `make`
+- `net-tools`
+- `pciutils`
+- `python3-pip`
+- `python3.12`
+- `python3.12-dev`
+- `unzip`
+- `vim`
 
 ### SDK components
 
@@ -74,8 +74,6 @@ Inside the container, confirm the accelerator is visible:
 ```bash
 npu-smi info
 ```
-
-*Last updated: 2026-11-13 07:44:26 · `7ff9e0561ff4`*
 
 ## Changelog
 

@@ -15,21 +15,21 @@
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `clang` — 18.0
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `libfmt8` — 8.1.1+ds1
+- `build-essential`
+- `ca-certificates`
+- `clang`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `git`
+- `libfmt8`
 - `libopenmpi3`
-- `libpython3-dev` — 3.12.3
-- `libunwind8` — 1.6.2
-- `sudo` — 1.9.15p5
-- `unzip` — 6.0
-- `vim` — 9.1.0016
+- `libpython3-dev`
+- `libunwind8`
+- `sudo`
+- `unzip`
+- `vim`
 
 ### SDK components
 
@@ -79,8 +79,6 @@ Inside the container, confirm the accelerator is visible:
 ```bash
 tsm_smi
 ```
-
-*Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
 
 ## Changelog
 

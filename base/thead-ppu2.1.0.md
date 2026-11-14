@@ -15,10 +15,10 @@
 
 Explicitly installed; the version is the one baked into this image:
 
-- `cmake` — 3.28.3
-- `libjpeg-turbo8` — 2.1.5
-- `libpng16-16t64` — 1.6.43
-- `libpython3-dev` — 3.12.3
+- `cmake`
+- `libjpeg-turbo8`
+- `libpng16-16t64`
+- `libpython3-dev`
 
 ### SDK components
 
@@ -45,8 +45,6 @@ Inside the container, confirm the accelerator is visible:
 ```bash
 ppu-smi
 ```
-
-*Last updated: 2026-11-11 20:26:55 · `fa9555c212ea`*
 
 ## Changelog
 

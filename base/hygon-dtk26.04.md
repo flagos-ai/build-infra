@@ -15,23 +15,23 @@
 
 Explicitly installed; the version is the one baked into this image:
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `git` — 2.43.0
-- `libdrm-amdgpu1` — 2.4.125
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `git`
+- `libdrm-amdgpu1`
 - `libdw1`
 - `libelf1`
-- `libgfortran5` — 14.2.0
-- `libgoogle-glog0v6t64` — 0.6.0
-- `libnuma1` — 2.0.18
-- `libpciaccess0` — 0.17
-- `pciutils` — 3.10.0
-- `unzip` — 6.0
-- `vim` — 9.1.0016
+- `libgfortran5`
+- `libgoogle-glog0v6t64`
+- `libnuma1`
+- `libpciaccess0`
+- `pciutils`
+- `unzip`
+- `vim`
 
 ### SDK components
 
@@ -68,8 +68,6 @@ Inside the container, confirm the accelerator is visible:
 ```bash
 hy-smi
 ```
-
-*Last updated: 2026-10-27 09:20:51 · `72dd165431b8`*
 
 ## Changelog
 

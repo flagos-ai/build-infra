@@ -36,21 +36,21 @@ title: "cambricon-neuware4.7.2"
 
 显式安装；此处版本即为该镜像中实际打包的版本：
 
-- `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
-- `cmake` — 3.28.3
-- `curl` — 8.5.0
-- `g++` — 13.2.0
-- `gcc` — 13.2.0
-- `gdb` — 15.1
-- `git` — 2.43.0
-- `libc6-dev-i386` — 2.39
-- `libncurses6` — 6.4+20240113
-- `libtinfo6` — 6.4+20240113
-- `make` — 4.3
-- `pciutils` — 3.10.0
-- `unzip` — 6.0
-- `vim` — 9.1.0016
+- `build-essential`
+- `ca-certificates`
+- `cmake`
+- `curl`
+- `g++`
+- `gcc`
+- `gdb`
+- `git`
+- `libc6-dev-i386`
+- `libncurses6`
+- `libtinfo6`
+- `make`
+- `pciutils`
+- `unzip`
+- `vim`
 
 ### SDK 组件
 
@@ -86,8 +86,6 @@ docker run --rm -it \
 ```bash
 cnmon
 ```
-
-*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
 
 ## 更新日志
 
