@@ -36,7 +36,7 @@ name: Generate docs for base images
 # Self-healing: self-hosted runner connectivity to GitHub is unreliable across
 # vendors. The accumulate job collects whatever extractors succeed, saves partial
 # results to the state branch, then self-triggers with only the missing backends.
-# This loops until all are collected or the retry cap (50) is hit.
+# This loops until all are collected or the retry cap (10) is hit.
 
 on:
   workflow_dispatch:
@@ -175,7 +175,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RETRY_COUNT: ${{ github.event.inputs.retry_count || 0 }}
-      MAX_RETRIES: 50
+      MAX_RETRIES: 10
     outputs:
       done: ${{ steps.collect.outputs.done }}
       missing: ${{ steps.collect.outputs.missing }}
@@ -345,4 +345,4 @@ jobs:
             --verify-fail "${{ steps.collect.outputs.verify_fail || 0 }}" \
             --verify-skip "${{ steps.collect.outputs.verify_skip || 0 }}" \
             --retry "${{ env.RETRY_COUNT || 0 }}" \
-            --max-retries "${MAX_RETRIES:-50}"
+            --max-retries "${MAX_RETRIES:-10}"
