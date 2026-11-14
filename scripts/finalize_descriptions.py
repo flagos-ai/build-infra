@@ -241,10 +241,15 @@ def _retry(args) -> None:
         sys.exit(1)
 
     if retry >= max_retries:
-        print(f"::warning::Retry cap ({max_retries}) reached. "
-              f"Proceeding with partial data. Missing: {missing}")
+        # Render what was collected — 24 of 25 backends is still a release's
+        # worth of version records — but fail the run. A warning leaves the
+        # job green, and a green run with a backend missing is indistinguishable
+        # from a complete one to everyone who was not watching the retry loop.
+        print(f"::error::Retry cap ({max_retries}) reached with backends still "
+              f"missing: {missing}. Descriptions recorded from the {args.count} "
+              f"backends that were collected.")
         _finalize(args)
-        return
+        sys.exit(1)
 
     # Per-backend branches from previous successful runs are NOT deleted here —
     # they are the source of truth for already-collected backends. The next
