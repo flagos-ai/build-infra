@@ -19,20 +19,21 @@ backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`
 - **不带厂商容器 runtime 会得到一个误导性的 `0 active drivers`**：容器起得来，
   `import vllm_fl` 报无设备访问 —— 看起来像插件 bug，其实是 runtime 没给。
 - flags 原文见 `.github/build-config.yml` `run.vendors.mthreads`。
-- **2026-11-15 起 musa520 节点的 `--runtime mthreads` 整个起不来**：任何带
-  `MTHREADS_VISIBLE_DEVICES` 的 `docker run --runtime mthreads` 在 create 阶段失败，
-  报 `error discovering devices … error initializing MTML: unknown error: unknown`；
-  不带该环境变量则正常。dmesg 给的是 userspace/内核结构体大小错配
-  （`[mtvpu] ioctl_mgt_get_info, invalid info size, req:4, size:132, expected:196`）：
-  宿主装的 `mtml 2.1.0-linux` 发 132 字节的 info 结构，而 2026-11-14 新装的
-  `musa 5.3.0-server` 驱动要 196。**这是宿主 provisioning 问题，不是本仓缺陷**，
-  待处置：Nexus `/flagos-pypi` filestore 里有
-  `1966bc657_mtml_2.4.2-linux-R_amd64.deb`（包版本 `2.4.2-linux`）可升，
-  但动宿主的包要用户拍板，落定后 `docs/vendors/mthreads.md` 与
-  `.github/build-config.yml` 两侧都要跟着改。
-- 在该缺陷修复前，**raw 档（`--device /dev/mtgpu.0 --device /dev/dri`）可用且枚举正常**
-  （`torch.musa.device_count() == 8`）。FlagCX 的 `verify-flagcx-wheel.sh` 用的是
-  toolkit 档，所以它在这台节点上跑不完；builder 档的 probe 不用设备，不受影响。
+- **musa520 节点的 `--runtime mthreads` 当前给不出设备**（2026-11-15）：容器能起来，
+  但里面 `/dev` 没有 `mtgpu*`、`mthreads-gmi` 报 `failed to load driver`、
+  `torch.musa.device_count()` 为 0。runtime 日志的断点在
+  `Reading ldcache at`（路径为空）后紧跟 `no devices found`，并有两行
+  `Could not locate libmtml_musa.so / libmtml_MUSA.so` 和
+  `could not find the major version number for /usr/lib/libmtml.so`。
+- 根因是 toolkit 与 mtml 的布局不配套：宿主 `mt-container-toolkit` 仍是 2.1.0，
+  它按多文件布局找 `libmtml.so.<major>` + `libmtml_musa.so`，而 `dpkg -L mtml`
+  在装上的 2.4.2-linux 只有一个裸的 `/usr/lib/libmtml.so`。discoverer 因此拿到空
+  设备表，静默注入零设备。**待办：两包同源升级（toolkit 也要到 2.4.x）**。
+- dmesg 里的 `[mtvpu] ioctl_mgt_get_info, invalid info size, req:4, size:132,
+  expected:196` 也是 toolkit 档发出的，每次 create 涨 16 行；raw 档 0 行。
+- **raw 档（`--device /dev/mtgpu.0 --device /dev/dri`）完全正常**：
+  `torch.musa.device_count() == 8`。所以在这台节点上验证要用
+  `verify-flagcx-wheel.sh --run-flags-tier raw`；builder 档的 probe 不用设备，不受影响。
 
 ## 供应商工具链（跨厂商结论在此失效）
 
