@@ -14,16 +14,18 @@
 
 name: FlagCX Wheel
 
-# Build FlagCX wheels in the backend's builder image where the row publishes
-# one and in its runtime image otherwise, verify them in the runtime image, and
-# (optionally) publish them to that vendor's PyPI.
+# Build FlagCX wheels in the backend's builder image, check the artifact there,
+# and (optionally) publish it to that vendor's PyPI. No runtime image is read
+# anywhere on this line.
 #
-# THE BUILD AND THE VERIFICATION RUN IN DIFFERENT IMAGES, and the row states both:
-# the build uses flagcx-config.py's `builder_image` (nvidia: no clang; hygon:
-# glibc 2.35 floor; the runtime image itself on the rows that publish no
-# builder), while the verification uses `runtime_image` on every row. A builder
-# is only ever a superset of the runtime, so verifying there would prove the
-# wheel loads in an environment nobody deploys it into.
+# THE CHECK RUNS IN THE BUILDER, AND THAT IS THE ONLY PLACE IT CAN RUN. Every
+# runtime image that will carry a flagcx wheel pins it in `deps:`, so the runtime
+# cannot be built until the wheel is published — verifying in the runtime would
+# be the circle this line used to sit in. The builder is not a stand-in for it:
+# what this stage proves is that the artifact installs, imports and carries its
+# payload, and the delivered-set question (flagcx loading alongside FlagGems and
+# the compilers) belongs to the runtime line, whose `verify-runtime.py` imports
+# flagcx on exactly the rows that pin it.
 #
 # The FlagCX build imports torch while it configures itself, so one environment
 # has to carry torch, setuptools_scm and Python.h at once — only /flagos does.
@@ -94,9 +96,13 @@ on:
         type: boolean
         default: true
       verify:
-        description: 'install the wheel from the file into its runtime image before publishing'
+        description: 'install the wheel from the built image before publishing'
         type: boolean
         default: true
+      run_flags_tier:
+        description: 'Which build-config.yml run.vendors tier to start the verification container with: toolkit (the default), raw, or default. Name one where the tier above it is known broken on a node — mthreads needs raw, whose toolkit tier injects zero devices there.'
+        type: string
+        default: ''
       publish:
         description: 'push the verified wheel to the vendor PyPI (requires verify and wheel_version)'
         type: boolean
@@ -307,6 +313,7 @@ jobs:
             --backend "$MATRIX_NAME" \
             --ref "$FLAGCX_CHECKOUT_REF" \
             --out packaging/flagcx/dist \
+            ${{ inputs.run_flags_tier != '' && format('--run-flags-tier {0}', inputs.run_flags_tier) || '' }} \
             ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       - name: Upload the wheel
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -344,20 +351,22 @@ jobs:
       - if: steps.download.outcome == 'failure'
         run: |
           echo "::warning::${{ matrix.name }} built no wheel, so there is nothing to verify"
-      - name: Pull the runtime image
+      - name: Pull the builder image
         if: steps.download.outcome == 'success'
         run: |
-          docker pull "${{ matrix.runtime_image }}" \
-            || { echo "::error::Failed to pull ${{ matrix.runtime_image }}"; exit 1; }
+          docker pull "${{ matrix.builder_image }}" \
+            || { echo "::error::Failed to pull ${{ matrix.builder_image }}"; exit 1; }
       # Not gated on `publish`: the point of this step is to refuse an artifact
       # that does not stand on its own, and that is worth knowing whether or not
       # anyone intends to publish it. Installing from the FILE (no index) is what
       # makes it the wheel-line counterpart of flagcx-deb.yml's `full` mode.
-      # The runtime image on purpose, on every row: this is the wheel's delivery
-      # environment, and a builder is only ever a superset of it — the floor
-      # proof a builder gives is not the same question as whether the wheel
-      # deploys. The script reads the image off the row itself, so nothing here
-      # has to name it.
+      #
+      # The BUILDER image on purpose: it is the only environment that exists at
+      # this point. The runtime that will carry this wheel pins it, so the runtime
+      # cannot be built until this wheel is published — verifying there would be
+      # the circle. What this stage proves is that the artifact installs, imports
+      # and carries its payload; whether it loads in the delivered set is the
+      # runtime line's `verify-runtime.py`, which is where that question belongs.
       - name: Verify the wheel from the file
         if: steps.download.outcome == 'success'
         env:
@@ -366,6 +375,8 @@ jobs:
           set -euo pipefail
           packaging/flagcx/verify/verify-flagcx-wheel.sh \
             --wheel packaging/flagcx/dist/*.whl \
+            --image "${{ matrix.builder_image }}" \
+            ${{ inputs.run_flags_tier != '' && format('--run-flags-tier {0}', inputs.run_flags_tier) || '' }} \
             ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       # The same critical list vllm-plugin-wheel.yml audits: these images bake a
       # pinned matrix and the app installs single-step. A flagcx wheel declares
@@ -437,11 +448,14 @@ jobs:
           echo "WHEEL_PIN=${pin}" >> "$GITHUB_ENV"
           echo "WHEEL_SHA256=${sha%% *}" >> "$GITHUB_ENV"
           echo ">>> ${pypi_repo}: $(basename "${wheel[0]}")"
-          # Upload FROM INSIDE the runtime image, not the runner host: the hygon
-          # runner's /usr/bin/python3 has no pip (run 31795636072). The secret
-          # travels via `-e NEXUS_TOKEN` (inherits the step env) so it never
-          # appears in a process list or an image layer. Read-only mount: this
-          # container writes nothing into the workspace.
+          # Upload FROM INSIDE the builder image, not the runner host: the hygon
+          # runner's /usr/bin/python3 has no pip (run 31795636072), and this line
+          # no longer touches a runtime image at all — the runtime that carries
+          # this wheel cannot be built until the wheel is on the index. Any image
+          # with /flagos would do; the builder is the one this run already has.
+          # The secret travels via `-e NEXUS_TOKEN` (inherits the step env) so it
+          # never appears in a process list or an image layer. Read-only mount:
+          # this container writes nothing into the workspace.
           #
           # The 910C nodes have no egress of their own: they reach the outside
           # only through the proxy their runner's systemd unit sets, so the
@@ -454,7 +468,7 @@ jobs:
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
             -v "$PWD/packaging/flagcx/dist:/wheels:ro" \
-            "${{ matrix.runtime_image }}" \
+            "${{ matrix.builder_image }}" \
             bash -euo pipefail -c '
               # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
               # Metadata-Version 2.4 into the wheel, which older pkginfo cannot

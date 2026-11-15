@@ -130,9 +130,14 @@ runtime carries no toolchain or whose wheel needs the 22.04 floor — and in the
 otherwise. Every builder on this channel is self-contained on **ubuntu:22.04**: that base is what
 lowers the wheel's glibc floor to 2.35, so it installs on the bundle's physical 22.04 hosts.
 
-Verification uses the **runtime** image on every row instead. A builder is a superset of the
-runtime, so verifying there would answer the wrong question — the wheel has to import where it is
-delivered, which is the runtime.
+The wheel line's own check runs in the **builder** too, and that is the only image it can run in:
+every runtime that will carry a flagcx wheel pins it in `deps:`, so the runtime cannot be built
+until the wheel is published. What that stage proves is the artifact — it installs, imports, and
+carries its `.so`, bitcode and metadata. Whether flagcx loads alongside FlagGems and the compilers
+is a question about the delivered set, and the runtime line answers it: `scripts/verify_runtime.py`
+imports flagcx on exactly the rows that pin it.
+
+`--image REF` overrides the default target, which is the row's `runtime_image`.
 
 ```bash
 packaging/flagcx/build-flagcx-wheel.sh --list

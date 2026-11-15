@@ -28,6 +28,11 @@
 #   --expect-sha256 H  sha256 of the wheel that was built, the hash alone
 #   --backend KEY      backend from backends.yaml; read off the artifact when
 #                      this is absent
+#   --image REF        the image to install into. Defaults to the row's
+#                      `runtime_image`, which is where the wheel is delivered.
+#                      The wheel line names the row's builder image here for
+#                      its pre-publish check: that is the only environment that
+#                      exists before the runtime carrying this wheel is built
 #   --run-flags-tier T toolkit (default), raw, or default: which tier of
 #                      build-config.yml's run.vendors entry to start the
 #                      container with. A tier the vendor does not state is an
@@ -57,6 +62,7 @@ OPT_INDEX_URL=""
 OPT_PIN=""
 OPT_EXPECT_SHA256=""
 OPT_BACKEND=""
+OPT_IMAGE=""
 OPT_RUN_FLAGS_TIER=""
 LOCAL_MODE=0
 KEEP=0
@@ -77,6 +83,7 @@ while [[ $# -gt 0 ]]; do
         --pin)            OPT_PIN="${2:?--pin needs a value}"; shift 2 ;;
         --expect-sha256)  OPT_EXPECT_SHA256="${2:?--expect-sha256 needs a hash}"; shift 2 ;;
         --backend)        OPT_BACKEND="${2:?--backend needs a key}"; shift 2 ;;
+        --image)          OPT_IMAGE="${2:?--image needs a ref}"; shift 2 ;;
         --run-flags-tier) OPT_RUN_FLAGS_TIER="${2:?--run-flags-tier needs a value}"; shift 2 ;;
         --no-bitcode)     NO_BITCODE=1; shift ;;
         --keep)           KEEP=1; shift ;;
@@ -214,12 +221,15 @@ case "$LABEL" in
     "$WHEEL_LOCAL_VERSION"|"$WHEEL_LOCAL_VERSION".*) ;;
     *) fail "$KEY publishes the label $WHEEL_LOCAL_VERSION, the artifact carries $LABEL" ;;
 esac
-# The runtime image, never the builder, even on a row that builds in one: this
-# is where the wheel is delivered, so it is where it has to stand on its own.
-# The builder is only ever a superset — proving the import there answers a
-# question nobody deploys.
-[[ -n "$WHEEL_RUNTIME_IMAGE" ]] \
-    || fail "$KEY: no runtime image in its matrix row, so there is nothing to verify in"
+# The default is the runtime image, never the builder, even on a row that builds
+# in one: that is where the wheel is delivered, so it is where it has to stand on
+# its own. `--image` overrides it for the wheel line's pre-publish check, whose
+# only environment is the builder — the runtime that will carry this wheel cannot
+# exist until the wheel is published. The two are different questions and both
+# are asked; neither substitutes for the other.
+[[ -n "$OPT_IMAGE" ]] || OPT_IMAGE="$WHEEL_RUNTIME_IMAGE"
+[[ -n "$OPT_IMAGE" ]] \
+    || fail "$KEY: no runtime image in its matrix row and no --image given, so there is nothing to verify in"
 if [[ -n "$OPT_INDEX_URL" ]]; then
     # Both sides come off the same matrix row, so this holds by construction —
     # and it is what keeps a read-back from reporting on an index the row does
@@ -228,7 +238,7 @@ if [[ -n "$OPT_INDEX_URL" ]]; then
         || fail "--index-url $OPT_INDEX_URL is not this row's index ($WHEEL_INDEX_URL)"
 fi
 
-docker image inspect "$WHEEL_RUNTIME_IMAGE" >/dev/null 2>&1 || docker pull "$WHEEL_RUNTIME_IMAGE"
+docker image inspect "$OPT_IMAGE" >/dev/null 2>&1 || docker pull "$OPT_IMAGE"
 
 # The vendor's device passthrough, from build-config.yml: the extension this
 # wheel installs links the vendor's communication library, so this container
@@ -462,6 +472,6 @@ echo ">>> $MODE: flagcx $installed imports, $lib and its dependencies resolve, n
 IN_CONTAINER
 }
 
-verify_in "$WHEEL_RUNTIME_IMAGE" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
+verify_in "$OPT_IMAGE" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
 
 echo ">>> ok: flagcx $WANT_VERSION ($WHEEL_ARCH, $WHEEL_PYTHON_TAG)"
