@@ -560,6 +560,15 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: flagcx==0.14.1+musa5.3.0
+    pypi_index: flagos-pypi-mthreads
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python: cp312
+    os: linux
+    arch: linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
