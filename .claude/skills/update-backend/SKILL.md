@@ -192,11 +192,30 @@ compiler).
 `scripts/docs/gen_data.py` → images.yaml → `gen_descriptions.py` (base/runtime pages).
 The gendoc workflows extract the versions from the built images and open a
 review-gated PR; package version bumps surface there. Don't hand-edit
-`base/*.md` / `runtime/*.md`. And don't run `gen_descriptions.py` to **write
-files** locally (`VERSIONS_DIR=…`): it renders pages without the Changelog
-section, so a plain file-write wipes the committed `## Changelog` off every page.
-Local use is a stdout preview only (`gen_descriptions.py <backend>`); file writes
-belong to the gendoc workflow.
+`base/*.md` / `runtime/*.md`.
+
+Which command to run, by what you changed:
+
+| You changed | Run |
+|---|---|
+| `configs.yaml` deps / compiler / env, `build-config.yml` run.vars | nothing — gendoc owns base/runtime pages |
+| `build-config.yml` `run.vendors` (launch tiers) | `--app-only`, **then** `--changelog-only --layer app` |
+| a changelog file only | `--changelog-only` |
+| the app status matrix | `gen_data.py` → `--app-only` |
+
+The two traps behind that table:
+
+- **`--app-only` writes files** (no `VERSIONS_DIR` needed) and its output has no
+  `## Changelog` section, so it wipes the committed one off every app page.
+  Always follow it with `--changelog-only --layer app`, then confirm
+  `--app-only --check` is clean — the check compares the same rendered body, so
+  it passes with the Changelog missing.
+- **Base/runtime pages have no local writer.** Without `VERSIONS_DIR` (a build-time
+  version TSV) a file write would drop the version tables, so local use is a
+  stdout preview only (`gen_descriptions.py <backend>`). When a launch-tier
+  change must reach those pages before gendoc runs, re-render the section and
+  splice just it (Prerequisites + Launch) into the existing file — the rest of
+  the page is version-TSV content that cannot be reproduced.
 
 ## Add a new backend (rare)
 

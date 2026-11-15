@@ -33,13 +33,6 @@
 #   --expect-version V  fail unless the built wheel is version V
 #   --print-pin WHL     print the pin for a wheel already built, then exit
 #   --no-cache      pass --no-cache to docker build
-#   --run-flags-tier T  which tier of build-config.yml's run.vendors entry to
-#                   start the build container with: toolkit (the default), raw,
-#                   or default. A tier the vendor does not state is an error,
-#                   not a fallback — naming one says the tier above it is known
-#                   broken on this host, and a silent fallback would put the
-#                   build back on exactly that tier. The verification takes the
-#                   same input, so a host that needs it names it once per run.
 #   --no-bitcode    build without the row's device bitcode even when the row
 #                   states bitcode_arch — for a ref that predates the row's
 #                   bindings/ir Makefile (v0.14.0 has no iluvatar one, and its
@@ -76,10 +69,9 @@ WHEEL_EXPECT_VERSION=""
 PIN_WHEELS=()
 NO_CACHE=0
 NO_BITCODE=0
-OPT_RUN_FLAGS_TIER=""
 FALLBACK_REF="main"
 
-usage() { sed -n '16,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '16,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -97,7 +89,6 @@ while [[ $# -gt 0 ]]; do
         # step runs on a host with no checkout, no docker and no --ref.
         --print-pin) PRINT_PIN=1; shift; PIN_WHEELS+=("$@"); break ;;
         --no-cache) NO_CACHE=1; shift ;;
-        --run-flags-tier) OPT_RUN_FLAGS_TIER="${2:?--run-flags-tier needs a value}"; shift 2 ;;
         --no-bitcode) NO_BITCODE=1; shift ;;
         -h|--help)  usage; exit 0 ;;
         *)          echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -502,7 +493,7 @@ for key in "${BACKENDS[@]}"; do
         # source: the artifacts are the host's the moment they are written, and
         # the wheel is read back from here with commit.txt/scm-describe.txt beside
         # it, which is what the Containerfile no longer writes into the image.
-        RUN_FLAGS="$(BACKEND="$key" TIER="$OPT_RUN_FLAGS_TIER" REPO_ROOT="$REPO_ROOT" python3 - <<'PY'
+        RUN_FLAGS="$(BACKEND="$key" REPO_ROOT="$REPO_ROOT" python3 - <<'PY'
 import os
 import yaml
 with open(os.path.join(os.environ["REPO_ROOT"], ".github/build-config.yml")) as fh:
@@ -511,28 +502,15 @@ with open(os.path.join(os.environ["REPO_ROOT"], ".github/build-config.yml")) as 
 # build-infra vendor name. There is no second copy to keep in step.
 key = os.environ["BACKEND"]
 vendor = key.split("-", 1)[0]
-tier = os.environ.get("TIER") or ""
 entry = (run.get("vendors") or {}).get(vendor)
 if entry is None:
     raise SystemExit(
         f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
         f"to build without the device flags its backend needs"
     )
-# Same three-way resolution verify-flagcx-wheel.sh makes: an unnamed tier takes
-# the vendor's default one, `default` names run.default explicitly, and a named
-# tier is taken as given with no fallback.
-if tier == "default":
-    print(run.get("default", ""))
-elif tier:
-    value = entry.get(tier, "")
-    if not value:
-        raise SystemExit(
-            f"run.vendors.{vendor} states no {tier!r} tier — the available "
-            f"ones are {sorted(k for k in entry if isinstance(entry[k], str))}"
-        )
-    print(value)
-else:
-    print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
+# Same resolution verify-flagcx-wheel.sh makes: the vendor's toolkit tier when
+# it states one, else its raw flags.
+print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
 PY
 )"
         # Some vendor toolkits already carry it; naming it twice makes docker

@@ -3,7 +3,6 @@
 - **Architecture:** x86_64
 - **Chip models:** MThreads MTT S5000
 - **Host driver:** 5.2.0-server
-- **Container toolkit** *(optional)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## Image contents
 
@@ -42,16 +41,7 @@ Pass `-e FLAGGEMS_VERSION=<version>` to `docker run` to install that FlagGems re
 
 ## Launch
 
-**With the container toolkit** *(optional)*:
-
-```bash
-docker run --rm -it \
-  --runtime mthreads \
-  --env MTHREADS_VISIBLE_DEVICES=all \
-  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.3.0 bash
-```
-
-**Without a toolkit** — plain docker / podman:
+Start an interactive shell (works with docker or podman):
 
 ```bash
 docker run --rm -it \

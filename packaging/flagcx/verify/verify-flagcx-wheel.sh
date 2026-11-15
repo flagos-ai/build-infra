@@ -33,11 +33,6 @@
 #                      The wheel line names the row's builder image here for
 #                      its pre-publish check: that is the only environment that
 #                      exists before the runtime carrying this wheel is built
-#   --run-flags-tier T toolkit (default), raw, or default: which tier of
-#                      build-config.yml's run.vendors entry to start the
-#                      container with. A tier the vendor does not state is an
-#                      error, not a fallback — passing `raw` says the toolkit is
-#                      known broken on this host, and falling back would hide it
 #   --no-bitcode       the wheel under test carries no device bitcode even though
 #                      the row states bitcode_arch, so skip the .bc assertions —
 #                      the twin of build-flagcx-wheel.sh's flag, for a ref that
@@ -63,13 +58,12 @@ OPT_PIN=""
 OPT_EXPECT_SHA256=""
 OPT_BACKEND=""
 OPT_IMAGE=""
-OPT_RUN_FLAGS_TIER=""
 LOCAL_MODE=0
 KEEP=0
 NO_BITCODE=0
 WHEELS=()
 
-usage() { sed -n '16,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '16,41p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 fail() {
     echo "verify-flagcx-wheel.sh: $*" >&2
@@ -84,7 +78,6 @@ while [[ $# -gt 0 ]]; do
         --expect-sha256)  OPT_EXPECT_SHA256="${2:?--expect-sha256 needs a hash}"; shift 2 ;;
         --backend)        OPT_BACKEND="${2:?--backend needs a key}"; shift 2 ;;
         --image)          OPT_IMAGE="${2:?--image needs a ref}"; shift 2 ;;
-        --run-flags-tier) OPT_RUN_FLAGS_TIER="${2:?--run-flags-tier needs a value}"; shift 2 ;;
         --no-bitcode)     NO_BITCODE=1; shift ;;
         --keep)           KEEP=1; shift ;;
         -h|--help)        usage; exit 0 ;;
@@ -249,7 +242,7 @@ docker image inspect "$OPT_IMAGE" >/dev/null 2>&1 || docker pull "$OPT_IMAGE"
 # the container with no line in the log saying so. metax is why the chain ends at
 # run.default -- its entry carries toolkit_cmd (a wrapper binary CI does not
 # have) and raw, no toolkit.
-RUN_FLAGS="$(BACKEND="$WHEEL_NAME" TIER="$OPT_RUN_FLAGS_TIER" python3 - <<'PY'
+RUN_FLAGS="$(BACKEND="$WHEEL_NAME" python3 - <<'PY'
 import os
 import yaml
 with open(".github/build-config.yml") as fh:
@@ -258,31 +251,15 @@ with open(".github/build-config.yml") as fh:
 # build-infra vendor name. There is no second copy to keep in step.
 key = os.environ["BACKEND"]
 vendor = key.split("-", 1)[0]
-tier = os.environ.get("TIER") or ""
 entry = (run.get("vendors") or {}).get(vendor)
 if entry is None:
     raise SystemExit(
         f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
         f"to verify without the device flags its backend needs"
     )
-if tier == "default":
-    # run.default's empty string is a value, not an absent one: it is what a
-    # vendor with no entry gets, and naming the tier is how a host is told the
-    # vendor's own tiers are not usable on it.
-    print(run.get("default", ""))
-elif tier:
-    # A named tier is taken as given, with no fallback: the reason to name one
-    # is that the tier above it does not work on this host, and a silent
-    # fallback would put the container back on exactly that tier.
-    value = entry.get(tier, "")
-    if not value:
-        raise SystemExit(
-            f"run.vendors.{vendor} states no {tier!r} tier — the available "
-            f"ones are {sorted(k for k in entry if isinstance(entry[k], str))}"
-        )
-    print(value)
-else:
-    print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
+# The vendor's toolkit tier when it states one, else its raw flags. A vendor
+# states at most one working tier, so a wrong one is a build-config bug.
+print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
 PY
 )"
 # Adding it twice makes docker abort with "network host is specified multiple
