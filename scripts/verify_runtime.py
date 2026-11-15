@@ -15,7 +15,8 @@
 # limitations under the License.
 
 """Verify a runtime image: import torch, triton, flag_gems, and run
-flag_gems.use_gems() with a simple add operator.
+flag_gems.use_gems() with a simple add operator — plus flagcx on the images
+whose `deps:` pin it.
 
 Pulls the image from Harbor and runs the verification command inside it
 with the appropriate per-vendor docker run flags.  Designed primarily
@@ -70,11 +71,28 @@ try:
 except Exception as e:
     tests.append('use_gems+add FAIL: ' + str(e))
 
+CHECK_FLAGCX
+
 for t in tests:
     print(t)
 if any('FAIL' in t for t in tests):
     sys.exit(1)
 '''
+
+# Only the rows whose `deps` pin flagcx carry it, so the check is spliced in for
+# those and is a no-op elsewhere. It asserts the wheel the image installs is the
+# one that loads alongside FlagGems, which is the pairing a flagcx wheel's own
+# line cannot see: that line builds and checks before this runtime exists.
+FLAGCX_CHECK = r"""# 5. import flagcx — this image pins a flagcx wheel, so this is the pairing
+#    (flagcx + FlagGems + the compilers) a user's install actually gets.
+try:
+    import importlib.metadata as _md
+    import flagcx
+    import flagcx.api
+    tests.append('flagcx OK ' + _md.version('flagcx'))
+except Exception as e:
+    tests.append('flagcx FAIL: ' + str(e))
+"""
 
 
 def main() -> None:
@@ -126,8 +144,17 @@ def main() -> None:
 
         # Pipe the verification script via bash heredoc so multi-line
         # try/except blocks work (python3 -c can't do that on one line).
+        # The flagcx check is spliced in only where the image pins the wheel;
+        # anywhere else `import flagcx` proving nothing is the failure mode.
+        pins_flagcx = any(
+            (p.get("pkg") or "").split("==")[0] == "flagcx"
+            for p in (entry["runtime"].get("packages") or [])
+        )
+        script = VERIFY_SCRIPT.replace(
+            "CHECK_FLAGCX", FLAGCX_CHECK if pins_flagcx else ""
+        )
         cmd = ["docker", "run"] + flags + ["--rm", image,
-               "bash", "-c", f"python3 << 'PYEOF'\n{VERIFY_SCRIPT}\nPYEOF"]
+               "bash", "-c", f"python3 << 'PYEOF'\n{script}\nPYEOF"]
         print(f"  Verifying...")
         r = subprocess.run(cmd)
         print("::endgroup::")
@@ -136,7 +163,7 @@ def main() -> None:
             print(f"  ❌ {name}: verification FAILED (exit {r.returncode})")
             failed.append(name)
         else:
-            print(f"  ✅ {name}: ALL 4 checks passed")
+            print(f"  ✅ {name}: ALL {4 + int(pins_flagcx)} checks passed")
 
     if failed:
         print(f"\n{len(failed)} FAILED: {' '.join(failed)}")

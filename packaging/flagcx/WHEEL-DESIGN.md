@@ -329,14 +329,20 @@ extension is compiled in still carries what the wheel needs without inheriting t
 floor, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a builder —
 the build would otherwise run where there is no clang and fail one stage later, at the make.
 
-**The build and the verification deliberately do not use the same image.** The build runs in
-`builder_image`; the verification runs in `runtime_image`, on every row, builder or not. A builder
-is only ever a superset of the runtime, so verifying there would prove the wheel loads in an
-environment nobody deploys it into. The two questions are different and the earlier arrangement
-asked only one: the wheel must link at 2.35 (`wheel-build-in-container.sh`'s `.so` gate, at the
-artifact) *and* it must import where it is delivered (`verify-flagcx-wheel.sh`). The merged row
-carries the two names instead of the matrix's `image_tag` — this channel is where the single tag
-splits into its two uses, so leaving the ambiguous name beside them would invite the wrong read.
+**The wheel line's check runs in the builder, and it is the only image it can run in.** Every
+runtime image that will carry a flagcx wheel pins it in `deps:`, so the runtime cannot be built
+until the wheel is published; a line that verified in the runtime would have to publish first, and
+that is the circle this line sat in. What the builder proves is the artifact: it installs, imports,
+and carries its `.so`, bitcode and metadata — `verify-flagcx-wheel.sh --image <builder_image>`. It
+does not prove the delivered set, and does not claim to. The question "does flagcx load alongside
+FlagGems and the compilers" is asked when the runtime that carries it is built:
+`scripts/verify_runtime.py` imports flagcx on exactly the rows whose `deps:` pin it, which is the
+first moment the delivered pairing exists.
+
+The two-stage split is what makes the merged row carry both names instead of the matrix's
+`image_tag`: `builder_image` is where the wheel is compiled and checked, `runtime_image` is where
+it is delivered and where the deployed-set check runs. Keeping the ambiguous single name beside
+them would invite the wrong read.
 
 ## Mechanics
 
