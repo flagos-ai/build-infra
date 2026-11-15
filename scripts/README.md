@@ -15,7 +15,7 @@
 | `runtime_image_status.py` | runtime 镜像状态对比（`HARBOR_USER`/`HARBOR_PW` 环境变量） | — |
 | `build_cpp_wheel.sh` | 在 runtime 镜像内构建 `flag-gems-cpp-<vendor>` wheel（env: `FLAGGEMS_REF`/`FLAGGEMS_CPP_VENDOR`/`FLAGGEMS_CMAKE_ARGS`/`SETUPTOOLS_SCM_PRETEND_VERSION`/`FLAGGEMS_BUILD_DEPS`） | — |
 | `verify_base.py` | 从 build-config.yml 取 verify 命令，`docker run --rm <image> <verify-cmd>` | ✅ |
-| `verify_runtime.py` | 拉镜像跑 runtime 内验证（flag_gems 简单 op） | ✅ |
+| `verify_runtime.py` | 拉镜像跑 runtime 内验证（flag_gems 简单 op）；`--image REF` 校验本地刚构建的镜像、不拉取 | ✅ |
 | `verify-cpp-fixes.sh` / `verify-cpp-ops.py` | C++ wheel 修复验证 / C++ op 安装后验证 | ✅ |
 | `verify_collect_cells.py` | verify-driver plan 任务：读 status matrix YAML，收集 ⬜ cell → matrix JSON | ✅ |
 | `verify_dispatch_build.py` | verify-driver build 任务：读合并的 result JSON，对通过 cell 派发构建 | ✅ |

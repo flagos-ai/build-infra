@@ -134,8 +134,9 @@ The wheel line's own check runs in the **builder** too, and that is the only ima
 every runtime that will carry a flagcx wheel pins it in `deps:`, so the runtime cannot be built
 until the wheel is published. What that stage proves is the artifact — it installs, imports, and
 carries its `.so`, bitcode and metadata. Whether flagcx loads alongside FlagGems and the compilers
-is a question about the delivered set, and the runtime line answers it: `scripts/verify_runtime.py`
-imports flagcx on exactly the rows that pin it.
+is a question about the delivered set, and the runtime build answers it: `scripts/verify_runtime.py`
+imports flagcx on exactly the rows that pin it, and `runtime-image.yml` runs that check between the
+build and the push.
 
 `--image REF` overrides the default target, which is the row's `runtime_image`.
 
