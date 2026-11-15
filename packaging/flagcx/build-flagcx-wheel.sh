@@ -416,16 +416,16 @@ for key in "${BACKENDS[@]}"; do
         tag="flagcx-wheel:$key"
         echo ">>> $key: $WHEEL_NAME ($WHEEL_ARCH, $WHEEL_PYTHON_TAG) from $FLAGCX_REF"
 
-        # The wheel builds in $WHEEL_BASE_IMAGE — the runtime image, or the
-        # builder image on a row that publishes one. The builder is
+        # The wheel builds in $WHEEL_BUILDER_IMAGE — the row's builder image where
+        # it publishes one, its runtime image otherwise. The builder is
         # self-contained (ubuntu:22.04) rather than layered on the runtime, so
         # there is no base-digest staleness to check against the runtime's
         # moving flat tag: the builder records no runtime it was built on, and
         # the floor it guarantees (glibc 2.35) is what the wheel's own .so gate
         # in wheel-build-in-container.sh asserts against, at the artifact rather
         # than at an image digest.
-        docker image inspect "$WHEEL_BASE_IMAGE" >/dev/null 2>&1 \
-            || docker pull "$WHEEL_BASE_IMAGE" >&2
+        docker image inspect "$WHEEL_BUILDER_IMAGE" >/dev/null 2>&1 \
+            || docker pull "$WHEEL_BUILDER_IMAGE" >&2
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
 
@@ -459,9 +459,9 @@ for key in "${BACKENDS[@]}"; do
         # 1 of 2 bridge clones failed at connect after 130s, 2 of 2 host clones
         # succeeded in 12s). Isolation buys nothing here and costs the rebuild.
         #
-        # BASE_IMAGE is the row's `wheel_base_image`: the runtime image, or the
-        # builder image on a row that publishes one — always one with /flagos, so
-        # build env == delivery env either way.
+        # BASE_IMAGE is the row's `builder_image` — where the wheel is compiled,
+        # and the runtime image itself on a row that publishes no builder — so
+        # the container always has /flagos, either way.
         #
         # A failing step makes BuildKit echo the resolved RUN command, so the
         # relayed proxy's userinfo would land in whatever captures this stdout.
@@ -470,7 +470,7 @@ for key in "${BACKENDS[@]}"; do
             "${cache_arg[@]}" \
             "${proxy_arg[@]}" \
             --network host \
-            --build-arg "BASE_IMAGE=$WHEEL_BASE_IMAGE" \
+            --build-arg "BASE_IMAGE=$WHEEL_BUILDER_IMAGE" \
             --build-arg "FLAGCX_REPO=$OPT_REPO" \
             --build-arg "FLAGCX_REF=$FLAGCX_REF" \
             --build-arg "BACKEND=$key" \

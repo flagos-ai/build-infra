@@ -16,7 +16,9 @@
 #
 # Only what build-infra cannot tell us lives here. `base_image`, `runson`,
 # `version` and `image_tag` come from `scripts/generate_matrix.py --runtime` at
-# build time and must NOT be duplicated (see flagcx-config.py).
+# build time and must NOT be duplicated (see flagcx-config.py). The wheel channel
+# renames that row's `image_tag` to the two images it actually names: its
+# `builder_image` and its `runtime_image`.
 #
 # Field meanings:
 #   vendor        FlagCX adaptor family — matches makefiles/<vendor>.mk and the
@@ -103,8 +105,8 @@
 #                 so absent is the ordinary state, not drift. The image is
 #                 self-contained on ubuntu:22.04 — it installs its own interpreter
 #                 and torch and the row's SDK, rather than layering on the runtime
-#                 image, so build env == delivery env and a builder that could not
-#                 be the wheel's BASE_IMAGE would be the wrong artifact.
+#                 image. It is where the wheel is compiled; it is not where the
+#                 wheel is delivered, so the verification runs in the runtime.
 #   builder.containerfile
 #                 the recipe, for a vendor row whose SDK installs from a tarball
 #                 into /opt rather than the CUDA apt repo. Rows on the shared
@@ -206,7 +208,7 @@ nvidia-cuda12.8:
   rpm: {enabled: true, base_image: nvcr.io/nvidia/cuda}
   # The wheel is built in the builder image rather than the runtime one: the
   # runtime image carries no clang, and the bitcode below is compiled by it.
-  # flagcx-config.py derives that (`wheel_base_image`) rather than repeating it.
+  # flagcx-config.py derives that (`builder_image`) rather than repeating it.
   wheel: {enabled: true, torch_backend: vendor}
   # The device-bitcode build needs clang/llvm >= 22 (the builder's own pin, both
   # NVIDIA rows take the same one, in the Containerfile) and three sets of

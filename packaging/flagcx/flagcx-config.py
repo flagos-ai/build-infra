@@ -112,17 +112,18 @@ BUILD_INPUT_FIELDS = (
     "deb_replaces", "deb_conflicts_dev", "deb_replaces_dev",
 )
 
-# The wheel channel's own set, not a superset: a wheel is built in an image
-# derived from the runtime one (`wheel_base_image`), has no control stanza, and
-# stamps its identity from the wheel_* names instead of a package name.
+# The wheel channel's own set, not a superset: it names the two images it reads
+# (`builder_image` to compile in, `runtime_image` to verify in) instead of the
+# matrix row's `image_tag`, has no control stanza, and stamps its identity from
+# the wheel_* names instead of a package name.
 #
 # The bitcode pair is the one field it shares with the builder channel: stated
 # there to verify, here to compile.
 WHEEL_BUILD_INPUT_FIELDS = (
-    "name", "version", "image_tag", "arch", "python_version",
+    "name", "version", "builder_image", "runtime_image", "arch", "python_version",
     "wheel_version_suffix", "wheel_local_version", "wheel_python_tag",
     "wheel_torch_backend", "wheel_adaptor", "wheel_make_env", "wheel_cuda_path",
-    "wheel_index_url", "wheel_assert", "wheel_base_image",
+    "wheel_index_url", "wheel_assert",
     "bitcode_arch", "bitcode_adaptor_flag",
 )
 
@@ -258,9 +259,9 @@ def deb_name(key: str) -> str:
 def registry_prefix(name: str) -> str | None:
     """One of build-config.yml's image prefixes, or None if it is not there.
 
-    Only the prefix is read: every matrix row already carries the registry host
-    in `image_tag` — the same host every other layer is pushed to — so taking it
-    from the row is one source for it rather than two.
+    Only the prefix is read: the registry host is taken from the row's own image
+    tag — the same host every other layer is pushed to — so it is one source for
+    it rather than two.
     """
     if not BUILD_CONFIG.is_file():
         return None
@@ -270,20 +271,22 @@ def registry_prefix(name: str) -> str | None:
     return prefixes.get(name) or None
 
 
-def builder_image(key: str, entry: dict) -> str:
+def builder_image(key: str, image_tag: str, version: str) -> str:
     """The builder image ref this row publishes, or "" if it cannot be named.
 
     Derived here rather than in the build script for the same reason deb_name()
     is: it is this channel's artifact identity, and the build and the verify
     scripts both have to arrive at it without either owning a second spelling
     of it.
+
+    The host is taken from the row's own image tag rather than stated, so a
+    registry move reaches this ref without a second edit.
     """
-    image_tag = entry.get("image_tag", "")
     host = image_tag.split("/", 1)[0] if "/" in image_tag else ""
     prefix = registry_prefix("builder")
     if not host or not prefix:
         return ""
-    return f"{host}/{prefix}/flagcx-builder-{key}:{entry.get('version', '')}"
+    return f"{host}/{prefix}/flagcx-builder-{key}:{version}"
 
 
 def load_configs() -> dict:
@@ -605,14 +608,25 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # the same pair the builder channel states, read here to compile it.
             entry["bitcode_arch"] = spec.get("bitcode_arch", "")
             entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
-            # Which image the wheel is built in: the runtime one by default, the
-            # builder for a row that publishes one — the builder being the
-            # runtime image plus a toolchain, and the only place with a clang.
-            entry["wheel_base_image"] = (
-                builder_image(key, entry)
+            # The build's image and the verification's image are two different
+            # questions and this channel states both: `builder_image` is where
+            # the wheel is compiled, `runtime_image` is where it is delivered and
+            # therefore where it is verified. A builder is only ever a superset
+            # of the runtime — verifying there would prove the wheel loads in an
+            # environment nobody deploys it into. On a row that publishes no
+            # builder the two are the same ref, which is what the fallback says.
+            #
+            # The matrix row's own `image_tag` is replaced rather than kept
+            # beside them: this channel is where the two uses diverge, so leaving
+            # a third, ambiguous name in the row is an invitation to read the
+            # wrong one.
+            row_tag = entry.pop("image_tag", "")
+            entry["builder_image"] = (
+                builder_image(key, row_tag, entry["version"])
                 if (spec.get("builder") or {}).get("enabled")
-                else entry["image_tag"]
+                else row_tag
             )
+            entry["runtime_image"] = row_tag
         elif deb:
             entry["deb_package"] = deb_name(key)
             entry.update(relationship_fields(key, spec, registry))
@@ -668,7 +682,9 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # consume.
             entry["bitcode_arch"] = spec.get("bitcode_arch", "")
             entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
-            entry["builder_image"] = builder_image(key, entry)
+            entry["builder_image"] = builder_image(
+                key, entry["image_tag"], entry["version"]
+            )
             # The image's recipe: nvidia's Containerfile.builder is not the one
             # a vendor-SDK row builds from — the vendor row's builder installs a
             # tarball/run SDK into /opt rather than the CUDA apt repo, so each
@@ -971,16 +987,16 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                 )
 
     if wheel:
-        # Read from the wheel side because this is the channel the build runs on:
-        # a row whose builder image cannot be named would reach the build as an
-        # empty BASE_IMAGE, and docker's message for that names no row.
+        # Both images, because the build and the verification each run in one and
+        # a row missing either reaches its job as an empty ref that docker
+        # cannot attribute to a backend.
         for entry in merge(registry, matrix, channel):
-            if not entry.get("wheel_base_image"):
-                problems.append(
-                    f"{entry['name']}: no image to build the wheel in — the row "
-                    f"publishes a builder whose ref cannot be derived, and the "
-                    f"matrix entry carries no image_tag to fall back to"
-                )
+            for field in ("builder_image", "runtime_image"):
+                if not entry.get(field):
+                    problems.append(
+                        f"{entry['name']}: no `{field}` — the matrix entry "
+                        f"carries no registry host to derive one from"
+                    )
 
     for vendor, keys in sorted(defaults.items()):
         if len(keys) > 1:
