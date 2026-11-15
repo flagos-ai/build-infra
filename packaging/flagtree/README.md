@@ -153,6 +153,35 @@ one entry, not a new workflow and not a second job.
 The stage is tagged with the stack version (`configs.yaml` `version:`), so it is
 flat: a rebuild overwrites it. The wheel lines build on top of it.
 
+### The staging list is checked against upstream
+
+What a stage holds is FlagTree's own list: `cache.store()` calls in
+`python/setup_tools/utils/<backend>.py`, one per prebuilt input. We transcribe
+that list into `ARG ..._TARBALL` defaults so the wheel build never reaches the
+network, and `scripts/check_flagtree_contract.py`
+(`.github/workflows/flagtree-contract.yml`, daily 00:47 UTC) compares the two.
+
+It is a check rather than a convention because FlagTree resolves a cache entry
+by *name* and `setup_helper.check_file()` treats any existing path as a hit, so
+the two ways the list can go stale fail very differently:
+
+- **The key moved** (upstream renamed the entry, as sunrise's LLVM did in
+  `#1625`, or the xpu SDNN objects in `#1488`). Our staged copy is not found,
+  FlagTree falls through to its own download, and a runner whose proxy cannot
+  reach ks3/bcebos fails with `The download failed, probably due to network
+  problems!` — a version skew wearing a network error. Both rows went red for
+  three days that way.
+- **The key stayed and the version moved** (iluvatar's `v0.6.1` → `v0.7.0` in
+  `#1618`, mthreads' `v0.7.1`). Our older tree is adopted silently; the wheel
+  builds, stays green, and carries the older LLVM. Nothing else would notice.
+
+Fixing either is the same two steps: put the new tarball on the filestore
+(`resource.flagos.net/repository/flagos-filestore/flagtree-deps`), update the
+row's `ARG ..._TARBALL`, and republish its builder stage with
+`flagtree-builder.yml`. The check names the row and both spellings; its
+`LLVM-HASH` verdict covers the `nvidia` / `amd` / `ppu` shape, where a
+`LLVM_SYSPATH` row's staged hash has to be the one `cmake/llvm-hash.txt` names.
+
 ## Enflame builder (`enflame`)
 
 Same reason and shape as `metax`: the vendor's enflame wheel is built on a newer

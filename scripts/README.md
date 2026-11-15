@@ -41,6 +41,7 @@
 | `docs/upload_descriptions.py` | pubdoc：把描述推到 Harbor | ✅ |
 | `docs/missing_versions.py` | 查漏：哪些后端缺版本 TSV | ✅ |
 | `docs/check_knowledge.py` | 知识层索引校验（workflow 表 / 技能边界 / 孤立文档 / 厂商页） | ✅ |
+| `check_flagtree_contract.py` | flagtree 各后端 stage 的预编译输入（含 `LLVM_HASH`）与上游 `python/setup_tools/utils/*.py` 声明比对，抓 cache key 迁移与版本落后 | ✅ |
 
 `docs/` 子目录 = 文档/描述生成流水线（上方 `docs` 各线），与顶层 `docs/` 站点目录
 不是一回事：顶层放 Hugo 站点与人读文档，这里放生成它的脚本。

@@ -1,0 +1,90 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: FlagTree Upstream Contract
+
+# Every backend's prebuilt inputs are downloaded by FlagTree's own build hook and
+# we stage a copy of each in the backend's builder image. Staging that list by
+# hand went wrong twice, and the two failures looked unrelated:
+#
+#   * kunlunxin / sunrise went RED for three days with "The download failed,
+#     probably due to network problems!" -- upstream had moved a cache key, our
+#     staged copy no longer matched it, and FlagTree fell through to a download
+#     the runner's proxy cannot make. A version skew wearing a network error.
+#   * iluvatar / mthreads stayed GREEN while staging a tree upstream had already
+#     replaced. FlagTree resolves a cache entry by NAME and accepts any existing
+#     path as a hit, so the wheel kept being built against the older LLVM and
+#     nothing anywhere said so.
+#
+# scripts/check_flagtree_contract.py compares our staging list against upstream's
+# declarations. It runs each day ahead of the wheel build, so drift is visible the
+# same morning it lands upstream instead of after it breaks a build.
+#
+# Schedule and manual only, deliberately: the tree it checks carries known drift
+# today (the rows whose tarballs are not on the filestore yet), and a check wired
+# to `pull_request` would fail every flagtree PR on drift it did not introduce.
+# Once the rows are current, gating on this is the point -- add the path triggers
+# back.
+
+on:
+  schedule:
+    # 00:47 UTC, ahead of the daily wheel build at 01:37.
+    - cron: '47 0 * * *'
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # ubuntu-latest, not a build runner: the check reads two texts and compares
+    # them, and it is the only job here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install PyYAML
+        run: |
+          python3 -c "import yaml" 2>/dev/null || \
+            python3 -m pip install --user --break-system-packages pyyaml
+
+      # --refresh: a cached copy would defeat the point, since the check exists
+      # to notice what upstream changed since yesterday.
+      - name: Check the staging list against upstream
+        run: python3 scripts/check_flagtree_contract.py --refresh
+
+      # A red run names the rows and both spellings in its log; this says what to
+      # do about them without a trip to the log.
+      - name: What to do about a drift
+        if: ${{ failure() }}
+        run: |
+          {
+            echo "### FlagTree staging drift"
+            echo
+            echo "At least one row stages a prebuilt input that upstream"
+            echo "\`python/setup_tools/utils/<backend>.py\` no longer names at the"
+            echo "ref that row builds. The row either fails its wheel build or"
+            echo "ships the older tree."
+            echo
+            echo "1. Mirror the new tarball on"
+            echo "   \`resource.flagos.net/repository/flagos-filestore/flagtree-deps\`"
+            echo "   (the log's URL is upstream's copy of it)."
+            echo "2. Update that row's \`ARG ..._TARBALL\` in"
+            echo "   \`packaging/flagtree/<containerfile>\`."
+            echo "3. Republish the row's builder stage with \`flagtree-builder.yml\`."
+          } >> "$GITHUB_STEP_SUMMARY"
