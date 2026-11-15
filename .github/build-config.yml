@@ -145,6 +145,11 @@ run:
       toolkit_cmd: "metax-docker run --rm -it {image} bash"
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
+      # Broken on a node whose driver is already 5.3.0: its mtml is 2.4.2 (a bare
+      # libmtml.so) while mt-container-toolkit is still 2.1.0 and looks for the
+      # older multi-file layout, so this tier injects no device — silently, which
+      # reads as an empty image. The other mthreads SDK lines are unaffected;
+      # re-check this one once the vendor ships a matching toolkit.
       toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
       raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
