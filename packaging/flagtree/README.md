@@ -866,19 +866,23 @@ target clones the ref and compiles on top of it.
 `nvidia-cuda`, this backend has a `register_cache` hook
 (`python/setup_tools/utils/sunrise.py`) that resolves its inputs out of
 `~/.flagtree/sunrise/` — so the stage unpacks the LLVM and plugin tarballs there
-under the cache keys `sunrise_llvm22_dev_release` / `sunriseTritonPlugin.so`, and
-the triton toolkits into `~/.triton`. The plugin `.so` is md5-gated to
-`4c77b8c0`, the digest upstream itself declares; the LLVM tarball is not, for the
-reason `iluvatar`'s is not.
+under the cache keys `sunrise_<llvm package>` / `sunriseTritonPlugin.so`, and
+the triton toolkits into `~/.triton`. Upstream moved the LLVM's key in #1625
+(`sunrise_llvm22_dev_release` → `sunrise_llvm-ff67ef55-triton-v3.6.x`) while the
+tarball root kept the old name, so the stage renames it on extraction. The
+plugin `.so` is md5-gated to `f5fd6472`, the digest upstream itself declares; the
+LLVM tarball is not, for the reason `iluvatar`'s is not. **The stage serves
+`main` only**: the tag this file defaults to still asks for the old keys, and a
+release-line rebuild of it now falls through to ks3.
 
-**The LLVM tree is a full clang install.** `sunrise_llvm22_dev_release` carries
-`bin/clang` **and** `lib/cmake/mlir`, and its `stpu/bitcode/*.bc` is what the
+**The LLVM tree is a full clang install.** `sunrise_llvm-ff67ef55-triton-v3.6.x`
+carries `bin/clang` **and** `lib/cmake/mlir`, and its `stpu/bitcode/*.bc` is what the
 cache's `post_hook` copies into `third_party/sunrise/backend/lib` — all three are
 asserted by the builder line's `sunrise` stage check, because a stage missing any
 of them builds a different wheel rather than failing.
 
 **pybind11 is pinned to `==3.1.0`, not to a range.** The prebuilt
-`sunriseTritonPlugin_v0.6.0.4.so` embeds pybind11 internals **v12**, and
+`sunriseTritonPlugin_v0.7.0.1.so` embeds pybind11 internals **v12**, and
 upstream's `sunrise.py` maps v12 to exactly `pybind11==3.1.0` — its
 `check_pybind11_abi()` compares the patch release, not just the internals
 version, for the same reason `xpu.py` does. That table is on `main`; the ref this
