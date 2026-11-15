@@ -34,7 +34,7 @@ backend key：`sunrise-tangrt1.2.0`。芯片 PTPU，SDK 叫 TangRT/tang。python
 - 编译器构建：**clang-14/lld-14 是正确性要求而不是偏好**（sunrise 后端落在
   clang-only 的 `-Werror -Wno-covered-switch-default` else 分支，gcc 下 `-Werror` 全开，
   `gluon_ir.cc` 报 `-Werror=attributes` —— gcc 产出的是**另一个** wheel，不是响亮失败）。
-  pybind11 internals 必须 **v12**（`sunriseTritonPlugin_v0.6.0.4` 的 ABI；metax 的插件是
+  pybind11 internals 必须 **v12**（`sunriseTritonPlugin_v0.7.0.1` 的 ABI；metax 的插件是
   v11，方向相反）。
 - **RUNPATH 陷阱**：`CMAKE_INSTALL_RPATH` 只作用于 install 期，而 wheel 直接打包
   build-tree 的 `libtriton.so`（不跑 `cmake --install`），必须补

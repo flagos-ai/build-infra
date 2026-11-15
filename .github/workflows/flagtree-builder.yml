@@ -368,9 +368,9 @@ jobs:
             command -v git cmake ninja make wget curl clang clang++ >/dev/null
             python3.10 -c "import sys; assert sys.version_info[:2] == (3, 10)"
             python3.10 -m pip --version
-            test -x /root/.flagtree/sunrise/sunrise_llvm22_dev_release/bin/clang
-            test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release/lib/cmake/mlir
-            test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release/stpu/bitcode
+            test -x /root/.flagtree/sunrise/sunrise_llvm-ff67ef55-triton-v3.6.x/bin/clang
+            test -d /root/.flagtree/sunrise/sunrise_llvm-ff67ef55-triton-v3.6.x/lib/cmake/mlir
+            test -d /root/.flagtree/sunrise/sunrise_llvm-ff67ef55-triton-v3.6.x/stpu/bitcode
             test -f /root/.flagtree/sunrise/sunriseTritonPlugin.so
             test -f /root/.triton/json/include/nlohmann/json.hpp
             # FlagTree compares only the first 8 characters (setup_helper.py).

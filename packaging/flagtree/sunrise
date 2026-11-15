@@ -37,12 +37,12 @@ ARG no_proxy=
 # python/setup_tools/utils/sunrise.py and re-downloads what it does not recognize
 # -- and the plugin .so is md5-gated below.
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
-ARG LLVM_TARBALL=llvm-71bd243f-triton-v3.6.x.tar.gz
-ARG PLUGIN_TARBALL=sunriseTritonPlugin_v0.6.0.4.tar.gz
+ARG LLVM_TARBALL=llvm-ff67ef55-triton-v3.6.x.tar.gz
+ARG PLUGIN_TARBALL=sunriseTritonPlugin_v0.7.0.1.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
-# The LLVM/plugin tarballs unpack to /root/.flagtree/sunrise/<cache key>, which is
-# how FlagTree's cache resolves them by name; the triton toolkits tarball is rooted
-# at `.triton/` and needs the --strip-components=1 below.
+# Upstream moved the LLVM's cache key in #1625; the tarball root is the old one,
+# so the extraction is renamed onto the key FlagTree looks up.
+ARG LLVM_CACHE=sunrise_llvm-ff67ef55-triton-v3.6.x
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -81,13 +81,15 @@ RUN set -eu; \
            echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
          done; \
        done \
-    && tar -xzf "${LLVM_TARBALL}"    -C /root/.flagtree/sunrise \
+    && mkdir -p /tmp/llvm \
+    && tar -xzf "${LLVM_TARBALL}"   -C /tmp/llvm \
+    && mv /tmp/llvm/* "/root/.flagtree/sunrise/${LLVM_CACHE}" \
     && tar -xzf "${PLUGIN_TARBALL}"  -C /root/.flagtree/sunrise \
     && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
-    && rm -f /tmp/*.tar.gz \
-    && test -d /root/.flagtree/sunrise/sunrise_llvm22_dev_release/stpu/bitcode \
+    && rm -rf /tmp/*.tar.gz /tmp/llvm \
+    && test -d "/root/.flagtree/sunrise/${LLVM_CACHE}/stpu/bitcode" \
     && test -f /root/.flagtree/sunrise/sunriseTritonPlugin.so \
-    && echo "4c77b8c0a71ddc377bbcfb1024114fc1  /root/.flagtree/sunrise/sunriseTritonPlugin.so" | md5sum -c - \
+    && echo "f5fd647209782e7b1a5505e80286e011  /root/.flagtree/sunrise/sunriseTritonPlugin.so" | md5sum -c - \
     && test -f /root/.triton/json/include/nlohmann/json.hpp \
     && touch /opt/flagtree-build-env.ready
 
@@ -193,7 +195,7 @@ RUN printf '%s\n' \
       'if got != want:' \
       '    print("FAIL: libtriton.so pybind11 internals " + str(got) + ", the prebuilt plugin is " + str(want))' \
       '    sys.exit(1)' \
-      'print("OK: libtriton.so and sunriseTritonPlugin_v0.6.0.4 share pybind11 internals " + str(got))' \
+      'print("OK: libtriton.so and sunriseTritonPlugin_v0.7.0.1 share pybind11 internals " + str(got))' \
       '' \
       'extra = os.path.join(d, "triton", "language", "extra")' \
       'missing = [n for n in ("ptpu", "tang") if not os.path.isdir(os.path.join(extra, n))]' \
