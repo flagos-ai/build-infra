@@ -25,6 +25,7 @@ title: "megatron_training0.17.1-mthreads-musa5.2.0"
 - **架构:** x86_64
 - **芯片型号:** MThreads MTT S5000
 - **宿主机驱动:** 5.2.0-server
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## 镜像内容
 
@@ -48,6 +49,37 @@ title: "megatron_training0.17.1-mthreads-musa5.2.0"
 
 ```bash
 IMG=harbor.baai.ac.cn/flagos-app/megatron_training0.17.1-mthreads-musa5.2.0:2.2.0-0.2.3
+```
+
+以下两种方式任选其一：
+
+### 使用容器工具包
+
+启动交互式 shell：
+
+```bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  $IMG bash
+```
+
+以默认设置启动应用：
+
+```bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  $IMG
+```
+
+向启动器传参：
+
+```bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  $IMG megatron-train --model-type GPT
 ```
 
 ### 无需工具包——直接使用 docker / podman

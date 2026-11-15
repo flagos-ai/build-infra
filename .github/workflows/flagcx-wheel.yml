@@ -99,6 +99,10 @@ on:
         description: 'install the wheel from the built image before publishing'
         type: boolean
         default: true
+      run_flags_tier:
+        description: 'Which build-config.yml run.vendors tier to start the verification container with: toolkit (the default), raw, or default. Name one where the tier above it is known broken on a node — mthreads needs raw, whose toolkit tier injects zero devices there.'
+        type: string
+        default: ''
       publish:
         description: 'push the verified wheel to the vendor PyPI (requires verify and wheel_version)'
         type: boolean
@@ -309,6 +313,7 @@ jobs:
             --backend "$MATRIX_NAME" \
             --ref "$FLAGCX_CHECKOUT_REF" \
             --out packaging/flagcx/dist \
+            ${{ inputs.run_flags_tier != '' && format('--run-flags-tier {0}', inputs.run_flags_tier) || '' }} \
             ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       - name: Upload the wheel
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -371,6 +376,7 @@ jobs:
           packaging/flagcx/verify/verify-flagcx-wheel.sh \
             --wheel packaging/flagcx/dist/*.whl \
             --image "${{ matrix.builder_image }}" \
+            ${{ inputs.run_flags_tier != '' && format('--run-flags-tier {0}', inputs.run_flags_tier) || '' }} \
             ${{ inputs.bitcode == false && '--no-bitcode' || '' }}
       # The same critical list vllm-plugin-wheel.yml audits: these images bake a
       # pinned matrix and the app installs single-step. A flagcx wheel declares

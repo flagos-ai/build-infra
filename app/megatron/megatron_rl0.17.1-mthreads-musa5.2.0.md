@@ -3,6 +3,7 @@
 - **Architecture:** x86_64
 - **Chip models:** MThreads MTT S5000
 - **Host driver:** 5.2.0-server
+- **Container toolkit** *(optional)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## Image contents
 
@@ -27,6 +28,22 @@ The image name is long — assign it to a variable first:
 ```bash
 IMG=harbor.baai.ac.cn/flagos-app/megatron_rl0.17.1-mthreads-musa5.2.0:2.2.0-0.2.3
 ```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  $IMG bash
+```
+
+**No launcher yet.** This image doesn't ship a launcher or a default command yet — start an interactive shell to inspect it. The launcher will be added together with the app's entry point.
+
 
 ### Without a toolkit — plain docker / podman
 

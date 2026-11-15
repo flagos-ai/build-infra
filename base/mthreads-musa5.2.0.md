@@ -3,6 +3,7 @@
 - **Architecture:** x86_64
 - **Chip models:** MThreads MTT S5000
 - **Host driver:** 5.2.0-server
+- **Container toolkit** *(optional)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## Image contents
 
@@ -44,7 +45,16 @@ Explicitly installed; the version is the one baked into this image:
 
 ## Launch
 
-Start an interactive shell (works with docker or podman):
+**With the container toolkit** *(optional)*:
+
+```bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-mthreads-musa5.2.0:2.3.0 bash
+```
+
+**Without a toolkit** — plain docker / podman:
 
 ```bash
 docker run --rm -it \

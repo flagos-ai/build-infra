@@ -25,6 +25,7 @@ title: "mthreads-musa5.2.0"
 - **架构:** x86_64
 - **芯片型号:** MThreads MTT S5000
 - **宿主机驱动:** 5.2.0-server
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0
 
 ## 镜像内容
 
@@ -63,7 +64,16 @@ title: "mthreads-musa5.2.0"
 
 ## 启动
 
-启动交互式 shell（docker 或 podman 均可）：
+**使用容器工具包** *(可选)*：
+
+```bash
+docker run --rm -it \
+  --runtime mthreads \
+  --env MTHREADS_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.3.0 bash
+```
+
+**无需工具包** —— 直接使用 docker / podman：
 
 ```bash
 docker run --rm -it \

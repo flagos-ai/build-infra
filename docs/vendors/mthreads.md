@@ -19,24 +19,21 @@ backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`
 - **不带厂商容器 runtime 会得到一个误导性的 `0 active drivers`**：容器起得来，
   `import vllm_fl` 报无设备访问 —— 看起来像插件 bug，其实是 runtime 没给。
 - flags 原文见 `.github/build-config.yml` `run.vendors.mthreads`。
-- **musa520 节点的 `--runtime mthreads` 给不出设备**（2026-11-15）：容器能起来，
+- **musa520 节点的 `--runtime mthreads` 当前给不出设备**（2026-11-15）：容器能起来，
   但里面 `/dev` 没有 `mtgpu*`、`mthreads-gmi` 报 `failed to load driver`、
   `torch.musa.device_count()` 为 0。runtime 日志的断点在
   `Reading ldcache at`（路径为空）后紧跟 `no devices found`，并有两行
   `Could not locate libmtml_musa.so / libmtml_MUSA.so` 和
   `could not find the major version number for /usr/lib/libmtml.so`。
-- 这是 **MUSA 升到 5.3.0 之后的暂时性错配，镜像没问题**：宿主的 `mtml` 已随升级到
-  2.4.2-linux（只有一个裸的 `/usr/lib/libmtml.so`），而 `mt-container-toolkit` 还是
-  2.1.0，仍按旧的多文件布局找 `libmtml.so.<major>` + `libmtml_musa.so`。discoverer
-  拿到空设备表，静默注入零设备。**等厂商发配套的 toolkit 版本**。
+- 根因是 toolkit 与 mtml 的布局不配套：宿主 `mt-container-toolkit` 仍是 2.1.0，
+  它按多文件布局找 `libmtml.so.<major>` + `libmtml_musa.so`，而 `dpkg -L mtml`
+  在装上的 2.4.2-linux 只有一个裸的 `/usr/lib/libmtml.so`。discoverer 因此拿到空
+  设备表，静默注入零设备。**待办：两包同源升级（toolkit 也要到 2.4.x）**。
 - dmesg 里的 `[mtvpu] ioctl_mgt_get_info, invalid info size, req:4, size:132,
   expected:196` 也是 toolkit 档发出的，每次 create 涨 16 行；raw 档 0 行。
 - **raw 档（`--device /dev/mtgpu.0 --device /dev/dri`）完全正常**：
-  `torch.musa.device_count() == 8`。
-- 因为 toolkit 档是静默给零设备（不是报错，是「起来了但没有卡」，最容易被读成镜像
-  有问题），`run.vendors.mthreads.toolkit` 与 `run.prereq.mthreads` 已从
-  `build-config.yml` **注释掉**：每个消费方都是 `toolkit or raw`，注释掉即全局只走
-  raw 档。toolkit 配套版本发布后连同 `run.prereq` 一起加回。
+  `torch.musa.device_count() == 8`。所以在这台节点上验证要用
+  `verify-flagcx-wheel.sh --run-flags-tier raw`；builder 档的 probe 不用设备，不受影响。
 
 ## 供应商工具链（跨厂商结论在此失效）
 
