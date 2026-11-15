@@ -259,6 +259,21 @@ jobs:
             -t "${image_tag}" \
             -f runtime/Containerfile runtime/
 
+      # The check runs before the push, not after: an image this step rejects
+      # never reaches the registry, which is the whole point of building on the
+      # backend's own node. It reads the local tag the build just wrote (--image
+      # skips the pull), and it runs for every build, push or not — a debug
+      # build is exactly where a broken image should be caught.
+      - name: Verify the built image
+        if: ${{ !inputs.record_only }}
+        run: |
+          python3 -c "import yaml" 2>/dev/null \
+            || python3 -m pip install --user --break-system-packages pyyaml
+          # images.yaml is .gitignore'd; verify_runtime.py reads the vendor's
+          # run-flags from build-config.yml and only the image ref from here.
+          python3 scripts/docs/gen_data.py
+          python3 scripts/verify_runtime.py --image "${IMAGE_TAG}" "${{ matrix.name }}"
+
       - name: Push runtime image
         if: ${{ inputs.push && !inputs.record_only }}
         run: docker push "${IMAGE_TAG}"

@@ -336,8 +336,9 @@ that is the circle this line sat in. What the builder proves is the artifact: it
 and carries its `.so`, bitcode and metadata — `verify-flagcx-wheel.sh --image <builder_image>`. It
 does not prove the delivered set, and does not claim to. The question "does flagcx load alongside
 FlagGems and the compilers" is asked when the runtime that carries it is built:
-`scripts/verify_runtime.py` imports flagcx on exactly the rows whose `deps:` pin it, which is the
-first moment the delivered pairing exists.
+`scripts/verify_runtime.py` imports flagcx on exactly the rows whose `deps:` pin it, and
+`runtime-image.yml` runs that check between the build and the push — the first moment the delivered
+pairing exists, and the last at which a broken image can be kept off the registry.
 
 The two-stage split is what makes the merged row carry both names instead of the matrix's
 `image_tag`: `builder_image` is where the wheel is compiled and checked, `runtime_image` is where
