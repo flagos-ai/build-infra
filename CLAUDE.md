@@ -160,6 +160,7 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `megatron-wheel.yml` | Build megatron-core wheels in the backend's runtime image, upload to `flagos-pypi-hosted` |
 | `megatron-app-image.yml` / `vllm-app-image.yml` / `sglang-app-image.yml` | Build app images from the runtime + vendor wheel, verify on-node, push `flagos-app/...` |
 | `flagcx-deb.yml` / `flagcx-wheel.yml` / `flagcx-builder.yml` / `flagcx-rpm.yml` | FlagCX `.deb` / wheel / build-toolchain / `.rpm` lines (see `packaging/flagcx/DESIGN.md` + `WHEEL-DESIGN.md`) |
+| `flagtree-contract.yml` | Daily (00:47 UTC) + manual: `scripts/check_flagtree_contract.py` compares each backend's staged prebuilt inputs (and `LLVM_HASH`) against upstream FlagTree's `python/setup_tools/utils/*.py` declarations, so a moved cache key or a bumped revision is caught before the wheel build (see `packaging/flagtree/README.md`) |
 | `flaggems-wheel.yml` | Daily (01:17 UTC) + manual FlagGems wheel build → `flagos-pypi-daily` |
 | `flaggems-vllm-wheel.yml` | Daily (01:27 UTC) + manual FlagGems-vllm wheel build → `flagos-pypi-daily`; static pyproject version, so a dev build is dated by `packaging/flaggems-vllm/build.sh` (see its `README.md`) |
 | `flagtree-wheel-daily.yml` | Daily (01:37 UTC) + manual FlagTree wheel per backend → `flagos-pypi-daily` as `flagtree-<backend>`, one matrix row per `daily:`-enabled entry in `packaging/flagtree/backends.yaml`, on that backend's published builder stage (see `packaging/flagtree/README.md`) |
