@@ -26,32 +26,21 @@ tags:
         3.12 venv, torch 2.13.0.post1+musa20261110, torch_musa, torchaudio
         2.11.0.post2, torchvision 0.28.0.post1+musa5.3.0, mkl 2024.0.0 and
         numpy 1.26.4, with FlagGems 5.4.0.
-      - FlagTree and the vendor triton are both installed: `flagtree
-        0.7.0+mthreads3.6` at /opt/flagtree is the default compiler (F path),
-        `triton-musa 3.6.0+musa5.3.0` at /opt/triton the switchable one (T
-        path). The FlagTree wheel is the cp312 build of the version the cp310
-        mthreads rows already carry — one version, two wheels, selected by
-        interpreter.
-      - `flagcx 0.14.1+musa5.3.0` becomes a runtime dependency: configs.yaml
-        deps: pins it, so the DEPS install pulls it from the vendor index and
-        the libflagcx.so FlagTree resolves is the package's copy rather than
-        the one triton/_C bundles.
-      - `flagtree_daily: flagtree-mthreads-musa5.3.0` names this line's own
-        daily distribution, so `-e FLAGTREE_VERSION=latest` resolves against
-        it rather than against the cp310 `flagtree-mthreads` project.
+      - FlagTree `0.7.0+mthreads3.6` joins the vendor triton, as the default
+        compiler.
+      - `flagcx 0.14.1+musa5.3.0` is pinned in deps:, so FlagTree resolves
+        libflagcx.so to the package's copy rather than the one triton/_C
+        bundles.
+      - `flagtree_daily` names this line's own daily project, so
+        `-e FLAGTREE_VERSION=latest` installs its builds.
     reason_zh: |-
       - 首个 mthreads 5.3.0 runtime 镜像：MUSA 5.3.0 base 之上加 python 3.12 venv、
         torch 2.13.0.post1+musa20261110、torch_musa、torchaudio 2.11.0.post2、
         torchvision 0.28.0.post1+musa5.3.0、mkl 2024.0.0 与 numpy 1.26.4，
         并加入 FlagGems 5.4.0。
-      - 同时装入 FlagTree 与厂商 triton：`flagtree 0.7.0+mthreads3.6` 装在
-        /opt/flagtree 并作为默认编译器（F 路径），`triton-musa 3.6.0+musa5.3.0`
-        装在 /opt/triton 供切换（T 路径）。所用 FlagTree wheel 是 cp310 的
-        mthreads 行已携带的那个版本的 cp312 构建 —— 一个版本、两个 wheel，
-        由解释器选择。
-      - `flagcx 0.14.1+musa5.3.0` 成为运行时依赖：configs.yaml deps: 固定它，
-        因此 DEPS 安装会从厂商索引拉取，FlagTree 解析到的 libflagcx.so 是该
-        包中的副本，而不是 triton/_C 自带的那份。
-      - 声明 `flagtree_daily: flagtree-mthreads-musa5.3.0`，使
-        `-e FLAGTREE_VERSION=latest` 能解析到本条线自己的 daily 项目。
+      - 加入 FlagTree `0.7.0+mthreads3.6` 作为默认编译器，厂商 triton 保留为可切换项。
+      - `flagcx 0.14.1+musa5.3.0` 固定进 deps:，FlagTree 解析到的 libflagcx.so
+        是该包中的副本，而不是 triton/_C 自带的那份。
+      - `flagtree_daily` 指向本条线自己的 daily 项目，`-e FLAGTREE_VERSION=latest`
+        安装它的构建。
     upstream_prs: []
