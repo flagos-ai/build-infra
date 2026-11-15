@@ -303,6 +303,6 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
 | `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
 | `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |
-| `verify/` | `verify-flagcx-deb.sh` installs the `.deb` into its base image and a plain Ubuntu; `verify-flagcx-wheel.sh` installs the wheel from the file or from the index; `verify-flagcx-builder.sh` compiles the row's device bitcode in the builder image |
+| `verify/` | `verify-flagcx-deb.sh` installs the `.deb` into its base image and a plain Ubuntu; `verify-flagcx-wheel.sh` installs the wheel from the file or from the index, and `verify-flagcx-wheel-in-container.sh` is the half of it that runs inside; `verify-flagcx-builder.sh` compiles the row's device bitcode in the builder image |
 
 `debian/control` is **generated** — edit `control.in`, never the rendered file.
