@@ -333,7 +333,7 @@ the build would otherwise run where there is no clang and fail one stage later, 
 runtime image that will carry a flagcx wheel pins it in `deps:`, so the runtime cannot be built
 until the wheel is published; a line that verified in the runtime would have to publish first, and
 that is the circle this line sat in. What the builder proves is the artifact: it installs, imports,
-and carries its `.so`, bitcode and metadata — `verify-flagcx-wheel.sh --image <builder_image>`. It
+and carries its `.so`, bitcode and metadata — `verify-flagcx-wheel.sh --wheel <file>`. It
 does not prove the delivered set, and does not claim to. The question "does flagcx load alongside
 FlagGems and the compilers" is asked when the runtime that carries it is built:
 `scripts/verify_runtime.py` imports flagcx on exactly the rows whose `deps:` pin it, and

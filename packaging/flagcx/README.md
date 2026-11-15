@@ -138,7 +138,8 @@ is a question about the delivered set, and the runtime build answers it: `script
 imports flagcx on exactly the rows that pin it, and `runtime-image.yml` runs that check between the
 build and the push.
 
-`--image REF` overrides the default target, which is the row's `runtime_image`.
+The image is not an option: `--wheel` checks in the row's `builder_image`, the read-back in its
+`runtime_image`, and the matrix row already states both.
 
 ```bash
 packaging/flagcx/build-flagcx-wheel.sh --list
@@ -148,9 +149,7 @@ packaging/flagcx/verify/verify-flagcx-wheel.sh --backend nvidia-cuda13.3 --wheel
 ```
 
 The verify container starts with the `toolkit` tier of the vendor's `run.vendors` entry, then
-`raw`, then `run.default`. `--run-flags-tier toolkit|raw|default` names one instead, and a tier the
-vendor does not state is an error rather than a fallback — naming one says the tier above it is
-known not to work on that host, and a silent fallback would put the container back on it.
+`raw`, then `run.default`.
 
 Every wheel carries `flagcx/lib/libflagcx.so`, the `_C` extension and `flagcx/api.py`. A row that
 states `bitcode_arch` carries two more — `flagcx/lib/libflagcx_device.bc` and the headers under
@@ -222,9 +221,7 @@ The version column is what says which build a pin is — a date never does, whic
 name in the index rather than adding to it.
 
 Three things the table does not show. `mthreads-musa5.3.0`'s published column is empty: its wheel
-is built and verified but not pushed, and its verification needed `--run-flags-tier raw` because
-this vendor's `toolkit` tier cannot start a container on its host (`docs/vendors/mthreads.md`).
-`ascend-cann9.2.1` is the ascend family's only `cp312` wheel —
+is built and verified but not pushed. `ascend-cann9.2.1` is the ascend family's only `cp312` wheel —
 the other four are `cp311`, because 9.2.1 is the first runtime image on python 3.12 — so no
 sibling's wheel can stand in for it. And the three rows that joined the roster after `v0.14.0` was
 tagged (`ascend-cann9.2.1`, `hygon-dtk26.10`, `amd-rocm7.2.4`) have no 0.14.0 build at all; every
