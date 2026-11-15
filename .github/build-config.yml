@@ -145,12 +145,13 @@ run:
       toolkit_cmd: "metax-docker run --rm -it {image} bash"
       raw: "--device /dev/mxcd --device /dev/dri --group-add video"
     mthreads:
-      # Broken on a node whose driver is already 5.3.0: its mtml is 2.4.2 (a bare
-      # libmtml.so) while mt-container-toolkit is still 2.1.0 and looks for the
-      # older multi-file layout, so this tier injects no device — silently, which
-      # reads as an empty image. The other mthreads SDK lines are unaffected;
-      # re-check this one once the vendor ships a matching toolkit.
-      toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
+      # Off for now: on a node whose driver is already 5.3.0 this tier injects no
+      # device — its mtml is 2.4.2 (a bare libmtml.so) while mt-container-toolkit
+      # is still 2.1.0 and looks for the older multi-file layout. It does not
+      # fail, so the container starts empty and reads as a broken image. Re-add
+      # once the vendor ships a matching toolkit. The vendor's SDK lines are
+      # unaffected: they share this entry, and raw works on all of them.
+      # toolkit: "--runtime mthreads --env MTHREADS_VISIBLE_DEVICES=all"
       raw: "--device /dev/mtgpu.0 --device /dev/dri -v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro"
     iluvatar:
       toolkit: "--runtime iluvatar --env IX_VISIBLE_DEVICES=all"
@@ -184,7 +185,7 @@ run:
     hygon: "dcu-container-toolkit >= 1.3.0"
     metax: "metax-docker >= 0.15.3"
     kunlunxin: "xpu_container >= 1.0.13"
-    mthreads: "KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0"
+    # mthreads: "KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0"
     iluvatar: "ix-container-toolkit >= 1.1.0"
     tsingmicro: "tx-container-toolkit >= 2.5.0"
     enflame: "tencent-container-toolkit >= 2.0.52"
