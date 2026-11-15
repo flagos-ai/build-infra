@@ -1237,6 +1237,8 @@ vendors:
       python: "3.12"
       cmake_backend: MUSA
       triton: triton-musa==3.6.0+musa5.3.0
+      flagtree: flagtree==0.7.0+mthreads3.6
+      flagtree_daily: flagtree-mthreads-musa5.3.0
       env:
         base:
           MUSA_HOME: /usr/local/musa
@@ -1249,6 +1251,7 @@ vendors:
         - torchvision==0.28.0.post1+musa5.3.0
         - mkl==2024.0.0
         - numpy==1.26.4
+        - flagcx==0.14.1+musa5.3.0
       sdk:
         - MUSA Toolkits 5.3.0     # musa_toolkits_5.3.0.tar.gz
         - MCCL 2.5.0              # mccl.2.5.0.PH1.tar.gz
