@@ -26,14 +26,17 @@ tags:
         3.12 venv, torch 2.13.0.post1+musa20261110, torch_musa, torchaudio
         2.11.0.post2, torchvision 0.28.0.post1+musa5.3.0, mkl 2024.0.0 and
         numpy 1.26.4, with FlagGems 5.4.0.
-      - The only compiler is the vendor triton, `triton-musa 3.6.0+musa5.3.0`:
-        no FlagTree build for this line exists on python 3.12 yet, so the image
-        is T path only.
+      - FlagTree `0.7.0+mthreads3.6` joins the vendor triton, as the default
+        compiler.
+      - `flagcx 0.14.1+musa5.3.0` is pinned in deps:, so FlagTree resolves
+        libflagcx.so to the package's copy rather than the one triton/_C
+        bundles.
     reason_zh: |-
       - 首个 mthreads 5.3.0 runtime 镜像：MUSA 5.3.0 base 之上加 python 3.12 venv、
         torch 2.13.0.post1+musa20261110、torch_musa、torchaudio 2.11.0.post2、
         torchvision 0.28.0.post1+musa5.3.0、mkl 2024.0.0 与 numpy 1.26.4，
         并加入 FlagGems 5.4.0。
-      - 唯一编译器是厂商 triton —— `triton-musa 3.6.0+musa5.3.0`：本条线尚无
-        python 3.12 的 FlagTree 构建，因此镜像只有 T 路径。
+      - 加入 FlagTree `0.7.0+mthreads3.6` 作为默认编译器，厂商 triton 保留为可切换项。
+      - `flagcx 0.14.1+musa5.3.0` 固定进 deps:，FlagTree 解析到的 libflagcx.so
+        是该包中的副本，而不是 triton/_C 自带的那份。
     upstream_prs: []
