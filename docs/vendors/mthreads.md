@@ -32,8 +32,8 @@ backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`
 - dmesg 里的 `[mtvpu] ioctl_mgt_get_info, invalid info size, req:4, size:132,
   expected:196` 也是 toolkit 档发出的，每次 create 涨 16 行；raw 档 0 行。
 - **raw 档（`--device /dev/mtgpu.0 --device /dev/dri`）完全正常**：
-  `torch.musa.device_count() == 8`。所以在这台节点上验证要用
-  `verify-flagcx-wheel.sh --run-flags-tier raw`；builder 档的 probe 不用设备，不受影响。
+  `torch.musa.device_count() == 8`。toolkit 档已从 `build-config.yml` 注释掉，
+  所以在这台节点上验证自动落到 raw；builder 档的 probe 不用设备，不受影响。
 
 ## 供应商工具链（跨厂商结论在此失效）
 

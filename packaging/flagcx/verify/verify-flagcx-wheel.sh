@@ -21,37 +21,17 @@
 #       --expect-sha256 "$WHEEL_SHA256"
 #
 # Options:
-#   --wheel            install the given wheels by file path, with no index and
-#                      no network: the artifact on its own
-#   --index-url URL    install by pin from this index instead
+#   --wheel            install the wheel by file path, checked in the row's
+#                      builder image
+#   --index-url URL    install by pin from this index, checked in the row's
+#                      runtime image
 #   --pin PIN          `flagcx==<public>+<local>`, the version the index holds
-#   --expect-sha256 H  sha256 of the wheel that was built, the hash alone
+#   --expect-sha256 H  sha256 of the wheel that was built
 #   --backend KEY      backend from backends.yaml; read off the artifact when
 #                      this is absent
-#   --image REF        the image to install into. Defaults to the row's
-#                      `runtime_image`, which is where the wheel is delivered.
-#                      The wheel line names the row's builder image here for
-#                      its pre-publish check: that is the only environment that
-#                      exists before the runtime carrying this wheel is built
-#   --run-flags-tier T toolkit (default), raw, or default: which tier of
-#                      build-config.yml's run.vendors entry to start the
-#                      container with. A tier the vendor does not state is an
-#                      error, not a fallback — passing `raw` says the toolkit is
-#                      known broken on this host, and falling back would hide it
-#   --no-bitcode       the wheel under test carries no device bitcode even though
-#                      the row states bitcode_arch, so skip the .bc assertions —
-#                      the twin of build-flagcx-wheel.sh's flag, for a ref that
-#                      predates the row's bindings/ir Makefile
+#   --no-bitcode       skip the .bc assertions for a ref that carries no bitcode
 #   --keep             leave the container behind for inspection
 #   -h, --help         this text
-#
-# Positional arguments are the wheels to verify, in --wheel mode only: the
-# read-back installs by pin and touches no file.
-#
-# Why this is a container and not a host check: the wheel has to install into
-# the interpreter that will import it — /flagos, which only the runtime image
-# has — and the extension it installs has to load against the vendor libraries
-# that image carries. A host without the vendor SDK can assert neither.
 
 set -euo pipefail
 
@@ -62,14 +42,12 @@ OPT_INDEX_URL=""
 OPT_PIN=""
 OPT_EXPECT_SHA256=""
 OPT_BACKEND=""
-OPT_IMAGE=""
-OPT_RUN_FLAGS_TIER=""
 LOCAL_MODE=0
 KEEP=0
 NO_BITCODE=0
 WHEELS=()
 
-usage() { sed -n '16,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '16,34p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 fail() {
     echo "verify-flagcx-wheel.sh: $*" >&2
@@ -83,8 +61,6 @@ while [[ $# -gt 0 ]]; do
         --pin)            OPT_PIN="${2:?--pin needs a value}"; shift 2 ;;
         --expect-sha256)  OPT_EXPECT_SHA256="${2:?--expect-sha256 needs a hash}"; shift 2 ;;
         --backend)        OPT_BACKEND="${2:?--backend needs a key}"; shift 2 ;;
-        --image)          OPT_IMAGE="${2:?--image needs a ref}"; shift 2 ;;
-        --run-flags-tier) OPT_RUN_FLAGS_TIER="${2:?--run-flags-tier needs a value}"; shift 2 ;;
         --no-bitcode)     NO_BITCODE=1; shift ;;
         --keep)           KEEP=1; shift ;;
         -h|--help)        usage; exit 0 ;;
@@ -106,9 +82,6 @@ fi
 
 cd "$REPO_ROOT"
 
-# The local part is the build's own, and the row's label is only its head: the
-# version scheme appends the clone's date and node after it, so a wheel built
-# off a tag is recognised by its head and never by equality.
 local_part_of() {
     local text="$1"
     [[ "$text" == *+* ]] || return 1
@@ -121,25 +94,15 @@ wheel_rows() {
         | awk '$1 == "ready" {print $2}'
 }
 
-# --check-version-label reads backends.yaml alone; --build-inputs would run the
-# matrix generator once per row for a fact already in the registry.
 label_of_row() {
     python3 packaging/flagcx/flagcx-config.py --check-version-label "$1" \
         | sed -n 's/^ok: .*: label //p'
 }
 
-# A row owns a label when the label is that row's, or is that row's followed by
-# the `<date>.<node>` the version scheme appends — the same tail
-# build-flagcx-wheel.sh asserts by. Taking any dot-suffix instead would read a
-# chip row's label as its base row's: `cann8.5.0` heads `cann8.5.0.910c.<date>`,
-# so every pair of rows that differ only by a suffix would name two rows and
-# neither artifact could be verified.
 row_for_label() {
     local label="$1" key row_label tail match=""
     for key in $(wheel_rows); do
         row_label="$(label_of_row "$key")"
-        # An empty one is a row whose label did not print, and every pattern
-        # below would then match it.
         [[ -n "$row_label" ]] || continue
         if [[ "$label" == "$row_label" ]]; then
             tail=""
@@ -158,10 +121,6 @@ row_for_label() {
     printf '%s' "$match"
 }
 
-# The label is the only thing in either artifact that names the row which built
-# it, and the row is what names the image and the device flags — so verifying a
-# correct wheel against another backend's image would be a pass that says
-# nothing. It is read off the artifact rather than trusted from the call site.
 WANT_VERSION=""
 if (( LOCAL_MODE )); then
     LABEL=""
@@ -179,8 +138,6 @@ if (( LOCAL_MODE )); then
         LABEL="$local_label"
         WANT_VERSION="${name#flagcx-}"; WANT_VERSION="${WANT_VERSION%%-*}"
     done
-    # The pin names a version, so one row's two wheels are two artifacts no pin
-    # can tell apart — and pip would install them over each other.
     [[ ${#WHEELS[@]} -eq 1 ]] \
         || fail "${#WHEELS[@]} wheels given: pass one, the one the pin will name"
     WHEEL="${WHEELS[0]}"
@@ -201,97 +158,34 @@ else
     echo ">>> $KEY: read off the artifact's label $LABEL"
 fi
 
-# Captured into a variable rather than inlined: `set -e` does not see a failure
-# inside eval's command substitution, so an inline one would let the script run
-# on with every WHEEL_* empty.
+# `set -e` does not see a failure inside eval's command substitution.
 INPUTS="$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$KEY" --channel wheel)"
 set -a
 eval "$INPUTS"
 set +a
-# The ref the wheel was built from decides whether the row's bitcode is in it,
-# so the flag is the dispatch's, mirroring build-flagcx-wheel.sh: a release
-# built off v0.14.0 has no iluvatar .bc, and asserting one here would fail a
-# wheel that is correct for that ref.
 (( NO_BITCODE )) && WHEEL_BITCODE_ARCH=""
 
-# A row's label heads the local part of every wheel it builds, so a wheel whose
-# label does not is a wheel of another row: the image below is the wrong one, and
-# so are the device flags.
 case "$LABEL" in
     "$WHEEL_LOCAL_VERSION"|"$WHEEL_LOCAL_VERSION".*) ;;
     *) fail "$KEY publishes the label $WHEEL_LOCAL_VERSION, the artifact carries $LABEL" ;;
 esac
-# The default is the runtime image, never the builder, even on a row that builds
-# in one: that is where the wheel is delivered, so it is where it has to stand on
-# its own. `--image` overrides it for the wheel line's pre-publish check, whose
-# only environment is the builder — the runtime that will carry this wheel cannot
-# exist until the wheel is published. The two are different questions and both
-# are asked; neither substitutes for the other.
-[[ -n "$OPT_IMAGE" ]] || OPT_IMAGE="$WHEEL_RUNTIME_IMAGE"
-[[ -n "$OPT_IMAGE" ]] \
-    || fail "$KEY: no runtime image in its matrix row and no --image given, so there is nothing to verify in"
+
+if (( LOCAL_MODE )); then
+    IMAGE="$WHEEL_BUILDER_IMAGE"; MODE=local
+else
+    IMAGE="$WHEEL_RUNTIME_IMAGE"; MODE=index
+fi
+[[ -n "$IMAGE" ]] \
+    || fail "$KEY: its matrix row names no $MODE image, so there is nothing to verify in"
 if [[ -n "$OPT_INDEX_URL" ]]; then
-    # Both sides come off the same matrix row, so this holds by construction —
-    # and it is what keeps a read-back from reporting on an index the row does
-    # not publish to.
     [[ "$OPT_INDEX_URL" == "$WHEEL_INDEX_URL" ]] \
         || fail "--index-url $OPT_INDEX_URL is not this row's index ($WHEEL_INDEX_URL)"
 fi
 
-docker image inspect "$OPT_IMAGE" >/dev/null 2>&1 || docker pull "$OPT_IMAGE"
+docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE"
 
-# The vendor's device passthrough, from build-config.yml: the extension this
-# wheel installs links the vendor's communication library, so this container
-# needs the flags a runtime container gets. Keyed on the backend key's prefix,
-# not WHEEL_ADAPTOR: that is the FlagCX adaptor family, which is not the
-# build-infra vendor wherever the adaptor carries its own name (iluvatar_corex,
-# musa, tsm), and a miss fell back to run.default — leaving the device out of
-# the container with no line in the log saying so. metax is why the chain ends at
-# run.default -- its entry carries toolkit_cmd (a wrapper binary CI does not
-# have) and raw, no toolkit.
-RUN_FLAGS="$(BACKEND="$WHEEL_NAME" TIER="$OPT_RUN_FLAGS_TIER" python3 - <<'PY'
-import os
-import yaml
-with open(".github/build-config.yml") as fh:
-    run = yaml.safe_load(fh).get("run") or {}
-# base/<name> names a backend {vendor}-{backend}, so the prefix is the
-# build-infra vendor name. There is no second copy to keep in step.
-key = os.environ["BACKEND"]
-vendor = key.split("-", 1)[0]
-tier = os.environ.get("TIER") or ""
-entry = (run.get("vendors") or {}).get(vendor)
-if entry is None:
-    raise SystemExit(
-        f"run.vendors in build-config.yml has no entry for {key!r} — refusing "
-        f"to verify without the device flags its backend needs"
-    )
-if tier == "default":
-    # run.default's empty string is a value, not an absent one: it is what a
-    # vendor with no entry gets, and naming the tier is how a host is told the
-    # vendor's own tiers are not usable on it.
-    print(run.get("default", ""))
-elif tier:
-    # A named tier is taken as given, with no fallback: the reason to name one
-    # is that the tier above it does not work on this host, and a silent
-    # fallback would put the container back on exactly that tier.
-    value = entry.get(tier, "")
-    if not value:
-        raise SystemExit(
-            f"run.vendors.{vendor} states no {tier!r} tier — the available "
-            f"ones are {sorted(k for k in entry if isinstance(entry[k], str))}"
-        )
-    print(value)
-else:
-    print(entry.get("toolkit") or entry.get("raw") or run.get("default", ""))
-PY
-)"
-# Adding it twice makes docker abort with "network host is specified multiple
-# times", and some vendor toolkits already carry it.
-if [[ " ${RUN_FLAGS} " != *" --network "* ]]; then
-    RUN_FLAGS="${RUN_FLAGS} --network host"
-fi
+RUN_FLAGS="$(python3 packaging/flagcx/flagcx-config.py --run-flags "$WHEEL_NAME")"
 
-# The node's proxy, relayed the way the build relays it.
 PROXY_ENV=()
 for pair in http_proxy:HTTP_PROXY https_proxy:HTTPS_PROXY no_proxy:NO_PROXY; do
     lower="${pair%%:*}"; upper="${pair##*:}"
@@ -317,161 +211,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# mode=local the wheel as a file: nothing may come from a network, so a pass
-#            says the artifact is complete
-# mode=index the wheel as the index serves it: the install has to come from the
-#            pin, and the bytes have to be the ones that were built
-verify_in() {
-    local image="$1" mode="$2" in_container=""
-
-    echo ">>> $mode: $image $RUN_FLAGS"
-    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-    docker run -d --name "$CONTAINER" $RUN_FLAGS "${PROXY_ENV[@]}" "$image" sleep infinity >/dev/null
-    if [[ "$mode" == local ]]; then
-        in_container="/tmp/wheels/$(basename "$WHEEL")"
-        docker exec "$CONTAINER" mkdir -p /tmp/wheels
-        docker cp "$WHEEL" "$CONTAINER:/tmp/wheels/"
-    fi
-
-    docker exec -i -e MODE="$mode" -e IMAGE="$image" -e WANT_VERSION="$WANT_VERSION" \
-        -e WHEEL="$in_container" -e INDEX="$OPT_INDEX_URL" -e PIN="$OPT_PIN" \
-        -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$WHEEL_BITCODE_ARCH" \
-        "$CONTAINER" bash -euo pipefail -s <<'IN_CONTAINER'
-PY=/flagos/bin/python
-
-# A vendor image prints on its own stdout the moment a package imports: on
-# enflame-tops1.10.6, flagcx pulls in triton_kernel_gcu, which prints a line
-# before flagcx's own. A plain command substitution folds that into the value,
-# and a path read back with a word of prose in front of it is not a path — it
-# read as a six-entry glob rather than as one directory. So a value taken off
-# $PY names itself on the way out and is read back by that name.
-py_value() {
-    local marker="$1" code="$2" out n
-    out="$("$PY" -c "$code")"
-    n="$(printf '%s\n' "$out" | grep -c "^${marker}=" || true)"
-    [ "$n" -eq 1 ] \
-        || { echo "$PY printed $n $marker lines, not one: $out" >&2; exit 1; }
-    printf '%s\n' "$out" | sed -n "s/^${marker}=//p"
-}
-
-# A preinstalled flagcx is a different artifact: every assertion below would
-# describe that copy while reading as a pass for this one. The container is a
-# throwaway, so it is uninstalled rather than refused — a row's runtime image
-# may legitimately carry the wheel as a dep — and the working directory is left
-# out of the probe so a checked-out source tree cannot answer it.
-#
-# The test is the installed metadata, not importability: pip keys its own
-# "already installed" skip on metadata, so the two diverge exactly when the
-# preinstalled wheel cannot load — the install no-ops and the failure names a
-# symbol from the wheel that was never installed.
-if (cd /tmp && "$PY" -c 'import importlib.metadata as m; m.version("flagcx")') >/dev/null 2>&1; then
-    echo "$IMAGE already carries a flagcx — uninstalling it so this wheel is the only artifact under test"
-    "$PY" -m pip uninstall -y flagcx
+MOUNT_ARGS=()
+WHEEL_IN_CONTAINER=""
+if (( LOCAL_MODE )); then
+    WHEEL_DIR="$(cd "$(dirname "$WHEEL")" && pwd)"
+    WHEEL_IN_CONTAINER="/wheels/$(basename "$WHEEL")"
+    MOUNT_ARGS=(-v "$WHEEL_DIR:/wheels:ro")
 fi
 
-if [ "$MODE" = index ]; then
-    : "${INDEX:?}" "${PIN:?}" "${EXPECT_SHA:?}"
-    rm -rf /tmp/dl
-    mkdir -p /tmp/dl
-    # --no-cache-dir: a warm cache would answer this from an earlier run, and the
-    # step is about what the index holds now.
-    "$PY" -m pip download --no-deps --no-cache-dir --dest /tmp/dl --index-url "$INDEX" "$PIN"
-    dl="$(ls -1 /tmp/dl)"
-    [ "$(printf '%s\n' "$dl" | wc -l)" -eq 1 ] \
-        || { echo "$INDEX: the pin resolved to $dl" >&2; exit 1; }
-    # A space in the name is what a registry that decodes the local part's `+`
-    # produces, and it is the failure no hash can show: the bytes are right and
-    # the name a client asks for is not one any index can match.
-    case "$dl" in
-        *" "*) echo "$INDEX: serves '$dl', a name with a space in it — the + of the local part was decoded" >&2; exit 1 ;;
-    esac
-    case "$dl" in
-        "flagcx-$WANT_VERSION-"*.whl) ;;
-        *) echo "$INDEX: serves $dl, this build is flagcx-$WANT_VERSION" >&2; exit 1 ;;
-    esac
-    # The only check that says the index holds *this* artifact rather than a
-    # rebuild that happens to carry the same name.
-    got="$(sha256sum "/tmp/dl/$dl" | awk '{print $1}')"
-    [ "$got" = "$EXPECT_SHA" ] \
-        || { echo "$INDEX: serves $got, this build is $EXPECT_SHA" >&2; exit 1; }
-    # By pin, not by the file just downloaded: the install is what a user does.
-    # --no-deps so nothing the image already carries can satisfy the wheel.
-    "$PY" -m pip install --no-deps --no-cache-dir --index-url "$INDEX" "$PIN"
-    SOURCE="$INDEX"
-else
-    # --no-index: nothing here may come from a network, so a pass says the wheel
-    # is complete rather than that an index filled a gap.
-    "$PY" -m pip install --no-deps --no-index --no-cache-dir "$WHEEL"
-    SOURCE="the wheel"
-fi
+echo ">>> $MODE: $IMAGE $RUN_FLAGS"
+docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+docker run -d --name "$CONTAINER" $RUN_FLAGS "${PROXY_ENV[@]}" \
+    "${MOUNT_ARGS[@]}" \
+    -v "$HERE/verify-flagcx-wheel-in-container.sh:/verify.sh:ro" \
+    "$IMAGE" sleep infinity >/dev/null
 
-installed="$(py_value FLAGCX_VERSION 'import importlib.metadata as m; print("FLAGCX_VERSION=" + m.version("flagcx"))')"
-# An older release under the same pin would install and exit 0, reading as a
-# pass.
-[ "$installed" = "$WANT_VERSION" ] \
-    || { echo "flagcx: $SOURCE installs $installed, this build is $WANT_VERSION" >&2; exit 1; }
-
-site="$(py_value FLAGCX_SITE 'import os, flagcx; print("FLAGCX_SITE=" + os.path.dirname(os.path.dirname(flagcx.__file__)))')"
-set -- $site/flagcx-*.dist-info
-[ "$#" -eq 1 ] && [ -d "$1" ] \
-    || { echo "flagcx: $# dist-info directories in $site, expected the one this install wrote" >&2; exit 1; }
-metadata="$1/METADATA"
-
-# The wheel declares no dependencies, and --no-deps is why a declared one is
-# invisible to every other check here: the day a Requires-Dist appears is the day
-# this package starts dragging something in behind it.
-if grep -q '^Requires-Dist:' "$metadata"; then
-    grep '^Requires-Dist:' "$metadata" >&2
-    echo "$metadata: the wheel declares a dependency, and --no-deps is the only reason nothing pulled it in" >&2
-    exit 1
-fi
-
-# The library is data in the wheel rather than an entry point, so it is the one
-# part of the payload an install can drop without saying so.
-lib="$site/flagcx/lib/libflagcx.so"
-[ -f "$lib" ] \
-    || { echo "flagcx: $lib is not on disk — the wheel's own payload did not survive the install" >&2; exit 1; }
-
-# The device bitcode and its header, on the rows that publish them. No import
-# reaches either: a wheel that dropped them installs and imports exactly like one
-# that has them, and the loss would surface as another repo's build failing later.
-if [ -n "${BITCODE_ARCH:-}" ]; then
-    bc="$site/flagcx/lib/libflagcx_device.bc"
-    hdr="$site/flagcx/include/flagcx_device_wrapper.h"
-    for f in "$bc" "$hdr"; do
-        [ -s "$f" ] \
-            || { echo "flagcx: $f is missing or empty — the $BITCODE_ARCH device bitcode did not survive the install" >&2; exit 1; }
-    done
-    # Bitcode magic: the file being there is not the same as it being bitcode,
-    # and a placeholder or a text file would pass every check above.
-    [ "$(head -c 2 "$bc")" = "BC" ] \
-        || { echo "flagcx: $bc does not start with the LLVM bitcode magic" >&2; exit 1; }
-    echo ">>> device bitcode: $bc ($(stat -c%s "$bc") bytes, $BITCODE_ARCH) and $(basename "$hdr")"
-fi
-
-# ldd is a bash script and the import below is not: leaving the startup hook on
-# would trace this against whatever /etc/profile.d re-exports, which is a list
-# the interpreter never sees. Naming the unresolved library here is the point —
-# the alternative is an ImportError that names nothing.
-#
-# The search path carries torch's own library directory, which is where `import
-# torch` finds libc10/libtorch: a bare ldd calls those unresolved in a wheel that
-# loads perfectly (measured on nvidia-cuda13.3).
-unset BASH_ENV
-torch_lib="$(py_value FLAGCX_TORCH_LIB 'import os, torch; print("FLAGCX_TORCH_LIB=" + os.path.join(os.path.dirname(torch.__file__), "lib"))')"
-for candidate in "$lib" $(find "$site/flagcx" -name '_C*.so'); do
-    if LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" | grep -q 'not found'; then
-        LD_LIBRARY_PATH="$torch_lib:${LD_LIBRARY_PATH:-}" ldd "$candidate" >&2
-        echo "$candidate: unresolved libraries (neither this image's SDK nor the interpreter's own runtime supplies them)" >&2
-        exit 1
-    fi
-done
-
-"$PY" -c 'import flagcx, flagcx.api' >/dev/null
-echo ">>> $MODE: flagcx $installed imports, $lib and its dependencies resolve, no Requires-Dist"
-IN_CONTAINER
-}
-
-verify_in "$OPT_IMAGE" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
+docker exec -i -e MODE="$MODE" -e WANT_VERSION="$WANT_VERSION" \
+    -e WHEEL="$WHEEL_IN_CONTAINER" -e INDEX="$OPT_INDEX_URL" -e PIN="$OPT_PIN" \
+    -e EXPECT_SHA="$OPT_EXPECT_SHA256" -e BITCODE_ARCH="$WHEEL_BITCODE_ARCH" \
+    "$CONTAINER" bash /verify.sh
 
 echo ">>> ok: flagcx $WANT_VERSION ($WHEEL_ARCH, $WHEEL_PYTHON_TAG)"

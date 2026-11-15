@@ -256,6 +256,13 @@ def deb_name(key: str) -> str:
     return f"libflagcx-{key}"
 
 
+def load_build_config() -> dict:
+    if not BUILD_CONFIG.is_file():
+        return {}
+    with BUILD_CONFIG.open() as fh:
+        return yaml.safe_load(fh) or {}
+
+
 def registry_prefix(name: str) -> str | None:
     """One of build-config.yml's image prefixes, or None if it is not there.
 
@@ -263,12 +270,34 @@ def registry_prefix(name: str) -> str | None:
     tag — the same host every other layer is pushed to — so it is one source for
     it rather than two.
     """
-    if not BUILD_CONFIG.is_file():
-        return None
-    with BUILD_CONFIG.open() as fh:
-        cfg = yaml.safe_load(fh) or {}
-    prefixes = (cfg.get("registry") or {}).get("prefixes") or {}
+    prefixes = (load_build_config().get("registry") or {}).get("prefixes") or {}
     return prefixes.get(name) or None
+
+
+def run_flags(key: str) -> str:
+    """The device flags a container for `key` starts with, from build-config.yml.
+
+    Keyed on the build-infra vendor (the key's prefix), not the FlagCX adaptor:
+    they differ wherever the adaptor carries its own name (iluvatar_corex, musa,
+    tsm), and a miss would leave the device out of the container silently.
+    """
+    run = load_build_config().get("run") or {}
+    vendor = key.split("-", 1)[0]
+    entry = (run.get("vendors") or {}).get(vendor)
+    if entry is None:
+        raise SystemExit(
+            f"run.vendors in build-config.yml has no entry for {vendor!r} — "
+            f"refusing to start a container for {key} without the device flags "
+            f"its backend needs"
+        )
+    # A vendor states at most one working tier, so a wrong one is a
+    # build-config bug rather than something to fall back from.
+    flags = entry.get("toolkit") or entry.get("raw") or run.get("default", "")
+    # Some vendor toolkits already carry it, and naming it twice makes docker
+    # abort with "network host is specified multiple times".
+    if " --network " not in f" {flags} ":
+        flags = f"{flags} --network host".strip()
+    return flags
 
 
 def builder_image(key: str, image_tag: str, version: str) -> str:
@@ -1095,6 +1124,7 @@ def main() -> int:
     g.add_argument("--check", action="store_true")
     g.add_argument("--build-inputs", metavar="KEY")
     g.add_argument("--check-version-label", metavar="KEY")
+    g.add_argument("--run-flags", metavar="KEY")
     g.add_argument("--render-control", metavar="OUT", type=Path)
     g.add_argument("--list", action="store_true")
     ap.add_argument(
@@ -1105,6 +1135,10 @@ def main() -> int:
              "differ, the join and the drift alarm do not (default: deb)",
     )
     args = ap.parse_args()
+
+    if args.run_flags:
+        print(run_flags(args.run_flags))
+        return 0
 
     registry = load_registry()
 
