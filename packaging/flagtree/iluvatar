@@ -29,7 +29,9 @@ ARG no_proxy=
 
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
 ARG FILESTORE=https://resource.flagos.net/repository/flagos-filestore
-ARG LLVM_TARBALL=iluvatar-llvm22-x86_64_v0.6.1.tar.gz
+# v0.7.0 is what iluvatar.py declares on `main` (upstream moved it in #1618);
+# the stage is ref-independent, so this one tree serves the tag line too.
+ARG LLVM_TARBALL=iluvatar-llvm22-x86_64_v0.7.0.tar.gz
 # Rooted at `.triton/`; the LLVM keeps its root -- the backend resolves that
 # cache by the tarball's own name.
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
