@@ -214,10 +214,11 @@ case "$LABEL" in
     "$WHEEL_LOCAL_VERSION"|"$WHEEL_LOCAL_VERSION".*) ;;
     *) fail "$KEY publishes the label $WHEEL_LOCAL_VERSION, the artifact carries $LABEL" ;;
 esac
-# The runtime image is the delivery environment, and the build environment too on
-# every row without a builder image. This is still where the wheel has to stand
-# on its own: the builder is only ever a superset.
-[[ -n "$WHEEL_IMAGE_TAG" ]] \
+# The runtime image, never the builder, even on a row that builds in one: this
+# is where the wheel is delivered, so it is where it has to stand on its own.
+# The builder is only ever a superset — proving the import there answers a
+# question nobody deploys.
+[[ -n "$WHEEL_RUNTIME_IMAGE" ]] \
     || fail "$KEY: no runtime image in its matrix row, so there is nothing to verify in"
 if [[ -n "$OPT_INDEX_URL" ]]; then
     # Both sides come off the same matrix row, so this holds by construction —
@@ -227,7 +228,7 @@ if [[ -n "$OPT_INDEX_URL" ]]; then
         || fail "--index-url $OPT_INDEX_URL is not this row's index ($WHEEL_INDEX_URL)"
 fi
 
-docker image inspect "$WHEEL_IMAGE_TAG" >/dev/null 2>&1 || docker pull "$WHEEL_IMAGE_TAG"
+docker image inspect "$WHEEL_RUNTIME_IMAGE" >/dev/null 2>&1 || docker pull "$WHEEL_RUNTIME_IMAGE"
 
 # The vendor's device passthrough, from build-config.yml: the extension this
 # wheel installs links the vendor's communication library, so this container
@@ -461,6 +462,6 @@ echo ">>> $MODE: flagcx $installed imports, $lib and its dependencies resolve, n
 IN_CONTAINER
 }
 
-verify_in "$WHEEL_IMAGE_TAG" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
+verify_in "$WHEEL_RUNTIME_IMAGE" "$([[ $LOCAL_MODE -eq 1 ]] && echo local || echo index)"
 
 echo ">>> ok: flagcx $WANT_VERSION ($WHEEL_ARCH, $WHEEL_PYTHON_TAG)"

@@ -30,7 +30,7 @@
 #   key=hygon-dtk26.04
 #   eval "$(python3 packaging/flagcx/flagcx-config.py --build-inputs "$key" --channel wheel)"
 #   docker build \
-#       --build-arg "BASE_IMAGE=$WHEEL_BASE_IMAGE" \
+#       --build-arg "BASE_IMAGE=$WHEEL_BUILDER_IMAGE" \
 #       --build-arg "FLAGCX_REPO=https://github.com/flagos-ai/FlagCX.git" \
 #       --build-arg "FLAGCX_REF=$FLAGCX_REF" \
 #       --build-arg "BACKEND=$key" \
@@ -61,17 +61,12 @@
 # version suffix at its head is the only thing keeping two vendors' builds of the
 # same commit from colliding in one index.
 #
-# BASE_IMAGE is the backend's *runtime* image, where Containerfile.deb builds in
-# the *base* image. plugin/torch/_build_config.py imports torch at build time to
-# pick the extension classes, the torch suffix and the device rpaths, and only
-# the runtime image's /flagos carries torch, setuptools_scm and a Python.h for
-# the interpreter that will install the result. Build env == delivery env.
-#
-# A row that publishes a builder image builds in *that* instead (flagcx-config.py's
-# `wheel_base_image`): the builder is self-contained on ubuntu:22.04 — it installs
-# its own interpreter and torch pin — so the environment still carries the torch,
-# setuptools_scm and Python.h this probe asserts, and has a clang, without
-# inheriting the runtime image's glibc floor.
+# BASE_IMAGE is the row's *builder* image (flagcx-config.py's `builder_image`):
+# its own runtime image on the rows that publish no builder, and on the rest a
+# self-contained ubuntu:22.04 image that installs its interpreter and torch pin
+# itself. Either way the environment carries the torch, setuptools_scm and
+# Python.h this probe asserts — and the builder adds a clang without inheriting
+# the runtime image's glibc floor.
 #
 # Nothing in here reads backends.yaml.
 

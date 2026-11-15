@@ -14,20 +14,21 @@
 
 name: FlagCX Wheel
 
-# Build FlagCX wheels in the backend's runtime image — or in its build-toolchain
-# builder image where the row publishes one — and (optionally) publish
-# them to that vendor's PyPI.
+# Build FlagCX wheels in the backend's builder image where the row publishes
+# one and in its runtime image otherwise, verify them in the runtime image, and
+# (optionally) publish them to that vendor's PyPI.
 #
-# THE BUILD ENVIRONMENT IS THE BACKEND'S RUNTIME IMAGE, or the build-toolchain
-# image published beside it: BASE_IMAGE =
-# flagcx-config.py's `wheel_base_image`, the vllm-plugin-wheel.yml model. A row
-# that publishes a builder builds in that instead (nvidia: no clang; hygon:
-# glibc 2.35 floor).
+# THE BUILD AND THE VERIFICATION RUN IN DIFFERENT IMAGES, and the row states both:
+# the build uses flagcx-config.py's `builder_image` (nvidia: no clang; hygon:
+# glibc 2.35 floor; the runtime image itself on the rows that publish no
+# builder), while the verification uses `runtime_image` on every row. A builder
+# is only ever a superset of the runtime, so verifying there would prove the
+# wheel loads in an environment nobody deploys it into.
 #
 # The FlagCX build imports torch while it configures itself, so one environment
 # has to carry torch, setuptools_scm and Python.h at once — only /flagos does.
-# Build env == delivery env: a builder is the runtime image plus a toolchain, or
-# the same interpreter+torch+SDK on a 22.04 floor.
+# Every builder is self-contained on ubuntu:22.04 (the base that lowers the
+# wheel's glibc floor to 2.35) and installs that interpreter+torch itself.
 #
 # The matrix comes from `flagcx-config.py --merge --channel wheel` rather than from
 # `generate_matrix.py` directly: the merge is what joins the runtime matrix with
@@ -228,10 +229,15 @@ jobs:
             df -h .
             exit 1
           fi
-      - name: Pull the runtime image
+      # The build runs in `builder_image`, which is the row's builder where it
+      # publishes one and the runtime image otherwise — the same value
+      # build-flagcx-wheel.sh reads, so this step and the build cannot disagree.
+      # The runtime image is not a build prerequisite: a row with a builder
+      # compiles nowhere near it.
+      - name: Pull the build image
         run: |
-          docker pull "${{ matrix.image_tag }}" \
-            || { echo "::error::Failed to pull ${{ matrix.image_tag }}"; exit 1; }
+          docker pull "${{ matrix.builder_image }}" \
+            || { echo "::error::Failed to pull ${{ matrix.builder_image }}"; exit 1; }
       # Resolve the requested ref to its exact commit on the host, so the build,
       # the container's own `git rev-parse HEAD` check and the commit.txt it
       # writes all describe one commit instead of three readings of a moving ref.
@@ -341,23 +347,21 @@ jobs:
       - name: Pull the runtime image
         if: steps.download.outcome == 'success'
         run: |
-          docker pull "${{ matrix.image_tag }}" \
-            || { echo "::error::Failed to pull ${{ matrix.image_tag }}"; exit 1; }
+          docker pull "${{ matrix.runtime_image }}" \
+            || { echo "::error::Failed to pull ${{ matrix.runtime_image }}"; exit 1; }
       # Not gated on `publish`: the point of this step is to refuse an artifact
       # that does not stand on its own, and that is worth knowing whether or not
       # anyone intends to publish it. Installing from the FILE (no index) is what
       # makes it the wheel-line counterpart of flagcx-deb.yml's `full` mode.
+      # The runtime image on purpose, on every row: this is the wheel's delivery
+      # environment, and a builder is only ever a superset of it — the floor
+      # proof a builder gives is not the same question as whether the wheel
+      # deploys. The script reads the image off the row itself, so nothing here
+      # has to name it.
       - name: Verify the wheel from the file
         if: steps.download.outcome == 'success'
         env:
           MATRIX_NAME: ${{ matrix.name }}
-          # The plan's call site carries no image flag, so the image travels in
-          # the environment. Both names the repo already uses for this value are
-          # exported — MATRIX_<field> after flagcx-deb.yml's MATRIX_UBUNTU,
-          # BASE_IMAGE after the wheel/plugin lines — because the script is
-          # written against the same plan and one of them is the name it reads.
-          MATRIX_IMAGE_TAG: ${{ matrix.image_tag }}
-          BASE_IMAGE: ${{ matrix.image_tag }}
         run: |
           set -euo pipefail
           packaging/flagcx/verify/verify-flagcx-wheel.sh \
@@ -450,7 +454,7 @@ jobs:
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
             -v "$PWD/packaging/flagcx/dist:/wheels:ro" \
-            "${{ matrix.image_tag }}" \
+            "${{ matrix.runtime_image }}" \
             bash -euo pipefail -c '
               # Upgrade pkginfo too: setuptools >=77 (PEP 639) stamps
               # Metadata-Version 2.4 into the wheel, which older pkginfo cannot
@@ -496,8 +500,6 @@ jobs:
         if: ${{ inputs.publish && steps.download.outcome == 'success' }}
         env:
           MATRIX_NAME: ${{ matrix.name }}
-          MATRIX_IMAGE_TAG: ${{ matrix.image_tag }}
-          BASE_IMAGE: ${{ matrix.image_tag }}
           # The row's own index, not a second spelling of it.
           FLAGOS_PYPI: ${{ matrix.flagos_pypi }}
         run: |

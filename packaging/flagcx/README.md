@@ -57,7 +57,8 @@ plus the backend's `apt:` packages — no runtime image is involved.
 
 ## Builder images
 
-The wheel line builds in the row's `wheel_base_image`. Some rows' runtime images carry no device
+The wheel line builds in the row's `builder_image`: the build-toolchain image where the row
+publishes one, the row's own runtime image otherwise. Some rows' runtime images carry no device
 toolchain at all — the two nvidia rows have no nvcc, no `cuda_runtime.h`, no `nccl.h` and no
 clang — and some rows' wheels must link at most glibc 2.35, which a 24.04 runtime cannot produce.
 For those rows the builder channel publishes an image that can be the wheel build's `BASE_IMAGE`.
@@ -95,13 +96,11 @@ records no runtime digest — and the glibc floor the wheel carries is asserted 
 the `.so` gate in `wheel-build-in-container.sh`, not remembered here as an image digest.
 
 All twenty builder-enabled rows are built and verified — the two nvidia rows, whose acceptance test
-is the bitcode compile, and eighteen vendor rows, whose acceptance test is the torch/SDK probe.
-Nineteen of the images are also in the registry; `mthreads-musa5.3.0`'s was built and verified on
-its own node and has not been pushed, which is a publish step the builder workflow runs. Four
-carry a dated measurement — the nvidia pair drawn from a run on h20 against `21f8b5f`, and the
-hygon and musa5.3.0 rows from their own nodes. `nvidia-cuda12.8` is frozen in configs.yaml
-(`enabled: false`), so it is in no builder matrix now and its row below stands as the record of a
-measurement already taken, not as a row still rebuilt:
+is the bitcode compile, and eighteen vendor rows, whose acceptance test is the torch/SDK probe — and
+all twenty images are in the registry. Four carry a dated measurement — the nvidia pair drawn from a
+run on h20 against `21f8b5f`, and the hygon and musa5.3.0 rows from their own nodes.
+`nvidia-cuda12.8` is frozen in configs.yaml (`enabled: false`), so it is in no builder matrix now
+and its row below stands as the record of a measurement already taken, not as a row still rebuilt:
 
 | Row | At | Acceptance |
 |---|---|---|
@@ -126,9 +125,14 @@ states the case for each.
 
 ## Wheels
 
-One wheel per backend, built in the backend's runtime image — or in the row's builder image where it
-publishes one, which is every row whose runtime carries no toolchain or whose wheel needs the 22.04
-floor.
+One wheel per backend, built in the row's builder image where it publishes one — every row whose
+runtime carries no toolchain or whose wheel needs the 22.04 floor — and in the runtime image
+otherwise. Every builder on this channel is self-contained on **ubuntu:22.04**: that base is what
+lowers the wheel's glibc floor to 2.35, so it installs on the bundle's physical 22.04 hosts.
+
+Verification uses the **runtime** image on every row instead. A builder is a superset of the
+runtime, so verifying there would answer the wrong question — the wheel has to import where it is
+delivered, which is the runtime.
 
 ```bash
 packaging/flagcx/build-flagcx-wheel.sh --list

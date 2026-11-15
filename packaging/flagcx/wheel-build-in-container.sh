@@ -26,8 +26,8 @@
 # build died before it compiled anything. build-flagcx-wheel.sh therefore starts
 # this container with the row's run.vendors flags from build-config.yml, the same
 # pairs packaging/flagcx/verify/verify-flagcx-wheel.sh verifies in: the build
-# environment is the delivery environment, and the device it needs is the one the
-# verify script passes.
+# and the verification must see the same device, and the device a row's verify
+# passes is the one its build has to tolerate.
 #
 # Every input arrives as environment set by that exec (-e NAME=value, values from
 # flagcx-config.py --build-inputs), so nothing here is interpolated into a shell

@@ -322,12 +322,21 @@ correct but it was a second author of an artifact: what shipped was not what the
 and every row that wanted a `.bc` depended on the build system carrying a copy of FlagCX's
 packaging knowledge.
 
-**Which image the wheel is built in is derived** (`flagcx-config.py`'s `wheel_base_image`): the
+**Which image the wheel is built in is derived** (`flagcx-config.py`'s `builder_image`): the
 runtime image, or the builder image on a row that publishes one. The builder is self-contained on
 ubuntu:22.04 — the interpreter and torch pin the runtime used to provide — so the environment the
 extension is compiled in still carries what the wheel needs without inheriting the runtime's glibc
 floor, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a builder —
 the build would otherwise run where there is no clang and fail one stage later, at the make.
+
+**The build and the verification deliberately do not use the same image.** The build runs in
+`builder_image`; the verification runs in `runtime_image`, on every row, builder or not. A builder
+is only ever a superset of the runtime, so verifying there would prove the wheel loads in an
+environment nobody deploys it into. The two questions are different and the earlier arrangement
+asked only one: the wheel must link at 2.35 (`wheel-build-in-container.sh`'s `.so` gate, at the
+artifact) *and* it must import where it is delivered (`verify-flagcx-wheel.sh`). The merged row
+carries the two names instead of the matrix's `image_tag` — this channel is where the single tag
+splits into its two uses, so leaving the ambiguous name beside them would invite the wrong read.
 
 ## Mechanics
 
