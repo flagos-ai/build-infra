@@ -343,7 +343,7 @@ backends:
 
   # The musa5.3.0 twin of mthreads: same staged LLVM and triton deps, but a
   # deadsnakes 3.12 (torch 2.13.0 is cp312-only, and the cp310 file is refused by
-  # that runtime's pip). `daily.enabled` waits on a published builder stage.
+  # that runtime's pip).
   mthreads-musa5.3.0:
     containerfile: mthreads-musa5.3.0
     builder_image: flagtree-builder-mthreads-musa5.3.0
@@ -362,10 +362,10 @@ backends:
           - /root/.flagtree/mthreads/mthreads_local_binary/llc
           - /root/.flagtree/mthreads/mthreads_local_binary/ld.lld
         dirs:
+          # As the cp310 row: MLIR is the only find_package() contract here.
           - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir
-          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld
     daily:
-      enabled: false
+      enabled: true
       dist_name: flagtree-mthreads-musa5.3.0
       version_base: "0.7.1"
       ref: main
