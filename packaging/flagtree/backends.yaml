@@ -330,10 +330,9 @@ backends:
           - /root/.flagtree/mthreads/mthreads_local_binary/llc
           - /root/.flagtree/mthreads/mthreads_local_binary/ld.lld
         dirs:
-          # The two find_package() contracts: MLIR via the default MLIR_DIR and
-          # LLD via the sibling LLD_DIR, neither of which is an apt package.
+          # MLIR is the only find_package() contract here: this backend's
+          # CMakeLists asks for no LLD, and the staged LLVM carries none.
           - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir
-          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld
     daily:
       enabled: true
       dist_name: flagtree-mthreads

@@ -52,7 +52,9 @@ previous tree with no name to compare at all.
 
 The ref compared against is the one the row will actually build: its `daily.ref`
 when it has an enabled daily row, otherwise the Containerfile's own
-`FLAGTREE_VERSION` / `FLAGTREE_REF` default (a release tag).
+`FLAGTREE_VERSION` / `FLAGTREE_REF` default (a release tag). Rows with no
+enabled daily are skipped unless named: the daily never touches their stage, so
+a mismatch there is not drift that run would fix.
 
 Usage:
   python3 scripts/check_flagtree_contract.py
@@ -364,7 +366,7 @@ def check_row(row: str, cfg: dict, upstream_dir: Path | None, offline: bool) -> 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--rows", nargs="*", help="backend keys (default: every row)")
+    ap.add_argument("--rows", nargs="*", help="backend keys (default: the daily-enabled rows)")
     ap.add_argument("--upstream-dir", type=Path, help="read upstream from a local checkout")
     ap.add_argument("--offline", action="store_true", help="fail rather than fetch")
     ap.add_argument("--refresh", action="store_true", help="ignore the fetch cache")
@@ -378,7 +380,7 @@ def main() -> int:
     backends = yaml.safe_load(
         (ROOT / "packaging" / "flagtree" / "backends.yaml").read_text(encoding="utf-8")
     )["backends"]
-    rows = args.rows or list(backends)
+    rows = args.rows or [r for r, cfg in backends.items() if (cfg.get("daily") or {}).get("enabled")]
     unknown = [r for r in rows if r not in backends]
     if unknown:
         raise SystemExit(f"unknown backend(s): {' '.join(unknown)}")

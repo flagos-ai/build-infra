@@ -427,14 +427,16 @@ them. The `cp310` wheel installs on neither 5.3.0 runtime — pip refuses it wit
 "not a supported wheel on this platform" — so the `cp312` file is not an
 upgrade of it but the only one that line can use.
 
-**Two prebuilt trees, and the local binary is the one that moves.**
-`mthreads.py` registers `mthreads-llvm22` and `mthreads_local_binary`. The first
-is the LLVM the backend compiles with; the second is the vendor's `llc` and
-`ld.lld`, which `compiler.py` resolves by bare name. Its version is not pinned to
-the LLVM's: `mthreads.py` declares v0.7.0 on `main` and v0.6.1 on the tag the
-wheel stage defaults to, and FlagTree adopts a cache by *directory* name without
-ever comparing versions — so the tarball is an `ARG`, the default follows the
-daily's ref, and a build on the tag passes the other name.
+**Two prebuilt trees, and the local binary moves on its own.** `mthreads.py`
+registers `mthreads-llvm22` and `mthreads_local_binary`. The first is the LLVM
+the backend compiles with; the second is the vendor's `llc` and `ld.lld`, which
+`compiler.py` resolves by bare name. Neither is pinned to the other, and FlagTree
+adopts a cache by *directory* name without comparing versions — so both tarballs
+are `ARG`s. `main` declares v0.7.1 for both and each file follows the ref it
+builds: the cp310 file takes that pair, the cp312 file the LLVM its tag names
+(v0.6.1, the only one of the two shipping `lib/cmake/lld`) plus the v0.7.0 local
+binary its verified wheel was built with. That split is why only the cp312 file
+asserts LLD.
 
 **No apt clang.** `FlagTreeOptions.cmake` puts the staged LLVM's `bin` on PATH and
 names its `clang`/`clang++` as this backend's compilers, so an apt clang would be
