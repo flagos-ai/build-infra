@@ -490,15 +490,16 @@ The same shape as `mthreads` — bare `ubuntu:22.04`, apt toolchain, the backend
 prebuilt inputs into FlagTree's offline cache, the 22.04 system python 3.10 and
 therefore a `cp310` wheel — with these differences.
 
-**Ten prebuilt inputs, and the cache is matched by directory name.**
-`xpu.py` fetches each into `~/.flagtree/xpu/<name>` and renames the extracted
-root to that name, so staging is extract plus `mv`, not a plain untar. Two of
-them (the LLVM 19 toolchain and its printf runtime) share the tarball root
-`xtdk-llvm19-ubuntu2004_x86_64` while landing as `xtdk-llvm19` and
-`xtdk-llvm19-printf`, which is why their filestore names carry a version suffix
-— the cache name and the tarball root are different things and only the former
-is what FlagTree looks up. The triton toolkits tarball is the one exception: it
-is rooted at `.triton/` and gets `--strip-components=1`.
+**Ten prebuilt inputs, and the cache is matched by directory name.** `xpu.py`
+fetches each into `~/.flagtree/xpu/<name>` and renames the extracted root to that
+name, so staging is extract plus `mv`, not a plain untar. Three of those names
+carry the version they hold (`xtdk-llvm19_20261013`,
+`xpu-sdnn-objects_v0.3.6.9.1`, `xpu-python-impl-so_v0.3.6.9.2`), and a fourth,
+the printf runtime, shares its tarball root with the LLVM 19 toolchain while
+landing as `xtdk-llvm19-printf` — the cache name and the tarball root are
+different things and only the former is what FlagTree looks up. The triton
+toolkits tarball is the one exception: it is rooted at `.triton/` and gets
+`--strip-components=1`.
 
 **The frontend is an environment variable, so the variable has to stay unset.**
 Both LLVM cache entries short-circuit on `LLVM_SYSPATH`
