@@ -78,6 +78,15 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-16 12:09:45*
+
+- The clang-18 aillvm comes from `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
+  instead of the bare `dtk_llvm.run`. Both builds' clang-18 parse FlagTree's
+  IR apart from one intrinsic: `dtk_llvm.run`'s takes only i32
+  `numRecords` in `llvm.amdgcn.make.buffer.rsrc`, this one only i64, and
+  the runtime's FlagTree moves to 0.7.1a1, whose hcu kernels emit i64.
+  Any other pairing fails with `Intrinsic has incorrect argument type`.
+
 *2026-11-04 11:35:10*
 
 - The aicc aillvm package joins `dtk_llvm.run`, so the image now carries

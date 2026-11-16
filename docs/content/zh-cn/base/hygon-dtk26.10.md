@@ -100,6 +100,15 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-16 12:09:45*
+
+- clang-18 那份 aillvm 改由 `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
+  提供，不再用裸 `dtk_llvm.run`。两版 clang-18 解析 FlagTree 的 IR 只差一个
+  intrinsic：`dtk_llvm.run` 的只接受 `llvm.amdgcn.make.buffer.rsrc` 的 i32
+  `numRecords`，这一版只接受 i64，而 runtime 侧的 FlagTree 升到 0.7.1a1，
+  其 hcu 内核发出的是 i64。其余配对都会报
+  `Intrinsic has incorrect argument type`。
+
 *2026-11-04 11:35:10*
 
 - aicc 的 aillvm 包与 `dtk_llvm.run` 并存，镜像因此同时带 clang-18 与 clang-22，
