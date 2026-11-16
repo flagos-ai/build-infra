@@ -35,13 +35,13 @@ ARG no_proxy=
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
 ARG LLVM_TRUST_TARBALL=xtdk-llvm22-ubuntu2004_x86_64.tar.gz
 ARG LLVM_PUB_TARBALL=llvm-pub-22.1.8-ubuntu2004_x86_64-v2.tar.gz
-ARG LLVM19_TARBALL=xtdk-llvm19-ubuntu2004_x86_64_v20260916.tar.gz
+ARG LLVM19_TARBALL=xtdk-llvm19-ubuntu2004_x86_64_v20261013.tar.gz
 ARG LLVM19_PRINTF_TARBALL=xtdk-llvm19-ubuntu2004_x86_64_printf_v20260403.tar.gz
 ARG DEVICE_LIBS_TARBALL=xpu-device-libs-ubuntu-x64_v0.3.6.1.1.tar.gz
 ARG RUNTIME_SO_TARBALL=xpu-runtime-so_v0.3.6.2.0.tar.gz
 ARG XRE_TARBALL=xre-Linux-x86_64_v0.3.0.tar.gz
-ARG SDNN_TARBALL=xpu-sdnn-objects_v0.3.6.9.0.tar.gz
-ARG PYTHON_IMPL_TARBALL=xpu-python-impl-so_v0.3.6.9.0.tar.gz
+ARG SDNN_TARBALL=xpu-sdnn-objects_v0.3.6.9.1.tar.gz
+ARG PYTHON_IMPL_TARBALL=xpu-python-impl-so_v0.3.6.9.2.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -78,14 +78,16 @@ RUN set -eu; \
     && tar -xzf "${LLVM_PUB_TARBALL}" -C /root/.flagtree/xpu \
     && mv /root/.flagtree/xpu/llvm-pub-22.1.8-ubuntu2004_x86_64-v2 /root/.flagtree/xpu/llvm-pub22 \
     && tar -xzf "${LLVM19_TARBALL}" -C /root/.flagtree/xpu \
-    && mv /root/.flagtree/xpu/xtdk-llvm19-ubuntu2004_x86_64 /root/.flagtree/xpu/xtdk-llvm19 \
+    && mv /root/.flagtree/xpu/xtdk-llvm19-ubuntu2004_x86_64 /root/.flagtree/xpu/xtdk-llvm19_20261013 \
     && tar -xzf "${LLVM19_PRINTF_TARBALL}" -C /root/.flagtree/xpu \
     && mv /root/.flagtree/xpu/xtdk-llvm19-ubuntu2004_x86_64 /root/.flagtree/xpu/xtdk-llvm19-printf \
     && tar -xzf "${DEVICE_LIBS_TARBALL}" -C /root/.flagtree/xpu \
     && tar -xzf "${RUNTIME_SO_TARBALL}" -C /root/.flagtree/xpu \
     && tar -xzf "${XRE_TARBALL}" -C /root/.flagtree/xpu \
     && tar -xzf "${SDNN_TARBALL}" -C /root/.flagtree/xpu \
+    && mv /root/.flagtree/xpu/xpu-sdnn-objects /root/.flagtree/xpu/xpu-sdnn-objects_v0.3.6.9.1 \
     && tar -xzf "${PYTHON_IMPL_TARBALL}" -C /root/.flagtree/xpu \
+    && mv /root/.flagtree/xpu/xpu-python-impl-so /root/.flagtree/xpu/xpu-python-impl-so_v0.3.6.9.2 \
     && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
     && rm -f /tmp/*.tar.gz \
     && test -x /root/.flagtree/xpu/llvm_trust/bin/xpu3-elfconv-triton \
@@ -93,21 +95,23 @@ RUN set -eu; \
     && test -f /root/.flagtree/xpu/llvm-pub22/bin/patchelf \
     && test -f /root/.flagtree/xpu/llvm-pub22/lib/cmake/mlir/MLIRConfig.cmake \
     && test -f /root/.flagtree/xpu/llvm-pub22/lib/cmake/lld/LLDConfig.cmake \
-    && test -x /root/.flagtree/xpu/xtdk-llvm19/bin/llc \
-    && test -f /root/.flagtree/xpu/xtdk-llvm19/lib/libLLVM.so.19.1 \
-    && test -f /root/.flagtree/xpu/xtdk-llvm19/lib/linux/libclang_rt.builtins-xpu3.a \
+    && test -x /root/.flagtree/xpu/xtdk-llvm19_20261013/bin/llc \
+    && test -f /root/.flagtree/xpu/xtdk-llvm19_20261013/lib/libLLVM.so.19.1 \
+    && test -f /root/.flagtree/xpu/xtdk-llvm19_20261013/lib/linux/libclang_rt.builtins-xpu3.a \
     && test -f /root/.flagtree/xpu/xtdk-llvm19-printf/lib/linux/libclang_rt.xpuprintf-xpu3.a \
     && test -f /root/.flagtree/xpu/xpu-device-libs/libxpujitc.so \
     && test -f /root/.flagtree/xpu/xpu-runtime-so/libxpurt.so.12.9.1.kunlun \
     && test -f /root/.flagtree/xpu/xre-Linux-x86_64/version.txt \
-    && test -f /root/.flagtree/xpu/xpu-sdnn-objects/lib/Dialect/TritonSDNN/Transforms/DSACopy.cpp.o \
-    && test -f /root/.flagtree/xpu/xpu-python-impl-so/python/triton/backends/intrinsic_tables.abi3.so \
+    && test -f /root/.flagtree/xpu/xpu-sdnn-objects_v0.3.6.9.1/lib/Dialect/TritonSDNN/Transforms/DSACopy.cpp.o \
+    && test -f /root/.flagtree/xpu/xpu-python-impl-so_v0.3.6.9.2/python/triton/backends/intrinsic_tables.abi3.so \
     && test -f /root/.triton/json/include/nlohmann/json.hpp \
     && touch /opt/flagtree-build-env.ready
 
 # Every extraction lands under the name xpu.py's cache uses, which is not always
-# the tarball's root: the two LLVM 19 packages share a root and the cache wants
-# `xtdk-llvm19` / `xtdk-llvm19-printf`, so those are renamed in place. Only the
+# the tarball's root: `xpu.py` names three of these caches with the version they
+# carry (`xtdk-llvm19_20261013`, `xpu-sdnn-objects_v0.3.6.9.1`,
+# `xpu-python-impl-so_v0.3.6.9.2`), and the two LLVM 19 packages share the root
+# `xtdk-llvm19-ubuntu2004_x86_64` while landing as two different caches. Only the
 # triton toolkits tarball is rooted at `.triton/`, so it is the one that gets a
 # strip -- stripping the LLVM 19 pair would flatten `xpu/kernel/xtdk.h`, which a
 # `tle.raw` payload includes by that path.
