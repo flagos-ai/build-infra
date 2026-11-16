@@ -101,6 +101,10 @@ mthreads-gmi
 
 ### 2.3.0
 
+*2026-11-14 11:23:54*
+
+- 工具链的 libmusolver 调用了驱动的 muStreamSynchronize 却没把 libmusa.so.1 声明为 NEEDED，导致 `import torch` 在加载后端扩展时因未定义符号失败；现在给已安装的该库补上这条依赖。
+
 *2026-11-14 08:07:35*
 
 - 首次交付：摩尔线程 MUSA 5.3.0 连同 MCCL 2.5.0 和 muDNN 3.5.0，基于 ubuntu:24.04，与 RC4.3.6、5.2.0 两条线并存。
