@@ -21,6 +21,25 @@ image: flagos-runtime-hygon-dtk26.10
 tags:
 - tag: 2.3.0
   entries:
+  - reason: |-
+      - FlagTree moves to `0.7.1a1+hcu3.6`, which is the first ref whose hcu
+        kernels emit the i64 `numRecords` in `llvm.amdgcn.make.buffer.rsrc` that
+        this base image's clang-18 (the `5f9d5e` aillvm build) parses. Under
+        `0.7.0+hcu3.6` every kernel failed to compile with
+        `Intrinsic has incorrect argument type`.
+      - The wheel is built on the `hcu-dtk2610` builder, which now stages the
+        `188a510` LLVM tree that ref names, the `libdushmem_device_gfx936.bc`
+        bitcode its `hcu.py` copies into `/opt/dtk/dushmem/lib/`, and `libzstd-dev`
+        that tree's CMake exports require.
+    reason_zh: |-
+      - FlagTree 升到 `0.7.1a1+hcu3.6`：这是第一个 hcu 内核发出
+        `llvm.amdgcn.make.buffer.rsrc` i64 `numRecords` 的 ref，而本基础镜像的 clang-18
+        （`5f9d5e` 那份 aillvm）接受的正是 i64。仍用 `0.7.0+hcu3.6` 时每个内核都编不过，
+        报 `Intrinsic has incorrect argument type`。
+      - 该 wheel 由 `hcu-dtk2610` builder 构建；该 stage 现在装入这一 ref 指定的 `188a510`
+        LLVM 树、其 `hcu.py` 会拷进 `/opt/dtk/dushmem/lib/` 的
+        `libdushmem_device_gfx936.bc`，以及该树的 CMake 导出所要求的 `libzstd-dev`。
+    upstream_prs: []
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`

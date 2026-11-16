@@ -26,8 +26,10 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ARG SDK_PACKAGE=DTK-26.10-Ubuntu24.04-x86_64.tar.gz
 # Two aillvm packages, both required; see the LLVM section below for why.
-ARG LLVM_PACKAGE=dtk_llvm.run
-ARG LLVM_PACKAGE_SHA256=f4a42b7fdb2586a9b8b3ceb87dee86ba9f705e5dd2ff2b5cdc60340e986276a8
+# Not the bare `dtk_llvm.run`: its clang-18 takes only i32 numRecords in
+# make.buffer.rsrc, while FlagTree 0.7.1a1's hcu kernels emit i64.
+ARG LLVM_PACKAGE=dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e-x86_64.run
+ARG LLVM_PACKAGE_SHA256=296d8e21b9dce091f8514f701054df762cf55a85acbfb1b595ecd5d7422aa285
 ARG AICC_PACKAGE=dtk_llvm_aicc-2.0.0+dtk2610.2611032005.ge358cd-x86_64.run
 ARG AICC_PACKAGE_SHA256=2eca83675ce0c17a185628a54608c213c7e1954e5b660435e7b8ca42b0d6d11b
 # ROCm-aware Open MPI built for this line; see the MPI section below.
@@ -64,19 +66,11 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /dtk.tar.gz ${FILE_STOR
     && rm /dtk.tar.gz
 
 # ── Install LLVM DTK (two packages, both required) ────────────
-# The two are layered, not alternatives. dtk_llvm.run carries aillvm as clang-18
-# only; the aicc package installs a whole second aillvm (clang-22, LLVM 22.0.0,
-# i64 numRecords in make.buffer.rsrc) over the same directory and keeps the
-# clang-18 the first one left behind.
-#
-# Both are needed because the two compiler paths refuse opposite halves:
-#   - FlagTree's bundled libtriton emits IR only clang-18 parses, so the F path
-#     needs clang-18 to exist (the vendor triton 3.7.0 flags/IR need clang-22).
-#   - DTK's aillvm ships no HCU MLIR dialect (ROCDLHCUOps.td), so FlagTree
-#     cannot be built against it at all -- it still has to borrow this clang.
-# Dropping either one turns one of F/T red; the pair is the only combination
-# that currently passes both. Retire dtk_llvm.run once FlagTree's hcu LLVM
-# aligns with clang-22.
+# clang-18 (this one) and clang-22 (aicc, layered into the same aillvm dir) each
+# serve one path: FlagTree 0.7.1a1's libtriton emits IR whose
+# make.buffer.rsrc numRecords is i64, and only this clang-18's form matches,
+# while vendor triton 3.7.0 passes clang-22-only flags. DTK's aillvm carries no
+# HCU MLIR dialect, so FlagTree cannot be built against the SDK's own LLVM.
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /llvm.run  ${FILE_STORE}/hygon/${LLVM_PACKAGE} \
     && echo "${LLVM_PACKAGE_SHA256}  /llvm.run" | sha256sum -c - \
     && bash /llvm.run --dtk_dir /opt/dtk-26.10 \

@@ -20,7 +20,7 @@
 # Ubuntu22.04 tarball, and the wheel's libtriton.so must load on the 24.04
 # runtime, which is the direction glibc compatibility runs in.
 #   docker build --target builder -t flagtree-builder-hcu-dtk2610:ci -f hcu-dtk2610 .
-#   docker build -t flagtree-hcu-dtk2610:0.7.0 -f hcu-dtk2610 .
+#   docker build -t flagtree-hcu-dtk2610:0.7.1a1 -f hcu-dtk2610 .
 
 ARG BUILDER_IMAGE=ubuntu:22.04
 FROM ${BUILDER_IMAGE} AS builder
@@ -33,12 +33,19 @@ ARG https_proxy=
 ARG no_proxy=
 
 # The prebuilt inputs, staged on our own filestore: ks3 answers the CI proxy
-# with 500. The LLVM keeps the vendor's filename and its own top-level name,
-# because that name IS hcu.py's cache key -- FlagTree re-downloads a cache it
-# does not recognize by that exact name.
+# with 500. The LLVM keeps the vendor's filename, because that name IS hcu.py's
+# cache key -- FlagTree re-downloads a cache it does not recognize by that name.
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
-ARG LLVM_TARBALL=hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64_v0.5.0.tar.gz
-ARG LLVM_DIR=hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64
+ARG LLVM_TARBALL=hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64.tar.gz
+ARG LLVM_DIR=hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64
+
+# hcu.py's second cache entry, matched by md5 rather than by name; FlagTree copies
+# it into /opt/dtk/dushmem/lib/ at build time. The digest assertion fails the build
+# if upstream rotates the blob without moving the pin.
+ARG DUSHMEM_TARBALL=libdushmem_device_gfx936_bc.tar.gz
+ARG DUSHMEM_FILE=libdushmem_device_gfx936.bc
+ARG DUSHMEM_MD5=f6260239
+
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 
 # DTK 26.10, the Ubuntu22.04 build: it is byte-identical to the 24.04-named
@@ -50,14 +57,13 @@ ARG SDK_PACKAGE=DTK-26.10-Ubuntu22.04-x86_64.tar.gz
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# The hcu build reads HIP headers from third_party/hcu/backend/include/hip/**,
-# tracked in git, and DTK is only needed at launch time (driver.c dlopens
-# libgalaxyhip.so lazily) -- the 26.04 builder staged no SDK and still built.
-# The 26.10 line differs in the interpreter: torch 2.13.0 is cp312-only, hence
-# the deadsnakes PPA (wired by hand, same as enflame: add-apt-repository
-# resolves through Launchpad's REST API and the runner's proxy answers that with
-# 500). The DTK install is not what compiles the wheel, but the runtime image
-# carries it, so this stage stages the same toolchain to build against.
+# DTK is installed here (unlike hcu) because hcu.py copies the dushmem bitcode
+# into /opt/dtk/dushmem/lib/ during the build. torch 2.13.0 is cp312-only, hence
+# the deadsnakes PPA wired by hand (Launchpad's REST API hits the proxy's 500).
+
+# libzstd-dev: the 188a510 tree's LLVMExports.cmake names zstd::libzstd_shared,
+# which only LLVM's own Findzstd.cmake creates from a located libzstd -- configure
+# fails without it. libtriton.so then NEEDs libzstd.so.1 (in both runtime images).
 
 # The marker is written last, and is the point of the first line: on top of a
 # published builder the earlier work is already in the image but the instruction
@@ -78,7 +84,7 @@ RUN set -eu; \
          > /etc/apt/sources.list.d/deadsnakes.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build binutils \
-        zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
+        zlib1g zlib1g-dev libzstd-dev libxml2 libxml2-dev nlohmann-json3-dev \
         libncurses5-dev libncursesw5-dev libgdbm-dev libnss3-dev \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
         libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
@@ -89,7 +95,7 @@ RUN set -eu; \
     && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
     && mkdir -p /root/.flagtree/hcu /root/.triton \
     && cd /tmp \
-    && for f in "${LLVM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
+    && for f in "${LLVM_TARBALL}" "${DUSHMEM_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
          for i in 1 2 3 4 5; do \
            wget -q --tries=3 --timeout=60 "${DEPS_BASE}/${f}" -O "${f}" && break; \
            echo ">>> download ${f} attempt $i failed, retrying in 10s..."; sleep 10; \
@@ -100,6 +106,7 @@ RUN set -eu; \
          echo ">>> download ${SDK_PACKAGE} attempt $i failed, retrying in 10s..."; sleep 10; \
        done \
     && tar -xzf "${LLVM_TARBALL}" -C /root/.flagtree/hcu \
+    && tar -xzf "${DUSHMEM_TARBALL}" -C /root/.flagtree/hcu \
     && tar -xzf "${TRITON_DEPS_TARBALL}" -C /root/.triton --strip-components=1 \
     && tar -xzf "${SDK_PACKAGE}" -C /opt \
     && ln -sf /opt/dtk-26.10 /opt/dtk \
@@ -107,6 +114,8 @@ RUN set -eu; \
     && test -f "/root/.flagtree/hcu/${LLVM_DIR}/bin/FileCheck" \
     && test -f "/root/.flagtree/hcu/${LLVM_DIR}/lib/cmake/mlir/MLIRConfig.cmake" \
     && test -f "/root/.flagtree/hcu/${LLVM_DIR}/lib/cmake/lld/LLDConfig.cmake" \
+    && test -f "/root/.flagtree/hcu/${DUSHMEM_FILE}" \
+    && test "$(md5sum "/root/.flagtree/hcu/${DUSHMEM_FILE}" | cut -c1-8)" = "${DUSHMEM_MD5}" \
     && test -f /root/.triton/json/include/nlohmann/json.hpp \
     && test -d /root/.triton/nvidia/cudart \
     && test -d /root/.triton/nvidia/cupti \
@@ -139,7 +148,7 @@ ARG no_proxy=
 # FLAGTREE_BACKEND, not by source. The default is the release configs.yaml pins
 # for hygon-dtk26.10 -- a client installs this wheel's version, so the two must
 # not drift. A daily run overrides it.
-ARG FLAGTREE_VERSION=0.7.0+hcu3.6
+ARG FLAGTREE_VERSION=0.7.1a1+hcu3.6
 
 # Wheel version, defaulting to the ref so one arg drives both. FlagTree appends a
 # dirty "+git<sha>" unless it holds the vendor's FLAGTREE_PYPI_KEY or finds no
