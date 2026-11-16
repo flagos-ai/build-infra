@@ -64,17 +64,43 @@ git -C "$src" checkout --quiet "$FLAGGEMS_REF"
 #   python -c "import flag_gems._version as v; print(v.version, v.commit_id)"
 "$py" -m pip install --quiet "setuptools-scm>=8,<10"
 if ! git -C "$src" describe --tags --exact-match >/dev/null 2>&1; then
-  # guess-next-dev bumps to the next release after the latest tag (dist>0).
-  # Strip the trailing .devN/.postN scm appends, leaving a bare base to stamp.
-  base="$("$py" -c "
+  # The base to date-stamp, read from the nearest tag scm sees (the repo also
+  # carries non-version tags, so `git describe` alone is not enough):
+  #
+  #   v5.5.0.dev0/.dev1   -> 5.5.0   (a dev tag marks the version already
+  #                                   under development: the daily is that
+  #                                   version, not the next one)
+  #   v5.3.4              -> 5.3.5   (a release tag: bump to the next patch)
+  #   v5.4.0-rc2.post4    -> 5.4.0rc2
+  #
+  # This replaces version_scheme='guess-next-dev', which refuses any .devN
+  # with N != 0 ("choosing custom numbers for the `.devX` distance is not
+  # supported") — a v5.5.0.dev1 tag on master therefore failed every daily
+  # build until the tag was dropped or renamed.
+  #
+  # The scheme is a lambda returning `{tag}` rather than the named
+  # 'only-version': that name only exists in setuptools-scm >= 9, and the pin
+  # here is >=8,<10.
+  base="$("$py" - "$src" <<'PY'
+import re
+import sys
+
 import setuptools_scm
-v = setuptools_scm.get_version(
-    root='$src',
-    version_scheme='guess-next-dev',
-    local_scheme='no-local-version',
+
+tag = setuptools_scm.get_version(
+    root=sys.argv[1],
+    version_scheme=lambda v: str(v.tag),
+    local_scheme="no-local-version",
 )
-print(v.split('.dev')[0].split('.post')[0])
-")"
+public = tag.partition("+")[0]
+if ".dev" in public:
+    base = public.rsplit(".dev", 1)[0]
+else:
+    # What guess-next-dev did for a release-like tag: bump the last number.
+    base = re.sub(r"(\d+)$", lambda m: str(int(m.group(1)) + 1), public)
+print(re.sub(r"\.post\d+$", "", base))
+PY
+)"
   git -C "$src" tag -f "${base}.dev$(date +%Y%m%d)" >/dev/null
 fi
 echo ">>> version: $(git -C "$src" describe --tags)  (commit $(git -C "$src" rev-parse --short=9 HEAD))"
