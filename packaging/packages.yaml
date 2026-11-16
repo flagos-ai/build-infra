@@ -67,6 +67,15 @@ wheels:
     python: cp310
     os: linux
     arch: linux_x86_64
+  - version: 0.7.1a1+hcu3.6
+    pypi_index: flagos-pypi-hygon
+    desc_zh: 面向海光（Hygon）的 FlagTree 编译器安装包，基于 Triton 3.6。
+    desc_en: FlagTree compiler wheel for Hygon, built against Triton 3.6.
+    notes: 适用于 DTK 26.10 环境（python 3.12）。
+    notes_en: For DTK 26.10 environments (python 3.12).
+    python: cp312
+    os: linux
+    arch: linux_x86_64
   - version: 0.6.1+iluvatar3.6
     pypi_index: flagos-pypi-iluvatar
     desc_zh: 面向天数智芯（Iluvatar）的 FlagTree 编译器安装包，基于 Triton 3.6。
@@ -1140,6 +1149,7 @@ sources:
   - 0.7.1a1+ascend3.5
   - 0.7.0+enflame3.6
   - 0.7.0+hcu3.6
+  - 0.7.1a1+hcu3.6
   - 0.6.1+iluvatar3.6
   - 0.7.0+iluvatar3.6
   - 0.7.0+metax3.6
