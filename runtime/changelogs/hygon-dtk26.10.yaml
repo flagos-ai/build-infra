@@ -40,6 +40,7 @@ tags:
         LLVM 树、其 `hcu.py` 会拷进 `/opt/dtk/dushmem/lib/` 的
         `libdushmem_device_gfx936.bc`，以及该树的 CMake 导出所要求的 `libzstd-dev`。
     upstream_prs: []
+    date: '2026-11-16T13:29:04.842Z'
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
