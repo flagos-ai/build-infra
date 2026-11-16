@@ -434,11 +434,10 @@ registers `mthreads-llvm22` and `mthreads_local_binary`. The first is the LLVM
 the backend compiles with; the second is the vendor's `llc` and `ld.lld`, which
 `compiler.py` resolves by bare name. Neither is pinned to the other, and FlagTree
 adopts a cache by *directory* name without comparing versions — so both tarballs
-are `ARG`s. `main` declares v0.7.1 for both and each file follows the ref it
-builds: the cp310 file takes that pair, the cp312 file the LLVM its tag names
-(v0.6.1, the only one of the two shipping `lib/cmake/lld`) plus the v0.7.0 local
-binary its verified wheel was built with. That split is why only the cp312 file
-asserts LLD.
+are `ARG`s, and one file holds one snapshot per key however many refs it builds.
+`main` names v0.7.1 for both and both files stage that pair; the tag the cp312
+file publishes (`0.7.0+mthreads3.6`) still names v0.6.1 and adopts the staged
+v0.7.1 tree silently — the same trade the cp310 file made when it moved.
 
 **No apt clang.** `FlagTreeOptions.cmake` puts the staged LLVM's `bin` on PATH and
 names its `clang`/`clang++` as this backend's compilers, so an apt clang would be
@@ -479,12 +478,11 @@ reports triton 3.6.0 with `backends == ['mthreads']`, and the same vector-add
 kernel returns `max abs err: 0.0` on an `MTT S5000`. Same wheel-to-its-own-directory
 install and same `--device /dev/mtgpu.0 --device /dev/dri` flags as the cp310 row.
 
-**Its `daily.enabled` is still false, and the reason has moved.** The daily line
-builds on the *published* builder stage (`flagtree-builder-mthreads-musa5.3.0`),
-and that stage has not been pushed — the wheel was built from the cold base, so
-what the row is waiting on is the stage, not the proof above. The dist_name
-`flagtree-mthreads-musa5.3.0` is reserved so the 5.3.0 line never collides with
-the `cp310` `flagtree-mthreads` project.
+**On the daily line**, under its own dist_name `flagtree-mthreads-musa5.3.0` so
+the 5.3.0 line never collides with the `cp310` `flagtree-mthreads` project. It
+builds on the published stage (`flagtree-builder-mthreads-musa5.3.0`, pushed
+2026-11-16), which stages the v0.7.1 pair above; the verification above predates
+that pair, having been built from the v0.6.1 tree.
 
 ## Kunlunxin builder (`kunlunxin`)
 
@@ -1168,10 +1166,10 @@ ascend pair record the source commit (see below).
 publishes it to `flagos-pypi-daily`, one distribution per backend that has an
 enabled `daily:` row — `flagtree-nvidia`, `flagtree-metax`,
 `flagtree-iluvatar`, `flagtree-sunrise`, `flagtree-enflame`, `flagtree-hcu`,
-`flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-kunlunxin`,
-`flagtree-amd`, `flagtree-ppu` and the ascend pair today. The release line
-(`flagtree-wheel.yml`, manual) is untouched: it keeps publishing plain
-`flagtree` to the vendor indexes.
+`flagtree-tsingmicro`, `flagtree-mthreads`, `flagtree-mthreads-musa5.3.0`,
+`flagtree-kunlunxin`, `flagtree-amd`, `flagtree-ppu` and the ascend pair today.
+The release line (`flagtree-wheel.yml`, manual) is untouched: it keeps
+publishing plain `flagtree` to the vendor indexes.
 
 The version is a date, and nothing else:
 
