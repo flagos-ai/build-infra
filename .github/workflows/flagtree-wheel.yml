@@ -27,9 +27,8 @@ name: FlagTree Wheel
 #
 # The two hcu targets are one FlagTree line built for two interpreters: `hcu` is
 # the 26.04 line's cp310 and `hcu-dtk2610` the 26.10 line's cp312. They publish
-# the same version (`0.7.0+hcu3.6`) to the same index, because a `==` pin has to
-# select the right FILE for whichever interpreter is asking — see the hygon
-# section of packaging/flagtree/README.md.
+# to the same index at different versions, because each line's base image carries
+# a clang-18 that takes one `numRecords` width in make.buffer.rsrc.
 
 on:
   workflow_dispatch:

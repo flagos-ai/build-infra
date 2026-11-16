@@ -304,12 +304,13 @@ cold-builds from bare `ubuntu:22.04` — this stage needs no published builder.
 The two hygon targets are one FlagTree line at two interpreters, and the split is
 forced by the vendor's own wheels rather than by anything here: `dtk2604` ships
 torch/apex/flash-attn/triton for cp310 only and `dtk2610` for cp312 only, so a
-venv on either line can install only that line's flagtree. Both targets build the
-tag `configs.yaml` pins and publish `0.7.0+hcu3.6` — the version segments are
-identical on purpose, because only the file can differ, and pip picks by
-interpreter. The cp310 file is what makes a one-line pin work for both:
-`pip install flagtree==0.7.0+hcu3.6` resolves to whichever of the two its
-interpreter can install.
+venv on either line can install only that line's flagtree. Their pins no longer
+agree — `0.7.1a1+hcu3.6` for 26.10, `0.7.0+hcu3.6` for 26.04 — because the
+clang-18 each base image carries takes one `numRecords` width in
+`llvm.amdgcn.make.buffer.rsrc`: the 26.10 base's `5f9d5e` build only i64, which
+FlagTree emits from 0.7.1a1; the 26.04 base's `dtk_llvm.run` build only i32,
+which 0.7.0 emits. Each pin is the one its own base can compile, so a pin moves
+only together with that line's aillvm package.
 
 **Verified on a BW1000 node** (hygon25, 2026-10-20). The wheel built on the
 published builder imports on the `flagos-runtime-hygon-dtk26.04` image and runs
@@ -323,24 +324,32 @@ and the image supplies it there.
 
 The 26.10 twin of `hcu`: same triton deps, same `FLAGTREE_BACKEND=hcu`, so
 everything in the `hcu` section above still holds — same `install_extension`
-no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no pybind11 pin. Its
-staged LLVM is the single `b0ca808` tree, which is the one the tag this stage
-builds names (`0.7.0+hcu3.6`), and it needs no dushmem blob: that entry arrived
-on `main` after the tag. Three differences.
+no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no pybind11 pin. It
+stages the `188a510` tree and the dushmem blob, the two inputs the tag it
+builds names; it needs no second tree, because unlike `hcu` it has no daily
+tracking `main`. Three differences.
 
 **A deadsnakes 3.12, not the system 3.10.** The 26.10 runtime pins python 3.12
 (`torch==2.13.0+dtk2610` is cp312-only), so the wheel has to wear `cp312` or the
-runtime's `pip install flagtree==0.7.0+hcu3.6` cannot resolve it. The PPA is
+runtime's `pip install flagtree==0.7.1a1+hcu3.6` cannot resolve it. The PPA is
 wired by hand, same as `enflame`: `add-apt-repository` resolves through
 Launchpad's REST API and the runner's proxy answers that CONNECT with 500.
 
-**DTK 26.10 installed in the stage.** The 26.04 builder stages no SDK — HIP
-headers are tracked in git and DTK is launch-time only (dlopen) — but this stage
-installs the `DTK-26.10-Ubuntu22.04-x86_64.tar.gz` tarball into `/opt/dtk-26.10`
-(`/opt/dtk` symlink), mirroring the flagcx `builder-vendor-hygon` twin. It is not
-what compiles the wheel; it makes the build machine carry the same toolchain the
-26.10 runtime image has, and the smoke test still imports the wheel without
-sourcing it.
+**The DTK 26.10 SDK is installed in the stage.** The 26.04 builder stages no SDK
+— HIP headers are tracked in git and DTK is launch-time only (dlopen) — but the
+dushmem entry's `copy_dst_path` is `/opt/dtk/dushmem/lib/`, which hcu.py writes
+during the build, so this stage installs the `DTK-26.10-Ubuntu22.04-x86_64.tar.gz`
+tarball into `/opt/dtk-26.10` (`/opt/dtk` symlink), mirroring the flagcx
+`builder-vendor-hygon` twin. It is not what compiles the wheel, and the smoke
+test still imports the wheel without sourcing it.
+
+**`libzstd-dev` is an apt line here, not an LLVM choice.** The `188a510` tree's
+`LLVMExports.cmake` puts `zstd::libzstd_shared` in `INTERFACE_LINK_LIBRARIES`,
+and LLVM's own `Findzstd.cmake` — shipped inside the staged tree — creates that
+target only from a located libzstd, so the wheel build's configure dies on a
+target that was never made. The `b0ca808` tree predates the zstd-enabled build
+and needs none of it; the resulting `libtriton.so` gains a NEEDED entry on
+`libzstd.so.1`, which both hygon runtime images carry.
 
 **Not on the daily line yet.** `daily.enabled` is false until a build here has
 been verified on the backend's own nodes, the same gate every new backend goes
@@ -348,14 +357,14 @@ through. The dist_name `flagtree-hcu-dtk2610` is reserved so the 26.10 line neve
 collides with the 26.04 `flagtree-hcu` project.
 
 **The cp312 release wheel comes from `flagtree-wheel.yml` with
-`target=hcu-dtk2610`**, which builds `0.7.0+hcu3.6` as plain `flagtree` into
+`target=hcu-dtk2610`**, which builds `0.7.1a1+hcu3.6` as plain `flagtree` into
 `flagos-pypi-hygon` — the name and version `configs.yaml` pins for the 26.10
 runtime. `prepare` maps the target to the `hygon-dtk26.10` runtime row for its
 runner labels and vendor index, and passes no `BUILDER_IMAGE`, so this stage
 cold-builds from bare `ubuntu:22.04` like `iluvatar`. A daily wheel does not
 substitute for it: that line publishes `flagtree-hcu-dtk2610` at
 `<base>.dev<date>`, a different project and version. The sibling `target=hcu`
-builds the same version for the 26.04 line's cp310 — the two targets and why the
+builds the 26.04 line's cp310 at `0.7.0+hcu3.6` — the two targets and why the
 version is shared are in the `hcu` section above.
 
 ## Tsingmicro builder (`tsingmicro`)
