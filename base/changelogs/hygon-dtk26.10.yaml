@@ -34,6 +34,7 @@ tags:
         其 hcu 内核发出的是 i64。其余配对都会报
         `Intrinsic has incorrect argument type`。
     upstream_prs: []
+    date: '2026-11-16T12:09:45.170Z'
   - reason: |-
       - The aicc aillvm package joins `dtk_llvm.run`, so the image now carries
         clang-18 and clang-22 side by side and the vendor triton 3.7.0 can

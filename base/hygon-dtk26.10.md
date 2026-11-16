@@ -16,7 +16,7 @@
 Explicitly installed; the version is the one baked into this image:
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -72,11 +72,20 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-11-04 19:09:38 · `3df7685aaa0d`*
+*Last updated: 2026-11-16 19:12:48 · `81bbee1afa57`*
 
 ## Changelog
 
 ### 2.3.0
+
+*2026-11-16 12:09:45*
+
+- The clang-18 aillvm comes from `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
+  instead of the bare `dtk_llvm.run`. Both builds' clang-18 parse FlagTree's
+  IR apart from one intrinsic: `dtk_llvm.run`'s takes only i32
+  `numRecords` in `llvm.amdgcn.make.buffer.rsrc`, this one only i64, and
+  the runtime's FlagTree moves to 0.7.1a1, whose hcu kernels emit i64.
+  Any other pairing fails with `Intrinsic has incorrect argument type`.
 
 *2026-11-04 11:35:10*
 

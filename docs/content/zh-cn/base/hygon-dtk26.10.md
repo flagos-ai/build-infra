@@ -38,7 +38,7 @@ title: "hygon-dtk26.10"
 显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -94,11 +94,20 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-11-04 19:09:38 · `3df7685aaa0d`*
+*更新时间: 2026-11-16 19:12:48 · `81bbee1afa57`*
 
 ## 更新日志
 
 ### 2.3.0
+
+*2026-11-16 12:09:45*
+
+- clang-18 那份 aillvm 改由 `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
+  提供，不再用裸 `dtk_llvm.run`。两版 clang-18 解析 FlagTree 的 IR 只差一个
+  intrinsic：`dtk_llvm.run` 的只接受 `llvm.amdgcn.make.buffer.rsrc` 的 i32
+  `numRecords`，这一版只接受 i64，而 runtime 侧的 FlagTree 升到 0.7.1a1，
+  其 hcu 内核发出的是 i64。其余配对都会报
+  `Intrinsic has incorrect argument type`。
 
 *2026-11-04 11:35:10*
 

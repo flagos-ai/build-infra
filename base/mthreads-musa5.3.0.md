@@ -79,6 +79,13 @@ mthreads-gmi
 
 ### 2.3.0
 
+*2026-11-14 11:23:54*
+
+- The toolkit's libmusolver calls the driver's muStreamSynchronize
+  without declaring libmusa.so.1 as NEEDED, so `import torch` fails on an
+  undefined symbol in the backend extension; the dependency is now added
+  to the installed library.
+
 *2026-11-14 08:07:35*
 
 - First delivery: MUSA 5.3.0 with MCCL 2.5.0 and muDNN 3.5.0 on
