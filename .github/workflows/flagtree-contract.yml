@@ -29,19 +29,19 @@ name: FlagTree Upstream Contract
 #
 # scripts/check_flagtree_contract.py compares our staging list against upstream's
 # declarations. It runs each day ahead of the wheel build, so drift is visible the
-# same morning it lands upstream instead of after it breaks a build.
-#
-# Schedule and manual only, deliberately: the tree it checks carries known drift
-# today (the rows whose tarballs are not on the filestore yet), and a check wired
-# to `pull_request` would fail every flagtree PR on drift it did not introduce.
-# Once the rows are current, gating on this is the point -- add the path triggers
-# back.
+# same morning it lands upstream instead of after it breaks a build -- and on a PR
+# that touches the staging list, so a pin is compared before it is merged.
 
 on:
   schedule:
     # 00:47 UTC, ahead of the daily wheel build at 01:37.
     - cron: '47 0 * * *'
   workflow_dispatch:
+  pull_request:
+    paths:
+      - packaging/flagtree/**
+      - scripts/check_flagtree_contract.py
+      - .github/workflows/flagtree-contract.yml
 
 defaults:
   run:
