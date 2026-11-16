@@ -42,7 +42,7 @@ title: "hygon-dtk26.10"
 - `apex==1.7.0+dtk2610.torch2130.2610221147.gfa848d`
 - `flag_gems==5.4.0`
 - `flagcx==0.14.1+dtk2610`
-- `flagtree==0.7.0+hcu3.6`
+- `flagtree==0.7.1a1+hcu3.6`
 - `flash_attn==2.8.4+dtk2610.torch2130.2610211904.g0f1a5a`
 - `numpy==1.26.4`
 - `torch==2.13.0+dtk2610.2610261432.gefb4e1`
