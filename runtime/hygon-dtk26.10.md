@@ -75,6 +75,18 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-16 13:29:04*
+
+- FlagTree moves to `0.7.1a1+hcu3.6`, which is the first ref whose hcu
+  kernels emit the i64 `numRecords` in `llvm.amdgcn.make.buffer.rsrc` that
+  this base image's clang-18 (the `5f9d5e` aillvm build) parses. Under
+  `0.7.0+hcu3.6` every kernel failed to compile with
+  `Intrinsic has incorrect argument type`.
+- The wheel is built on the `hcu-dtk2610` builder, which now stages the
+  `188a510` LLVM tree that ref names, the `libdushmem_device_gfx936.bc`
+  bitcode its `hcu.py` copies into `/opt/dtk/dushmem/lib/`, and `libzstd-dev`
+  that tree's CMake exports require.
+
 *2026-11-10 09:27:16*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.

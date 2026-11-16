@@ -97,6 +97,16 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-16 13:29:04*
+
+- FlagTree 升到 `0.7.1a1+hcu3.6`：这是第一个 hcu 内核发出
+  `llvm.amdgcn.make.buffer.rsrc` i64 `numRecords` 的 ref，而本基础镜像的 clang-18
+  （`5f9d5e` 那份 aillvm）接受的正是 i64。仍用 `0.7.0+hcu3.6` 时每个内核都编不过，
+  报 `Intrinsic has incorrect argument type`。
+- 该 wheel 由 `hcu-dtk2610` builder 构建；该 stage 现在装入这一 ref 指定的 `188a510`
+  LLVM 树、其 `hcu.py` 会拷进 `/opt/dtk/dushmem/lib/` 的
+  `libdushmem_device_gfx936.bc`，以及该树的 CMake 导出所要求的 `libzstd-dev`。
+
 *2026-11-10 09:27:16*
 
 重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
