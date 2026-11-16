@@ -181,6 +181,8 @@ row's `ARG ..._TARBALL`, and republish its builder stage with
 `flagtree-builder.yml`. The check names the row and both spellings; its
 `LLVM-HASH` verdict covers the `nvidia` / `amd` / `ppu` shape, where a
 `LLVM_SYSPATH` row's staged hash has to be the one `cmake/llvm-hash.txt` names.
+It compares the `daily.enabled` rows by default, since those are the stages the
+daily rebuilds; a row without a daily is named with `--rows`.
 
 ## Enflame builder (`enflame`)
 
