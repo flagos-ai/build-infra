@@ -88,12 +88,8 @@ on:
           same inputs (recover a tag pushed but never recorded).
         type: boolean
         default: false
-      svt_push:
-        description: 'Push a delivery copy to svt_project (not recorded, changelog stays pending)'
-        type: boolean
-        default: false
       svt_project:
-        description: 'Harbor project for the SVT delivery copy'
+        description: 'Harbor project for the SVT delivery copy (pushed when push=true)'
         type: string
         default: flagos-svt
 
@@ -159,7 +155,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Harbor login (push only)
-        if: ${{ (inputs.push || inputs.svt_push) && !inputs.record_only }}
+        if: ${{ inputs.push && !inputs.record_only }}
         env:
           HARBOR_USER: ${{ secrets.HARBOR_USER }}
           HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
@@ -349,7 +345,7 @@ jobs:
 
       # SVT delivery copy: retag into svt_project, no record step.
       - name: Push SVT delivery copy
-        if: ${{ inputs.svt_push && !inputs.record_only }}
+        if: ${{ inputs.push && !inputs.record_only && inputs.svt_project != '' }}
         run: |
           set -euo pipefail
           svt_tag="${{ needs.set-matrix.outputs.harbor_host }}/${{ inputs.svt_project }}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${PLUGIN_FL_VERSION}" | tr '+' '_')"
