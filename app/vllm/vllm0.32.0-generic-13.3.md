@@ -1,0 +1,123 @@
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Generic GPU
+- **Host driver:** 610.43.02
+- **Container toolkit** *(optional)*: nvidia-container-toolkit
+
+## Image contents
+
+### Built on
+
+`harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3:2.3.0`
+
+### Python
+
+3.12
+
+### Application package
+
+`vllm==0.32.0+flagos`
+
+
+`vllm-plugin-fl==0.5.0.dev0+g814b6d3.d20261117`
+
+## Environment
+
+- `VLLM_USE_FLASHINFER_SAMPLER=0`
+
+## Launch
+
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.32.0-generic-13.3:2.3.0-0.5.0.dev0_g814b6d3.d20261117`
+
+The image name is long — assign it to a variable first:
+
+```bash
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-generic-13.3:2.3.0-0.5.0.dev0_g814b6d3.d20261117
+```
+
+The two approaches below are alternatives — pick the one that matches how your host runs containers:
+
+### With the container toolkit
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --gpus all \
+  $IMG bash
+```
+
+Start the app with its default settings:
+
+```bash
+docker run --rm -it \
+  --gpus all \
+  $IMG
+```
+
+Pass arguments to the launcher:
+
+```bash
+docker run --rm -it \
+  --gpus all \
+  $IMG vllm-serve --model <path> --port 9000
+```
+
+### Without a toolkit — plain docker / podman
+
+Start an interactive shell:
+
+```bash
+docker run --rm -it \
+  --device /dev/nvidia0 \
+  --device /dev/nvidiactl \
+  --device /dev/nvidia-uvm \
+  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
+  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
+  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+  $IMG bash
+```
+
+Start the app with its default settings:
+
+```bash
+docker run --rm -it \
+  --device /dev/nvidia0 \
+  --device /dev/nvidiactl \
+  --device /dev/nvidia-uvm \
+  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
+  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
+  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+  $IMG
+```
+
+Pass arguments to the launcher:
+
+```bash
+docker run --rm -it \
+  --device /dev/nvidia0 \
+  --device /dev/nvidiactl \
+  --device /dev/nvidia-uvm \
+  -v /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro \
+  -v /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro \
+  -v /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro \
+  $IMG vllm-serve --model <path> --port 9000
+```
+
+## Changelog
+
+### 2.3.0-0.5.0.dev0_g814b6d3.d20261117
+
+*2026-11-17 13:50:41*
+
+- First vllm 0.32.0 app image on nvidia-cuda13.3, FlagGems 5.4.0, FlagTree 0.7.0 (FlagOS 2.3.0 stack).
+- Installs the native plugin build `0.5.0.dev0+g814b6d3.d20261117` (commit 814b6d3 on the vllm-plugin-FL 0.5.0-dev branch): it carries `vllm_fl._C` and registers `weak_ref_tensor` on the CUDA dispatch key, without which vLLM's cudagraph capture leaks VRAM per captured graph.
+- Adds `flaggems_vllm==0.3.0.dev20261117` as an app-layer dependency:
+  the 0.5.0-dev plugin's FlagGems backend imports it for its core ops
+  (silu/gelu/rotary/moe/attention/mla) and does not declare it.
+- Pins `numpy==1.26.4` and `ml-dtypes==0.5.4`: vllm 0.32's install pulls
+  `tilelang -> ml-dtypes 0.7.0 -> numpy>=2`, which would replace the
+  runtime's numpy and change the critical-package matrix. The newer
+  ml-dtypes also requires the NumPy 2.0 C-API, so holding numpy alone
+  breaks its import.

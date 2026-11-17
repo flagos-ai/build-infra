@@ -37,7 +37,7 @@ image: vllm0.32.0-generic-13.3
 tags:
 - tag: 2.3.0-0.5.0.dev0_g814b6d3.d20261117
   entries:
-  - date: ''
+  - date: '2026-11-17T13:50:41.529Z'
     reason: |-
       - First vllm 0.32.0 app image on nvidia-cuda13.3, FlagGems 5.4.0, FlagTree 0.7.0 (FlagOS 2.3.0 stack).
       - Installs the native plugin build `0.5.0.dev0+g814b6d3.d20261117` (commit 814b6d3 on the vllm-plugin-FL 0.5.0-dev branch): it carries `vllm_fl._C` and registers `weak_ref_tensor` on the CUDA dispatch key, without which vLLM's cudagraph capture leaks VRAM per captured graph.
