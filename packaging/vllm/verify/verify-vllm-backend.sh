@@ -509,7 +509,7 @@ docker exec "${CONTAINER}" bash -c "
     case '${VENDOR}' in
         nvidia)
             # One line per GPU, not the full nvidia-smi table: the verifier
-            # needs "are the devices free and how much memory is left", and a
+            # needs [are the devices free and how much memory is left], and a
             # 30-line ASCII table buries that in the log.
             # { cmd || echo } | head, not cmd | head || echo: the container's
             # bash -c has no pipefail, so the pipeline's status is head's and a
