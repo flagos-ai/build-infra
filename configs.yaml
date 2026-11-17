@@ -760,7 +760,7 @@ vendors:
         - torch-gcu==2.13.0+3.8.20261020
         # TODO: Missing in current version
         # - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
-        - flagcx==0.14.0+tops1.9.29
+        - flagcx==0.14.1+tops1.9.29
       sdk:
         - Enflame driver 1.9.29   # enflame-x86_64-gcc-1.9.29-20260709155614.run
         - TOPS Runtime 1.9.29     # topsruntime_1.9.29-1_amd64.deb
@@ -806,7 +806,7 @@ vendors:
         - torchvision==0.28.0+cpu
         - torch-gcu==2.13.0+4.1.20261110
         - topstx==4.1.6
-        - flagcx==0.14.0+tops4.1.6
+        - flagcx==0.14.1+tops4.1.6
       sdk:
         - Enflame driver 4.1.6    # enflame-x86_64-gcc-4.1.6-20261105184847.run
         - TOPS Runtime 4.1.6      # topsruntime_4.1.6-1_amd64.deb
