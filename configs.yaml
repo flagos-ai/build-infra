@@ -715,15 +715,15 @@ vendors:
         - mluops 1.12.0          # mluops_1.12.0-1.ubuntu24.04_amd64.deb
 
   enflame:
-    tops1.9.10:
+    tops1.9.29:
       extras: enflame
       hardware: ["Enflame Zixiao C200 (S60)"]
-      driver: "1.9.10"
+      driver: "1.9.29"
       python: "3.12"
       cmake_backend: GCU
       triton: triton==3.6.0
       triton_post_install:
-        - triton-gcu==3.6.0+1.0.20260521.cc.1.9.10
+        - triton-gcu==3.6.0+1.0.20261116
       flagtree: flagtree==0.7.0+enflame3.6
       flagtree_daily: flagtree-enflame
       env:
@@ -739,43 +739,35 @@ vendors:
             SGLANG_WARMUP_TIMEOUT: "3600"
       deps:
         - numpy==1.26.4
-        - pyefml==1.9.10
-        - torch==2.10.0+cpu
-        - torchaudio==2.10.0+cpu
-        - torchvision==0.25.0+cpu
-        - torch-gcu==2.10.0+3.7.20260408
-        - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
-        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
-        # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+tops1.9.10
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
-        vllm0.20.2: []
-        vllm0.24.0: []
-        sglang0.5.18:
-          - compressed-tensors==0.18.0
+        - pyefml==1.9.29
+        - torch==2.13.0+cpu
+        - torchaudio==2.11.0+cpu
+        - torchvision==0.28.0+cpu
+        - torch-gcu==2.13.0+3.8.20261020
+        # TODO: Missing in current version
+        # - flash-attn==2.7.2+torch.2.10.0.gcu.3.4.20260506
+        - flagcx==0.14.0+tops1.9.29
       sdk:
-        - Enflame driver 1.9.10   # enflame-x86_64-gcc-1.9.10-20260520104313.run
-        - TOPS Runtime 1.9.10     # topsruntime_1.9.10-1_amd64.deb
-        - TOPS CC 1.9.10          # topscc_1.9.10-1_amd64.deb
-        - TOPS PTI 1.9.10         # topspti_1.9.10-1_amd64.deb
-        - TOPSTX 1.9.10           # topstx_1.9.10-1_amd64.deb
-        - TOPS ATen 3.7.20260514  # topsaten_3.7.20260514-1_amd64.deb
-        - EFML 1.9.10             # efml_1.9.10-1_amd64.deb
-        - ECCL 3.6.3.11           # eccl_3.6.3.11-1_amd64.deb
-        - Triton GCU 3.6.0+1.0.20260521.cc.1.9.10  # triton-gcu_3.6.0+1.0.20260521.cc.1.9.10-1_amd64.deb
-        - Gculare-perftest 1.9.10 # gculare-perftest_1.9.10-1_amd64.deb
+        - Enflame driver 1.9.29   # enflame-x86_64-gcc-1.9.29-20260709155614.run
+        - TOPS Runtime 1.9.29     # topsruntime_1.9.29-1_amd64.deb
+        - TOPS CC 1.9.29          # topscc_1.9.29-1_amd64.deb
+        - TOPS PTI 1.9.29         # topspti_1.9.29-1_amd64.deb
+        - TOPSTX 1.9.29           # topstx_1.9.29-1_amd64.deb
+        - TOPS ATen 3.8.20261009  # topsaten_3.8.20261009-1_amd64.deb
+        - EFML 1.9.29             # efml_1.9.29-1_amd64.deb
+        - ECCL 3.6.3.13           # eccl_3.6.3.13-1_amd64.deb eccl-tests_3.6.3.13-1_amd64.deb
+        - Triton GCU 1.0.20261116.cc.1.9.29  # triton-gcu_1.0.20261116.cc.1.9.29-1_amd64.deb
+        - Gculare-perftest 1.9.29 # gculare-perftest_1.9.29-1_amd64.deb
 
-    tops1.10.6:
+    tops4.1.6:
       extras: enflame
-      hardware: ["Enflame Zixiao C200 (S60)"]
-      driver: "1.10.6"
+      hardware: ["Enflame L600"]
+      driver: "4.1.6"
       python: "3.12"
       cmake_backend: GCU
       triton: triton==3.6.0
       triton_post_install:
-        - triton-gcu==3.6.0+1.0.20260722
+        - triton-gcu==3.6.0+1.0.20261116
       flagtree: flagtree==0.7.0+enflame3.6
       flagtree_daily: flagtree-enflame
       env:
@@ -793,42 +785,26 @@ vendors:
             # cold start by the flag_gems/triton_gcu compile storm.
             SGLANG_WARMUP_TIMEOUT: "3600"
       deps:
-        - pyefml==1.10.6
-        - torch==2.11.0+cpu
-        - torchaudio==2.11.0+cpu
-        - torchvision==0.26.0+cpu
-        - torch-gcu==2.11.0+3.8.20260713
-        - torchcodec==3.8.20260624+torch.2.11.0
-        - flash-attn==2.7.2+torch.2.11.0.gcu.3.8.20260706
-        - tops-extension==3.6.20260529+torch.2.11.0
-        - topstx==1.10.6
-        - enflame-modelopt==3.6.20260615+torch.2.11.0
         - numpy==1.26.4
-        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
-        # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+tops1.10.6
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
-        vllm0.20.2: []
-        vllm0.24.0: []
-        sglang0.5.18: []
+        - pyefml==4.1.6
+        - torch==2.13.0+cpu
+        - torchaudio==2.11.0+cpu
+        - torchvision==0.28.0+cpu
+        - torch-gcu==2.13.0+4.1.20261110
+        - topstx==4.1.6
+        - flagcx==0.14.0+tops4.1.6
       sdk:
-        - Enflame driver 1.10.6   # enflame-x86_64-gcc-1.10.6-20260720190108.run
-        - TOPS Runtime 1.10.6     # topsruntime_1.10.6-1_amd64.deb
-        - TOPS CODEC 1.10.6       # topscodec_1.10.6-1_amd64.deb
-        - TOPS CC 1.10.6          # topscc_1.10.6-1_amd64.deb
-        - TOPSTX 1.10.6           # topstx_1.10.6-1_amd64.deb
-        - TOPS PTI 1.10.6         # topspti_1.10.6-1_amd64.deb
-        - TOPS File 1.10.6        # topsfile_1.10.6-1_amd64.deb
-        - TOPS Prof 1.10.6        # topsprof_1.10.6-1_amd64.deb
-        - TOPS Sanitizer 1.10.6   # tops-sanitizer_1.10.6-1_amd64.deb
-        - TOPS ATen 3.7.20260602  # topsaten_3.7.20260602-1_amd64.deb
-        - EFML 1.10.6             # efml_1.10.6-1_amd64.deb
-        - ECCL 3.6.3.11           # eccl_3.6.3.11-1_amd64.deb
-        - ECCL Tests 3.6.3.11     # eccl-tests_3.6.3.11-1_amd64.deb
-        - Triton GCU 3.6.0+1.0.20260821.cc.1.10.6  # triton-gcu_3.6.0+1.0.20260821.cc.1.10.6-1_amd64.deb
-        - Gculare-perftest 1.10.6 # gculare-perftest_1.10.6-1_amd64.deb
+        - Enflame driver 4.1.6    # enflame-x86_64-gcc-4.1.6-20261105184847.run
+        - TOPS Runtime 4.1.6      # topsruntime_4.1.6-1_amd64.deb
+        - TOPS CC 4.1.6           # topscc_4.1.6-1_amd64.deb
+        - TOPSTX 4.1.6            # topstx_4.1.6-1_amd64.deb
+        - TOPS PTI 4.1.6          # topspti_4.1.6-1_amd64.deb
+        - TOPS ATen 4.1.20261111  # topsaten_4.1.20261111-1_amd64.deb
+        - EFML 4.1.6              # efml_4.1.6-1_amd64.deb
+        - ECCL 4.1.4              # eccl_4.1.4-1_amd64.deb
+        - ECCL Tests 4.1.4        # eccl-tests_4.1.4-1_amd64.deb
+        - Gculare-perftest 4.1.6  # gculare-perftest_4.1.6-1_amd64.deb
+        - Triton GCU 1.0.20261116.cc.4.1.6  # triton-gcu_1.0.20261116.cc.4.1.6-1_amd64.deb
 
   hygon:
     dtk26.04:
