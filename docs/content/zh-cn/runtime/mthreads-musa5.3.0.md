@@ -25,7 +25,7 @@ title: "mthreads-musa5.3.0"
 - **架构:** x86_64
 - **芯片型号:** MThreads MTT S5000
 - **宿主机驱动:** 5.3.0-server
-- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0, mtml >= 2.5.0
+- **容器工具包** <em>(可选)</em> <button type="button" class="toolkit-optional-info" data-bs-toggle="tooltip" data-bs-title="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装" aria-label="仅用于下方的工具包启动方式；直接使用 docker/podman 的命令无需安装">&#9432;</button>: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0; driver 5.3.0 needs mtml >= 2.5.0
 
 ## 镜像内容
 
@@ -56,7 +56,7 @@ title: "mthreads-musa5.3.0"
 
 ### 指定 FlagTree 版本
 
-如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。
+如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+mthreads3.6` 可精确指定某个构建。
 
 ### 指定 FlagGems 版本
 

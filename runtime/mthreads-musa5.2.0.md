@@ -3,7 +3,7 @@
 - **Architecture:** x86_64
 - **Chip models:** MThreads MTT S5000
 - **Host driver:** 5.2.0-server
-- **Container toolkit** *(optional)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0, mtml >= 2.5.0
+- **Container toolkit** *(optional)*: KUAE Cloud Native Toolkits (MT Container Toolkit) >= 2.1.0; driver 5.3.0 needs mtml >= 2.5.0
 
 ## Image contents
 
@@ -34,7 +34,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ### Choosing a FlagTree version
 
-To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+mthreads3.6` form to pin one build.
 
 ### Choosing a FlagGems version
 
