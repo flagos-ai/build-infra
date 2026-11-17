@@ -81,6 +81,10 @@ on:
         description: 'push the verified image to Harbor (requires verify)'
         type: boolean
         default: false
+      no_cache:
+        description: 'pass --no-cache to docker build (use when a layer is stale due to a cached failed step)'
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -199,7 +203,8 @@ jobs:
           MATRIX_NAME: ${{ matrix.name }}
         run: |
           set -euo pipefail
-          packaging/flagcx/build-flagcx-builder.sh --backend "$MATRIX_NAME"
+          packaging/flagcx/build-flagcx-builder.sh --backend "$MATRIX_NAME" \
+            ${{ inputs.no_cache && '--no-cache' || '' }}
       - name: Verify the builder image
         if: ${{ inputs.verify }}
         env:
