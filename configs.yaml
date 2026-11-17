@@ -1340,39 +1340,25 @@ vendors:
         - taBLAS 1.2.0         # tablas-v1.2.0-linux-x86_64.tar.gz
 
   thead:
-    # SDK 2.1.0 line — base/thead-ppu2.1.0 layers on T-Head's PAI-DSW image,
-    # which carries PPU_SDK v2.1.0. torch and triton resolve to real wheels
-    # uploaded to flagos-pypi-thead; these pins name them by version.
     ppu2.1.0:
       extras: thead
       hardware: ["T-Head ZW810E"]
       driver: "2.0.0"
-      # Target platform surfaced in the base/runtime image descriptions
-      # (gen_descriptions renders it as the "Applicable platform" line).
       platform: "Aliyun PAI-DSW"
       python: "3.12"
-      # No cmake_backend: FlagGems' release map (scripts/release_flaggems.py
-      # VENDOR_MAP) has no PPU backend, so there is no cpp wheel to build.
       triton: triton==3.5.0+v0.2.0.ppu2.1.1
       flagtree: flagtree==0.7.0+ppu3.6
       flagtree_daily: flagtree-ppu
       deps:
         - torch==2.10.0+v0.1.0.ppu2.1.1
-        # torchvision/torchaudio are T-Head's real cp312 wheels, transloaded
-        # onto the vendor index the same way torch is. Their platform tag stays
-        # cp312-linux_x86_64 (unlike torch, which was re-tagged py3-none-any):
-        # both carry a compiled extension, so a pure-python tag would let pip
-        # install them where they cannot import.
         - torchvision==0.25.0+v0.1.0.ppu2.1.1
         - torchaudio==2.10.0+v0.1.0.ppu2.1.1
         - numpy==1.26.4
       deps_app:
-        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
-        # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
           - flaggems_vllm==0.3.0.dev20261117
+          - flash_attn_3==2.8.2+v0.1.0.ppu2.1.1
       sdk:
-        # Baked into T-Head's PAI-DSW training image; no installer to run.
         - PPU SDK 2.1.0 (x86_64)
 
   tsingmicro:
