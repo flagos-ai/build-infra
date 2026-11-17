@@ -368,8 +368,11 @@ vendors:
         vllm0.24.0: []
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
+        # numpy pin: the native plugin wheel's install chain pulls numpy>=2,
+        # which the matrix integrity gate rejects. Hold it at the runtime's pin.
         vllm0.32.0:
           - flaggems_vllm==0.3.0.dev20261117
+          - numpy==1.26.4
       sdk:
         - CUDA 13.3 (x86_64)
 
