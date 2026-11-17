@@ -142,7 +142,8 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_torch_musa", "builder_torch_gcu", "builder_torch_npu",
     "builder_cannshmem",
     "builder_torch_ptpu", "builder_torch_txda", "builder_txops",
-    "builder_sdk_version", "builder_aten_version", "builder_ops_product",
+    "builder_sdk_version", "builder_aten_version", "builder_eccl_version",
+    "builder_ops_product",
     "builder_toolkit_product",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
@@ -687,6 +688,14 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # libtopsaten.so.3, so the deb is part of the SDK-floor import.
             entry["builder_aten_version"] = (spec.get("builder") or {}).get(
                 "aten_version"
+            ) or ""
+            # ECCL is on its own cadence too, so it is stated per row for the
+            # same reason as topsaten: the recipe must install the same ECCL the
+            # row's base image does. libeccl resolves symbol versions against
+            # the sibling libtopsrt of its own SDK, so a mismatched pair is not
+            # a build failure but a dlopen failure in the SDK-floor import.
+            entry["builder_eccl_version"] = (spec.get("builder") or {}).get(
+                "eccl_version"
             ) or ""
             # Ascend's ops package is chip-specific (910b vs A3), and it — not
             # the toolkit — ships libhccl.so and the canonical <hccl/hccl.h>, so

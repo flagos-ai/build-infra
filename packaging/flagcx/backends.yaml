@@ -127,6 +127,15 @@
 #                 version and not derivable from it (1.10.6 -> 3.8.20260710,
 #                 1.9.10 -> 3.7.20260514), and libtorch_gcu.so NEEDs
 #                 libtopsaten.so.3, so the deb is part of the SDK-floor import.
+#   builder.eccl_version
+#                 the eccl deb's version, enflame only, for the same reason as
+#                 aten_version: ECCL ships on its own cadence and the two rows
+#                 diverge (tops1.9.29 -> 3.6.3.13, tops4.1.6 -> 4.1.4). The
+#                 recipe must install the same ECCL the row's base image does —
+#                 libeccl.so resolves symbol versions against the sibling
+#                 libtopsrt of its own SDK, so a mismatched pair fails at
+#                 dlopen with "undefined symbol: topsStreamGetCaptureInfo_v2,
+#                 version topsrt_1.0".
 #   builder.ops_product
 #                 the Ascend ops package's chip token, ascend only: the ops
 #                 installer (Ascend-cann-<chip>-ops_<ver>_linux-aarch64.run) is
@@ -385,6 +394,7 @@ enflame-tops1.9.29:
     containerfile: Containerfile.builder-vendor-enflame
     sdk_version: "1.9.29"
     aten_version: "3.8.20261009"
+    eccl_version: "3.6.3.13"
 
 enflame-tops4.1.6:
   vendor: enflame
@@ -404,6 +414,7 @@ enflame-tops4.1.6:
     containerfile: Containerfile.builder-vendor-enflame
     sdk_version: "4.1.6"
     aten_version: "4.1.20261111"
+    eccl_version: "4.1.4"
 
 ascend-cann8.5.0:
   vendor: ascend
