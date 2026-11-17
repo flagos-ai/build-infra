@@ -302,12 +302,13 @@ cold-builds from bare `ubuntu:22.04` — this stage needs no published builder.
 The two hygon targets are one FlagTree line at two interpreters, and the split is
 forced by the vendor's own wheels rather than by anything here: `dtk2604` ships
 torch/apex/flash-attn/triton for cp310 only and `dtk2610` for cp312 only, so a
-venv on either line can install only that line's flagtree. Both targets build the
-tag `configs.yaml` pins and publish `0.7.0+hcu3.6` — the version segments are
-identical on purpose, because only the file can differ, and pip picks by
-interpreter. The cp310 file is what makes a one-line pin work for both:
-`pip install flagtree==0.7.0+hcu3.6` resolves to whichever of the two its
-interpreter can install.
+venv on either line can install only that line's flagtree. Their pins no longer
+agree — `0.7.1a1+hcu3.6` for 26.10, `0.7.0+hcu3.6` for 26.04 — because the
+clang-18 each base image carries takes one `numRecords` width in
+`llvm.amdgcn.make.buffer.rsrc`: the 26.10 base's `5f9d5e` build only i64, which
+FlagTree emits from 0.7.1a1; the 26.04 base's `dtk_llvm.run` build only i32,
+which 0.7.0 emits. Each pin is the one its own base can compile, so a pin moves
+only together with that line's aillvm package.
 
 **Verified on a BW1000 node** (hygon25, 2026-10-20). The wheel built on the
 published builder imports on the `flagos-runtime-hygon-dtk26.04` image and runs
@@ -321,24 +322,32 @@ and the image supplies it there.
 
 The 26.10 twin of `hcu`: same triton deps, same `FLAGTREE_BACKEND=hcu`, so
 everything in the `hcu` section above still holds — same `install_extension`
-no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no pybind11 pin. Its
-staged LLVM is the single `b0ca808` tree, which is the one the tag this stage
-builds names (`0.7.0+hcu3.6`), and it needs no dushmem blob: that entry arrived
-on `main` after the tag. Three differences.
+no-op, same `LLVM_SYSPATH`-must-stay-unset rule, same no pybind11 pin. It
+stages the `188a510` tree and the dushmem blob, the two inputs the tag it
+builds names; it needs no second tree, because unlike `hcu` it has no daily
+tracking `main`. Three differences.
 
 **A deadsnakes 3.12, not the system 3.10.** The 26.10 runtime pins python 3.12
 (`torch==2.13.0+dtk2610` is cp312-only), so the wheel has to wear `cp312` or the
-runtime's `pip install flagtree==0.7.0+hcu3.6` cannot resolve it. The PPA is
+runtime's `pip install flagtree==0.7.1a1+hcu3.6` cannot resolve it. The PPA is
 wired by hand, same as `enflame`: `add-apt-repository` resolves through
 Launchpad's REST API and the runner's proxy answers that CONNECT with 500.
 
-**DTK 26.10 installed in the stage.** The 26.04 builder stages no SDK — HIP
-headers are tracked in git and DTK is launch-time only (dlopen) — but this stage
-installs the `DTK-26.10-Ubuntu22.04-x86_64.tar.gz` tarball into `/opt/dtk-26.10`
-(`/opt/dtk` symlink), mirroring the flagcx `builder-vendor-hygon` twin. It is not
-what compiles the wheel; it makes the build machine carry the same toolchain the
-26.10 runtime image has, and the smoke test still imports the wheel without
-sourcing it.
+**The DTK 26.10 SDK is installed in the stage.** The 26.04 builder stages no SDK
+— HIP headers are tracked in git and DTK is launch-time only (dlopen) — but the
+dushmem entry's `copy_dst_path` is `/opt/dtk/dushmem/lib/`, which hcu.py writes
+during the build, so this stage installs the `DTK-26.10-Ubuntu22.04-x86_64.tar.gz`
+tarball into `/opt/dtk-26.10` (`/opt/dtk` symlink), mirroring the flagcx
+`builder-vendor-hygon` twin. It is not what compiles the wheel, and the smoke
+test still imports the wheel without sourcing it.
+
+**`libzstd-dev` is an apt line here, not an LLVM choice.** The `188a510` tree's
+`LLVMExports.cmake` puts `zstd::libzstd_shared` in `INTERFACE_LINK_LIBRARIES`,
+and LLVM's own `Findzstd.cmake` — shipped inside the staged tree — creates that
+target only from a located libzstd, so the wheel build's configure dies on a
+target that was never made. The `b0ca808` tree predates the zstd-enabled build
+and needs none of it; the resulting `libtriton.so` gains a NEEDED entry on
+`libzstd.so.1`, which both hygon runtime images carry.
 
 **Not on the daily line yet.** `daily.enabled` is false until a build here has
 been verified on the backend's own nodes, the same gate every new backend goes
@@ -346,14 +355,14 @@ through. The dist_name `flagtree-hcu-dtk2610` is reserved so the 26.10 line neve
 collides with the 26.04 `flagtree-hcu` project.
 
 **The cp312 release wheel comes from `flagtree-wheel.yml` with
-`target=hcu-dtk2610`**, which builds `0.7.0+hcu3.6` as plain `flagtree` into
+`target=hcu-dtk2610`**, which builds `0.7.1a1+hcu3.6` as plain `flagtree` into
 `flagos-pypi-hygon` — the name and version `configs.yaml` pins for the 26.10
 runtime. `prepare` maps the target to the `hygon-dtk26.10` runtime row for its
 runner labels and vendor index, and passes no `BUILDER_IMAGE`, so this stage
 cold-builds from bare `ubuntu:22.04` like `iluvatar`. A daily wheel does not
 substitute for it: that line publishes `flagtree-hcu-dtk2610` at
 `<base>.dev<date>`, a different project and version. The sibling `target=hcu`
-builds the same version for the 26.04 line's cp310 — the two targets and why the
+builds the 26.04 line's cp310 at `0.7.0+hcu3.6` — the two targets and why the
 version is shared are in the `hcu` section above.
 
 ## Tsingmicro builder (`tsingmicro`)
@@ -427,14 +436,16 @@ them. The `cp310` wheel installs on neither 5.3.0 runtime — pip refuses it wit
 "not a supported wheel on this platform" — so the `cp312` file is not an
 upgrade of it but the only one that line can use.
 
-**Two prebuilt trees, and the local binary is the one that moves.**
-`mthreads.py` registers `mthreads-llvm22` and `mthreads_local_binary`. The first
-is the LLVM the backend compiles with; the second is the vendor's `llc` and
-`ld.lld`, which `compiler.py` resolves by bare name. Its version is not pinned to
-the LLVM's: `mthreads.py` declares v0.7.0 on `main` and v0.6.1 on the tag the
-wheel stage defaults to, and FlagTree adopts a cache by *directory* name without
-ever comparing versions — so the tarball is an `ARG`, the default follows the
-daily's ref, and a build on the tag passes the other name.
+**Two prebuilt trees, and the local binary moves on its own.** `mthreads.py`
+registers `mthreads-llvm22` and `mthreads_local_binary`. The first is the LLVM
+the backend compiles with; the second is the vendor's `llc` and `ld.lld`, which
+`compiler.py` resolves by bare name. Neither is pinned to the other, and FlagTree
+adopts a cache by *directory* name without comparing versions — so both tarballs
+are `ARG`s. `main` declares v0.7.1 for both and each file follows the ref it
+builds: the cp310 file takes that pair, the cp312 file the LLVM its tag names
+(v0.6.1, the only one of the two shipping `lib/cmake/lld`) plus the v0.7.0 local
+binary its verified wheel was built with. That split is why only the cp312 file
+asserts LLD.
 
 **No apt clang.** `FlagTreeOptions.cmake` puts the staged LLVM's `bin` on PATH and
 names its `clang`/`clang++` as this backend's compilers, so an apt clang would be
@@ -488,15 +499,16 @@ The same shape as `mthreads` — bare `ubuntu:22.04`, apt toolchain, the backend
 prebuilt inputs into FlagTree's offline cache, the 22.04 system python 3.10 and
 therefore a `cp310` wheel — with these differences.
 
-**Ten prebuilt inputs, and the cache is matched by directory name.**
-`xpu.py` fetches each into `~/.flagtree/xpu/<name>` and renames the extracted
-root to that name, so staging is extract plus `mv`, not a plain untar. Two of
-them (the LLVM 19 toolchain and its printf runtime) share the tarball root
-`xtdk-llvm19-ubuntu2004_x86_64` while landing as `xtdk-llvm19` and
-`xtdk-llvm19-printf`, which is why their filestore names carry a version suffix
-— the cache name and the tarball root are different things and only the former
-is what FlagTree looks up. The triton toolkits tarball is the one exception: it
-is rooted at `.triton/` and gets `--strip-components=1`.
+**Ten prebuilt inputs, and the cache is matched by directory name.** `xpu.py`
+fetches each into `~/.flagtree/xpu/<name>` and renames the extracted root to that
+name, so staging is extract plus `mv`, not a plain untar. Three of those names
+carry the version they hold (`xtdk-llvm19_20261013`,
+`xpu-sdnn-objects_v0.3.6.9.1`, `xpu-python-impl-so_v0.3.6.9.2`), and a fourth,
+the printf runtime, shares its tarball root with the LLVM 19 toolchain while
+landing as `xtdk-llvm19-printf` — the cache name and the tarball root are
+different things and only the former is what FlagTree looks up. The triton
+toolkits tarball is the one exception: it is rooted at `.triton/` and gets
+`--strip-components=1`.
 
 **The frontend is an environment variable, so the variable has to stay unset.**
 Both LLVM cache entries short-circuit on `LLVM_SYSPATH`
@@ -866,19 +878,23 @@ target clones the ref and compiles on top of it.
 `nvidia-cuda`, this backend has a `register_cache` hook
 (`python/setup_tools/utils/sunrise.py`) that resolves its inputs out of
 `~/.flagtree/sunrise/` — so the stage unpacks the LLVM and plugin tarballs there
-under the cache keys `sunrise_llvm22_dev_release` / `sunriseTritonPlugin.so`, and
-the triton toolkits into `~/.triton`. The plugin `.so` is md5-gated to
-`4c77b8c0`, the digest upstream itself declares; the LLVM tarball is not, for the
-reason `iluvatar`'s is not.
+under the cache keys `sunrise_<llvm package>` / `sunriseTritonPlugin.so`, and
+the triton toolkits into `~/.triton`. Upstream moved the LLVM's key in #1625
+(`sunrise_llvm22_dev_release` → `sunrise_llvm-ff67ef55-triton-v3.6.x`) while the
+tarball root kept the old name, so the stage renames it on extraction. The
+plugin `.so` is md5-gated to `f5fd6472`, the digest upstream itself declares; the
+LLVM tarball is not, for the reason `iluvatar`'s is not. **The stage serves
+`main` only**: the tag this file defaults to still asks for the old keys, and a
+release-line rebuild of it now falls through to ks3.
 
-**The LLVM tree is a full clang install.** `sunrise_llvm22_dev_release` carries
-`bin/clang` **and** `lib/cmake/mlir`, and its `stpu/bitcode/*.bc` is what the
+**The LLVM tree is a full clang install.** `sunrise_llvm-ff67ef55-triton-v3.6.x`
+carries `bin/clang` **and** `lib/cmake/mlir`, and its `stpu/bitcode/*.bc` is what the
 cache's `post_hook` copies into `third_party/sunrise/backend/lib` — all three are
 asserted by the builder line's `sunrise` stage check, because a stage missing any
 of them builds a different wheel rather than failing.
 
 **pybind11 is pinned to `==3.1.0`, not to a range.** The prebuilt
-`sunriseTritonPlugin_v0.6.0.4.so` embeds pybind11 internals **v12**, and
+`sunriseTritonPlugin_v0.7.0.1.so` embeds pybind11 internals **v12**, and
 upstream's `sunrise.py` maps v12 to exactly `pybind11==3.1.0` — its
 `check_pybind11_abi()` compares the patch release, not just the internals
 version, for the same reason `xpu.py` does. That table is on `main`; the ref this

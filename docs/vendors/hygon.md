@@ -40,12 +40,16 @@ backend key：`hygon-dtk26.04` / `hygon-dtk26.10`。芯片在代码里叫 **DCU*
   镜像里没有 DTK 的 LLVM 包时，kernel 编译失败会报**误导性的**
   `HSACOError("File operation failed: ...")` —— 曾据此误判「flagtree 不能编译 hcu kernel」，
   实为镜像缺 LLVM 包，补上后两个编译器都能编。
-- **两个 clang 必须并存**：`base/hygon-dtk26.10` 装两个 aillvm 包 —— `dtk_llvm.run` 留下
-  clang-18，`dtk_llvm_aicc` 在同一目录上再铺一套 clang-22（`bin/clang -> clang-22`）。
-  两条编译器路径各只认一个：vendor triton 3.7.0 传 clang-22 才有的
+- **两个 clang 必须并存**：`base/hygon-dtk26.10` 装两个 aillvm 包 —— clang-18 那份来自
+  `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`，`dtk_llvm_aicc` 在同一目录上再铺一套 clang-22
+  （`bin/clang -> clang-22`）。两条编译器路径各只认一个：vendor triton 3.7.0 传 clang-22 才有的
   `-amdgpu-disable-backoff-barrier=false` / `-fp-fuse=fast` 并产出 clang-22 时代的 IR；
-  flagtree 自带 libtriton 的 IR 则只有 clang-18 能解析（`nocreateundeforpoison` 一类属性）。
+  flagtree 自带 libtriton 的 IR 只有 clang-18 能解析（`nocreateundeforpoison` 一类属性）。
   只留任一个 clang，F 或 T 必有一条为红。
+- **clang-18 与 flagtree 版本成对**：`5f9d5e` 这份只接受
+  `llvm.amdgcn.make.buffer.rsrc` 的 i64 `numRecords`（裸 `dtk_llvm.run` 那只认 i32），
+  而 i64 形式是 flagtree `0.7.1a1+hcu3.6` 起的 hcu 内核才发出的 —— `0.7.0` 发 i32，
+  配 `5f9d5e` 必报 `Intrinsic has incorrect argument type`。换 clang-18 就得同时看 flagtree 版本。
 - flagtree 的 hcu 后端依赖**只有自家 LLVM 树才有**的 HCU MLIR dialect（`ROCDLHCUOps.td` 的
   `mmac_f32_16x16x8f32`、`hcu_matrix_load_32X16_b16` 等）；DTK 的 aillvm 只有 LLVM-IR 层的
   `IntrinsicsHCU.td`，没有这个 dialect —— 所以 flagtree **不能**改用 DTK 的 LLVM 重建，

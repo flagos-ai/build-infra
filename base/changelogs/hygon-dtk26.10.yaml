@@ -20,6 +20,21 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - The clang-18 aillvm comes from `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
+        instead of the bare `dtk_llvm.run`. Both builds' clang-18 parse FlagTree's
+        IR apart from one intrinsic: `dtk_llvm.run`'s takes only i32
+        `numRecords` in `llvm.amdgcn.make.buffer.rsrc`, this one only i64, and
+        the runtime's FlagTree moves to 0.7.1a1, whose hcu kernels emit i64.
+        Any other pairing fails with `Intrinsic has incorrect argument type`.
+    reason_zh: |-
+      - clang-18 那份 aillvm 改由 `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
+        提供，不再用裸 `dtk_llvm.run`。两版 clang-18 解析 FlagTree 的 IR 只差一个
+        intrinsic：`dtk_llvm.run` 的只接受 `llvm.amdgcn.make.buffer.rsrc` 的 i32
+        `numRecords`，这一版只接受 i64，而 runtime 侧的 FlagTree 升到 0.7.1a1，
+        其 hcu 内核发出的是 i64。其余配对都会报
+        `Intrinsic has incorrect argument type`。
+    upstream_prs: []
+  - reason: |-
       - The aicc aillvm package joins `dtk_llvm.run`, so the image now carries
         clang-18 and clang-22 side by side and the vendor triton 3.7.0 can
         compile again. Two compiler paths need one each: vendor triton 3.7.0

@@ -242,7 +242,10 @@ backends:
         files:
           - /root/.triton/json/include/nlohmann/json.hpp
           # CMakeLists copies this into the wheel; the build fails without it.
-          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/bin/FileCheck
+          - /root/.flagtree/hcu/hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/bin/FileCheck
+          # hcu.py copies this bitcode into /opt/dtk/dushmem/lib/ during the
+          # build, so both the staged blob and the SDK it lands in must be here.
+          - /root/.flagtree/hcu/libdushmem_device_gfx936.bc
           # The DTK 26.10 Ubuntu22.04 SDK this stage installs: the runtime image
           # carries it, so the build machine does too.
           - /opt/dtk/env.sh
@@ -250,8 +253,8 @@ backends:
           # The two find_package() contracts in this backend's CMakeLists:
           # MLIR via the default MLIR_DIR, LLD via hcu's explicit find_package.
           # Neither is an apt package, so both have to come from the staged LLVM.
-          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/mlir
-          - /root/.flagtree/hcu/hcu-llvm22-b0ca808-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/lld
+          - /root/.flagtree/hcu/hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/mlir
+          - /root/.flagtree/hcu/hcu-llvm22-188a510-glibc2.35-glibcxx3.4.30-ubuntu-x86_64/lib/cmake/lld
           # hcu's CMakeLists adds third_party/nvidia and setup.py copies the
           # CUDA redists into it from these caches, so both must be staged.
           - /root/.triton/nvidia/cudart
@@ -259,7 +262,7 @@ backends:
     daily:
       enabled: false
       dist_name: flagtree-hcu-dtk2610
-      version_base: "0.7.0"
+      version_base: "0.7.1"
       ref: main
       # cp312: the 26.10 line's interpreter (deps python 3.12).
       wheel_tag: cp312-cp312-linux_x86_64
@@ -330,10 +333,9 @@ backends:
           - /root/.flagtree/mthreads/mthreads_local_binary/llc
           - /root/.flagtree/mthreads/mthreads_local_binary/ld.lld
         dirs:
-          # The two find_package() contracts: MLIR via the default MLIR_DIR and
-          # LLD via the sibling LLD_DIR, neither of which is an apt package.
+          # MLIR is the only find_package() contract here: this backend's
+          # CMakeLists asks for no LLD, and the staged LLVM carries none.
           - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir
-          - /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld
     daily:
       enabled: true
       dist_name: flagtree-mthreads
@@ -402,15 +404,15 @@ backends:
           # from this one package -- `llc` produces the kernel object and `clang`
           # the CRT object, and the two agree on the `.XPU.attributes` section
           # type only within one package.
-          - /root/.flagtree/xpu/xtdk-llvm19/bin/llc
-          - /root/.flagtree/xpu/xtdk-llvm19/lib/libLLVM.so.19.1
+          - /root/.flagtree/xpu/xtdk-llvm19_20261013/bin/llc
+          - /root/.flagtree/xpu/xtdk-llvm19_20261013/lib/libLLVM.so.19.1
           # The device printf runtime, pinned to its own release: the toolchain
           # snapshot carries the old protocol, which fails `test_print` wholesale.
           - /root/.flagtree/xpu/xtdk-llvm19-printf/lib/linux/libclang_rt.xpuprintf-xpu3.a
           # The two prebuilt-object caches the backend compiles against, and the
           # runtime .so overlay that replaces what cmake copies into xpu3/so.
-          - /root/.flagtree/xpu/xpu-sdnn-objects/lib/Dialect/TritonSDNN/Transforms/DSACopy.cpp.o
-          - /root/.flagtree/xpu/xpu-python-impl-so/python/triton/backends/intrinsic_tables.abi3.so
+          - /root/.flagtree/xpu/xpu-sdnn-objects_v0.3.6.9.1/lib/Dialect/TritonSDNN/Transforms/DSACopy.cpp.o
+          - /root/.flagtree/xpu/xpu-python-impl-so_v0.3.6.9.2/python/triton/backends/intrinsic_tables.abi3.so
           - /root/.flagtree/xpu/xpu-runtime-so/libxpurt.so.12.9.1.kunlun
         dirs:
           # `xre-Linux-x86_64` is reached through a HARDCODED `/xpu/` path in

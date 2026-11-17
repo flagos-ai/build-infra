@@ -14,34 +14,28 @@
 
 name: FlagCX Builder
 
-# Build and publish the FlagCX build-toolchain images, one backend per runner.
+# Build and publish the FlagCX build-toolchain images.
 #
-# WHAT THEY ARE FOR: the wheel line builds in the backend's runtime image, and on
-# the nvidia rows that image carries no device toolchain at all — no nvcc, no
-# cuda_runtime.h, no nccl.h, no clang. This line produces the image the wheel
-# build can then be pointed at, and the FlagCX wheel work is what consumes it.
-# Rows whose runtime image already carries what the build needs and whose wheel
-# need not drop its glibc floor have no builder; the matrix says which do
-# (`builder.enabled` in packaging/flagcx/backends.yaml). A vendor-SDK row
-# (hygon, …) declares one for the floor alone.
+# We are not always using the runtime image for two reasons:
 #
-# THE BUILD ENVIRONMENT IS UBUNTU 22.04, SELF-CONTAINED. The image installs its
-# own interpreter and torch rather than layering on the backend's runtime image,
-# so the wheel it produces links at most glibc 2.35 — which is what lets the
-# bundle install that wheel on physical 22.04 hosts, not only in 24.04
-# containers. The runtime image was the previous base; a wheel built on it linked
-# GLIBC_2.38 and aborted on import on those hosts. Never a vendor `-devel` image:
-# the wheel build imports torch and asserts Python.h, so one environment has to
-# carry torch and the toolchain at once, and a builder that could not be the
-# wheel's BASE_IMAGE would be the wrong artifact. Measured: neither nvidia
-# `-devel` tag ships any clang/llvm, so the LLVM 22 pin is unavoidable on any
-# base.
+# 1. The runtime image may miss device toolchain (nvcc, cuda_runtime.h, nccl.h,
+#    clang etc.). These tools may be missing from the vendor `-devel` images.
+#    Some runtime images may already carry these packages, though.
 #
-# VERIFICATION IS A STEP AND NOT A JOB, unlike flagcx-wheel.yml. The two lines
-# verify different things and only one of them can travel: the wheel is a file,
-# so the verify job can download it onto another runner and install it into a
-# fresh container, while a builder image is tens of GB and cannot be uploaded at
-# all. Verification therefore runs in the job that has the image, and still gates
+# 2. We want the wheels built to be installable onto a ubuntu 22.04 box.
+#    Most of the runtime images are based on ubuntu 24.04. Wheels built out of
+#    the runtime image may raise the glibc requirements to GLIBC_2.38+.
+#
+# When a *builder* image is needed, the matrix sets `builder` to `enabled` in
+# packaging/flagcx/backends.yaml.
+#
+# VERIFICATION IS A STEP AND NOT A JOB.
+# The two lines verify different things and only one of them can travel:
+# the wheel is a file, so the verify job can download it onto another runner and
+# install it into a fresh container, while a builder image is tens of GB and
+# cannot be uploaded at all.
+#
+# Verification therefore runs in the job that has the image, and still gates
 # the push — which is the property that matters, that no unverified image reaches
 # the registry. What it asserts is the row's own acceptance test in
 # packaging/flagcx/verify/verify-flagcx-builder.sh: compile that row's device
@@ -106,14 +100,16 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       harbor_host: ${{ steps.harbor-host.outputs.host }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Install PyYAML
         run: |
-          # flagcx-config.py imports yaml; ubuntu-latest's python does not ship it.
           python3 -c "import yaml" 2>/dev/null \
             || python3 -m pip install --user --break-system-packages pyyaml
+
       - id: set-matrix
         shell: bash
         run: |
@@ -159,6 +155,7 @@ jobs:
     steps:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Check disk space
         shell: bash
         run: |
@@ -178,6 +175,7 @@ jobs:
             df -h .
             exit 1
           fi
+
       - name: Harbor login (push only)
         if: ${{ inputs.push }}
         env:
@@ -194,12 +192,14 @@ jobs:
           done
           echo "::error::Harbor login failed after 3 attempts"
           exit 1
+
       - name: Build the builder image
         env:
           MATRIX_NAME: ${{ matrix.name }}
         run: |
           set -euo pipefail
           packaging/flagcx/build-flagcx-builder.sh --backend "$MATRIX_NAME"
+
       - name: Verify the builder image
         if: ${{ inputs.verify }}
         env:
@@ -209,6 +209,7 @@ jobs:
           packaging/flagcx/verify/verify-flagcx-builder.sh \
             --backend "$MATRIX_NAME" \
             --ref "${{ inputs.flagcx_ref }}"
+
       - name: Push the builder image
         if: ${{ inputs.push }}
         env:
@@ -216,6 +217,7 @@ jobs:
         run: |
           set -euo pipefail
           docker push "$MATRIX_BUILDER_IMAGE"
+
       # The push is only accepted, not served: this reads the ref back the way a
       # consumer does, and compares the digest the registry hands out with the one
       # that was built. A tag that points at an older image reads as a successful
@@ -234,6 +236,7 @@ jobs:
             exit 1
           fi
           echo ">>> $MATRIX_BUILDER_IMAGE reads back as $served"
+
       - name: Remove the builder image
         if: ${{ always() }}
         # The image is reproducible from the script and tens of GB of layers per

@@ -33,15 +33,13 @@ ARG no_proxy=
 # `mthreads-llvm22` and `mthreads_local_binary` and re-downloads a cache it does
 # not recognize by that name, and both tarballs are rooted at exactly it.
 ARG DEPS_BASE=https://resource.flagos.net/repository/flagos-filestore/flagtree-deps
-ARG LLVM_TARBALL=mthreads-llvm22-x64_v0.6.1.tar.gz
+ARG LLVM_TARBALL=mthreads-llvm22-x64_v0.7.1.tar.gz
 ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 
-# The local binary is the one staged input that moves between the refs this file
-# serves: mthreads.py declares v0.7.0 on `main`, v0.6.1 on the tag the wheel stage
-# defaults to. FlagTree adopts a cache by DIRECTORY name and never compares
-# versions, so the default below follows the daily's ref (`main`) and a build on
-# the tag passes the other name.
-ARG LOCAL_BINARY_TARBALL=mthreads_local_binary_v0.7.0.tar.gz
+# The local binary moves between the refs this file serves; FlagTree adopts a
+# cache by DIRECTORY name and never compares versions, so the filename only says
+# which snapshot of the vendor's llc/ld.lld was staged.
+ARG LOCAL_BINARY_TARBALL=mthreads_local_binary_v0.7.1.tar.gz
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -76,7 +74,6 @@ RUN set -eu; \
     && test -x /root/.flagtree/mthreads/mthreads-llvm22/bin/clang \
     && test -f /root/.flagtree/mthreads/mthreads-llvm22/bin/FileCheck \
     && test -f /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/mlir/MLIRConfig.cmake \
-    && test -f /root/.flagtree/mthreads/mthreads-llvm22/lib/cmake/lld/LLDConfig.cmake \
     && test -x /root/.flagtree/mthreads/mthreads_local_binary/llc \
     && test -x /root/.flagtree/mthreads/mthreads_local_binary/ld.lld \
     && test -f /root/.triton/json/include/nlohmann/json.hpp \
