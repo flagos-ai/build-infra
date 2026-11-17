@@ -13,7 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Verify a FlagCX wheel as a file, and as the vendor index serves it.
+# Verify a FlagCX wheel as a file, and as the vendor index serves it. Both run
+# in the row's builder image: this is the wheel line, and a row's runtime cannot
+# exist yet — it pins this very wheel in `deps:`, so verifying there would be the
+# circle. Whether the wheel loads in the delivered set is the runtime line's
+# question (`verify_runtime.py` imports flagcx on every row that pins it), and it
+# is asked there, after the runtime image is built.
 #
 # Usage:
 #   verify-flagcx-wheel.sh --wheel dist/*.whl
@@ -21,10 +26,8 @@
 #       --expect-sha256 "$WHEEL_SHA256"
 #
 # Options:
-#   --wheel            install the wheel by file path, checked in the row's
-#                      builder image
-#   --index-url URL    install by pin from this index, checked in the row's
-#                      runtime image
+#   --wheel            install the wheel by file path
+#   --index-url URL    install by pin from this index
 #   --pin PIN          `flagcx==<public>+<local>`, the version the index holds
 #   --expect-sha256 H  sha256 of the wheel that was built
 #   --backend KEY      backend from backends.yaml; read off the artifact when
@@ -173,7 +176,7 @@ esac
 if (( LOCAL_MODE )); then
     IMAGE="$WHEEL_BUILDER_IMAGE"; MODE=local
 else
-    IMAGE="$WHEEL_RUNTIME_IMAGE"; MODE=index
+    IMAGE="$WHEEL_BUILDER_IMAGE"; MODE=index
 fi
 [[ -n "$IMAGE" ]] \
     || fail "$KEY: its matrix row names no $MODE image, so there is nothing to verify in"

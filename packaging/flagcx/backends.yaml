@@ -17,8 +17,8 @@
 # Only what build-infra cannot tell us lives here. `base_image`, `runson`,
 # `version` and `image_tag` come from `scripts/generate_matrix.py --runtime` at
 # build time and must NOT be duplicated (see flagcx-config.py). The wheel channel
-# renames that row's `image_tag` to the two images it actually names: its
-# `builder_image` and its `runtime_image`.
+# renames that row's `image_tag` to the one image it names: its `builder_image`,
+# where the wheel is both built and verified.
 #
 # Field meanings:
 #   vendor        FlagCX adaptor family — matches makefiles/<vendor>.mk and the

@@ -138,8 +138,8 @@ is a question about the delivered set, and the runtime build answers it: `script
 imports flagcx on exactly the rows that pin it, and `runtime-image.yml` runs that check between the
 build and the push.
 
-The image is not an option: `--wheel` checks in the row's `builder_image`, the read-back in its
-`runtime_image`, and the matrix row already states both.
+The image is not an option: both `--wheel` and the index read-back check in the row's
+`builder_image`, because the runtime that pins the wheel cannot exist until the wheel is published.
 
 ```bash
 packaging/flagcx/build-flagcx-wheel.sh --list
