@@ -1,0 +1,48 @@
+# Status matrix — vllm0.32.0 app image
+#
+# Structured twin of the human-readable matrix in
+# packaging/vllm/docs/vllm-verification-matrix.md. Schema and status legend:
+# docs/status-matrix.md. scripts/render_status_matrix.py renders this file
+# into the md's marker blocks; keep marker blocks in sync.
+#
+# Cell symbols: ✅ = 已验证通过 / ❌ = 已屏蔽/失败有结论 / ⛔ = 挂起（上游阻塞）
+# / ？ = 成功概率不确定 / ⬜ = 待验证 / — = 该后端无此编译器。
+# Column suffix: T = Triton 编译器, F = FlagTree 编译器.
+
+type: vllm
+app: vllm0.32.0
+description: vLLM 0.32.0 app image — repacked vllm +flagos wheel installed
+  single-step on the vendor runtime.
+last_updated: "2026-11-17"
+
+# App-level facility (shared across all backends of this app).
+facility:
+  containerfile: true
+  workflow: true
+
+scenarios:
+  inference:
+    label: "0.32.0"
+    verification:
+      nvidia-cuda13.3:       {T: "⬜", F: "⬜"}
+      amd-rocm7.2.4:         {T: "⬜", F: "—"}
+      ascend-cann9.2.1:      {T: "⬜", F: "⬜"}
+      iluvatar-corex5.0.1:   {T: "⬜", F: "⬜"}
+      thead-ppu2.1.0:        {T: "⬜", F: "—"}
+
+backends:
+  nvidia-cuda13.3:
+    deps_app: true
+    launch_docs: false
+  amd-rocm7.2.4:
+    deps_app: true
+    launch_docs: false
+  ascend-cann9.2.1:
+    deps_app: true
+    launch_docs: false
+  iluvatar-corex5.0.1:
+    deps_app: true
+    launch_docs: false
+  thead-ppu2.1.0:
+    deps_app: true
+    launch_docs: false
