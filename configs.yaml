@@ -368,11 +368,14 @@ vendors:
         vllm0.24.0: []
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
-        # numpy pin: the native plugin wheel's install chain pulls numpy>=2,
-        # which the matrix integrity gate rejects. Hold it at the runtime's pin.
+        # ml-dtypes pin: tilelang (a vllm 0.32 dependency) resolves ml-dtypes
+        # 0.7.0, which requires numpy>=2 and is built against NumPy 2.0's
+        # C-API — that pulls numpy off the runtime's 1.26.4 pin (matrix gate)
+        # and, if numpy is held, fails the import instead. 0.5.4 accepts
+        # numpy>=1.26 on py3.12, so the runtime pin holds.
         vllm0.32.0:
           - flaggems_vllm==0.3.0.dev20261117
-          - numpy==1.26.4
+          - ml-dtypes==0.5.4
       sdk:
         - CUDA 13.3 (x86_64)
 
