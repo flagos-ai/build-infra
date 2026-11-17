@@ -31,3 +31,4 @@ tags:
       - 首次交付：燧原 TopsPlatform 1.9.29 栈 —— driver、runtime、CC、PTI、TOPSTX、TOPS ATen、EFML、ECCL、Triton GCU 1.0.20261116 和 gculare-perftest —— 基于 ubuntu:24.04，用于 Zixiao C200（S60）芯片。
       - `/opt/triton_gcu` 是指向厂商 triton 包安装位置的符号链接，FlagTree 的 `toolkit.py` 正是在那里查找它。
     upstream_prs: []
+    date: '2026-11-17T10:33:53.797Z'
