@@ -25,20 +25,25 @@
 #   --sglang-version X.Y.Z  sglang version (default 0.5.18)
 #   --rust-version X.Y.Z    Rust toolchain for the multimodal rust ext
 #                           (default 1.98.0; filestore cache, rustup fallback)
-#   --upload                twine-upload the repacked wheel to the per-vendor
-#                           PyPI (flagos-pypi-<vendor>); publishing is
-#                           outward-facing so it never runs by default
+#   --upload                upload the repacked wheel to the per-vendor PyPI
+#                           (flagos-pypi-<vendor>); publishing is outward-facing
+#                           so it never runs by default
 #
 # Env:
 #   STACK_VERSION      stack version for the runtime image tag (default: read
 #                      from configs.yaml)
+#   NEXUS_TOKEN        "user:password", required by --upload. TWINE_USERNAME /
+#                      TWINE_PASSWORD are accepted instead, for the manual runs
+#                      that already set them.
 #   DOCKER_RUN_FLAGS   extra `docker run` flags; defaults to the vendor's run
 #                      flags from .github/build-config.yml (toolkit ?: raw) —
 #                      ptpu vendors (e.g. sunrise) need /dev visible at build
 #
 # Prereqs: docker + harbor access; python3 + pyyaml on the host; the
 # flagos-runtime-<vendor>-<backend>:<version> image; the shared source
-# tarball on the filestore (build-sdist.sh).
+# tarball on the filestore (build-sdist.sh). No twine on the host: --upload
+# runs it in the uploader image, because a 22.04 node's pkginfo cannot read the
+# Metadata-Version 2.4 these wheels carry (packaging/upload/).
 #
 # Model (srt_empty base, no dep stripping, per-vendor upload, rust cache):
 # see docs/sglang-0.5.18/decisions.md; step-by-step: playbook.md.
@@ -100,8 +105,10 @@ BUILD_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR}-${BACKEND
 FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 
 # Per-vendor index: the wheel + its ABI-bound runtime deps form one matched
-# set, so a version bump regenerates a coherent set (decisions.md §3).
-UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
+# set, so a version bump regenerates a coherent set (decisions.md §3). The
+# repository name only: upload-wheels.sh composes the URL from the index root
+# it owns.
+UPLOAD_REPO="flagos-pypi-${VENDOR}"
 
 # ptpu vendors (e.g. sunrise) need /dev visible at build. Default flags from
 # build-config.yml run.vendors (same source verify scripts read); an
@@ -325,11 +332,23 @@ ls -lh "$WORK_DIR/output/" | sed 's/^/  /'
 # Runs on the host: WORK_DIR is bind-mounted, so the repacked wheels are
 # already visible outside the container. Publishing to the vendor PyPI is
 # outward-facing, so it only happens when --upload is passed.
+#
+# twine runs in the uploader image, not the host's python: a 22.04 node ships
+# pkginfo 1.8, which cannot read the Metadata-Version 2.4 these wheels carry,
+# and faking a twine install there means upgrading the host interpreter.
 if [[ "$UPLOAD" == true ]]; then
     echo ""
-    echo "==> Uploading to ${UPLOAD_PYPI} …"
-    command -v twine > /dev/null || pip install -q twine
-    twine upload --repository-url "${UPLOAD_PYPI}" "${WORK_DIR}/output/"*.whl
+    echo "==> Uploading to ${UPLOAD_REPO} …"
+    # The uploader's credential contract is one "user:password" variable; these
+    # are the two twine already understood, kept so a manual run need not learn
+    # a new one.
+    if [[ -z "${NEXUS_TOKEN:-}" && -n "${TWINE_USERNAME:-}" && -n "${TWINE_PASSWORD:-}" ]]; then
+        export NEXUS_TOKEN="${TWINE_USERNAME}:${TWINE_PASSWORD}"
+    fi
+    WHEEL_UPLOAD_REPO="${UPLOAD_REPO}" \
+    WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
+    WHEEL_UPLOAD_MOUNT="${WORK_DIR}/output:/wheels:ro" \
+    bash "${SCRIPT_DIR}/../upload/upload-wheels.sh"
 fi
 
 echo ""
