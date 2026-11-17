@@ -38,16 +38,16 @@
 #   6. Test vllm serve and inference
 #
 # --app-image <image>: instead of steps 3-5, verify a prebuilt
-#   flagos-app/vllm{vllm_version}-{vendor}-{backend}:{version}[-{plugin}] image
-#   (built by the
-#   vllm-app-image workflow): the critical-package matrix
-#   (torch/torch_npu/triton/flag_gems/numpy) must be identical to the runtime
-#   image's, and vllm + vllm_fl + flagcx.api must import. The flagcx check runs
-#   only when --flagcx-version is given: flagcx is the one package the app image
-#   adds on top of the runtime, and only the backends whose vendor index carries
-#   a wheel add it. No installs run;
-#   the serve test (Step 6) still runs against the app image — a cell only
-#   earns ✅ by returning a real completion.
+#   {host}/{app_prefix}/vllm{vllm_version}-{app_name}:{version}[-{plugin}] image
+#   (built by the vllm-app-image workflow; {app_name} is the backend's
+#   app-layer public name, not the backend key): the critical-package matrix
+#   (torch/triton/flagtree/flag_gems/numpy, plus torch_npu on ascend) must be
+#   identical to the runtime image's, and vllm + vllm_fl + flagcx.api must
+#   import. The flagcx check reads the distribution out of the image rather
+#   than the --flagcx-version argument — what shipped is the fact, the
+#   argument is only what the dispatch asked for. No installs run; the serve
+#   test (Step 6) still runs against the app image — a cell only earns ✅ by
+#   returning a real completion.
 
 set -euo pipefail
 
@@ -182,7 +182,22 @@ else
     STACK_VERSION_SOURCE="--stack-version (explicit)"
 fi
 
-RUNTIME_IMAGE="harbor.baai.ac.cn/flagos-runtime/flagos-runtime-${VENDOR_BACKEND}:${STACK_VERSION}"
+# Registry host and image prefixes come from .github/build-config.yml — the
+# same file the app workflow builds its tags from, so the verifier cannot
+# disagree with the builder about where an image lives. Nothing here is
+# hardcoded: an app image may be retagged into another project (the SVT
+# delivery copy) and the runtime prefix is not the app prefix.
+REGISTRY_HOST=$(python3 -c "
+import yaml
+with open('${REPO_ROOT}/.github/build-config.yml') as f:
+    print(yaml.safe_load(f)['registry']['host'])
+")
+RUNTIME_PREFIX=$(python3 -c "
+import yaml
+with open('${REPO_ROOT}/.github/build-config.yml') as f:
+    print(yaml.safe_load(f)['registry']['prefixes']['runtime'])
+")
+RUNTIME_IMAGE="${REGISTRY_HOST}/${RUNTIME_PREFIX}/flagos-runtime-${VENDOR_BACKEND}:${STACK_VERSION}"
 VENDOR_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/simple"
 ALIYUN_PYPI="https://mirrors.aliyun.com/pypi/simple"
 CONTAINER="vllm-verify-${VENDOR}-${BACKEND}"
@@ -241,6 +256,10 @@ echo "Vendor-Backend:   ${VENDOR_BACKEND}"
 echo "Runtime Image:    ${RUNTIME_IMAGE}"
 echo "Stack Version:    ${STACK_VERSION} (${STACK_VERSION_SOURCE})"
 echo "vLLM Version:     ${VLLM_VERSION}+flagos"
+echo "Plugin Version:   ${PLUGIN_FL_VERSION:-<none requested>}"
+if [[ -n "${APP_IMAGE}" ]]; then
+    echo "App Image:        ${APP_IMAGE}"
+fi
 echo "Compiler:         ${COMPILER:-<runtime default>}"
 echo "Model Path:       ${MODEL_PATH}"
 echo "Proxy relay:      ${PROXY_RELAY_DESC}"
@@ -317,19 +336,43 @@ if [[ -n "${APP_IMAGE}" ]]; then
 
     docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
 
-    WATCH_PKGS="torch torch_npu triton flag_gems numpy"
+    # torch_npu only exists on an NPU backend, so watching it everywhere
+    # prints NOT_INSTALLED for 12 of 13 vendors — noise that reads as a
+    # missing package. torch_npu is watched exactly where it can exist.
+    WATCH_PKGS="torch triton flagtree flag_gems numpy"
+    [[ "${VENDOR}" == "ascend" ]] && WATCH_PKGS="torch torch_npu triton flagtree flag_gems numpy"
     # flagcx is watched too but never diffed: it is the one package the app
     # image exists to *add*, so the runtime image has nothing to compare
     # against and the comparison would always report a change. It is asserted
     # on its own below instead.
     ADDED_PKGS="flagcx"
+    # flagtree and triton are side dirs (/opt/flagtree, /opt/triton), not
+    # site-packages distributions, so importlib.metadata cannot see either —
+    # the old snapshot printed NOT_INSTALLED for both on every image. Their
+    # versions come from the tree's own dist-info name; flagtree bundles
+    # triton/ without a dist-info of its own, which is why the side dirs are
+    # read separately rather than through the interpreter.
     snapshot() {
-        local cid="$1" pkg ver
+        local cid="$1" pkg ver dir
         shift
         for pkg in "$@"; do
-            ver=$(docker exec "${cid}" python3 -c \
-                "import importlib.metadata as m; print(m.version('${pkg}'))" \
-                2>/dev/null || echo "NOT_INSTALLED")
+            case "$pkg" in
+                flagtree) dir=/opt/flagtree ;;
+                triton)   dir=/opt/triton ;;
+                *)        dir="" ;;
+            esac
+            if [[ -n "$dir" ]]; then
+                # Any *.dist-info, not "${pkg}-*": FlagTree's daily line installs
+                # per-backend names (flagtree_nvidia-<ver>) into the same tree.
+                ver=$(docker exec "${cid}" bash -c \
+                    "ls -d ${dir}/*.dist-info 2>/dev/null | head -1 | xargs -r basename | sed 's/\.dist-info\$//; s/^[^-]*-//'" \
+                    2>/dev/null || true)
+                [[ -n "$ver" ]] || ver="NOT_INSTALLED"
+            else
+                ver=$(docker exec "${cid}" python3 -c \
+                    "import importlib.metadata as m; print(m.version('${pkg}'))" \
+                    2>/dev/null || echo "NOT_INSTALLED")
+            fi
             echo "${pkg}=${ver}"
         done
     }
@@ -359,8 +402,20 @@ if [[ -n "${APP_IMAGE}" ]]; then
     fi
 
     log_step "Import check (vllm + vllm_fl)"
-    if docker exec "${APP_CONTAINER}" bash -c \
-        'python3 -c "import vllm, vllm_fl; print(\"vllm\", vllm.__version__, \"| plugin ok\")"'; then
+    # Report what actually shipped, not just "ok": the plugin commit and the
+    # flaggems_vllm build are the two pins a vllm 0.32 image is judged by, and
+    # neither was visible anywhere in the old output.
+    if docker exec "${APP_CONTAINER}" bash -c '
+        python3 - <<PY
+import importlib.metadata as m
+def v(p):
+    try: return m.version(p)
+    except Exception: return "ABSENT"
+import vllm, vllm_fl
+print("vllm", vllm.__version__)
+print("vllm-plugin-fl", v("vllm-plugin-fl"))
+print("flaggems_vllm", v("flaggems_vllm"))
+PY'; then
         log_info "✅ vllm + vllm_fl import OK"
     else
         log_error "❌ import failed"
@@ -395,20 +450,30 @@ if [[ -n "${APP_IMAGE}" ]]; then
     # the api submodule, and version() must resolve too — a bare `.so`, or a
     # src-tree symlink on the path, satisfies the import while leaving no
     # distribution metadata behind.
-    # Gated on --flagcx-version: most backends' vendor index carries no flagcx
-    # wheel, so the app image legitimately has no flagcx distribution and an
-    # unconditional check would fail every one of them.
-    if [[ -n "${FLAGCX_VERSION}" ]]; then
+    #
+    # The check is driven by what the IMAGE carries, not by --flagcx-version:
+    # that argument is only what the dispatch asked for, and a missing one made
+    # the old gated form skip the check on images that did ship flagcx (nvidia
+    # 0.32 does, and the log said "skipping"). A present distribution is always
+    # asserted to import; an absent one is only an error when the dispatch
+    # explicitly expected one.
+    flagcx_ver=$(docker exec "${APP_CONTAINER}" python3 -c \
+        'import importlib.metadata as m; print(m.version("flagcx"))' 2>/dev/null || true)
+    if [[ -n "${flagcx_ver}" ]]; then
         if docker exec "${APP_CONTAINER}" bash -c \
-            'python3 -c "import importlib.metadata as m, flagcx.api; print(\"flagcx\", m.version(\"flagcx\"), \"| api ok\")"'; then
-            log_info "✅ flagcx distribution present, flagcx.api imports OK"
+            'python3 -c "import flagcx.api; print(\"flagcx.api ok\")"'; then
+            log_info "✅ flagcx ${flagcx_ver} present, flagcx.api imports OK"
         else
-            log_error "❌ flagcx import/metadata failed"
+            log_error "❌ flagcx ${flagcx_ver} present but flagcx.api failed to import"
             docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
             exit 1
         fi
+    elif [[ -n "${FLAGCX_VERSION}" ]]; then
+        log_error "❌ --flagcx-version ${FLAGCX_VERSION} was requested but the image carries no flagcx distribution"
+        docker rm -f "${APP_CONTAINER}" 2>/dev/null || true
+        exit 1
     else
-        log_info "No --flagcx-version given; skipping the flagcx import check"
+        log_info "flagcx not in this image (no wheel on this vendor index) — not applicable"
     fi
 
     log_info "App-image import check PASSED — proceeding to serve test (Step 6)"
@@ -443,22 +508,33 @@ docker exec "${CONTAINER}" bash -c "
     echo '--- Device availability ---'
     case '${VENDOR}' in
         nvidia)
-            nvidia-smi 2>/dev/null || echo 'nvidia-smi not available'
+            # One line per GPU, not the full nvidia-smi table: the verifier
+            # needs "are the devices free and how much memory is left", and a
+            # 30-line ASCII table buries that in the log.
+            # { cmd || echo } | head, not cmd | head || echo: the container's
+            # bash -c has no pipefail, so the pipeline's status is head's and a
+            # failing smi would print nothing instead of saying it failed.
+            { nvidia-smi --query-gpu=index,name,memory.used,memory.total \
+                --format=csv,noheader 2>/dev/null || echo 'nvidia-smi not available'; } \
+                | sed 's/^/  gpu /'
             ;;
         mthreads)
-            mthreads-gmi 2>/dev/null || echo 'mthreads-gmi not available'
+            # Plain invocation piped through head, not a -L/-q flag: the flags
+            # differ per vendor tool and an unsupported one exits nonzero,
+            # which would report a working tool as missing.
+            { mthreads-gmi 2>/dev/null || echo 'mthreads-gmi not available'; } | head -12
             ;;
         metax)
-            mx-smi 2>/dev/null || echo 'mx-smi not available'
+            { mx-smi 2>/dev/null || echo 'mx-smi not available'; } | head -12
             ;;
         hygon)
-            hy-smi 2>/dev/null || echo 'hy-smi not available'
+            { hy-smi 2>/dev/null || echo 'hy-smi not available'; } | head -12
             ;;
         iluvatar)
-            ixsmi 2>/dev/null || echo 'ixsmi not available'
+            { ixsmi 2>/dev/null || echo 'ixsmi not available'; } | head -12
             ;;
         tsingmicro)
-            tsm_smi 2>/dev/null || echo 'tsm_smi not available'
+            { tsm_smi 2>/dev/null || echo 'tsm_smi not available'; } | head -12
             ;;
         ascend)
             # A die held by another container is the one ascend failure that
@@ -466,7 +542,7 @@ docker exec "${CONTAINER}" bash -c "
             # collapses to 0, and serve dies much later with an EngineCore
             # traceback that names nothing. Report both here, where an empty
             # count reads unambiguously as \"not ours to use\".
-            npu-smi info 2>&1 | head -20 || true
+            { npu-smi info 2>&1 || echo 'npu-smi not available'; } | head -8
             python3 -c 'import torch, torch_npu; print(f\"torch.npu device_count: {torch.npu.device_count()}\")' 2>&1 | tail -3 || true
             ;;
     esac
@@ -596,6 +672,7 @@ else
     # anchor for the matrix model; custom-model runs (mthreads-4.3.6 serves a
     # DeepSeek model, no Qwen3-4B) opt out so they do not false-fail.
     EXPECT_ANCHOR=""
+    PROMPT_TEXT="The capital of France is"
     case "$MODEL_PATH" in
         *Qwen3-4B*) EXPECT_ANCHOR="Paris" ;;
     esac
@@ -664,12 +741,15 @@ else
         fi
 
         echo ''
-        echo 'Sending test request...'
-        python3 - <<'PY'
+        echo 'Sending test request: POST /v1/completions'
+        echo \"  prompt: '${PROMPT_TEXT}'  max_tokens: 16  temperature: 0\"
+        echo \"  expected anchor: ${EXPECT_ANCHOR:-<none>}\"
+        python3 - <<PY
 import json, urllib.request, sys
+prompt = '''${PROMPT_TEXT}'''
 req = urllib.request.Request(
     'http://127.0.0.1:8031/v1/completions',
-    data=json.dumps({'prompt': 'The capital of France is', 'max_tokens': 16, 'temperature': 0}).encode(),
+    data=json.dumps({'prompt': prompt, 'max_tokens': 16, 'temperature': 0}).encode(),
     headers={'Content-Type': 'application/json'},
 )
 try:
@@ -707,15 +787,36 @@ echo "Verification Summary"
 echo "========================================"
 echo "Backend:          ${VENDOR_BACKEND}"
 echo "vLLM Version:     ${VLLM_VERSION}+flagos"
+echo "Compiler:         ${COMPILER:-<runtime default>}"
 echo "Container:        ${SERVE_CONTAINER}"
 echo ""
 echo "Status:"
-docker exec "${SERVE_CONTAINER}" bash -c "
-    echo -n 'vllm: '; python3 -c 'import vllm; print(vllm.__version__)' 2>/dev/null || echo 'FAILED'
-    echo -n 'torch: '; python3 -c 'import torch; print(torch.__version__)' 2>/dev/null || echo 'FAILED'
-    echo -n 'flag_gems: '; python3 -c 'import flag_gems; print(flag_gems.__version__)' 2>/dev/null || echo 'FAILED'
-"
+# Report the pins the image is judged by, including the two side-dir
+# compilers (invisible to importlib.metadata) and the plugin's own dependency
+# (flaggems_vllm) — the old summary printed three lines and none of them said
+# which plugin commit had actually been verified.
+docker exec "${SERVE_CONTAINER}" bash -c '
+# printf-padded rows so the column lines up for every label length.
+row() { printf "%-16s %s\n" "$1:" "$2"; }
+dist() { python3 -c "import importlib.metadata as m; print(m.version(\"$1\"))" 2>/dev/null || echo ABSENT; }
+ver() { python3 -c "import $1; print($1.__version__)" 2>/dev/null || echo FAILED; }
+# Side dirs have no site-packages dist-info: read the version off the tree.
+sidelib() {
+    local d
+    d=$(ls -d "$1"/*.dist-info 2>/dev/null | head -1)
+    if [ -n "$d" ]; then basename "$d" .dist-info | sed "s/^[^-]*-//"; else echo NOT_INSTALLED; fi
+}
+row vllm "$(ver vllm)"
+row torch "$(ver torch)"
+row numpy "$(ver numpy)"
+row flag_gems "$(ver flag_gems)"
+row flagtree "$(sidelib /opt/flagtree)"
+row triton "$(sidelib /opt/triton)"
+row vllm-plugin-fl "$(dist vllm-plugin-fl)"
+row flaggems_vllm "$(dist flaggems_vllm)"
+row flagcx "$(dist flagcx)"
+'
 echo ""
 echo "To debug:"
-echo "  docker exec -it ${CONTAINER} bash"
+echo "  docker exec -it ${SERVE_CONTAINER} bash"
 echo ""
