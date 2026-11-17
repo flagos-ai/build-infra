@@ -24,7 +24,7 @@ tags:
   - reason: |-
       - First delivery: the runtime for Enflame tops4.1.6 (L600), built on the
         flagos-base-enflame-tops4.1.6:2.3.0 base. Deps pin
-        torch-gcu==2.13.0+4.1.20261110, pyefml==4.1.6, flagcx==0.14.0+tops4.1.6
+        torch-gcu==2.13.0+4.1.20261110, pyefml==4.1.6, flagcx==0.14.1+tops4.1.6
         and the FlagTree/Triton dual compiler.
     reason_zh: |-
       - 首次交付：Enflame tops4.1.6（L600）的 runtime，基于 flagos-base-enflame-tops4.1.6:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+4.1.20261110、pyefml==4.1.6、flagcx==0.14.0+tops4.1.6 以及 FlagTree/Triton 双编译器。
