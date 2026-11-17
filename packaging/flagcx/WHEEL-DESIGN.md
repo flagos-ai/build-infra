@@ -329,21 +329,24 @@ extension is compiled in still carries what the wheel needs without inheriting t
 floor, and `--check --channel wheel` refuses a row that states `bitcode_arch` without a builder —
 the build would otherwise run where there is no clang and fail one stage later, at the make.
 
-**The wheel line's check runs in the builder, and it is the only image it can run in.** Every
+**The wheel line's checks both run in the builder, and it is the only image they can run in.** Every
 runtime image that will carry a flagcx wheel pins it in `deps:`, so the runtime cannot be built
 until the wheel is published; a line that verified in the runtime would have to publish first, and
-that is the circle this line sat in. What the builder proves is the artifact: it installs, imports,
-and carries its `.so`, bitcode and metadata — `verify-flagcx-wheel.sh --wheel <file>`. It
-does not prove the delivered set, and does not claim to. The question "does flagcx load alongside
-FlagGems and the compilers" is asked when the runtime that carries it is built:
-`scripts/verify_runtime.py` imports flagcx on exactly the rows whose `deps:` pin it, and
-`runtime-image.yml` runs that check between the build and the push — the first moment the delivered
-pairing exists, and the last at which a broken image can be kept off the registry.
+that is the circle this line sat in. Both stages are therefore asked against the builder: the
+artifact — it installs, imports, and carries its `.so`, bitcode and metadata
+(`verify-flagcx-wheel.sh --wheel <file>`); and the index — the published wheel downloads by pin,
+matches the built sha256, installs and imports (`--index-url`). Neither proves the delivered set,
+and neither claims to. The question "does flagcx load alongside FlagGems and the compilers" is
+asked when the runtime that carries it is built: `scripts/verify_runtime.py` imports flagcx on
+exactly the rows whose `deps:` pin it, and `runtime-image.yml` runs that check between the build
+and the push — the first moment the delivered pairing exists, and the last at which a broken image
+can be kept off the registry.
 
-The two-stage split is what makes the merged row carry both names instead of the matrix's
-`image_tag`: `builder_image` is where the wheel is compiled and checked, `runtime_image` is where
-it is delivered and where the deployed-set check runs. Keeping the ambiguous single name beside
-them would invite the wrong read.
+That leaves the wheel channel one image ref, not two: `builder_image` is where the wheel is
+compiled and both of its checks run. A `runtime_image` here would name an image that does not exist
+yet at the time the channel runs, which is what the first cut of this line got wrong — it made every
+newly stood-up backend fail its publish step on a `docker pull` of a runtime that had never been
+built.
 
 ## Mechanics
 

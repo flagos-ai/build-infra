@@ -503,6 +503,12 @@ jobs:
           if-no-files-found: error
       # The upload's 2xx only says it was accepted. This reads the index the way a
       # user's pip does: download by pin, compare bytes, install, import.
+      #
+      # In the BUILDER image, like the from-the-file step above: this line runs
+      # before any runtime that pins the wheel exists, so a runtime here would be
+      # the circle. The delivered set is the runtime line's question —
+      # verify_runtime.py imports flagcx on every row whose deps pin it, after the
+      # runtime image is built.
       - name: Verify the wheel installs from the index
         if: ${{ inputs.publish && steps.download.outcome == 'success' }}
         env:

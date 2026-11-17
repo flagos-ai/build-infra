@@ -112,15 +112,15 @@ BUILD_INPUT_FIELDS = (
     "deb_replaces", "deb_conflicts_dev", "deb_replaces_dev",
 )
 
-# The wheel channel's own set, not a superset: it names the two images it reads
-# (`builder_image` to compile in, `runtime_image` to verify in) instead of the
+# The wheel channel's own set, not a superset: it names the image it reads
+# (`builder_image`, where both the build and the verification run) instead of the
 # matrix row's `image_tag`, has no control stanza, and stamps its identity from
 # the wheel_* names instead of a package name.
 #
 # The bitcode pair is the one field it shares with the builder channel: stated
 # there to verify, here to compile.
 WHEEL_BUILD_INPUT_FIELDS = (
-    "name", "version", "builder_image", "runtime_image", "arch", "python_version",
+    "name", "version", "builder_image", "arch", "python_version",
     "wheel_version_suffix", "wheel_local_version", "wheel_python_tag",
     "wheel_torch_backend", "wheel_adaptor", "wheel_make_env", "wheel_cuda_path",
     "wheel_index_url", "wheel_assert",
@@ -638,25 +638,23 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # the same pair the builder channel states, read here to compile it.
             entry["bitcode_arch"] = spec.get("bitcode_arch", "")
             entry["bitcode_adaptor_flag"] = spec.get("bitcode_adaptor_flag", "")
-            # The build's image and the verification's image are two different
-            # questions and this channel states both: `builder_image` is where
-            # the wheel is compiled, `runtime_image` is where it is delivered and
-            # therefore where it is verified. A builder is only ever a superset
-            # of the runtime — verifying there would prove the wheel loads in an
-            # environment nobody deploys it into. On a row that publishes no
-            # builder the two are the same ref, which is what the fallback says.
+            # Where the wheel is compiled AND where it is verified. Both in the
+            # builder: this channel runs before any runtime image that pins the
+            # wheel exists, so verifying in one would be the circle. The
+            # delivered set is checked by the runtime line instead
+            # (`verify_runtime.py` imports flagcx on every row whose deps pin
+            # it). On a row that publishes no builder, the runtime image is the
+            # one that carries the toolchain, and the fallback says so.
             #
             # The matrix row's own `image_tag` is replaced rather than kept
-            # beside them: this channel is where the two uses diverge, so leaving
-            # a third, ambiguous name in the row is an invitation to read the
-            # wrong one.
+            # beside it: leaving a second, ambiguous name in the row is an
+            # invitation to read the wrong one.
             row_tag = entry.pop("image_tag", "")
             entry["builder_image"] = (
                 builder_image(key, row_tag, entry["version"])
                 if (spec.get("builder") or {}).get("enabled")
                 else row_tag
             )
-            entry["runtime_image"] = row_tag
         elif deb:
             entry["deb_package"] = deb_name(key)
             entry.update(relationship_fields(key, spec, registry))
@@ -1025,16 +1023,15 @@ def check(registry: dict, matrix: list[dict], channel: str = "deb") -> list[str]
                 )
 
     if wheel:
-        # Both images, because the build and the verification each run in one and
-        # a row missing either reaches its job as an empty ref that docker
-        # cannot attribute to a backend.
+        # One image, because both the build and the verification run in it and a
+        # row missing it reaches its job as an empty ref that docker cannot
+        # attribute to a backend.
         for entry in merge(registry, matrix, channel):
-            for field in ("builder_image", "runtime_image"):
-                if not entry.get(field):
-                    problems.append(
-                        f"{entry['name']}: no `{field}` — the matrix entry "
-                        f"carries no registry host to derive one from"
-                    )
+            if not entry.get("builder_image"):
+                problems.append(
+                    f"{entry['name']}: no `builder_image` — the matrix entry "
+                    f"carries no registry host to derive one from"
+                )
 
     for vendor, keys in sorted(defaults.items()):
         if len(keys) > 1:
