@@ -18,8 +18,9 @@ backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`
 - **不起厂商容器 runtime 会得到一个误导性的 `0 active drivers`**：容器起得来，
   `import vllm_fl` 报无设备访问，看起来像插件 bug，其实是 runtime 没给。
 - flags 原文见 `.github/build-config.yml` `run.vendors.mthreads`。
-- **toolkit 档要求宿主 `mtml >= 2.5.0`**：mtml 2.4.2 时 toolkit（2.1.0）注不进设备
-  —— 容器起得来却读成没设备，看着像镜像坏了；升到 2.5.0 后 toolkit 版本不动即可用。
+- **driver 5.3.0 的节点上，toolkit 档要求宿主 `mtml >= 2.5.0`**：mtml 2.4.2 时
+  toolkit（2.1.0）注不进设备 —— 容器起得来却读成没设备，看着像镜像坏了；升到 2.5.0
+  后 toolkit 版本不动即可用。**更早的驱动（5.2.0）没有这个要求**，别把下限套到所有行。
   日志里 `Could not locate libmtml_musa.so`、`could not find the major version number`
   在两种 mtml 下都打，是噪声。
 - **raw 档（`--device /dev/mtgpu.0 --device /dev/dri`）同样可用**，toolkit 档起不来时
