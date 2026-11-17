@@ -616,7 +616,7 @@ else
         echo 'Starting serve...'
         vllm serve '${MODEL_PATH}' \
             --port 8031 \
-            --gpu-memory-utilization 0.6 \
+            --gpu-memory-utilization 0.4 \
             --enforce-eager \
             --trust-remote-code \
             --max-model-len 2048 \
