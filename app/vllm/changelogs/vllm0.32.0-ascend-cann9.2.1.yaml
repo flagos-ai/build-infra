@@ -50,4 +50,9 @@ tags:
       - 新增 app 层依赖 `flaggems_vllm==0.3.0.dev20261117`：0.5.0-dev 插件的
         FlagGems 后端为其核心算子（silu/gelu/rotary/moe/attention/mla）import
         该包，但插件自身未声明它。
-    upstream_prs: []
+    upstream_prs:
+      - "flagos-ai/FlagGems-vllm#1234 — the 0.5.0-dev plugin's Ascend V2 sampling
+        shim imports v2_apply_penalties / v2_apply_temperature / v2_gumbel_rng
+        unconditionally at module import on npu. They exist only on the
+        codex/ascend-v2-sampling branch; main, which the daily wheel builds,
+        has none of them, so engine init raises."
