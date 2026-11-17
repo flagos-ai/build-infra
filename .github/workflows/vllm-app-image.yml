@@ -88,6 +88,12 @@ on:
           same inputs (recover a tag pushed but never recorded).
         type: boolean
         default: false
+      svt_project:
+        description: >-
+          Harbor project that receives the SVT delivery copy. Defaults to the
+          private `flagos-svt` project.
+        type: string
+        default: flagos-svt
 
 defaults:
   run:
@@ -216,6 +222,8 @@ jobs:
 
       # Changelog gate: a push must be authorized by a pending changelog entry
       # (reason, empty date) for this tag. Debug builds (push=false) skip it.
+      # svt_push skips it too: the pending entry stays pending until a formal
+      # recorded push fires.
       - name: Changelog gate
         if: ${{ inputs.push && !inputs.record_only }}
         run: |
@@ -338,6 +346,21 @@ jobs:
         if: ${{ inputs.push && !inputs.record_only }}
         run: |
           docker push "${APP_TAG}"
+
+      # SVT delivery copy: retag the built image into the flagos-svt project
+      # and push it for the SVT team. Reuses the same Harbor login above (the
+      # account has write access to flagos-svt). NOT recorded — no
+      # status-matrix image_tag, no launch page, no changelog backfill — so a
+      # formal recorded push is still required later. Skipped for debug builds
+      # (no built image) and record_only (no build).
+      - name: Push SVT delivery copy
+        if: ${{ inputs.push && !inputs.record_only && inputs.svt_project != '' }}
+        run: |
+          set -euo pipefail
+          svt_tag="${{ needs.set-matrix.outputs.harbor_host }}/${{ inputs.svt_project }}/vllm${{ inputs.vllm_version }}-${{ matrix.app_name }}:${{ matrix.version }}-$(printf '%s' "${PLUGIN_FL_VERSION}" | tr '+' '_')"
+          docker tag "${APP_TAG}" "${svt_tag}"
+          docker push "${svt_tag}"
+          echo ">>> SVT delivery copy pushed to ${svt_tag}"
 
       # image_tag in the status matrix is the single source of truth for
       # "this backend is published" (docs/status-matrix.md). Only the
