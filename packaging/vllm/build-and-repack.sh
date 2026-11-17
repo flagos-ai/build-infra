@@ -26,8 +26,8 @@
 #   --vllm-version X.Y.Z   vLLM version to build (default: 0.20.2)
 #   --mode empty|standard  empty (default): build VLLM_TARGET_DEVICE=empty from
 #                          source. standard: download the prebuilt wheel (nvidia).
-#   --upload               After repacking, twine-upload the +flagos wheels
-#                          to the per-vendor PyPI (flagos-pypi-<vendor>).
+#   --upload               After repacking, upload the +flagos wheels to the
+#                          per-vendor PyPI (flagos-pypi-<vendor>).
 #                          Opt-in: uploading publishes artifacts, so it never
 #                          runs by default. See the upload target below for
 #                          why the whole set stays on one index.
@@ -35,6 +35,9 @@
 # Env:
 #   STACK_VERSION        Override the stack version read from configs.yaml
 #                        (used for the build image tag).
+#   NEXUS_TOKEN          "user:password", required by --upload. TWINE_USERNAME /
+#                        TWINE_PASSWORD are accepted instead, for the manual
+#                        runs that already set them.
 #   DOCKER_RUN_FLAGS     Extra `docker run` flags for the build container.
 #                        Defaults to the vendor's run flags from
 #                        .github/build-config.yml (toolkit ?: raw) — ptpu
@@ -49,7 +52,10 @@
 #   - runtime image flagos-runtime-<vendor>-<backend>:<version>
 #   - empty mode: vllm source tarball at flagos-filestore
 #   - standard mode: upstream prebuilt vllm wheel reachable from the build image
-#   - twine on the host (only when --upload is used)
+#
+# --upload needs no twine on the host: it runs in the uploader image, because a
+# 22.04 node's pkginfo cannot read the Metadata-Version 2.4 these wheels carry
+# (packaging/upload/).
 #
 # TODO:
 #   - Per-backend default vllm_version in configs.yaml
@@ -124,8 +130,9 @@ FILESTORE="https://resource.flagos.net/repository/flagos-filestore"
 # public fallback serves only upstream versions, so splitting the set would
 # leave that pin unsatisfiable. (Same bytes do appear on other vendors'
 # indexes; what the index provides here is the resolver's entry point, not
-# isolation.)
-UPLOAD_PYPI="https://resource.flagos.net/repository/flagos-pypi-${VENDOR}/"
+# isolation.) The repository name only: upload-wheels.sh composes the URL from
+# the index root it owns.
+UPLOAD_REPO="flagos-pypi-${VENDOR}"
 
 # ptpu vendors (e.g. sunrise) abort in torch at import when no device is
 # visible (tangGetDeviceCount failed), so the build container must see /dev.
@@ -311,11 +318,23 @@ ls -lh "$WORK_DIR/output/" | sed 's/^/  /'
 # Runs on the host: WORK_DIR is bind-mounted, so the repacked wheels are
 # already visible outside the container. Publishing to the vendor PyPI is
 # outward-facing, so it only happens when --upload is passed.
+#
+# twine runs in the uploader image, not the host's python: a 22.04 node ships
+# pkginfo 1.8, which cannot read the Metadata-Version 2.4 these wheels carry,
+# and faking a twine install there means upgrading the host interpreter.
 if [[ "$UPLOAD" == true ]]; then
     echo ""
-    echo "==> Uploading to ${UPLOAD_PYPI} …"
-    command -v twine > /dev/null || pip install -q twine
-    twine upload --repository-url "${UPLOAD_PYPI}" "${WORK_DIR}/output/"*.whl
+    echo "==> Uploading to ${UPLOAD_REPO} …"
+    # The uploader's credential contract is one "user:password" variable; these
+    # are the two twine already understood, kept so a manual run need not learn
+    # a new one.
+    if [[ -z "${NEXUS_TOKEN:-}" && -n "${TWINE_USERNAME:-}" && -n "${TWINE_PASSWORD:-}" ]]; then
+        export NEXUS_TOKEN="${TWINE_USERNAME}:${TWINE_PASSWORD}"
+    fi
+    WHEEL_UPLOAD_REPO="${UPLOAD_REPO}" \
+    WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
+    WHEEL_UPLOAD_MOUNT="${WORK_DIR}/output:/wheels:ro" \
+    bash "${SCRIPT_DIR}/../upload/upload-wheels.sh"
 fi
 
 echo ""
