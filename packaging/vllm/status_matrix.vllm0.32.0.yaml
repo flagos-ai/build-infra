@@ -36,7 +36,8 @@ backends:
     launch_docs: false
   amd-rocm7.2.4:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.3.0-0.5.0.dev0_g814b6d3.d20261117"
   ascend-cann9.2.1:
     deps_app: true
     launch_docs: false
