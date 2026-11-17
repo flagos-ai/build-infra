@@ -107,11 +107,12 @@ RUN set -eux; \
     /flagos/bin/pip install --no-cache-dir --upgrade pip; \
     /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
         ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    /flagos/bin/pip install --no-cache-dir "setuptools==69.5.1"; \
     for i in 1 2 3; do \
         PIP_INDEX_URL="${EXTRA_PYPI}" \
         PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
         PIP_TRUSTED_HOST=resource.flagos.net \
-        /flagos/bin/pip install --no-cache-dir --no-deps --pre \
+        /flagos/bin/pip install --no-cache-dir --pre \
             "${TORCH_PIN}" ${TORCH_GCU_PIN} && break; \
         echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
     done
