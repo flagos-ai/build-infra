@@ -24,6 +24,7 @@ FROM ubuntu:22.04
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/enflame
 ARG SDK_VERSION
 ARG ATEN_VERSION
+ARG ECCL_VERSION
 ARG BUILDER_ASSERT
 ARG TORCH_PIN
 ARG TORCH_GCU_PIN
@@ -72,7 +73,7 @@ RUN set -eux; \
 ENV DEBS="topsruntime_${SDK_VERSION}-1_amd64.deb \
   topscc_${SDK_VERSION}-1_amd64.deb \
   efml_${SDK_VERSION}-1_amd64.deb \
-  eccl_3.6.3.11-1_amd64.deb \
+  eccl_${ECCL_VERSION}-1_amd64.deb \
   topspti_${SDK_VERSION}-1_amd64.deb \
   topstx_${SDK_VERSION}-1_amd64.deb \
   topsaten_${ATEN_VERSION}-1_amd64.deb"
