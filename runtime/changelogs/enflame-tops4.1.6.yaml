@@ -1,0 +1,31 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-runtime-enflame-tops4.1.6
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: the runtime for Enflame tops4.1.6 (L600), built on the
+        flagos-base-enflame-tops4.1.6:2.3.0 base. Deps pin
+        torch-gcu==2.13.0+4.1.20261110, pyefml==4.1.6, flagcx==0.14.0+tops4.1.6
+        and the FlagTree/Triton dual compiler.
+    reason_zh: |-
+      - 首次交付：Enflame tops4.1.6（L600）的 runtime，基于 flagos-base-enflame-tops4.1.6:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+4.1.20261110、pyefml==4.1.6、flagcx==0.14.0+tops4.1.6 以及 FlagTree/Triton 双编译器。
+    upstream_prs: []

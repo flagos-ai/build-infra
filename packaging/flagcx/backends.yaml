@@ -363,7 +363,7 @@ cambricon-neuware4.7.2:
     enabled: true
     containerfile: Containerfile.builder-vendor-cambricon
 
-enflame-tops1.9.10:
+enflame-tops1.9.29:
   vendor: enflame
   make_flag: USE_ENFLAME
   arch: amd64
@@ -383,10 +383,10 @@ enflame-tops1.9.10:
   builder:
     enabled: true
     containerfile: Containerfile.builder-vendor-enflame
-    sdk_version: "1.9.10"
-    aten_version: "3.7.20260514"
+    sdk_version: "1.9.29"
+    aten_version: "3.8.20261009"
 
-enflame-tops1.10.6:
+enflame-tops4.1.6:
   vendor: enflame
   make_flag: USE_ENFLAME
   arch: amd64
@@ -398,12 +398,12 @@ enflame-tops1.10.6:
   deb: {enabled: true, default_for_vendor: true}
   rpm: {enabled: false, blocked_by: sdk-is-nine-deb-packages}
   wheel: {enabled: true}
-  # Same 22.04 builder as the 1.9.10 row, for the same reason.
+  # Same 22.04 builder as the 1.9.29 row, for the same reason.
   builder:
     enabled: true
     containerfile: Containerfile.builder-vendor-enflame
-    sdk_version: "1.10.6"
-    aten_version: "3.8.20260710"
+    sdk_version: "4.1.6"
+    aten_version: "4.1.20261111"
 
 ascend-cann8.5.0:
   vendor: ascend

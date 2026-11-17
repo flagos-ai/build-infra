@@ -1,0 +1,32 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-runtime-enflame-tops1.9.29
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: the runtime for Enflame tops1.9.29 (Zixiao C200 / S60),
+        built on the flagos-base-enflame-tops1.9.29:2.3.0 base. Deps pin
+        torch-gcu==2.13.0+3.8.20261020, pyefml==1.9.29, flagcx==0.14.0+tops1.9.29
+        and the FlagTree/Triton dual compiler; flash-attn is absent in this
+        SDK version (omitted, not yet available).
+    reason_zh: |-
+      - 首次交付：Enflame tops1.9.29（Zixiao C200 / S60）的 runtime，基于 flagos-base-enflame-tops1.9.29:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+3.8.20261020、pyefml==1.9.29、flagcx==0.14.0+tops1.9.29 以及 FlagTree/Triton 双编译器；本 SDK 版本无 flash-attn（缺失，尚未提供）。
+    upstream_prs: []

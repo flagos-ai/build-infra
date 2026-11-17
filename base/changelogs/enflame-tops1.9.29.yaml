@@ -1,0 +1,33 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by base-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-base-enflame-tops1.9.29
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: the Enflame TopsPlatform 1.9.29 stack — driver, runtime,
+        CC, PTI, TOPSTX, TOPS ATen, EFML, ECCL, Triton GCU 1.0.20261116 and
+        gculare-perftest — on ubuntu:24.04, for the Zixiao C200 (S60) chip.
+      - `/opt/triton_gcu` is a symlink to where the vendor's triton package
+        installs, which is where FlagTree's `toolkit.py` looks for it.
+    reason_zh: |-
+      - 首次交付：燧原 TopsPlatform 1.9.29 栈 —— driver、runtime、CC、PTI、TOPSTX、TOPS ATen、EFML、ECCL、Triton GCU 1.0.20261116 和 gculare-perftest —— 基于 ubuntu:24.04，用于 Zixiao C200（S60）芯片。
+      - `/opt/triton_gcu` 是指向厂商 triton 包安装位置的符号链接，FlagTree 的 `toolkit.py` 正是在那里查找它。
+    upstream_prs: []
