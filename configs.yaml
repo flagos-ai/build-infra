@@ -224,6 +224,11 @@ vendors:
         # The base image keeps only ROCm's amdsmi source tree — never pip-installed,
         # and the amd-smi CLI does not expose the Python API.
         - amdsmi==7.0.2
+      deps_app:
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261117
       sdk:
         # apt-native from repo.radeon.com, no filestore
         - ROCm 7.2.4 (x86_64)
@@ -361,6 +366,10 @@ vendors:
           - flash_attn==2.8.3.post1+fl.cu130.torch213
         vllm0.20.2: []
         vllm0.24.0: []
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261117
       sdk:
         - CUDA 13.3 (x86_64)
 
@@ -578,6 +587,11 @@ vendors:
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
         - flagcx==0.14.1+cann9.2.1
+      deps_app:
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261117
       sdk:
         - CANN Toolkit 9.2.1 (aarch64)  # Ascend-cann_9.2.1_linux-aarch64.run
         - CANN 910B Ops 9.2.1 (aarch64) # Ascend-cann-910b-ops_9.2.1_linux-aarch64.run
@@ -964,6 +978,11 @@ vendors:
         - torchvision==0.28.0+corex.5.0.1
         - numpy==1.26.4
         - flagcx==0.14.1+corex5.0.1
+      deps_app:
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261117
       sdk:
         - Corex Runtime 5.0.1      # corex-installer-linux64-5.0.1_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
@@ -1365,6 +1384,11 @@ vendors:
         - torchvision==0.25.0+v0.1.0.ppu2.1.1
         - torchaudio==2.10.0+v0.1.0.ppu2.1.1
         - numpy==1.26.4
+      deps_app:
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261117
       sdk:
         # Baked into T-Head's PAI-DSW training image; no installer to run.
         - PPU SDK 2.1.0 (x86_64)
