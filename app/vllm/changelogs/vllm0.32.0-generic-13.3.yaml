@@ -44,10 +44,19 @@ tags:
       - Adds `flaggems_vllm==0.3.0.dev20261117` as an app-layer dependency:
         the 0.5.0-dev plugin's FlagGems backend imports it for its core ops
         (silu/gelu/rotary/moe/attention/mla) and does not declare it.
+      - Pins `numpy==1.26.4` and `ml-dtypes==0.5.4`: vllm 0.32's install pulls
+        `tilelang -> ml-dtypes 0.7.0 -> numpy>=2`, which would replace the
+        runtime's numpy and change the critical-package matrix. The newer
+        ml-dtypes also requires the NumPy 2.0 C-API, so holding numpy alone
+        breaks its import.
     reason_zh: |-
       - nvidia-cuda13.3, FlagGems 5.4.0, FlagTree 0.7.0 上 vllm 0.32.0 的首次交付，基于 FlagOS 2.3.0 stack。
       - 安装 native 插件构建 `0.5.0.dev0+g814b6d3.d20261117`（vllm-plugin-FL 0.5.0-dev 分支 814b6d3）：它携带 `vllm_fl._C` 并在 CUDA dispatch key 上注册 `weak_ref_tensor`，否则 vLLM 的 cudagraph 捕获会按图泄漏显存。
       - 新增 app 层依赖 `flaggems_vllm==0.3.0.dev20261117`：0.5.0-dev 插件的
         FlagGems 后端为其核心算子（silu/gelu/rotary/moe/attention/mla）import
         该包，但插件自身未声明它。
+      - 固定 `numpy==1.26.4` 与 `ml-dtypes==0.5.4`：vllm 0.32 的安装会经
+        `tilelang -> ml-dtypes 0.7.0 -> numpy>=2` 覆盖 runtime 的 numpy，改变
+        关键包矩阵；新版 ml-dtypes 还要求 NumPy 2.0 C-API，只压 numpy 会让它
+        无法 import。
     upstream_prs: []
