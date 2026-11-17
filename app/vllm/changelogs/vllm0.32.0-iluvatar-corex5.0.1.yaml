@@ -37,7 +37,7 @@ image: vllm0.32.0-iluvatar-corex5.0.1
 tags:
 - tag: 2.3.0-0.5.0.dev0_g814b6d3.d20261117
   entries:
-  - date: ''
+  - date: '2026-11-17T11:28:21.084Z'
     reason: |-
       - First vllm 0.32.0 app image on iluvatar-corex5.0.1, FlagGems 5.4.0, FlagTree 0.7.1a1+iluvatar3.6 (FlagOS 2.3.0 stack).
       - Installs the pure-Python plugin wheel `0.5.0.dev0+g814b6d3.d20261117` (commit 814b6d3 on the vllm-plugin-FL 0.5.0-dev branch).
