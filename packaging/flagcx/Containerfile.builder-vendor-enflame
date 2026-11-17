@@ -111,7 +111,7 @@ RUN set -eux; \
         PIP_INDEX_URL="${EXTRA_PYPI}" \
         PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
         PIP_TRUSTED_HOST=resource.flagos.net \
-        /flagos/bin/pip install --no-cache-dir --pre \
+        /flagos/bin/pip install --no-cache-dir --no-deps --pre \
             "${TORCH_PIN}" ${TORCH_GCU_PIN} && break; \
         echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
     done
