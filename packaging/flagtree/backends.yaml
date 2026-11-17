@@ -314,7 +314,7 @@ backends:
   mthreads:
     containerfile: mthreads
     builder_image: flagtree-builder-mthreads
-    runson: ["self-hosted", "musa520"]
+    runson: ["self-hosted", "musa530"]
     disk_min_gb: 60
     builder:
       verify:
@@ -350,7 +350,7 @@ backends:
   mthreads-musa5.3.0:
     containerfile: mthreads-musa5.3.0
     builder_image: flagtree-builder-mthreads-musa5.3.0
-    runson: ["self-hosted", "musa520"]
+    runson: ["self-hosted", "musa530"]
     disk_min_gb: 60
     builder:
       verify:
