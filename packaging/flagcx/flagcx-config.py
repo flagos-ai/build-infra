@@ -144,7 +144,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_torch_ptpu", "builder_torch_txda", "builder_txops",
     "builder_sdk_version", "builder_aten_version", "builder_eccl_version",
     "builder_ops_product",
-    "builder_toolkit_product",
+    "builder_toolkit_product", "triton_pkg",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",

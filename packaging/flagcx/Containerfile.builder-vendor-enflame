@@ -25,6 +25,7 @@ ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/enflame
 ARG SDK_VERSION
 ARG ATEN_VERSION
 ARG ECCL_VERSION
+ARG TRITON_PKG
 ARG BUILDER_ASSERT
 ARG TORCH_PIN
 ARG TORCH_GCU_PIN
@@ -99,6 +100,14 @@ RUN set -eux; \
 # bridge import is what makes `import torch` the SDK-floor proof on this row:
 # libtorch_gcu_python NEEDs libtopspti, so the import fails unless the SDK is
 # there.
+#
+# triton is a hard import-time dependency of torch_gcu as of the 4.1.20261110
+# build: its inductor strategies/__init__.py pulls split_k_sum, whose kernel.py
+# does a module-level `import triton` for a @triton.jit kernel. torch_gcu's
+# METADATA does not declare it, so without the row's own pin the probe dies on
+# ModuleNotFoundError. The 3.8.20261020 build carried only split_half_dual_store
+# and did not reach it. Installed from the row's `triton:` pin rather than a
+# version stated here, so the builder and the runtime cannot disagree.
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 RUN set -eux; \
@@ -113,7 +122,7 @@ RUN set -eux; \
         PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
         PIP_TRUSTED_HOST=resource.flagos.net \
         /flagos/bin/pip install --no-cache-dir \
-            "${TORCH_PIN}" ${TORCH_GCU_PIN} && break; \
+            "${TORCH_PIN}" ${TORCH_GCU_PIN} ${TRITON_PKG} && break; \
         echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
     done
 
