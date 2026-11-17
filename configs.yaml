@@ -1369,8 +1369,11 @@ vendors:
       deps_app:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
+        # flash_attn_3: the plugin's thead attention backend imports
+        # flash_attn_3._C unconditionally; the runtime image does not have it.
         vllm0.32.0:
           - flaggems_vllm==0.3.0.dev20261117
+          - flash_attn_3==2.8.2+v0.1.0.ppu2.1.1
       sdk:
         # Baked into T-Head's PAI-DSW training image; no installer to run.
         - PPU SDK 2.1.0 (x86_64)
