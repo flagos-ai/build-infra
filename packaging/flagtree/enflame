@@ -146,7 +146,7 @@ ARG no_proxy=
 # build time via FLAGTREE_BACKEND, not by source. The default is the release
 # configs.yaml pins -- a client installs this wheel's version, so the two must not
 # drift. A daily run overrides it.
-ARG FLAGTREE_VERSION=0.7.0+enflame3.6
+ARG FLAGTREE_VERSION=0.7.1+enflame3.6
 
 # Wheel version; defaults to FLAGTREE_VERSION, so one arg drives both the
 # checkout and the label. FlagTree's setup.py appends a dirty "+git<sha>" unless

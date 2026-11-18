@@ -58,6 +58,16 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: 0.7.1+enflame3.6
+    pypi_index: flagos-pypi-enflame
+    desc_zh: 面向燧原（Enflame）的 FlagTree 编译器安装包，基于 Triton 3.6。
+    desc_en: FlagTree compiler wheel for Enflame, built against the TopsRider 3.6
+      line.
+    notes: 适用于 TOPS 1.9.x 和 TOPS 4.x 环境。
+    notes_en: For TOPS 1.9.x and TOPS 4.x environments.
+    python: cp312
+    os: linux
+    arch: linux_x86_64
   - version: 0.7.0+hcu3.6
     pypi_index: flagos-pypi-hygon
     desc_zh: 面向海光（Hygon）的 FlagTree 编译器安装包，基于 Triton 3.6。
