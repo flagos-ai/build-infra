@@ -38,3 +38,4 @@ tags:
       - 带 FlagTree 0.7.0，Triton 3.6.0 作为侧装。FlagTune cost model 关闭：不完整的 flagtune 会把自己的异常排除在回退集之外，直接中止算子而不是降级。
       - 有意不装 mcoplib：它的 `_C` 扩展与 vllm_fl._C 一样注册 TORCH_LIBRARY(_C)，同一进程同时导入会在插件加载时中止。
     upstream_prs: []
+    date: '2026-11-18T12:32:51.697Z'
