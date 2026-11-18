@@ -31,7 +31,7 @@ Usage:
 Examples:
     python scripts/build_base.py nvidia-cuda12.8 --dry-run
     python scripts/build_base.py ascend-cann9.0.0 --push
-    python scripts/build_base.py metax-maca3.7.2.1 --tag my-registry/flagos-base-metax:custom
+    python scripts/build_base.py metax-maca3.10.1.11 --tag my-registry/flagos-base-metax:custom
 """
 
 import argparse

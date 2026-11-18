@@ -105,22 +105,6 @@ backends:
     torch_prefix: /flagos/lib/python3.10/site-packages/torch
     apt: [libgflags-dev, libgoogle-glog-dev]
 
-  metax-maca3.7.2.1:
-    apt: [libgflags-dev, libgoogle-glog-dev]
-    # Same MACA CUDA-alias torch family as 3.8.1.3 (torch 2.8.0+metax3.7.2.0,
-    # no nvcc), so the metax_mxcc g++-direct recipe transfers verbatim (verified
-    # on-node 2026-10-21). Needs its OWN row (not just the 3.8.1.3 wheel) for
-    # two reasons: the .so must link torch 2.8, not 2.10, and the app image's
-    # bare ==0.3.0 pin resolves per-index to whatever 0.3.0+<label> is newest,
-    # so without a distinct label this backend would pull the 3.8.1.3 wheel and
-    # ABI-break. The per-backend local label (maca3.7.2.1, bare backend name —
-    # the vendor is dropped) keeps them apart. The label is derived from the
-    # backend key, not stored here: scripts/vllm_plugin.py folds it, and both
-    # the wheel build and the app build call it.
-    metax_mxcc: true
-    torch_prefix: /flagos/lib/python3.12/site-packages/torch
-    cuda_path: /opt/maca/tools/cu-bridge
-
   metax-maca3.8.1.3:
     apt: [libgflags-dev, libgoogle-glog-dev]
     # metax builds by the mxcc/g++-direct recipe (packaging/sglang/wheels/metax/
