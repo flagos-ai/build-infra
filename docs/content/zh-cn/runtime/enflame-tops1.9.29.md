@@ -107,5 +107,5 @@ efsmi
 
 *2026-11-18 06:26:20*
 
-- FlagTree 0.7.1：一个 wheel 同时服务两条燧原 SDK 线。其 enflame 后端依据 `TOPSRT_VERSION` 选择设备属性结构体的拼法，因此同一份 gcu.cpp 既能针对 1.9.x 的 `topsDeviceProp_t` 编译，也能针对 4.x 的 `topsDeviceProp` 编译。
-- 镜像环境不再设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
+- FlagTree 0.7.1 替换 0.7.0 编译器。
+- 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。

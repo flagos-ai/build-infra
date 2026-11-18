@@ -89,9 +89,6 @@ efsmi
 
 *2026-11-18 06:26:20*
 
-- FlagTree 0.7.1: one wheel now serves both enflame SDK lines. Its
-  enflame backend picks the device-properties spelling from
-  `TOPSRT_VERSION`, so the same gcu.cpp compiles against 1.9.x's
-  `topsDeviceProp_t` and 4.x's `topsDeviceProp`.
-- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is dropped from the
+- FlagTree 0.7.1 replaces the 0.7.0 compiler.
+- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is not set in the
   image environment.
