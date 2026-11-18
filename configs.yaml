@@ -748,13 +748,12 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20261116
-      flagtree: flagtree==0.7.0+enflame3.6
+      flagtree: flagtree==0.7.1+enflame3.6
       flagtree_daily: flagtree-enflame
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
           ENABLE_I64_CHECK: "0"
-          ENFLAME_PT_OP_DEBUG_CONFIG: "fallback_cpu=all_ops"
         app:
           sglang:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
@@ -792,14 +791,13 @@ vendors:
       triton: triton==3.6.0
       triton_post_install:
         - triton-gcu==3.6.0+1.0.20261116
-      flagtree: flagtree==0.7.0+enflame3.6
+      flagtree: flagtree==0.7.1+enflame3.6
       flagtree_daily: flagtree-enflame
       env:
         runtime:
           TORCH_GCU_ENABLE_INT64_AND_UINT64: "1"
           ENABLE_I64_CHECK: "0"
           TORCHGCU_INDUCTOR_ENABLE: "1"
-          ENFLAME_PT_OP_DEBUG_CONFIG: "fallback_cpu=all_ops"
         app:
           sglang:
             TORCHINDUCTOR_COMPILE_THREADS: "1"
