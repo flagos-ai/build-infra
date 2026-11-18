@@ -26,16 +26,10 @@ tags:
         flagos-base-enflame-tops4.1.6:2.3.0 base. Deps pin
         torch-gcu==2.13.0+4.1.20261110, pyefml==4.1.6, flagcx==0.14.1+tops4.1.6
         and FlagTree 0.7.1 with the Triton fallback.
-      - FlagTree 0.7.1 is the first one whose enflame backend compiles against
-        TOPS 4.x, whose device-properties struct is `topsDeviceProp` (not
-        `topsDeviceProp_t`) and whose success code is `topsSuccess`
-        (`TOPS_SUCCESS` is gone). The backend's gcu.cpp is JIT-compiled on
-        import, so 0.7.0 failed there and took FlagGems' import with it.
       - `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is not set in the
         image environment.
     reason_zh: |-
       - 首次交付：Enflame tops4.1.6（L600）的 runtime，基于 flagos-base-enflame-tops4.1.6:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+4.1.20261110、pyefml==4.1.6、flagcx==0.14.1+tops4.1.6，以及 FlagTree 0.7.1 与 Triton 后备编译器。
-      - FlagTree 0.7.1 是首个 enflame 后端可针对 TOPS 4.x 编译的版本——其设备属性结构体是 `topsDeviceProp`（而非 `topsDeviceProp_t`），成功码是 `topsSuccess`（`TOPS_SUCCESS` 已不存在）。后端的 gcu.cpp 在 import 时即时编译，因此 0.7.0 在此失败并连带 FlagGems 的 import 一起失败。
       - 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
     upstream_prs: []
     date: '2026-11-18T06:41:31.140Z'
