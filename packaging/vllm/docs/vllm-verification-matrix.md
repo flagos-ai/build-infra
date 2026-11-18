@@ -44,7 +44,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昆仑芯 | XRE 5.37.1 | ✅ | ✅ |
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ✅ |
@@ -70,7 +69,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昆仑芯 | XRE 5.37.1 | ✅ | ✅ |
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ✅ |
@@ -110,8 +108,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昆仑芯 | XRE 5.37.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/401 | 已合并 |
 | 沐曦 | MACA 3.7.2.1 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/377 | 已合并 |
 | 沐曦 | MACA 3.8.1.3 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/377 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/386 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | vllm0.24.0 | https://github.com/flagos-ai/FlagGems/pull/5130 | 已合并 |
 | 曦望 | TANGRT 1.2.0 | vllm0.20.2 | https://github.com/flagos-ai/FlagTree/pull/978 | 已合并 |
@@ -159,7 +155,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |
-| MUSA 4.3.6 | ✅ | ✅ | ✅ | — |
 | MUSA 5.2.0 | ✅ | ✅ | ✅ | — |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | — |
@@ -201,7 +196,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |
-| MUSA 4.3.6 | ✅ | ✅ | ✅ | — |
 | MUSA 5.2.0 | ✅ | ✅ | ✅ | — |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | — |
@@ -296,11 +290,11 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   flagtree 3.1.0 否决（缺 API）改用 0.6.1+metax3.6；triton 3.0.0 需
   `vllm024_compat.py` 4 个 monkey-patch（老 SDK 特有）——
   [0.24.0 §4–§5](vllm-0.24.0/backends/metax.md)。
-- **mthreads-musa5.2.0 / musa4.3.6**：✅✅（2026-08-16~17，v0.3.0-dev 零插件
-  补丁，F/T 双路径；torchvision guard = 插件 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)）。
-  4.3.6 验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（该平台无
-  Qwen3-4B，矩阵"Qwen3-4B"约定在此单元格不适用）——
-  [0.24.0 §8–§9](vllm-0.24.0/backends/mthreads.md)。
+- **mthreads-musa5.2.0**：✅（2026-08-16~17，v0.3.0-dev 零插件补丁，F/T 双路径；
+  torchvision guard = 插件 [VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)）。
+  验证模型为 DeepSeek-R1-0528-Qwen3-8B-FlagOS（该平台无 Qwen3-4B，矩阵
+  "Qwen3-4B"约定在此单元格不适用）——
+  [0.24.0 §8](vllm-0.24.0/backends/mthreads.md)。
 - **ascend-cann9.0.0 / cann8.5.0**：✅✅（2026-08-17~18，插件 [VPF #387](https://github.com/flagos-ai/vllm-plugin-FL/pull/387) 移植，
   双编译器 + app 镜像）—— [0.24.0 §10](vllm-0.24.0/backends/ascend.md)。
 - **sunrise-tangrt1.2.0**：✅（2026-08-19，cp310 wheel + CUSTOM 移植；
@@ -342,7 +336,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 - **torchvision 依赖（0.24.0 通用 OOT 缺口）**：`kernel_warmup()` 无条件
   import minimax_m3_msa_warmup → torchvision，无 torchvision 后端首次 serve
   在 EngineCore init 崩溃；修复在插件调用侧（[VPF #386](https://github.com/flagos-ai/vllm-plugin-FL/pull/386)，try/except skip）——
-  [0.24.0 §9.4](vllm-0.24.0/backends/mthreads.md)。
+  [0.24.0 §8](vllm-0.24.0/backends/mthreads.md)。
 - **`runtime/zz-compiler.sh` 修复**
   （[build-infra #411](https://github.com/flagos-ai/build-infra/pull/411)）："T 路径不可用"注记作废 ——
   裸 `compiler`（status）探测 `_compiler_import_triton` prepend 不清除已在

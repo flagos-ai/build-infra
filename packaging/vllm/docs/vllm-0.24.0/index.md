@@ -18,7 +18,7 @@
 > 本文记录各后端的验证过程与结果：
 > - metax 见 [§3–§5](backends/metax.md)（MACA SDK 3.7.2.1 / 3.8.1.3 × 双编译器，4 环境全通过）；
 > - nvidia 见 [§6](backends/nvidia.md)（CUDA 12.8 / 13.3 × 双编译器，空模式，全通过）；
-> - mthreads 见 [§8–§9](backends/mthreads.md)、ascend 见 [§10](backends/ascend.md)、
+> - mthreads 见 [§8](backends/mthreads.md)、ascend 见 [§10](backends/ascend.md)、
 >   sunrise 见 [§11](backends/sunrise.md)、hygon 见 [§12](backends/hygon.md)、
 >   kunlunxin 见 [§13](backends/kunlunxin.md)、iluvatar 见
 >   [§14](backends/iluvatar.md)、tsingmicro 见 [§15](backends/tsingmicro.md)、
@@ -48,7 +48,7 @@
 |---|---|---|
 | MetaX maca3.7.2.1 / maca3.8.1.3 | [metax.md](backends/metax.md) | §4–§5；四环境矩阵（×双编译器）全通过 |
 | NVIDIA cuda12.8 / cuda13.3 | [nvidia.md](backends/nvidia.md) | §6；空模式零 patch 双编译器全通过 |
-| mthreads musa5.2.0 / musa4.3.6 | [mthreads.md](backends/mthreads.md) | §8–§9 |
+| mthreads musa5.2.0 | [mthreads.md](backends/mthreads.md) | §8 |
 | ascend cann9.0.0 / cann8.5.0 | [ascend.md](backends/ascend.md) | §10；CANN 双栈双编译器 + app 镜像 |
 | sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | §11；cp310 + CUSTOM 移植；FlagTree 挂死已修复 |
 | hygon dtk26.04 | [hygon.md](backends/hygon.md) | §12；F/T 双编译器 + app 镜像（flagtree 0.6.2a1+hcu3.6）；§12.3 新 tag 复验 |

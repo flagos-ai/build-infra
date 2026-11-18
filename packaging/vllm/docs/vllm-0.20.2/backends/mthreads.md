@@ -170,32 +170,32 @@ Inference:    ✅ 成功              DeepSeek-R1-0528-Qwen3-8B (yarn), 6→24 t
 **相关提交：** `main` 478de6b（repack）、[build-infra #280](https://github.com/flagos-ai/build-infra/pull/280)（递归 `+flagos` pin）；
 [FlagGems #5130](https://github.com/flagos-ai/FlagGems/pull/5130)（mul 门控）
 
-### app image 验证 —— 双后端 F/T 全通（2026-08-24）
+### app image 验证 —— F/T 全通（2026-08-24）
 
 这是 vllm 0.20.2 在 mthreads 上的最终交付形态——不再是本节早前的手工容器
-安装，而是两个后端各自构建并 push 的 app image（`vllm==0.20.2+flagos` 单步
+安装，而是后端构建并 push 的 app image（`vllm==0.20.2+flagos` 单步
 装入 + `vllm-plugin-fl` wheel + `vllm-serve` launcher），stack 2.1.2：
 
 | 后端 | app image tag | 硬件 |
 |------|------|------|
-| mthreads-musa4.3.6 | `vllm0.20.2-mthreads-musa4.3.6:2.1.2-0.2.1` | MTT S5000 |
 | mthreads-musa5.2.0 | `vllm0.20.2-mthreads-musa5.2.0:2.1.2-0.2.1` | MTT S5000 |
 
 F（FlagTree）/ T（Triton）双路径均 E2E 通过（Qwen3-4B，`--enforce-eager
---max-model-len 2048`），四格全 ✅。
+--max-model-len 2048`），两格全 ✅。同一交付形态当时也覆盖已退役的
+musa4.3.6 后端（四格同样全 ✅），该线不再随镜像发布。
 
 关键包版本：
 
-| 包 | musa4.3.6 | musa5.2.0 |
-|------|------|------|
-| torch | 2.9.0+musa.4.3.6 | 2.9.1+musa5.2.0 |
-| torch_musa | 2.9.0 | 2.9.1 |
-| triton | 3.6.0+git89458660 | 3.6.0 |
-| flagtree | 0.6.1+mthreads3.6 | 0.6.1+mthreads3.6 |
-| flag_gems | 5.3.4 | 5.3.4 |
-| numpy | 1.26.4 | 1.26.4 |
-| vllm | 0.20.2+flagos | 0.20.2+flagos |
-| vllm-plugin-fl | 0.2.1 | 0.2.1 |
+| 包 | musa5.2.0 |
+|------|------|
+| torch | 2.9.1+musa5.2.0 |
+| torch_musa | 2.9.1 |
+| triton | 3.6.0 |
+| flagtree | 0.6.1+mthreads3.6 |
+| flag_gems | 5.3.4 |
+| numpy | 1.26.4 |
+| vllm | 0.20.2+flagos |
+| vllm-plugin-fl | 0.2.1 |
 
 三处与前文记录不同：
 

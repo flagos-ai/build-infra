@@ -58,7 +58,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昆仑芯 | XRE 5.37.1 | ⬜ | ⬜ |
 | 沐曦 | MACA 3.7.2.1 | ⬜ | ⬜ |
 | 沐曦 | MACA 3.8.1.3 | ⬜ | ⬜ |
-| 摩尔线程 | MUSA 4.3.6 | ⬜ | ⬜ |
 | 摩尔线程 | MUSA 5.2.0 | ⬜ | ⬜ |
 | 进迭时空 | SPACEMIT | ⏸ | ⏸ |
 | 曦望 | TANGRT 1.2.0 | ⬜ | ⬜ |
@@ -94,7 +93,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昆仑芯 | XRE 5.37.1 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.7.2.1 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 沐曦 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 摩尔线程 | MUSA 4.3.6 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 摩尔线程 | MUSA 5.2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 进迭时空 | SPACEMIT | ⬜ | — | ？ | — | ⛔ | — |
 | 曦望 | TANGRT 1.2.0 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
@@ -181,12 +179,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 沐曦 | MACA 3.8.1.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 沐曦 | MACA 3.8.1.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
 | 沐曦 | MACA 3.8.1.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/116 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/114 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/127 | 已合并 |
-| 摩尔线程 | MUSA 4.3.6 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/188 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
 | 摩尔线程 | MUSA 5.2.0 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/107 | 已合并 |
@@ -235,7 +227,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | XRE 5.37.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | — |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | — |
-| MUSA 4.3.6 | ✅ | ✅ | ✅ | — |
 | MUSA 5.2.0 | ✅ | ✅ | ✅ | — |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | — |
@@ -277,7 +268,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | XRE 5.37.1 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | MACA 3.7.2.1 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | MACA 3.8.1.3 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
-| MUSA 4.3.6 | ✅ | ✅ | ✅ | RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，paged 实测 prefill 374 / decode 36524 次）；wheel 未带该修复，待重建后复验。另需 `--distributed-backend mccl`（MUSA torch 无 NCCL） |
 | MUSA 5.2.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复；另需 `--distributed-backend mccl` |
 | SPACEMIT | ⬜ | ⬜ | ⬜ | — |
 | TANGRT 1.2.0 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu），wheel 未带该修复 |

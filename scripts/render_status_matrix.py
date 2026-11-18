@@ -100,7 +100,6 @@ BACKENDS = [
     "kunlunxin-xre5.37.1",
     "metax-maca3.7.2.1",
     "metax-maca3.8.1.3",
-    "mthreads-musa4.3.6",
     "mthreads-musa5.2.0",
     "mthreads-musa5.3.0",
     "spacemit-spacemit",
