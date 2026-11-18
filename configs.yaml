@@ -1052,7 +1052,7 @@ vendors:
         base:
           PATH: /opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}
           MACA_PATH: /opt/maca
-          LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
+          LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib:/opt/maca/ompi/lib
         runtime:
           # Carried from maca3.8.1.3, whose flagtree is this same 0.7.0+metax3.6
           # wheel: flag_gems' FlagTune cost model probes flagtree's exception

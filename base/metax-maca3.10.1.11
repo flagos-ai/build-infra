@@ -66,4 +66,4 @@ RUN curl -fsSL -o /maca-sdk.tar.xz ${FILE_STORE}/${SDK_PACKAGE} \
 
 ENV PATH="/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}" \
     MACA_PATH="/opt/maca" \
-    LD_LIBRARY_PATH="/opt/maca/lib:/opt/maca/mxgpu_llvm/lib"
+    LD_LIBRARY_PATH="/opt/maca/lib:/opt/maca/mxgpu_llvm/lib:/opt/maca/ompi/lib"
