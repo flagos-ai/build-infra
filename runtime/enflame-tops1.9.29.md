@@ -86,3 +86,12 @@ efsmi
   torch-gcu==2.13.0+3.8.20261020, pyefml==1.9.29, flagcx==0.14.1+tops1.9.29
   and the FlagTree/Triton dual compiler; flash-attn is absent in this
   SDK version (omitted, not yet available).
+
+*2026-11-18 06:26:20*
+
+- FlagTree 0.7.1: one wheel now serves both enflame SDK lines. Its
+  enflame backend picks the device-properties spelling from
+  `TOPSRT_VERSION`, so the same gcu.cpp compiles against 1.9.x's
+  `topsDeviceProp_t` and 4.x's `topsDeviceProp`.
+- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is dropped from the
+  image environment.
