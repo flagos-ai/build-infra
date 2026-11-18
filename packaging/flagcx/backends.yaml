@@ -716,20 +716,6 @@ kunlunxin-xre5.37.1:
   rpm: {enabled: false, blocked_by: mixed-run-and-deb}
   wheel: {enabled: true}
 
-mthreads-musa4.3.6:
-  vendor: musa
-  make_flag: USE_MUSA
-  arch: amd64
-  glibc_floor: "2.35"
-  apt: []
-  make_env: {}
-  vendor_libs: [musart, mccl]
-  assert: [/usr/local/musa/include/musa_runtime.h, /usr/local/musa/include/mccl.h]
-  vendor_lib_dirs: [/usr/local/musa/lib]
-  deb: {enabled: true, default_for_vendor: false}
-  rpm: {enabled: false, blocked_by: vendor-ships-deb-only}
-  wheel: {enabled: true}
-
 mthreads-musa5.2.0:
   vendor: musa
   make_flag: USE_MUSA
