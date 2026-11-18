@@ -280,7 +280,7 @@ nvidia-cuda13.3:
   bitcode_arch: sm_120
   bitcode_adaptor_flag: "-DUSE_NVIDIA_ADAPTOR -DFLAGCX_COMM_TRAITS_CCL"
 
-metax-maca3.7.2.1:
+metax-maca3.10.1.11:
   vendor: metax
   make_flag: USE_METAX
   arch: amd64
@@ -297,16 +297,17 @@ metax-maca3.7.2.1:
   # MACA's cu-bridge toolchain sits beside the device root, not inside it —
   # see wheel.cuda_path above.
   wheel: {enabled: true, torch_backend: vendor, cuda_path: /opt/maca/tools/cu-bridge}
-  # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
-  # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
-  # that. The SDK and the pinned torch are all glibc <= 2.28, so only the 24.04
-  # build toolchain was the problem. sdk_version is the tarball's own spelling,
-  # not the key's (3.7.2.1 -> 3.7.2.0): the recipe extracts every deb to `/` and
-  # symlinks /opt/maca to the payload root.
+  # Same 22.04 builder as the other two metax rows, for the same reason: the
+  # wheel must link at most glibc 2.35 for the bundle's physical 22.04 hosts.
+  # sdk_version is the tarball's own spelling, which for this line matches the
+  # key (3.10.1.11). It is also what the recipe derives the payload root from
+  # (`/opt/maca-${SDK_VERSION%.*}` -> /opt/maca-3.10.1), and the debs really do
+  # install there. The vendor's wheel line is 3.10.1.3, one digit field short
+  # of the SDK's; that is a wheel-pin fact for configs.yaml, not this row's.
   builder:
     enabled: true
     containerfile: Containerfile.builder-vendor-metax
-    sdk_version: 3.7.2.0
+    sdk_version: 3.10.1.11
 
 metax-maca3.8.1.3:
   vendor: metax

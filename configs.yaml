@@ -1037,12 +1037,12 @@ vendors:
         - XCUDART 5.13.0            # xcudart-5.13.0_amd64.deb
 
   metax:
-    maca3.7.2.1:
+    maca3.10.1.11:
       extras: metax
       hardware: ["MetaX C550"]
-      driver: "3.8.30"
+      driver: "3.100.1"
       python: "3.12"
-      triton: triton==3.0.0+metax3.7.2.0
+      triton: triton==3.6.0+metax3.10.1.3torch2.13
       # 0.7.0 carries FlagTree #1052's triton_key re-export (verified in the
       # 0.7.0+metax3.6 wheel: triton.compiler.compiler re-exports triton_key),
       # so the F path no longer needs to be held at 0.6.1.
@@ -1054,37 +1054,39 @@ vendors:
           MACA_PATH: /opt/maca
           LD_LIBRARY_PATH: /opt/maca/lib:/opt/maca/mxgpu_llvm/lib
         runtime:
-          # flag_gems 5.4.0rc2.post3's FlagTune cost model probes flagtree's
-          # exception contract. The 0.6.x flagtree here ships a partial flagtune
-          # (no runtime/errors.py), so its errors are outside the fallback set and
-          # abort the operator instead of degrading. Verified on-node.
+          # Carried from maca3.8.1.3, whose flagtree is this same 0.7.0+metax3.6
+          # wheel: flag_gems' FlagTune cost model probes flagtree's exception
+          # contract, and a partial flagtune puts its errors outside the fallback
+          # set, aborting the operator instead of degrading.
           USE_FLAGTUNE_COST_MODEL: "0"
-        app:
-          sglang:
-            TORCHINDUCTOR_COMPILE_THREADS: "1"
-            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
-            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
+      # The vendor's wheel line is 3.10.1.3 while the SDK tarball is 3.10.1.11:
+      # the same split the retiring 3.7.2.1 row had (key/SDK 3.7.2.x, wheels
+      # +metax3.7.2.0). The deps pins take the wheel spelling; the backend key
+      # takes the SDK's, because that is what the containerfile downloads.
       deps:
-        - torch==2.8.0+metax3.7.2.0
-        - torchaudio==2.4.1+metax3.7.2.0
-        - torchvision==0.15.1+metax3.7.2.0
-        - flash_attn==2.6.3+metax3.7.2.0torch2.8
+        - torch==2.13.0+metax3.10.1.3
+        - torchaudio==2.4.1+metax3.10.1.3torch2.13
+        - torchvision==0.25.0+metax3.10.1.3torch2.13
+        - apex==0.1+metax3.10.1.3torch2.13
+        - torchcodec==0.6.0+metax3.10.1.3torch2.13
+        - flash_attn==2.6.3+metax3.10.1.3torch2.13
+        - flashinfer==0.2.6+metax3.10.1.3torch2.13
+        - flash_linear_attention==0.5.0+metax3.10.1.3torch2.13
+        - flash_mla==1.0.1+metax3.10.1.3torch2.13
+        # mcoplib is deliberately absent: its `_C` extension registers
+        # TORCH_LIBRARY(_C) exactly as vllm_fl._C does, so a process importing
+        # both aborts at plugin load (SIGABRT, c10::Error "Only a single
+        # TORCH_LIBRARY can be used to register the namespace _C"). metax builds
+        # the native plugin (plugin-build.yaml metax_mxcc), so the two cannot
+        # coexist; revisit only after vllm_fl's csrc moves to
+        # TORCH_LIBRARY_FRAGMENT.
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+maca3.7.2.1
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # flash_attn already ships in deps: nothing vendor-conditional to add
-        vllm0.20.2: []
-        vllm0.24.0: []
-        sglang0.5.18:
-          # Serve hard-dep: the quantization import chain reaches compressed_tensors.
-          - compressed-tensors==0.17.0+flagos
-          - flashinfer==0.2.6+metax3.7.2.0torch2.8
+        - flagcx==0.14.1+maca3.10.1.11
       sdk:
-        - MetaX Driver 3.7.2.30   # metax-driver-3.7.2.30-deb-x86_64.run
-        - MACA SDK 3.7.2.0        # maca-sdk-3.7.2.0-deb-x86_64.tar.xz
+        - MetaX Driver 3.100.1    # metax-driver-3.100.1-deb-x86_64.run
+        - MACA SDK 3.10.1.11      # maca-sdk-3.10.1.11-deb-x86_64.tar.xz
 
     maca3.8.1.3:
       extras: metax

@@ -13,17 +13,22 @@
 # limitations under the License.
 
 # ============================================================
-# Base image for MetaX MACA 3.7.2.0 on Ubuntu 24.04
+# Base image for MetaX MACA 3.10.1.11 on Ubuntu 24.04
 # ============================================================
 # History:
 # - 20260707: Initial version
+# - 20261118: MACA SDK 3.10.1.11 / driver 3.100.1, replacing maca3.7.2.1.
+#             The driver's version scheme changed with this release: the
+#             package names drop from four fields (metax-driver-3.7.2.30) to
+#             three (metax-driver-3.100.1), so DRIVER_VERSION is no longer a
+#             suffix of the SDK version.
 
 FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
-ARG SDK_VERSION=3.7.2.0
-ARG DRIVER_VERSION=3.7.2.30
+ARG SDK_VERSION=3.10.1.11
+ARG DRIVER_VERSION=3.100.1
 
 # ── Build arguments ────────────────────────────────────────────
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/metax

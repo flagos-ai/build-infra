@@ -1,6 +1,11 @@
 # metax（沐曦）
 
-backend key：`metax-maca3.7.2.1` / `metax-maca3.8.1.3`。芯片 C550（8×64GB），SDK 叫 MACA。
+backend key：`metax-maca3.10.1.11` / `metax-maca3.8.1.3`。芯片 C550（8×64GB），SDK 叫 MACA。
+
+**key 跟 SDK 走，deps pin 跟厂商 wheel 线走**：3.10.1.11 这条线的 SDK 是
+`maca-sdk-3.10.1.11`，而厂商索引上的 wheel 都标 `+metax3.10.1.3`（3.8.1.3 线同理，
+wheel 是 `+metax3.8.1.0`）。驱动自 3.10.1 起改用三段版本号：包名是
+`metax-driver-3.100.1`，不再是 SDK 版本的后缀。
 
 ## 平台与设备
 
