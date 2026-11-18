@@ -1163,42 +1163,6 @@ vendors:
         - MACA SDK 3.8.1.3       # maca-sdk-3.8.1.3-deb-x86_64.tar.xz
 
   mthreads:
-    musa4.3.6:
-      extras: mthreads-musa436
-      hardware: ["MThreads MTT S5000"]
-      driver: "5.2.0-server"
-      python: "3.10"
-      cmake_backend: MUSA
-      triton: triton==3.6.0+git89458660
-      flagtree: flagtree==0.7.0+mthreads3.6
-      flagtree_daily: flagtree-mthreads
-      env:
-        base:
-          MUSA_HOME: /usr/local/musa
-          PATH: /usr/local/musa/bin:${PATH}
-          LD_LIBRARY_PATH: /usr/local/musa/lib
-      deps:
-        - torch==2.9.0+musa.4.3.6
-        - torch_musa==2.9.0
-        - torchaudio==2.9.0+eaa9e4e
-        - torchvision==0.22.1+6b25dcc
-        - mkl==2024.0.0
-        - numpy==1.26.4
-        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
-        # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+musa4.3.6
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
-        vllm0.20.2: []
-        vllm0.24.0: []
-        sglang0.5.18:
-          - compressed-tensors==0.17.0+flagos
-      sdk:
-        - MUSA Toolkits RC4.3.6     # musa_toolkits_rc4.3.6.tar.gz
-        - MCCL RC2.1.6              # mccl_rc2.1.6.PH1.tar.gz
-        - muDNN RC3.1.6             # mudnn_rc3.1.6.PH1.tar.gz
-
     musa5.2.0:
       extras: mthreads-musa520
       hardware: ["MThreads MTT S5000"]

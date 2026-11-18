@@ -1,17 +1,21 @@
 # mthreads（摩尔线程）
 
-backend key：`mthreads-musa4.3.6` / `mthreads-musa5.2.0` / `mthreads-musa5.3.0`。
+backend key：`mthreads-musa5.2.0` / `mthreads-musa5.3.0`。
 芯片 MTT S5000（8×80GB），SDK 叫 MUSA（torch fork 是 `torch_musa`，distributed
 后端叫 MCCL）。
+
+> `mthreads-musa4.3.6` 自 FlagOS 2.3.0 起退役，由 `musa5.3.0` 接替。下文仍保留若干
+> 4.3.6 的历史细节（定点构建的 vendor triton、与 5.2.0 共用的 cp310 FlagTree 行），
+> 因为 5.2.0 仍沿用同一套解释。
 
 ## 平台与设备
 
 - 设备枚举命令 `mthreads-gmi`（raw 档把宿主二进制只读挂进容器）。
-- 5.3.0 起 python 是 3.12 → cp312（该线只有 cp312 的 vendor wheel）；4.3.6/5.2.0 是
-  3.10 → cp310。
-- 各 backend 行的 vendor 包**不一样**，各自 PyPI 索引一套 wheel：4.3.6 的 vendor
-  triton 是定点构建（`3.6.0+git89458660`），5.2.0 是 `3.6.0`；5.3.0 的编译器发行名
-  换成 **`triton-musa`**（`3.6.0+musa5.3.0`），不再是 `triton`。
+- 5.3.0 起 python 是 3.12 → cp312（该线只有 cp312 的 vendor wheel）；5.2.0 是
+  3.10 → cp310（已退役的 4.3.6 同为 cp310）。
+- 各 backend 行的 vendor 包**不一样**，各自 PyPI 索引一套 wheel：5.2.0 的 vendor
+  triton 是 `3.6.0`（退役的 4.3.6 曾用定点构建 `3.6.0+git89458660`）；5.3.0 的编译器
+  发行名换成 **`triton-musa`**（`3.6.0+musa5.3.0`），不再是 `triton`。
 
 ## 启动容器
 
