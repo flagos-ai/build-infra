@@ -606,6 +606,15 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: flagcx==0.14.1+maca3.10.1.11
+    pypi_index: flagos-pypi-metax
+    desc_zh: 面向沐曦（MetaX）MACA 3.10.1.11 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for MetaX MACA 3.10.1.11.
+    notes: 支持 Ubuntu 22.04 及以上版本。
+    notes_en: Ubuntu 22.04 and above is supported.
+    python: cp312
+    os: linux
+    arch: linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
