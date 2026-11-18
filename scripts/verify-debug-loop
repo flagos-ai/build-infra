@@ -80,7 +80,6 @@ DEFAULT_NODES = {
     "enflame-tops1.10.6": "enflame",
     "hygon-dtk26.04": "hygon25",
     "kunlunxin-xre5.37.1": "kunlunxin",
-    "mthreads-musa4.3.6": "mthreads",
     "mthreads-musa5.2.0": "mthreads",
     "mthreads-musa5.3.0": "mthreads",
     "sunrise-tangrt1.2.0": "sunrise",

@@ -101,7 +101,7 @@ ARG no_proxy=
 
 # FlagTree ref, the single version knob; the backend is selected at build time via
 # FLAGTREE_BACKEND, not by source. The default is the release configs.yaml pins for
-# mthreads-musa4.3.6 and mthreads-musa5.2.0 -- a client installs this wheel's
+# the cp310 mthreads line (mthreads-musa5.2.0) -- a client installs this wheel's
 # version, so the two must not drift. A daily run overrides it.
 ARG FLAGTREE_VERSION=0.7.0+mthreads3.6
 
