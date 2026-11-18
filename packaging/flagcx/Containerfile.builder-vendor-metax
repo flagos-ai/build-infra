@@ -88,9 +88,12 @@ RUN set -eux; \
 
 # The same env base/metax-* bakes; MACA has no profile.d script, so ENV is the
 # whole of it. mxgpu_llvm/bin is where mxcc (metax.mk's DEVICE_COMPILER) lives.
+# ompi/lib is on the path because the SDK's own mxompi package puts libmpi.so.40
+# there and registers nothing with ldconfig: from MACA 3.10 the pinned torch
+# preloads MPI on import, so without this entry `import torch` fails outright.
 ENV PATH="/opt/maca/mxgpu_llvm/bin:/opt/maca/bin:${PATH}" \
     MACA_PATH="/opt/maca" \
-    LD_LIBRARY_PATH="/opt/maca/lib:/opt/maca/mxgpu_llvm/lib"
+    LD_LIBRARY_PATH="/opt/maca/lib:/opt/maca/mxgpu_llvm/lib:/opt/maca/ompi/lib"
 
 # Interpreter and torch, the things the runtime image used to provide. prereqs+
 # numpy from the general mirror, torch from the vendor index LAST so
