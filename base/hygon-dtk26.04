@@ -76,7 +76,11 @@ RUN env_before=$(env | sort) && \
     comm -13 /tmp/_v_before /tmp/_v_after \
       | grep -v '^_\|^PWD=\|^SHLVL=\|^OLDPWD=' \
       | while IFS='=' read -r var val; do \
-          printf 'export %s="%s"\n' "$var" "$val"; \
+          if [ "$var" = PYTHONPATH ]; then \
+            printf 'case ":$PYTHONPATH:" in *":%s:"*) ;; *) export PYTHONPATH="%s${PYTHONPATH:+:$PYTHONPATH}" ;; esac\n' "$val" "$val"; \
+          else \
+            printf 'export %s="%s"\n' "$var" "$val"; \
+          fi; \
         done \
       > /etc/profile.d/vendor.sh && \
     rm -f /tmp/_v_before /tmp/_v_after && \
