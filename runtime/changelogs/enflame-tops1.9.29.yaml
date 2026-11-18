@@ -32,13 +32,11 @@ tags:
     upstream_prs: []
     date: '2026-11-17T16:56:07.828Z'
   - reason: |-
-      - FlagTree 0.7.1: one wheel now serves both enflame SDK lines. Its
-        enflame backend picks the device-properties spelling from
-        `TOPSRT_VERSION`, so the same gcu.cpp compiles against 1.9.x's
-        `topsDeviceProp_t` and 4.x's `topsDeviceProp`.
-      - `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is dropped from the
+      - FlagTree 0.7.1 replaces the 0.7.0 compiler.
+      - `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is not set in the
         image environment.
     reason_zh: |-
-      - FlagTree 0.7.1：一个 wheel 同时服务两条燧原 SDK 线。其 enflame 后端依据 `TOPSRT_VERSION` 选择设备属性结构体的拼法，因此同一份 gcu.cpp 既能针对 1.9.x 的 `topsDeviceProp_t` 编译，也能针对 4.x 的 `topsDeviceProp` 编译。
-      - 镜像环境不再设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
+      - FlagTree 0.7.1 替换 0.7.0 编译器。
+      - 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
     upstream_prs: []
+    date: '2026-11-18T06:26:20.066Z'

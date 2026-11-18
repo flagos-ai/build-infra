@@ -104,3 +104,8 @@ efsmi
 *2026-11-17 16:56:07*
 
 - 首次交付：Enflame tops1.9.29（Zixiao C200 / S60）的 runtime，基于 flagos-base-enflame-tops1.9.29:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+3.8.20261020、pyefml==1.9.29、flagcx==0.14.0+tops1.9.29 以及 FlagTree/Triton 双编译器；本 SDK 版本无 flash-attn（缺失，尚未提供）。
+
+*2026-11-18 06:26:20*
+
+- FlagTree 0.7.1 替换 0.7.0 编译器。
+- 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。

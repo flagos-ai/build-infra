@@ -108,3 +108,9 @@ efsmi
   torch-gcu==2.13.0+3.8.20261020, pyefml==1.9.29, flagcx==0.14.1+tops1.9.29
   and the FlagTree/Triton dual compiler; flash-attn is absent in this
   SDK version (omitted, not yet available).
+
+*2026-11-18 06:26:20*
+
+- FlagTree 0.7.1 replaces the 0.7.0 compiler.
+- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is not set in the
+  image environment.
