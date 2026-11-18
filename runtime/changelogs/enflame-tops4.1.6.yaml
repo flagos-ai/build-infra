@@ -38,3 +38,4 @@ tags:
       - FlagTree 0.7.1 是首个 enflame 后端可针对 TOPS 4.x 编译的版本——其设备属性结构体是 `topsDeviceProp`（而非 `topsDeviceProp_t`），成功码是 `topsSuccess`（`TOPS_SUCCESS` 已不存在）。后端的 gcu.cpp 在 import 时即时编译，因此 0.7.0 在此失败并连带 FlagGems 的 import 一起失败。
       - 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
     upstream_prs: []
+    date: '2026-11-18T06:41:31.140Z'
