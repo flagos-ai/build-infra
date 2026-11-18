@@ -26,13 +26,8 @@ tags:
         for the MetaX C550 chip. This line replaces maca3.7.2.1.
       - The driver is installed in userspace mode only, so the image builds
         headless; the kernel driver stays on the host, as with NVIDIA.
-      - The driver's version scheme changed with this release: its package
-        names carry three fields (metax-driver-3.100.1) where the retiring line
-        carried four (metax-driver-3.7.2.30), so the driver version is no
-        longer a suffix of the SDK version.
     reason_zh: |-
       - 首次交付：MACA SDK 3.10.1.11 与驱动 3.100.1，基于 ubuntu:24.04，用于 MetaX C550 芯片。本线取代 maca3.7.2.1。
       - 驱动仅以用户态模式安装，因此镜像可以无卡构建；内核驱动留在宿主机，与 NVIDIA 的做法一致。
-      - 本次发布的驱动版本号规则变了：包名从旧线的四段（metax-driver-3.7.2.30）变为三段（metax-driver-3.100.1），因此驱动版本不再是 SDK 版本的后缀。
     upstream_prs: []
     date: '2026-11-18T12:13:04.770Z'
