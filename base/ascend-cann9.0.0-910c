@@ -124,7 +124,11 @@ RUN env | LC_ALL=C sort > /tmp/_v_before && \
       | { grep -E '^[A-Za-z_][A-Za-z0-9_]*=' || true; } \
       | while IFS='=' read -r var val; do \
           esc=$(printf '%s' "$val" | sed "s/'/'\\\\''/g"); \
-          printf "export %s='%s'\n" "$var" "$esc"; \
+          if [ "$var" = PYTHONPATH ]; then \
+            printf "case \":\$PYTHONPATH:\" in *\":%s:\"*) ;; *) export PYTHONPATH='%s'\${PYTHONPATH:+:\$PYTHONPATH} ;; esac\n" "$val" "$esc"; \
+          else \
+            printf "export %s='%s'\n" "$var" "$esc"; \
+          fi; \
         done \
       > /etc/profile.d/vendor.sh && \
     rm -f /tmp/_v_before /tmp/_v_after && \
