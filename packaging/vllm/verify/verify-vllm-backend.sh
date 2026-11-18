@@ -498,7 +498,18 @@ docker exec "${CONTAINER}" bash -c "
 
     echo ''
     echo '--- Triton ---'
-    python3 -c 'import triton; print(f\"triton: {triton.__version__}\")'
+    # Two different numbers are both correct here and the bare word "triton"
+    # named neither: the ACTIVE import resolves through whichever compiler side
+    # dir is on PYTHONPATH (flagtree by default, which bundles its own triton
+    # tree and has no dist-info of its own), while /opt/triton is the vendor
+    # Triton install. Label both so one log line cannot be read as the other.
+    python3 -c 'import triton; print(f\"triton (active import): {triton.__version__}\")'
+    if [ -d /opt/triton/triton ]; then
+        _tv=\$(ls -d /opt/triton/*.dist-info 2>/dev/null | head -1 | xargs -r basename | sed 's/\.dist-info\$//; s/^[^-]*-//')
+        echo \"triton (side dir /opt/triton): \${_tv:-unknown}\"
+    else
+        echo 'triton (side dir /opt/triton): not installed'
+    fi
 
     echo ''
     echo '--- FlagGems ---'
@@ -810,8 +821,11 @@ row vllm "$(ver vllm)"
 row torch "$(ver torch)"
 row numpy "$(ver numpy)"
 row flag_gems "$(ver flag_gems)"
-row flagtree "$(sidelib /opt/flagtree)"
-row triton "$(sidelib /opt/triton)"
+# Labelled apart for the same reason as the Step 2 block: the active triton
+# import and the /opt/triton side dir are different builds, and an unlabelled
+# "triton:" row reads as whichever the reader assumed.
+row "flagtree" "$(sidelib /opt/flagtree)"
+row "triton (side)" "$(sidelib /opt/triton)"
 row vllm-plugin-fl "$(dist vllm-plugin-fl)"
 row flaggems_vllm "$(dist flaggems_vllm)"
 row flagcx "$(dist flagcx)"
