@@ -26,10 +26,7 @@ tags:
         flagos-base-enflame-tops4.1.6:2.3.0 base. Deps pin
         torch-gcu==2.13.0+4.1.20261110, pyefml==4.1.6, flagcx==0.14.1+tops4.1.6
         and FlagTree 0.7.1 with the Triton fallback.
-      - `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is not set in the
-        image environment.
     reason_zh: |-
       - 首次交付：Enflame tops4.1.6（L600）的 runtime，基于 flagos-base-enflame-tops4.1.6:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+4.1.20261110、pyefml==4.1.6、flagcx==0.14.1+tops4.1.6，以及 FlagTree 0.7.1 与 Triton 后备编译器。
-      - 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
     upstream_prs: []
     date: '2026-11-18T06:41:31.140Z'

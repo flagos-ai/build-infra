@@ -108,5 +108,3 @@ efsmi
   flagos-base-enflame-tops4.1.6:2.3.0 base. Deps pin
   torch-gcu==2.13.0+4.1.20261110, pyefml==4.1.6, flagcx==0.14.1+tops4.1.6
   and FlagTree 0.7.1 with the Triton fallback.
-- `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops` is not set in the
-  image environment.

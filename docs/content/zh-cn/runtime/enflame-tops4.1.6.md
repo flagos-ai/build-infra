@@ -105,4 +105,3 @@ efsmi
 *2026-11-18 06:41:31*
 
 - 首次交付：Enflame tops4.1.6（L600）的 runtime，基于 flagos-base-enflame-tops4.1.6:2.3.0 base 构建。deps 固定 torch-gcu==2.13.0+4.1.20261110、pyefml==4.1.6、flagcx==0.14.1+tops4.1.6，以及 FlagTree 0.7.1 与 Triton 后备编译器。
-- 镜像环境不设置 `ENFLAME_PT_OP_DEBUG_CONFIG=fallback_cpu=all_ops`。
