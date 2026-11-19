@@ -1,0 +1,34 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by base-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-base-cambricon-neuware4.7.6
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: Cambricon Neuware 4.7.6 — cntoolkit 4.7.6, cnnl 2.2.18,
+        cnnlextra 2.5.0, mluops 1.13.0, cncl 1.30.10, cncv 2.12.1, cnclep 1.5.0
+        and cnmon 6.5.52 — on ubuntu:24.04. This line is the newest of the
+        vendor's SDK lines; neuware4.7.2 stays in service beside it.
+      - `NEUWARE_HOME`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
+        toolkit is usable without an activation step.
+    reason_zh: |-
+      - 首次交付：寒武纪 Neuware 4.7.6 —— cntoolkit 4.7.6、cnnl 2.2.18、cnnlextra 2.5.0、mluops 1.13.0、cncl 1.30.10、cncv 2.12.1、cnclep 1.5.0 和 cnmon 6.5.52 —— 基于 ubuntu:24.04。该线是厂商最新的一条 SDK 线；neuware4.7.2 与之并存、继续服务。
+      - 镜像内设置 `NEUWARE_HOME`、`PATH` 和 `LD_LIBRARY_PATH`，无需激活步骤即可使用 toolkit。
+    upstream_prs: []
