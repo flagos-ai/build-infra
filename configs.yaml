@@ -758,7 +758,7 @@ vendors:
         - cncv==2.12.1
         - numpy==1.26.4
         - pandas==3.0.5
-        - flagcx==0.14.0+neuware4.7.6
+        - flagcx==0.14.1+neuware4.7.6
       sdk:
         - cnmon 6.5.52           # cnmon-6.5.52-x86_64.zip
         - cntoolkit 4.7.6        # cntoolkit_4.7.6-1.ubuntu24.04_amd64.deb
