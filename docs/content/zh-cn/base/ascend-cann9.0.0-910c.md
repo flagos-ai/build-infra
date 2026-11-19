@@ -38,7 +38,7 @@ title: "ascend-cann9.0.0-910c"
 显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -50,8 +50,8 @@ title: "ascend-cann9.0.0-910c"
 - `net-tools` — 2.10
 - `pciutils` — 3.10.0
 - `python3-pip` — 24.0+dfsg
-- `python3.11` — 3.11.17
-- `python3.11-dev` — 3.11.17
+- `python3.11` — 3.11.18
+- `python3.11-dev` — 3.11.18
 - `software-properties-common` — 0.99.49.4
 - `unzip` — 6.0
 - `vim` — 9.1.0016
@@ -98,7 +98,7 @@ docker run --rm -it \
 npu-smi info
 ```
 
-*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+*更新时间: 2026-11-19 22:33:37 · `6546efe05b6d`*
 
 ## 更新日志
 
