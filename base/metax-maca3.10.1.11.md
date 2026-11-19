@@ -71,3 +71,14 @@ mx-smi
 ```
 
 *Last updated: 2026-11-18 19:46:07 · `a4c39b35c163`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-11-18 12:13:04*
+
+- First delivery: MACA SDK 3.10.1.11 with driver 3.100.1 on ubuntu:24.04,
+  for the MetaX C550 chip. This line replaces maca3.7.2.1.
+- The driver is installed in userspace mode only, so the image builds
+  headless; the kernel driver stays on the host, as with NVIDIA.
