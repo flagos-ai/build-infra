@@ -31,7 +31,7 @@ tags:
       - 非交互 bash 通过 `BASH_ENV` 加载 `vendor.sh`，旧的绝对 `export` 会在
         Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
     upstream_prs: []
-    date: ''
+    date: '2026-11-19T13:57:27.106Z'
   - reason: |-
       - Re-push with the OCI provenance labels the first build could not write:
         `org.opencontainers.image.revision`, `.created` and `last-updated`.

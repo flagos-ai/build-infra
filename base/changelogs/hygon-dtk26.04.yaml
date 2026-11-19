@@ -38,7 +38,7 @@ tags:
       - 非交互 bash 通过 `BASH_ENV` 加载 `vendor.sh`，旧的绝对 `export` 会在
         Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
     upstream_prs: []
-    date: ''
+    date: '2026-11-19T13:58:04.072Z'
   - date: '2026-10-27T02:02:24.528Z'
     reason: |-
       - `libgoogle-glog0v6t64` is installed for the `libglog.so.1` soname: torch's

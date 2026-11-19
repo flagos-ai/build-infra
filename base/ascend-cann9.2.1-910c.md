@@ -81,6 +81,15 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-19 14:16:10*
+
+- `vendor.sh` no longer overwrites a caller's `PYTHONPATH`: it now
+  prepends the SDK paths only when they are absent, keeping any path the
+  container was started with (#1866).
+- Non-interactive bash loads `vendor.sh` through `BASH_ENV`, so the old
+  absolute `export` dropped the caller's entries before Python ever ran
+  and broke imports that depended on them.
+
 *2026-11-13 00:45:50*
 
 - First delivery: CANN 9.2.1 — toolkit, the 910C (A3) ops package and

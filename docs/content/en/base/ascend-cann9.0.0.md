@@ -104,6 +104,15 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-19 13:57:17*
+
+- `vendor.sh` no longer overwrites a caller's `PYTHONPATH`: it now
+  prepends the SDK paths only when they are absent, keeping any path the
+  container was started with (#1866).
+- Non-interactive bash loads `vendor.sh` through `BASH_ENV`, so the old
+  absolute `export` dropped the caller's entries before Python ever ran
+  and broke imports that depended on them.
+
 *2026-10-14 05:49:46*
 
 - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.

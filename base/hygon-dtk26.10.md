@@ -78,6 +78,15 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 13:57:30*
+
+- `vendor.sh` no longer overwrites a caller's `PYTHONPATH`: it now
+  prepends the SDK paths only when they are absent, keeping any path the
+  container was started with (#1866).
+- Non-interactive bash loads `vendor.sh` through `BASH_ENV`, so the old
+  absolute `export` dropped the caller's entries before Python ever ran
+  and broke imports that depended on them.
+
 *2026-11-16 12:09:45*
 
 - The clang-18 aillvm comes from `dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e`
