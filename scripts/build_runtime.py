@@ -43,7 +43,7 @@ from version import image_version
 # The runtime build needs the same --add-host lookup as build_base.py: a backend
 # whose Nexus name lives only in its nodes' /etc/hosts is invisible inside a
 # build container, which inherits the daemon's resolv.conf but not its hosts.
-from build_base import internal_hosts
+from build_base import internal_hosts, rewrite_host
 
 import yaml
 
@@ -188,10 +188,15 @@ def resolve_build_args(
 ) -> dict[str, str]:
     """Resolve all docker build-arg values for a given backend."""
 
-    # A row overrides the global index keys when its build nodes reach a
-    # different Nexus than the public one.
-    pypi_base = backend_info.get("pypi_base") or configs.get("pypi_base", "")
-    pypi_daily = backend_info.get("pypi_daily") or configs.get("pypi_daily", "")
+    # The vendor index and the daily index live on the Nexus a row's nodes
+    # reach (build-config.yml nexus_overrides); every other row uses the public
+    # host. The runtime Containerfile derives its filestore from FLAGOS_PYPI, so
+    # all three move together.
+    row = f"{vendor}-{backend}"
+    pypi_base = rewrite_host(
+        configs.get("pypi_base", "").format(vendor=vendor), row, repo_root
+    )
+    pypi_daily = rewrite_host(configs.get("pypi_daily", ""), row, repo_root)
     mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
 
     # Dependencies: explicit vendor packages from configs.yaml deps: (torch,

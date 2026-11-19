@@ -50,6 +50,7 @@ import argparse
 import json
 import re
 import sys
+import urllib.parse
 from pathlib import Path
 
 import yaml
@@ -57,6 +58,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app_public import public_name
 from backend_enabled import frozen_backends
+from build_base import nexus_overrides, rewrite_host
 
 
 def find_repo_root() -> Path:
@@ -174,12 +176,16 @@ def _runtime_matrix(
             if host else f"flagos-runtime-{name}:{stack_version}"
         )
 
-        # Per-backend build args. A row overrides the global index keys when its
-        # build nodes reach a different Nexus than the public one.
-        flagos_pypi = (
-            backend_info.get("pypi_base") or configs.get("pypi_base", "")
-        ).format(vendor=vendor)
-        daily_pypi = backend_info.get("pypi_daily") or configs.get("pypi_daily", "")
+        # Per-backend build args. The vendor index and the daily index live on
+        # the Nexus a row's nodes reach (build-config.yml nexus_overrides);
+        # every other row uses the public host.
+        name = f"{vendor}-{backend}"
+        flagos_pypi = rewrite_host(
+            configs.get("pypi_base", "").format(vendor=vendor),
+            name,
+            repo_root,
+        )
+        daily_pypi = rewrite_host(configs.get("pypi_daily", ""), name, repo_root)
         deps = " ".join(backend_info.get("deps", []))
         cpp_backend = str(backend_info.get("cmake_backend", "")).lower()
         cpp_extra = f"cpp-{cpp_backend}" if cpp_backend else ""
