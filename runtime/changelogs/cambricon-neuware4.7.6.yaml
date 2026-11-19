@@ -38,3 +38,4 @@ tags:
       - 厂商 Triton 为 3.4.0+mlu2.1.3，即与该 SDK 匹配的构建版本。该线没有 FlagTree，因此 Triton 是唯一安装的编译器，`compiler` 切换无另一侧可切。
       - flagcx 0.14.1+neuware4.7.6 是运行时依赖：FlagTree 会优先使用该包中的 libflagcx.so 而非 triton/_C 自带的那份，因此与 4.7.2 一样随 `deps:` 固定。
     upstream_prs: []
+    date: '2026-11-19T08:58:22.615Z'
