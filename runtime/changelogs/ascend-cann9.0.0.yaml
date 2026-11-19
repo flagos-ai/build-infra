@@ -27,6 +27,7 @@ tags:
     reason_zh: |-
       - 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
     upstream_prs: []
+    date: '2026-11-19T15:41:41.146Z'
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
