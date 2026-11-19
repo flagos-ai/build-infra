@@ -97,6 +97,13 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 13:32:42*
+
+- Adds `amdsmi==7.0.2` to this backend's runtime dependencies, so torch's
+  cuda monitoring calls work. `hy-smi` exposes no Python API and the
+  driver's amdsmi tree at `/opt/hyhal/share/smi` is a host mount the
+  image never installs, so the import was missing entirely.
+
 *2026-11-16 13:29:04*
 
 - FlagTree moves to `0.7.1a1+hcu3.6`, which is the first ref whose hcu
@@ -111,7 +118,7 @@ hy-smi
 
 *2026-11-10 09:27:16*
 
-Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.
+Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709).
 
 *2026-11-04 11:53:19*
 
