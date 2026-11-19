@@ -203,7 +203,6 @@ Every published pin is a build off the release tag `v0.14.1` — the version str
 | `kunlunxin-xre5.37.1` | 2026-10-29 | `0.14.1+xre5.37.1` |
 | `metax-maca3.7.2.1` | 2026-10-28 | `0.14.1+maca3.7.2.1` |
 | `metax-maca3.8.1.3` | 2026-10-28 | `0.14.1+maca3.8.1.3` |
-| `mthreads-musa4.3.6` | 2026-10-28 | `0.14.1+musa4.3.6` |
 | `mthreads-musa5.2.0` | 2026-10-28 | `0.14.1+musa5.2.0` |
 | `mthreads-musa5.3.0` | 2026-11-15 | — |
 | `nvidia-cuda12.8` | 2026-10-29 | `0.14.1+cuda12.8` |
@@ -231,8 +230,8 @@ Every wheel here is 22.04-clean in the two objects that carry the linkage —
 `flagcx/lib/libflagcx.so` and `_C*.so` link at most GLIBC 2.35 and none of `GLIBCXX_3.4.31/32` or
 `__isoc23_*`. That is not incidental: it is what the builder channel exists for, and the `.so` gate
 in `wheel-build-in-container.sh` fails the build rather than let a wheel link past it. Four rows
-reach the floor with no builder of their own (`cambricon-neuware4.4.3`, `kunlunxin-xre5.37.1` and the
-musa 4.3.6/5.2.0 pair) because their base images are 22.04 to begin with; `mthreads-musa5.3.0`
+reach the floor with no builder of their own (`cambricon-neuware4.4.3`, `kunlunxin-xre5.37.1` and
+`mthreads-musa5.2.0`) because their base images are 22.04 to begin with; `mthreads-musa5.3.0`
 is the exception among the musa rows — its base is 24.04, which is why it is the first one to need
 a builder.
 
