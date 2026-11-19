@@ -1,7 +1,10 @@
 # enflame（燧原）
 
-backend key：`enflame-tops1.9.10` / `enflame-tops1.10.6`。芯片 Zixiao C200（S60），
-SDK 叫 TOPS/tops。python 3.12，torch 是 `torch-gcu`（**PrivateUse1**）。
+backend key：`enflame-tops1.9.29` / `enflame-tops4.1.6`。芯片 Zixiao C200（S60）
+（4.1.6 线是 L600），SDK 叫 TOPS/tops。python 3.12，torch 是 `torch-gcu`（**PrivateUse1**）。
+
+两条线的 ECCL 版本互不相干（1.9.29 → 3.6.3.13，4.1.6 → 4.1.4），所以一条线上验到
+的 collective 行为不能直接搬到另一条 —— 见下面「不要按栈重推结论」。
 
 ## 平台与设备
 
@@ -54,11 +57,20 @@ SDK 叫 TOPS/tops。python 3.12，torch 是 `torch-gcu`（**PrivateUse1**）。
 - **ECCL 拒绝 fp64 `all_reduce`（int64 同样不支持）**，其他厂商的 collectives 接受
   double。启动路径上任何用 `dtype=torch.double` 同步 timestamp 的代码都在 step 1
   之前死在 `DistBackendError … ecclInvalidArgument`；fp32 是唯一验证过的替代。
+  MIN 与 SUM 同样中招（issue #1915 在 1.9.29 / ECCL 3.6.3.13 上两 rank 复现，
+  `invalid type 8 for reduction operation 3`）。这是 ECCL 的 dtype 边界，不是某个版本的
+  回归；**它与 triton kernel 侧的 64 位墙是两回事** —— `TORCH_GCU_ENABLE_INT64_AND_UINT64`
+  和 `ENABLE_I64_CHECK` 只管 kernel codegen，**开它们不会让 collective 接受 64 位**。
+  已测版本：1.9.10 未触发、1.10.6 触发；1.9.29 由 issue #1915 报告触发（两 rank、
+  带复现步骤，未经本仓库独立复验）。**4.1.6（ECCL 4.1.4）未验**，别当它继承了结论。
 - **`all_gather_object` 在 WORLD_SIZE==1 时返回垃圾 size**（实测
   `-4888733163028742123`），`resize_` 于是试图分配 ~1 EB 立即 OOM；
   `torch.gcu.synchronize()` 无用，普通 `all_gather` 各 dtype 都正确。
-- **不要按栈重推结论**：torch_gcu 2.10.0 与 2.11 上同一份代码零改动通过，在 1.10.6 上
-  推出来的修法不要为 1.9.10 再推一遍（反之亦然）。
+- **不要按栈重推结论**：torch_gcu 2.10.0 与 2.11 上同一份代码零改动通过，一条线上
+  推出来的修法不要搬到另一条再推一遍（反之亦然）。跨栈的实测反例就是 ECCL 的 fp64
+  边界：旧记录说 1.9.10（ECCL 3.6.3.11）**未触发**、只有 1.10.6 中招，而 1.9.29
+  （ECCL 3.6.3.13）上 issue #1915 又复现了 —— 同一条 SDK 线的小版本之间都能翻转，
+  **结论只在验过的那个精确版本上成立**。
 
 ## 设备状态危险
 
