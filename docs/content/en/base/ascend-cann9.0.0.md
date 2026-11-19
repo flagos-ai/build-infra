@@ -98,7 +98,7 @@ Inside the container, confirm the accelerator is visible:
 npu-smi info
 ```
 
-*Last updated: 2026-10-14 13:43:56 · `393cfb81d50e`*
+*Last updated: 2026-11-19 21:48:56 · `542bd046173a`*
 
 ## Changelog
 

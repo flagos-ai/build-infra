@@ -89,3 +89,12 @@ cnmon
 ```
 
 *更新时间: 2026-11-19 14:02:11 · `5943ca96f622`*
+
+## 更新日志
+
+### 2.3.0
+
+*2026-11-19 06:11:38*
+
+- 首次交付：寒武纪 Neuware 4.7.6 —— cntoolkit 4.7.6、cnnl 2.2.18、cnnlextra 2.5.0、mluops 1.13.0、cncl 1.30.10、cncv 2.12.1、cnclep 1.5.0 和 cnmon 6.5.52 —— 基于 ubuntu:24.04。该线是厂商最新的一条 SDK 线；neuware4.7.2 与之并存、继续服务。
+- 镜像内设置 `NEUWARE_HOME`、`PATH` 和 `LD_LIBRARY_PATH`，无需激活步骤即可使用 toolkit。

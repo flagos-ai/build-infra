@@ -67,3 +67,16 @@ cnmon
 ```
 
 *Last updated: 2026-11-19 14:02:11 · `5943ca96f622`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-11-19 06:11:38*
+
+- First delivery: Cambricon Neuware 4.7.6 — cntoolkit 4.7.6, cnnl 2.2.18,
+  cnnlextra 2.5.0, mluops 1.13.0, cncl 1.30.10, cncv 2.12.1, cnclep 1.5.0
+  and cnmon 6.5.52 — on ubuntu:24.04. This line is the newest of the
+  vendor's SDK lines; neuware4.7.2 stays in service beside it.
+- `NEUWARE_HOME`, `PATH` and `LD_LIBRARY_PATH` are set in the image, so the
+  toolkit is usable without an activation step.
