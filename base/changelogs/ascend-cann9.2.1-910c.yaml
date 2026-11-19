@@ -31,7 +31,7 @@ tags:
       - 非交互 bash 通过 `BASH_ENV` 加载 `vendor.sh`，旧的绝对 `export` 会在
         Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
     upstream_prs: []
-    date: ''
+    date: '2026-11-19T14:16:10.711Z'
   - reason: |-
       - First delivery: CANN 9.2.1 — toolkit, the 910C (A3) ops package and
         NNAL — on aarch64 ubuntu:24.04. Toolkit and NNAL are shared with the
