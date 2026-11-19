@@ -1,0 +1,40 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-runtime-cambricon-neuware4.7.6
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: |-
+      - First delivery: the Neuware 4.7.6 runtime, built on
+        `flagos-base-cambricon-neuware4.7.6` with python 3.12 and the torch
+        2.13.0 stack — torch 2.13.0+cpu, torch-mlu 1.34.1+torch2.13.0,
+        torch-mlu-ops 1.13.0+torch2.13.0, torchvision 0.28.0+cpu and
+        torchaudio 2.11.0+cpu — plus cncv 2.12.1.
+      - The vendor Triton is 3.4.0+mlu2.1.3, the build matched to this SDK.
+        This line has no FlagTree, so Triton is the only compiler installed and
+        the `compiler` toggle has nothing to switch to.
+      - flagcx 0.14.1+neuware4.7.6 is a runtime dependency: FlagTree prefers the
+        package's libflagcx.so over the copy triton/_C bundles, so the pin
+        rides `deps:` like it does on 4.7.2.
+    reason_zh: |-
+      - 首次交付：Neuware 4.7.6 runtime，基于 `flagos-base-cambricon-neuware4.7.6` 构建，python 3.12 与 torch 2.13.0 栈 —— torch 2.13.0+cpu、torch-mlu 1.34.1+torch2.13.0、torch-mlu-ops 1.13.0+torch2.13.0、torchvision 0.28.0+cpu 与 torchaudio 2.11.0+cpu —— 另加 cncv 2.12.1。
+      - 厂商 Triton 为 3.4.0+mlu2.1.3，即与该 SDK 匹配的构建版本。该线没有 FlagTree，因此 Triton 是唯一安装的编译器，`compiler` 切换无另一侧可切。
+      - flagcx 0.14.1+neuware4.7.6 是运行时依赖：FlagTree 会优先使用该包中的 libflagcx.so 而非 triton/_C 自带的那份，因此与 4.7.2 一样随 `deps:` 固定。
+    upstream_prs: []
