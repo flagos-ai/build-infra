@@ -617,8 +617,8 @@ wheels:
     arch: linux_x86_64
   - version: flagcx==0.14.1+neuware4.7.6
     pypi_index: flagos-pypi-cambricon
-    desc_zh: ''
-    desc_en: ''
+    desc_zh: 面向寒武纪（Cambricon）Neuware 4.7.6 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Cambricon Neuware 4.7.6.
     notes: ''
     notes_en: ''
     python: cp312
