@@ -22,6 +22,14 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Adds `amdsmi==7.0.2` to this backend's runtime dependencies, so torch's
+        cuda monitoring calls work. `hy-smi` exposes no Python API and the
+        driver's amdsmi tree at `/opt/hyhal/share/smi` is a host mount the
+        image never installs, so the import was missing entirely.
+    reason_zh: |-
+      - 为该后端的 runtime 依赖新增 `amdsmi==7.0.2`，使 torch 的 cuda 监控调用可用。`hy-smi` 不暴露 Python API，而驱动在 `/opt/hyhal/share/smi` 的 amdsmi 源码树是宿主挂载、镜像从不安装，因此该模块此前完全缺失。
+    upstream_prs: []
+  - reason: |-
       - Adds torchaudio 2.9.0+das.opt1.dtk2604.torch290 to the python 3.10
         closure, so the DTK 26.04 runtime carries the full torch-ecosystem
         triplet (torch/torchvision/torchaudio) that multimodal models need.
