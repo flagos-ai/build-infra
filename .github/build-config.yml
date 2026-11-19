@@ -38,8 +38,28 @@ registry:
 # resolve the name builds without the flag, so this stays a per-node fact rather
 # than a hardcoded address. Today only the 910C pair (hw114/hw115) carries it.
 internal_hosts:
+  ascend-cann8.5.0-910c:
+    - resource-inner.flagos.net
+  ascend-cann9.0.0-910c:
+    - resource-inner.flagos.net
   ascend-cann9.2.1-910c:
     - resource-inner.flagos.net
+
+# Build args a row cannot carry itself, because the value is a per-site fact.
+#
+# The Containerfile keeps a public default and this overrides it on the nodes
+# that need something else — today the 910C pair, whose Nexus is reachable only
+# on the internal endpoint (plain HTTP; an https URL to that port dies in the
+# TLS handshake). Keyed by base Containerfile name, passed through by
+# scripts/build_base.py. Keeping it here means no site-specific address is
+# written into an image recipe.
+build_args:
+  ascend-cann8.5.0-910c:
+    FILE_STORE: http://resource-inner.flagos.net:20800/repository/flagos-filestore/ascend
+  ascend-cann9.0.0-910c:
+    FILE_STORE: http://resource-inner.flagos.net:20800/repository/flagos-filestore/ascend
+  ascend-cann9.2.1-910c:
+    FILE_STORE: http://resource-inner.flagos.net:20800/repository/flagos-filestore/ascend
 
 # Runner labels for backends
 runners:

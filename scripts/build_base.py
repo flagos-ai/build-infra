@@ -141,6 +141,31 @@ def internal_hosts(repo_root: Path, name: str) -> list[str]:
     return args
 
 
+def build_args(repo_root: Path, name: str) -> list[str]:
+    """`--build-arg` args from the row's `build_args` entry, if any.
+
+    A value that differs per build site — the Nexus endpoint a node can reach —
+    belongs to the dispatch, not to the Containerfile, which keeps a public
+    default. Declared here so the override is visible next to the runner labels
+    it belongs with, and so no site-specific address is written into the image
+    recipe.
+    """
+    config_path = repo_root / ".github" / "build-config.yml"
+    if not config_path.exists():
+        return []
+    try:
+        import yaml
+    except ImportError:
+        return []
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f) or {}
+    values = (cfg.get("build_args") or {}).get(name) or {}
+    args = []
+    for key, value in values.items():
+        args += ["--build-arg", f"{key}={value}"]
+    return args
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Build FlagOS base container images",
@@ -201,6 +226,7 @@ def main():
 
     cmd = ["docker", "build", "-f", str(containerfile)]
     cmd += internal_hosts(repo_root, args.name)
+    cmd += build_args(repo_root, args.name)
     for k, v in labels.items():
         if v:
             cmd += ["--label", f"{k}={v}"]
