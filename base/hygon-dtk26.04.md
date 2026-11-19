@@ -75,6 +75,15 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 13:58:04*
+
+- `vendor.sh` no longer overwrites a caller's `PYTHONPATH`: it now
+  prepends the SDK paths only when they are absent, keeping any path the
+  container was started with (#1866).
+- Non-interactive bash loads `vendor.sh` through `BASH_ENV`, so the old
+  absolute `export` dropped the caller's entries before Python ever ran
+  and broke imports that depended on them.
+
 *2026-10-27 02:02:24*
 
 - `libgoogle-glog0v6t64` is installed for the `libglog.so.1` soname: torch's

@@ -97,6 +97,13 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 13:58:04*
+
+- `vendor.sh` 不再覆盖调用方的 `PYTHONPATH`：仅在 SDK 路径缺失时前置，
+  容器启动时传入的路径全部保留（#1866）。
+- 非交互 bash 通过 `BASH_ENV` 加载 `vendor.sh`，旧的绝对 `export` 会在
+  Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
+
 *2026-10-27 02:02:24*
 
 - 安装 `libgoogle-glog0v6t64` 是为了 `libglog.so.1` 这个 soname：torch 的 c10 头文件使扩展构建链接 glog（`C10_USE_GLOG`），而 DTK 不提供该库，导致 `import vllm_fl._C` 失败，此后端的应用层无法加载其原生插件。
