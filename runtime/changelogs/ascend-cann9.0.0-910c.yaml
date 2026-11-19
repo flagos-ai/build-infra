@@ -21,6 +21,12 @@ image: flagos-runtime-ascend-cann9.0.0-910c
 tags:
 - tag: 2.3.0
   entries:
+  - reason: |-
+      - Rebuilt on the current base image, which no longer lets `vendor.sh`
+        overwrite a caller's `PYTHONPATH` (#1882).
+    reason_zh: |-
+      - 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
+    upstream_prs: []
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`

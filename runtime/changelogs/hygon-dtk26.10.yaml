@@ -22,6 +22,12 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Rebuilt on the current base image, which no longer lets `vendor.sh`
+        overwrite a caller's `PYTHONPATH` (#1882).
+    reason_zh: |-
+      - 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
+    upstream_prs: []
+  - reason: |-
       - Adds `amdsmi==7.0.2` to this backend's runtime dependencies, so torch's
         cuda monitoring calls work. `hy-smi` exposes no Python API and the
         driver's amdsmi tree at `/opt/hyhal/share/smi` is a host mount the

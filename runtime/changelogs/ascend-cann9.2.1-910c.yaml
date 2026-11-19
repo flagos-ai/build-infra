@@ -22,6 +22,12 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Rebuilt on the current base image, which no longer lets `vendor.sh`
+        overwrite a caller's `PYTHONPATH` (#1882).
+    reason_zh: |-
+      - 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
+    upstream_prs: []
+  - reason: |-
       - First delivery of this backend's runtime image. It layers the python 3.12
         torch closure — torch 2.13.0+cpu, torch-npu 2.13.0, torchvision 0.28.0
         and torchaudio 2.11.0 — plus numpy 1.26.4, cann-shmem 1.6.0 and
