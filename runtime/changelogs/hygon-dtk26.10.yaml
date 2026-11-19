@@ -22,6 +22,16 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Adds `amdsmi==7.0.2` to this backend's runtime dependencies, so torch's
+        cuda monitoring calls work. `hy-smi` exposes no Python API and the
+        driver's amdsmi tree at `/opt/hyhal/share/smi` is a host mount the
+        image never installs, so the import was missing entirely.
+    reason_zh: |-
+      - 为该后端的 runtime 依赖新增 `amdsmi==7.0.2`，使 torch 的 cuda 监控调用可用。
+        `hy-smi` 不暴露 Python API，而驱动在 `/opt/hyhal/share/smi` 的 amdsmi
+        源码树是宿主挂载、镜像从不安装，因此该模块此前完全缺失。
+    upstream_prs: []
+  - reason: |-
       - FlagTree moves to `0.7.1a1+hcu3.6`, which is the first ref whose hcu
         kernels emit the i64 `numRecords` in `llvm.amdgcn.make.buffer.rsrc` that
         this base image's clang-18 (the `5f9d5e` aillvm build) parses. Under
@@ -44,11 +54,10 @@ tags:
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
-      instead of re-downloading the wheel every time (#1709). Nothing else
-      about the image changes.
+      instead of re-downloading the wheel every time (#1709).
     reason_zh: |-
-      重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
-      缓存，而不再每次都重新下载 wheel（#1709）。镜像其余内容不变。
+      重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR`
+      的 pip 缓存，而不再每次都重新下载 wheel（#1709）。
     upstream_prs: []
     date: '2026-11-10T09:27:16.760Z'
   - reason: |-
