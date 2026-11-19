@@ -881,6 +881,9 @@ vendors:
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
         - flagcx==0.14.0+dtk2604
+        # hy-smi exposes no Python API, and the driver's tree at
+        # /opt/hyhal/share/smi is a host mount, never installed.
+        - amdsmi==7.0.2
       deps_app:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
@@ -915,6 +918,8 @@ vendors:
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
         - flagcx==0.14.1+dtk2610
+        # Same gap as dtk26.04.
+        - amdsmi==7.0.2
       sdk:
         - Hygon DTK 26.10      # DTK-26.10-Ubuntu24.04-x86_64.tar.gz
         # Both aillvm packages are installed: the clang-18 one leaves clang-18 and
