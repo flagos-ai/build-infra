@@ -31,6 +31,7 @@ tags:
         `hy-smi` 不暴露 Python API，而驱动在 `/opt/hyhal/share/smi` 的 amdsmi
         源码树是宿主挂载、镜像从不安装，因此该模块此前完全缺失。
     upstream_prs: []
+    date: '2026-11-19T13:32:42.944Z'
   - reason: |-
       - FlagTree moves to `0.7.1a1+hcu3.6`, which is the first ref whose hcu
         kernels emit the i64 `numRecords` in `llvm.amdgcn.make.buffer.rsrc` that

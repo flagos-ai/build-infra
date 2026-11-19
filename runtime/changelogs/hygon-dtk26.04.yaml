@@ -31,6 +31,7 @@ tags:
         `hy-smi` 不暴露 Python API，而驱动在 `/opt/hyhal/share/smi` 的 amdsmi
         源码树是宿主挂载、镜像从不安装，因此该模块此前完全缺失。
     upstream_prs: []
+    date: '2026-11-19T13:41:54.558Z'
   - reason: |-
       - Adds torchaudio 2.9.0+das.opt1.dtk2604.torch290 to the python 3.10
         closure, so the DTK 26.04 runtime carries the full torch-ecosystem
