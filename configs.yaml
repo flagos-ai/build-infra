@@ -446,6 +446,10 @@ vendors:
       driver: "25.5.0"
       python: "3.11"
       cmake_backend: NPU
+      # hw114/hw115, which build this row, reach the Nexus by its inner name
+      # only. Same repository paths, plain HTTP on 20800.
+      pypi_base: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-{vendor}/simple"
+      pypi_daily: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-daily/simple"
       triton: triton-ascend==3.2.0
       flagtree: flagtree==0.6.0+ascend3.2
       flagtree_daily: flagtree-ascend-cann8-5-0
@@ -531,6 +535,10 @@ vendors:
       driver: "26.0.rc1"
       python: "3.11"
       cmake_backend: NPU
+      # hw114/hw115, which build this row, reach the Nexus by its inner name
+      # only. Same repository paths, plain HTTP on 20800.
+      pypi_base: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-{vendor}/simple"
+      pypi_daily: "http://resource-inner.flagos.net:20800/repository/flagos-pypi-daily/simple"
       triton: triton==3.5.0
       flagtree: flagtree==0.7.0+ascend3.5
       flagtree_daily: flagtree-ascend-cann9-0-0
