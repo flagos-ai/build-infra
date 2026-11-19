@@ -80,6 +80,11 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-19 15:42:45*
+
+- Rebuilt on the current base image, which no longer lets `vendor.sh`
+  overwrite a caller's `PYTHONPATH` (#1882).
+
 *2026-11-10 09:09:56*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). Nothing else about the image changes.
