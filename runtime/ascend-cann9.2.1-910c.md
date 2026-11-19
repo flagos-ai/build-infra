@@ -80,6 +80,11 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-19 15:42:57*
+
+- Rebuilt on the current base image, which no longer lets `vendor.sh`
+  overwrite a caller's `PYTHONPATH` (#1882).
+
 *2026-11-13 04:40:10*
 
 - First delivery of this backend's runtime image. It layers the python 3.12

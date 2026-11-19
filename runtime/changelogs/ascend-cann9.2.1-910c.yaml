@@ -27,6 +27,7 @@ tags:
     reason_zh: |-
       - 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
     upstream_prs: []
+    date: '2026-11-19T15:42:57.400Z'
   - reason: |-
       - First delivery of this backend's runtime image. It layers the python 3.12
         torch closure — torch 2.13.0+cpu, torch-npu 2.13.0, torchvision 0.28.0
