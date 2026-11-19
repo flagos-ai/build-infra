@@ -75,6 +75,11 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 15:54:12*
+
+- Rebuilt on the current base image, which no longer lets `vendor.sh`
+  overwrite a caller's `PYTHONPATH` (#1882).
+
 *2026-11-19 13:32:42*
 
 - Adds `amdsmi==7.0.2` to this backend's runtime dependencies, so torch's
