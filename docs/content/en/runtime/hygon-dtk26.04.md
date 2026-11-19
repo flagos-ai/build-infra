@@ -97,6 +97,13 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 13:41:54*
+
+- Adds `amdsmi==7.0.2` to this backend's runtime dependencies, so torch's
+  cuda monitoring calls work. `hy-smi` exposes no Python API and the
+  driver's amdsmi tree at `/opt/hyhal/share/smi` is a host mount the
+  image never installs, so the import was missing entirely.
+
 *2026-11-12 01:34:37*
 
 - Adds torchaudio 2.9.0+das.opt1.dtk2604.torch290 to the python 3.10

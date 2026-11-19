@@ -97,6 +97,12 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-19 13:41:54*
+
+- 为该后端的 runtime 依赖新增 `amdsmi==7.0.2`，使 torch 的 cuda 监控调用可用。
+  `hy-smi` 不暴露 Python API，而驱动在 `/opt/hyhal/share/smi` 的 amdsmi
+  源码树是宿主挂载、镜像从不安装，因此该模块此前完全缺失。
+
 *2026-11-12 01:34:37*
 
 - python 3.10 闭包中加入 torchaudio 2.9.0+das.opt1.dtk2604.torch290，使
@@ -113,15 +119,25 @@ heel 的索引（#1613）。镜像其余内容不变。
 
 *2026-10-27 03:24:06*
 
-基础镜像新增 libgoogle-glog0v6t64。vllm-plugin-FL 的原生构建（0.3.0+dtk26.4）链接 libglog.so.1 —— torch 的 c10 头文件在编译期引入 glog —— 而该厂商 SDK 不提供这个 soname，导致插件的 `vllm_fl._C` 无法导入、app 镜像无法提供服务。镜像其余内容不变。
+基础镜像新增 libgoogle-glog0v6t64。vllm-plugin-FL 的原生构建（0.3.0+dtk26.4）链接
+libglog.so.1 —— torch 的 c10 头文件在编译期引入 glog —— 而该厂商 SDK 不提供这个 soname，
+导致插件的 `vllm_fl._C` 无法导入、app 镜像无法提供服务。镜像其余内容不变。
 
 *2026-10-25 09:46:37*
 
-该镜像新增容器启动时的版本请求：`-e FLAGTREE_VERSION=<ver|latest>` 与 `-e FLAGGEMS_VERSION=<ver|latest>` 可覆盖镜像内烘焙的版本，在应用启动前从镜像自带的索引解析。`latest` 取 daily 线上最新的 wheel。无法满足的请求会以非零退出码终止容器，而不是让它以另一个版本运行。镜像烘焙了这些请求所读取的文件，其中包含把容器内的 FlagGems 安装约束到本镜像自身 pin 的 constraints 文件。在 SDK env 以绝对方式赋值 PATH 的厂商基础镜像（ascend、hygon）上，profile 相关逻辑还会在该赋值之后重新声明 venv 前缀：否则 `pip` 会解析到系统解释器或解析不到，请求也就无法执行。
+该镜像新增容器启动时的版本请求：`-e FLAGTREE_VERSION=<ver|latest>` 与
+`-e FLAGGEMS_VERSION=<ver|latest>` 可覆盖镜像内烘焙的版本，在应用启动前从镜像自带的索引解析。
+`latest` 取 daily 线上最新的 wheel。无法满足的请求会以非零退出码终止容器，
+而不是让它以另一个版本运行。镜像烘焙了这些请求所读取的文件，其中包含把容器内的 FlagGems
+安装约束到本镜像自身 pin 的 constraints 文件。在 SDK env 以绝对方式赋值 PATH 的厂商基础镜像
+（ascend、hygon）上，profile 相关逻辑还会在该赋值之后重新声明 venv 前缀：否则 `pip`
+会解析到系统解释器或解析不到，请求也就无法执行。
 
 *2026-10-23 03:50:32*
 
-flagcx 0.14.0 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.0+dtk2604，因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，而不是 triton/_C 自带的那份。镜像其余内容不变。
+flagcx 0.14.0 成为该后端的运行时依赖：configs.yaml deps: 现在固定 flagcx==0.14.0+dtk2604，
+因此 DEPS 安装会从厂商索引拉取它，FlagTree 会把 libflagcx.so 解析到该包中的副本，
+而不是 triton/_C 自带的那份。镜像其余内容不变。
 
 *2026-10-17 00:32:31*
 
