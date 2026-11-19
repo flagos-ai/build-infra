@@ -738,6 +738,37 @@ vendors:
         - cnnlextra 2.4.0        # cnnlextra_2.4.0-1.ubuntu24.04_amd64.deb
         - mluops 1.12.0          # mluops_1.12.0-1.ubuntu24.04_amd64.deb
 
+    neuware4.7.6:
+      extras: cambricon
+      hardware: ["Cambricon MLU590"]
+      driver: "6.5.52"
+      python: "3.12"
+      triton: triton==3.4.0+mlu2.1.3
+      env:
+        base:
+          NEUWARE_HOME: /usr/local/neuware
+          PATH: /usr/local/neuware/bin:$PATH
+          LD_LIBRARY_PATH: /usr/local/neuware/lib64
+      deps:
+        - torch==2.13.0+cpu
+        - torch-mlu==1.34.1+torch2.13.0
+        - torchaudio==2.11.0+cpu
+        - torchvision==0.28.0+cpu
+        - torch-mlu-ops==1.13.0+torch2.13.0
+        - cncv==2.12.1
+        - numpy==1.26.4
+        - pandas==3.0.5
+        - flagcx==0.14.0+neuware4.7.6
+      sdk:
+        - cnmon 6.5.52           # cnmon-6.5.52-x86_64.zip
+        - cntoolkit 4.7.6        # cntoolkit_4.7.6-1.ubuntu24.04_amd64.deb
+        - cncl 1.30.10           # cncl_1.30.10-1.ubuntu24.04_amd64.deb
+        - cnclep 1.5.0           # cnclep_1.5.0-1.ubuntu24.04_amd64.deb
+        - cnnl 2.2.18            # cnnl_2.2.18-1.ubuntu24.04_amd64.deb
+        - cnnlextra 2.5.0        # cnnlextra_2.5.0-1.ubuntu24.04_amd64.deb
+        - mluops 1.13.0          # mluops_1.13.0-1.ubuntu24.04_amd64.deb
+        - cncv 2.12.1            # cncv_2.12.1-1.ubuntu24.04_amd64.deb
+
   enflame:
     tops1.9.29:
       extras: enflame
