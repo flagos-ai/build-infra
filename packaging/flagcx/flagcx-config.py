@@ -143,6 +143,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_cannshmem",
     "builder_torch_ptpu", "builder_torch_txda", "builder_txops",
     "builder_sdk_version", "builder_aten_version", "builder_eccl_version",
+    "builder_neuware_version", "builder_pkg_versions", "builder_file_store",
     "builder_ops_product",
     "builder_toolkit_product", "triton_pkg",
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
@@ -695,6 +696,19 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["builder_eccl_version"] = (spec.get("builder") or {}).get(
                 "eccl_version"
             ) or ""
+            # The cambricon recipe serves both SDK lines, so the line's own
+            # package set is a per-row input: the toolkit version, the rest as
+            # `name=version` pairs, and the filestore root the debs sit under
+            # (one line's 22.04 set was filed in a subdirectory).
+            entry["builder_neuware_version"] = (spec.get("builder") or {}).get(
+                "neuware_version"
+            ) or ""
+            entry["builder_pkg_versions"] = (spec.get("builder") or {}).get(
+                "pkg_versions"
+            ) or ""
+            entry["builder_file_store"] = (spec.get("builder") or {}).get(
+                "file_store"
+            ) or ""
             # Ascend's ops package is chip-specific (910b vs A3), and it — not
             # the toolkit — ships libhccl.so and the canonical <hccl/hccl.h>, so
             # the recipe's ops installer filename needs the chip token as a
@@ -721,13 +735,13 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["builder_image"] = builder_image(
                 key, entry["image_tag"], entry["version"]
             )
-            # The image's recipe: nvidia's Containerfile.builder is not the one
+            # The image's recipe: nvidia's Containerfile.builder-nvidia is not the one
             # a vendor-SDK row builds from — the vendor row's builder installs a
             # tarball/run SDK into /opt rather than the CUDA apt repo, so each
-            # declares its own file. Stated in the registry rather than derived
-            # from `key` because the derivation (which file serves which row) is
-            # exactly the fact that must not be a second copy. Rows on the shared
-            # file leave it out; the build falls back to it.
+            # declares its own file — the nvidia rows name the CUDA-apt recipe
+            # they share. Stated in the registry rather than derived from `key`
+            # because the derivation (which file serves which row) is exactly
+            # the fact that must not be a second copy.
             entry["builder_containerfile"] = (
                 (spec.get("builder") or {}).get("containerfile") or ""
             )

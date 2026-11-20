@@ -340,7 +340,7 @@ Launchpad's REST API and the runner's proxy answers that CONNECT with 500.
 dushmem entry's `copy_dst_path` is `/opt/dtk/dushmem/lib/`, which hcu.py writes
 during the build, so this stage installs the `DTK-26.10-Ubuntu22.04-x86_64.tar.gz`
 tarball into `/opt/dtk-26.10` (`/opt/dtk` symlink), mirroring the flagcx
-`builder-vendor-hygon` twin. It is not what compiles the wheel, and the smoke
+`builder-hygon-dtk26.04` twin. It is not what compiles the wheel, and the smoke
 test still imports the wheel without sourcing it.
 
 **`libzstd-dev` is an apt line here, not an LLVM choice.** The `188a510` tree's

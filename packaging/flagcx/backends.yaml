@@ -108,9 +108,8 @@
 #                 image. It is where the wheel is compiled; it is not where the
 #                 wheel is delivered, so the verification runs in the runtime.
 #   builder.containerfile
-#                 the recipe, for a vendor row whose SDK installs from a tarball
-#                 into /opt rather than the CUDA apt repo. Rows on the shared
-#                 nvidia recipe (Containerfile.builder) leave it out.
+#                 the recipe. Every builder row states one; the two nvidia rows
+#                 share Containerfile.builder-nvidia.
 #   builder.apt   packages installed on top of the row's own `apt` list, which
 #                 the builder installs too (it is the same SDK fact, and a
 #                 second copy here could disagree with it). Build-time only —
@@ -239,6 +238,7 @@ nvidia-cuda12.8:
   #     package too — header-only, and identical SDK surface across the two rows.
   builder:
     enabled: true
+    containerfile: Containerfile.builder-nvidia
     extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8]
   # This row's .so is built against NCCL 2.25, so its .bc takes the same Default
   # branch — the two have to agree, and nothing in the bitcode Makefile reads
@@ -272,6 +272,7 @@ nvidia-cuda13.3:
   # <cuda_fp8.h>, all provided by cccl-13-3 (it Provides cuda-cccl-13-3).
   builder:
     enabled: true
+    containerfile: Containerfile.builder-nvidia
     extra_apt: [libcurand-dev-13-3, cccl-13-3, libcublas-dev-13-3, libcusparse-dev-13-3, libcusolver-dev-13-3, libcufft-dev-13-3]
   # NCCL 2.31 here, so CCL — the branch that needs BITCODE_CXX_STD=gnu++17 (the
   # device headers under nccl_device/ use `typeof`). Both values are the ones the
@@ -306,7 +307,7 @@ metax-maca3.10.1.11:
   # of the SDK's; that is a wheel-pin fact for configs.yaml, not this row's.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-metax
+    containerfile: Containerfile.builder-metax
     sdk_version: 3.10.1.11
 
 metax-maca3.8.1.3:
@@ -329,7 +330,7 @@ metax-maca3.8.1.3:
   # is the tarball's own spelling (3.8.1.3, matching the key here).
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-metax
+    containerfile: Containerfile.builder-metax
     sdk_version: 3.8.1.3
 
 cambricon-neuware4.4.3:
@@ -367,11 +368,17 @@ cambricon-neuware4.7.2:
   wheel: {enabled: true}
   # Self-contained ubuntu:22.04 builder: the wheel must link at most glibc 2.35
   # for the bundle's physical 22.04 hosts, and the 24.04 runtime cannot produce
-  # that. The SDK is 4.7.2's own ubuntu22.04 debs (filestore cambricon/u2204),
-  # whose libcncl links GLIBC_2.34 — the 24.04 SDK would link GLIBC_2.38.
+  # that. The SDK is 4.7.2's own ubuntu22.04 debs, whose libcncl links
+  # GLIBC_2.34 — the 24.04 SDK would link GLIBC_2.38. The versions are stated
+  # here rather than in the recipe because none of them derives from the key.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-cambricon
+    containerfile: Containerfile.builder-cambricon
+    neuware_version: "4.7.2"
+    pkg_versions: "cnnl=2.2.14 cnnlextra=2.4.0 mluops=1.12.0 cncl=1.30.8 cnclep=1.4.0 cncv=2.12.1"
+    # Only this line's 22.04 set was filed under u2204/; the recipe's default is
+    # the cambricon/ root the 4.7.6 set sits at.
+    file_store: https://resource.flagos.net/repository/flagos-filestore/cambricon/u2204
 
 cambricon-neuware4.7.6:
   vendor: cambricon
@@ -389,15 +396,13 @@ cambricon-neuware4.7.6:
   deb: {enabled: true, default_for_vendor: false}
   rpm: {enabled: false, blocked_by: vendor-ships-deb-only}
   wheel: {enabled: true}
-  # Self-contained ubuntu:22.04 builder, same reason as 4.7.2: the wheel must
-  # link at most glibc 2.35 for the bundle's physical 22.04 hosts, and the
-  # 24.04 runtime cannot produce that. The SDK is 4.7.6's own ubuntu22.04 debs
-  # (filestore cambricon/u2204) — the 24.04 SDK would link GLIBC_2.38. Its own
-  # recipe rather than 4.7.2's: the deb filenames are a different version, and
-  # the two-way hygon-dtk2610 split exists for exactly that reason.
+  # Same recipe as 4.7.2, different SDK versions. Its debs sit at the filestore's
+  # cambricon/ root, which is the recipe's default.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-cambricon-476
+    containerfile: Containerfile.builder-cambricon
+    neuware_version: "4.7.6"
+    pkg_versions: "cnnl=2.2.18 cnnlextra=2.5.0 mluops=1.13.0 cncl=1.30.10 cnclep=1.5.0 cncv=2.12.1"
 
 enflame-tops1.9.29:
   vendor: enflame
@@ -418,7 +423,7 @@ enflame-tops1.9.29:
   # build toolchain did.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-enflame
+    containerfile: Containerfile.builder-enflame
     sdk_version: "1.9.29"
     aten_version: "3.8.20261009"
     eccl_version: "3.6.3.13"
@@ -438,7 +443,7 @@ enflame-tops4.1.6:
   # Same 22.04 builder as the 1.9.29 row, for the same reason.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-enflame
+    containerfile: Containerfile.builder-enflame
     sdk_version: "4.1.6"
     aten_version: "4.1.20261111"
     eccl_version: "4.1.4"
@@ -466,7 +471,7 @@ ascend-cann8.5.0:
   # wheel bytes — the wheel links the sonames only, never the ops binaries.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-ascend
+    containerfile: Containerfile.builder-ascend
     sdk_version: "8.5.0"
     toolkit_product: cann-toolkit
     ops_product: 910b
@@ -487,7 +492,7 @@ ascend-cann8.5.0-910c:
   # token — the only per-row difference, and it names the ops installer.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-ascend
+    containerfile: Containerfile.builder-ascend
     sdk_version: "8.5.0"
     toolkit_product: cann-toolkit
     ops_product: A3
@@ -507,7 +512,7 @@ ascend-cann9.0.0:
   # Same 22.04 builder as the 8.5.0 rows, for the same reason.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-ascend
+    containerfile: Containerfile.builder-ascend
     sdk_version: "9.0.0"
     # Both spellings resolve on 9.0.0; this row keeps the one its published
     # builder was verified with. Only 9.2.1 has no choice (`cann`).
@@ -530,7 +535,7 @@ ascend-cann9.0.0-910c:
   # token.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-ascend
+    containerfile: Containerfile.builder-ascend
     sdk_version: "9.0.0"
     toolkit_product: cann-toolkit
     ops_product: A3
@@ -553,7 +558,7 @@ ascend-cann9.2.1:
   wheel: {enabled: true}
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-ascend
+    containerfile: Containerfile.builder-ascend
     sdk_version: "9.2.1"
     toolkit_product: cann
     ops_product: 910b
@@ -616,7 +621,7 @@ hygon-dtk26.04:
   # that. No clang/bitcode/NCCL — du.mk compiles .cu through DTK's nvcc.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-hygon
+    containerfile: Containerfile.builder-hygon-dtk26.04
 
 # Wheel-enabled now; deb/rpm stay off (their probe is a separate concern).
 hygon-dtk26.10:
@@ -644,7 +649,7 @@ hygon-dtk26.10:
   # one links GLIBC_2.38) and python 3.12 from deadsnakes.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-hygon-dtk2610
+    containerfile: Containerfile.builder-hygon-dtk26.10
 
 iluvatar-corex4.5.0:
   vendor: iluvatar_corex
@@ -670,7 +675,7 @@ iluvatar-corex4.5.0:
   # the key's: the recipe derives the installer/driver/cmake filenames from it.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-iluvatar
+    containerfile: Containerfile.builder-iluvatar
     sdk_version: 4.5.0.20260804
   bitcode_arch: ivcore11
 
@@ -692,7 +697,7 @@ iluvatar-corex5.0.1:
   # spelling (5.0.1), from which the recipe derives the installer/driver/cmake.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-iluvatar
+    containerfile: Containerfile.builder-iluvatar
     sdk_version: 5.0.1
   bitcode_arch: ivcore11
 
@@ -784,7 +789,7 @@ mthreads-musa5.3.0:
   # of them (driver and toolkit 5.3.0, MCCL 2.5.0.PH1, muDNN 3.5.0.PH1).
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-mthreads
+    containerfile: Containerfile.builder-mthreads
 
 sunrise-tangrt1.2.0:
   vendor: sunrise
@@ -815,7 +820,7 @@ sunrise-tangrt1.2.0:
   # probes the device in a constructor and aborts device-less.
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-sunrise
+    containerfile: Containerfile.builder-sunrise
     sdk_version: "v1.2.0"
 
 tsingmicro-tsm260610:
@@ -839,7 +844,7 @@ tsingmicro-tsm260610:
   wheel: {enabled: true}
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-tsm
+    containerfile: Containerfile.builder-tsingmicro
     sdk_version: "260610164501"
 
 amd-rocm7.2.4:
@@ -873,7 +878,7 @@ amd-rocm7.2.4:
   wheel: {enabled: true}
   builder:
     enabled: true
-    containerfile: Containerfile.builder-vendor-amd
+    containerfile: Containerfile.builder-amd
 
 thead-ppu2.1.0:
   vendor: ppu

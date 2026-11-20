@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # FlagCX build-toolchain image for the hygon-dtk26.10 wheel: the vendor-SDK twin
-# of Containerfile.builder-vendor-hygon, self-contained on ubuntu:22.04 so the
+# of Containerfile.builder-hygon-dtk26.04, self-contained on ubuntu:22.04 so the
 # wheel links ≤ glibc 2.35 and installs on the bundle's physical 22.04 hosts.
 # It differs from the 26.04 recipe in two ways: the SDK is the DTK-26.10 22.04
 # tarball (the 24.04 one is unusable here — its libs link GLIBC_2.38, which

@@ -44,7 +44,7 @@
 #
 # LLVM_VERSION/LLVM_SHA256 are the one pin this line cannot do without, and they
 # are constants here rather than build args with no owner: LLVM 22 is the floor
-# for CUDA 13 device bitcode (see Containerfile.builder), so moving it is a
+# for CUDA 13 device bitcode (see Containerfile.builder-nvidia), so moving it is a
 # decision rather than a parameter, and both NVIDIA rows take the same one.
 # Overridable from the environment for the day the pin moves.
 #
@@ -139,12 +139,11 @@ for key in "${BACKENDS[@]}"; do
         [[ -n "$ref" ]] || { echo "$key: no image ref (see --check)" >&2; exit 1; }
         echo ">>> $key: $ref"
 
-        # The recipe to build from: the nvidia rows share Containerfile.builder,
-        # a vendor-SDK row declares its own (the SDK is a tarball/run into /opt,
-        # not the CUDA apt repo). The empty string is the shared file.
-        containerfile="${BUILDER_CONTAINERFILE:-Containerfile.builder}"
+        # The recipe to build from, stated by the row. The default only covers a
+        # row that names none, which no row does today.
+        containerfile="${BUILDER_CONTAINERFILE:-Containerfile.builder-nvidia}"
         nvidia_builder=0
-        [[ "$containerfile" == "Containerfile.builder" ]] && nvidia_builder=1
+        [[ "$containerfile" == "Containerfile.builder-nvidia" ]] && nvidia_builder=1
         [[ -f "$HERE/$containerfile" ]] \
             || { echo "$key: $containerfile is not in packaging/flagcx" >&2; exit 1; }
 
@@ -172,6 +171,14 @@ for key in "${BACKENDS[@]}"; do
         [[ -n "$created" ]] && labels+=(--label "org.opencontainers.image.created=$created")
 
         cache_arg=(); (( NO_CACHE )) && cache_arg=(--no-cache)
+
+        # Recipe inputs that are not version pins: a vendor recipe that serves
+        # several SDK lines takes the line's own package set as build args, and
+        # passes none of them when the recipe keeps its defaults.
+        recipe_arg=()
+        [[ -n "${BUILDER_NEUWARE_VERSION:-}" ]] && recipe_arg+=(--build-arg "NEUWARE_VERSION=$BUILDER_NEUWARE_VERSION")
+        [[ -n "${BUILDER_PKG_VERSIONS:-}" ]] && recipe_arg+=(--build-arg "PKG_VERSIONS=$BUILDER_PKG_VERSIONS")
+        [[ -n "${BUILDER_FILE_STORE:-}" ]] && recipe_arg+=(--build-arg "FILE_STORE=$BUILDER_FILE_STORE")
 
         # The node's proxy, relayed the way the other image builds relay it:
         # the LLVM tarball is fetched during the build, and the aarch64 nodes
@@ -208,6 +215,7 @@ for key in "${BACKENDS[@]}"; do
         docker build \
             "${cache_arg[@]}" \
             "${proxy_arg[@]}" \
+            "${recipe_arg[@]}" \
             "${labels[@]}" \
             --network host \
             --build-arg "BUILDER_APT=$BUILDER_APT" \
