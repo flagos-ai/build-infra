@@ -102,6 +102,10 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-20 00:30:34*
+
+- 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
+
 *2026-11-10 09:01:56*
 
 重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip

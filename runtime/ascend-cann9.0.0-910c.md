@@ -80,6 +80,11 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-20 00:30:34*
+
+- Rebuilt on the current base image, which no longer lets `vendor.sh`
+  overwrite a caller's `PYTHONPATH` (#1882).
+
 *2026-11-10 09:01:56*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). The venv PATH prefix is re-asserted after a vendor SDK env script overwrites it (#1486). Nothing else about the image changes.
