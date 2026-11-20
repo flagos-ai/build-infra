@@ -35,7 +35,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0-910c | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0-910c | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ❌ |
 | 燧原 | TOPS 1.10.6 | ✅ | ❌ |
@@ -60,7 +59,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0-910c | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0-910c | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ✅ |
 | 燧原 | TOPS 1.10.6 | ✅ | ✅ |
@@ -95,8 +93,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/361 | 已合并 |
 | 昇腾 | CANN 9.0.0 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/402 | 已合并 |
 | 昇腾 | CANN 9.0.0 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/387 | 已合并 |
-| 寒武纪 | NEUWARE 4.4.3 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | 已合并 |
-| 寒武纪 | NEUWARE 4.4.3 | vllm0.24.0 | https://github.com/flagos-ai/vllm-plugin-FL/pull/431 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/vllm-plugin-FL/pull/411 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5745 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | vllm0.20.2 | https://github.com/flagos-ai/FlagGems/pull/5510 | 已合并 |
@@ -146,7 +142,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | — |
-| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
@@ -187,7 +182,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | — |
-| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
@@ -246,7 +240,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   metax×2, spacemit, thead
 - **3.11**（4 backend）：ascend-cann8.5.0, ascend-cann8.5.0-910c,
   ascend-cann9.0.0, ascend-cann9.0.0-910c
-- **3.10**（7 backend）：cambricon-neuware4.4.3, hygon, kunlunxin, mthreads×2,
+- **3.10**（6 backend）：hygon, kunlunxin, mthreads×2,
   sunrise, tsingmicro
 
 ## 已验证 / 已知事实
@@ -315,9 +309,9 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   [0.24.0 §15](vllm-0.24.0/backends/tsingmicro.md)。
 - **enflame-tops1.9.10 / tops1.10.6**：✅✅（2026-09-04，F/T 双路径，app 镜像
   已发布）—— [0.20.2 §2.6](vllm-0.20.2/backends/enflame.md)。
-- **cambricon-neuware4.4.3 / neuware4.7.2**：✅（仅 triton，两后端均无 F 列）
+- **cambricon-neuware4.7.2**：✅（仅 triton，无 F 列）
   （2026-09-04，app 镜像 E2E 于插件 [VPF #431](https://github.com/flagos-ai/vllm-plugin-FL/pull/431)
-  head gea38c86）—— [0.20.2 §2.7 / §2.11](vllm-0.20.2/backends/cambricon.md)。
+  head gea38c86）—— [0.20.2 §2.7](vllm-0.20.2/backends/cambricon.md)。
 - **ascend-cann9.0.0-910c / cann8.5.0-910c**：✅✅（2026-09-11，910C 双栈
   app 镜像 serve E2E）—— [0.24.0 §10.7](vllm-0.24.0/backends/ascend.md)。
 

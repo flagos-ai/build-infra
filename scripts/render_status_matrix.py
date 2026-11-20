@@ -90,7 +90,6 @@ BACKENDS = [
     "ascend-cann9.0.0",
     "ascend-cann9.0.0-910c",
     "ascend-cann9.2.1",
-    "cambricon-neuware4.4.3",
     "cambricon-neuware4.7.2",
     "enflame-tops1.9.10",
     "enflame-tops1.10.6",

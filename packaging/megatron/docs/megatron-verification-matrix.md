@@ -49,7 +49,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0-910c | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ⬜ | ⬜ |
 | 昇腾 | CANN 9.0.0-910c | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ⬜ | ⬜ |
 | 寒武纪 | NEUWARE 4.7.2 | ⬜ | ⬜ |
 | 燧原 | TOPS 1.9.10 | ⬜ | ⬜ |
 | 燧原 | TOPS 1.10.6 | ⬜ | ⬜ |
@@ -84,7 +83,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — | ✅ | — | ✅ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — | ✅ | — | ✅ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
 | 燧原 | TOPS 1.10.6 | ✅ | ✅ | ？ | ？ | ⛔ | ⛔ |
@@ -147,8 +145,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 昇腾 | CANN 9.0.0 | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1025 | 已合并 |
 | 昇腾 | CANN 9.0.0-910c | megatron_training0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
 | 昇腾 | CANN 9.0.0-910c | megatron_rl0.17.1 | https://github.com/flagos-ai/FlagTree/pull/1023 | OPEN |
-| 寒武纪 | NEUWARE 4.4.3 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
-| 寒武纪 | NEUWARE 4.4.3 | megatron_rl0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/188 | 已合并 |
 | 寒武纪 | NEUWARE 4.7.2 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/125 | 已合并 |
 | 燧原 | TOPS 1.9.10 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/105 | 已合并 |
 | 燧原 | TOPS 1.9.10 | megatron_training0.17.1 | https://github.com/flagos-ai/Megatron-LM-FL/pull/106 | 已合并 |
@@ -218,7 +214,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | — |
-| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |
@@ -259,7 +254,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CANN 8.5.0-910c | ✅ | ✅ | ✅ | RL E2E 已在 910C 上跑通（hw114，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁 |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | RL 未实测；NPU 平台自带 paged attention 并关闭 flash-attn 门控（#188 后分派按能力查询，NPU 行为不变） |
 | CANN 9.0.0-910c | ✅ | ✅ | ✅ | RL E2E 已在 910C 上跑通（hw115，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁 |
-| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，两轮 iteration + eval greedy_reward 1.0000）；阻塞是 paged 分派写死 npu，wheel 未带该修复，待重建后复验 |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | RL 未实测；阻塞同 #188（paged 分派写死 npu，非 NPU 平台到不了自带 paged 实现），wheel 未带该修复 |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | RL 场景未实测（本轮只过构建 + training gate） |
@@ -378,7 +372,7 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 
 | # | 事项 | 现状 | 归属 | 状态 | 定案后动作 |
 |---|---|---|---|---|---|
-| 11 | modelopt 入镜像 | 当前 wheel `[training]` extra 声明 `nvidia-modelopt[torch]==0.43.0`（无 `[torch]` extra，pip 仅警告后继续；核心约束 `torch>=2.6`），cambricon 双后端（torch 2.7.1/2.11.0）单步 `megatron-core[training]` 安装实测安全：modelopt 0.43.0 + 完整闭包就位，关键包（torch/torch-mlu/triton/flag_gems）复核未变 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)（已合并 2026-09-22） | 已实证（0.43.0 安全） | app-image 实建 cambricon 可单步装；**历史 hazard（0.45.0 时代，不再适用）**：旧 extra 曾声明 0.45.0（约束 `torch>=2.8`），4.4.3 下解析出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 替换 vendor torch，实测下载阶段 OOM（exit 137）；未来抬 modelopt 版本先核 torch 约束与 `[torch]` extra |
+| 11 | modelopt 入镜像 | 当前 wheel `[training]` extra 声明 `nvidia-modelopt[torch]==0.43.0`（无 `[torch]` extra，pip 仅警告后继续；核心约束 `torch>=2.6`），cambricon 双后端（torch 2.7.1/2.11.0）单步 `megatron-core[training]` 安装实测安全：modelopt 0.43.0 + 完整闭包就位，关键包（torch/torch-mlu/triton/flag_gems）复核未变 | [MLF #114](https://github.com/flagos-ai/Megatron-LM-FL/pull/114)（已合并 2026-09-22） | 已实证（0.43.0 安全） | app-image 实建 cambricon 可单步装；**历史 hazard（0.45.0 时代，不再适用）**：旧 extra 曾声明 0.45.0（约束 `torch>=2.8`），在 torch 2.7.1 的 SDK 线下列出 torch 2.13.0 + CUDA toolkit + triton 3.7.1 → 替换 vendor torch，实测下载阶段 OOM（exit 137）；未来抬 modelopt 版本先核 torch 约束与 `[torch]` extra |
 | 12 | ascend RL 路径（npu_fusion_attention 映射 vs Verl） | **定案（2026-08-31）：megatron_rl 全线降优先级，RL 框架转向 verl**；ascend ≤950 无 flash_attn 不再是需要攻坚的阻塞，MLF 侧 RL 方案维持待定。2026-09-24 追加：paged 分派缺陷已由 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 修复，无 flash-attn 后端的 RL E2E 已在 cambricon/mthreads 跑通（A1#14），交付路径不再缺实现 | 用户权衡 | 已定案 | 矩阵 RL 列维持 ⬜（未验），镜像按后端分批发布；verl 转向的框架选择不变 |
 | 13 | flash-attn nvidia 源码构建 wheel | cuda12.8/13.3 RL E2E 前置 | build-infra | 已完成 | deps_app 已落库 flash_attn（两后端）；psutil 归属待定（公共包，不入 deps_app） |
 
@@ -397,9 +391,8 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
   上提 + 全链 E2E 暂停）：[[megatron-0.17.1/backends/ascend.md]]
 - **metax**（training / post_training×inference / RL，实证链终止 2026-08-19，
   17 障碍全为本地代码/参数/harness 缺陷）：[[megatron-0.17.1/backends/metax.md]]
-- **cambricon**（training / post_training×inference，NEUWARE 4.4.3+4.7.2
-  双后端，triton-only；RL：4.4.3 已用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188)
-  补丁 E2E 跑通、待重建 wheel 复验；首例平台抽象缺口——megatron platform
+- **cambricon**（training / post_training×inference，NEUWARE 4.7.2，
+  triton-only；首例平台抽象缺口——megatron platform
   registry 无 mlu 平台，已随 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
   合入 `release/0.2` 关闭，无需容器侧补丁，见跟踪表 B#11）：
   [[megatron-0.17.1/backends/cambricon.md]]

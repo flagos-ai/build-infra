@@ -206,7 +206,6 @@ COMPILER_GUARD=""
 MASTER_PORT="${MASTER_PORT:-29500}"
 TRAIN_EXTRA_ARGS=""
 case "${VENDOR_BACKEND}" in
-    cambricon-neuware4.4.3) MASTER_PORT=29500 ;;
     cambricon-neuware4.7.2) MASTER_PORT=29501 ;;
     mthreads-*) TRAIN_EXTRA_ARGS="--distributed-backend mccl" ;;
     sunrise-*) TRAIN_EXTRA_ARGS="--distributed-backend pccl" ;;

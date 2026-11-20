@@ -38,7 +38,6 @@ scenarios:
       ascend-cann8.5.0-910c:  {T: "✅", F: "✅"}
       ascend-cann9.0.0:       {T: "⬜", F: "⬜"}
       ascend-cann9.0.0-910c:  {T: "✅", F: "✅"}
-      cambricon-neuware4.4.3: {T: "⬜", F: "⬜"}
       cambricon-neuware4.7.2: {T: "⬜", F: "⬜"}
       enflame-tops1.9.10:    {T: "⬜", F: "⬜"}
       enflame-tops1.10.6:    {T: "⬜", F: "⬜"}
@@ -95,11 +94,6 @@ backends:
     prs:
       - https://github.com/flagos-ai/FlagTree/pull/1023
     note: "RL E2E 已在 910C 上跑通（hw115，TRAIN_RL_EXIT=0，GRPO 全链 rollout→训练步 2 轮）；CANN paged attention 路径实测可用，无需容器侧补丁"
-  cambricon-neuware4.4.3:
-    deps_app: true
-    launch_docs: true
-    image_tag: "2.2.0-0.2.3"
-    note: "RL E2E 已在容器内应用 [MLF #188](https://github.com/flagos-ai/Megatron-LM-FL/pull/188) 补丁后跑通（TRAIN_RL_EXIT=0，两轮 iteration + eval greedy_reward 1.0000）；阻塞是 paged 分派写死 npu，wheel 未带该修复，待重建后复验"
   cambricon-neuware4.7.2:
     deps_app: true
     launch_docs: true
