@@ -153,12 +153,9 @@ jobs:
               outdir=rpm-packages
               ref=master
               ver=''
-              # x86_64 only because of the build inputs, not the source: the
-              # build installs torch and triton from flagos-pypi-nvidia, which
-              # publishes both for x86_64 alone while upstream has aarch64
-              # wheels for both. Add aarch64 here once the index carries them.
-              image_fedora43=
-              image_openeuler2403=
+              # These NVIDIA build environments are verified on x86_64.
+              image_fedora43=fedora:43
+              image_openeuler2403=openeuler/cuda:13.0.0-oe2403lts
               image_rhel9=nvidia/cuda:12.6.0-devel-rockylinux9 ;;
             FlagTree)
               repo=FlagTree
