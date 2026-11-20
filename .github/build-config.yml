@@ -73,7 +73,6 @@ runners:
     # 9.2.1 without relabelling the nodes or colliding with the older lines'
     # rows. Both nodes already run driver 26.1.1, the floor this version needs.
     ascend-cann9.2.1-910c: [self-hosted, ascend, 910c]
-    cambricon-neuware4.4.3: [self-hosted, cambricon]
     cambricon-neuware4.7.2: [self-hosted, cambricon]
     cambricon-neuware4.7.6: [self-hosted, cambricon]
     enflame-tops1.9.29: [self-hosted, tops1106]
