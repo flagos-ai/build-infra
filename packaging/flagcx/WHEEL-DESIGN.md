@@ -74,12 +74,21 @@ their wheel would link GLIBC_2.38 without a 22.04 build.
 | Base | **ubuntu:22.04, self-contained** — never the runtime image, never a vendor `-devel` tag |
 | Contents | python + torch pin + the row's SDK + `builder.extra_apt` + clang/llvm 22 + the wheel's build-only headers (nvidia rows); python + torch pin + the vendor SDK tarball, no clang/LLVM/NCCL (vendor rows, iluvatar excepted — its SDK carries its own clang + llvm tools) |
 | Which rows | Only those declaring `builder.enabled` — the nvidia rows because their runtime image lacks the toolchain, a vendor row because its wheel needs the 22.04 floor; a runtime image that already carries both the toolchain and a 22.04 floor needs none |
-| Recipe | `Containerfile.builder` for the nvidia rows; a vendor row names its own via `builder.containerfile` (`Containerfile.builder-vendor-hygon` is the first) — the SDK is a tarball/run into `/opt`, not the CUDA apt repo, so the install steps are not shareable |
+| Recipe | `Containerfile.builder-nvidia` for the nvidia rows; a vendor row names its own via `builder.containerfile` (`Containerfile.builder-hygon-dtk26.04` is the first) — the SDK is a tarball/run into `/opt`, not the CUDA apt repo, so the install steps are not shareable |
 | Acceptance | Compiling that row's device bitcode inside the built image (nvidia rows), or importing the pinned torch against the carried SDK (vendor rows — they publish no bitcode, so the torch import is the proof the wheel build stands in for), in CI, before the push. iluvatar is the vendor-row exception: it ships bitcode too, compiled and validated by the SDK's own clang + llvm tools, so its acceptance is the torch import (its `import torch` is the SDK-floor proof) and not the nvidia `make` |
+
+A recipe's file name states the rows it serves: `Containerfile.builder-<vendor>`
+when one recipe serves a vendor's every row (the two nvidia rows share one, as
+do ascend's six and metax's two), and `Containerfile.builder-<vendor>-<suffix>`
+when the vendor needs more than one — where `<suffix>` is the backend key's own
+tail. Two rules follow from that: the vendor token is the `configs.yaml` vendor
+key, never the FlagCX adaptor family (`tsingmicro`, not `tsm`; `iluvatar`, not
+`iluvatar_corex`); and once a vendor has a second recipe, *every* one of its
+recipes carries its suffix, so no file silently stands for one particular SDK.
 
 A vendor-SDK row (hygon, metax, …) that publishes a builder gets the same
 self-contained 22.04 environment, but its recipe is its own file rather than
-`Containerfile.builder`: the SDK is a tarball or a `.run` unpacked into `/opt`,
+`Containerfile.builder-nvidia`: the SDK is a tarball or a `.run` unpacked into `/opt`,
 and the interpreter is the row's own (hygon is python 3.10 from jammy itself, no
 deadsnakes PPA), so the shared file's CUDA-apt + NCCL-extract + LLVM steps do not
 apply and its nvidia-3.12 python does not either. The builder channel's *inputs*
@@ -93,7 +102,7 @@ step would add), so its verification is the torch import (see
 `verify-flagcx-builder.sh`) rather than the `make` the nvidia rows run. ascend is the same shape on
 arm64: its vendor torch is `torch==<ver>+cpu` plus the `torch-npu` bridge, so `import torch` is
 pure-CPU and the SDK-floor proof is `import torch_npu`, which dlopens the CANN toolkit libs. One
-recipe (`Containerfile.builder-vendor-ascend`) serves all five rows because flagcx links only
+recipe (`Containerfile.builder-ascend`) serves all five rows because flagcx links only
 `-ltorch_npu -lascendcl -lhccl`. The toolkit alone does not ship those link-time presences —
 `libhccl.so` and the canonical `<hccl/hccl.h>` come in the chip ops package, which also wires the
 arch-rooted `lib64/devlib/include` links — so the recipe installs toolkit **plus** the ops package
@@ -112,7 +121,7 @@ builder is the enflame shape — toolchain floor only, no reglib work. The one t
 the SDK-floor proof: `import torch_ptpu` probes the device in a constructor and aborts device-less,
 so the probe (and `verify-flagcx-builder.sh`) dlopens the two sonames FlagCX's own link names —
 `libpccl.so`, `libtangrt_shared.so` — instead, and the full bridge import is left to the wheel build,
-which runs with the row's device flags. tsingmicro (`Containerfile.builder-vendor-tsm`) is
+which runs with the row's device flags. tsingmicro (`Containerfile.builder-tsingmicro`) is
 the same shape again: the SDK's four installers (validation suite + runtime + ccl + profiler —
 libtccl's closure reaches into the profiler's lib) and torch `2.11.0+cpu` are all 22.04-clean, so
 the builder is the enflame shape. Its bridge is `torch_txda`, the sunrise probe shape again — the

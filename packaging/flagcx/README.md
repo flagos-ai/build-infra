@@ -76,10 +76,10 @@ packaging/flagcx/verify/verify-flagcx-builder.sh --backend hygon-dtk26.04
 ```
 
 Only rows with a `builder:` block have one, and they declare it for two different reasons. The
-nvidia rows need the toolchain the runtime lacks — so their recipe (`Containerfile.builder`) adds
+nvidia rows need the toolchain the runtime lacks — so their recipe (`Containerfile.builder-nvidia`) adds
 the SDK apt packages, NCCL and clang/llvm 22 — while a vendor-SDK row such as hygon or ascend needs
 only the floor: its runtime image already carries the toolchain but is 24.04, so its own recipe
-(`Containerfile.builder-vendor-hygon` / `Containerfile.builder-vendor-ascend`, named by
+(`Containerfile.builder-hygon-dtk26.04` / `Containerfile.builder-ascend`, named by
 `builder.containerfile`) installs the same SDK tarball and interpreter but no clang, bitcode or
 NCCL. A row whose runtime image already carries the toolchain and whose wheel need not drop its
 glibc floor builds straight from the runtime image and has none, which is the ordinary state and
@@ -300,7 +300,7 @@ enflame build from an earlier ref fails to compile, so there is no honest earlie
 | `Containerfile.wheel` | the wheel build's environment, on the backend's runtime image — or on its builder image where the row has one; it prepares (SDK assert, build-only headers, interpreter probe, clone), it does not compile |
 | `wheel-build-in-container.sh` | the compiling half: exec'd in a container from that image, carrying the row's device flags |
 | `build-flagcx-wheel.sh` | the wheel line's entry point; `--print-pin` reads a built wheel |
-| `Containerfile.builder` | the build-toolchain image, on top of the runtime image |
+| `Containerfile.builder-nvidia` | the build-toolchain image, on top of the runtime image |
 | `build-flagcx-builder.sh` | the builder line's entry point; tags the published ref |
 | `verify/` | `verify-flagcx-deb.sh` installs the `.deb` into its base image and a plain Ubuntu; `verify-flagcx-wheel.sh` installs the wheel from the file or from the index, and `verify-flagcx-wheel-in-container.sh` is the half of it that runs inside; `verify-flagcx-builder.sh` compiles the row's device bitcode in the builder image |
 

@@ -118,7 +118,7 @@ test "$#" -eq 1 -a -e "$1" \
 ls -1 /output/flagcx-*.whl
 
 # The glibc floor, asserted on the artifact and not on the image that built it.
-# This image is ubuntu:22.04 on purpose (see Containerfile.builder): a wheel
+# This image is ubuntu:22.04 on purpose (see Containerfile.builder-nvidia): a wheel
 # built here links at most glibc 2.35, which is what lets the bundle install it
 # on physical 22.04 hosts. The 24.04-built wheel this replaces linked GLIBC_2.38
 # and its __isoc23_* family — all tagged 2.38 — and aborted on import there. A
