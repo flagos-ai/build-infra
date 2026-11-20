@@ -290,15 +290,6 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
-  - version: 0.14.0+neuware4.4.3
-    pypi_index: flagos-pypi-cambricon
-    desc_zh: 面向寒武纪（Cambricon）Neuware 4.4.3 的 FlagCX 集合通信安装包。
-    desc_en: FlagCX collective-communication wheel for Cambricon Neuware 4.4.3.
-    notes: ''
-    notes_en: ''
-    python: cp310
-    os: linux
-    arch: linux_x86_64
   - version: 0.14.0+neuware4.7.2
     pypi_index: flagos-pypi-cambricon
     desc_zh: 面向寒武纪（Cambricon）Neuware 4.7.2 的 FlagCX 集合通信安装包。
@@ -380,15 +371,6 @@ wheels:
     python: cp311
     os: linux
     arch: linux_aarch64
-  - version: flagcx==0.14.1+neuware4.4.3
-    pypi_index: flagos-pypi-cambricon
-    desc_zh: 面向寒武纪（Cambricon）Neuware 4.4.3 的 FlagCX 集合通信安装包。
-    desc_en: FlagCX collective-communication wheel for Cambricon Neuware 4.4.3.
-    notes: ''
-    notes_en: ''
-    python: cp310
-    os: linux
-    arch: linux_x86_64
   - version: flagcx==0.14.1+neuware4.7.2
     pypi_index: flagos-pypi-cambricon
     desc_zh: 面向寒武纪（Cambricon）Neuware 4.7.2 的 FlagCX 集合通信安装包。
