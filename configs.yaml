@@ -520,6 +520,8 @@ vendors:
         - decorator==5.3.1
         - ml-dtypes==0.4.1
         - scipy==1.17.1
+        - attrs==24.2.0
+        - psutil==6.0.0
         # ms-service-profiler's vllm plugin needs these; the SDK omits them.
         - opentelemetry-exporter-otlp-proto-grpc==1.45.2
         - opentelemetry-exporter-otlp-proto-http==1.45.2
@@ -565,6 +567,8 @@ vendors:
         - decorator==5.3.1
         - ml-dtypes==0.4.1
         - scipy==1.17.1
+        - attrs==24.2.0
+        - psutil==6.0.0
         # ms-service-profiler's vllm plugin needs these; the SDK omits them.
         - opentelemetry-exporter-otlp-proto-grpc==1.45.2
         - opentelemetry-exporter-otlp-proto-http==1.45.2
@@ -623,6 +627,8 @@ vendors:
         - decorator==5.3.1
         - ml-dtypes==0.4.1
         - scipy==1.17.1
+        - attrs==24.2.0
+        - psutil==6.0.0
         # ms-service-profiler's vllm plugin needs these; the SDK omits them.
         - opentelemetry-exporter-otlp-proto-grpc==1.45.2
         - opentelemetry-exporter-otlp-proto-http==1.45.2
@@ -665,6 +671,8 @@ vendors:
         - decorator==5.3.1
         - ml-dtypes==0.4.1
         - scipy==1.17.1
+        - attrs==24.2.0
+        - psutil==6.0.0
         # ms-service-profiler's vllm plugin needs these; the SDK omits them.
         - opentelemetry-exporter-otlp-proto-grpc==1.45.2
         - opentelemetry-exporter-otlp-proto-http==1.45.2
