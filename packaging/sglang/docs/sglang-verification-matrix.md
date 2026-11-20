@@ -35,7 +35,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | 英伟达 | CUDA 13.3 | ⬜ | ⬜ |
 | 昇腾 | CANN 8.5.0 | ✅ | ✅ |
 | 昇腾 | CANN 9.0.0 | ✅ | ✅ |
-| 寒武纪 | NEUWARE 4.4.3 | ✅ | — |
 | 寒武纪 | NEUWARE 4.7.2 | ✅ | — |
 | 燧原 | TOPS 1.9.10 | ✅ | ✅ |
 | 燧原 | TOPS 1.10.6 | ✅ | ✅ |
@@ -56,7 +55,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 |---|---|---|---|---|
 | 昇腾 | CANN 8.5.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/84 | OPEN |
 | 昇腾 | CANN 9.0.0 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/84 | OPEN |
-| 寒武纪 | NEUWARE 4.4.3 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/90 | OPEN |
 | 寒武纪 | NEUWARE 4.7.2 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/90 | OPEN |
 | 燧原 | TOPS 1.9.10 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
 | 燧原 | TOPS 1.10.6 | sglang0.5.18 | https://github.com/flagos-ai/sglang-plugin-FL/pull/91 | OPEN |
@@ -93,7 +91,6 @@ PR 表"状态"列在渲染时经 `gh` 实时查询 PR 合并状态（已合并 /
 | CUDA 13.3 | ✅ | ⬜ | ⬜ | — |
 | CANN 8.5.0 | ✅ | ✅ | ✅ | — |
 | CANN 9.0.0 | ✅ | ✅ | ✅ | — |
-| NEUWARE 4.4.3 | ✅ | ✅ | ✅ | — |
 | NEUWARE 4.7.2 | ✅ | ✅ | ✅ | — |
 | TOPS 1.9.10 | ✅ | ✅ | ✅ | — |
 | TOPS 1.10.6 | ✅ | ✅ | ✅ | — |

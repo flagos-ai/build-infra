@@ -188,8 +188,8 @@ yaml」，而是扩枚举，连带触碰：
 driver 为每个失败 cell 生成一张卡，worker 从零开始只拿卡：
 
 ```yaml
-cell:        vllm0.24.0 / cambricon-neuware4.4.3 / T
-image:       harbor.../flagos-runtime-cambricon-neuware4.4.3:2.1.2
+cell:        vllm0.24.0 / cambricon-neuware4.7.2 / T
+image:       harbor.../flagos-runtime-cambricon-neuware4.7.2:2.3.0
 verify_script: packaging/vllm/verify/verify-vllm-backend.sh
 failure:     # 预压缩摘要，见 §5.2
   step:      serve

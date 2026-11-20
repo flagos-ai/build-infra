@@ -317,8 +317,8 @@ pre code{background:none;border:none;padding:0;font-size:12.5px;line-height:1.75
       </thead>
       <tbody>
         <tr>
-          <td>3.10（6 个）</td>
-          <td>cambricon-neuware4.4.3、hygon-dtk26.04、kunlunxin-xre5.37.1、mthreads-musa5.2.0、sunrise-tangrt1.2.0、tsingmicro-tsm260610</td>
+          <td>3.10（5 个）</td>
+          <td>hygon-dtk26.04、kunlunxin-xre5.37.1、mthreads-musa5.2.0、sunrise-tangrt1.2.0、tsingmicro-tsm260610</td>
           <td>否</td>
           <td><b>可</b>（§6.4）</td>
         </tr>
@@ -461,9 +461,9 @@ ImportError: cannot import name 'Never' from 'typing'</code></pre>
     py3.10 + torch 2.7.1 上 <code>EngineCore</code> 与 <code>api_server</code> 均 import 通过
     —— 说明 vLLM 装载插件早于 <code>vllm.ir</code>（<code>worker_base.py:10</code> 那个模块级
     <code>import vllm.ir</code> 是插件装载之后才发生的）。</p>
-    <p>对 py3.10 七个后端的含义：只有 <strong>cambricon-neuware4.4.3（torch 2.7.1+cpu）</strong>需要这个垫片；
-    hygon-dtk26.04 / kunlunxin（2.9.0）、mthreads×2（2.9.0 / 2.9.1）、sunrise / tsingmicro（2.11.0）
-    都在 2.8 之上。</p>
+    <p>对 py3.10 后端的含义：现存的 cambricon 线之外，hygon-dtk26.04 / kunlunxin（2.9.0）、
+    mthreads×2（2.9.0 / 2.9.1）、sunrise / tsingmicro（2.11.0）都在 2.8 之上，都不需要这个垫片；
+    唯一需要它的 cambricon-neuware4.4.3（torch 2.7.1+cpu）已退役。</p>
   </section>
 
   <section class="sec" id="s7">

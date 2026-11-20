@@ -53,7 +53,6 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 | ascend cann9.0.0 | [ascend.md](backends/ascend.md) | 910B4 aarch64 cp311；fork-SHA 溯源表 |
 | sunrise tangrt1.2.0 | [sunrise.md](backends/sunrise.md) | FlagTree decode 挂死 → 已修复（[FlagTree #978](https://github.com/flagos-ai/FlagTree/pull/978)）|
 | kunlunxin xre5.37.1 | [kunlunxin.md](backends/kunlunxin.md) | P800 XPU；解码乱码 [VPF #400](https://github.com/flagos-ai/vllm-plugin-FL/pull/400) + 假死 KL3 |
-| cambricon neuware4.4.3 | [cambricon.md](backends/cambricon.md) | §2.11，T-only 兼容 shim ×5 |
 | tsingmicro tsm260610 | [tsingmicro.md](backends/tsingmicro.md) | §2.14，TX8110 F/T 双路径 E2E |
 
 ---
@@ -74,7 +73,6 @@ Wheel）上传到 resource.flagos.net 的 Vendor PyPI 服务器，供流程化�
 | ascend-cann8.5.0-910c | 0.6.0+ascend3.2 | 2.2.0-0.2.2rc2.post2 | ✅ |
 | ascend-cann9.0.0 | 0.7.0rc2+ascend3.5 | 2.2.0-0.2.2rc2.post2 | ✅ |
 | ascend-cann9.0.0-910c | 0.7.0rc2+ascend3.5 | 2.2.0-0.2.2rc2.post2 | ✅ |
-| cambricon-neuware4.4.3 | —（无 FlagTree） | 2.2.0-0.2.2rc2.post2 | ✅ |
 | cambricon-neuware4.7.2 | —（无 FlagTree） | 2.2.0-0.2.2rc2.post2 | ✅ |
 | enflame-tops1.9.10 | 0.6.0+enflame3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |
 | enflame-tops1.10.6 | 0.7.0rc2+enflame3.6 | 2.2.0-0.2.2rc2.post2 | ✅ |

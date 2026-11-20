@@ -1,10 +1,9 @@
 # Megatron-LM-FL cambricon E2E 验证记录
 
-验证在寒武纪两个后端上进行，均为 triton-only（矩阵 F 列 = —）：
+验证在 cambricon-neuware4.7.2 上进行，triton-only（矩阵 F 列 = —）：
 
 | 后端 | runtime 镜像 | Python | torch | torch-mlu | triton（/opt/triton） | flag_gems |
 |---|---|---|---|---|---|---|
-| NEUWARE 4.4.3 | `flagos-runtime-cambricon-neuware4.4.3:2.1.2` | 3.10 | 2.7.1+cpu | 1.29.2+torch2.7.1 | 3.2.0+mlu1.7.2 | 5.3.4 |
 | NEUWARE 4.7.2 | `flagos-runtime-cambricon-neuware4.7.2:2.1.2` | 3.12 | 2.11.0+cpu | 1.33.1+torch2.11.0 | 3.4.0+mlu2.1.1 | 5.3.4 |
 
 megatron-core 安装形态为 merged wheel
@@ -20,22 +19,17 @@ ci/merge-105-106-107-114（合入五个 PR）：
 2026-08-22（含 [MLF #125](https://github.com/flagos-ai/Megatron-LM-FL/pull/125)
 并入集成分支后的复验），节点为 MLU590-M9DE（8 卡）。
 
-## training（2026-08-22，双后端全 ✅）
+## training（2026-08-22，✅）
 
-5-iter pretrain_gpt E2E exit 0（4.4.3 MASTER_PORT=29500 / 4.7.2 29501）。
+5-iter pretrain_gpt E2E exit 0（MASTER_PORT=29501）。
 复验（aggregate wheel）loss 与此前验证逐字节一致。
 
-- 4.4.3：iteration 1/5 lm loss **5.989294E+00**（9697.1 ms，首 iter Triton
-  compile），grad norm 2.730；validation-set 5.972318E+00 | PPL 3.924143E+02；
-  test-set 5.973097E+00 | PPL 3.927200E+02
 - 4.7.2：iteration 1/5 lm loss **5.989294E+00**（14698.9 ms），grad norm 2.730；
   validation-set 5.972326E+00 | PPL 3.924175E+02；test-set 5.973097E+00 |
   PPL 3.927200E+02
 
-**跨后端一致性**：iteration-1 loss 与 test-set validation loss 与 4.4.3
-**逐字节相同**（5.989294E+00 / 5.973097E+00）；validation-set 仅第 5 位小数不同（5.972318 vs 5.972326）——eval RNG seeding 跨 torch 版本差异，记录为
-observed 非错误。loss 量级 ~5.97 与 metax 基线 ~1.08E+01 不同——不同
-torch/平台，同样记录为 observed。
+**量级说明**：loss ~5.97 与 metax 基线 ~1.08E+01 不同——不同 torch/平台，
+记录为 observed 非错误。
 
 ## 平台抽象缺口（cambricon 首例，跟踪表 B#11）
 
@@ -83,7 +77,7 @@ triton kernel）。
 - **规则（用户定）**：关键包（torch/torch-mlu/triton/flag_gems）一律不升级。
 - **历史 hazard（0.45.0 时代，当前 wheel 不再适用）**：旧 wheel 的
   `[training]` extra 曾声明 `nvidia-modelopt[torch]==0.45.0`（约束
-  `torch>=2.8`），4.4.3（torch 2.7.1+cpu）下全依赖装会解析出 torch 2.13.0 +
+  `torch>=2.8`），在 torch 2.7.1 那条 SDK 线下列全依赖会解析出 torch 2.13.0 +
   CUDA toolkit 并替换 vendor torch——实测下载阶段 OOM 被杀（exit 137）。
   0.43.0 pin 后该路径不存在；若未来 extra 再抬 modelopt 版本，先核其 torch
   约束与 `[torch]` extra 有无。
@@ -100,7 +94,7 @@ inference = legacy `StaticInferenceEngine` 3 请求 × 8 tokens（prompt_tokens
 已随 [MLF #120](https://github.com/flagos-ai/Megatron-LM-FL/pull/120) 合入
 `release/0.2`（2026-09-22）关闭**（矩阵 ⛔ 的原始语义），待按该分支重建 wheel 后复验。
 
-## RL（2026-09-24：4.4.3 已 E2E 跑通，待重建 wheel 复验）
+## RL（2026-09-24：E2E 已跑通，待重建 wheel 复验）
 
 **结论：RL 跑不起来的真实原因不是「本后端无 flash-attn」。** 上游两处缺陷叠加：
 
@@ -118,7 +112,7 @@ flash-attn 路径），无 flash-attn 的平台 override 为 True，并由 `Plat
 的 `paged_decode_attention()` / `paged_prefill_attention()` 默认实现走 flag_gems
 的 `flash_attn_varlen_func`（page-major KV cache + block_table）。
 
-**实测（neuware 4.4.3 后端）**：把 #188 的五个源文件装进 `megatron_rl` app 镜像后，
+**实测（当时的 4.4.3 后端，该线已退役）**：把 #188 的五个源文件装进 `megatron_rl` app 镜像后，
 `train_rl.py` GRPO 2 iteration 跑完 —— `TRAIN_RL_EXIT=0`，两轮 iteration 打印
 loss / `rl/kl_term` / `rl/entropy_term`，eval `dummy_eval_mean_greedy_reward: 1.0000`。
 4.7.2 后端未实测。

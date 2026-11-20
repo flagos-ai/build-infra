@@ -29,7 +29,7 @@ CPython-ABI 特定——cp310 / cp311 / cp312 三版本全部构建并上传（r
 | hygon（DTK 26.04） | [backends/hygon.md](backends/hygon.md) | 四场景 × 双编译器全 ✅（flagtree 需 jit_fuser noop） |
 | metax（MACA 3.8.1.3） | [backends/metax.md](backends/metax.md) | 四场景 × 双编译器全 ✅；17 障碍全闭环 |
 | ascend（CANN 8.5.0 / 9.0.0） | [backends/ascend.md](backends/ascend.md) | training / post_training / inference ✅；RL 未实测 |
-| cambricon（NEUWARE 4.4.3 / 4.7.2） | [backends/cambricon.md](backends/cambricon.md) | 三场景 ✅（triton-only）；RL：4.4.3 已 E2E 跑通（待重建 wheel 复验） |
+| cambricon（NEUWARE 4.7.2） | [backends/cambricon.md](backends/cambricon.md) | 三场景 ✅（triton-only）；RL 待重建 wheel 后复验 |
 | enflame（TOPS 1.9.10 / 1.10.6） | [backends/enflame.md](backends/enflame.md) | training 双编译器 ✅（flagtree 需 jit_fuser noop；1.10.6 另需 ECCL fp64 patch） |
 | iluvatar（CoreX 4.5.0） | [backends/iluvatar.md](backends/iluvatar.md) | training 双编译器 ✅，零 workaround |
 

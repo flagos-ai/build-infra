@@ -45,9 +45,6 @@ include:
     runson: '["self-hosted", "h20"]'
     mode: standard
     pypi_repos: flagos-pypi-nvidia
-  - name: cambricon-neuware4.4.3   # python 3.10, x86_64
-    runson: '["self-hosted", "cambricon"]'
-    pypi_repos: flagos-pypi-cambricon flagos-pypi-hygon flagos-pypi-kunlunxin flagos-pypi-mthreads flagos-pypi-sunrise flagos-pypi-tsingmicro
   - name: ascend-cann9.0.0         # python 3.11, aarch64
     runson: '["self-hosted", "cann900", "910b"]'
     pypi_repos: flagos-pypi-ascend
