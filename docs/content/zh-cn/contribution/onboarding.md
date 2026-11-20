@@ -51,7 +51,7 @@ weight: 10
 | 镜像 tag           | `flagos-base-<vendor>-<backend>:<version>-<revision>`    |
 | configs.yaml 键    | `vendors.<vendor>.<backend>`                             |
 
-`<backend>` 段是 SDK/工具链版本（如 `cuda12.8`、`cann9.0.0`、`neuware4.4.3`），
+`<backend>` 段是 SDK/工具链版本（如 `cuda12.8`、`cann9.0.0`、`neuware4.7.6`），
 且必须在 `base/` 文件名和 `configs.yaml` 键之间保持一致。
 
 ## 第 1 步 —— 添加 base containerfile

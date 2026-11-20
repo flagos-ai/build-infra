@@ -333,24 +333,6 @@ metax-maca3.8.1.3:
     containerfile: Containerfile.builder-metax
     sdk_version: 3.8.1.3
 
-cambricon-neuware4.4.3:
-  vendor: cambricon
-  make_flag: USE_CAMBRICON
-  arch: amd64
-  glibc_floor: "2.35"
-  apt: []
-  # cambricon.mk defaults DEVICE_HOME/CCL_HOME to $(NEUWARE_HOME) — env-derived,
-  # so pinned here rather than inherited.
-  make_env:
-    DEVICE_HOME: /usr/local/neuware
-    CCL_HOME: /usr/local/neuware
-    PLATFORM_EXTRA_SRCS: flagcx/adaptor/device_api/default_dev_api_backend.cc
-  vendor_libs: [cnrt, cncl]
-  assert: [/usr/local/neuware/include/cncl.h, /usr/local/neuware/include/cnrt.h]
-  deb: {enabled: true, default_for_vendor: false}
-  rpm: {enabled: false, blocked_by: vendor-ships-deb-only}
-  wheel: {enabled: true}
-
 cambricon-neuware4.7.2:
   vendor: cambricon
   make_flag: USE_CAMBRICON
