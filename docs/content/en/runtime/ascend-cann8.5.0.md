@@ -104,6 +104,12 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-20 14:19:24*
+
+- Installs the requirements CANN leaves undeclared on two paths: `tbe`
+  imports decorator and ml-dtypes at module load, and ms-service-profiler's
+  vllm plugin imports the otlp exporters.
+
 *2026-11-19 15:40:06*
 
 - Rebuilt on the current base image, which no longer lets `vendor.sh`
