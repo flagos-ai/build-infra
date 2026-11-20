@@ -192,7 +192,6 @@ Every published pin is a build off the release tag `v0.14.1` — the version str
 | `ascend-cann9.0.0` | 2026-11-04 | `0.14.1+cann9.0.0` |
 | `ascend-cann9.0.0-910c` | 2026-10-28 | `0.14.1+cann9.0.0.910c` |
 | `ascend-cann9.2.1` | 2026-11-04 | `0.14.1+cann9.2.1` |
-| `cambricon-neuware4.4.3` | 2026-10-28 | `0.14.1+neuware4.4.3` |
 | `cambricon-neuware4.7.2` | 2026-10-28 | `0.14.1+neuware4.7.2` |
 | `enflame-tops1.9.10` | 2026-10-28 | `0.14.1+tops1.9.10` |
 | `enflame-tops1.10.6` | 2026-10-28 | `0.14.1+tops1.10.6` |
@@ -229,8 +228,8 @@ other row still serves its own, so an older pin remains installable.
 Every wheel here is 22.04-clean in the two objects that carry the linkage —
 `flagcx/lib/libflagcx.so` and `_C*.so` link at most GLIBC 2.35 and none of `GLIBCXX_3.4.31/32` or
 `__isoc23_*`. That is not incidental: it is what the builder channel exists for, and the `.so` gate
-in `wheel-build-in-container.sh` fails the build rather than let a wheel link past it. Four rows
-reach the floor with no builder of their own (`cambricon-neuware4.4.3`, `kunlunxin-xre5.37.1` and
+in `wheel-build-in-container.sh` fails the build rather than let a wheel link past it. Two rows
+reach the floor with no builder of their own (`kunlunxin-xre5.37.1` and
 `mthreads-musa5.2.0`) because their base images are 22.04 to begin with; `mthreads-musa5.3.0`
 is the exception among the musa rows — its base is 24.04, which is why it is the first one to need
 a builder.

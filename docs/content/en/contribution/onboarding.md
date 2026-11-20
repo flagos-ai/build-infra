@@ -53,7 +53,7 @@ matrix scripting is needed — the build matrix is derived from `configs.yaml` +
 | configs.yaml key   | `vendors.<vendor>.<backend>`                            |
 
 The `<backend>` segment is the SDK/toolkit version (e.g. `cuda12.8`, `cann9.0.0`,
-`neuware4.4.3`) and must match between the `base/` filename and the `configs.yaml`
+`neuware4.7.6`) and must match between the `base/` filename and the `configs.yaml`
 key.
 
 ## Step 1 — add the base containerfile
