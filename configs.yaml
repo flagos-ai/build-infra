@@ -413,6 +413,12 @@ vendors:
         - torchvision==0.24.0
         - torchaudio==2.9.0
         - numpy==1.26.4
+        # tbe imports these at module load and CANN does not declare them.
+        - ml-dtypes==0.4.1
+        - scipy==1.17.1
+        # ms-service-profiler's vllm plugin needs these; the SDK omits them.
+        - opentelemetry-exporter-otlp-proto-grpc==1.45.2
+        - opentelemetry-exporter-otlp-proto-http==1.45.2
         - attrs==24.2.0
         - decorator==5.1.1
         - psutil==6.0.0
@@ -455,6 +461,12 @@ vendors:
         - torchvision==0.24.0
         - torchaudio==2.9.0
         - numpy==1.26.4
+        # tbe imports these at module load and CANN does not declare them.
+        - ml-dtypes==0.4.1
+        - scipy==1.17.1
+        # ms-service-profiler's vllm plugin needs these; the SDK omits them.
+        - opentelemetry-exporter-otlp-proto-grpc==1.45.2
+        - opentelemetry-exporter-otlp-proto-http==1.45.2
         - attrs==24.2.0
         - decorator==5.1.1
         - psutil==6.0.0
@@ -504,6 +516,12 @@ vendors:
         - torchvision==0.25.0+cpu
         - torchaudio==2.10.0+cpu
         - numpy==1.26.4
+        # tbe imports these at module load and CANN does not declare them.
+        - decorator==5.3.1
+        - ml-dtypes==0.4.1
+        # ms-service-profiler's vllm plugin needs these; the SDK omits them.
+        - opentelemetry-exporter-otlp-proto-grpc==1.45.2
+        - opentelemetry-exporter-otlp-proto-http==1.45.2
         - cann-shmem==1.6.0
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
@@ -542,6 +560,12 @@ vendors:
         - torchvision==0.25.0+cpu
         - torchaudio==2.10.0+cpu
         - numpy==1.26.4
+        # tbe imports these at module load and CANN does not declare them.
+        - decorator==5.3.1
+        - ml-dtypes==0.4.1
+        # ms-service-profiler's vllm plugin needs these; the SDK omits them.
+        - opentelemetry-exporter-otlp-proto-grpc==1.45.2
+        - opentelemetry-exporter-otlp-proto-http==1.45.2
         - cann-shmem==1.6.0
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
@@ -593,6 +617,12 @@ vendors:
         - torchvision==0.28.0+cpu
         - torchaudio==2.11.0+cpu
         - numpy==1.26.4
+        # tbe imports these at module load and CANN does not declare them.
+        - decorator==5.3.1
+        - ml-dtypes==0.4.1
+        # ms-service-profiler's vllm plugin needs these; the SDK omits them.
+        - opentelemetry-exporter-otlp-proto-grpc==1.45.2
+        - opentelemetry-exporter-otlp-proto-http==1.45.2
         - cann-shmem==1.6.0
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
@@ -628,6 +658,12 @@ vendors:
         - torchvision==0.28.0+cpu
         - torchaudio==2.11.0+cpu
         - numpy==1.26.4
+        # tbe imports these at module load and CANN does not declare them.
+        - decorator==5.3.1
+        - ml-dtypes==0.4.1
+        # ms-service-profiler's vllm plugin needs these; the SDK omits them.
+        - opentelemetry-exporter-otlp-proto-grpc==1.45.2
+        - opentelemetry-exporter-otlp-proto-http==1.45.2
         - cann-shmem==1.6.0
         # Shared with the 910B row of this CANN version -- see the block comment.
         - flagcx==0.14.1+cann9.2.1
