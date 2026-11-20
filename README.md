@@ -53,3 +53,8 @@ workflow (`workflow_dispatch`) — pick a backend (or `all`) and whether to push
 
 To add a vendor/backend, see the
 [onboarding guide](https://flagos-ai.github.io/release-info/contribution/onboarding/).
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the supported versions and how to report a
+vulnerability.
