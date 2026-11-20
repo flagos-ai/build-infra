@@ -22,6 +22,13 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Installs the requirements CANN leaves undeclared on two paths: `tbe`
+        imports decorator and ml-dtypes at module load, and ms-service-profiler's
+        vllm plugin imports the otlp exporters.
+    reason_zh: |-
+      - 补装 CANN 未声明的两条路径所需依赖：`tbe` 在模块加载时导入 decorator 与 ml-dtypes；ms-service-profiler 的 vllm 插件导入 otlp 导出器。
+    upstream_prs: []
+  - reason: |-
       - Rebuilt on the current base image, which no longer lets `vendor.sh`
         overwrite a caller's `PYTHONPATH` (#1882).
     reason_zh: |-
