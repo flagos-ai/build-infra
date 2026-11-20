@@ -81,6 +81,8 @@ except Exception as e:
 
 CHECK_FLAGCX
 
+CHECK_TBE
+
 for t in tests:
     print(t)
 if any('FAIL' in t for t in tests):
@@ -100,6 +102,16 @@ try:
     tests.append('flagcx OK ' + _md.version('flagcx'))
 except Exception as e:
     tests.append('flagcx FAIL: ' + str(e))
+"""
+
+# tbe is the Ascend operator compiler; CANN does not declare its load-time deps,
+# so the op path is dead while everything above it looks healthy.
+TBE_CHECK = r"""# 6. import tbe — its own dependencies are undeclared upstream
+try:
+    import tbe
+    tests.append('tbe OK')
+except Exception as e:
+    tests.append('tbe FAIL: ' + str(e))
 """
 
 
@@ -183,8 +195,12 @@ def main() -> None:
             (p.get("pkg") or "").split("==")[0] == "flagcx"
             for p in (entry["runtime"].get("packages") or [])
         )
+        # ascend only: tbe is the part whose deps CANN leaves undeclared.
+        runs_tbe = name.startswith("ascend-")
         script = VERIFY_SCRIPT.replace(
             "CHECK_FLAGCX", FLAGCX_CHECK if pins_flagcx else ""
+        ).replace(
+            "CHECK_TBE", TBE_CHECK if runs_tbe else ""
         )
         cmd = ["docker", "run"] + flags + ["--rm", image,
                "bash", "-c", f"python3 << 'PYEOF'\n{script}\nPYEOF"]
@@ -196,7 +212,7 @@ def main() -> None:
             print(f"  ❌ {name}: verification FAILED (exit {r.returncode})")
             failed.append(name)
         else:
-            print(f"  ✅ {name}: ALL {4 + int(pins_flagcx)} checks passed")
+            print(f"  ✅ {name}: ALL {4 + int(pins_flagcx) + int(runs_tbe)} checks passed")
 
     if failed:
         print(f"\n{len(failed)} FAILED: {' '.join(failed)}")
