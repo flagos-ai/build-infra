@@ -36,9 +36,11 @@ Examples:
 
 import argparse
 import os
+import re
 import socket
 import subprocess
 import sys
+import urllib.parse
 from pathlib import Path
 
 from version import image_version
@@ -108,62 +110,104 @@ def default_registry(repo_root: Path) -> str | None:
     return host or None
 
 
-def internal_hosts(repo_root: Path, name: str) -> list[str]:
-    """`--add-host` args for names that only some build nodes can resolve.
+def nexus_overrides(repo_root: Path) -> dict:
+    """Rows whose build nodes reach the Nexus on a host other than the public one.
 
-    A `docker build` container inherits the daemon host's resolv.conf but not
-    its /etc/hosts, so a name the node carries only there (Nexus's inner
-    endpoint on the 910C pair) is invisible inside RUN. The address is looked up
-    on the runner rather than written down: a node that cannot resolve it gets
-    no flag and keeps building the way it did before.
+    build-config.yml states the host per row; the vendor index, the daily index
+    and the filestore are three repository paths on that one host, so a row
+    moves them together. Absent for every row that builds against the public
+    host, which is all but the 910C pair.
     """
     config_path = repo_root / ".github" / "build-config.yml"
     if not config_path.exists():
-        return []
+        return {}
     try:
         import yaml
     except ImportError:
-        return []
+        return {}
     with open(config_path) as f:
         cfg = yaml.safe_load(f) or {}
-    hosts = (cfg.get("internal_hosts") or {}).get(name) or []
-    args = []
-    for host in hosts:
-        try:
-            ip = socket.gethostbyname(host)
-        except OSError:
-            print(
-                f"note: {host} does not resolve here — building without --add-host",
-                file=sys.stderr,
-            )
-            continue
-        args += ["--add-host", f"{host}:{ip}"]
-    return args
+    return cfg.get("nexus_overrides") or {}
+
+
+def nexus_override(repo_root: Path, name: str) -> dict:
+    """The Nexus host this row's build nodes reach, parsed.
+
+    Empty for a row on the public host.
+    """
+    entry = nexus_overrides(repo_root).get(name) or {}
+    host = entry.get("host") or ""
+    if not host:
+        return {}
+    parsed = urllib.parse.urlsplit(host)
+    return {
+        "url": host.rstrip("/"),
+        "scheme": parsed.scheme,
+        "netloc": parsed.netloc,
+        "hostname": parsed.hostname or "",
+    }
+
+
+def rewrite_host(url: str, name: str, repo_root: Path) -> str:
+    """Swap a URL's scheme+host for the row's Nexus override, keeping its path."""
+    override = nexus_override(repo_root, name)
+    if not override or not url:
+        return url
+    parts = urllib.parse.urlsplit(url)
+    if not parts.scheme:
+        return url
+    return urllib.parse.urlunsplit(
+        (override["scheme"], override["netloc"], parts.path, parts.query, parts.fragment)
+    )
+
+
+def internal_hosts(repo_root: Path, name: str) -> list[str]:
+    """`--add-host` args for the row's Nexus host, when only some nodes resolve it.
+
+    A `docker build` container inherits the daemon host's resolv.conf but not
+    its /etc/hosts, so a name the node carries only there (the 910C pair's inner
+    Nexus) is invisible inside RUN. The address is looked up on the runner
+    rather than written down: a node that cannot resolve it gets no flag and
+    keeps building the way it did before.
+    """
+    override = nexus_override(repo_root, name)
+    hostname = override.get("hostname")
+    if not hostname:
+        return []
+    try:
+        ip = socket.gethostbyname(hostname)
+    except OSError:
+        print(
+            f"note: {hostname} does not resolve here — building without --add-host",
+            file=sys.stderr,
+        )
+        return []
+    return ["--add-host", f"{hostname}:{ip}"]
 
 
 def build_args(repo_root: Path, name: str) -> list[str]:
-    """`--build-arg` args from the row's `build_args` entry, if any.
+    """`--build-arg` args for the row's site-dependent values.
 
-    A value that differs per build site — the Nexus endpoint a node can reach —
-    belongs to the dispatch, not to the Containerfile, which keeps a public
-    default. Declared here so the override is visible next to the runner labels
-    it belongs with, and so no site-specific address is written into the image
-    recipe.
+    FILE_STORE is the one today: a base Containerfile keeps the public default
+    and a site that reaches the Nexus elsewhere overrides it here, so no
+    address is written into an image recipe.
     """
-    config_path = repo_root / ".github" / "build-config.yml"
-    if not config_path.exists():
+    override = nexus_override(repo_root, name)
+    if not override:
         return []
-    try:
-        import yaml
-    except ImportError:
+    containerfile = repo_root / "base" / name
+    if not containerfile.is_file():
         return []
-    with open(config_path) as f:
-        cfg = yaml.safe_load(f) or {}
-    values = (cfg.get("build_args") or {}).get(name) or {}
-    args = []
-    for key, value in values.items():
-        args += ["--build-arg", f"{key}={value}"]
-    return args
+    # Only rows that take FILE_STORE as a build arg; the others name their
+    # store literally and are unaffected by a site override.
+    if "ARG FILE_STORE" not in containerfile.read_text():
+        return []
+    text = containerfile.read_text()
+    # Keep whatever repository path the row already points at.
+    match = re.search(r"^ARG FILE_STORE=(\S+)$", text, re.MULTILINE)
+    if not match:
+        return []
+    return ["--build-arg", f"FILE_STORE={rewrite_host(match.group(1), name, repo_root)}"]
 
 
 def main():

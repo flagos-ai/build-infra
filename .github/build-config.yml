@@ -29,37 +29,30 @@ registry:
     # App images live under flagos-app
     app: flagos-app
 
-# Names that resolve only from a few build nodes' /etc/hosts.
+# The Nexus host a row's build nodes reach.
 #
-# `docker build` containers inherit the daemon host's resolv.conf but NOT its
-# /etc/hosts, so a name that lives only there is invisible inside RUN. Keyed by
-# base Containerfile name; scripts/build_base.py resolves each entry on the
-# runner and hands the address to docker as --add-host. A node that cannot
-# resolve the name builds without the flag, so this stays a per-node fact rather
-# than a hardcoded address. Today only the 910C pair (hw114/hw115) carries it.
-internal_hosts:
-  ascend-cann8.5.0-910c:
-    - resource-inner.flagos.net
-  ascend-cann9.0.0-910c:
-    - resource-inner.flagos.net
-  ascend-cann9.2.1-910c:
-    - resource-inner.flagos.net
-
-# Build args a row cannot carry itself, because the value is a per-site fact.
+# The vendor PyPI index, the daily index and the filestore are one Nexus under
+# three repository paths, so a node that reaches it on a different host needs
+# all three moved together. That is a property of the build site, not of the
+# backend definition: the same row built elsewhere uses the public host, which
+# is why the host lives here and not in configs.yaml, and never in a
+# Containerfile. The public host is the default; only rows that differ appear
+# below.
 #
-# The Containerfile keeps a public default and this overrides it on the nodes
-# that need something else — today the 910C pair, whose Nexus is reachable only
-# on the internal endpoint (plain HTTP; an https URL to that port dies in the
-# TLS handshake). Keyed by base Containerfile name, passed through by
-# scripts/build_base.py. Keeping it here means no site-specific address is
-# written into an image recipe.
-build_args:
+# scripts/generate_matrix.py and scripts/build_base.py swap the scheme and host
+# of each URL, keeping its /repository/... path. The host also doubles as the
+# name a build container must be told about via --add-host: containers inherit
+# the daemon's resolv.conf but not its /etc/hosts.
+nexus_overrides:
+  # hw114/hw115 build the 910C rows and cannot reach resource.flagos.net (the
+  # name does not resolve there); their Nexus is the same service on the inner
+  # name, plain HTTP on 20800, at LAN speed.
   ascend-cann8.5.0-910c:
-    FILE_STORE: http://resource-inner.flagos.net:20800/repository/flagos-filestore/ascend
+    host: http://resource-inner.flagos.net:20800
   ascend-cann9.0.0-910c:
-    FILE_STORE: http://resource-inner.flagos.net:20800/repository/flagos-filestore/ascend
+    host: http://resource-inner.flagos.net:20800
   ascend-cann9.2.1-910c:
-    FILE_STORE: http://resource-inner.flagos.net:20800/repository/flagos-filestore/ascend
+    host: http://resource-inner.flagos.net:20800
 
 # Runner labels for backends
 runners:

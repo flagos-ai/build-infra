@@ -229,11 +229,12 @@ jobs:
             fi
           fi
 
-          # Names a build node carries only in its /etc/hosts (build-config.yml
-          # internal_hosts). A build container inherits the daemon's
-          # resolv.conf but not its /etc/hosts, so the inner Nexus name has to
-          # be handed to docker explicitly. Empty where no entry exists, which
-          # is every backend but the 910C pair.
+          # The Nexus host this row reaches (build-config.yml
+          # nexus_overrides), resolved to an address on the runner. A build
+          # container inherits the daemon's resolv.conf but not its
+          # /etc/hosts, so a host that lives only in the node's hosts file has
+          # to be handed to docker explicitly. Empty for every row on the
+          # public host, which is all but the 910C pair.
           add_host_args="$(PYTHONPATH=scripts python3 -c "from pathlib import Path; from build_base import internal_hosts; print(' '.join(internal_hosts(Path('.'), '${{ matrix.name }}')))")"
 
           docker build \
