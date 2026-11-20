@@ -637,51 +637,6 @@ vendors:
         - CANN NNAL 9.2.1 (aarch64)     # Ascend-cann-nnal_9.2.1_linux-aarch64.run
 
   cambricon:
-    neuware4.4.3:
-      extras: cambricon
-      hardware: ["Cambricon MLU590"]
-      driver: "6.2.15"
-      python: "3.10"
-      triton: triton==3.2.0+mlu1.7.2
-      env:
-        base:
-          NEUWARE_HOME: /usr/local/neuware
-          PATH: /usr/local/neuware/bin:$PATH
-          LD_LIBRARY_PATH: /usr/local/neuware/lib64
-        app:
-          sglang:
-            TORCHINDUCTOR_COMPILE_THREADS: "1"
-            SGLANG_IS_FLASHINFER_AVAILABLE: "false"
-            SGLANG_SKIP_SGL_KERNEL_VERSION_CHECK: "1"
-            SGLANG_WATCHDOG_TIMEOUT: "900"
-            SGLANG_WARMUP_TIMEOUT: "1800"
-      deps:
-        - cambricon_dali==0.13.0
-        - torch==2.7.1+cpu
-        - torch-mlu==1.29.2+torch2.7.1
-        - torch-mlu-ops==1.8.0+torch2.7.1
-        - torchaudio==2.7.1+cpu
-        - torchvision==0.22.1+cpu
-        - numpy==1.26.4
-        # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
-        # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+neuware4.4.3
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
-        vllm0.20.2: []
-        vllm0.24.0: []
-        sglang0.5.18:
-          - compressed-tensors==0.17.0+flagos
-      sdk:
-        - cnmon 6.2.15         # cnmon-6.2.15-x86_64.zip
-        - cntoolkit 4.4.3      # cntoolkit_4.4.3-1.ubuntu22.04_amd64.deb
-        - cncl 1.29.4          # cncl_1.29.4-1.ubuntu22.04_amd64.deb
-        - cnclep 1.1.1.        # cnclep_1.1.1-1.ubuntu22.04_amd64.deb
-        - cnnl 2.1.829         # cnnl_2.1.829-20251127_150207-v2.1.12-0.rc0-3-g54aaee8.ubuntu22.04_amd64.deb
-        - cnnlextra 2.2.7      # cnnlextra_2.2.7-1.ubuntu22.04_amd64.deb
-        - mluops 1.8.1         # mluops_1.8.1-1.ubuntu22.04_amd64.deb
-
     neuware4.7.2:
       extras: cambricon
       hardware: ["Cambricon MLU590"]

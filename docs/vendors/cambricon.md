@@ -1,6 +1,6 @@
 # cambricon（寒武纪）
 
-backend key：`cambricon-neuware4.4.3` / `cambricon-neuware4.7.2`。芯片 MLU590，SDK 叫 Neuware。
+backend key：`cambricon-neuware4.7.2` / `cambricon-neuware4.7.6`。芯片 MLU590，SDK 叫 Neuware。
 
 **本厂商没有 FlagTree**：`configs.yaml` 两行都没有 `flagtree:` 键，F 路径不存在，矩阵里
 F 列是「—」，**只有 T 会被验证**。看到 cambricon 的格只有 T 通过不是缺测。
@@ -9,10 +9,9 @@ F 列是「—」，**只有 T 会被验证**。看到 cambricon 的格只有 T 
 
 - 设备枚举命令 `cnmon`；设备节点 **`/dev/cambricon_dev0` + `/dev/cambricon_ctl`**。
 - **没有容器 toolkit / runtime**，raw `--device` 直挂是唯一启动方式。
-- **4.4.3 起必须直挂设备节点**：`MLU_VISIBLE_DEVICES=N` 的 env 形态下设备不可见、进程提前
-  退出 —— 4.4.3 上「找不到设备」是**启动方式问题**，不是驱动问题。
-- 4.4.3 的 base 镜像锁 Ubuntu **22.04**（`cnperf` 需要 `libncurses5`，24.04 已移除）；
-  4.7.2 走 24.04。python 也不同（4.4.3 = 3.10，4.7.2 = 3.12），**wheel 不可复用**。
+- **必须直挂设备节点**：`MLU_VISIBLE_DEVICES=N` 的 env 形态下设备不可见、进程提前退出 ——
+  「找不到设备」是**启动方式问题**，不是驱动问题。
+- 两条线都跑 ubuntu 24.04 + python 3.12，共用同一份 wheel。
 - flags 原文见 `.github/build-config.yml` `run.vendors.cambricon`。
 
 ## 供应商工具链
@@ -27,8 +26,8 @@ F 列是「—」，**只有 T 会被验证**。看到 cambricon 的格只有 T 
 - `device_name()` 报 `'cuda'` 而张量 `device.type == 'mlu'` → 优化器报
   `TypeError: Wrapped parameters must be one of accelerator ... Received torch.mlu.BFloat16Tensor`。
   megatron 的平台注册表**没有 mlu 项**，靠 gpu_migration 桥接选中 CUDA。
-- vendor triton：`3.2.0+mlu1.7.2`（4.4.3）/ `3.4.0+mlu2.1.1`（4.7.2）。**同一 SDK 线的启动
-  kwarg 也不同**：flag_gems 5.3.5 的 cambricon 后端发 `task_type='block'`，3.2.0 会拒。
+- vendor triton：`3.4.0+mlu2.1.1`（4.7.2）/ `3.4.0+mlu2.1.3`（4.7.6）。**启动 kwarg 随
+  triton 版本变**：flag_gems 5.3.5 的 cambricon 后端发 `task_type='block'`，旧版 triton 会拒。
 - `torch.mlu.MLUGraph` **存在**（等价 CUDAGraph），图捕获可用。
 - `torch.library.get_kernel()`（flag_gems 5.3.5 用）只在 torch ≥ 2.8 有，
   `float4_e2m1fn_x2` 只在 CUDA torch 2.7+ 有 —— 本厂商 2.7.1+cpu 树两者都没有，需要兼容垫片。
