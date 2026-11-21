@@ -28,6 +28,7 @@ tags:
     reason_zh: |-
       - 补装 CANN 未声明的两条路径所需依赖：`tbe` 在模块加载时导入 decorator 与 ml-dtypes；ms-service-profiler 的 vllm 插件导入 otlp 导出器。
     upstream_prs: []
+    date: '2026-11-20T17:34:53.177Z'
   - reason: |-
       - Rebuilt on the current base image, which no longer lets `vendor.sh`
         overwrite a caller's `PYTHONPATH` (#1882).

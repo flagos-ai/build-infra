@@ -102,6 +102,10 @@ npu-smi info
 
 ### 2.3.0
 
+*2026-11-20 17:34:53*
+
+- 补装 CANN 未声明的两条路径所需依赖：`tbe` 在模块加载时导入 decorator 与 ml-dtypes；ms-service-profiler 的 vllm 插件导入 otlp 导出器。
+
 *2026-11-19 15:41:41*
 
 - 基于当前 base 镜像重建，该 base 不再让 `vendor.sh` 覆盖调用方的 `PYTHONPATH`（#1882）。
