@@ -21,6 +21,15 @@ image: flagos-runtime-metax-maca3.8.1.3
 tags:
 - tag: 2.3.0
   entries:
+  - reason: |-
+      - Rebuilt on the metax-maca3.8.1.3 base that now carries libjpeg-turbo8
+        and libpng16-16t64 (#1944). The MetaX torchvision wheel links those
+        system sonames rather than vendored copies, so without them
+        torchvision.io PNG/JPEG codecs were unavailable. Nothing else about
+        this layer changes.
+    reason_zh: |-
+      - 基于已带 libjpeg-turbo8 与 libpng16-16t64 的 metax-maca3.8.1.3 base 重建（#1944）。MetaX 的 torchvision 轮子链接的是这两个系统 soname 而非自带的副本，缺了它们 torchvision.io 的 PNG/JPEG 编解码不可用。本层其余内容不变。
+    upstream_prs: []
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
