@@ -104,6 +104,14 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 12:29:35*
+
+- Rebuilt on the metax-maca3.10.1.11 base that now carries libjpeg-turbo8
+  and libpng16-16t64 (#1944). The MetaX torchvision wheel links those
+  system sonames rather than vendored copies, so without them
+  torchvision.io PNG/JPEG codecs were unavailable. Nothing else about
+  this layer changes.
+
 *2026-11-18 12:32:51*
 
 - First delivery: the runtime for MetaX MACA 3.10.1.11 (C550), built on
