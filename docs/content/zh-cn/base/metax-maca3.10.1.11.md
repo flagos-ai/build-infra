@@ -98,6 +98,13 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 11:55:01*
+
+- 安装 libjpeg-turbo8（libjpeg.so.8）与 libpng16-16t64（libpng16.so.16）。
+  MetaX 自建的 torchvision 轮子没有做 auditwheel 打包，image.so 直接链接
+  这两个系统 soname；缺了它们导入会报「Failed to load image Python
+  extension」，torchvision.io 的 PNG/JPEG 编解码不可用。
+
 *2026-11-18 12:13:04*
 
 - 首次交付：MACA SDK 3.10.1.11 与驱动 3.100.1，基于 ubuntu:24.04，用于 MetaX C550 芯片。本线取代 maca3.7.2.1。

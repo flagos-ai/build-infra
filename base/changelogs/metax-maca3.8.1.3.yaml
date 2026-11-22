@@ -37,6 +37,7 @@ tags:
         这两个系统 soname；缺了它们导入会报「Failed to load image Python
         extension」，torchvision.io 的 PNG/JPEG 编解码不可用。
     upstream_prs: []
+    date: '2026-11-22T11:54:00.799Z'
   - date: '2026-10-14T05:49:44.282Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.

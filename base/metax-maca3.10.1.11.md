@@ -76,6 +76,14 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 11:55:01*
+
+- Installs libjpeg-turbo8 (libjpeg.so.8) and libpng16-16t64
+  (libpng16.so.16). MetaX's torchvision wheel is not auditwheel-bundled,
+  so image.so links those system sonames; without them the import raised
+  "Failed to load image Python extension" and torchvision.io PNG/JPEG
+  encode/decode was unavailable.
+
 *2026-11-18 12:13:04*
 
 - First delivery: MACA SDK 3.10.1.11 with driver 3.100.1 on ubuntu:24.04,
