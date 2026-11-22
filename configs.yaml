@@ -427,21 +427,9 @@ vendors:
         # answer is a wheel built on this base (packaging/flagcx), not a
         # different pin.
         - flagcx==0.14.1+cuda13.3
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_training0.18.2: []
-        # flash-attn's tag locks the torch ABI, not the toolkit: +fl.cu130.torch213
-        # stays correct here because the torch is unchanged.
-        megatron_rl0.17.1:
-          - flash_attn==2.8.3.post1+fl.cu130.torch213
-        megatron_rl0.18.2:
-          - flash_attn==2.8.3.post1+fl.cu130.torch213
-        vllm0.20.2: []
-        vllm0.24.0: []
-        vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261117
-          - ml-dtypes==0.5.4
-          - numpy==1.26.4
+      # No `deps_app:` on purpose: nothing has been built or verified on this
+      # line yet, and an entry here would assert app packaging the line cannot
+      # back. It arrives with the first app cell that actually passes.
       sdk:
         - CUDA 13.0.3 (x86_64)
 
