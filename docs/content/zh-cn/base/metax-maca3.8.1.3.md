@@ -38,14 +38,16 @@ title: "metax-maca3.8.1.3"
 显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260601~24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
 - `gcc` — 13.2.0
 - `git` — 2.43.0
 - `libelf1`
+- `libjpeg-turbo8` — 2.1.5
 - `libnuma1` — 2.0.18
+- `libpng16-16t64` — 1.6.43
 - `libpython3-dev` — 3.12.3
 - `make` — 4.3
 - `unzip` — 6.0
@@ -92,7 +94,7 @@ docker run --rm -it \
 mx-smi
 ```
 
-*更新时间: 2026-10-14 13:43:56 · `393cfb81d50e`*
+*更新时间: 2026-11-22 19:37:45 · `8222d6f89174`*
 
 ## 更新日志
 
