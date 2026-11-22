@@ -38,10 +38,16 @@ ARG SDK_PACKAGE=maca-sdk-${SDK_VERSION}-deb-x86_64.tar.xz
 ENV DEBIAN_FRONTEND=noninteractive
 
 # base dependencies
+# libjpeg-turbo8 / libpng16-16t64: MetaX's own torchvision wheel is not
+# auditwheel-bundled — image.so links the system sonames libjpeg.so.8 and
+# libpng16.so.16, so without these the import fails with "Failed to load image
+# Python extension" and torchvision.io PNG/JPEG codecs are unavailable.
+# (libmcjpeg.so.1 comes from the MACA SDK, not apt.)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       curl unzip git vim ca-certificates libnuma1 libelf1 \
       gcc g++ cmake make build-essential libpython3-dev \
+      libjpeg-turbo8 libpng16-16t64 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
