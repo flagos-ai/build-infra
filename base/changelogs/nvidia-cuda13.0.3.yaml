@@ -38,4 +38,4 @@ tags:
         NCCL，2.28.9-1 是 NVIDIA 为 +cuda13.0 发布的最新构建，hold 可防止下游未固定版本的
         安装把它移到更晚的 CUDA 小版本。
     upstream_prs: []
-    date:
+    date: '2026-11-22T14:48:44.259Z'
