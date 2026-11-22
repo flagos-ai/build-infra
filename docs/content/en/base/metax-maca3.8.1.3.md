@@ -98,6 +98,14 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 11:54:00*
+
+- Installs libjpeg-turbo8 (libjpeg.so.8) and libpng16-16t64
+  (libpng16.so.16). MetaX's torchvision wheel is not auditwheel-bundled,
+  so image.so links those system sonames; without them the import raised
+  "Failed to load image Python extension" and torchvision.io PNG/JPEG
+  encode/decode was unavailable.
+
 *2026-10-14 05:49:44*
 
 - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.

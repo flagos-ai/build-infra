@@ -98,6 +98,13 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 11:54:00*
+
+- 安装 libjpeg-turbo8（libjpeg.so.8）与 libpng16-16t64（libpng16.so.16）。
+  MetaX 自建的 torchvision 轮子没有做 auditwheel 打包，image.so 直接链接
+  这两个系统 soname；缺了它们导入会报「Failed to load image Python
+  extension」，torchvision.io 的 PNG/JPEG 编解码不可用。
+
 *2026-10-14 05:49:44*
 
 - 仅为携带新的全栈 tag 而重建；本层无任何改动。
