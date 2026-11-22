@@ -82,6 +82,14 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 12:29:14*
+
+- Rebuilt on the metax-maca3.8.1.3 base that now carries libjpeg-turbo8
+  and libpng16-16t64 (#1944). The MetaX torchvision wheel links those
+  system sonames rather than vendored copies, so without them
+  torchvision.io PNG/JPEG codecs were unavailable. Nothing else about
+  this layer changes.
+
 *2026-11-10 09:43:21*
 
 Rebuild to ship the current in-image helper script: the `compiler` script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR` instead of re-downloading the wheel every time (#1709). The FlagTree version request also accepts an explicit `--index-url`, which selects the one index the wheel is fetched from (#1613). The venv PATH prefix is re-asserted after a vendor SDK env script overwrites it (#1486). Nothing else about the image changes.
