@@ -60,7 +60,7 @@ title: "metax-maca3.8.1.3"
 
 ### 指定 FlagTree 版本
 
-如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。
+如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+metax3.6` 可精确指定某个构建。
 
 ### 指定 FlagGems 版本
 
