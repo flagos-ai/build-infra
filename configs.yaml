@@ -383,6 +383,53 @@ vendors:
       sdk:
         - CUDA 13.3 (x86_64)
 
+    # Experimental, not yet a supported line: the toolkit is 13.0.3 rather than
+    # 13.3 so the CUDA minor matches what the cu130 wheels (torch 2.13.0+cu130
+    # and the third-party packages vLLM pulls in) were compiled against. CUDA
+    # minor-version compatibility runs forward only, so a base newer than the
+    # wheels' target is the direction that breaks.
+    # No `extras:` yet: it only feeds build_bundle's extras install and the
+    # name is FlagGems's to publish; add it when this line is formalised.
+    cuda13.0.3:
+      hardware: ["NVIDIA H20"]
+      driver: "610.43.02"
+      python: "3.12"
+      cmake_backend: CUDA
+      triton: triton==3.7.1
+      flagtree: flagtree==0.7.0
+      flagtree_daily: flagtree-nvidia
+      env:
+        base:
+          # Inherited from nvcr 13.0.3-runtime-ubuntu24.04 — our layer sets no
+          # ENV of its own. Same shape as the 13.3 line; confirm against the
+          # built image as part of the verify pass.
+          PATH: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          LD_LIBRARY_PATH: /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64
+          NVIDIA_VISIBLE_DEVICES: all
+          NVIDIA_DRIVER_CAPABILITIES: compute,utility
+        runtime:
+          # Same reason as the 13.3 line: flagtree 0.7.0 ships a partial
+          # flagtune (no runtime/errors.py) and flag_gems' cost model aborts the
+          # operator on errors outside its fallback set.
+          USE_FLAGTUNE_COST_MODEL: "0"
+        app:
+          vllm:
+            VLLM_USE_FLASHINFER_SAMPLER: "0"
+      deps:
+        - torch==2.13.0+cu130
+        - torchaudio==2.11.0+cu130
+        - torchvision==0.28.0+cu130
+        - numpy==1.26.4
+        # Still the +cuda13.3 build: flagcx is pinned to the flagcx wheel (PR
+        # #1266), and it is the only wheel carrying a libflagcx.so linked
+        # against libcudart.so.13. It was compiled on the 13.3 toolkit — if the
+        # 13.0.3 runtime rejects it, that is the first thing to look at, and the
+        # answer is a wheel built on this base (packaging/flagcx), not a
+        # different pin.
+        - flagcx==0.14.1+cuda13.3
+      sdk:
+        - CUDA 13.0.3 (x86_64)
+
   ascend:
     cann8.5.0:
       extras: ascend-cann850

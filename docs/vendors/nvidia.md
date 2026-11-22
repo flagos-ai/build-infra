@@ -1,9 +1,28 @@
 # nvidia（CUDA）
 
-backend key：`nvidia-cuda12.8`（**已冻结**）/ `nvidia-cuda13.3`。x86_64、python 3.12，
+backend key：`nvidia-cuda12.8`（**已冻结**）/ `nvidia-cuda13.3` / `nvidia-cuda13.0.3`。
+x86_64、python 3.12，
 平台 H20（megatron 线另有 H100 记录）。**这是唯一 app 层发布名与 backend 名不同的厂商**：
 `…-nvidia-cuda12.8` 对外发成 `…-generic-12.8`（同 tag、同内容），按厂商字符串查找
 制品路径会落空。
+
+## cuda13.0.3（2026-11-22 起，仅 base + runtime）
+
+- **为什么另开一条线而不是改 13.3**：vLLM 拉入的第三方依赖里有相当一部分按 CUDA 小版本
+  预编译，我们改不了它们。CUDA 的小版本兼容只向前（13.0 上编的能跑在 13.3 上，反之不行），
+  所以工具链应当是 wheel 的编译目标（cu130），而不是更新的 13.3。同一条线里 torch 是
+  `2.13.0+cu130` 不变 —— 降的是 toolkit，不是 torch。
+- **NCCL 与 13.3 相反**：13.3 的 NGC runtime 镜像完全不带 NCCL，必须自己装 `libnccl2`
+  并 hold；13.0.3 的**自带并已 hold** `libnccl2 2.28.3-1+cuda13.0`，所以这层对 NCCL
+  什么都不做。照 13.3 的写法去装会撞 `Held packages were changed` —— 这个报错就是两条线
+  差异的指示。
+- **`flagcx` 仍是 `0.14.1+cuda13.3`**：它是唯一携带链接 `libcudart.so.13` 的
+  `libflagcx.so` 的 wheel，已在 13.0.3 上验证过 `import torch` / `import flag_gems` 正常。
+  它是本线上唯一「为另一条线编的」构建产物；正式化时应在该 base 上用 `packaging/flagcx`
+  重编 `+cuda13.0.3`。
+- 暂无 `extras:`（归 FlagGems 发布）；app 层尚未声明，状态矩阵里不带这条线。
+- 已推送镜像由无 git 的工作树构建，`org.opencontainers.image.revision` 为空，
+  `base_image_status.py` 无法做溯源 —— 正式回补时需用带 git 的检出重建一次。
 
 ## cuda12.8 已冻结（2026-11-05）
 

@@ -85,6 +85,7 @@ BACKENDS = [
     "amd-rocm7.2.4",
     "nvidia-cuda12.8",
     "nvidia-cuda13.3",
+    "nvidia-cuda13.0.3",
     "ascend-cann8.5.0",
     "ascend-cann8.5.0-910c",
     "ascend-cann9.0.0",

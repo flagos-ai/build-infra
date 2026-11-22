@@ -1,0 +1,41 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by base-image.yml after the push -- never hand-typed.
+
+image: flagos-base-nvidia-cuda13.0.3
+tags:
+- tag: 2.3.0
+  entries:
+  - reason: >-
+      - First delivery: the NGC CUDA 13.0.3 runtime image on ubuntu:24.04 with
+        the build toolchain added.
+      - The toolkit major.minor is 13.0 rather than 13.3 so it matches what the
+        cu130 wheels this stack installs (torch 2.13.0+cu130 and the
+        third-party packages vLLM pulls in) were compiled against; CUDA
+        minor-version compatibility only runs forward.
+      - `libnccl2=2.28.9-1+cuda13.0` is installed and held: the 13.x runtime
+        images ship no NCCL, 2.28.9-1 is the newest build NVIDIA publishes for
+        +cuda13.0, and the hold keeps an unpinned install downstream from
+        moving it onto a later CUDA minor.
+    reason_zh: |-
+      - 首次交付：NGC CUDA 13.0.3 runtime 镜像，基于 ubuntu:24.04，并加入构建工具链。
+      - 工具链的 major.minor 是 13.0 而非 13.3，以便与全栈安装的 cu130 wheel（torch
+        2.13.0+cu130 以及 vLLM 拉入的第三方包）的编译目标一致；CUDA 小版本兼容只向前。
+      - 安装 `libnccl2=2.28.9-1+cuda13.0` 并用 `apt-mark` hold：13.x runtime 镜像不带
+        NCCL，2.28.9-1 是 NVIDIA 为 +cuda13.0 发布的最新构建，hold 可防止下游未固定版本的
+        安装把它移到更晚的 CUDA 小版本。
+    upstream_prs: []
+    date:
