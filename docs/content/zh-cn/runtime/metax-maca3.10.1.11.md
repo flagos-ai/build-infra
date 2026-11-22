@@ -104,6 +104,10 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 12:29:35*
+
+- 基于已带 libjpeg-turbo8 与 libpng16-16t64 的 metax-maca3.10.1.11 base 重建（#1944）。MetaX 的 torchvision 轮子链接的是这两个系统 soname 而非自带的副本，缺了它们 torchvision.io 的 PNG/JPEG 编解码不可用。本层其余内容不变。
+
 *2026-11-18 12:32:51*
 
 - 首次交付：MetaX MACA 3.10.1.11（C550）的 runtime，基于 flagos-base-metax-maca3.10.1.11:2.3.0 base 构建。deps 固定厂商 3.10.1.3 wheel 线的 torch 2.13.0、apex、torchcodec、torchaudio、torchvision、flash_attn、flashinfer、flash_linear_attention 与 flash_mla，以及 flagcx 0.14.1+maca3.10.1.11。

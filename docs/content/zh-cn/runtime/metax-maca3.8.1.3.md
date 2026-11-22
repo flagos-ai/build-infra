@@ -104,6 +104,10 @@ mx-smi
 
 ### 2.3.0
 
+*2026-11-22 12:29:14*
+
+- 基于已带 libjpeg-turbo8 与 libpng16-16t64 的 metax-maca3.8.1.3 base 重建（#1944）。MetaX 的 torchvision 轮子链接的是这两个系统 soname 而非自带的副本，缺了它们 torchvision.io 的 PNG/JPEG 编解码不可用。本层其余内容不变。
+
 *2026-11-10 09:43:21*
 
 重建以带上当前版本镜像内的辅助脚本：`compiler` 脚本的 pip 安装现在会使用挂载在 `PIP_CACHE_DIR` 的 pip
