@@ -23,7 +23,9 @@ Explicitly installed; the version is the one baked into this image:
 - `gcc` — 13.2.0
 - `git` — 2.43.0
 - `libelf1`
+- `libjpeg-turbo8` — 2.1.5
 - `libnuma1` — 2.0.18
+- `libpng16-16t64` — 1.6.43
 - `libpython3-dev` — 3.12.3
 - `make` — 4.3
 - `unzip` — 6.0
@@ -70,7 +72,7 @@ Inside the container, confirm the accelerator is visible:
 mx-smi
 ```
 
-*Last updated: 2026-11-18 19:46:07 · `a4c39b35c163`*
+*Last updated: 2026-11-22 19:37:45 · `8222d6f89174`*
 
 ## Changelog
 
