@@ -427,9 +427,6 @@ vendors:
         # answer is a wheel built on this base (packaging/flagcx), not a
         # different pin.
         - flagcx==0.14.1+cuda13.3
-      # No `deps_app:` on purpose: nothing has been built or verified on this
-      # line yet, and an entry here would assert app packaging the line cannot
-      # back. It arrives with the first app cell that actually passes.
       sdk:
         - CUDA 13.0.3 (x86_64)
 
