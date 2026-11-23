@@ -228,7 +228,7 @@ vendors:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261117
+          - flaggems_vllm==0.3.0.dev20261123
       sdk:
         # apt-native from repo.radeon.com, no filestore
         - ROCm 7.2.4 (x86_64)
@@ -377,7 +377,7 @@ vendors:
         # itself but leaves numpy at 2.x (nothing else then constrains it).
         # 0.5.4 accepts numpy>=1.26 on py3.12, so the runtime pin holds.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261117
+          - flaggems_vllm==0.3.0.dev20261123
           - ml-dtypes==0.5.4
           - numpy==1.26.4
       sdk:
@@ -687,7 +687,7 @@ vendors:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261117
+          - flaggems_vllm==0.3.0.dev20261123
       sdk:
         - CANN Toolkit 9.2.1 (aarch64)  # Ascend-cann_9.2.1_linux-aarch64.run
         - CANN 910B Ops 9.2.1 (aarch64) # Ascend-cann-910b-ops_9.2.1_linux-aarch64.run
@@ -1048,7 +1048,7 @@ vendors:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261117
+          - flaggems_vllm==0.3.0.dev20261123
       sdk:
         - Corex Runtime 5.0.1      # corex-installer-linux64-5.0.1_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
@@ -1406,7 +1406,7 @@ vendors:
         - numpy==1.26.4
       deps_app:
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261117
+          - flaggems_vllm==0.3.0.dev20261123
           - flash_attn_3==2.8.2+v0.1.0.ppu2.1.1
       sdk:
         - PPU SDK 2.1.0 (x86_64)
