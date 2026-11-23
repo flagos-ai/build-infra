@@ -162,7 +162,23 @@ wheels:
   short_name: FlagGems
   versions:
   - version: 5.4.0
-    pypi_index: flagos-pypi-hosted
+    pypi_index:
+    - flagos-pypi-hosted
+    - flagos-pypi-amd
+    - flagos-pypi-ascend
+    - flagos-pypi-cambricon
+    - flagos-pypi-daily
+    - flagos-pypi-enflame
+    - flagos-pypi-hygon
+    - flagos-pypi-iluvatar
+    - flagos-pypi-kunlunxin
+    - flagos-pypi-metax
+    - flagos-pypi-mthreads
+    - flagos-pypi-nvidia
+    - flagos-pypi-spacemit
+    - flagos-pypi-sunrise
+    - flagos-pypi-thead
+    - flagos-pypi-tsingmicro
     desc_zh: 面向全后端的 FlagGems 高性能算子库安装包。
     desc_en: FlagGems high-performance operator library wheel covering all backends.
     notes: 纯 Python 算子库，跨后端通用。
