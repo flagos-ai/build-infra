@@ -211,9 +211,9 @@ the builder stage stages the deb the same way it stages LLVM and unpacks it with
 real: with the deb absent, `toolkit.py` raises there, where before it raised in
 a user's process.
 
-The deb is per-`tops` (`…cc.1.10.6` vs `…cc.1.9.10`) while one Containerfile
+The deb is per-`tops` (`…cc.1.9.29` vs `…cc.4.1.6`) while one Containerfile
 serves both, so `TRITON_GCU_DEB` (and `FILE_STORE`, the store the base image
-reads) default to the deb `base/enflame-tops1.10.6` itself installs and a 1.9.10
+reads) default to the deb `base/enflame-tops1.9.29` itself installs and a 4.1.6
 build overrides both. Enflame is the only backend here whose vendor module raises
 at import time — metax, iluvatar, sunrise, hcu, mthreads, tsingmicro and xpu all
 raise inside functions — which is why this staging is a hard requirement rather

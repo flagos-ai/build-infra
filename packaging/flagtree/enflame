@@ -44,9 +44,11 @@ ARG TRITON_DEPS_TARBALL=build-deps-triton_3.6.x-linux-x64.tar.gz
 # The vendor's own toolkit deb, from the store the base image reads: toolkit.py
 # raises at IMPORT without /opt/triton_gcu, and only this deb creates it, so the
 # wheel stage cannot import the backend without one here. One deb per tops (the
-# version tag names the vendor release), so a 1.9.10 build overrides both args.
+# version tag names the vendor release), so a 4.1.6 build overrides both args.
+# The default is the 1.9.29 line's deb, which is what base/enflame-tops1.9.29
+# installs; the older tops1.10.6 line this used to name is no longer in base/.
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/enflame
-ARG TRITON_GCU_DEB=triton-gcu_3.6.0+1.0.20260821.cc.1.10.6-1_amd64.deb
+ARG TRITON_GCU_DEB=triton-gcu_1.0.20261116.cc.1.9.29-1_amd64.deb
 
 # The cache key, not the tarball's name: FlagTree registers this store under
 # `file="llvm-fc83c68-gcc9-x64"`, and its own unpack renames the tarball's root
