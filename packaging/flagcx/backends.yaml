@@ -281,6 +281,21 @@ nvidia-cuda13.3:
   bitcode_arch: sm_120
   bitcode_adaptor_flag: "-DUSE_NVIDIA_ADAPTOR -DFLAGCX_COMM_TRAITS_CCL"
 
+nvidia-cuda13.0.3:
+  vendor: nvidia
+  make_flag: USE_NVIDIA
+  arch: amd64
+  glibc_floor: "2.39"
+  # Off every channel for now: the runtime line borrows `flagcx==0.14.1+cuda13.3`
+  # (the wheel carrying a libflagcx.so linked against libcudart.so.13) and no
+  # FlagCX artifact has been built or verified on this base. Turning the wheel
+  # on is a build on this row's own toolchain, not a copy of the 13.3 one — the
+  # same rule that made 13.3 rebuild against its torch headers. Stated here
+  # because --check reads a runtime-matrix row with no packaging entry as drift.
+  deb: {enabled: false, default_for_vendor: false}
+  wheel: {enabled: false}
+
+
 metax-maca3.10.1.11:
   vendor: metax
   make_flag: USE_METAX
