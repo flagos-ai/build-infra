@@ -193,8 +193,9 @@ RUN set -eux; \
     dpkg-deb -x /tmp/nccl-dev.deb /; \
     rm -f /tmp/nccl-dev.deb; \
     test -e /usr/include/nccl.h; \
-    test -L /usr/lib/x86_64-linux-gnu/libnccl.so; \
-    test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2
+    test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2; \
+    ln -sf libnccl.so.2 /usr/lib/x86_64-linux-gnu/libnccl.so; \
+    test -L /usr/lib/x86_64-linux-gnu/libnccl.so
 
 # BUILDER_ASSERT is the list of files that proves the SDK is the one we think it
 # is, checked after the installs above (the nvidia rows could not use the wheel
