@@ -603,6 +603,31 @@ _compiler_import_triton() {
     fi
 }
 
+_compiler_set_llvm() {
+    # Point the backend's clang/lld at the tree that matches the active compiler.
+    # Both FlagTree's hcu backend and the vendor triton's amd/hcu path read
+    # TRITON_HIP_CLANG_PATH with the DTK aillvm as their default, and the two
+    # installed trees emit/parse different `make.buffer.rsrc` numRecords widths:
+    # the bare /opt/dtk-26.04 aillvm is i32 (for triton 3.5.1), the
+    # /opt/dtk-26.04-i64 one is i64 (for FlagTree >= 0.7.1a1). Only one compiler
+    # is active per container, so one variable is enough. Unset on any backend
+    # that installs no i64 tree, so a base without it keeps the vendor default.
+    local i64=/opt/dtk-26.04-i64/aillvm
+    case "$(basename "$1")" in
+        flagtree)
+            if [ -x "${i64}/bin/clang-18" ]; then
+                export TRITON_HIP_CLANG_PATH="${i64}/bin/clang-18"
+                export TRITON_HIP_LLD_PATH="${i64}/bin/ld.lld"
+            fi
+            ;;
+        triton)
+            # Back to the vendor default: the bare aillvm tree, resolved by the
+            # backends themselves when the variable is unset.
+            unset TRITON_HIP_CLANG_PATH TRITON_HIP_LLD_PATH
+            ;;
+    esac
+}
+
 compiler() {
     local dir="" want="" only_index=""
 
@@ -719,6 +744,7 @@ compiler() {
         else
             export PYTHONPATH="${dir}"
         fi
+        _compiler_set_llvm "$dir"
         echo "$(basename "$dir") (active) - $(_compiler_import_triton "$dir")"
     else
         echo "active compiler:"
