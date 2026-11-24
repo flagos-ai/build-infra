@@ -817,6 +817,13 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             sdk, nccl_debs = sdk_apt_and_nccl(spec.get("apt") or [])
             entry["builder_apt"] = " ".join(sdk)
             entry["builder_nccl_dev_deb"], entry["builder_nccl_lib_deb"] = nccl_debs
+            # A row that pins the -dev .deb but no libnccl2 wants the header
+            # only: its base already carries a runtime NCCL, and extracting a
+            # second one would leave two copies of libnccl.so.2 for the linker
+            # to pick between. The lib half is dropped here rather than in the
+            # pair derivation, which stays the one place that names both.
+            if "libnccl2=" not in " ".join(spec.get("apt") or []):
+                entry["builder_nccl_lib_deb"] = ""
             entry["builder_nccl_dev_sha256"] = nccl_deb_sha256(
                 entry["builder_nccl_dev_deb"]
             )
