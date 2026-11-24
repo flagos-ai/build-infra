@@ -290,6 +290,9 @@ nvidia-cuda13.0.3:
   # compiled here, on this row's own toolchain, not copied from 13.3.
   # The base ships libnccl2 only, so the wheel build installs libnccl-dev from
   # this row's own apt list; assert catches a build that starts without them.
+  # The builder extracts these two .debs rather than apt-installing them, so the
+  # pin is also what names them (and their digests) for that image.
+  apt: [cuda-nvcc-13-0, libnccl-dev=2.31.2-1+cuda13.3, libnccl2=2.31.2-1+cuda13.3]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
   wheel: {enabled: true, torch_backend: vendor}
