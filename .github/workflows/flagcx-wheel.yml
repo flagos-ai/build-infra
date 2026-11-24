@@ -393,6 +393,7 @@ jobs:
           # under twenty names is one dispatch rather than twenty.
           EXPECTED_PIN: ${{ matrix.wheel_pin }}
           EXTRA_PYPI: ${{ matrix.extra_pypi }}
+          INDEX_URL: ${{ matrix.flagos_pypi }}
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
           set -euo pipefail
@@ -419,6 +420,11 @@ jobs:
               exit 1
               ;;
           esac
+          # The Nexus the row's own nodes reach, not the public name: the 910C
+          # runners cannot resolve it (build-config.yml nexus_overrides), and
+          # the matrix row already carries the rewritten value — the same one
+          # the build and the read-back use.
+          : "${INDEX_URL:?the matrix row carries no flagos_pypi}"
           pypi_repo="flagos-pypi-${vendor}"
           wheel=(packaging/flagcx/dist/*.whl)
           if [ "${#wheel[@]}" -ne 1 ]; then
@@ -460,6 +466,7 @@ jobs:
             -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -e INDEX_URL="${INDEX_URL}" \
             -v "$PWD/packaging/flagcx/dist:/wheels:ro" \
             "${{ matrix.builder_image }}" \
             bash -euo pipefail -c '
@@ -472,7 +479,7 @@ jobs:
               # No /simple: that suffix is the path pip reads, not the one twine
               # posts to.
               /flagos/bin/twine upload \
-                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --repository-url "${INDEX_URL%/simple}/" \
                 --non-interactive \
                 /wheels/*.whl
             '
