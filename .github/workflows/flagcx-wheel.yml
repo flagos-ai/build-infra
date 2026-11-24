@@ -426,6 +426,18 @@ jobs:
           # the build and the read-back use.
           : "${INDEX_URL:?the matrix row carries no flagos_pypi}"
           pypi_repo="flagos-pypi-${vendor}"
+          # Resolve that name inside the container too. The 910C nodes carry it
+          # only in /etc/hosts, which a container does not inherit (it gets the
+          # daemon's resolv.conf) — so the upload would reach a name the host
+          # resolves and the container does not. The address is looked up here on
+          # the runner, never written down, and a row that needs no override gets
+          # no flag.
+          ADD_HOST=()
+          hostname="${INDEX_URL#*//}"
+          hostname="${hostname%%/*}"
+          hostname="${hostname%%:*}"
+          ip="$(getent hosts "$hostname" | awk 'NR==1{print $1}')"
+          [[ -n "$ip" ]] && ADD_HOST=(--add-host "${hostname}:${ip}")
           wheel=(packaging/flagcx/dist/*.whl)
           if [ "${#wheel[@]}" -ne 1 ]; then
             echo "::error::expected exactly one wheel, found ${#wheel[@]}"
@@ -467,6 +479,7 @@ jobs:
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
             -e INDEX_URL="${INDEX_URL}" \
+            "${ADD_HOST[@]}" \
             -v "$PWD/packaging/flagcx/dist:/wheels:ro" \
             "${{ matrix.builder_image }}" \
             bash -euo pipefail -c '
