@@ -41,24 +41,16 @@ tags:
     date: '2026-11-19T13:58:04.072Z'
   - date: ''
     reason: |-
-      - The aillvm tree is now the `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, and
-        it replaces the bare `dtk_llvm.run` tree instead of sitting beside it,
-        so this image carries one LLVM. That build is what both compilers now
-        need: FlagTree from 0.7.1a1 emits `make.buffer.rsrc` with an i64
-        numRecords the bare tree's clang-18 rejects, and vendor triton 3.6.0
-        passes `-amdgpu-disable-backoff-barrier=false`, which it also rejects.
-        The `.run` only adds `aillvm/` and `bin/` to the SDK root, so
-        `/opt/dtk/env.sh` and the rest of the DTK layout are unchanged; the
-        runtime's `compiler()` points `TRITON_HIP_CLANG_PATH` at this tree for
-        both compilers.
+      - The aillvm tree is now the `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, in
+        the SDK root in place of the bare `dtk_llvm.run`. Both compilers need it:
+        FlagTree 0.7.1a1 emits an i64 `make.buffer.rsrc` numRecords and triton
+        3.6.0 passes `-amdgpu-disable-backoff-barrier=false`, and the bare
+        tree's clang-18 rejects both.
     reason_zh: |-
-      - aillvm 树改为 `dtk_llvm-1.0.0+dtk2604...5f9d5e` 构建，并取代裸
-        `dtk_llvm.run` 树而非与之并存，镜像因此只带一套 LLVM。两个编译器现在都需要
-        它：FlagTree 自 0.7.1a1 起发出 i64 numRecords 的 `make.buffer.rsrc`，
-        裸树 clang-18 拒绝；厂商 triton 3.6.0 传入
-        `-amdgpu-disable-backoff-barrier=false`，它同样拒绝。该 `.run` 只向 SDK
-        根追加 `aillvm/` 与 `bin/`，故 `/opt/dtk/env.sh` 与其余 DTK 布局不变；
-        runtime 的 `compiler()` 对两个编译器都将 `TRITON_HIP_CLANG_PATH` 指向此树。
+      - aillvm 树改为 `dtk_llvm-1.0.0+dtk2604...5f9d5e` 构建，装进 SDK 根以取代裸
+        `dtk_llvm.run`。两个编译器都需要它：FlagTree 0.7.1a1 发出 i64
+        `make.buffer.rsrc` numRecords，triton 3.6.0 传入
+        `-amdgpu-disable-backoff-barrier=false`，裸树的 clang-18 两者都拒绝。
     upstream_prs: []
   - date: '2026-10-27T02:02:24.528Z'
     reason: |-
