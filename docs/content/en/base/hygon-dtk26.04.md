@@ -106,15 +106,13 @@ hy-smi
   absolute `export` dropped the caller's entries before Python ever ran
   and broke imports that depended on them.
 
-*2026-11-24 11:00:47*
+*2026-11-24 14:37:16*
 
-- Installs a second aillvm tree at `/opt/dtk-26.04-i64`, the
-  `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, beside the bare `dtk_llvm.run`
-  tree. FlagTree wheels from 2026-11-06 emit `make.buffer.rsrc` with an
-  i64 numRecords that the bare tree's clang-18 rejects (i32 only), while
-  the vendor triton 3.5.1 still needs the i32 tree; the two `.run`s each
-  lay a whole DTK, so the i64 one gets its own root. The runtime's
-  `compiler()` selects the matching tree via `TRITON_HIP_CLANG_PATH`.
+- The aillvm tree is now the `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, in
+  the SDK root in place of the bare `dtk_llvm.run`. Both compilers need it:
+  FlagTree 0.7.1a1 emits an i64 `make.buffer.rsrc` numRecords and triton
+  3.6.0 passes `-amdgpu-disable-backoff-barrier=false`, and the bare
+  tree's clang-18 rejects both.
 
 *2026-10-27 02:02:24*
 
