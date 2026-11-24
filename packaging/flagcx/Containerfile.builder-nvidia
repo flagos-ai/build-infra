@@ -169,12 +169,22 @@ RUN set -eux; \
 #
 # The dev .deb is extracted LAST: it carries the libnccl.so -> libnccl.so.2
 # symlink, and libnccl2 (first) is the one that provides the file it points at.
+#
+# A row whose base already ships NCCL (cuda13.0.3's does: 2.28.3, with its
+# headers) states no pin, and this step then does nothing — the base's own
+# NCCL is what -lnccl resolves and what nvidia.mk reads.
 ARG NCCL_REPO=https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64
 ARG NCCL_DEV_DEB
 ARG NCCL_DEV_SHA256
 ARG NCCL_LIB_DEB
 ARG NCCL_LIB_SHA256
 RUN set -eux; \
+    if [ -z "${NCCL_LIB_DEB}" ]; then \
+        test -e /usr/include/nccl.h; \
+        test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2; \
+        echo ">>> the base ships NCCL; nothing extracted"; \
+        exit 0; \
+    fi; \
     export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"; \
     curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-lib.deb \
         "${NCCL_REPO}/${NCCL_LIB_DEB}"; \
