@@ -132,10 +132,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML and packaging
         run: |
-          # flagcx-config.py imports yaml and packaging.version; ubuntu-latest's
-          # python ships neither.
+          # No --user: a standalone-build python3 does not read ~/.local.
           python3 -c "import yaml, packaging" 2>/dev/null \
-            || python3 -m pip install --user --break-system-packages pyyaml packaging
+            || python3 -m pip install --break-system-packages pyyaml packaging
       - id: set-matrix
         shell: bash
         run: |
@@ -426,8 +425,7 @@ jobs:
           # the build and the read-back use.
           : "${INDEX_URL:?the matrix row carries no flagos_pypi}"
           pypi_repo="flagos-pypi-${vendor}"
-          # 910C nodes carry this name only in /etc/hosts, which a container
-          # does not inherit.
+          # A container inherits resolv.conf, not the node's /etc/hosts.
           ADD_HOST=()
           hostname="${INDEX_URL#*//}"
           hostname="${hostname%%/*}"
