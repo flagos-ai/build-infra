@@ -293,12 +293,13 @@ nvidia-cuda13.0.3:
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
   wheel: {enabled: true, torch_backend: vendor}
-  # Same recipe as the 13.3 row at this line's own CUDA minor. cccl for the same
-  # reason: the CCL branch's nccl_device.h reaches it.
+  # Same recipe as the 13.3 row at this line's own CUDA minor. cccl is not
+  # numbered by CUDA minor — the apt repo carries cccl-13-3 and up, so it is
+  # the one this base's NCCL (2.28) needs, not a -13-0 that does not exist.
   builder:
     enabled: true
     containerfile: Containerfile.builder-nvidia
-    extra_apt: [libcurand-dev-13-0, cccl-13-0, libcublas-dev-13-0, libcusparse-dev-13-0, libcusolver-dev-13-0, libcufft-dev-13-0]
+    extra_apt: [libcurand-dev-13-0, cccl-13-3, libcublas-dev-13-0, libcusparse-dev-13-0, libcusolver-dev-13-0, libcufft-dev-13-0]
 
 metax-maca3.10.1.11:
   vendor: metax
