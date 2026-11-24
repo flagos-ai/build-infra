@@ -75,6 +75,16 @@ hy-smi
 
 ### 2.3.0
 
+*2026-11-24 15:55:52*
+
+- Moves this line to torch 2.10.0, triton 3.6.0, torchvision 0.25.0,
+  torchaudio 2.10.0, flash_attn and transformer_engine on torch2100, and
+  flagcx 0.14.1 rebuilt against torch 2.10. apex is gone: no cp310/torch2100
+  build exists and MLF's four use sites fall back through try/except.
+  FlagTree is 0.7.1a1+hcu3.6, and `compiler()` now points both compilers at
+  the base's single aillvm tree, which is the build they both need.
+  Verified on a BW1000 node: copy, axpy and fp16 matmul at maxdiff 0.0.
+
 *2026-11-19 15:44:19*
 
 - Rebuilt on the current base image, which no longer lets `vendor.sh`

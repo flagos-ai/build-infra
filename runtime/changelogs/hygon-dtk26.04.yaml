@@ -37,7 +37,7 @@ tags:
         都指向本 base 唯一那棵 aillvm 树——那正是两者都需要的构建。
         已在 BW1000 节点验证：copy、axpy 与 fp16 matmul maxdiff 均为 0.0。
     upstream_prs: []
-    date: ''
+    date: '2026-11-24T15:55:52.717Z'
   - reason: |-
       - Rebuilt on the current base image, which no longer lets `vendor.sh`
         overwrite a caller's `PYTHONPATH` (#1882).
