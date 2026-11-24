@@ -911,22 +911,24 @@ vendors:
       hardware: ["Hygon BW1000"]
       driver: "6.3.30-V1.4.1a"
       python: "3.10"
-      triton: triton==3.5.1+das.opt1.dtk2604.torch290
+      triton: triton==3.6.0+das185.dtk2604.torch2100.2608131719.gb796b1
       flagtree: flagtree==0.7.1a1+hcu3.6
       flagtree_daily: flagtree-hcu
       deps:
-        - apex==1.7.0+das.opt1.dtk2604.torch290
-        - flash_attn==2.8.3+das.opt1.dtk2604.torch290
-        - torch==2.9.0+das.opt1.dtk2604
+        # apex is absent: there is no cp310/torch2100 build, and MLF's four apex
+        # uses all fall back through try/except, so the runtime is complete
+        # without it (packaging/megatron/docs/megatron-0.17.1/playbook.md).
+        - flash_attn==2.8.3+das185.dtk2604.torch2100.2608132155.g9febea
+        - torch==2.10.0+das.opt1.dtk2604.2608131652.g28498c
         # The vendor uploaded torchaudio with its build-date+git suffix intact,
         # unlike the clean torchvision tag; the == pin must carry the full string
         # or it will not resolve on the index.
-        - torchaudio==2.9.0+das.opt1.dtk2604.torch290.202604011034.geaa9e4
-        - torchvision==0.24.0+das.opt1.dtk2604.torch290
+        - torchaudio==2.10.0+das.opt1.dtk2604.torch2100.2609021532.gdf6f74
+        - torchvision==0.25.0+das185.dtk2604.torch2100.2608130858.gdcd044
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+dtk2604
+        - flagcx==0.14.1+dtk2604
         # hy-smi exposes no Python API, and the driver's tree at
         # /opt/hyhal/share/smi is a host mount, never installed.
         - amdsmi==7.0.2
@@ -934,17 +936,17 @@ vendors:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
         megatron_rl0.17.1:
-          - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
+          - transformer_engine==2.14.1+dtk2604.torch2100.2610161042.g4b8b86
         # rl deps re-verified for 0.18.2: same TE pin holds (per MLF #189 caveat).
         megatron_rl0.18.2:
-          - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
+          - transformer_engine==2.14.1+dtk2604.torch2100.2610161042.g4b8b86
         vllm0.20.2: []
         vllm0.24.0: []
         sglang0.5.18:
           - compressed-tensors==0.17.0+flagos
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
-        - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
+        - Hygon DTK LLVM       # dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e-x86_64.run (clang-18)
 
     dtk26.10:
       extras: hygon
