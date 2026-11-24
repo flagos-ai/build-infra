@@ -39,7 +39,7 @@ tags:
         Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
     upstream_prs: []
     date: '2026-11-19T13:58:04.072Z'
-  - date: ''
+  - date: '2026-11-24T14:37:16.877Z'
     reason: |-
       - The aillvm tree is now the `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, in
         the SDK root in place of the bare `dtk_llvm.run`. Both compilers need it:

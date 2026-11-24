@@ -104,13 +104,12 @@ hy-smi
 - 非交互 bash 通过 `BASH_ENV` 加载 `vendor.sh`，旧的绝对 `export` 会在
   Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
 
-*2026-11-24 11:00:47*
+*2026-11-24 14:37:16*
 
-- 在 `/opt/dtk-26.04-i64` 装第二棵 aillvm 树（`dtk_llvm-1.0.0+dtk2604...5f9d5e`
-  构建），与裸 `dtk_llvm.run` 树并存。2026-11-06 起的 FlagTree wheel 发出
-  i64 numRecords 的 `make.buffer.rsrc`，裸树的 clang-18 只认 i32 而拒绝它们；
-  厂商 triton 3.5.1 仍需 i32 树。两个 `.run` 各自铺整套 DTK，故 i64 那份独立成根。
-  runtime 的 `compiler()` 通过 `TRITON_HIP_CLANG_PATH` 选择匹配的树。
+- aillvm 树改为 `dtk_llvm-1.0.0+dtk2604...5f9d5e` 构建，装进 SDK 根以取代裸
+  `dtk_llvm.run`。两个编译器都需要它：FlagTree 0.7.1a1 发出 i64
+  `make.buffer.rsrc` numRecords，triton 3.6.0 传入
+  `-amdgpu-disable-backoff-barrier=false`，裸树的 clang-18 两者都拒绝。
 
 *2026-10-27 02:02:24*
 
