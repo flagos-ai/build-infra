@@ -167,34 +167,31 @@ RUN set -eux; \
 # from flagcx-config.py (next to the derivation that names the .debs), so the
 # check is `sha256sum -c` against a real string and never a silent skip.
 #
-# The dev .deb is extracted LAST: it carries the libnccl.so -> libnccl.so.2
-# symlink, and libnccl2 (first) is the one that provides the file it points at.
-#
-# A row whose base already ships NCCL (cuda13.0.3's does: 2.28.3, with its
-# headers) states no pin, and this step then does nothing — the base's own
-# NCCL is what -lnccl resolves and what nvidia.mk reads.
+# Two shapes, and the row's apt list decides which:
+#   - both .debs (a base with no NCCL at all): libnccl2 first, then the -dev
+#     symlink that points at the file it provides.
+#   - the -dev .deb only (a -runtime base): that base ships libnccl.so.2 but no
+#     header, so the extraction supplies nccl.h and the unversioned symlink over
+#     the library already in the image. NCCL_LIB_DEB is empty and skipped.
 ARG NCCL_REPO=https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64
 ARG NCCL_DEV_DEB
 ARG NCCL_DEV_SHA256
 ARG NCCL_LIB_DEB
 ARG NCCL_LIB_SHA256
 RUN set -eux; \
-    if [ -z "${NCCL_LIB_DEB}" ]; then \
-        test -e /usr/include/nccl.h; \
-        test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2; \
-        echo ">>> the base ships NCCL; nothing extracted"; \
-        exit 0; \
-    fi; \
     export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"; \
-    curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-lib.deb \
-        "${NCCL_REPO}/${NCCL_LIB_DEB}"; \
-    echo "${NCCL_LIB_SHA256}  /tmp/nccl-lib.deb" | sha256sum -c -; \
+    if [ -n "${NCCL_LIB_DEB}" ]; then \
+        curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-lib.deb \
+            "${NCCL_REPO}/${NCCL_LIB_DEB}"; \
+        echo "${NCCL_LIB_SHA256}  /tmp/nccl-lib.deb" | sha256sum -c -; \
+        dpkg-deb -x /tmp/nccl-lib.deb /; \
+        rm -f /tmp/nccl-lib.deb; \
+    fi; \
     curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-dev.deb \
         "${NCCL_REPO}/${NCCL_DEV_DEB}"; \
     echo "${NCCL_DEV_SHA256}  /tmp/nccl-dev.deb" | sha256sum -c -; \
-    dpkg-deb -x /tmp/nccl-lib.deb /; \
     dpkg-deb -x /tmp/nccl-dev.deb /; \
-    rm -f /tmp/nccl-dev.deb /tmp/nccl-lib.deb; \
+    rm -f /tmp/nccl-dev.deb; \
     test -e /usr/include/nccl.h; \
     test -L /usr/lib/x86_64-linux-gnu/libnccl.so; \
     test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2

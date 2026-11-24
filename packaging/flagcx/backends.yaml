@@ -288,11 +288,10 @@ nvidia-cuda13.0.3:
   glibc_floor: "2.39"
   # deb off: no package has been built on this base. The wheel is on — it is
   # compiled here, on this row's own toolchain, not copied from 13.3.
-  # No libnccl pin: the base ships NCCL 2.28.3 with its headers, so the builder
-  # links the base's own copy instead of extracting a later one that the 2404
-  # repo does not carry at this CUDA minor anyway. assert catches a base that
-  # moves off that.
-  apt: [cuda-nvcc-13-0]
+  # Only the -dev pin: a -runtime base carries libnccl.so.2 without the header
+  # nvidia.mk reads, so the .deb is extracted for nccl.h and its libnccl.so
+  # symlink, while the library itself stays the base's own.
+  apt: [cuda-nvcc-13-0, libnccl-dev=2.31.2-1+cuda13.3]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
   wheel: {enabled: true, torch_backend: vendor}
