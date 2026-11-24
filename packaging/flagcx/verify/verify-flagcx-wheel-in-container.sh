@@ -19,6 +19,14 @@
 
 set -euo pipefail
 
+# The vendor SDK's environment lives in /etc/profile.d/vendor.sh, which only a
+# login shell reads — and `docker exec bash` is not one. Without this the
+# wheel's own .so fails to load for want of the SDK's lib dirs (measured:
+# libacl_op_compiler.so on ascend, libroctx64.so.1 / libgalaxyhip.so.5 on hygon),
+# while the build, which sources the same file, succeeds. Same line, same reason
+# as wheel-build-in-container.sh.
+if [ -f /etc/profile.d/vendor.sh ]; then . /etc/profile.d/vendor.sh; fi
+
 PY=/flagos/bin/python
 
 # A vendor image can print on stdout while a package imports, so a value read
