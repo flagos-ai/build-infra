@@ -426,12 +426,8 @@ jobs:
           # the build and the read-back use.
           : "${INDEX_URL:?the matrix row carries no flagos_pypi}"
           pypi_repo="flagos-pypi-${vendor}"
-          # Resolve that name inside the container too. The 910C nodes carry it
-          # only in /etc/hosts, which a container does not inherit (it gets the
-          # daemon's resolv.conf) — so the upload would reach a name the host
-          # resolves and the container does not. The address is looked up here on
-          # the runner, never written down, and a row that needs no override gets
-          # no flag.
+          # 910C nodes carry this name only in /etc/hosts, which a container
+          # does not inherit.
           ADD_HOST=()
           hostname="${INDEX_URL#*//}"
           hostname="${hostname%%/*}"
