@@ -16,7 +16,7 @@
 Explicitly installed; the version is the one baked into this image:
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -69,7 +69,7 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-11-19 21:48:56 · `542bd046173a`*
+*Last updated: 2026-11-24 17:10:44 · `536a1efdfc3f`*
 
 ## Changelog
 
