@@ -286,15 +286,13 @@ nvidia-cuda13.0.3:
   make_flag: USE_NVIDIA
   arch: amd64
   glibc_floor: "2.39"
-  # Off every channel for now: the runtime line borrows `flagcx==0.14.1+cuda13.3`
-  # (the wheel carrying a libflagcx.so linked against libcudart.so.13) and no
-  # FlagCX artifact has been built or verified on this base. Turning the wheel
-  # on is a build on this row's own toolchain, not a copy of the 13.3 one — the
-  # same rule that made 13.3 rebuild against its torch headers. Stated here
-  # because --check reads a runtime-matrix row with no packaging entry as drift.
+  # deb off: no package has been built on this base. The wheel is on — it is
+  # compiled here, on this row's own toolchain, not copied from 13.3.
+  # The base ships libnccl2 only, so the wheel build installs libnccl-dev from
+  # this row's own apt list; assert catches a build that starts without them.
+  assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
-  wheel: {enabled: false}
-
+  wheel: {enabled: true, torch_backend: vendor}
 
 metax-maca3.10.1.11:
   vendor: metax
