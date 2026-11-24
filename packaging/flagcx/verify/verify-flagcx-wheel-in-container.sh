@@ -71,7 +71,7 @@ if [ "$MODE" = index ]; then
     got="$(sha256sum "/tmp/dl/$dl" | awk '{print $1}')"
     [ "$got" = "$EXPECT_SHA" ] \
         || { echo "$INDEX: serves $got, this build is $EXPECT_SHA" >&2; exit 1; }
-    "$PY" -m pip install --no-deps --no-cache-dir --index-url "$INDEX" "$PIN"
+    "$PY" -m pip install --no-deps --no-cache-dir ${trusted[@]+"${trusted[@]}"} --index-url "$INDEX" "$PIN"
     SOURCE="$INDEX"
 else
     # --no-index: nothing may come from a network, so a pass says the wheel is
