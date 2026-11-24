@@ -91,39 +91,35 @@ ARG https_proxy=
 # is the only source.
 ARG no_proxy=
 
-# System build deps + python 3.12 (deadsnakes), the way packaging/flagtree/
-# nvidia-cuda does it.
+# System build deps + python 3.12, the way packaging/flagtree/nvidia-cuda does
+# it.
 #
-# THE DEADSNAKES PPA IS WIRED UP BY HAND, NOT WITH add-apt-repository. That
-# command resolves the PPA through Launchpad's REST API, and the CI runner's
-# proxy answers the CONNECT to api.launchpad.net with 500. The two hosts actually
-# needed — the key server and the package archive — are both reachable, so the
-# key is fetched and the source line written directly. The codename is jammy
-# because this image is ubuntu:22.04 by design.
+# PYTHON COMES FROM uv, NOT FROM THE DEADSNAKES PPA. The PPA archive lives on
+# ppa.launchpadcontent.net, which several build hosts cannot reach: hw114/hw115
+# (the 910C rows) have no egress at all and proxy the Nexus by its inner name,
+# and launchpad's edge answers some of the rest with 503. It also drags in the
+# Launchpad REST API for the key, which the runner proxy has answered with 500.
+# uv's managed CPython is mirrored on this project's own filestore instead
+# (flagos-filestore/uv-python), so the interpreter arrives over the same route
+# the wheels do — and the stashed builds are install_only_stripped, which still
+# carries include/python3.12 and lib/python3.12/config-*, so C extension builds
+# work.
 #
 # python3.12 is hardcoded rather than templated from PYTHON_VERSION: the row
 # this file currently builds (nvidia-cuda13.3 — cuda12.8 is frozen in
 # configs.yaml, so it is in no builder matrix) is python 3.12, and a bump means
-# editing this line — the same trade packaging/flagtree/nvidia-cuda already
-# made. PYTHON_VERSION is still asserted by the probe below, so a row that moved
-# would fail loudly rather than build with the wrong interpreter.
+# editing this line. PYTHON_VERSION is still asserted by the probe below, so a
+# row that moved would fail loudly rather than build with the wrong interpreter.
 #
 # libgflags-dev/libgoogle-glog-dev are here rather than in Containerfile.wheel
 # because they are build-only headers (torch's c10/util/Flags.h and Logging.h
 # reach them) and this image is where the wheel's build environment starts.
+ARG UV_PYTHON_URL=https://resource.flagos.net/repository/flagos-filestore/uv-python/20260718/cpython-3.12.13+20260718-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ca-certificates gnupg curl wget git \
-        build-essential gcc g++; \
-    curl -fsSL \
-         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
-         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg; \
-    echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
-         > /etc/apt/sources.list.d/deadsnakes.list; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        python3.12 python3.12-venv python3.12-dev \
+        ca-certificates curl wget git \
+        build-essential gcc g++ \
         libgflags-dev libgoogle-glog-dev; \
     rm -rf /var/lib/apt/lists/*
 
@@ -221,15 +217,27 @@ RUN set -eux; \
 #
 # PYTHON_VERSION is the matrix row's, relayed through flagcx-config.py: it is
 # what the venv probe asserts the interpreter against, and a row that moved to
-# another Python would fail there — but the python3.12 packages themselves are
-# hardcoded in the system-deps step above, which a moved row cannot change. Both
+# another Python would fail there — but the interpreter installed above is
+# pinned to 3.12 by the uv install below, which a moved row cannot change. Both
 # NVIDIA rows are 3.12 today, and the mismatch a future bump would trip is
 # named in that step's comment.
 ENV VIRTUAL_ENV=/flagos \
-    PATH="/flagos/bin:${PATH}"
+    PATH="/opt/uv-python/bin:/flagos/bin:${PATH}"
+# CPython 3.12 from this project's filestore, unpacked directly rather than
+# through `uv python install`: the filestore holds the standalone-build archives
+# under a dated directory, not the index layout uv's install mirror expects.
+# The archive is the install_only_stripped build, which still ships
+# include/python3.12 and lib/python3.12/config-*, so C extension builds work.
+# UV_PYTHON_URL follows the same route LLVM_FILESTORE below does: the public
+# Nexus name by default, with the inner one supplied by the caller on the rows
+# that reach it by their own name.
 RUN set -eux; \
-    python3.12 -m ensurepip --upgrade; \
-    python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools; \
+    mkdir -p /opt/uv-python; \
+    curl -fsSL --retry 3 "${UV_PYTHON_URL}" \
+        | tar xz -C /opt/uv-python --strip-components=1; \
+    mkdir -p /opt/uv-python/bin; \
+    ln -sf /opt/uv-python/bin/python3.12 /opt/uv-python/bin/python3; \
+    python3.12 -V; \
     python3.12 -m venv /flagos; \
     /flagos/bin/pip install --no-cache-dir --upgrade pip; \
     /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
