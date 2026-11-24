@@ -22,6 +22,21 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      - Moves FlagTree to `0.7.1a1+hcu3.6` and has `compiler()` point
+        `TRITON_HIP_CLANG_PATH` / `TRITON_HIP_LLD_PATH` at the i64 aillvm tree
+        this base now installs, so FlagTree compiles on a base that also serves
+        the vendor triton 3.5.1 (i32) — `compiler triton` restores the vendor
+        default. Verified on a BW1000 node: copy, axpy and fp16 matmul run at
+        maxdiff 0.0 on both the release and the daily FlagTree build.
+    reason_zh: |-
+      - FlagTree 升级到 `0.7.1a1+hcu3.6`，并让 `compiler()` 将
+        `TRITON_HIP_CLANG_PATH` / `TRITON_HIP_LLD_PATH` 指向本 base 新装的 i64
+        aillvm 树，使 FlagTree 能与厂商 triton 3.5.1（i32）共存于同一 base 上编译；
+        `compiler triton` 恢复厂商默认。已在 BW1000 节点验证：copy、axpy 与 fp16
+        matmul 在 release 与 daily 两种 FlagTree 构建下 maxdiff 均为 0.0。
+    upstream_prs: []
+    date: ''
+  - reason: |-
       - Rebuilt on the current base image, which no longer lets `vendor.sh`
         overwrite a caller's `PYTHONPATH` (#1882).
     reason_zh: |-
