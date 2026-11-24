@@ -39,21 +39,26 @@ tags:
         Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
     upstream_prs: []
     date: '2026-11-19T13:58:04.072Z'
-  - date: '2026-11-24T11:00:47.631Z'
+  - date: ''
     reason: |-
-      - Installs a second aillvm tree at `/opt/dtk-26.04-i64`, the
-        `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, beside the bare `dtk_llvm.run`
-        tree. FlagTree wheels from 2026-11-06 emit `make.buffer.rsrc` with an
-        i64 numRecords that the bare tree's clang-18 rejects (i32 only), while
-        the vendor triton 3.5.1 still needs the i32 tree; the two `.run`s each
-        lay a whole DTK, so the i64 one gets its own root. The runtime's
-        `compiler()` selects the matching tree via `TRITON_HIP_CLANG_PATH`.
+      - The aillvm tree is now the `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, and
+        it replaces the bare `dtk_llvm.run` tree instead of sitting beside it,
+        so this image carries one LLVM. That build is what both compilers now
+        need: FlagTree from 0.7.1a1 emits `make.buffer.rsrc` with an i64
+        numRecords the bare tree's clang-18 rejects, and vendor triton 3.6.0
+        passes `-amdgpu-disable-backoff-barrier=false`, which it also rejects.
+        The `.run` only adds `aillvm/` and `bin/` to the SDK root, so
+        `/opt/dtk/env.sh` and the rest of the DTK layout are unchanged; the
+        runtime's `compiler()` points `TRITON_HIP_CLANG_PATH` at this tree for
+        both compilers.
     reason_zh: |-
-      - 在 `/opt/dtk-26.04-i64` 装第二棵 aillvm 树（`dtk_llvm-1.0.0+dtk2604...5f9d5e`
-        构建），与裸 `dtk_llvm.run` 树并存。2026-11-06 起的 FlagTree wheel 发出
-        i64 numRecords 的 `make.buffer.rsrc`，裸树的 clang-18 只认 i32 而拒绝它们；
-        厂商 triton 3.5.1 仍需 i32 树。两个 `.run` 各自铺整套 DTK，故 i64 那份独立成根。
-        runtime 的 `compiler()` 通过 `TRITON_HIP_CLANG_PATH` 选择匹配的树。
+      - aillvm 树改为 `dtk_llvm-1.0.0+dtk2604...5f9d5e` 构建，并取代裸
+        `dtk_llvm.run` 树而非与之并存，镜像因此只带一套 LLVM。两个编译器现在都需要
+        它：FlagTree 自 0.7.1a1 起发出 i64 numRecords 的 `make.buffer.rsrc`，
+        裸树 clang-18 拒绝；厂商 triton 3.6.0 传入
+        `-amdgpu-disable-backoff-barrier=false`，它同样拒绝。该 `.run` 只向 SDK
+        根追加 `aillvm/` 与 `bin/`，故 `/opt/dtk/env.sh` 与其余 DTK 布局不变；
+        runtime 的 `compiler()` 对两个编译器都将 `TRITON_HIP_CLANG_PATH` 指向此树。
     upstream_prs: []
   - date: '2026-10-27T02:02:24.528Z'
     reason: |-
