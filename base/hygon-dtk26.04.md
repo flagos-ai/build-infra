@@ -16,7 +16,7 @@
 Explicitly installed; the version is the one baked into this image:
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -69,7 +69,7 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-11-19 21:48:56 · `542bd046173a`*
+*Last updated: 2026-11-24 17:10:44 · `536a1efdfc3f`*
 
 ## Changelog
 
@@ -83,6 +83,16 @@ hy-smi
 - Non-interactive bash loads `vendor.sh` through `BASH_ENV`, so the old
   absolute `export` dropped the caller's entries before Python ever ran
   and broke imports that depended on them.
+
+*2026-11-24 11:00:47*
+
+- Installs a second aillvm tree at `/opt/dtk-26.04-i64`, the
+  `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, beside the bare `dtk_llvm.run`
+  tree. FlagTree wheels from 2026-11-06 emit `make.buffer.rsrc` with an
+  i64 numRecords that the bare tree's clang-18 rejects (i32 only), while
+  the vendor triton 3.5.1 still needs the i32 tree; the two `.run`s each
+  lay a whole DTK, so the i64 one gets its own root. The runtime's
+  `compiler()` selects the matching tree via `TRITON_HIP_CLANG_PATH`.
 
 *2026-10-27 02:02:24*
 
