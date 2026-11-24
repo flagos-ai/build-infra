@@ -22,18 +22,20 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
-      - Moves FlagTree to `0.7.1a1+hcu3.6` and has `compiler()` point
-        `TRITON_HIP_CLANG_PATH` / `TRITON_HIP_LLD_PATH` at the i64 aillvm tree
-        this base now installs, so FlagTree compiles on a base that also serves
-        the vendor triton 3.5.1 (i32) — `compiler triton` restores the vendor
-        default. Verified on a BW1000 node: copy, axpy and fp16 matmul run at
-        maxdiff 0.0 on both the release and the daily FlagTree build.
+      - Moves this line to torch 2.10.0, triton 3.6.0, torchvision 0.25.0,
+        torchaudio 2.10.0, flash_attn and transformer_engine on torch2100, and
+        flagcx 0.14.1 rebuilt against torch 2.10. apex is gone: no cp310/torch2100
+        build exists and MLF's four use sites fall back through try/except.
+        FlagTree is 0.7.1a1+hcu3.6, and `compiler()` now points both compilers at
+        the base's single aillvm tree, which is the build they both need.
+        Verified on a BW1000 node: copy, axpy and fp16 matmul at maxdiff 0.0.
     reason_zh: |-
-      - FlagTree 升级到 `0.7.1a1+hcu3.6`，并让 `compiler()` 将
-        `TRITON_HIP_CLANG_PATH` / `TRITON_HIP_LLD_PATH` 指向本 base 新装的 i64
-        aillvm 树，使 FlagTree 能与厂商 triton 3.5.1（i32）共存于同一 base 上编译；
-        `compiler triton` 恢复厂商默认。已在 BW1000 节点验证：copy、axpy 与 fp16
-        matmul 在 release 与 daily 两种 FlagTree 构建下 maxdiff 均为 0.0。
+      - 本线升到 torch 2.10.0、triton 3.6.0、torchvision 0.25.0、torchaudio 2.10.0，
+        flash_attn 与 transformer_engine 切到 torch2100 线，flagcx 0.14.1 针对
+        torch 2.10 重编。apex 移除：无 cp310/torch2100 构建，且 MLF 四处使用均有
+        try/except 兜底。FlagTree 为 0.7.1a1+hcu3.6，`compiler()` 现在把两个编译器
+        都指向本 base 唯一那棵 aillvm 树——那正是两者都需要的构建。
+        已在 BW1000 节点验证：copy、axpy 与 fp16 matmul maxdiff 均为 0.0。
     upstream_prs: []
     date: ''
   - reason: |-
