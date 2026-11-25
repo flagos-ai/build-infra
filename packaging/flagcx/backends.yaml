@@ -290,7 +290,9 @@ nvidia-cuda13.0.3:
   # compiled here, on this row's own toolchain, not copied from 13.3.
   # Both pins: the builder is FROM ubuntu:22.04, not from this base, so neither
   # the header nor the library is there to borrow. 2.28.9 is the newest NCCL
-  # NVIDIA publishes for +cuda13.0, which is this line's CUDA minor.
+  # NVIDIA publishes for +cuda13.0, which is this line's CUDA minor — and it
+  # comes from the 2204 suite, whose build stops at GLIBC_2.34, not the 2404
+  # one's 2.38.
   apt: [cuda-nvcc-13-0, libnccl-dev=2.28.9-1+cuda13.0, libnccl2=2.28.9-1+cuda13.0]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
@@ -301,6 +303,7 @@ nvidia-cuda13.0.3:
   builder:
     enabled: true
     containerfile: Containerfile.builder-nvidia
+    nccl_repo: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64
     extra_apt: [libcurand-dev-13-0, cccl-13-3, libcublas-dev-13-0, libcusparse-dev-13-0, libcusolver-dev-13-0, libcufft-dev-13-0]
 
 metax-maca3.10.1.11:

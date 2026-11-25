@@ -149,7 +149,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
-    "builder_nccl_dev_sha256", "builder_nccl_lib_sha256",
+    "builder_nccl_dev_sha256", "builder_nccl_lib_sha256", "builder_nccl_repo",
     "bitcode_arch", "bitcode_adaptor_flag",
 )
 
@@ -833,6 +833,14 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             )
             entry["builder_nccl_lib_sha256"] = nccl_deb_sha256(
                 entry["builder_nccl_lib_deb"]
+            )
+            # The suite the .debs come from. The same NCCL version is built per
+            # suite and the 2404 one links GLIBC_2.38, which this 22.04 image
+            # cannot link. A row states its own when its pin only exists in one;
+            # the 2404 default keeps the rows that were measured there.
+            entry["builder_nccl_repo"] = (
+                spec.get("builder", {}).get("nccl_repo")
+                or "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64"
             )
         joined.append(entry)
     return joined
