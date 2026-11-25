@@ -170,9 +170,10 @@ RUN set -eux; \
 # Two shapes, and the row's apt list decides which:
 #   - both .debs (a base with no NCCL at all): libnccl2 first, then the -dev
 #     symlink that points at the file it provides.
-#   - the -dev .deb only (a -runtime base): that base ships libnccl.so.2 but no
-#     header, so the extraction supplies nccl.h and the unversioned symlink over
-#     the library already in the image. NCCL_LIB_DEB is empty and skipped.
+#   - the -dev .deb only (a base that already carries NCCL): the extraction
+#     supplies nccl.h and the unversioned symlink over the library already in
+#     the image. NCCL_LIB_DEB is empty and skipped. No row takes this shape
+#     today — the builder is FROM ubuntu:22.04, not from a vendor base.
 ARG NCCL_REPO=https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64
 ARG NCCL_DEV_DEB
 ARG NCCL_DEV_SHA256
@@ -194,7 +195,6 @@ RUN set -eux; \
     rm -f /tmp/nccl-dev.deb; \
     test -e /usr/include/nccl.h; \
     test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2; \
-    ln -sf libnccl.so.2 /usr/lib/x86_64-linux-gnu/libnccl.so; \
     test -L /usr/lib/x86_64-linux-gnu/libnccl.so
 
 # BUILDER_ASSERT is the list of files that proves the SDK is the one we think it
