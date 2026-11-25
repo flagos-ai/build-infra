@@ -9,7 +9,7 @@
 
 ### Built on
 
-`harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.3.0`
+`harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:TBD`
 
 ### Python
 
@@ -19,17 +19,16 @@
 
 `vllm==0.32.0+flagos`
 
-
-`vllm-plugin-fl==0.5.0.dev0+g4856534.d20261125`
-
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125_dtk26.4`
+**Not published yet — this image is not on the registry yet. `TBD` is the tag the build pipeline assigns when it builds the image for this backend.**
+
+`harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:TBD`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125_dtk26.4
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:TBD
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -100,5 +99,3 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG vllm-serve --model <path> --port 9000
 ```
-
-## Changelog
