@@ -395,9 +395,33 @@ NCCL_DEB_SHA256 = {
         "9617086511992fef9bd984f07908cfa41efacaba2a0bbfa07f7e35570318df8d",
 }
 
+# The same filename is a different file per suite: NVIDIA builds each version
+# for both, and the builds differ (2404 links GLIBC_2.38, 2204 stops at 2.34).
+# Keyed by the repo's last path segment, so a row on the 2204 suite verifies
+# against the bytes that suite serves.
+NCCL_DEB_SHA256_BY_SUITE = {
+    ("ubuntu2204", "libnccl-dev_2.28.9-1+cuda13.0_amd64.deb"):
+        "ea8da079d40d9fd5ba2c359ac7aa6ef2b0fcd143c4c241eeb07b06b11584a636",
+    ("ubuntu2204", "libnccl2_2.28.9-1+cuda13.0_amd64.deb"):
+        "1647c413ee0005b7abbc06bf04d5cb0ee05000787623f48ac96e845dfc876863",
+}
 
-def nccl_deb_sha256(deb: str) -> str:
-    return NCCL_DEB_SHA256.get(deb, "")
+
+def nccl_deb_sha256(deb: str, repo: str = "") -> str:
+    """The digest of `deb` as the given repo serves it.
+
+    The suite-keyed table wins, because the same filename is a different file
+    per suite; the plain filename table is what the 2404 rows were measured
+    against and stays as its default.
+    """
+    suite = ""
+    if repo:
+        # .../repos/<suite>/x86_64 — the suite is the segment before the arch.
+        parts = repo.rstrip("/").split("/")
+        suite = parts[-2] if len(parts) >= 2 else ""
+    return NCCL_DEB_SHA256_BY_SUITE.get(
+        (suite, deb), NCCL_DEB_SHA256.get(deb, "")
+    )
 
 
 def version_label(key: str) -> str:
@@ -828,12 +852,6 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # pair derivation, which stays the one place that names both.
             if "libnccl2=" not in " ".join(spec.get("apt") or []):
                 entry["builder_nccl_lib_deb"] = ""
-            entry["builder_nccl_dev_sha256"] = nccl_deb_sha256(
-                entry["builder_nccl_dev_deb"]
-            )
-            entry["builder_nccl_lib_sha256"] = nccl_deb_sha256(
-                entry["builder_nccl_lib_deb"]
-            )
             # The suite the .debs come from. The same NCCL version is built per
             # suite and the 2404 one links GLIBC_2.38, which this 22.04 image
             # cannot link. A row states its own when its pin only exists in one;
@@ -841,6 +859,12 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             entry["builder_nccl_repo"] = (
                 spec.get("builder", {}).get("nccl_repo")
                 or "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64"
+            )
+            entry["builder_nccl_dev_sha256"] = nccl_deb_sha256(
+                entry["builder_nccl_dev_deb"], entry["builder_nccl_repo"]
+            )
+            entry["builder_nccl_lib_sha256"] = nccl_deb_sha256(
+                entry["builder_nccl_lib_deb"], entry["builder_nccl_repo"]
             )
         joined.append(entry)
     return joined
