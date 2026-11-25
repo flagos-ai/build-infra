@@ -51,3 +51,10 @@ include:
   - name: ascend-cann9.2.1         # python 3.12, aarch64
     runson: '["self-hosted", "cann921"]'
     pypi_repos: flagos-pypi-ascend
+  # python 3.10, x86_64. hygon is the first 3.10 backend in configs.yaml, so it
+  # is this row's build host (its runtime image carries the interpreter). The
+  # repacked set pins its deps to ==<ver>+flagos, and a local version resolves
+  # only on an index that carries it — hence one line naming every 3.10 vendor.
+  - name: hygon-dtk26.04           # python 3.10, x86_64
+    runson: '["self-hosted", "hygon"]'
+    pypi_repos: flagos-pypi-hygon flagos-pypi-kunlunxin flagos-pypi-mthreads flagos-pypi-sunrise flagos-pypi-tsingmicro
