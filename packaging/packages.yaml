@@ -608,10 +608,10 @@ wheels:
     arch: linux_x86_64
   - version: flagcx==0.14.1+cuda13.0.3
     pypi_index: flagos-pypi-nvidia
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
+    desc_zh: 面向通用 GPU 环境 13.0.3 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Generic GPU 13.0.3.
+    notes: 适用于 Ubuntu 22.04 及以上版本；链接 CUDA 13.0 线的 NCCL。
+    notes_en: For Ubuntu 22.04 and newer; links the CUDA 13.0 line's NCCL.
     python: cp312
     os: linux
     arch: linux_x86_64
