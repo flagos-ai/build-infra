@@ -857,6 +857,15 @@ wheels:
     python: py3
     os: any
     arch: any
+  - version: 0.5.0.dev0+g4856534.d20261125.dtk26.4
+    pypi_index: flagos-pypi-hygon
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python: cp310
+    os: linux
+    arch: linux_x86_64
 - name: megatron-core
   short_name: Megatron-LM-FL
   versions:
