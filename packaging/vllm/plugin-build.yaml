@@ -84,7 +84,12 @@
 
 backends:
   hygon-dtk26.04:
-    cmake_args: "-DCMAKE_PREFIX_PATH=/opt/dtk;/opt/dtk/hip;/opt/dtk/hsa;/opt/hyhal;/usr/local/hyhal"
+    # torch's own cmake dir has to be on CMAKE_PREFIX_PATH: find_package(Torch)
+    # reads TorchConfig.cmake from it, and the pip torch wheel puts it under
+    # site-packages/torch/share/cmake, not in any of the DTK roots below.
+    # Without it the native wheel fails at CMakeLists.txt:48 "Could not find a
+    # package configuration file provided by Torch" (run 45518725823).
+    cmake_args: "-DCMAKE_PREFIX_PATH=/flagos/lib/python3.10/site-packages/torch/share/cmake;/opt/dtk;/opt/dtk/hip;/opt/dtk/hsa;/opt/hyhal;/usr/local/hyhal"
     apt: [libgflags-dev, libgoogle-glog-dev]
     librt_symlink: true
 
