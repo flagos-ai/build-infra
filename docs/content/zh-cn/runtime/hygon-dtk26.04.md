@@ -97,14 +97,10 @@ hy-smi
 
 ### 2.3.0
 
-*2026-11-24 15:55:52*
+*2026-11-25 13:08:10*
 
-- 本线升到 torch 2.10.0、triton 3.6.0、torchvision 0.25.0、torchaudio 2.10.0，
-  flash_attn 与 transformer_engine 切到 torch2100 线，flagcx 0.14.1 针对
-  torch 2.10 重编。apex 移除：无 cp310/torch2100 构建，且 MLF 四处使用均有
-  try/except 兜底。FlagTree 为 0.7.1a1+hcu3.6，`compiler()` 现在把两个编译器
-  都指向本 base 唯一那棵 aillvm 树——那正是两者都需要的构建。
-  已在 BW1000 节点验证：copy、axpy 与 fp16 matmul maxdiff 均为 0.0。
+apex 回到本线，pin 为 1.7.0+dtk2604.torch2100.2609201739.g9783d4：索引上已有
+cp310/torch2100 构建，依赖列表当初略去它的理由不再成立。镜像其余内容不变。
 
 *2026-11-19 15:44:19*
 
