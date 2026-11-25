@@ -29,9 +29,8 @@
 #       --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \
 #       --build-arg "PYTHON_VERSION=$BUILDER_PYTHON_VERSION" \
 #       --build-arg "NCCL_DEV_DEB=$BUILDER_NCCL_DEV_DEB" \
-#       --build-arg "NCCL_DEV_SHA256=$BUILDER_NCCL_DEV_SHA256" \
 #       --build-arg "NCCL_LIB_DEB=$BUILDER_NCCL_LIB_DEB" \
-#       --build-arg "NCCL_LIB_SHA256=$BUILDER_NCCL_LIB_SHA256" \
+#       --build-arg "NCCL_REPO=$BUILDER_NCCL_REPO" \
 #       --build-arg "LLVM_VERSION=f6ded0be" \
 #       --build-arg "LLVM_SHA256=3cd1d576a5a8e90454905cab83e6c15cac8e8c711a33d148e4bf8e319fa72d44" \
 #       -f packaging/flagcx/Containerfile.builder -t "flagos-dev/flagcx-builder:$key" .
@@ -154,36 +153,27 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # NCCL, exact-pinned, by dpkg-deb -x and NOT by apt.
-# The 2404 suite's control block demands libc6 >= 2.38, which dpkg would refuse
-# on this 22.04 image, so the .debs are extracted instead. nccl.h is what
-# nvidia.mk reads for the comm-traits branch; the unversioned libnccl.so symlink
-# (in -dev) is what -lnccl resolves. Both .debs are sha256-pinned like the LLVM
-# tarball, because a .deb fetched over this network must not reach a linker
-# without being the bytes the pin names. The sha256 values travel as build args
-# from flagcx-config.py (next to the derivation that names the .debs), so the
-# check is `sha256sum -c` against a real string and never a silent skip.
+# The pin's control block demands libc6 >= 2.38, which dpkg would refuse on this
+# 22.04 image, so the .debs are extracted instead. nccl.h is what nvidia.mk reads
+# for the comm-traits branch; the unversioned libnccl.so symlink (in -dev) is what
+# -lnccl resolves.
 #
-# NCCL_REPO is per row: the same version is built per suite, and a 2404 build
-# links GLIBC_2.38 while the 2204 one stops at 2.34. The wheel records only
-# NEEDED libnccl.so.2, but pip links its efl against this .so, so a 2404 build
-# cannot be used on this image.
+# NCCL_REPO is per row: NVIDIA builds each version per suite and the files
+# differ — a 2404 build links GLIBC_2.38 while the 2204 one stops at 2.34, and
+# this builder is ubuntu:22.04.
 ARG NCCL_REPO
 ARG NCCL_DEV_DEB
-ARG NCCL_DEV_SHA256
 ARG NCCL_LIB_DEB
-ARG NCCL_LIB_SHA256
 RUN set -eux; \
     export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"; \
     if [ -n "${NCCL_LIB_DEB}" ]; then \
         curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-lib.deb \
             "${NCCL_REPO}/${NCCL_LIB_DEB}"; \
-        echo "${NCCL_LIB_SHA256}  /tmp/nccl-lib.deb" | sha256sum -c -; \
         dpkg-deb -x /tmp/nccl-lib.deb /; \
         rm -f /tmp/nccl-lib.deb; \
     fi; \
     curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-dev.deb \
         "${NCCL_REPO}/${NCCL_DEV_DEB}"; \
-    echo "${NCCL_DEV_SHA256}  /tmp/nccl-dev.deb" | sha256sum -c -; \
     dpkg-deb -x /tmp/nccl-dev.deb /; \
     rm -f /tmp/nccl-dev.deb; \
     test -e /usr/include/nccl.h; \

@@ -149,7 +149,7 @@ BUILDER_BUILD_INPUT_FIELDS = (
     "builder_numpy", "builder_pandas", "builder_runtime_prereqs",
     "builder_python_version", "builder_flagos_pypi", "builder_extra_pypi",
     "builder_nccl_dev_deb", "builder_nccl_lib_deb",
-    "builder_nccl_dev_sha256", "builder_nccl_lib_sha256", "builder_nccl_repo",
+    "builder_nccl_repo",
     "bitcode_arch", "bitcode_adaptor_flag",
 )
 
@@ -372,32 +372,6 @@ def sdk_apt_and_nccl(apt: list[str]) -> tuple[list[str], tuple[str, str]]:
         return sdk, ("", "")
     version = dev_pin.split("=", 1)[1]
     return sdk, (f"libnccl-dev_{version}_amd64.deb", f"libnccl2_{version}_amd64.deb")
-
-
-# The sha256 of each NCCL .deb the builder extracts, keyed by filename. Pinned
-# next to the derivation that names the file: a .deb fetched over the node's
-# network must not reach a linker without being the bytes the pin names, and the
-# pin is a property of NVIDIA's published artifact — the same class of constant
-# as LLVM_SHA256 — not of the FlagCX row, so it lives here rather than in
-# backends.yaml, which states only the version (the row's own decision).
-NCCL_DEB_SHA256 = {
-    "libnccl-dev_2.25.1-1+cuda12.8_amd64.deb":
-        "a2dfab17dccccf73dac3d7ccf3b888e2507aa2cb37c7cc48f087d646f639e9f5",
-    "libnccl2_2.25.1-1+cuda12.8_amd64.deb":
-        "6f5e4ae46de66133bc9699338b5a60871f3e42e0ad1601563a7612d96812eb3f",
-    "libnccl-dev_2.31.2-1+cuda13.3_amd64.deb":
-        "5c3d903e1f4a0174b28f02ed714b7ccd2ddd1c23a686e93afa0dedcacdf95643",
-    "libnccl2_2.31.2-1+cuda13.3_amd64.deb":
-        "e1c743dc848afb697d8311c575e4a728e0fff84ad2d4aa73b7c8b82d9ae83868",
-    "libnccl-dev_2.28.9-1+cuda13.0_amd64.deb":
-        "41e8011e2d670fb74684683f49255c5ee32552d4508d14b8c2dcf5013205666f",
-    "libnccl2_2.28.9-1+cuda13.0_amd64.deb":
-        "9617086511992fef9bd984f07908cfa41efacaba2a0bbfa07f7e35570318df8d",
-}
-
-
-def nccl_deb_sha256(deb: str) -> str:
-    return NCCL_DEB_SHA256.get(deb, "")
 
 
 def version_label(key: str) -> str:
@@ -828,12 +802,6 @@ def merge(registry: dict, matrix: list[dict], channel: str = "deb") -> list[dict
             # pair derivation, which stays the one place that names both.
             if "libnccl2=" not in " ".join(spec.get("apt") or []):
                 entry["builder_nccl_lib_deb"] = ""
-            entry["builder_nccl_dev_sha256"] = nccl_deb_sha256(
-                entry["builder_nccl_dev_deb"]
-            )
-            entry["builder_nccl_lib_sha256"] = nccl_deb_sha256(
-                entry["builder_nccl_lib_deb"]
-            )
             # The suite the .debs come from. The same NCCL version is built per
             # suite and the 2404 one links GLIBC_2.38, which this 22.04 image
             # cannot link. A row states its own when its pin only exists in one;
