@@ -127,6 +127,11 @@ docker run --rm -it \
 
 ### 2.3.0-0.3.0
 
+*2026-11-25 06:07:21*
+
+- Rebuilt on the current runtime, which moved this backend to torch 2.10.0, triton 3.6.0 and FlagTree 0.7.1a1+hcu3.6 (FlagOS 2.3.0 stack); the base now carries a single aillvm tree that both compilers use.
+- Reinstalls the native plugin wheel `0.3.0+dtk26.4` against that torch, so `vllm_fl._C` keeps providing a real `weak_ref_tensor` and cudagraph capture does not leak VRAM per graph.
+
 *2026-10-27 05:18:35*
 
 - The runtime introduces two container-start flags,
