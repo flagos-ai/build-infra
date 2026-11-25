@@ -389,6 +389,10 @@ NCCL_DEB_SHA256 = {
         "5c3d903e1f4a0174b28f02ed714b7ccd2ddd1c23a686e93afa0dedcacdf95643",
     "libnccl2_2.31.2-1+cuda13.3_amd64.deb":
         "e1c743dc848afb697d8311c575e4a728e0fff84ad2d4aa73b7c8b82d9ae83868",
+    "libnccl-dev_2.28.9-1+cuda13.0_amd64.deb":
+        "41e8011e2d670fb74684683f49255c5ee32552d4508d14b8c2dcf5013205666f",
+    "libnccl2_2.28.9-1+cuda13.0_amd64.deb":
+        "9617086511992fef9bd984f07908cfa41efacaba2a0bbfa07f7e35570318df8d",
 }
 
 

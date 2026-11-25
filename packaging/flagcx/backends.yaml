@@ -288,11 +288,10 @@ nvidia-cuda13.0.3:
   glibc_floor: "2.39"
   # deb off: no package has been built on this base. The wheel is on — it is
   # compiled here, on this row's own toolchain, not copied from 13.3.
-  # Both pins, like the 13.3 row: the builder is FROM ubuntu:22.04, not from
-  # this base, so neither the header nor the library is there to borrow. The
-  # lib rides at the same +cuda13.3 as the -dev one because the 2404 repo has
-  # no +cuda13.0 build and NVIDIA publishes the pair at one version.
-  apt: [cuda-nvcc-13-0, libnccl-dev=2.31.2-1+cuda13.3, libnccl2=2.31.2-1+cuda13.3]
+  # Both pins: the builder is FROM ubuntu:22.04, not from this base, so neither
+  # the header nor the library is there to borrow. 2.28.9 is the newest NCCL
+  # NVIDIA publishes for +cuda13.0, which is this line's CUDA minor.
+  apt: [cuda-nvcc-13-0, libnccl-dev=2.28.9-1+cuda13.0, libnccl2=2.28.9-1+cuda13.0]
   assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
   wheel: {enabled: true, torch_backend: vendor}
