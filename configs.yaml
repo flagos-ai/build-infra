@@ -420,13 +420,9 @@ vendors:
         - torchaudio==2.11.0+cu130
         - torchvision==0.28.0+cu130
         - numpy==1.26.4
-        # Still the +cuda13.3 build: flagcx is pinned to the flagcx wheel (PR
-        # #1266), and it is the only wheel carrying a libflagcx.so linked
-        # against libcudart.so.13. It was compiled on the 13.3 toolkit — if the
-        # 13.0.3 runtime rejects it, that is the first thing to look at, and the
-        # answer is a wheel built on this base (packaging/flagcx), not a
-        # different pin.
-        - flagcx==0.14.1+cuda13.3
+        # This line's own build: compiled in its builder against the 2204 NCCL
+        # this CUDA minor ships, so the wheel and the toolkit agree.
+        - flagcx==0.14.1+cuda13.0.3
       sdk:
         - CUDA 13.0.3 (x86_64)
 
