@@ -153,13 +153,9 @@ RUN set -eux; \
         ${BUILDER_APT} ${BUILDER_EXTRA_APT}; \
     rm -rf /var/lib/apt/lists/*
 
-# NCCL, exact-pinned, from the ubuntu2404 repo by dpkg-deb -x and NOT by apt.
-# The exact pins exist only in the 2404 suite (the 2204 one carries 2.32.3), and
-# that suite's control block demands libc6 >= 2.38 — which dpkg would refuse on
-# this 22.04 image. Extracting the .debs bypasses the floor, but the 2404-built
-# libnccl.so itself still LINKS GLIBC_2.38: it lands here only to *link against*
-# (the wheel records NEEDED libnccl.so.2 and undefined nccl* symbols, never the
-# dependency's own glibc needs), so the builder never runs it. nccl.h is what
+# NCCL, exact-pinned, by dpkg-deb -x and NOT by apt.
+# The 2404 suite's control block demands libc6 >= 2.38, which dpkg would refuse
+# on this 22.04 image, so the .debs are extracted instead. nccl.h is what
 # nvidia.mk reads for the comm-traits branch; the unversioned libnccl.so symlink
 # (in -dev) is what -lnccl resolves. Both .debs are sha256-pinned like the LLVM
 # tarball, because a .deb fetched over this network must not reach a linker
@@ -167,14 +163,11 @@ RUN set -eux; \
 # from flagcx-config.py (next to the derivation that names the .debs), so the
 # check is `sha256sum -c` against a real string and never a silent skip.
 #
-# Two shapes, and the row's apt list decides which:
-#   - both .debs (a base with no NCCL at all): libnccl2 first, then the -dev
-#     symlink that points at the file it provides.
-#   - the -dev .deb only (a base that already carries NCCL): the extraction
-#     supplies nccl.h and the unversioned symlink over the library already in
-#     the image. NCCL_LIB_DEB is empty and skipped. No row takes this shape
-#     today — the builder is FROM ubuntu:22.04, not from a vendor base.
-ARG NCCL_REPO=https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64
+# NCCL_REPO is per row: the same version is built per suite, and a 2404 build
+# links GLIBC_2.38 while the 2204 one stops at 2.34. The wheel records only
+# NEEDED libnccl.so.2, but pip links its efl against this .so, so a 2404 build
+# cannot be used on this image.
+ARG NCCL_REPO
 ARG NCCL_DEV_DEB
 ARG NCCL_DEV_SHA256
 ARG NCCL_LIB_DEB
@@ -195,6 +188,7 @@ RUN set -eux; \
     rm -f /tmp/nccl-dev.deb; \
     test -e /usr/include/nccl.h; \
     test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2; \
+    ln -sf libnccl.so.2 /usr/lib/x86_64-linux-gnu/libnccl.so; \
     test -L /usr/lib/x86_64-linux-gnu/libnccl.so
 
 # BUILDER_ASSERT is the list of files that proves the SDK is the one we think it

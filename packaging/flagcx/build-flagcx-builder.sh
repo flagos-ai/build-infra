@@ -247,6 +247,7 @@ for key in "${BACKENDS[@]}"; do
             --build-arg "NCCL_DEV_SHA256=$BUILDER_NCCL_DEV_SHA256" \
             --build-arg "NCCL_LIB_DEB=$BUILDER_NCCL_LIB_DEB" \
             --build-arg "NCCL_LIB_SHA256=$BUILDER_NCCL_LIB_SHA256" \
+            --build-arg "NCCL_REPO=$BUILDER_NCCL_REPO" \
             --build-arg "LLVM_VERSION=$LLVM_VERSION" \
             --build-arg "LLVM_SHA256=$LLVM_SHA256" \
             -t "$ref" \
