@@ -34,4 +34,4 @@ tags:
       基于 CUDA 13.0.3，使工具链小版本与 wheel 的编译目标一致。flagcx 仍为
       0.14.1+cuda13.3 —— 它是唯一携带链接 libcudart.so.13 的 libflagcx.so 的 wheel。
     upstream_prs: []
-    date:
+    date: '2026-11-25T11:54:52.900Z'
