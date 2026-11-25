@@ -127,6 +127,11 @@ docker run --rm -it \
 
 ### 2.3.0-0.3.0
 
+*2026-11-25 06:07:21*
+
+- 基于当前 runtime 重建：本后端已升到 torch 2.10.0、triton 3.6.0 与 FlagTree 0.7.1a1+hcu3.6（FlagOS 2.3.0 stack）；base 现在只带一棵 aillvm 树，两个编译器共用。
+- 针对该 torch 重新安装原生插件 wheel `0.3.0+dtk26.4`，`vllm_fl._C` 继续提供真正的 `weak_ref_tensor`，cudagraph 捕获不再按图泄漏显存。
+
 *2026-10-27 05:18:35*
 
 - runtime 引入两个容器启动期 flag，
