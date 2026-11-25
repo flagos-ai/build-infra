@@ -22,6 +22,14 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: |-
+      apex returns to this line at 1.7.0+dtk2604.torch2100.2609201739.g9783d4:
+      the index now carries a cp310/torch2100 build, so the reason the deps list
+      left it out no longer holds. Nothing else about the image changes.
+    reason_zh: |-
+      apex 回到本线，pin 为 1.7.0+dtk2604.torch2100.2609201739.g9783d4：索引上已有
+      cp310/torch2100 构建，依赖列表当初略去它的理由不再成立。镜像其余内容不变。
+    upstream_prs: []
+  - reason: |-
       - Moves this line to torch 2.10.0, triton 3.6.0, torchvision 0.25.0,
         torchaudio 2.10.0, flash_attn and transformer_engine on torch2100, and
         flagcx 0.14.1 rebuilt against torch 2.10. apex is gone: no cp310/torch2100
@@ -37,7 +45,7 @@ tags:
         都指向本 base 唯一那棵 aillvm 树——那正是两者都需要的构建。
         已在 BW1000 节点验证：copy、axpy 与 fp16 matmul maxdiff 均为 0.0。
     upstream_prs: []
-    date: '2026-11-24T15:55:52.717Z'
+    date: ''
   - reason: |-
       - Rebuilt on the current base image, which no longer lets `vendor.sh`
         overwrite a caller's `PYTHONPATH` (#1882).
