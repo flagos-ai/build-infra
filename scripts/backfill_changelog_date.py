@@ -22,13 +22,39 @@
 # hand-typed. Uses ruamel.yaml round-trip so comments and the block style of
 # the file survive untouched.
 #
+# WHICH ENTRY GETS THE DATE. Not "the first entry with an empty date": a human
+# adds the new entry above the still-undated one, so picking by position dates
+# the wrong entry (2026-11-25, hygon: the apex push dated the 11-24 rebuild
+# below it). The gate already decides which entry is pending and prints its
+# index; this reads that, so the two cannot disagree.
+#
 # Usage:
 #   python3 backfill_changelog_date.py <changelog.yaml> <tag> <push_time>
 #
 # push_time format: 2026-09-08T12:22:01Z (RFC3339, from the Harbor API).
 
+import subprocess
 import sys
+from pathlib import Path
+
 from ruamel.yaml import YAML
+
+GATE = Path(__file__).resolve().parent / "changelog_gate.py"
+PENDING_MARK = "gate: pending entry "
+# The gate's refusal for a tag whose every entry is dated: an idempotent re-run.
+DELIVERED_MARK = "is already delivered"
+
+
+def pending_index(path: str, tag: str) -> int | None:
+    result = subprocess.run(
+        [sys.executable, str(GATE), path, tag], capture_output=True, text=True
+    )
+    for line in result.stdout.splitlines():
+        if line.startswith(PENDING_MARK):
+            return int(line[len(PENDING_MARK):].split()[0])
+    if DELIVERED_MARK in result.stdout + result.stderr:
+        return None
+    sys.exit(f"error: the gate refused this changelog:\n{result.stdout}{result.stderr}")
 
 
 def main() -> None:
@@ -36,25 +62,25 @@ def main() -> None:
         sys.exit("usage: backfill_changelog_date.py <changelog.yaml> <tag> <push_time>")
     path, tag, push_time = sys.argv[1], sys.argv[2], sys.argv[3]
 
+    index = pending_index(path, tag)
+
     y = YAML()
     y.preserve_quotes = True
-    data = y.load(open(path))
+    with open(path) as f:
+        data = y.load(f)
 
     for block in data.get("tags") or []:
         if str(block.get("tag")) != tag:
             continue
-        entries = block.get("entries") or []
-        # Newest first; fill the most recent entry whose date is still empty.
-        for entry in entries:
-            if not (entry.get("date") or ""):
-                entry["date"] = push_time
-                with open(path, "w") as f:
-                    y.dump(data, f)
-                print(f"backfilled {path}: tag {tag} date -> {push_time}")
-                return
-        # No pending entry: already backfilled (idempotent re-run) — not an
-        # error, so the record step can call this unconditionally.
-        print(f"{path}: tag {tag} has no empty-date entry — nothing to backfill")
+        if index is None:
+            # Already backfilled (idempotent re-run) — not an error, so the
+            # record step can call this unconditionally.
+            print(f"{path}: tag {tag} has no pending entry — nothing to backfill")
+            return
+        block["entries"][index]["date"] = push_time
+        with open(path, "w") as f:
+            y.dump(data, f)
+        print(f"backfilled {path}: tag {tag} date -> {push_time}")
         return
     sys.exit(f"error: tag {tag} not found in {path}")
 
