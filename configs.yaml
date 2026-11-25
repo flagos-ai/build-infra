@@ -911,9 +911,7 @@ vendors:
       flagtree: flagtree==0.7.1a1+hcu3.6
       flagtree_daily: flagtree-hcu
       deps:
-        # apex is absent: there is no cp310/torch2100 build, and MLF's four apex
-        # uses all fall back through try/except, so the runtime is complete
-        # without it (packaging/megatron/docs/megatron-0.17.1/playbook.md).
+        - apex==1.7.0+dtk2604.torch2100.2609201739.g9783d4
         - flash_attn==2.8.3+das185.dtk2604.torch2100.2608132155.g9febea
         - torch==2.10.0+das.opt1.dtk2604.2608131652.g28498c
         # The vendor uploaded torchaudio with its build-date+git suffix intact,
