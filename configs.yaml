@@ -942,6 +942,10 @@ vendors:
           - transformer_engine==2.14.1+dtk2604.torch2100.2610161042.g4b8b86
         vllm0.20.2: []
         vllm0.24.0: []
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261123
         sglang0.5.18:
           - compressed-tensors==0.17.0+flagos
       sdk:
