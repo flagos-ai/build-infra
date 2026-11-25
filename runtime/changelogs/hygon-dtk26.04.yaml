@@ -29,6 +29,7 @@ tags:
       apex 回到本线，pin 为 1.7.0+dtk2604.torch2100.2609201739.g9783d4：索引上已有
       cp310/torch2100 构建，依赖列表当初略去它的理由不再成立。镜像其余内容不变。
     upstream_prs: []
+    date: '2026-11-25T13:08:10.638Z'
   - reason: |-
       - Moves this line to torch 2.10.0, triton 3.6.0, torchvision 0.25.0,
         torchaudio 2.10.0, flash_attn and transformer_engine on torch2100, and
