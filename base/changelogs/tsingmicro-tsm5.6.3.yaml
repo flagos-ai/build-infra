@@ -25,7 +25,7 @@ image: flagos-base-tsingmicro-tsm5.6.3
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-11-26T12:17:38.009Z'
     reason: |-
       - The SDK line moves to TSM 5.6.3.1112, which is a different interpreter
         and a different torch: python 3.12 (was 3.10) and torch 2.13.0 (was
