@@ -66,6 +66,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from git_ops import (  # noqa: E402
     REPO_ROOT,
     _git,
+    _run_suffix,
     open_pr,
     push_record_branch,
 )
@@ -286,7 +287,10 @@ def cmd_record(args: argparse.Namespace) -> None:
     print(f"{changed} row(s) updated in {CATALOG}")
 
     workflow = args.workflow or "wheel"
-    branch = f"auto/wheel-info-{workflow}"
+    # Per-run: concurrent dispatches of the same workflow (one per backend) each
+    # rewrite these rows, and one shared branch made every run but the first
+    # lose its rebase and drop its record (#2007).
+    branch = f"auto/wheel-info-{workflow}{_run_suffix()}"
     commit_msg = f"docs(wheel-info): record {workflow} wheel publish"
     _git("add", "packaging/packages.yaml", check=False)
     if _git("diff", "--cached", "--quiet", check=False).returncode == 0:
