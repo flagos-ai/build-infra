@@ -12,18 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Self-test for the verify step of the native release workflows.
-
-That step is the gate publishing depends on, and the workflows carrying it are
-dispatch-only, so nothing runs it on a pull request. This builds a few tiny
-packages, one per outcome the step must reach, and runs the step exactly as
-the workflow writes it against each.
-
-Usage: release_verify_selftest.py [WORKFLOW ...]   (default: all)
-Needs docker.
-"""
+# Self-test for the verify step of the native release workflows.
+#
+# That step is the gate publishing depends on, and the workflows carrying it are
+# dispatch-only, so nothing runs it on a pull request. This checks outer shell
+# syntax on the workflow step, builds tiny fixture packages covering both valid
+# plugin/private layouts and load-path failure modes, and runs the step as the
+# workflow writes it against each.
+#
+# Usage: release_verify_selftest.py [WORKFLOW ...]   (default: all)
+# Needs docker.
 
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -40,49 +41,106 @@ WORKFLOWS = {
 
 # name, packages installed together, expected to pass, text the output must carry
 CASES = [
-    ('clean',       ['fxok'],                         True,  'links resolve'),
-    ('left-to-env', ['fxenv'],                        True,  'symbols not checked'),
-    ('undefined',   ['fxundef'],                      False, 'has undefined symbols'),
-    ('no-library',  ['fxdoc'],                        False, 'no shared library shipped'),
-    ('undeclared',  ['fxdep', 'fxuse-bare'],          False, 'but not declared'),
-    ('declared',    ['fxdep', 'fxuse', 'fxuse-devel'], True, 'nothing undeclared'),
+    ('clean',        ['fxok'],                         True,  'links resolve'),
+    ('left-to-env',  ['fxenv'],                        True,  'symbols not checked'),
+    ('undefined',    ['fxundef'],                      False, 'has undefined symbols'),
+    ('no-library',   ['fxdoc'],                        False, 'no shared library shipped'),
+    ('undeclared',   ['fxdep', 'fxdep-tools', 'fxuse-bare'], False, 'but not declared'),
+    ('declared',     ['fxdep', 'fxuse', 'fxuse-devel'], True, 'nothing undeclared'),
+    # Valid private DT_NEEDED and RTLD_GLOBAL dlopen-host plugin layouts
+    ('self-priv-ok', ['fxselfpriv'],                   True,  'shipped by the package itself'),
+    ('plugin-host',  ['fxplughost'],                   True,  'links resolve'),
+    ('sub-plugin',   ['fxsubplug'],                    True,  'links resolve'),
+    ('triton-plug',  ['fxtritonplug'],                 True,  'links resolve'),
+    # Load-path counterexamples that fail under real dynamic linking / dlopen
+    ('pub-norpath',  ['fxpubnorpath'],                 False, 'no RUNPATH to reach it'),
+    ('pub-samesym',  ['fxpubsamesym'],                 False, 'has undefined symbols'),
+    ('nonhost-sym',  ['fxnonhostsym'],                 False, 'has undefined symbols'),
+    ('sib-samesym',  ['fxsibsamesym'],                 False, 'has undefined symbols'),
+    ('split-hosts',  ['fxsplitplug'],                  False, 'has undefined symbols'),
 ]
 
-# Shared objects, built once per package format. libfxdep lives outside the
-# loader path, the way a driver stub does, so an installed package provides it
-# and ldd still cannot find it.
-BUILD_LIBS = r'''
+BUILD_LIBS = r"""
 set -e
 cd /src
-echo 'int fx_ok(void){return 1;}'                            > ok.c
-echo 'int fx_ghost(void){return 1;}'                         > ghost.c
-echo 'int fx_ghost(void); int fx_env(void){return fx_ghost();}' > env.c
-echo 'int fx_missing(void); int fx_undef(void){return fx_missing();}' > undef.c
-echo 'int fx_dep(void){return 1;}'                           > dep.c
-echo 'int fx_dep(void); int fx_use(void){return fx_dep();}'  > use.c
+echo 'int fx_ok(void){return 1;}'                                                  > ok.c
+echo 'int fx_ghost(void){return 1;}'                                               > ghost.c
+echo 'int fx_ghost(void); int fx_env(void){return fx_ghost();}'                    > env.c
+echo 'int fx_missing(void); int fx_undef(void){return fx_missing();}'              > undef.c
+echo 'int fx_dep(void){return 1;}'                                                 > dep.c
+echo 'int fx_dep(void); int fx_use(void){return fx_dep();}'                        > use.c
+echo 'int fx_priv(void){return 7;}'                                                > priv.c
+echo 'int fx_priv(void); int fx_child(void){return fx_priv();}'                    > child.c
+echo 'FXV1 { global: fx_host_api; fx_host_load; local: *; };'                      > host.ver
+cat > host.c <<'EOF'
+#include <dlfcn.h>
+int fx_host_api(void) { return 42; }
+void *fx_host_load(const char *p) { return dlopen(p, RTLD_NOW | RTLD_GLOBAL); }
+EOF
+echo 'int fx_host_api(void); int fx_plug_entry(void){return fx_host_api();}'       > plug.c
+echo 'int fx_accidental(void){return 9;}'                                          > unrelated.c
+echo 'int fx_accidental(void); int fx_pub_caller(void){return fx_accidental();}'   > pubcaller.c
+cat > sibhost.c <<'EOF'
+#include <dlfcn.h>
+int fx_accidental(void) { return 9; }
+void *fx_sib_load(const char *p) { return dlopen(p, RTLD_NOW | RTLD_GLOBAL); }
+EOF
+echo 'int fx_host_api(void); int fx_accidental(void); int fx_both(void){return fx_host_api()+fx_accidental();}' > splitplug.c
 cc() { gcc -shared -fPIC -o "$1" -Wl,-soname,"$1" "${@:2}"; }
-cc libfxok.so.1    ok.c
-cc libfxghost.so.1 ghost.c
-cc libfxenv.so.1   env.c   -L. -l:libfxghost.so.1
-cc libfxundef.so.1 undef.c
-cc libfxdep.so.1   dep.c
-cc libfxuse.so.1   use.c   -L. -l:libfxdep.so.1
-'''
+cc libfxok.so.1        ok.c
+cc libfxghost.so.1     ghost.c
+cc libfxenv.so.1       env.c       -L. -l:libfxghost.so.1
+cc libfxundef.so.1     undef.c
+cc libfxdep.so.1       dep.c
+cc libfxuse.so.1       use.c       -L. -l:libfxdep.so.1
+cc libfxpriv.so.1      priv.c
+cc libfxchild.so.1     child.c     -L. -l:libfxpriv.so.1
+cc libfxhost.so.1      host.c      -Wl,--version-script,host.ver -ldl
+gcc -shared -fPIC -o fxplugin.so plug.c
+cc libfxunrelated.so.1 unrelated.c
+cc libfxpubcaller.so.1 pubcaller.c
+gcc -shared -fPIC -o fxbadplug.so pubcaller.c
+cc libfxsibhost.so.1   sibhost.c   -ldl
+gcc -shared -fPIC -o fxsplitplug.so splitplug.c
+"""
 
-# package -> (files as (source, destination-directory), symlinks, rpm Requires/Provides, deb Depends)
+
 def packages(libdir):
     return {
-        'fxok':        ([('libfxok.so.1', libdir)], [], '', ''),
-        'fxenv':       ([('libfxenv.so.1', libdir)], [], '', ''),
-        'fxundef':     ([('libfxundef.so.1', libdir)], [], '', ''),
-        'fxdoc':       ([('ok.c', '/usr/share/doc/fxdoc')], [], '', ''),
-        'fxdep':       ([('libfxdep.so.1', '/opt/fxdep/lib')], [],
-                        'Provides: libfxdep.so.1()(64bit)', ''),
-        'fxuse-bare':  ([('libfxuse.so.1', libdir)], [], '', ''),
-        'fxuse':       ([('libfxuse.so.1', libdir)], [],
-                        'Requires: libfxdep.so.1()(64bit)', 'fxdep'),
-        'fxuse-devel': ([], [(f'{libdir}/libfxuse.so', 'libfxuse.so.1')],
-                        'Requires: fxuse', 'fxuse'),
+        'fxok':         ([('libfxok.so.1', libdir)], [], '', ''),
+        'fxenv':        ([('libfxenv.so.1', libdir)], [], '', ''),
+        'fxundef':      ([('libfxundef.so.1', libdir)], [], '', ''),
+        'fxdoc':        ([('ok.c', '/usr/share/doc/fxdoc')], [], '', ''),
+        'fxdep':        ([('libfxdep.so.1', '/opt/fxdep/lib')], [],
+                         'Provides: libfxdep.so.1()(64bit)', ''),
+        'fxdep-tools':  ([('libfxok.so.1', '/opt/fxdeptools/lib')], [], '', ''),
+        'fxuse-bare':   ([('libfxuse.so.1', libdir)], [],
+                         'Requires: fxdep-tools', 'fxdep-tools'),
+        'fxuse':        ([('libfxuse.so.1', libdir)], [],
+                         'Requires: libfxdep.so.1()(64bit)', 'fxdep'),
+        'fxuse-devel':  ([], [(f'{libdir}/libfxuse.so', 'libfxuse.so.1')],
+                         'Requires: fxuse', 'fxuse'),
+        'fxselfpriv':   ([('libfxpriv.so.1', '/opt/fxself/deps'),
+                          ('libfxchild.so.1', '/opt/fxself/lib')], [],
+                         'Provides: libfxpriv.so.1()(64bit)', ''),
+        'fxplughost':   ([('libfxhost.so.1', libdir),
+                          ('fxplugin.so', '/opt/fxplug/plugins')], [], '', ''),
+        'fxsubplug':    ([('libfxhost.so.1', libdir),
+                          ('fxplugin.so', f'{libdir}/fxplug/plugins')], [], '', ''),
+        'fxtritonplug': ([('libfxhost.so.1', '/opt/fxtriton/_C'),
+                          ('fxplugin.so', '/opt/fxtriton/backends/metax')], [], '', ''),
+        'fxpubnorpath': ([('libfxpriv.so.1', '/opt/fxpubbad/deps'),
+                          ('libfxchild.so.1', libdir)], [],
+                         'Provides: libfxpriv.so.1()(64bit)', ''),
+        'fxpubsamesym': ([('libfxunrelated.so.1', libdir),
+                          ('libfxpubcaller.so.1', libdir)], [], '', ''),
+        'fxnonhostsym': ([('libfxunrelated.so.1', libdir),
+                          ('fxbadplug.so', '/opt/fxnonhost/plugins')], [], '', ''),
+        'fxsibsamesym': ([('libfxsibhost.so.1', '/opt/fxsib/backends/a'),
+                          ('fxbadplug.so', '/opt/fxsib/backends/b')], [], '', ''),
+        'fxsplitplug':  ([('libfxhost.so.1', libdir),
+                          ('libfxsibhost.so.1', libdir),
+                          ('fxsplitplug.so', '/opt/fxsplit/plugins')], [], '', ''),
     }
 
 
@@ -125,8 +183,6 @@ def deb_script():
 
 
 def docker(image, script, mounts=()):
-    # The fixtures are amd64; a same-named image of another architecture
-    # left in the local cache would otherwise run under emulation.
     cmd = ['docker', 'run', '--rm', '--platform', 'linux/amd64']
     for host, target, mode in mounts:
         cmd += ['-v', f'{host}:{target}:{mode}']
@@ -135,16 +191,30 @@ def docker(image, script, mounts=()):
 
 
 def verify_script(workflow):
-    """The docker-run body of the workflow's verify step, as the runner sees it."""
+    # Validate outer step syntax with bash -n, then extract the inner docker-run body.
     doc = yaml.safe_load((ROOT / f'.github/workflows/{workflow}.yml').read_text())
     runs = [s['run'] for s in doc['jobs']['verify']['steps']
             if 'docker run' in s.get('run', '')]
     if len(runs) != 1:
         sys.exit(f'{workflow}: expected one docker-run step in verify, found {len(runs)}')
     run = runs[0]
+    outer_check = subprocess.run(
+        ['bash', '-n'],
+        input=re.sub(r'\$\{\{[^}]+\}\}', 'placeholder', run),
+        capture_output=True, text=True,
+    )
+    if outer_check.returncode != 0:
+        sys.exit(f'{workflow}: outer verify step failed bash -n:\n{outer_check.stderr}')
     body = run[run.index("bash -c '") + len("bash -c '"):run.rindex("'")]
     if '${{' in body:
         sys.exit(f'{workflow}: the verify script uses an expression this test cannot supply')
+    unescaped = body.replace("'\"'\"'", "")
+    if "'" in unescaped:
+        sys.exit(f'{workflow}: unescaped single quote inside bash -c body would truncate the script')
+    inner_check = subprocess.run(['bash', '-n'], input=body.replace("'\"'\"'", "'"),
+                                 capture_output=True, text=True)
+    if inner_check.returncode != 0:
+        sys.exit(f'{workflow}: inner verify body failed bash -n:\n{inner_check.stderr}')
     return body.replace("'\"'\"'", "'")
 
 
@@ -155,6 +225,7 @@ def main(selected):
     try:
         for workflow in selected:
             kind, image = WORKFLOWS[workflow]
+            script = verify_script(workflow)
             if kind not in built:
                 src, out = work / f'{kind}-src', work / f'{kind}-out'
                 src.mkdir(), out.mkdir()
@@ -165,7 +236,6 @@ def main(selected):
                     sys.exit(f'building {kind} fixtures failed (missing: {absent}):\n'
                              f'{r.stdout}{r.stderr}')
                 built[kind] = out
-            script = verify_script(workflow)
             for case, pkgs, should_pass, marker in CASES:
                 case_dir = work / f'{workflow}-{case}'
                 case_dir.mkdir()
@@ -181,7 +251,6 @@ def main(selected):
                     print(f'      expected to see: {marker!r}')
                     print('      ' + '\n      '.join(output.strip().splitlines()[-8:]))
     finally:
-        # Written as root inside the containers.
         subprocess.run(['docker', 'run', '--rm', '--platform', 'linux/amd64',
                         '-v', f'{work}:/w', 'ubuntu:24.04',
                         'bash', '-c', 'rm -rf /w/*'], capture_output=True)

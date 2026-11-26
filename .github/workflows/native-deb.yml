@@ -454,6 +454,20 @@ jobs:
             dpkg-deb -f "$d" Package Version Architecture Depends
           done
 
+      - name: Record built architecture manifest
+        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+        run: |
+          mkdir -p built-manifest
+          echo "${{ matrix.arch }} ${{ steps.clone.outputs.sha }}" > "built-manifest/BUILT_${{ matrix.arch }}"
+
+      - name: Upload built architecture manifest
+        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ inputs.target }}-deb-built-${{ matrix.arch }}
+          path: built-manifest/BUILT_${{ matrix.arch }}
+          retention-days: 7
+
       - name: Upload the .deb packages
         if: ${{ steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -473,22 +487,37 @@ jobs:
     # so this job follows the build's runner choice.
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
+      - name: Clean workspace artifacts
+        run: rm -rf pkg built-manifest
+
+      - name: Download built architecture manifests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: ${{ inputs.target }}-deb-built-*
+          path: built-manifest
+          merge-multiple: true
+
+      - name: Check whether ${{ matrix.arch }} was built
+        id: expect
+        run: |
+          set -euo pipefail
+          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no architecture produced a package - nothing was verified"; exit 1; }
+          if [ -f "built-manifest/BUILT_${{ matrix.arch }}" ]; then
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::nothing was built for ${{ matrix.arch }}"
+          fi
+
       - name: Download the .deb packages
-        id: fetch
-        continue-on-error: true
+        if: ${{ steps.expect.outputs.built == 'true' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ${{ inputs.target }}-deb-${{ matrix.arch }}
           path: pkg
 
-      # An architecture the build skipped has no artifact. That is not a
-      # failure here, but it must not read as a passing verification either.
-      - name: Note an architecture with no package
-        if: ${{ steps.fetch.outcome == 'failure' }}
-        run: echo "::notice::nothing was built for ${{ matrix.arch }}"
-
       - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
-        if: ${{ steps.fetch.outcome == 'success' }}
+        if: ${{ steps.expect.outputs.built == 'true' }}
         env:
           FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
           FLAGOS_APT_KEY: https://resource.flagos.net/repository/apt-keys/pub/flagos-apt-public-key.asc
@@ -519,63 +548,153 @@ jobs:
             apt-get install -y -qq binutils > /dev/null
 
             checked=0
+            is_public_dir() {
+              case "$1" in
+                /lib|/lib64|/usr/lib|/usr/lib64) return 0 ;;
+                /lib/*-linux-gnu*|/usr/lib/*-linux-gnu*)
+                  _sub=${1#/usr}; _sub=${_sub#/lib/}
+                  case "$_sub" in */*) return 1 ;; *) return 0 ;; esac ;;
+                *) return 1 ;;
+              esac
+            }
+            host_governs_plugin() {
+              if is_public_dir "$1"; then return 0; fi
+              case "$2/" in "$1/"*) return 0 ;; esac
+              _hp=$(dirname "$1"); _hb=$(basename "$1")
+              case "$_hb:$2/" in _C:"$_hp/"*|lib:"$_hp/"*) return 0 ;; esac
+              return 1
+            }
+            needed_dirs_for() {
+              _queue="$1"; _seen=""; _dirs=""
+              while [ -n "$_queue" ]; do
+                _cur=${_queue%% *}
+                if [ "$_cur" = "$_queue" ]; then _queue=""; else _queue=${_queue#* }; fi
+                case " $_seen " in *" $_cur "*) continue ;; esac
+                _seen="$_seen $_cur"
+                for _soname in $(readelf -d "$_cur" 2>/dev/null | grep "(NEEDED)" | sed -E "s/.*\[([^]]+)\].*/\1/"); do
+                  for _cand in $pkg_sos; do
+                    if [ "$(basename "$_cand")" = "$_soname" ]; then
+                      _cdir=$(dirname "$(readlink -f "$_cand")")
+                      _dirs="${_dirs:+$_dirs:}$_cdir"
+                      _queue="${_queue:+$_queue }$_cand"
+                    fi
+                  done
+                done
+              done
+              printf "%s" "$_dirs"
+            }
             # One -f per file: dpkg-deb -W over a glob reports only the last
             # one, which silently narrowed this loop to the -dev package --
             # where the .so is a symlink owned by the runtime package, so the
             # check then found no library at all and failed a sound build.
             for pkg in $(for d in /pkg/*.deb; do dpkg-deb -f "$d" Package; done); do
-              # What the package itself exports. A backend plugin takes its
-              # MLIR symbols from the libtriton.so that loads it, in the same
-              # package; the loader never walks that edge, so ldd reports the
-              # symbols undefined although the package resolves them itself.
-              # nm prints a versioned symbol as name@@version; ldd names the
-              # symbol alone.
-              dpkg -L "$pkg" | grep -E "\.so($|\.)" | while read -r s; do
-                [ -f "$s" ] && nm -D --defined-only "$s" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//"
-              done | sort -u > /tmp/defined-by-package
-              for so in $(dpkg -L "$pkg" | grep -E "\.so($|\.)" || true); do
-                [ -f "$so" ] || continue
+              pkg_sos=$(dpkg -L "$pkg" | grep -E "\.so($|\.)" | while read -r s; do [ -f "$s" ] && echo "$s"; done || true)
+              # Only libraries that dynamically import dlopen can act as
+              # RTLD_GLOBAL plugin hosts; sibling backends or unrelated
+              # libraries never mask missing symbols.
+              loadable_hosts=""
+              unpreload_hosts=""
+              for h in $pkg_sos; do
+                case "$(basename "$h")" in *.cpython-*.so) continue ;; esac
+                nm -D -u "$h" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//" | grep -qx "dlopen" || continue
+                h_dirs=$(needed_dirs_for "$h")
+                if ! LD_LIBRARY_PATH="$h_dirs" ldd "$h" 2>&1 | grep -q "not found" \
+                   && ! LD_LIBRARY_PATH="$h_dirs" ldd -r "$h" 2>&1 | grep -vE "undefined symbol: _?Py" | grep -q "undefined symbol"; then
+                  loadable_hosts="${loadable_hosts:+$loadable_hosts }$h"
+                else
+                  unpreload_hosts="${unpreload_hosts:+$unpreload_hosts }$h"
+                fi
+              done
+
+              for so in $pkg_sos; do
                 checked=$((checked + 1))
-                # ldd -r reports what the loader cannot resolve. Libraries the
-                # package deliberately leaves to the environment are expected
-                # to be missing here -- the GPU driver comes from the host and
-                # torch from pip, neither is a Debian dependency and neither
-                # can be in the container. What is not expected is a missing
-                # library that some installed package does provide: that means
-                # the dependency was not declared, and the package would fail
-                # on a machine that happens not to have it.
-                missing=0
-                # Declared by the package that ships the ELF, not by a -dev
-                # package whose .so is only a symlink to it.
-                owner=$(dpkg -S "$(readlink -f "$so")" | head -1 | cut -d: -f1)
+                real_so=$(readlink -f "$so")
+                so_dir=$(dirname "$real_so")
+                # Libraries placed directly in a system loader directory (never
+                # a subdirectory beneath it) are public entry points: consumers
+                # resolve only DT_NEEDED and RUNPATH, never sibling directories.
+                if is_public_dir "$so_dir"; then is_public=1; else is_public=0; fi
+                owner=$(dpkg -S "$real_so" | head -1 | cut -d: -f1)
                 depends=$(dpkg-query -W -f="\${Depends}" "$owner" | tr ",|" "\n\n" | sed -E "s/^ +//; s/[ (:].*//")
-                for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  provider=$(dpkg -S "*/$lib" 2>/dev/null | head -1 | cut -d: -f1)
+                env_missing=0
+                for lib in $(ldd "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
+                  provider=$(dpkg -S "*/$lib" 2>/dev/null | head -1 | cut -d: -f1 || true)
                   if [ "$provider" = "$owner" ]; then
-                    # Shipped next to the library that needs it, outside the
-                    # loader path; whoever loads the package finds it by rpath.
+                    if [ "$is_public" -eq 1 ]; then
+                      echo "$(basename "$so"): $lib is shipped by $owner outside the loader path, and $(basename "$so") has no RUNPATH to reach it"
+                      exit 1
+                    fi
                     echo "  $(basename "$so"): $lib shipped by the package itself"
                   elif [ -n "$provider" ] && ! printf "%s\n" "$depends" | grep -qx "$provider"; then
-                    echo "$(basename "$so"): $lib is provided by an installed package but not declared"
+                    echo "$(basename "$so"): $lib is provided by an installed package ($provider) but not declared"
                     exit 1
                   else
                     echo "  $(basename "$so"): $lib left to the environment"
+                    env_missing=$((env_missing + 1))
                   fi
-                  missing=$((missing + 1))
                 done
-                # A missing library takes every symbol it defines with it, so this
-                # only means anything once they are all present.
-                if [ "$missing" -gt 0 ]; then
-                  echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
-                # Python extension modules leave Py*/_Py* to the interpreter,
-                # and a plugin leaves what its host in the same package exports.
-                elif undefined=$(ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
-                                   | awk "{print \$3}" | grep -vxF -f /tmp/defined-by-package); [ -n "$undefined" ]; then
-                  echo "$(basename "$so") has undefined symbols:"
-                  printf "%s\n" "$undefined" | head -5
-                  exit 1
+
+                if [ "$env_missing" -gt 0 ]; then
+                  echo "  $(basename "$so"): $env_missing left to the environment, symbols not checked"
+                elif [ "$is_public" -eq 1 ]; then
+                  if undefined=$(ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | awk "{print \$3}"); [ -n "$undefined" ]; then
+                    echo "$(basename "$so") has undefined symbols:"
+                    printf "%s\n" "$undefined" | head -5
+                    exit 1
+                  else
+                    echo "  $(basename "$so"): links resolve"
+                  fi
                 else
-                  echo "  $(basename "$so"): links resolve"
+                  so_dirs=$(needed_dirs_for "$so")
+                  defined_unpreload="/tmp/defined-unpreload-$$"
+                  : > "$defined_unpreload"
+                  for h in $unpreload_hosts; do
+                    h_real=$(readlink -f "$h")
+                    [ "$h_real" = "$real_so" ] && continue
+                    if host_governs_plugin "$(dirname "$h_real")" "$so_dir"; then
+                      nm -D --defined-only "$h" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//" >> "$defined_unpreload"
+                    fi
+                  done
+                  sort -u -o "$defined_unpreload" "$defined_unpreload"
+                  gov_hosts=""
+                  for h in $loadable_hosts; do
+                    h_real=$(readlink -f "$h")
+                    [ "$h_real" = "$real_so" ] && continue
+                    if host_governs_plugin "$(dirname "$h_real")" "$so_dir"; then
+                      gov_hosts="${gov_hosts:+$gov_hosts }$h"
+                    fi
+                  done
+                  resolved=0
+                  undefined=""
+                  if [ -n "$gov_hosts" ]; then
+                    for h in $gov_hosts; do
+                      hd=$(needed_dirs_for "$h")
+                      try_dirs="${so_dirs}${hd:+:${hd}}"
+                      try_dirs="${try_dirs#:}"
+                      cand_undef=$(LD_PRELOAD="$h" LD_LIBRARY_PATH="$try_dirs" ldd -r "$so" 2>&1 \
+                                   | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
+                                   | awk "{print \$3}" | grep -vxF -f "$defined_unpreload" || true)
+                      if [ -z "$cand_undef" ]; then
+                        resolved=1
+                        undefined=""
+                        break
+                      fi
+                      undefined="$cand_undef"
+                    done
+                  else
+                    undefined=$(LD_LIBRARY_PATH="$so_dirs" ldd -r "$so" 2>&1 \
+                                | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
+                                | awk "{print \$3}" | grep -vxF -f "$defined_unpreload" || true)
+                    [ -z "$undefined" ] && resolved=1
+                  fi
+                  rm -f "$defined_unpreload"
+                  if [ "$resolved" -eq 0 ]; then
+                    echo "$(basename "$so") has undefined symbols:"
+                    printf "%s\n" "$undefined" | head -5
+                    exit 1
+                  else
+                    echo "  $(basename "$so"): links resolve"
+                  fi
                 fi
               done
             done
@@ -583,19 +702,56 @@ jobs:
             echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
           '
 
+      - name: Attest verified .deb packages
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        run: echo "${{ matrix.arch }}" > "pkg/VERIFIED_${{ matrix.arch }}"
+
+      - name: Upload verified .deb packages
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: verified-${{ inputs.target }}-deb-${{ matrix.arch }}
+          path: |
+            pkg/*.deb
+            pkg/VERIFIED_${{ matrix.arch }}
+          retention-days: 7
+
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
     runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
-      # Every architecture that built, into one directory: an apt suite serves
-      # all of them from the same repository, and the upload is per file.
-      - name: Download the .deb packages
+      - name: Clean workspace artifacts
+        run: rm -rf pkg built-manifest
+
+      - name: Download built architecture manifests
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          pattern: ${{ inputs.target }}-deb-*
+          pattern: ${{ inputs.target }}-deb-built-*
+          path: built-manifest
+          merge-multiple: true
+
+      - name: Download verified .deb packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: verified-${{ inputs.target }}-deb-*
           path: pkg
           merge-multiple: true
+
+      - name: Verify every built architecture passed verification
+        run: |
+          set -euo pipefail
+          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no built manifest found"; exit 1; }
+          expected_sha=""
+          for f in built-manifest/BUILT_*; do
+            read -r arch bsha < "$f"
+            if [ -n "$expected_sha" ] && [ "$bsha" != "$expected_sha" ]; then
+              echo "::error::built architectures resolved to different commits ($expected_sha vs $bsha)"
+              exit 1
+            fi
+            expected_sha="$bsha"
+            [ -f "pkg/VERIFIED_${arch}" ] || { echo "::error::architecture '${arch}' was built but has no verification attestation"; exit 1; }
+          done
 
       - name: Publish to the apt repositories
         env:
