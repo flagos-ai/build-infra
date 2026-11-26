@@ -39,6 +39,14 @@ on:
         description: 'Nexus PyPI-hosted repo to upload to'
         type: string
         default: flagos-pypi-daily
+      vendor_indexes:
+        description: >-
+          Also publish this build to every vendor index. A daily build is for
+          testers and stays on daily; this is the deliberate exception for a
+          build an app image has to install — an app build resolves its deps
+          against its own vendor index and never from daily.
+        type: boolean
+        default: false
   schedule:
     # Daily at 01:27 UTC, between the FlagGems (01:17) and FlagTree (01:37)
     # dailies. Builds + uploads (see the guard in the upload step).
@@ -106,10 +114,24 @@ jobs:
         if: ${{ github.event_name == 'schedule' || inputs.upload }}
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+          VENDOR_INDEXES: ${{ inputs.vendor_indexes }}
         run: |
           set -euo pipefail
+          repos="${PYPI_REPO}"
+          # A fan-out target is every vendor index, read from configs.yaml so a
+          # new vendor cannot be left without the wheel. hosted is not one: this
+          # is a dev build reaching the backends that install it, not a release.
+          if [ "${VENDOR_INDEXES}" = "true" ]; then
+            vendor_repos=$(python3 -c '
+          import yaml
+          cfg = yaml.safe_load(open("configs.yaml"))
+          print(" ".join(f"flagos-pypi-{v}" for v in sorted(cfg["vendors"])))
+          ')
+            repos="${repos} ${vendor_repos}"
+            echo ">>> fanning out to:${vendor_repos}"
+          fi
           # The default mount is `wheels:/wheels:ro`, relative to this step's
           # own directory, which is the repo root.
-          WHEEL_UPLOAD_REPO="$PYPI_REPO" \
+          WHEEL_UPLOAD_REPO="${repos}" \
           WHEEL_UPLOAD_PATHS="/wheels/*.whl" \
           bash packaging/upload/upload-wheels.sh
