@@ -69,7 +69,13 @@ jobs:
 
   build:
     needs: authorize
-    runs-on: ubuntu-latest
+    # Self-hosted: the upload is a push to the in-country Nexus, and from a
+    # GitHub-hosted runner it crosses the public network — the same reason the
+    # image builds are self-hosted (CLAUDE.md, Runners). The vendor fan-out
+    # multiplies that by fifteen. The label is a scheduling choice, not a
+    # toolchain one: this wheel is py3-none-any and the interpreter comes from
+    # setup-python, so any x86_64 node will do.
+    runs-on: [self-hosted, maca381]
     env:
       FLAGGEMS_VLLM_REPO: https://github.com/flagos-ai/FlagGems-vllm.git
       FLAGGEMS_VLLM_REF: ${{ inputs.flaggems_vllm_ref || 'main' }}
@@ -102,10 +108,13 @@ jobs:
 
       # The upload step resolves the uploader image with image-ref.sh, which
       # reads configs.yaml/build-config.yml via python3's yaml module.
+      # No --user: setup-python's interpreter is a standalone build, and
+      # ~/.local/lib/python3.X is not on its sys.path, so the install would land
+      # where the interpreter cannot see it (same fix as flagcx-wheel.yml).
       - name: Install PyYAML
         run: |
           python3 -c "import yaml" 2>/dev/null \
-            || python3 -m pip install --user --break-system-packages pyyaml
+            || python3 -m pip install --break-system-packages pyyaml
 
       # Upload to the internal PyPI on the schedule, or when manually
       # requested. Manual dispatch defaults upload=false so building from a
