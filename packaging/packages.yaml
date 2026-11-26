@@ -997,7 +997,9 @@ wheels:
     os: linux
     arch: linux_aarch64
   - version: 0.18.2+0.3.0
-    pypi_index: flagos-pypi-hosted
+    pypi_index:
+    - flagos-pypi-hosted
+    - flagos-pypi-metax
     desc_zh: Megatron-LM-FL 的 megatron-core 安装包，用于大模型预训练、微调与 RL 训练。
     desc_en: megatron-core wheel from Megatron-LM-FL for pretraining, fine-tuning
       and RL training of large models.
