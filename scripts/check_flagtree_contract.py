@@ -45,6 +45,18 @@ So each upstream store is classified against what the Containerfile stages:
   LLVM-HASH the hash a `LLVM_SYSPATH` row stages is not the one its ref names
   HOOK      `register_cache()`'s signature moved, which is the change class no
             tarball name would ever show
+  PYTHON    the interpreter the Containerfile installs is outside the
+            `python_requires` the ref's setup.py declares -- fatal
+
+The `PYTHON` case covers the drift a tarball name cannot: the interpreter is a
+hand-written `python3.X` in the Containerfile (or, for the rows that inherit it
+from a base image, the `cpXY` in `daily.wheel_tag`), and nothing compared it
+against FlagTree's own floor. An upstream `MIN_PYTHON` bump past a row's
+interpreter is adopted silently -- the wheel builds, stays green, and then pip
+refuses it on the runtime with "not a supported wheel". apt toolchain packages
+are deliberately NOT checked: FlagTree declares no contract for them (its CI
+base is not a public promise), and its python deps are installed from the ref's
+own `python/requirements.txt` at build time, so they cannot drift from it.
 
 The `LLVM-HASH` case is the `nvidia` / `amd` / `ppu` shape: they hand FlagTree a
 path instead of a cache entry, so a stale builder image would keep serving the
@@ -61,7 +73,7 @@ Usage:
   python3 scripts/check_flagtree_contract.py --rows iluvatar kunlunxin
   python3 scripts/check_flagtree_contract.py --upstream-dir /path/to/flagtree
 
-Exit status 1 when any row is STALE, MISSING, LLVM-HASH or HOOK.
+Exit status 1 when any row is STALE, MISSING, LLVM-HASH, HOOK or PYTHON.
 """
 
 from __future__ import annotations
@@ -197,6 +209,22 @@ def stores(text: str) -> list[dict]:
     return out
 
 
+def python_bounds(text: str) -> tuple[tuple[int, int], tuple[int, int]] | None:
+    """(min, max) inclusive CPython minors FlagTree's setup.py supports.
+
+    The floor is not a literal: setup.py computes `python_requires` from
+    `MIN_PYTHON = (3, 10)` / `MAX_PYTHON = (3, 14)` tuples, so the tuples are
+    what is read -- a `python_requires=">=..."` string would not exist to grep.
+    MAX_PYTHON is the last supported minor (the `<` ceiling is one above it).
+    """
+    def tup(name: str) -> tuple[int, int] | None:
+        m = re.search(rf"^{name}\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", text, re.M)
+        return (int(m.group(1)), int(m.group(2))) if m else None
+
+    lo, hi = tup("MIN_PYTHON"), tup("MAX_PYTHON")
+    return (lo, hi) if lo and hi else None
+
+
 # --------------------------------------------------------------------------
 # our side
 # --------------------------------------------------------------------------
@@ -231,6 +259,31 @@ def _staged_names(containerfile: Path) -> set[str]:
         if re.search(r"\.tar\.(?:gz|xz|bz2)$", expanded):
             names.add(expanded)
     return names
+
+
+def _interpreter(containerfile: Path, wheel_tag: str | None) -> tuple[tuple[int, int] | None, str]:
+    """((major, minor), source) of the interpreter this row's wheel is built for.
+
+    The Containerfile's own `python3.X` is preferred -- it is the interpreter
+    that actually runs `pip wheel`, so it is what the wheel wears. A row that
+    installs none inherits it from its base image (the ascend pair, iluvatar);
+    there the only explicit declaration is the `cpXY` in `daily.wheel_tag`.
+    Comments are stripped first so a version named in prose does not count.
+    """
+    code = "\n".join(
+        line.split("#", 1)[0] for line in containerfile.read_text(encoding="utf-8").splitlines()
+    )
+    minors = sorted({int(m) for m in re.findall(r"python3\.(\d+)", code)})
+    if len(minors) == 1:
+        return (3, minors[0]), "Containerfile"
+    if len(minors) > 1:
+        # Two interpreters in one file is not something to guess the wheel's from.
+        return None, f"Containerfile (ambiguous: 3.{', 3.'.join(map(str, minors))})"
+    if wheel_tag:
+        m = re.search(r"cp3(\d+)", wheel_tag)
+        if m:
+            return (3, int(m.group(1))), "wheel_tag"
+    return None, "none declared"
 
 
 def _declared_hash(containerfile: Path) -> str | None:
@@ -331,6 +384,19 @@ def check_row(row: str, cfg: dict, upstream_dir: Path | None, offline: bool) -> 
 
     findings = []
 
+    # The interpreter this row's wheel is built for, against FlagTree's own
+    # python_requires floor: a hand-written pin no staged tarball name reflects.
+    interp, source = _interpreter(containerfile, (daily.get("wheel_tag")))
+    if interp is not None:
+        setup = fetch(ref, "setup.py", upstream_dir, offline)
+        bounds = python_bounds(setup) if setup is not None else None
+        if bounds is not None:
+            lo, hi = bounds
+            ours = f"3.{interp[1]} ({source})"
+            want = f"{ref} supports >=3.{lo[1]},<=3.{hi[1]}"
+            verdict = "OK" if lo <= interp <= hi else "PYTHON"
+            findings.append((row, verdict, ref, f"interpreter {ours}, {want}"))
+
     # The LLVM_SYSPATH shape: the hash we stage has to be the one this ref names.
     declared_hash = _declared_hash(containerfile)
     if declared_hash:
@@ -389,7 +455,7 @@ def main() -> int:
     for row in rows:
         findings.extend(check_row(row, backends[row], args.upstream_dir, args.offline))
 
-    fatal = [f for f in findings if f[1] in ("STALE", "MISSING", "LLVM-HASH", "HOOK")]
+    fatal = [f for f in findings if f[1] in ("STALE", "MISSING", "LLVM-HASH", "HOOK", "PYTHON")]
     informational = [f for f in findings if f[1] == "UNKNOWN"]
 
     shown = fatal if args.quiet else findings
