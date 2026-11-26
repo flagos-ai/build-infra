@@ -161,6 +161,20 @@ pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"
 pypi_daily: "https://resource.flagos.net/repository/flagos-pypi-daily/simple"
 mirror: "https://mirrors.cloud.tencent.com/pypi/simple"
 
+# Which backend publishes a wheel to flagos-pypi-hosted, per (python, arch).
+# Hosted holds one file per wheel (two backends on the same pair would
+# overwrite each other under one filename), and it is the address the catalog
+# and the site point users at, so the choice is declared, not derived.
+# {python: {arch: backend}}; a pair with no entry has no hosted publisher.
+wheel_hosted_publishers:
+  "3.10":
+    x86_64: hygon-dtk26.04
+  "3.11":
+    aarch64: ascend-cann9.0.0
+  "3.12":
+    x86_64: nvidia-cuda13.3
+    aarch64: ascend-cann9.2.1
+
 # App-layer public identity — how a vendor's app images are NAMED and SHOWN.
 # App images and their launch pages are published vendor-neutral: the app image
 # tag, the app catalog, the launch page, and the per-image changelog all carry
