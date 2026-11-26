@@ -267,9 +267,10 @@ backends:
       # cp312: the 26.10 line's interpreter (deps python 3.12).
       wheel_tag: cp312-cp312-linux_x86_64
 
-  # Like hcu: the same shape as metax's stage (apt toolchain, the backend's
-  # prebuilt LLVM plus the vendor's tx8 headers, and the shared triton deps into
-  # FlagTree's cache), with the 22.04 system python 3.10 rather than deadsnakes.
+  # Like hcu-dtk2610: the same shape as metax's stage (apt toolchain, the
+  # backend's prebuilt LLVM plus the vendor's tx8 headers, and the shared triton
+  # deps into FlagTree's cache), on a deadsnakes python 3.12 -- the TSM 5.6.3.1112
+  # runtime pins 3.12 (torch 2.13.0 is cp312-only), so the wheel wears cp312.
   tsingmicro:
     containerfile: tsingmicro
     builder_image: flagtree-builder-tsingmicro
@@ -277,7 +278,7 @@ backends:
     disk_min_gb: 60
     builder:
       verify:
-        python: "3.10"
+        python: "3.12"
         commands: [git, cmake, ninja, make, wget, curl]
         files:
           - /root/.triton/json/include/nlohmann/json.hpp
@@ -302,8 +303,8 @@ backends:
       dist_name: flagtree-tsingmicro
       version_base: "0.7.1"
       ref: main
-      # cp310: the 22.04 system interpreter, same as sunrise and hcu.
-      wheel_tag: cp310-cp310-linux_x86_64
+      # cp312: the deadsnakes interpreter the TSM 5.6.3.1112 runtime pins.
+      wheel_tag: cp312-cp312-linux_x86_64
 
   # Like tsingmicro: the same shape as metax's stage (apt toolchain, the
   # backend's prebuilt LLVM and the shared triton deps into FlagTree's cache),

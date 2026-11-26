@@ -20,7 +20,7 @@ Containerfiles that build **FlagTree wheels** for a backend from source, so the
 wheel is self-owned and reproducible — and an A/B baseline against the vendor's.
 
 The `nvidia-cuda` / `amd` / `metax` / `sunrise` / `iluvatar` / `enflame` /
-`tsingmicro` / `mthreads` / `kunlunxin` builders start from a plain Ubuntu 22.04
+`mthreads` / `kunlunxin` builders start from a plain Ubuntu 22.04
 (old glibc: the resulting `libtriton.so` must load on 22.04 nodes).
 The `ascend-cann9.0.0` / `ascend-cann9.2.1` / `ascend-cann8.5.0` set's builder
 stage instead starts from **the backend's runtime image**, because FlagTree's
@@ -369,12 +369,13 @@ version is shared are in the `hcu` section above.
 
 ## Tsingmicro builder (`tsingmicro`)
 
-The same shape as `hcu` — bare `ubuntu:22.04`, apt toolchain, the backend's
-prebuilt inputs into FlagTree's offline cache — with these differences.
+The same shape as `hcu-dtk2610` — bare `ubuntu:22.04`, apt toolchain, the
+backend's prebuilt inputs into FlagTree's offline cache — with these differences.
 
-**It is the system python 3.10, not a deadsnakes 3.12.** `configs.yaml` pins
-`tsingmicro-tsm260610` at python 3.10, so the wheel has to wear `cp310`; 22.04
-ships that interpreter, so there is no PPA to wire by hand.
+**It is a deadsnakes python 3.12.** `configs.yaml` pins `tsingmicro-tsm5.6.3` at
+python 3.12 (torch 2.13.0 is cp312-only), so the wheel has to wear `cp312`; 22.04
+ships only 3.10, so the deadsnakes PPA is wired by hand (Launchpad's REST API
+hits the proxy's 500).
 
 **Two prebuilt trees, not one.** `tsingmicro.py` registers two caches,
 `tsingmicro-llvm22` and `tx8_deps`, and both are staged: the first is the LLVM the
@@ -410,9 +411,11 @@ each of `tsingmicro.py`'s two cache entries short-circuits on the variable its
 post-hook would export (`LLVM_SYSPATH`, `TX8_DEPS_ROOT`), so exporting either
 sends the build to the vendor's ks3 bucket instead of the staged tree.
 
-**Verified on a TX8110 node** (tsm-249, 2026-10-21). The wheel built on the
-published builder imports on the `flagos-runtime-tsingmicro-tsm260610` image and
-runs a real kernel: `import triton` reports triton 3.6.0 with
+**Verified on a TX8110 node — the previous cp310 line** (tsm-249, 2026-10-21);
+the cp312 rebuild for `tsm5.6.3` is not yet re-verified on a node. The cp310
+wheel built on the published builder imports on the
+`flagos-runtime-tsingmicro-tsm260610` image and runs a real kernel:
+`import triton` reports triton 3.6.0 with
 `backends == ['tsingmicro']`, the driver resolves
 `GPUTarget(backend='txda', arch=1, warp_size=16)`, and a vector-add kernel
 returns `max diff 0.0` against torch's own result. The runtime image already
