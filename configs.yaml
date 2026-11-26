@@ -1426,11 +1426,11 @@ vendors:
         - PPU SDK 2.1.0 (x86_64)
 
   tsingmicro:
-    tsm260610:
+    tsm5.6.3:
       extras: tsingmicro
       hardware: ["Tsingmicro TX8110"]
-      driver: "260610164501.01"
-      python: "3.10"
+      driver: "5.6.3.1112"
+      python: "3.12"
       triton: triton==3.6.0.post2026072919+git8f5b0609
       flagtree: flagtree==0.7.0+tsingmicro3.6
       flagtree_daily: flagtree-tsingmicro
@@ -1454,24 +1454,20 @@ vendors:
           USE_TORCH_XLA: "0"
           TORCH_COMPILE_DISABLE: "1"
       deps:
-        - torch==2.11.0+cpu
-        - torchvision==0.26.0+cpu
+        - torch==2.13.0+cpu
+        - torchvision==0.28.0+cpu
         - torchaudio==2.11.0+cpu
-        - torch_txda==0.1.0+20260728.f6fbdb71
-        - txops==0.1.0+20260716.e94d9509
+        - torch_txda==0.1.0+20261109.4367a021
+        - txops==0.1.0+20261109.e94d9509
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+tsm260610
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
-        vllm0.20.2: []
-        vllm0.24.0: []
+        - flagcx==0.14.1+tsm5.6.3
       sdk:
-        - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
-        - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run
-        - TSM CCL 260610164501               # Tsm_ccl_260610164501_x86_64_installer.run
-        - TSM Profiler 260610164501          # Tsm_profiler_260610164501_x86_64_installer.run
-        - TX8 Compiler Dependencies 20260507 # tx8_depends_dev_20260507_104051.tar.gz
-        - LLVM a66376b0                      # llvm-a66376b0-ubuntu-x64.tgz
+        - TSM Runtime 5.6.3.1112             # Tsm_runtime_5.6.3.1112_x86_64_installer.run
+        - TSM Validation Suite 5.6.3.1112    # Tsm_validation_suite_5.6.3.1112_x86_64_installer.run
+        - TSM CCL 5.6.3.1112                 # Tsm_ccl_5.6.3.1112_x86_64_installer.run
+        - TSM Multimedia 5.6.3.1112          # Tsm_multimedia_5.6.3.1112_x86_64_installer.run
+        - TSM Profiler 5.6.3.1112            # Tsm_profiler_5.6.3.1112_x86_64_installer.run
+        - TX8 Compiler Dependencies 20261125 # tx8_depends_dev_20261125.tar.gz
+        - LLVM 23                            # llvm-23-ubuntu-x64.tgz
