@@ -450,6 +450,22 @@ ImportError: cannot import name 'Never' from 'typing'</code></pre>
     <p>结论不变：kunlunxin 走 0.32.0 必须挂 <code>0002</code> 补丁（§7 路径 3），或把该后端抬到 py3.11+
     （路径 4）。在补丁落地前，<code>deps_app.vllm0.32.0</code> 不应为任何 py3.10 后端开启。</p>
 
+    <h3 id="s6-4-2">6.4.2 第二次实测确认（2026-11-26，hygon app 镜像）</h3>
+    <p><code>hygon-dtk26.04</code>（py3.10 / torch 2.10.0+dtk2604）的 vllm 0.32.0 app 镜像
+    （run 45818999621，plugin <code>0.5.0.dev0+g4856534.d20261125</code>）构建成功、装包成功，
+    import check <strong>全过</strong>（vllm / vllm_fl / vllm_fl._C / flagcx），
+    崩在<strong>验证 Step 6 的 serve 测试</strong>：</p>
+<pre><code>vllm/entrypoints/cli/benchmark/main.py → vllm/entrypoints/serve/utils/api_utils.py
+  → vllm/engine/arg_utils.py → vllm/config/__init__.py → vllm/config/attention.py
+ImportError: cannot import name 'Never' from 'typing'  (cpython-3.10)</code></pre>
+    <p>与 kunlunxin 同一硬障碍（py3.10 无 <code>typing.Never</code>），崩点不同：kunlunxin 在
+    <code>vllm.utils.import_utils</code> 这个公共入口就倒，hygon 的那条 import 路径避开了它，
+    撑到 <code>vllm</code> CLI 的 config 链才撞上。含义相同——镜像本体能装能 import，但
+    <code>vllm serve</code> 入口在 py3.10 跑不起来，补丁不挂就到不了可服务状态。镜像未推送
+    （verify 在 push 之前，gate 住了）。</p>
+    <p>这次是在没有决策的情况下单独派了 hygon 的 0.32.0 构建——不该做。hygon 与 kunlunxin
+    是 §6.1 同一张 py3.10 清单上的同一个未决项，推进前先过 §7。</p>
+
     <h3 id="s6-5">6.5 比 Python 更硬的地板：torch 2.7.1</h3>
     <p><code>vllm/ir/tolerances.py:32</code> 在模块层直接引用 <code>torch.float4_e2m1fn_x2</code>，
     而该 dtype <strong>torch 2.8 才出现</strong>。这条与 Python 版本无关，也<strong>不是 0.32 引入的</strong>：
