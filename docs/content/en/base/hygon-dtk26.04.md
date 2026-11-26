@@ -91,7 +91,7 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-11-24 22:18:14 · `2bbbae0261f3`*
+*Last updated: 2026-11-24 17:10:44 · `536a1efdfc3f`*
 
 ## Changelog
 

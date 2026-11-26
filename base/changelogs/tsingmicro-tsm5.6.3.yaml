@@ -40,12 +40,6 @@ tags:
       - 安装的 SDK 包新增 `Tsm_multimedia`，与 runtime、validation suite、CCL、profiler 并列。
       - TX8 编译器依赖为 20261125 版本，LLVM 为 23。
     upstream_prs: []
-  - date: '2026-10-14T05:50:35.077Z'
-    reason: |-
-      - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
-    reason_zh: |-
-      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
-    upstream_prs: []
 - tag: 2.2.0
   entries:
   - date: '2026-09-17T01:21:40.707Z'

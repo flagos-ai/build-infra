@@ -109,9 +109,11 @@ tsm_smi
 
 ### 2.3.0
 
-*2026-10-14 05:50:35*
+*2026-11-26 12:17:38*
 
-- 仅为携带新的全栈 tag 而重建；本层无任何改动。
+- SDK 线升级到 TSM 5.6.3.1112，解释器与 torch 都换了：python 3.12（原 3.10），torch 2.13.0（原 2.11.0）。backend key 随之改变——本镜像为 `flagos-base-tsingmicro-tsm5.6.3`，260610164501 那条线不再重建。
+- 安装的 SDK 包新增 `Tsm_multimedia`，与 runtime、validation suite、CCL、profiler 并列。
+- TX8 编译器依赖为 20261125 版本，LLVM 为 23。
 
 ### 2.2.0
 

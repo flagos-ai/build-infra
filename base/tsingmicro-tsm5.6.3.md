@@ -87,9 +87,16 @@ tsm_smi
 
 ### 2.3.0
 
-*2026-10-14 05:50:35*
+*2026-11-26 12:17:38*
 
-- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+- The SDK line moves to TSM 5.6.3.1112, which is a different interpreter
+  and a different torch: python 3.12 (was 3.10) and torch 2.13.0 (was
+  2.11.0). The backend key moves with it — this image is
+  `flagos-base-tsingmicro-tsm5.6.3`, and the 260610164501 line is not
+  rebuilt.
+- `Tsm_multimedia` joins the installed SDK packages, alongside the
+  runtime, validation suite, CCL and profiler.
+- The TX8 compiler dependencies are the 20261125 set and LLVM is 23.
 
 ### 2.2.0
 
