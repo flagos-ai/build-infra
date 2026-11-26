@@ -7,9 +7,15 @@
 ## 版本与制品
 
 - wheel：`megatron-core==0.18.2+0.3.0`（无 `fl` local label），源 = MLF `v0.3.0`
-  tag（`066fd5edf541`，含 [MLF #189](https://github.com/flagos-ai/Megatron-LM-FL/pull/189)
-  全 scope wheel）。4 个 wheel 已上传 `flagos-pypi-{vendor}`：cp312 ×
-  nvidia/metax/cambricon，cp310 × hygon。
+  tag（现指向 `128dbd4f3`，含 MLF #189/#192/#193/#194）。
+  2026-11-26 Nexus 元数据丢失后按该 tag 重建并重传：每个后端各一份到自己的
+  `flagos-pypi-{vendor}`（cp312 × nvidia/metax/cambricon，cp310 × hygon），
+  另由每个 `(python, arch)` 组合的代表后端推一份到 `flagos-pypi-hosted`
+  ——hosted 此前因元数据损坏 simple 页返回 500，这次上传一并修复。
+  hosted 上的四份：cp310/x86_64（hygon）、cp311/aarch64（ascend-cann9.0.0）、
+  cp312/x86_64（nvidia-cuda13.3）、cp312/aarch64（ascend-cann9.2.1）。
+  代表后端由 `configs.yaml wheel_hosted_publishers` 声明。
+  cp310/aarch64 与 cp311/x86_64 两行没有对应后端，暂不处理。
 - app 镜像 tag：`{app}0.18.2-{app_name}:2.2.0-0.3.0`，8 个已 push（见下表）。
 
 ## 已 push 镜像（tag 2.2.0-0.3.0，未验证 = 不可用）
