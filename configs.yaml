@@ -1431,7 +1431,9 @@ vendors:
       hardware: ["Tsingmicro TX8110"]
       driver: "5.6.3.1112"
       python: "3.12"
-      triton: triton==3.6.0.post2026072919+git8f5b0609
+      # No triton fallback compiler: the vendor's triton wheel on the index is
+      # cp310-only, and the TSM 5.6.3.1112 runtime is py3.12. FlagTree (the
+      # default compiler) carries the backend until a cp312 triton is supplied.
       flagtree: flagtree==0.7.0+tsingmicro3.6
       flagtree_daily: flagtree-tsingmicro
       system_dpkg:
