@@ -973,26 +973,6 @@ wheels:
       and RL training of large models.
     notes: 每 Python 版本一个安装包（cp310/cp311/cp312），支持 aarch64 与 x86_64。
     notes_en: One wheel per Python version (cp310/cp311/cp312), for aarch64 and x86_64.
-    python: cp310
-    os: linux
-    arch: linux_aarch64
-  - version: 0.18.2+0.3.0
-    pypi_index: flagos-pypi-hosted
-    desc_zh: Megatron-LM-FL 的 megatron-core 安装包，用于大模型预训练、微调与 RL 训练。
-    desc_en: megatron-core wheel from Megatron-LM-FL for pretraining, fine-tuning
-      and RL training of large models.
-    notes: 每 Python 版本一个安装包（cp310/cp311/cp312），支持 aarch64 与 x86_64。
-    notes_en: One wheel per Python version (cp310/cp311/cp312), for aarch64 and x86_64.
-    python: cp311
-    os: linux
-    arch: linux_x86_64
-  - version: 0.18.2+0.3.0
-    pypi_index: flagos-pypi-hosted
-    desc_zh: Megatron-LM-FL 的 megatron-core 安装包，用于大模型预训练、微调与 RL 训练。
-    desc_en: megatron-core wheel from Megatron-LM-FL for pretraining, fine-tuning
-      and RL training of large models.
-    notes: 每 Python 版本一个安装包（cp310/cp311/cp312），支持 aarch64 与 x86_64。
-    notes_en: One wheel per Python version (cp310/cp311/cp312), for aarch64 and x86_64.
     python: cp311
     os: linux
     arch: linux_aarch64
