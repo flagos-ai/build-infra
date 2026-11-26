@@ -65,6 +65,22 @@ oldest-glibc runtime (hygon, ubuntu 22.04, glibc 2.35) should load on every
 newer-glibc backend, but the reverse is NOT true. Final call pending
 per-backend verification — see `packaging/megatron/docs/`.
 
+### Where the wheels are published
+
+A wheel is ABI-bound to a CPython minor and a CPU arch, not to a vendor's
+torch, so one build serves every backend on that `(python, arch)` pair.
+
+- **The backend's own vendor index** — every backend pushes here; app images
+  and CI resolve `megatron-core[training]==<ver>` from it.
+- **`flagos-pypi-hosted`** — only the backend `configs.yaml
+  wheel_hosted_publishers` names for that pair. It holds one file per wheel
+  (two backends on a pair would overwrite each other), and it is what
+  `packaging/packages.yaml` records and the site links to.
+
+`scripts/generate_matrix.py --runtime` marks that backend `hosted_publisher:
+"true"` in the matrix; `megatron-wheel.yml` adds hosted to the upload targets
+only there.
+
 ### Local build (mirrors the workflow)
 
 ```sh
