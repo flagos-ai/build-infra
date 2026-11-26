@@ -17,10 +17,18 @@
 # `reason` is written in English and Chinese (`reason_zh`); both are
 # required on a new entry and both are published beside the image.
 
-image: flagos-runtime-tsingmicro-tsm260610
+image: flagos-runtime-tsingmicro-tsm5.6.3
 tags:
 - tag: 2.3.0
   entries:
+  - date: ''
+    reason: |-
+      - Rebuilt on the TSM 5.6.3.1112 base: python 3.12 (was 3.10), torch
+        2.13.0 (was 2.11.0), flagcx 0.14.1+tsm5.6.3. The backend key moves to
+        tsingmicro-tsm5.6.3; the 260610164501 line is not rebuilt.
+    reason_zh: |-
+      - 基于 TSM 5.6.3.1112 base 重建：python 3.12（原 3.10）、torch 2.13.0（原 2.11.0）、flagcx 0.14.1+tsm5.6.3。backend key 改为 tsingmicro-tsm5.6.3；260610164501 那条线不再重建。
+    upstream_prs: []
   - reason: >-
       Rebuild to ship the current in-image helper script: the `compiler`
       script's pip installs now honour a pip cache mounted at `PIP_CACHE_DIR`
