@@ -1,0 +1,110 @@
+## Prerequisites
+
+- **Architecture:** x86_64
+- **Chip models:** Tsingmicro TX8110
+- **Host driver:** 5.6.3.1112
+- **Container toolkit** *(optional)*: tx-container-toolkit >= 2.5.0
+
+## Image contents
+
+### Base image
+
+`ubuntu:24.04`
+
+### System packages
+
+Explicitly installed; the version is the one baked into this image:
+
+- `build-essential` — 12.10ubuntu1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
+- `clang` — 18.0
+- `cmake` — 3.28.3
+- `curl` — 8.5.0
+- `g++` — 13.2.0
+- `gcc` — 13.2.0
+- `git` — 2.43.0
+- `libfmt8` — 8.1.1+ds1
+- `libopenmpi3`
+- `libpython3-dev` — 3.12.3
+- `libunwind8` — 1.6.2
+- `sudo` — 1.9.15p5
+- `unzip` — 6.0
+- `vim` — 9.1.0016
+
+### SDK components
+
+- TSM Runtime 5.6.3.1112
+- TSM Validation Suite 5.6.3.1112
+- TSM CCL 5.6.3.1112
+- TSM Multimedia 5.6.3.1112
+- TSM Profiler 5.6.3.1112
+- TX8 Compiler Dependencies 20261125
+- LLVM 23
+
+## Environment
+
+- `KUIPER_PATH=/usr/local/kuiper`
+- `TX8_DEPS_ROOT=/usr/local/tx8_deps`
+- `LLVM_SYSPATH=/usr/local/llvm`
+- `PATH=/usr/local/kuiper/bin:${PATH}`
+- `LLVM_BINARY_DIR=/usr/local/llvm/bin`
+- `PYTHONPATH=/usr/local/llvm/python_packages/mlir_core`
+- `LD_LIBRARY_PATH=/usr/local/tx8_deps/lib:/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib`
+- `USE_TORCH_XLA=0`
+- `TORCH_COMPILE_DISABLE=1`
+
+## Launch
+
+**With the container toolkit** *(optional)*:
+
+```bash
+docker run --rm -it \
+  --runtime=tsingmicro \
+  -e TSINGMICRO_VISIBLE_DEVICES=all \
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm5.6.3:2.3.0 bash
+```
+
+**Without a toolkit** — plain docker / podman:
+
+```bash
+docker run --rm -it \
+  --device /dev/accel \
+  --device /dev/accel_drv_mgr \
+  harbor.baai.ac.cn/flagos-base/flagos-base-tsingmicro-tsm5.6.3:2.3.0 bash
+```
+
+## Verify
+
+Inside the container, confirm the accelerator is visible:
+
+```bash
+tsm_smi
+```
+
+*Last updated: 2026-11-26 19:52:42 · `ebaede986865`*
+
+## Changelog
+
+### 2.3.0
+
+*2026-10-14 05:50:35*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.2.0
+
+*2026-09-17 01:21:40*
+
+- Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+
+### 2.1.2
+
+*2026-08-14 14:57:48*
+
+- First delivery: the TSM 260610164501 runtime, validation suite, CCL and
+  profiler, with the TX8 compiler dependencies and LLVM 22, on ubuntu:24.04.
+- `libfmt8` is taken from the Ubuntu 22.04 package: `torch_txda` links
+  `libfmt.so.8` and 24.04 ships only `libfmt.so.9`.
+- `KUIPER_PATH`, `TX8_DEPS_ROOT`, `LLVM_SYSPATH`, `LLVM_BINARY_DIR` and the
+  MLIR Python path are set in the image, so the vendor compiler stack
+  resolves without an activation step.
