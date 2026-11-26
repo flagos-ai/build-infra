@@ -31,7 +31,7 @@ title: "vllm0.32.0-hygon-dtk26.04"
 
 ### 基于
 
-<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:TBD</code> <a href="../../runtime/hygon-dtk26.04/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
+<div class="ms-3"><code class="plain">harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.3.0</code> <a href="../../runtime/hygon-dtk26.04/" title="查看基础镜像详情" aria-label="查看基础镜像详情"><i class="material-icons align-middle size-20">open_in_new</i></a></div>
 
 ### Python
 
@@ -41,16 +41,17 @@ title: "vllm0.32.0-hygon-dtk26.04"
 
 `vllm==0.32.0+flagos`
 
+
+`vllm-plugin-fl==0.5.0.dev0+g4856534.d20261125`
+
 ## 启动
 
-**尚未发布——该镜像还未推送到仓库。`TBD` 为构建管线在本后端构建该镜像时确定的 tag。**
-
-`harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:TBD`
+**已发布:** `harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125`
 
 镜像名较长——先将其设为变量：
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:TBD
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125
 ```
 
 以下两种方式任选其一：
