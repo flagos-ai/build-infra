@@ -13,19 +13,20 @@
 # limitations under the License.
 
 # ============================================================
-# Base image for TsingMicro TSM 260610164501 on Ubuntu 24.04
+# Base image for TsingMicro TSM 5.6.3.1112 on Ubuntu 24.04
 # ============================================================
 # History:
 # - 20260608: Initial version
 # - 20260716: Bump base OS 22.04 -> 24.04
-# - 20260730: New backend for SDK 260610164501 (host driver upgraded ahead of 260604)
+# - 20260730: New backend for SDK 260610164501 (host driver upgraded)
+# - 20261126: New backend for SDK 5.6.3.1112
 
 FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors="FlagOS contributors"
 
 ARG PYTHON_VERSION=3.10
-ARG SDK_RELEASE=260610164501
+ARG SDK_RELEASE=5.6.3.1112
 
 # ── Build arguments ────────────────────────────────────────────
 ENV FILE_STORE=https://resource.flagos.net/repository/flagos-filestore/tsingmicro
@@ -53,7 +54,7 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors \
     && rm /tmp/libfmt8.deb
 
 # ── TsingMicro Runtime packages ───────────────────────────────────
-ENV PACKAGE_NAME="Tsm_validation_suite Tsm_runtime Tsm_ccl Tsm_profiler"
+ENV PACKAGE_NAME="Tsm_validation_suite Tsm_runtime Tsm_ccl Tsm_profiler Tsm_multimedia"
 
 RUN set -eux ; \
   for pkg in ${PACKAGE_NAME}; do \
@@ -66,11 +67,11 @@ RUN set -eux ; \
 
 # ── TsingMicro Compiler depdendencies ─────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/tx8.tar.gz \
-      ${FILE_STORE}/tx8_depends_dev_20260507_104051.tar.gz \
+      ${FILE_STORE}/tx8_depends_dev_20261125.tar.gz \
     && tar xf /tmp/tx8.tar.gz -C /usr/local \
     && rm /tmp/tx8.tar.gz
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/llvm.tar.gz \
-      ${FILE_STORE}/llvm-22-ubuntu-x64.tgz \
+      ${FILE_STORE}/llvm-23-ubuntu-x64.tgz \
     && mkdir -p /usr/local/llvm \
     && tar xf /tmp/llvm.tar.gz -C /usr/local/llvm \
     && rm /tmp/llvm.tar.gz
