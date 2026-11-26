@@ -175,7 +175,8 @@ jobs:
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "ref=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/${{ inputs.ref }}" >/dev/null; then
+          tag_sha=$(git rev-parse -q --verify "refs/tags/${REF}^{commit}" || true)
+          if [ -n "$tag_sha" ] && [ "$tag_sha" = "$sha" ]; then
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
@@ -220,7 +221,7 @@ jobs:
                     " Pass `version` to stamp a release version explicitly.")
               sys.exit(0)
 
-          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
+          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.~]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
                        release)
           if not m:
               sys.exit(f"::error::cannot parse a release version out of '{release}'")
@@ -235,13 +236,15 @@ jobs:
           # pre-release, which sorts below the 1 a final release carries, and
           # behind that 1 for a post-release, which must sort above it.
           version = upstream
+          m_rel = re.match(r"^([1-9]\d*)(?:\.post\d+)?(?:%\{\?dist\})?$", mr.group(2))
+          base_rel = m_rel.group(1) if (mv.group(2) == version and m_rel) else "1"
           qualifier = ".".join(x for x in (rc, post) if x)
           if rc:
               relval = f"0.{qualifier}%{{?dist}}"
           elif post:
-              relval = f"1.{post}%{{?dist}}"
+              relval = f"{base_rel}.{post}%{{?dist}}"
           else:
-              relval = "1%{?dist}"
+              relval = f"{base_rel}%{{?dist}}"
 
           if (version, relval) == (mv.group(2), mr.group(2)):
               print(f"Spec already at {version}-{relval}; nothing to stamp")

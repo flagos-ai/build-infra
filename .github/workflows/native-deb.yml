@@ -364,7 +364,8 @@ jobs:
           # Whether this ref is a tag decides whether a version may be derived
           # from it. Branch names are version-shaped too, and a branch head
           # moves, so its name is not a version.
-          if git rev-parse -q --verify "refs/tags/${REF}" >/dev/null; then
+          tag_sha=$(git rev-parse -q --verify "refs/tags/${REF}^{commit}" || true)
+          if [ -n "$tag_sha" ] && [ "$tag_sha" = "$sha" ]; then
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
@@ -409,9 +410,13 @@ jobs:
               sys.exit(0)
 
           # v0.2.0-rc0.1 -> 0.2.0~rc0.1. "~" sorts below the bare release, so a
-          # pre-release never shadows the final one; "-" would sort above it and
-          # block the upgrade.
-          new = re.sub(r"-?rc", "~rc", release.lstrip("v")) + "-1"
+          # pre-release never shadows the final one. Keep an existing Debian
+          # revision when the upstream version is unchanged (e.g. 0.2.0-2).
+          upstream = re.sub(r"(?<!~)-?rc", "~rc", release.lstrip("v"))
+          cur_base = re.sub(r"\+ubuntu\d+\.\d+$", "", current)
+          cur_up, cur_rev = cur_base.rsplit("-", 1) if "-" in cur_base else (cur_base, "1")
+          rev = cur_rev if cur_up == upstream else "1"
+          new = f"{upstream}-{rev}"
           if new == current:
               print(f"Changelog already at {current}; nothing to stamp")
               sys.exit(0)

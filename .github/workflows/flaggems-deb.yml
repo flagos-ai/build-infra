@@ -78,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deb_name: ${{ steps.build.outputs.deb_name }}
+      built_sha: ${{ steps.clone.outputs.sha }}
     steps:
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
@@ -123,9 +124,12 @@ jobs:
           fi
           scripts/clone-ref.sh "${FLAGGEMS_REPO}" "${REF}" src
           cd src
-          echo "Building $(git rev-parse --short HEAD) of ${{ inputs.flaggems_ref }}"
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "ref=${{ inputs.flaggems_ref }}" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/${{ inputs.flaggems_ref }}" >/dev/null; then
+          echo "Built ${{ inputs.flaggems_ref }} = ${sha}"
+          tag_sha=$(git rev-parse -q --verify "refs/tags/${REF}^{commit}" || true)
+          if [ -n "$tag_sha" ] && [ "$tag_sha" = "$sha" ]; then
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
@@ -158,28 +162,33 @@ jobs:
           ref = os.environ["REF"]
           requested = os.environ["REQUESTED"].strip()
           pinned = ""
+          # FlagGems feeds the derived version into SETUPTOOLS_SCM_PRETEND_VERSION
+          # for the inner wheel, so every accepted version must map 1-to-1 to a
+          # valid PEP 440 version without colliding (dotted rc<N>.<M> is rejected
+          # in favour of PEP 440 rc<N>.post<M>).
+          pep440_tag_re = r"^v?\d+(\.\d+)*(?:[-~]?(?:a|b|rc)\d+)?(?:\.post\d+)?(?:\.dev\d+)?$"
           if requested:
-              upstream, why = requested, "requested by this dispatch"
+              if not re.match(pep440_tag_re, requested):
+                  sys.exit(f"::error::requested version '{requested}' is not PEP 440 compatible for FlagGems wheel metadata (use rc<N>.post<M>)")
+              release, why = requested, "requested by this dispatch"
           elif pinned:
-              upstream, why = pinned, "pinned for this component"
-          elif (os.environ["REF_IS_TAG"] == "true"
-                and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
-              # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare
-              # release, so a pre-release never shadows the final one; "-"
-              # would sort above it and block the upgrade.
-              #
-              # noarch-rpm.yml reaches the same end by a different route: rpm
-              # honours "~" too, but these specs feed Version into
-              # %pyproject_wheel, and "~" is not a valid PEP 440 version, so
-              # the qualifier goes in Release there instead. Debian has no
-              # such constraint -- dpkg never hands this string to Python.
-              upstream, why = re.sub(r"-rc", "~rc", ref.lstrip("v")), f"derived from tag {ref}"
+              if not re.match(pep440_tag_re, pinned):
+                  sys.exit(f"::error::pinned version '{pinned}' is not PEP 440 compatible for FlagGems wheel metadata")
+              release, why = pinned, "pinned for this component"
+          elif os.environ["REF_IS_TAG"] == "true" and re.match(r"^v?\d+\.", ref):
+              if not re.match(pep440_tag_re, ref):
+                  sys.exit(f"::error::tag '{ref}' is not PEP 440 compatible for FlagGems wheel metadata (use vX.Y.Z-rcN.postM or pass a PEP 440 `version`)")
+              release, why = ref, f"derived from tag {ref}"
           else:
               print(f"Keeping the changelog version {current}: {ref} is not a version tag."
                     " Pass `version` to stamp a release version explicitly.")
               sys.exit(0)
 
-          new = f"{upstream}-1"
+          upstream = re.sub(r"(?<!~)-?(a|b|rc)", r"~\1", release.lstrip("v"))
+          cur_base = re.sub(r"\+ubuntu\d+\.\d+$", "", current)
+          cur_up, cur_rev = cur_base.rsplit("-", 1) if "-" in cur_base else (cur_base, "1")
+          rev = cur_rev if cur_up == upstream else "1"
+          new = f"{upstream}-{rev}"
           if new == current:
               print(f"Changelog already at {current}; nothing to stamp")
               sys.exit(0)
@@ -350,6 +359,7 @@ jobs:
             exit 1
           fi
           deb=$(ls pkg/*.deb | head -1)
+          echo "Publishing $(basename "$deb") built from ${{ needs.build.outputs.built_sha }}"
           uploaded=0
           attempted=0
           for suite in ${SUITES}; do

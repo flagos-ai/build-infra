@@ -175,7 +175,8 @@ jobs:
           # Whether this ref is a tag decides whether a version may be derived
           # from it. Branch names are version-shaped too (0.3.0-rc2 is a
           # branch), and a branch head moves, so its name is not a version.
-          if git rev-parse -q --verify "refs/tags/${REF}" >/dev/null; then
+          tag_sha=$(git rev-parse -q --verify "refs/tags/${REF}^{commit}" || true)
+          if [ -n "$tag_sha" ] && [ "$tag_sha" = "$sha" ]; then
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
@@ -211,27 +212,26 @@ jobs:
           requested = os.environ["REQUESTED"].strip()
           pinned = os.environ["PINNED"].strip()
           if requested:
-              upstream, why = requested, "requested by this dispatch"
+              release, why = requested, "requested by this dispatch"
           elif pinned:
-              upstream, why = pinned, "pinned for this component"
+              release, why = pinned, "pinned for this component"
           elif (os.environ["REF_IS_TAG"] == "true"
-                and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
-              # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare
-              # release, so a pre-release never shadows the final one; "-"
-              # would sort above it and block the upgrade.
-              #
-              # noarch-rpm.yml reaches the same end by a different route: rpm
-              # honours "~" too, but these specs feed Version into
-              # %pyproject_wheel, and "~" is not a valid PEP 440 version, so
-              # the qualifier goes in Release there instead. Debian has no
-              # such constraint -- dpkg never hands this string to Python.
-              upstream, why = re.sub(r"-rc", "~rc", ref.lstrip("v")), f"derived from tag {ref}"
+                and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
+              release, why = ref, f"derived from tag {ref}"
           else:
               print(f"Keeping the changelog version {current}: {ref} is not a version tag."
                     " Pass `version` to stamp a release version explicitly.")
               sys.exit(0)
 
-          new = f"{upstream}-1"
+          # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1, 0.7.0rc1 -> 0.7.0~rc1,
+          # v0.2.0-rc0.1 -> 0.2.0~rc0.1. "~" sorts below the bare release in
+          # dpkg. Preserve an existing Debian revision (> 1) when the upstream
+          # version matches so e.g. 0.2.0-2 is never downgraded to 0.2.0-1.
+          upstream = re.sub(r"(?<!~)-?rc", "~rc", release.lstrip("v"))
+          cur_base = re.sub(r"\+ubuntu\d+\.\d+$", "", current)
+          cur_up, cur_rev = cur_base.rsplit("-", 1) if "-" in cur_base else (cur_base, "1")
+          rev = cur_rev if cur_up == upstream else "1"
+          new = f"{upstream}-{rev}"
           if new == current:
               print(f"Changelog already at {current}; nothing to stamp")
               sys.exit(0)
