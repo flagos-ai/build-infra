@@ -24,12 +24,12 @@
 
 ## Launch
 
-**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125_dtk26.4`
+**Published:** `harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125`
 
 The image name is long — assign it to a variable first:
 
 ```bash
-IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125_dtk26.4
+IMG=harbor.baai.ac.cn/flagos-app/vllm0.32.0-hygon-dtk26.04:2.3.0-0.5.0.dev0_g4856534.d20261125
 ```
 
 The two approaches below are alternatives — pick the one that matches how your host runs containers:
@@ -100,5 +100,3 @@ docker run --rm -it \
   --security-opt seccomp=unconfined \
   $IMG vllm-serve --model <path> --port 9000
 ```
-
-## Changelog
