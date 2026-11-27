@@ -615,6 +615,15 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: flagcx==0.14.1+tsm5.6.3
+    pypi_index: flagos-pypi-tsingmicro
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
+    python: cp312
+    os: linux
+    arch: linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
