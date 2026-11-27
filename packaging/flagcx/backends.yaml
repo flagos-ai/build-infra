@@ -840,12 +840,10 @@ sunrise-tangrt1.2.0:
     containerfile: Containerfile.builder-sunrise
     sdk_version: "v1.2.0"
 
-# Not migrated to TSM 5.6.3.1112 yet: Containerfile.builder-tsingmicro still
-# installs the 260610 SDK and torch 2.11, while the 5.6.3 runtime is py3.12 /
-# torch 2.13. The row keeps its key in step with the runtime matrix so the
-# registry and the matrix name the same backend, but its channels stay off
-# until the builder moves (the runtime's flagcx==0.14.1+tsm5.6.3 pin keeps the
-# wheel already published).
+# The builder (and with it the wheel) is on TSM 5.6.3.1112: py3.12 from
+# deadsnakes, torch 2.13 from the row's pins, the five installers the 5.6.3 base
+# installs. deb/rpm are off until their own pass — they build from the backend's
+# base image and were last exercised on the 260610 line.
 tsingmicro-tsm5.6.3:
   vendor: tsm
   make_flag: USE_TSM
@@ -864,11 +862,11 @@ tsingmicro-tsm5.6.3:
   # fedora 43 ships fmt 11 (libfmt.so.11, a different soname) and el9 has no
   # fmt in its base repositories, so oe2403 is the suite this builds for.
   rpm: {enabled: false, sdk: filestore, suites: [openeuler24.03], blocked_by: sdk-line-not-migrated}
-  wheel: {enabled: false}
+  wheel: {enabled: true}
   builder:
-    enabled: false
+    enabled: true
     containerfile: Containerfile.builder-tsingmicro
-    sdk_version: "260610164501"
+    sdk_version: "5.6.3.1112"
 
 amd-rocm7.2.4:
   vendor: amd

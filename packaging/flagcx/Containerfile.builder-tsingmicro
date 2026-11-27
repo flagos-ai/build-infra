@@ -18,12 +18,11 @@
 # clang/bitcode/NCCL — tsm.mk compiles nothing device-side and links only
 # -ltorch_txda -lhpgr.
 #
-# No reglib floor work is needed: every .so in the chain links at most
-# GLIBC_2.34 (libhpgr/libtccl/libtsmml/libtsmprofiler-sdk-tsmtx/libtxdnn all
-# GLIBC_2.34, torch 2.11.0+cpu's libtorch_cpu GLIBC_2.28, torch_txda's
-# libtorch_txda GLIBC_2.34, 0 __isoc23_ anywhere) — the SDK itself is 22.04-built
-# (kuiper/lib/Readme says so), so the 22.04 floor here is only the build
-# toolchain's, the enflame shape.
+# No reglib floor work is needed: the SDK's own libs (libhpgr/libtccl/libtsmml/
+# libtsmprofiler-sdk-tsmtx/libtxdnn) are 22.04-built and link at most GLIBC_2.34,
+# and torch/torch_txda come from the row's pins on the vendor index. The wheel
+# verify asserts the delivered set's floor either way, so the 22.04 base here is
+# only the build toolchain's — the enflame shape.
 #
 # The SDK-floor proof cannot be `import torch_txda`: like sunrise's torch_ptpu,
 # its TXDAHooks constructor probes the device (txGetDeviceCount) and aborts when
@@ -47,7 +46,7 @@ ARG TXOPS_PIN
 ARG NUMPY_PIN
 ARG VENDOR_PYPI
 ARG EXTRA_PYPI
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.12
 ARG RUNTIME_PREREQS
 
 # Never baked as ENV: the proxy is a build-time fact of one RUN.
@@ -57,35 +56,41 @@ ARG https_proxy=
 # The node's own value, not a second copy here that could silently win.
 ARG no_proxy=
 
-# python 3.10 is jammy's own, no deadsnakes: the row's torch pin is cp310, and
-# jammy's 3.10 is the stable release that ABI matches (the sunrise recipe does
-# the same). sudo is a hardcoded dependency of the TSM installers, libopenmpi3
-# is what base/<key> ships for torch_txda, and libunwind8/liblzma5 are what
-# libtccl's transitive closure pulls (libtsmprofiler-register -> libunwind, the
-# profiler -> liblzma). libfmt8 is jammy's own package (the 22.04 libfmt.so.8
-# soname base/<key> fetches from filestore because 24.04 ships only libfmt9) —
-# no filestore round-trip here. No python3-pip: ensurepip is disabled for
-# jammy's system python, and the venv (which carries its own pip) is all this
-# image needs.
+# python 3.12 from deadsnakes: the TSM 5.6.3.1112 line is py3.12 (torch 2.13 is
+# cp312-only), so the wheel has to wear cp312 to install on its runtime. Wired
+# by hand — add-apt-repository goes through Launchpad's REST API. sudo is a
+# hardcoded dependency of the TSM installers, libopenmpi3 is what base/<key>
+# ships for torch_txda, and libunwind8/liblzma5 are what libtccl's transitive
+# closure pulls (libtsmprofiler-register -> libunwind, the profiler -> liblzma).
+# libfmt8 is jammy's own package (the 22.04 libfmt.so.8 soname base/<key>
+# fetches from filestore because 24.04 ships only libfmt9) — no filestore
+# round-trip here.
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ca-certificates gnupg curl wget git unzip \
+        ca-certificates gnupg curl wget git unzip; \
+    curl -fsSL \
+        "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+        | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg; \
+    echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+        > /etc/apt/sources.list.d/deadsnakes.list; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential gcc g++ cmake \
-        python3.10 python3.10-venv python3.10-dev \
+        python3.12 python3.12-venv python3.12-dev \
         libgflags-dev libgoogle-glog-dev \
         libnuma1 libgomp1 libgfortran5 libelf1 \
         libopenmpi3 sudo libunwind8 liblzma5 libfmt8; \
     rm -rf /var/lib/apt/lists/*
 
-# The SDK, the same four installers base/<key> installs. The CCL lib
+# The SDK, the same installers base/<key> installs. The CCL lib
 # (libtccl.so.2) NEEDs the profiler's libtsmprofiler-sdk-tsmtx/libtsmprofiler-
 # register and libtsmml, so all four must land — the runtime, ccl and profiler
 # installers together own the closure torch_txda binds. Every lib they ship
 # links at most GLIBC_2.34 (the SDK is 22.04-built), so they install identically
 # on jammy — the same packages the 24.04 base already proves.
 RUN set -eux; \
-    for pkg in Tsm_validation_suite Tsm_runtime Tsm_ccl Tsm_profiler; do \
+    for pkg in Tsm_validation_suite Tsm_runtime Tsm_ccl Tsm_profiler Tsm_multimedia; do \
         fn="${pkg}_${SDK_VERSION}_x86_64_installer.run"; \
         curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
             -o "${fn}" "${FILE_STORE}/${fn}"; \
@@ -116,7 +121,7 @@ ENV LD_LIBRARY_PATH="/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib"
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
 RUN set -eux; \
-    python3.10 -m venv /flagos; \
+    python${PYTHON_VERSION} -m venv /flagos; \
     /flagos/bin/pip install --no-cache-dir --upgrade pip; \
     /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
         ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
