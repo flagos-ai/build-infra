@@ -31,7 +31,7 @@ UPSTREAM_RELEASE_RE = re.compile(
 PEP440_RELEASE_RE = re.compile(
     r"^v?\d+(?:\.\d+)*(?:[-~]?(?:a|b|rc)\d+)?(?:\.post\d+)?(?:\.dev\d+)?$"
 )
-DISTRO_SUFFIX_RE = re.compile(r"\+[a-z][a-z0-9.]*$")
+DISTRO_SUFFIX_RE = re.compile(r"\+[a-z]{3,}\d[a-z0-9.]*$")
 RPM_BASE_REL_RE = re.compile(r"^([1-9]\d*)(?:\.post\d+)?(?:%\{\?dist\})?$")
 
 
@@ -81,9 +81,10 @@ def compute_deb_version(
     """Compute the new Debian changelog version while preserving matching revisions."""
     clean_rel = release.lstrip("v")
     if strict_pep440:
-        upstream = re.sub(r"(?<!~)-?(a|b|rc)", r"~\1", clean_rel)
+        upstream = re.sub(r"(?<!~)[-.]?(a|b|rc)", r"~\1", clean_rel)
+        upstream = re.sub(r"\.dev(\d+)$", r"~dev\1", upstream)
     else:
-        upstream = re.sub(r"(?<!~)-?rc", "~rc", clean_rel)
+        upstream = re.sub(r"(?<!~)[-.]?rc", "~rc", clean_rel)
 
     cur_base = DISTRO_SUFFIX_RE.sub("", current)
     cur_up, cur_rev = cur_base.rsplit("-", 1) if "-" in cur_base else (cur_base, "1")

@@ -16,6 +16,8 @@
 """Unit tests for scripts/stamp_pkg_version.py."""
 
 from pathlib import Path
+import re
+import subprocess
 import tempfile
 import unittest
 
@@ -30,6 +32,7 @@ from stamp_pkg_version import (
 class StampPkgVersionTest(unittest.TestCase):
     def test_deb_revision_and_distro_suffix_handling(self) -> None:
         self.assertEqual(compute_deb_version("0.2.0-2", "v0.2.0"), "0.2.0-2")
+        self.assertEqual(compute_deb_version("0.2.0-2+b1", "v0.2.0"), "0.2.0-2+b1")
         self.assertEqual(compute_deb_version("0.2.0-3+ubuntu24.04", "0.2.0"), "0.2.0-3")
         self.assertEqual(compute_deb_version("0.2.0-3+debian12", "0.2.0"), "0.2.0-3")
         self.assertEqual(compute_deb_version("0.2.0-3+openkylin2.0", "0.2.0"), "0.2.0-3")
@@ -37,6 +40,7 @@ class StampPkgVersionTest(unittest.TestCase):
         self.assertEqual(compute_deb_version("0.2.0-2", "0.3.0"), "0.3.0-1")
         self.assertEqual(compute_deb_version("0.3.0-1", "v0.3.0-rc2.post1"), "0.3.0~rc2.post1-1")
         self.assertEqual(compute_deb_version("0.7.0-1", "0.7.0rc1"), "0.7.0~rc1-1")
+        self.assertEqual(compute_deb_version("1.0-1", "1.0.rc1"), "1.0~rc1-1")
         self.assertEqual(compute_deb_version("0.3.0-1", "0.3.0~rc2.post1"), "0.3.0~rc2.post1-1")
 
     def test_rejects_revision_in_requested_deb_version(self) -> None:
@@ -49,7 +53,14 @@ class StampPkgVersionTest(unittest.TestCase):
         rel, _ = select_release_version("v5.4.0-rc0.post1", True, strict_pep440=True)
         self.assertEqual(compute_deb_version("5.3.5-1", rel, strict_pep440=True), "5.4.0~rc0.post1-1")
         rel_dev, _ = select_release_version("main", False, requested="5.5.0.dev1", strict_pep440=True)
-        self.assertEqual(compute_deb_version("5.4.0-1", rel_dev, strict_pep440=True), "5.5.0.dev1-1")
+        deb_dev = compute_deb_version("5.4.0-1", rel_dev, strict_pep440=True)
+        self.assertEqual(deb_dev, "5.5.0~dev1-1")
+        # Verify dpkg ordering matches PEP 440 ordering (dev < rc < final) and round-trips to wheel.
+        subprocess.check_call(["dpkg", "--compare-versions", deb_dev, "lt", "5.5.0~rc1-1"])
+        subprocess.check_call(["dpkg", "--compare-versions", "5.5.0~rc1-1", "lt", "5.5.0-1"])
+        subprocess.check_call(["dpkg", "--compare-versions", "1.0~rc1-1", "lt", "1.0-1"])
+        wheel_ver = re.sub(r"~", "", re.sub(r"~dev", ".dev", deb_dev.rsplit("-", 1)[0]))
+        self.assertEqual(wheel_ver, "5.5.0.dev1")
         for bad in ("v5.3.0-rc0.1", "5.5.0-~rc1", "v5.4.0-exp"):
             with self.assertRaises(ValueError):
                 select_release_version(bad, True, strict_pep440=True)

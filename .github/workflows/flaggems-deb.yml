@@ -173,7 +173,7 @@ jobs:
           head=$(head -1 packaging/debian/changelog)
           deb_version=$(sed -E 's/^[^ ]+ \(([^)]+)\).*$/\1/' <<<"$head")
           upstream=${deb_version%-*}
-          wheel_version=${upstream//\~/}
+          wheel_version=$(sed -E 's/~dev/.dev/g; s/~//g' <<<"$upstream")
           if ! grep -Eq '^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?(\.post[0-9]+)?(\.dev[0-9]+)?$' <<<"$wheel_version"; then
             echo "::error::changelog version ${deb_version} does not map to a PEP 440 version (got ${wheel_version})"
             exit 1
