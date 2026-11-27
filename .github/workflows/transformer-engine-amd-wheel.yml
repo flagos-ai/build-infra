@@ -103,7 +103,13 @@ jobs:
           set -euo pipefail
           # BASE_IMAGE is only for rebuilding the builder from a different
           # runtime image; the published stage is used as-is otherwise.
-          build_args=(--build-arg BUILDER_IMAGE="${BUILDER_IMAGE:-harbor.baai.ac.cn/flagos-builder/flagos-transformer-engine-builder-amd:${{ inputs.stack_version }}}")
+          builder="${BUILDER_IMAGE}"
+          if [ -z "${builder}" ]; then
+            host=$(python3 -c "import yaml;print(yaml.safe_load(open('../../.github/build-config.yml'))['registry']['host'])")
+            prefix=$(python3 -c "import yaml;print(yaml.safe_load(open('../../.github/build-config.yml'))['registry']['prefixes']['builder'])")
+            builder="${host}/${prefix}/flagos-transformer-engine-builder-amd:${{ inputs.stack_version }}"
+          fi
+          build_args=(--build-arg BUILDER_IMAGE="${builder}")
           if [ -n "${{ inputs.base_image }}" ]; then
             build_args+=(--build-arg BASE_IMAGE="${{ inputs.base_image }}")
           fi
