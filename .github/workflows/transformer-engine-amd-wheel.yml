@@ -72,6 +72,11 @@ defaults:
   run:
     shell: bash
 
+# Deny everything by default; the jobs that need more ask for it
+# themselves (record-wheel-info declares contents: write).
+permissions:
+  contents: read
+
 jobs:
   authorize:
     # Only accounts listed in .github/builders.txt may trigger this workflow
