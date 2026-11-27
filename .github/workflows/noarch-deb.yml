@@ -153,7 +153,9 @@ jobs:
       # Only for scripts/clone-ref.sh; the component source goes under src/.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          sparse-checkout: scripts/clone-ref.sh
+          sparse-checkout: |
+            scripts/clone-ref.sh
+            scripts/stamp_pkg_version.py
           sparse-checkout-cone-mode: false
 
       - name: Clone ${{ inputs.component }}
@@ -198,54 +200,11 @@ jobs:
           PINNED: ${{ inputs.ref == '' && steps.cfg.outputs.default_version || '' }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import os, re, sys
-
-          path = "packaging/debian/changelog"
-          head = open(path, encoding="utf-8").readline().rstrip("\n")
-          m = re.match(r"^(\S+) \(([^)]+)\)(.*)$", head)
-          if not m:
-              sys.exit(f"::error::cannot parse changelog first line: {head}")
-          source, current, rest = m.groups()
-
-          ref = os.environ["REF"]
-          requested = os.environ["REQUESTED"].strip()
-          pinned = os.environ["PINNED"].strip()
-          if requested:
-              release, why = requested, "requested by this dispatch"
-          elif pinned:
-              release, why = pinned, "pinned for this component"
-          elif (os.environ["REF_IS_TAG"] == "true"
-                and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
-              release, why = ref, f"derived from tag {ref}"
-          else:
-              print(f"Keeping the changelog version {current}: {ref} is not a version tag."
-                    " Pass `version` to stamp a release version explicitly.")
-              sys.exit(0)
-
-          # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1, 0.7.0rc1 -> 0.7.0~rc1,
-          # v0.2.0-rc0.1 -> 0.2.0~rc0.1. "~" sorts below the bare release in
-          # dpkg. Preserve an existing Debian revision (> 1) when the upstream
-          # version matches so e.g. 0.2.0-2 is never downgraded to 0.2.0-1.
-          upstream = re.sub(r"(?<!~)-?rc", "~rc", release.lstrip("v"))
-          cur_base = re.sub(r"\+ubuntu\d+\.\d+$", "", current)
-          cur_up, cur_rev = cur_base.rsplit("-", 1) if "-" in cur_base else (cur_base, "1")
-          rev = cur_rev if cur_up == upstream else "1"
-          new = f"{upstream}-{rev}"
-          if new == current:
-              print(f"Changelog already at {current}; nothing to stamp")
-              sys.exit(0)
-
-          # The packaging metadata in component repositories drifts from the
-          # release line it is cut on, and the version in this file is what
-          # apt sees. Overriding it here keeps the published package honest
-          # while that drift is fixed upstream; the rewrite is printed so the
-          # build log always says what was shipped and why.
-          print(f"::notice::stamping {source} {current} -> {new} ({why})")
-          body = open(path, encoding="utf-8").read()
-          open(path, "w", encoding="utf-8").write(
-              body.replace(f"{source} ({current})", f"{source} ({new})", 1))
-          PY
+          python3 "${GITHUB_WORKSPACE}/scripts/stamp_pkg_version.py" deb packaging/debian/changelog \
+            --ref "${REF}" \
+            --is-tag "${REF_IS_TAG}" \
+            --requested "${REQUESTED}" \
+            --pinned "${PINNED}"
           head -1 packaging/debian/changelog
 
       - name: Build the .deb

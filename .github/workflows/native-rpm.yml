@@ -336,7 +336,9 @@ jobs:
       # Only for scripts/clone-ref.sh; the component source goes under src/.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          sparse-checkout: scripts/clone-ref.sh
+          sparse-checkout: |
+            scripts/clone-ref.sh
+            scripts/stamp_pkg_version.py
           sparse-checkout-cone-mode: false
 
       - name: Clone ${{ inputs.target }}
@@ -378,69 +380,11 @@ jobs:
           PINNED: ${{ inputs.ref == '' && steps.cfg.outputs.default_version || '' }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import os, re, sys
-
-          path = os.environ["SPEC"]
-          body = open(path, encoding="utf-8").read()
-          mv = re.search(r"^Version:(\s+)(\S+)\s*$", body, re.M)
-          mr = re.search(r"^Release:(\s+)(\S+)\s*$", body, re.M)
-          if not mv or not mr:
-              sys.exit(f"::error::{path} needs both a Version: and a Release: line")
-
-          ref = os.environ["REF"]
-          requested = os.environ["REQUESTED"].strip()
-          pinned = os.environ["PINNED"].strip()
-          if requested:
-              release, why = requested, "requested by this dispatch"
-          elif pinned:
-              release, why = pinned, "pinned for this target"
-          elif (os.environ["REF_IS_TAG"] == "true"
-                and re.match(r"^v?\d+(\.\d+)*(-?rc\d+(\.\d+)?)?(\.post\d+)?$", ref)):
-              release, why = ref, f"derived from tag {ref}"
-          else:
-              print(f"Keeping the spec at {mv.group(2)}-{mr.group(2)}:"
-                    f" {ref} is not a version tag."
-                    " Pass `version` to stamp a release version explicitly.")
-              sys.exit(0)
-
-          m = re.match(r"^v?(\d+(?:\.\d+)*)(?:[-.~]?(rc\d+(?:\.\d+)?))?(?:[-.]?(post\d+))?$",
-                       release)
-          if not m:
-              sys.exit(f"::error::cannot parse a release version out of '{release}'")
-          upstream, rc, post = m.group(1), m.group(2), m.group(3)
-
-          # A pre-release qualifier cannot go in Version: "~" orders correctly
-          # for rpm but breaks any consumer that reads the field as a Python
-          # version, and the Python spelling ("0.2.0rc0") orders *above* the
-          # release in rpm, so the pre-release would shadow what it precedes.
-          # The packaging guidelines' answer is to keep Version at the upstream
-          # number and put the qualifier in Release: behind a leading 0 for a
-          # pre-release, which sorts below the 1 a final release carries, and
-          # behind that 1 for a post-release, which must sort above it.
-          version = upstream
-          m_rel = re.match(r"^([1-9]\d*)(?:\.post\d+)?(?:%\{\?dist\})?$", mr.group(2))
-          base_rel = m_rel.group(1) if (mv.group(2) == version and m_rel) else "1"
-          qualifier = ".".join(x for x in (rc, post) if x)
-          if rc:
-              relval = f"0.{qualifier}%{{?dist}}"
-          elif post:
-              relval = f"{base_rel}.{post}%{{?dist}}"
-          else:
-              relval = f"{base_rel}%{{?dist}}"
-
-          if (version, relval) == (mv.group(2), mr.group(2)):
-              print(f"Spec already at {version}-{relval}; nothing to stamp")
-              sys.exit(0)
-
-          print(f"::notice::stamping {path} "
-                f"{mv.group(2)}-{mr.group(2)} -> {version}-{relval} ({why})")
-          # Release first: editing Version first moves the offsets the Release
-          # match was found at.
-          body = body[:mr.start(2)] + relval + body[mr.end(2):]
-          body = body[:mv.start(2)] + version + body[mv.end(2):]
-          open(path, "w", encoding="utf-8").write(body)
-          PY
+          python3 "${GITHUB_WORKSPACE}/scripts/stamp_pkg_version.py" rpm "${SPEC}" \
+            --ref "${REF}" \
+            --is-tag "${REF_IS_TAG}" \
+            --requested "${REQUESTED}" \
+            --pinned "${PINNED}"
           grep -E '^(Version|Release):' "${SPEC}"
 
       - name: Skip a row this target is not built for
