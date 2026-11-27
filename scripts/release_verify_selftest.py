@@ -59,6 +59,8 @@ CASES = [
     ('sib-samesym',  ['fxsibsamesym'],                 False, 'has undefined symbols'),
     ('split-hosts',  ['fxsplitplug'],                  False, 'has undefined symbols'),
     ('symver-miss',  ['fxsymver'],                     False, 'symbol version mismatch'),
+    ('priv-symver',  ['fxprivsymver'],                 False, 'symbol version mismatch'),
+    ('split-unpre',  ['fxsplitunpre'],                 False, 'has undefined symbols'),
 ]
 
 BUILD_LIBS = r"""
@@ -112,6 +114,10 @@ echo 'int fx_v2(void); int fx_use_v2(void){return fx_v2();}' > symver.c
 cc libfxver.so.1       ver1.c      -Wl,--version-script,ver1.map
 gcc -shared -fPIC -o v2/libfxver.so.1 -Wl,-soname,libfxver.so.1 ver2.c -Wl,--version-script,ver2.map
 cc libfxsymver.so.1    symver.c    -Lv2 -l:libfxver.so.1
+echo 'int fx_ghost(void); void *dlopen(const char*, int); int fx_host_api(void){return fx_ghost();} void *fx_u1(const char *p){return dlopen(p,258);}' > unpre1.c
+echo 'int fx_ghost(void); void *dlopen(const char*, int); int fx_accidental(void){return fx_ghost();} void *fx_u2(const char *p){return dlopen(p,258);}' > unpre2.c
+cc libfxunpre1.so.1    unpre1.c    -L. -l:libfxghost.so.1 -ldl
+cc libfxunpre2.so.1    unpre2.c    -L. -l:libfxghost.so.1 -ldl
 """
 
 
@@ -153,6 +159,12 @@ def packages(libdir):
                           ('fxsplitplug.so', '/opt/fxsplit/plugins')], [], '', ''),
         'fxsymver':     ([('libfxver.so.1', libdir),
                           ('libfxsymver.so.1', libdir)], [], '', ''),
+        'fxprivsymver': ([('libfxver.so.1', '/opt/fxprivver/deps'),
+                          ('libfxsymver.so.1', '/opt/fxprivver/lib')], [],
+                         'Provides: libfxver.so.1()(64bit)', ''),
+        'fxsplitunpre': ([('libfxunpre1.so.1', libdir),
+                          ('libfxunpre2.so.1', libdir),
+                          ('fxsplitplug.so', '/opt/fxsplitunpre/plugins')], [], '', ''),
     }
 
 

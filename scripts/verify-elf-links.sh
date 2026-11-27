@@ -230,8 +230,15 @@ check_missing_libs() {
 
 # Verify symbol relocations for a public shared library.
 check_public_symbols() {
-    local so="$1" undefined
-    undefined="$(ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | awk '{print $3}' || true)"
+    local so="$1" raw ver_err undefined
+    raw="$(ldd -r "$so" 2>&1 || true)"
+    ver_err="$(printf '%s\n' "$raw" | grep -E "version .* not found" || true)"
+    if [ -n "$ver_err" ]; then
+        echo "$(basename "$so") has symbol version mismatch:"
+        printf '%s\n' "$ver_err" | head -5
+        exit 1
+    fi
+    undefined="$(printf '%s\n' "$raw" | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | awk '{print $3}' || true)"
     if [ -n "$undefined" ]; then
         echo "$(basename "$so") has undefined symbols:"
         printf '%s\n' "$undefined" | head -5
@@ -240,56 +247,87 @@ check_public_symbols() {
     echo "  $(basename "$so"): links resolve"
 }
 
-# Write symbols exported by governing hosts that cannot be LD_PRELOADed to a file.
-write_unpreload_host_symbols() {
-    local real_so="$1" so_dir="$2" out_file="$3" h h_real
+# Write symbols (preserving ELF symbol-version rules) exported by one unpreloadable host.
+write_single_host_symbols() {
+    local host="$1" out_file="$2" tok base ver
     : > "$out_file"
-    for h in "${UNPRELOAD_HOSTS[@]}"; do
-        h_real="$(readlink -f "$h")"
-        [ "$h_real" = "$real_so" ] && continue
-        host_governs_plugin "$(dirname "$h_real")" "$so_dir" || continue
-        nm -D --defined-only "$h" 2>/dev/null | awk '{print $NF}' | sed 's/@.*//' >> "$out_file"
-    done
+    while IFS= read -r tok; do
+        [ -n "$tok" ] || continue
+        case "$tok" in
+            *@@*)
+                base="${tok%%@@*}"
+                ver="${tok#*@@}"
+                printf '%s\n%s@%s\n' "$base" "$base" "$ver" >> "$out_file" ;;
+            *@*)
+                printf '%s\n' "$tok" >> "$out_file" ;;
+            *)
+                printf '%s\n' "$tok" >> "$out_file" ;;
+        esac
+    done < <(nm -D --defined-only "$host" 2>/dev/null | awk '{print $NF}' || true)
     sort -u -o "$out_file" "$out_file"
 }
 
-# Run ldd -r with optional LD_PRELOAD and filter expected interpreter/host symbols.
+# Run ldd -r with optional LD_PRELOAD and return any version error or unresolved symbols.
 unresolved_symbols_under() {
     local preload="$1" lib_path="$2" so="$3" sym_file="$4"
-    local raw
+    local raw ver_err undef
     if [ -n "$preload" ]; then
         raw="$(LD_PRELOAD="$preload" LD_LIBRARY_PATH="$lib_path" ldd -r "$so" 2>&1 || true)"
     else
         raw="$(LD_LIBRARY_PATH="$lib_path" ldd -r "$so" 2>&1 || true)"
     fi
-    printf '%s\n' "$raw" \
+    ver_err="$(printf '%s\n' "$raw" | grep -E "version .* not found" || true)"
+    if [ -n "$ver_err" ]; then
+        printf 'VER_ERR:%s\n' "$ver_err"
+        return 0
+    fi
+    undef="$(printf '%s\n' "$raw" \
         | grep "undefined symbol" \
         | grep -vE "undefined symbol: _?Py" \
-        | awk '{print $3}' \
-        | grep -vxF -f "$sym_file" || true
+        | sed -nE 's/^undefined symbol: ([^ ,]+), version ([^ \t]+).*/\1@\2/p; s/^undefined symbol: ([^ ,\t]+)[ \t].*/\1/p' || true)"
+    if [ -n "$sym_file" ] && [ -n "$undef" ]; then
+        printf '%s\n' "$undef" | grep -vxF -f "$sym_file" || true
+    else
+        printf '%s' "$undef"
+    fi
 }
 
-# Verify symbol relocations for a private library or dlopen plugin.
+# Verify symbol relocations for a private library or dlopen plugin per governing host.
 check_private_symbols() {
     local so="$1" real_so="$2" so_dir="$3"
     local so_dirs sym_file="/tmp/defined-unpreload-$$"
     so_dirs="$(needed_dirs_for "$so")"
-    write_unpreload_host_symbols "$real_so" "$so_dir" "$sym_file"
 
-    local gov_hosts=() h h_real
+    local gov_loadable=() gov_unpreload=() h h_real
     for h in "${LOADABLE_HOSTS[@]}"; do
         h_real="$(readlink -f "$h")"
         [ "$h_real" = "$real_so" ] && continue
-        host_governs_plugin "$(dirname "$h_real")" "$so_dir" && gov_hosts+=("$h")
+        host_governs_plugin "$(dirname "$h_real")" "$so_dir" && gov_loadable+=("$h")
+    done
+    for h in "${UNPRELOAD_HOSTS[@]}"; do
+        h_real="$(readlink -f "$h")"
+        [ "$h_real" = "$real_so" ] && continue
+        host_governs_plugin "$(dirname "$h_real")" "$so_dir" && gov_unpreload+=("$h")
     done
 
     local resolved=0 undefined="" hd try_dirs cand_undef
-    if [ "${#gov_hosts[@]}" -gt 0 ]; then
-        for h in "${gov_hosts[@]}"; do
-            hd="$(needed_dirs_for "$h")"
-            try_dirs="${so_dirs}${hd:+:${hd}}"
-            try_dirs="${try_dirs#:}"
-            cand_undef="$(unresolved_symbols_under "$h" "$try_dirs" "$so" "$sym_file")"
+    for h in "${gov_loadable[@]}"; do
+        hd="$(needed_dirs_for "$h")"
+        try_dirs="${so_dirs}${hd:+:${hd}}"
+        try_dirs="${try_dirs#:}"
+        cand_undef="$(unresolved_symbols_under "$h" "$try_dirs" "$so" "")"
+        if [ -z "$cand_undef" ]; then
+            resolved=1
+            undefined=""
+            break
+        fi
+        undefined="$cand_undef"
+    done
+
+    if [ "$resolved" -eq 0 ] && [ "${#gov_unpreload[@]}" -gt 0 ]; then
+        for h in "${gov_unpreload[@]}"; do
+            write_single_host_symbols "$h" "$sym_file"
+            cand_undef="$(unresolved_symbols_under "" "$so_dirs" "$so" "$sym_file")"
             if [ -z "$cand_undef" ]; then
                 resolved=1
                 undefined=""
@@ -297,15 +335,21 @@ check_private_symbols() {
             fi
             undefined="$cand_undef"
         done
-    else
-        undefined="$(unresolved_symbols_under "" "$so_dirs" "$so" "$sym_file")"
+    elif [ "$resolved" -eq 0 ] && [ "${#gov_loadable[@]}" -eq 0 ]; then
+        undefined="$(unresolved_symbols_under "" "$so_dirs" "$so" "")"
         [ -z "$undefined" ] && resolved=1
     fi
     rm -f "$sym_file"
 
     if [ "$resolved" -eq 0 ]; then
-        echo "$(basename "$so") has undefined symbols:"
-        printf '%s\n' "$undefined" | head -5
+        case "$undefined" in
+            VER_ERR:*)
+                echo "$(basename "$so") has symbol version mismatch:"
+                printf '%s\n' "${undefined#VER_ERR:}" | head -5 ;;
+            *)
+                echo "$(basename "$so") has undefined symbols:"
+                printf '%s\n' "$undefined" | head -5 ;;
+        esac
         exit 1
     fi
     echo "  $(basename "$so"): links resolve"
