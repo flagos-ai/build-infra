@@ -132,10 +132,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install PyYAML and packaging
         run: |
-          # flagcx-config.py imports yaml and packaging.version; ubuntu-latest's
-          # python ships neither.
+          # No --user: a standalone-build python3 does not read ~/.local.
           python3 -c "import yaml, packaging" 2>/dev/null \
-            || python3 -m pip install --user --break-system-packages pyyaml packaging
+            || python3 -m pip install --break-system-packages pyyaml packaging
       - id: set-matrix
         shell: bash
         run: |
@@ -393,6 +392,7 @@ jobs:
           # under twenty names is one dispatch rather than twenty.
           EXPECTED_PIN: ${{ matrix.wheel_pin }}
           EXTRA_PYPI: ${{ matrix.extra_pypi }}
+          INDEX_URL: ${{ matrix.flagos_pypi }}
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
         run: |
           set -euo pipefail
@@ -419,7 +419,19 @@ jobs:
               exit 1
               ;;
           esac
+          # The Nexus the row's own nodes reach, not the public name: the 910C
+          # runners cannot resolve it (build-config.yml nexus_overrides), and
+          # the matrix row already carries the rewritten value — the same one
+          # the build and the read-back use.
+          : "${INDEX_URL:?the matrix row carries no flagos_pypi}"
           pypi_repo="flagos-pypi-${vendor}"
+          # A container inherits resolv.conf, not the node's /etc/hosts.
+          ADD_HOST=()
+          hostname="${INDEX_URL#*//}"
+          hostname="${hostname%%/*}"
+          hostname="${hostname%%:*}"
+          ip="$(getent hosts "$hostname" | awk 'NR==1{print $1}')"
+          [[ -n "$ip" ]] && ADD_HOST=(--add-host "${hostname}:${ip}")
           wheel=(packaging/flagcx/dist/*.whl)
           if [ "${#wheel[@]}" -ne 1 ]; then
             echo "::error::expected exactly one wheel, found ${#wheel[@]}"
@@ -460,6 +472,8 @@ jobs:
             -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
             -e pypi_repo="${pypi_repo}" \
             -e EXTRA_PYPI="${EXTRA_PYPI}" \
+            -e INDEX_URL="${INDEX_URL}" \
+            "${ADD_HOST[@]}" \
             -v "$PWD/packaging/flagcx/dist:/wheels:ro" \
             "${{ matrix.builder_image }}" \
             bash -euo pipefail -c '
@@ -472,7 +486,7 @@ jobs:
               # No /simple: that suffix is the path pip reads, not the one twine
               # posts to.
               /flagos/bin/twine upload \
-                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --repository-url "${INDEX_URL%/simple}/" \
                 --non-interactive \
                 /wheels/*.whl
             '

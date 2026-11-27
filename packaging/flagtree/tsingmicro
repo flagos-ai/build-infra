@@ -13,9 +13,11 @@
 # limitations under the License.
 
 # Build a FlagTree tsingmicro (Tsingmicro TX8) wheel on Ubuntu 22.04 (glibc 2.35,
-# gcc 11.4) with the 22.04 system python 3.10, which is the interpreter the
-# backend's runtime pins. The runtime is 24.04, and building for 22.04 only has
-# to import there -- the direction glibc compatibility runs in.
+# gcc 11.4) with python 3.12, which is the interpreter the backend's runtime
+# pins after the TSM 5.6.3.1112 bump (torch 2.13.0 is cp312-only, and pip
+# refuses a cp310 wheel there). The base is still 22.04: the wheel's
+# libtriton.so must load on the 24.04 runtime, which is the direction glibc
+# compatibility runs in. python 3.12 comes from deadsnakes, wired by hand.
 #   docker build --target builder -t flagtree-builder-tsingmicro:ci -f tsingmicro .
 #   docker build -t flagtree-tsingmicro:0.7.0 -f tsingmicro .
 
@@ -46,19 +48,29 @@ ENV DEBIAN_FRONTEND=noninteractive
 # already in the image, and the guard is what skips it. No clang is installed:
 # FlagTree selects clang for this backend and the staged LLVM is the only one it
 # may resolve, so an apt clang would be a second, silently-chosen compiler.
+#
+# python 3.12 via deadsnakes, wired by hand: add-apt-repository goes through
+# Launchpad's REST API, which the runner's proxy answers with 500.
 RUN set -eu; \
     if [ -f /opt/flagtree-build-env.ready ]; then \
         echo ">>> build environment already staged in the base image"; \
         exit 0; \
     fi; \
     apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates git wget curl binutils \
+        ca-certificates gnupg git wget curl binutils \
         build-essential cmake ninja-build \
         zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
-        python3.10 python3.10-dev python3.10-venv python3-pip \
+    && curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg \
+    && echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.12 python3.12-dev python3.12-venv \
     && rm -rf /var/lib/apt/lists/* \
     && printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
-    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
     && mkdir -p /root/.flagtree/tsingmicro /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TARBALL}" "${TX8_TARBALL}" "${TRITON_DEPS_TARBALL}"; do \
@@ -111,7 +123,7 @@ ARG no_proxy=
 
 # FlagTree ref, the single version knob; the backend is selected at build time via
 # FLAGTREE_BACKEND, not by source. The default is the release configs.yaml pins for
-# tsingmicro-tsm260610 -- a client installs this wheel's version, so the two must
+# tsingmicro-tsm5.6.3 -- a client installs this wheel's version, so the two must
 # not drift. A daily run overrides it.
 ARG FLAGTREE_VERSION=0.7.0+tsingmicro3.6
 
@@ -155,7 +167,7 @@ RUN git config --global http.version HTTP/1.1 \
     && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
          "${sha8}" > /opt/flagtree/setup.cfg \
     && cd /opt/flagtree \
-    && python3.10 -m pip install --no-cache-dir -r python/requirements.txt \
+    && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
     && export FLAGTREE_BACKEND=tsingmicro \
     && export TRITON_APPEND_CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release" \
     && export PATH="/root/.flagtree/tsingmicro/${LLVM_KEY}/bin:${PATH}" \
@@ -166,7 +178,7 @@ RUN git config --global http.version HTTP/1.1 \
     && clang --version \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
-         python3.10 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         python3.12 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
          echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
        done \
     && ls -la /wheels/*.whl
@@ -185,8 +197,8 @@ RUN printf '%s\n' \
       'if "git" in ver:' \
       '    print("FAIL: dirty wheel version " + ver + " (expected clean, no git-sha suffix)")' \
       '    sys.exit(1)' \
-      'if "cp310" not in name:' \
-      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp310)")' \
+      'if "cp312" not in name:' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp312)")' \
       '    sys.exit(1)' \
       'print("OK: wheel " + name + " version " + ver)' \
       '' \
@@ -240,7 +252,7 @@ RUN printf '%s\n' \
       '    sys.exit(1)' \
       'print("OK: libtriton.so and every tagged .so in _C carry pybind11 internals v" + want.decode() + ", matching the build pybind11 " + pybind11.__version__)' \
     > /tmp/gate.py \
-    && python3.10 /tmp/gate.py
+    && python3.12 /tmp/gate.py
 
 # NO IMPORT SMOKE TEST HERE, unlike every other builder in this directory. The
 # backend's driver.py imports torch_txda at module level, `import triton` reaches
@@ -249,11 +261,11 @@ RUN printf '%s\n' \
 # which a docker build can have. What an import proves is asserted on the
 # backend's own node; what a build can still prove is that the wheel INSTALLS and
 # keeps the vendored artifacts, which is the part package_data could silently drop.
-RUN python3.10 -m pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
+RUN python3.12 -m pip install --no-cache-dir --no-deps --target /opt/wheel-test /wheels/*.whl \
     && test -x /opt/wheel-test/triton/backends/tsingmicro/bin/tsingmicro-opt \
     && test -x /opt/wheel-test/triton/backends/tsingmicro/bin/tx-profiler \
     && ar t /opt/wheel-test/triton/backends/tsingmicro/lib/libvr.a > /dev/null \
-    && python3.10 -c "\
+    && python3.12 -c "\
 import glob, os, zipfile;\
 whl = glob.glob('/wheels/*.whl')[0];\
 zf = zipfile.ZipFile(whl);\

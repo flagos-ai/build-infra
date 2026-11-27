@@ -100,7 +100,7 @@ def main() -> None:
     for block in data.get("tags") or []:
         if str(block.get("tag")) != tag:
             continue
-        for entry in block.get("entries") or []:
+        for index, entry in enumerate(block.get("entries") or []):
             if not (entry.get("date") or ""):
                 # The reason is the deliverable, and it is published in both
                 # languages, so a pending entry has to carry both. The workflow
@@ -117,6 +117,8 @@ def main() -> None:
                         f"{' or '.join('`' + m + '`' for m in missing)} — a reason "
                         f"is written in both languages (docs/changelog.md)."
                     )
+                # Read by backfill_changelog_date.py: the entry this push dates.
+                print(f"gate: pending entry {index} for tag {tag}")
                 print(f"gate: ok — pending changelog entry found for tag {tag}")
                 return
         sys.exit(

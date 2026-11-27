@@ -112,6 +112,11 @@
   `linux_x86_64`）描述的是不存在的产物。
 - **`pypi_index` 唯一可多值。** 只有一个发布通道时为字符串，多个通道时为列表且
   `flagos-pypi-hosted` 排首位。其它三个机器字段恒定单值。
+- **`pypi_index` 面向官网抓取程序：一个 wheel 一个下载地址。** 它记的是用户实际
+  下载的那个索引，vendor 索引上的副本属于内部分发便利，不进这个字段。与厂商
+  torch 版本无关的包（如 `megatron-core`）发到 `flagos-pypi-hosted`；
+  `configs.yaml wheel_hosted_publishers` 按 `(python, arch)` 指定由哪个后端推
+  送，避免同名文件互相覆盖。
 - **manifest 中的 `pkg` 是目录中的包名，不是 wheel 文件名。** 文件名不足以
   推出包名（`vllm_plugin_fl` 对应目录名 `vllm-plugin-fl`，`sglang_fl` 对应
   `sglang-fl`），因此包名由各发布步骤显式给出。

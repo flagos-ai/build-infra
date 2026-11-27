@@ -161,6 +161,20 @@ pypi_base: "https://resource.flagos.net/repository/flagos-pypi-{vendor}/simple"
 pypi_daily: "https://resource.flagos.net/repository/flagos-pypi-daily/simple"
 mirror: "https://mirrors.cloud.tencent.com/pypi/simple"
 
+# Which backend publishes a wheel to flagos-pypi-hosted, per (python, arch).
+# Hosted holds one file per wheel (two backends on the same pair would
+# overwrite each other under one filename), and it is the address the catalog
+# and the site point users at, so the choice is declared, not derived.
+# {python: {arch: backend}}; a pair with no entry has no hosted publisher.
+wheel_hosted_publishers:
+  "3.10":
+    x86_64: hygon-dtk26.04
+  "3.11":
+    aarch64: ascend-cann9.0.0
+  "3.12":
+    x86_64: nvidia-cuda13.3
+    aarch64: ascend-cann9.2.1
+
 # App-layer public identity — how a vendor's app images are NAMED and SHOWN.
 # App images and their launch pages are published vendor-neutral: the app image
 # tag, the app catalog, the launch page, and the per-image changelog all carry
@@ -213,6 +227,17 @@ vendors:
           ROCM_PATH: /opt/rocm
           PATH: /opt/rocm/bin:$PATH
           LD_LIBRARY_PATH: /opt/rocm/lib
+        runtime:
+          # TransformerEngine's default GEMM backend is hipBLASLt, and on
+          # gfx1100 it has no bias-gradient-fused wgrad kernel: a
+          # TransformerLayer backward dies with "Unable to find any suitable
+          # algorithms" in layernorm_linear.py's wgrad_gemm (the same call
+          # without `bias` is fine). TE's own Triton GEMM backend clears it
+          # (finite-difference gradcheck rel_err ~2e-06), and it works under
+          # this image's default flagtree compiler as well as /opt/triton --
+          # both were checked on the W7900 node. Baked in rather than left to
+          # every consumer to remember; see docs/vendors/amd.md.
+          NVTE_GEMM_BACKEND: TRITON
       deps:
         - torch==2.13.0+rocm7.2
         - torchaudio==2.11.0+rocm7.2
@@ -228,7 +253,7 @@ vendors:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261123
+          - flaggems_vllm==0.3.0.dev20261126
       sdk:
         # apt-native from repo.radeon.com, no filestore
         - ROCm 7.2.4 (x86_64)
@@ -242,7 +267,7 @@ vendors:
     # a later stack version bump must not be read as covering this line.
     # Why and what replaced it: docs/vendors/nvidia.md.
     cuda12.8:
-      enabled: false
+      enabled: true
       extras: nvidia-cuda128
       hardware: ["NVIDIA H20"]   # TODO: add other validated NVIDIA GPUs
       driver: "610.43.02"
@@ -377,7 +402,7 @@ vendors:
         # itself but leaves numpy at 2.x (nothing else then constrains it).
         # 0.5.4 accepts numpy>=1.26 on py3.12, so the runtime pin holds.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261123
+          - flaggems_vllm==0.3.0.dev20261126
           - ml-dtypes==0.5.4
           - numpy==1.26.4
       sdk:
@@ -420,13 +445,9 @@ vendors:
         - torchaudio==2.11.0+cu130
         - torchvision==0.28.0+cu130
         - numpy==1.26.4
-        # Still the +cuda13.3 build: flagcx is pinned to the flagcx wheel (PR
-        # #1266), and it is the only wheel carrying a libflagcx.so linked
-        # against libcudart.so.13. It was compiled on the 13.3 toolkit — if the
-        # 13.0.3 runtime rejects it, that is the first thing to look at, and the
-        # answer is a wheel built on this base (packaging/flagcx), not a
-        # different pin.
-        - flagcx==0.14.1+cuda13.3
+        # This line's own build: compiled in its builder against the 2204 NCCL
+        # this CUDA minor ships, so the wheel and the toolkit agree.
+        - flagcx==0.14.1+cuda13.0.3
       sdk:
         - CUDA 13.0.3 (x86_64)
 
@@ -687,7 +708,7 @@ vendors:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261123
+          - flaggems_vllm==0.3.0.dev20261126
       sdk:
         - CANN Toolkit 9.2.1 (aarch64)  # Ascend-cann_9.2.1_linux-aarch64.run
         - CANN 910B Ops 9.2.1 (aarch64) # Ascend-cann-910b-ops_9.2.1_linux-aarch64.run
@@ -911,22 +932,22 @@ vendors:
       hardware: ["Hygon BW1000"]
       driver: "6.3.30-V1.4.1a"
       python: "3.10"
-      triton: triton==3.5.1+das.opt1.dtk2604.torch290
+      triton: triton==3.6.0+das185.dtk2604.torch2100.2608131719.gb796b1
       flagtree: flagtree==0.7.1a1+hcu3.6
       flagtree_daily: flagtree-hcu
       deps:
-        - apex==1.7.0+das.opt1.dtk2604.torch290
-        - flash_attn==2.8.3+das.opt1.dtk2604.torch290
-        - torch==2.9.0+das.opt1.dtk2604
+        - apex==1.7.0+dtk2604.torch2100.2609201739.g9783d4
+        - flash_attn==2.8.3+das185.dtk2604.torch2100.2608132155.g9febea
+        - torch==2.10.0+das.opt1.dtk2604.2608131652.g28498c
         # The vendor uploaded torchaudio with its build-date+git suffix intact,
         # unlike the clean torchvision tag; the == pin must carry the full string
         # or it will not resolve on the index.
-        - torchaudio==2.9.0+das.opt1.dtk2604.torch290.202604011034.geaa9e4
-        - torchvision==0.24.0+das.opt1.dtk2604.torch290
+        - torchaudio==2.10.0+das.opt1.dtk2604.torch2100.2609021532.gdf6f74
+        - torchvision==0.25.0+das185.dtk2604.torch2100.2608130858.gdcd044
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+dtk2604
+        - flagcx==0.14.1+dtk2604
         # hy-smi exposes no Python API, and the driver's tree at
         # /opt/hyhal/share/smi is a host mount, never installed.
         - amdsmi==7.0.2
@@ -934,17 +955,21 @@ vendors:
         megatron_training0.17.1: []
         megatron_training0.18.2: []
         megatron_rl0.17.1:
-          - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
+          - transformer_engine==2.14.1+dtk2604.torch2100.2610161042.g4b8b86
         # rl deps re-verified for 0.18.2: same TE pin holds (per MLF #189 caveat).
         megatron_rl0.18.2:
-          - transformer_engine==2.10.0+das.opt1.dtk2604.torch290
+          - transformer_engine==2.14.1+dtk2604.torch2100.2610161042.g4b8b86
         vllm0.20.2: []
         vllm0.24.0: []
+        # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
+        # (activation/rotary/moe/mla); no runtime image ships it.
+        vllm0.32.0:
+          - flaggems_vllm==0.3.0.dev20261126
         sglang0.5.18:
           - compressed-tensors==0.17.0+flagos
       sdk:
         - Hygon DTK 26.04      # DTK-26.04-Ubuntu22.04-x86_64.tar.gz
-        - Hygon DTK LLVM       # dtk_llvm.run (2026-05-15 version)
+        - Hygon DTK LLVM       # dtk_llvm-1.0.0+dtk2604.2609221416.g5f9d5e-x86_64.run (clang-18)
 
     dtk26.10:
       extras: hygon
@@ -1048,7 +1073,7 @@ vendors:
         # The 0.5.0-dev plugin's FlagGems provider hard-imports flaggems_vllm
         # (activation/rotary/moe/mla); no runtime image ships it.
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261123
+          - flaggems_vllm==0.3.0.dev20261126
       sdk:
         - Corex Runtime 5.0.1      # corex-installer-linux64-5.0.1_x86_64_10.2.run
         - CUDA Header files 260604 # cuda-header-260604.zip
@@ -1406,17 +1431,17 @@ vendors:
         - numpy==1.26.4
       deps_app:
         vllm0.32.0:
-          - flaggems_vllm==0.3.0.dev20261123
+          - flaggems_vllm==0.3.0.dev20261126
           - flash_attn_3==2.8.2+v0.1.0.ppu2.1.1
       sdk:
         - PPU SDK 2.1.0 (x86_64)
 
   tsingmicro:
-    tsm260610:
+    tsm5.6.3:
       extras: tsingmicro
       hardware: ["Tsingmicro TX8110"]
-      driver: "260610164501.01"
-      python: "3.10"
+      driver: "5.6.3.1112"
+      python: "3.12"
       triton: triton==3.6.0.post2026072919+git8f5b0609
       flagtree: flagtree==0.7.0+tsingmicro3.6
       flagtree_daily: flagtree-tsingmicro
@@ -1440,24 +1465,20 @@ vendors:
           USE_TORCH_XLA: "0"
           TORCH_COMPILE_DISABLE: "1"
       deps:
-        - torch==2.11.0+cpu
-        - torchvision==0.26.0+cpu
+        - torch==2.13.0+cpu
+        - torchvision==0.28.0+cpu
         - torchaudio==2.11.0+cpu
-        - torch_txda==0.1.0+20260728.f6fbdb71
-        - txops==0.1.0+20260716.e94d9509
+        - torch_txda==0.1.0+20261109.4367a021
+        - txops==0.1.0+20261109.e94d9509
         - numpy==1.26.4
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
-        - flagcx==0.14.0+tsm260610
-      deps_app:
-        megatron_training0.17.1: []
-        megatron_rl0.17.1: []  # buildable; no vendor flash-attn here, so the RL dynamic-batching path needs --attention-backend unfused
-        vllm0.20.2: []
-        vllm0.24.0: []
+        - flagcx==0.14.1+tsm5.6.3
       sdk:
-        - TSM Runtime 260610164501           # Tsm_runtime_260610164501_x86_64_installer.run
-        - TSM Validation Suite 260610164501  # Tsm_validation_suite_260610164501_x86_64_installer.run
-        - TSM CCL 260610164501               # Tsm_ccl_260610164501_x86_64_installer.run
-        - TSM Profiler 260610164501          # Tsm_profiler_260610164501_x86_64_installer.run
-        - TX8 Compiler Dependencies 20260507 # tx8_depends_dev_20260507_104051.tar.gz
-        - LLVM a66376b0                      # llvm-a66376b0-ubuntu-x64.tgz
+        - TSM Runtime 5.6.3.1112             # Tsm_runtime_5.6.3.1112_x86_64_installer.run
+        - TSM Validation Suite 5.6.3.1112    # Tsm_validation_suite_5.6.3.1112_x86_64_installer.run
+        - TSM CCL 5.6.3.1112                 # Tsm_ccl_5.6.3.1112_x86_64_installer.run
+        - TSM Multimedia 5.6.3.1112          # Tsm_multimedia_5.6.3.1112_x86_64_installer.run
+        - TSM Profiler 5.6.3.1112            # Tsm_profiler_5.6.3.1112_x86_64_installer.run
+        - TX8 Compiler Dependencies 20261125 # tx8_depends_dev_20261125.tar.gz
+        - LLVM 23                            # llvm-23-ubuntu-x64.tgz

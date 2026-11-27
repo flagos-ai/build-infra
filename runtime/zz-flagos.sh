@@ -604,26 +604,21 @@ _compiler_import_triton() {
 }
 
 _compiler_set_llvm() {
-    # Point the backend's clang/lld at the tree that matches the active compiler.
+    # Point the backend's clang/lld at the DTK aillvm tree explicitly.
     # Both FlagTree's hcu backend and the vendor triton's amd/hcu path read
-    # TRITON_HIP_CLANG_PATH with the DTK aillvm as their default, and the two
-    # installed trees emit/parse different `make.buffer.rsrc` numRecords widths:
-    # the bare /opt/dtk-26.04 aillvm is i32 (for triton 3.5.1), the
-    # /opt/dtk-26.04-i64 one is i64 (for FlagTree >= 0.7.1a1). Only one compiler
-    # is active per container, so one variable is enough. Unset on any backend
-    # that installs no i64 tree, so a base without it keeps the vendor default.
-    local i64=/opt/dtk-26.04-i64/aillvm
+    # TRITON_HIP_CLANG_PATH with `<ROCM_PATH>/aillvm` as their default. The base
+    # ships one tree now, so both compilers get the same path -- flagtree >=
+    # 0.7.1a1 emits i64 make.buffer.rsrc and triton 3.6.0 passes clang-22-era
+    # flags, and both need this build rather than the older default. The export
+    # is guarded on the tree existing so a base without aillvm keeps the vendor
+    # default instead of pointing at nothing.
+    local llvm=/opt/dtk-26.04/aillvm
     case "$(basename "$1")" in
-        flagtree)
-            if [ -x "${i64}/bin/clang-18" ]; then
-                export TRITON_HIP_CLANG_PATH="${i64}/bin/clang-18"
-                export TRITON_HIP_LLD_PATH="${i64}/bin/ld.lld"
+        flagtree|triton)
+            if [ -x "${llvm}/bin/clang-18" ]; then
+                export TRITON_HIP_CLANG_PATH="${llvm}/bin/clang-18"
+                export TRITON_HIP_LLD_PATH="${llvm}/bin/ld.lld"
             fi
-            ;;
-        triton)
-            # Back to the vendor default: the bare aillvm tree, resolved by the
-            # backends themselves when the variable is unset.
-            unset TRITON_HIP_CLANG_PATH TRITON_HIP_LLD_PATH
             ;;
     esac
 }

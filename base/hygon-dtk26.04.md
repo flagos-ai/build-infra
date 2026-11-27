@@ -16,7 +16,7 @@
 Explicitly installed; the version is the one baked into this image:
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -69,7 +69,7 @@ Inside the container, confirm the accelerator is visible:
 hy-smi
 ```
 
-*Last updated: 2026-11-19 21:48:56 · `542bd046173a`*
+*Last updated: 2026-11-24 17:10:44 · `536a1efdfc3f`*
 
 ## Changelog
 
@@ -83,6 +83,14 @@ hy-smi
 - Non-interactive bash loads `vendor.sh` through `BASH_ENV`, so the old
   absolute `export` dropped the caller's entries before Python ever ran
   and broke imports that depended on them.
+
+*2026-11-24 14:37:16*
+
+- The aillvm tree is now the `dtk_llvm-1.0.0+dtk2604...5f9d5e` build, in
+  the SDK root in place of the bare `dtk_llvm.run`. Both compilers need it:
+  FlagTree 0.7.1a1 emits an i64 `make.buffer.rsrc` numRecords and triton
+  3.6.0 passes `-amdgpu-disable-backoff-barrier=false`, and the bare
+  tree's clang-18 rejects both.
 
 *2026-10-27 02:02:24*
 

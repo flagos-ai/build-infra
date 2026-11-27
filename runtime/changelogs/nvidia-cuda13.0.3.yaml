@@ -22,6 +22,16 @@ tags:
 - tag: 2.3.0
   entries:
   - reason: >-
+      flagcx moves to this line's own build, 0.14.1+cuda13.0.3: it is compiled
+      in this row's builder against the 2204 NCCL suite this CUDA minor ships,
+      where the 13.3 wheel had been borrowed. Nothing else about the image
+      changes.
+    reason_zh: |-
+      flagcx 换成本线自建的 0.14.1+cuda13.0.3：它在本行的 builder 中、针对本 CUDA
+      小版本对应的 2204 NCCL 套件编译，此前借用的是 13.3 的 wheel。镜像其余内容不变。
+    upstream_prs: []
+    date: '2026-11-25T12:47:45.054Z'
+  - reason: >-
       First delivery for this backend: the same torch 2.13 closure the cuda13.3
       line carries (torch 2.13.0+cu130, torchvision 0.28.0+cu130, torchaudio
       2.11.0+cu130, triton 3.7.1 on the T path) on a CUDA 13.0.3 base, so the

@@ -77,6 +77,19 @@ The `authorize` job checks the triggering account against
 so it exits 0 even when authorization later fails — read the run's job list,
 not the dispatch's exit code.
 
+**A builder image is built for one dependency set, and pins are not re-read at
+build time.** The flagcx wheel line does `FROM flagos-dev/flagcx-builder-<backend>:<ver>`
+and that image carries torch, setuptools_scm and Python.h from whenever it was
+published; the row's `TORCH_PIN` (derived from `configs.yaml` `deps:`) only
+became the argument for *building that image*, not for the wheel build that
+consumes it. So after a `configs.yaml` dependency bump (torch above all), the
+order is: rebuild the component's **builder** image (`flagcx-builder.yml` for
+flagcx, `push: true`) → then the wheel → then anything that installs the wheel.
+Dispatching the wheel first produces a wheel built against the *previous* torch
+and an `undefined symbol` ABI failure at install time, not at build time — the
+build is green and the artifact is wrong. The tell: `docker pull` in the wheel
+job reports `Image is up to date`.
+
 ### 3. Where the build happens is the line's business
 
 Some lines build inside the backend's runtime or builder image (needing the

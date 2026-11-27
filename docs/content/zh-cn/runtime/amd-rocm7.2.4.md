@@ -96,6 +96,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-27 02:10:24*
+
+为本镜像的环境新增 NVTE_GEMM_BACKEND=TRITON。hipBLASLt 在 gfx1100 上没有 bias 梯度融合的 wgrad kernel，因此 TransformerEngine 的默认 GEMM 后端会让 TransformerLayer 反向在 layernorm_linear.py 的 wgrad_gemm 处报 "Unable to find any suitable algorithms"；同一调用去掉 `bias` 则正常。 TE 自带的 Triton GEMM 后端不存在这个问题——有限差分 gradcheck 相对误差约 2e-06，且在本镜像默认的 flagtree 编译器与 /opt/triton 旁路安装下均可用。 烘焙进镜像，免去每个使用方各自设置。镜像其余内容不变。
+
 *2026-11-13 07:28:41*
 
 镜像带有该后端的 daily 线发布名，因此 `-e FLAGTREE_VERSION=latest` 可在其上解析：容器以 daily 索引上最新的 `flagtree-amd` wheel 启动，该版本领跑下一个 release。

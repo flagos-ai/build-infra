@@ -51,7 +51,10 @@ if [ "$MODE" = index ]; then
     : "${INDEX:?}" "${PIN:?}" "${EXPECT_SHA:?}"
     rm -rf /tmp/dl
     mkdir -p /tmp/dl
-    "$PY" -m pip download --no-deps --no-cache-dir --dest /tmp/dl --index-url "$INDEX" "$PIN"
+    # pip ignores an untrusted http index and reports the wheel as absent.
+    trusted=()
+    [[ "$INDEX" == http://* ]] && trusted=(--trusted-host "$(printf '%s' "$INDEX" | sed -e 's|^http://||' -e 's|[/:].*||')")
+    "$PY" -m pip download --no-deps --no-cache-dir --dest /tmp/dl ${trusted[@]+"${trusted[@]}"} --index-url "$INDEX" "$PIN"
     dl="$(ls -1 /tmp/dl)"
     [ "$(printf '%s\n' "$dl" | wc -l)" -eq 1 ] \
         || { echo "$INDEX: the pin resolved to $dl" >&2; exit 1; }
@@ -68,7 +71,7 @@ if [ "$MODE" = index ]; then
     got="$(sha256sum "/tmp/dl/$dl" | awk '{print $1}')"
     [ "$got" = "$EXPECT_SHA" ] \
         || { echo "$INDEX: serves $got, this build is $EXPECT_SHA" >&2; exit 1; }
-    "$PY" -m pip install --no-deps --no-cache-dir --index-url "$INDEX" "$PIN"
+    "$PY" -m pip install --no-deps --no-cache-dir ${trusted[@]+"${trusted[@]}"} --index-url "$INDEX" "$PIN"
     SOURCE="$INDEX"
 else
     # --no-index: nothing may come from a network, so a pass says the wheel is

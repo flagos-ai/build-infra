@@ -239,7 +239,12 @@ jobs:
           fi
           if [[ -n "${PYPI_REPO}" ]]; then
             repos="${PYPI_REPO}"
-          else
+          elif [[ "${BACKEND}" == "all" ]]; then
+            # Only the fan-out needs this: naming one backend IS the choice of
+            # its index, and dropping it here would leave the list empty (a
+            # native-only backend such as hygon has nothing else to fan out to),
+            # so the upload loop would never run and the wheel-info manifest
+            # would never be written.
             filtered=""
             for repo in ${repos}; do
               keep=1

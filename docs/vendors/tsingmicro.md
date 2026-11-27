@@ -1,7 +1,7 @@
 # tsingmicro（清微）
 
-backend key：`tsingmicro-tsm260610`。芯片 TX8110（一节点 32 芯片），SDK 叫
-TSM Runtime。python 3.10，torch 是 `torch-txda`（PrivateUse1）。
+backend key：`tsingmicro-tsm5.6.3`。芯片 TX8110（一节点 32 芯片），SDK 叫
+TSM Runtime。python 3.12，torch 是 `torch-txda`（PrivateUse1）。
 
 ## 平台与设备
 

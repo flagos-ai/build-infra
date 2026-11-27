@@ -38,7 +38,7 @@ title: "hygon-dtk26.04"
 显式安装；此处版本即为该镜像中实际打包的版本：
 
 - `build-essential` — 12.10ubuntu1
-- `ca-certificates` — 20260816ubuntu0.24.04.1
+- `ca-certificates` — 20260816ubuntu0.24.04.2
 - `cmake` — 3.28.3
 - `curl` — 8.5.0
 - `g++` — 13.2.0
@@ -91,7 +91,7 @@ docker run --rm -it \
 hy-smi
 ```
 
-*更新时间: 2026-11-19 21:48:56 · `542bd046173a`*
+*更新时间: 2026-11-24 17:10:44 · `536a1efdfc3f`*
 
 ## 更新日志
 
@@ -103,6 +103,13 @@ hy-smi
   容器启动时传入的路径全部保留（#1866）。
 - 非交互 bash 通过 `BASH_ENV` 加载 `vendor.sh`，旧的绝对 `export` 会在
   Python 运行前就丢掉调用方的条目，导致依赖它们的 import 失败。
+
+*2026-11-24 14:37:16*
+
+- aillvm 树改为 `dtk_llvm-1.0.0+dtk2604...5f9d5e` 构建，装进 SDK 根以取代裸
+  `dtk_llvm.run`。两个编译器都需要它：FlagTree 0.7.1a1 发出 i64
+  `make.buffer.rsrc` numRecords，triton 3.6.0 传入
+  `-amdgpu-disable-backoff-barrier=false`，裸树的 clang-18 两者都拒绝。
 
 *2026-10-27 02:02:24*
 

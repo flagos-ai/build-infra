@@ -58,6 +58,46 @@ Radeon PRO W7900），宿主机驱动 6.16.13。
 - DKMS 内核驱动**故意不装**（设备由宿主提供）；`amdgpu-core` 在 graphics repo 而不是
   rocm repo。
 
+## TransformerEngine（amd 原生，自己编）
+
+公域没有能给 gfx1100 用的 TE 包，所以要自己编（`packaging/transformer-engine-amd/`，
+wheel 发布线 `.github/workflows/transformer-engine-amd-wheel.yml`）。查过的三条路都堵：
+
+- `repo.radeon.com/rocm/manylinux/rocm-rel-*/` 上的 `transformer_engine_rocm` 只含
+  **CDNA**（`.hip_fatbin` 里 142 处 gfx942/gfx950），gfx1100 上跑必报
+  `no kernel image is available for execution on the device`。
+- `rocm.frameworks-devreleases.amd.com/whl/` 确实按 gfx 分目录
+  （`gfx110X-all` 等），但**没有 TE**——`gfx110X-all` 里只有 flash_attn 和 vllm dev。
+- `pypi.org` 上 32 个 `transformer_engine` 条目全是 `py3-none-any` 前端包，无 ROCm 二进制。
+
+两条**运行期**的硬边界，踩过一次就会浪费一天：
+
+- **必须设 `NVTE_GEMM_BACKEND=TRITON`。** hipBLASLt 在 gfx1100 上**没有 bias 梯度融合的
+  wgrad kernel**：`TransformerLayer` 反向时 `layernorm_linear.py` 的 `wgrad_gemm` 走到
+  `general_gemm(..., bias=<768>, grad=True)` 直接报 `Unable to find any suitable
+  algorithms`。同一调用去掉 `bias` 就正常。Triton 后端是 TE 自己的 GEMM 实现，
+  有限差分 gradcheck 相对误差 ~2e-06。
+- **FP8 / MXFP8 不可用，且不可修。** RDNA3 没有 FP8 矩阵核：
+  `torch._scaled_mm` 报 "only supported on ... ROCm MI300+"，TE 的
+  `_compute_fp8_support()` 也只认 `(9,4)`、`(9,5)`、`(12,5)`（CDNA3/4）。**不要去改
+  TE 那段架构判断**——那只是把断言错误换成运行期错误或错数：硬件没有这个能力，
+  放行不等于能跑。构建门禁因此只断言「这份 TE 仍报告 gfx1100 不支持 FP8」，
+  硬件结论以本节为准。
+
+两个**构建期**的坑（都是源码编 TE 时踩到的）：
+
+- TE 的 `transformer_engine/common/aotriton/CMakeLists.txt` **硬编码**
+  `-DAOTRITON_NOIMAGE_MODE=ON`，所以 `USE_FUSED_ATTN_AOTRITON_BUILD_GPU_KERNELS=ON`
+  根本不会生成镜像；而下载列表（`amd-gfx942`/`amd-gfx950`，sha256 钉死）也匹配不到
+  gfx1100。结果是轮子里没有 `aotriton.images/`，融合注意力运行期报
+  `hipErrorInvalidValue`。**必须单独编一次 AOTriton**（`AOTRITON_TARGET_ARCH=gfx1100_mod0`，
+  注意 `_mod0` 后缀），再把 `aotriton.images/` 塞进 `transformer_engine/lib/` 重新打包。
+- **AOTriton 用 `/opt/triton`，且要补一个 dist-info。** 加
+  `AOTRITON_INHERIT_SYSTEM_SITE_TRITON=ON` 免得它自己编一份 triton（那一步在容器里能空转
+  一小时）。但 `write_image_signature.py` 调 `importlib.metadata.version("triton")`，而
+  `/opt/triton` 的包名是 **`triton-rocm`** → `PackageNotFoundError`。要写一个 Name 为
+  `triton` 的 dist-info 别名指向同一棵树，并设 `PYTHONPATH=/opt/triton`。
+
 ## 指针
 
 - base / runtime 页（含 Launch 段）：`base/amd-rocm7.2.4.md`、`runtime/amd-rocm7.2.4.md`

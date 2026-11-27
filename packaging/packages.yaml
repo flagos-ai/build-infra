@@ -606,6 +606,15 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: flagcx==0.14.1+cuda13.0.3
+    pypi_index: flagos-pypi-nvidia
+    desc_zh: 面向通用 GPU 环境 13.0.3 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for Generic GPU 13.0.3.
+    notes: 适用于 Ubuntu 22.04 及以上版本；链接 CUDA 13.0 线的 NCCL。
+    notes_en: For Ubuntu 22.04 and newer; links the CUDA 13.0 line's NCCL.
+    python: cp312
+    os: linux
+    arch: linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
@@ -857,6 +866,33 @@ wheels:
     python: py3
     os: any
     arch: any
+  - version: 0.5.0.dev0+g4856534.d20261125.dtk26.4
+    pypi_index: flagos-pypi-hygon
+    desc_zh: 面向 vLLM 0.32.0 线的 FlagOS 插件安装包，取自 vllm-plugin-FL 0.5.0-dev 分支 4856534，为海光
+      DTK 26.04 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel built from vllm-plugin-FL 0.5.0-dev (4856534) for
+      the vLLM 0.32.0 line, extending vLLM operators and serving on Hygon DTK 26.04.
+    notes: 内置原生 vllm_fl._C 扩展，为 CUDA 图捕获提供真正弱引用，避免纯 Python 回退导致的显存泄漏； vLLM 0.32.0
+      线必须与 flaggems_vllm 同时安装。
+    notes_en: Ships the native vllm_fl._C extension — a genuine weak reference for
+      CUDA graph capture, avoiding the VRAM leak of the pure-Python fallback; on the
+      vLLM 0.32.0 line it must be installed together with flaggems_vllm.
+    python: cp310
+    os: linux
+    arch: linux_x86_64
+  - version: 0.5.0.dev0+g4856534.d20261125
+    pypi_index: flagos-pypi-hygon
+    desc_zh: 面向 vLLM 0.32.0 线的 FlagOS 插件安装包，取自 vllm-plugin-FL 0.5.0-dev 分支 4856534，为海光
+      DTK 26.04 后端推理补齐 vLLM 算子与服务能力。
+    desc_en: FlagOS plugin wheel built from vllm-plugin-FL 0.5.0-dev (4856534) for
+      the vLLM 0.32.0 line, extending vLLM operators and serving on Hygon DTK 26.04.
+    notes: 纯 Python 安装包；vLLM 0.32.0 线必须与 flaggems_vllm 同时安装。海光后端应优先使用同版本的 原生 wheel（0.5.0.dev0+g4856534.d20261125.dtk26.4）。
+    notes_en: Pure-Python wheel; on the vLLM 0.32.0 line it must be installed together
+      with flaggems_vllm. The Hygon backend should prefer the native wheel of the
+      same version (0.5.0.dev0+g4856534.d20261125.dtk26.4).
+    python: py3
+    os: any
+    arch: any
 - name: megatron-core
   short_name: Megatron-LM-FL
   versions:
@@ -928,26 +964,6 @@ wheels:
     notes: 每 Python 版本一个安装包（cp310/cp311/cp312），支持 aarch64 与 x86_64。
     notes_en: One wheel per Python version (cp310/cp311/cp312), for aarch64 and x86_64.
     python: cp310
-    os: linux
-    arch: linux_x86_64
-  - version: 0.18.2+0.3.0
-    pypi_index: flagos-pypi-hosted
-    desc_zh: Megatron-LM-FL 的 megatron-core 安装包，用于大模型预训练、微调与 RL 训练。
-    desc_en: megatron-core wheel from Megatron-LM-FL for pretraining, fine-tuning
-      and RL training of large models.
-    notes: 每 Python 版本一个安装包（cp310/cp311/cp312），支持 aarch64 与 x86_64。
-    notes_en: One wheel per Python version (cp310/cp311/cp312), for aarch64 and x86_64.
-    python: cp310
-    os: linux
-    arch: linux_aarch64
-  - version: 0.18.2+0.3.0
-    pypi_index: flagos-pypi-hosted
-    desc_zh: Megatron-LM-FL 的 megatron-core 安装包，用于大模型预训练、微调与 RL 训练。
-    desc_en: megatron-core wheel from Megatron-LM-FL for pretraining, fine-tuning
-      and RL training of large models.
-    notes: 每 Python 版本一个安装包（cp310/cp311/cp312），支持 aarch64 与 x86_64。
-    notes_en: One wheel per Python version (cp310/cp311/cp312), for aarch64 and x86_64.
-    python: cp311
     os: linux
     arch: linux_x86_64
   - version: 0.18.2+0.3.0
@@ -1191,6 +1207,27 @@ wheels:
     python: py3
     os: any
     arch: any
+  - version: 2.19.0+5035366
+    pypi_index:
+    - flagos-pypi-amd
+    desc_zh: AMD ROCm 原生编译的 TransformerEngine，仅面向 gfx1100（RDNA3，Radeon PRO W7900）。
+    desc_en: Source-built native TransformerEngine for gfx1100 (RDNA3, Radeon PRO
+      W7900) on AMD ROCm.
+    notes: 与上面那条 TE-FL 派发层不同，这个是 amd 原生的 TransformerEngine 本体。由 ROCm/TransformerEngine
+      的 v2.19_rocm 源码编译，只含 gfx1100 kernel；AOTriton 融合注意力镜像也是源码编出来的（ROCm 只发布 gfx942/gfx950
+      预编镜像）。运行时必须设 NVTE_GEMM_BACKEND=TRITON——hipBLASLt 在 gfx1100 上缺 bias 梯度融合的 wgrad kernel，默认后端反向会失败。
+      FP8/MXFP8 不可用，RDNA3 没有 FP8 矩阵核。本地标签 +5035366 是上游 commit 前缀。
+    notes_en: "This is amd-native TransformerEngine proper, not the TE-FL dispatch
+      layer pinned on the previous entry. Source-built from ROCm/TransformerEngine
+      v2.19_rocm with gfx1100 kernels only; the AOTriton fused-attention images are
+      built from source too (ROCm publishes prebuilt images for gfx942/gfx950 only).
+      Set NVTE_GEMM_BACKEND=TRITON at runtime — hipBLASLt has no bias-gradient-fused
+      wgrad kernel for gfx1100, so the default backend fails backward. FP8/MXFP8 are
+      unavailable — RDNA3 has no FP8 matrix core. The +5035366 local segment is the
+      upstream commit prefix."
+    python: cp312
+    os: linux
+    arch: linux_x86_64
 sources:
 - name: flagtree
   short_name: FlagTree

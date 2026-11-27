@@ -29,6 +29,7 @@ scenarios:
       ascend-cann9.2.1:      {T: "⬜", F: "⬜"}
       iluvatar-corex5.0.1:   {T: "⬜", F: "⬜"}
       thead-ppu2.1.0:        {T: "⬜", F: "—"}
+      hygon-dtk26.04:        {T: "⬜", F: "⬜"}
 
 backends:
   nvidia-cuda13.3:
@@ -50,3 +51,7 @@ backends:
     deps_app: true
     launch_docs: true
     image_tag: "2.3.0-0.5.0.dev0_g814b6d3.d20261117"
+  hygon-dtk26.04:
+    deps_app: true
+    launch_docs: true
+    image_tag: "2.3.0-0.5.0.dev0_g4856534.d20261125"

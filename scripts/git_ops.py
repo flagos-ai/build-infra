@@ -75,13 +75,27 @@ def configure_git_identity() -> None:
     _git("config", "user.email", "noreply@flagos.net", check=False)
 
 
-def layer_record_branch(layer: str, label: str) -> str:
-    """The one branch a layer's record for ``label`` lands on.
+def _run_suffix() -> str:
+    """The current workflow run's short id, or "" outside Actions.
 
-    The record step and the version refresh rewrite the same pages, so they
-    share it: one tag, one PR (#1570). Deleted on merge.
+    A record branch is per *run*, not per workflow: several dispatches of the
+    same workflow (one per backend) run concurrently and each rewrites the same
+    catalog/page files. Sharing one branch made every run after the first lose
+    its rebase to a text conflict on the very block it was adding to, so its
+    record was dropped (#2007). Separate branches make the runs independent; the
+    PRs are still one-per-run and human-merged.
     """
-    return f"auto/{layer}-changelog-{label}"
+    run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
+    return f"-{run_id}" if run_id else ""
+
+
+def layer_record_branch(layer: str, label: str) -> str:
+    """The branch a layer's record for ``label`` lands on, within one run.
+
+    The record step and the version refresh of the same run rewrite the same
+    pages, so they share it: one tag, one PR (#1570). Deleted on merge.
+    """
+    return f"auto/{layer}-changelog-{label}{_run_suffix()}"
 
 
 def sync_to_record_branch(layer: str, label: str) -> str:
@@ -112,6 +126,11 @@ def push_record_branch(branch: str, commit_msg: str, attempts: int = 5) -> None:
     One dispatch records several artifacts onto one branch, so a push can lose
     the race; the loser re-probes and retries. Bounded, because a conflict that
     survives a rebase is not a race.
+
+    Concurrent dispatches of the same workflow are a different matter: they are
+    kept apart by the per-run branch suffix (see `_run_suffix`), so a rebase
+    conflict here means this run's own record already landed, not that another
+    backend's did.
     """
     configure_git_identity()
     _git("checkout", "-B", branch, check=False)

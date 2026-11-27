@@ -180,8 +180,8 @@ jobs:
             exit 1
           fi
           pypi_repo="${{ inputs.pypi_repo }}"
-          # Blank input -> per-vendor flagos-pypi-{vendor}: the app image
-          # installs from the same vendor index. Explicit value wins.
+          # Blank input -> this backend's vendor index, plus hosted when it
+          # represents its (python, arch) pair. Explicit value overrides both.
           if [ -z "${pypi_repo}" ]; then
             # `${{ matrix.name }}` cannot be substituted inside a bash
             # parameter-expansion expression — ${matrix.name%%-*} reaches bash
@@ -189,10 +189,9 @@ jobs:
             # var first (same fix as sglang-wheel.yml:133-135).
             matrix_name="${{ matrix.name }}"
             vendor="${matrix_name%%-*}"
-            if [ -n "${vendor}" ]; then
-              pypi_repo="flagos-pypi-${vendor}"
-            else
-              pypi_repo="flagos-pypi-hosted"
+            pypi_repo="flagos-pypi-${vendor}"
+            if [ "${{ matrix.hosted_publisher }}" = "true" ]; then
+              pypi_repo="${pypi_repo} flagos-pypi-hosted"
             fi
           fi
           # Upload FROM INSIDE the build image, not the runner host: the wheel
@@ -222,10 +221,15 @@ jobs:
               /flagos/bin/pip install --quiet --index-url "${EXTRA_PYPI}" --upgrade twine pkginfo
               export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
               export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
-              /flagos/bin/twine upload \
-                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
-                --non-interactive \
-                /wheels/*.whl
+              # pypi_repo holds one repo, or two for a hosted publisher; twine
+              # takes one per upload. Nexus has redeploy on, so a re-run
+              # replaces rather than failing.
+              for repo in ${pypi_repo}; do
+                /flagos/bin/twine upload \
+                  --repository-url "https://resource.flagos.net/repository/${repo}/" \
+                  --non-interactive \
+                  /wheels/*.whl
+              done
             '
 
       # The catalog version is not the wheel's: a provenance build carries
@@ -234,6 +238,9 @@ jobs:
       # is what stamps it — the build cannot derive a branch version). A
       # provenance build is therefore not a catalog version and records
       # nothing; a release publish states mlf_version and records.
+      #
+      # Records flagos-pypi-hosted, never the vendor index: pypi_index renders
+      # one public download link, and a vendor index is internal distribution.
       - name: Record the publish event in the manifest
         if: ${{ inputs.upload }}
         run: |
@@ -249,21 +256,16 @@ jobs:
             echo "    (its version carries +fl.<date>.g<sha>, which names no release)"
             exit 0
           fi
-          # Same derivation as the upload step's (that one's shell does not
-          # survive into this step).
-          pypi_repo="${{ inputs.pypi_repo }}"
-          if [ -z "${pypi_repo}" ]; then
-            matrix_name="${{ matrix.name }}"
-            vendor="${matrix_name%%-*}"
-            if [ -n "${vendor}" ]; then
-              pypi_repo="flagos-pypi-${vendor}"
-            else
-              pypi_repo="flagos-pypi-hosted"
-            fi
+          # "true" on the one backend representing this wheel's (python, arch)
+          # pair (scripts/generate_matrix.py); empty everywhere else.
+          if [ "${{ matrix.hosted_publisher }}" != "true" ]; then
+            echo ">>> ${{ matrix.name }} is not the hosted publisher for its python/arch —"
+            echo "    the copy it pushed went to a vendor index only, so there is nothing to record"
+            exit 0
           fi
           for w in packaging/megatron/builder/wheels/*.whl; do
             printf '%s\t%s\t%s\t%s\n' "megatron-core" "${catalog_version}" \
-              "${pypi_repo}" "$(basename "$w")" >> .wheel-info/manifest.tsv
+              "flagos-pypi-hosted" "$(basename "$w")" >> .wheel-info/manifest.tsv
           done
 
       - name: Upload the wheel-info manifest

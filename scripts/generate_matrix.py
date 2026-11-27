@@ -60,6 +60,10 @@ from app_public import public_name
 from backend_enabled import frozen_backends
 from build_base import nexus_overrides, rewrite_host
 
+# Vendors whose runtime images are built for aarch64 (docs/vendors/<vendor>.md
+# records each one's CANN package tags). Everything else is x86_64.
+AARCH64_VENDORS = frozenset({"ascend"})
+
 
 def find_repo_root() -> Path:
     d = Path(__file__).resolve().parent.parent
@@ -97,6 +101,66 @@ def deps_app_keys_for(configs: dict, name: str) -> dict:
     """Return the backend's deps_app dict (app key -> vendor packages)."""
     vendor, backend = name.split("-", 1)
     return (configs["vendors"][vendor][backend].get("deps_app") or {})
+
+
+def _megatron_hosted_publishers(configs: dict, repo_root: Path) -> dict:
+    """{(python, arch): backend} — the one backend that publishes to hosted.
+
+    A megatron wheel is ABI-bound to a CPython minor version and a CPU arch,
+    not to a vendor's torch, so one build serves every backend on that pair.
+    The vendor indexes each get their own copy (app images and CI install from
+    there), but flagos-pypi-hosted — the index the catalog and the site point
+    users at — gets exactly one, or the copies would overwrite each other
+    under the same filename.
+
+    Declared in configs.yaml ``wheel_hosted_publishers:`` rather than derived:
+    which pair a backend produces depends on the machine it runs on, which
+    configs.yaml does not record, and picking "the first in the list" would
+    make the published bytes depend on backend ordering.
+    """
+    return {
+        (str(py), str(arch)): name
+        for py, by_arch in (configs.get("wheel_hosted_publishers") or {}).items()
+        for arch, name in (by_arch or {}).items()
+    }
+
+
+def _backend_arch(configs: dict, name: str) -> str:
+    """The CPU arch a backend's runtime image is built for.
+
+    configs.yaml carries no arch field, so the aarch64 vendors are named here
+    and everything else is x86_64 — the default every build matrix has always
+    assumed. docs/vendors/<vendor>.md is the fact page for each one.
+    """
+    vendor = name.split("-", 1)[0]
+    return "aarch64" if vendor in AARCH64_VENDORS else "x86_64"
+
+
+def _verify_hosted_publishers(configs: dict, publishers: dict) -> None:
+    """Fail the matrix if wheel_hosted_publishers contradicts the backend.
+
+    The (python, arch) key a publisher is declared under is what its build will
+    actually produce, because the wheel is named from the runtime image it is
+    built in. A declaration naming the wrong python or arch would attach the
+    hosted flag to a backend that publishes a different wheel — silently, since
+    a wrong-but-present entry still reads as "true" at upload time.
+    """
+    for (py, arch), name in publishers.items():
+        try:
+            vendor, backend = name.split("-", 1)
+            info = configs["vendors"][vendor][backend]
+        except (ValueError, KeyError):
+            sys.exit(
+                f"Error: wheel_hosted_publishers names '{name}' under "
+                f"{py}/{arch}, but that is not a backend in configs.yaml"
+            )
+        actual_py = str(info.get("python", "3.12"))
+        actual_arch = _backend_arch(configs, name)
+        if (actual_py, actual_arch) != (py, arch):
+            sys.exit(
+                f"Error: wheel_hosted_publishers puts '{name}' under "
+                f"{py}/{arch}, but it builds {actual_py}/{actual_arch}"
+            )
 
 
 def _registry(repo_root: Path) -> tuple[str, dict]:
@@ -160,6 +224,8 @@ def _runtime_matrix(
     stack_version = configs.get("version", "latest")
     mirror = configs.get("mirror", "https://mirrors.aliyun.com/pypi/simple")
     flaggems_ver = configs.get("flaggems", "")
+    hosted_publishers = _megatron_hosted_publishers(configs, repo_root)
+    _verify_hosted_publishers(configs, hosted_publishers)
 
     include = []
     for name in selected:
@@ -253,6 +319,13 @@ def _runtime_matrix(
             ) if isinstance(backend_info.get("triton_post_install"), list) else "",
             "runtime_env": runtime_env_lines,
             "vllm_vendor": vllm_vendor,
+            # "true" on the one backend that represents this wheel's
+            # (python, arch) pair; "" everywhere else. megatron-wheel.yml pushes
+            # to flagos-pypi-hosted only where this is set — see
+            # _megatron_hosted_publishers.
+            "hosted_publisher": "true" if hosted_publishers.get(
+                (backend_info.get("python", "3.12"), _backend_arch(configs, name))
+            ) == name else "",
         }
         # App build matrix = runtime fields + app env + app deps; --runtime
         # keeps no app_env/app_deps keys so runtime-image.yml output is unchanged.

@@ -201,7 +201,12 @@ nvidia-cuda12.8:
   # DEVICE_LINK is `-lcudart -lcuda`: -lcuda is the driver, whose stub ships in
   # lib64/stubs and is on no -L the Makefile passes — cuda-nvcc brings the file
   # but not the path, so LIBRARY_PATH is what puts it there.
-  apt: [cuda-nvcc-12-8, libnccl-dev=2.25.1-1+cuda12.8]
+  # libnccl2 is pinned too, though only the header is needed to compile: the
+  # wheel channel builds on a bare ubuntu:22.04 builder that carries no NCCL at
+  # all, and the Containerfile only extracts the lib .deb when the row names one
+  # — unpinned, the builder reached its `test -e libnccl.so.2` and stopped.
+  # The NGC base the deb and rpm channels use already holds this exact version.
+  apt: [cuda-nvcc-12-8, libnccl-dev=2.25.1-1+cuda12.8, libnccl2=2.25.1-1+cuda12.8]
   make_env:
     DEVICE_HOME: /usr/local/cuda
     CCL_HOME: /usr
@@ -239,6 +244,11 @@ nvidia-cuda12.8:
   builder:
     enabled: true
     containerfile: Containerfile.builder-nvidia
+    # The 2204 suite, not the 2404 default: NVIDIA builds each NCCL version per
+    # suite and the 2404 one links GLIBC_2.38, which this ubuntu:22.04 builder
+    # cannot load — verification failed on exactly that (`libnccl.so.2 requires
+    # GLIBC_2.38`). The 2204 build stops at 2.34.
+    nccl_repo: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64
     extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8]
   # This row's .so is built against NCCL 2.25, so its .bc takes the same Default
   # branch — the two have to agree, and nothing in the bitcode Makefile reads
@@ -286,15 +296,25 @@ nvidia-cuda13.0.3:
   make_flag: USE_NVIDIA
   arch: amd64
   glibc_floor: "2.39"
-  # Off every channel for now: the runtime line borrows `flagcx==0.14.1+cuda13.3`
-  # (the wheel carrying a libflagcx.so linked against libcudart.so.13) and no
-  # FlagCX artifact has been built or verified on this base. Turning the wheel
-  # on is a build on this row's own toolchain, not a copy of the 13.3 one — the
-  # same rule that made 13.3 rebuild against its torch headers. Stated here
-  # because --check reads a runtime-matrix row with no packaging entry as drift.
+  # deb off: no package has been built on this base. The wheel is on — it is
+  # compiled here, on this row's own toolchain, not copied from 13.3.
+  # Both pins: the builder is FROM ubuntu:22.04, not from this base, so neither
+  # the header nor the library is there to borrow. 2.28.9 is the newest NCCL
+  # NVIDIA publishes for +cuda13.0, which is this line's CUDA minor — and it
+  # comes from the 2204 suite, whose build stops at GLIBC_2.34, not the 2404
+  # one's 2.38.
+  apt: [cuda-nvcc-13-0, libnccl-dev=2.28.9-1+cuda13.0, libnccl2=2.28.9-1+cuda13.0]
+  assert: [/usr/local/cuda/include/cuda_runtime.h, /usr/include/nccl.h]
   deb: {enabled: false, default_for_vendor: false}
-  wheel: {enabled: false}
-
+  wheel: {enabled: true, torch_backend: vendor}
+  # Same recipe as the 13.3 row at this line's own CUDA minor. cccl is not
+  # numbered by CUDA minor — the apt repo carries cccl-13-3 and up, so it is
+  # the one this base's NCCL (2.28) needs, not a -13-0 that does not exist.
+  builder:
+    enabled: true
+    containerfile: Containerfile.builder-nvidia
+    nccl_repo: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64
+    extra_apt: [libcurand-dev-13-0, cccl-13-3, libcublas-dev-13-0, libcusparse-dev-13-0, libcusolver-dev-13-0, libcufft-dev-13-0]
 
 metax-maca3.10.1.11:
   vendor: metax
@@ -820,7 +840,13 @@ sunrise-tangrt1.2.0:
     containerfile: Containerfile.builder-sunrise
     sdk_version: "v1.2.0"
 
-tsingmicro-tsm260610:
+# Not migrated to TSM 5.6.3.1112 yet: Containerfile.builder-tsingmicro still
+# installs the 260610 SDK and torch 2.11, while the 5.6.3 runtime is py3.12 /
+# torch 2.13. The row keeps its key in step with the runtime matrix so the
+# registry and the matrix name the same backend, but its channels stay off
+# until the builder moves (the runtime's flagcx==0.14.1+tsm5.6.3 pin keeps the
+# wheel already published).
+tsingmicro-tsm5.6.3:
   vendor: tsm
   make_flag: USE_TSM
   arch: amd64
@@ -831,16 +857,16 @@ tsingmicro-tsm260610:
   vendor_libs: [tccl, hpgr]
   assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
   vendor_lib_dirs: [/usr/local/kuiper/lib]
-  deb: {enabled: true, default_for_vendor: true}
+  deb: {enabled: false, default_for_vendor: true}
   # The SDK is a tarball and portable; the one .deb the image installs is
   # libfmt8, and openEuler 24.03's own fmt-8.1.1 provides the same
   # libfmt.so.8 soname, so that row needs no .deb at all. Checked 2026-10-17:
   # fedora 43 ships fmt 11 (libfmt.so.11, a different soname) and el9 has no
   # fmt in its base repositories, so oe2403 is the suite this builds for.
-  rpm: {enabled: true, sdk: filestore, suites: [openeuler24.03]}
-  wheel: {enabled: true}
+  rpm: {enabled: false, sdk: filestore, suites: [openeuler24.03], blocked_by: sdk-line-not-migrated}
+  wheel: {enabled: false}
   builder:
-    enabled: true
+    enabled: false
     containerfile: Containerfile.builder-tsingmicro
     sdk_version: "260610164501"
 

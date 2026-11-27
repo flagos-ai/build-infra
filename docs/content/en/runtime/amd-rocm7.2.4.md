@@ -96,6 +96,10 @@ rocm-smi
 
 ### 2.3.0
 
+*2026-11-27 02:10:24*
+
+Adds NVTE_GEMM_BACKEND=TRITON to this image's environment. hipBLASLt has no bias-gradient-fused wgrad kernel on gfx1100, so TransformerEngine's default GEMM backend makes a TransformerLayer backward fail with "Unable to find any suitable algorithms" in layernorm_linear.py's wgrad_gemm; the same call without `bias` is fine. TE's Triton GEMM backend is its own implementation and clears it -- finite-difference gradcheck puts the relative error at ~2e-06, and it works under this image's default flagtree compiler as well as the /opt/triton side install. Baked in here so consumers do not each have to set it. Nothing else about the image changes.
+
 *2026-11-13 07:28:41*
 
 The image carries this backend's daily-line distribution name, so `-e FLAGTREE_VERSION=latest` resolves on it: the container starts on the newest `flagtree-amd` wheel from the daily index, which leads the next release.

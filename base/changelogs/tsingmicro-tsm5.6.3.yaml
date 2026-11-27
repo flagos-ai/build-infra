@@ -13,23 +13,32 @@
 # limitations under the License.
 #
 # Per-image changelog; schema and rules: docs/changelog.md.
-# Written retrospectively: the deliveries recorded here predate this layer
-# having a changelog, so their dates are the registry's own push_time, read
-# back from Harbor rather than backfilled by a workflow.
+# The entries below 2.3.0 were written retrospectively, under the backend's
+# previous key (tsingmicro-tsm260610): they predate this layer having a
+# changelog, so their dates are the registry's own push_time, read back from
+# Harbor rather than backfilled by a workflow. They are kept because the
+# registry no longer holds those tags and this file is their only trace.
 # `reason` is written in English and Chinese (`reason_zh`); both are
-# required on a new entry and both are published beside the image. The
-# entries recorded here predate the field, so their `reason_zh` was
-# translated afterwards rather than written with the entry.
+# required on a new entry and both are published beside the image.
 
-image: flagos-base-tsingmicro-tsm260610
+image: flagos-base-tsingmicro-tsm5.6.3
 tags:
 - tag: 2.3.0
   entries:
-  - date: '2026-10-14T05:50:35.077Z'
+  - date: '2026-11-26T12:17:38.009Z'
     reason: |-
-      - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
+      - The SDK line moves to TSM 5.6.3.1112, which is a different interpreter
+        and a different torch: python 3.12 (was 3.10) and torch 2.13.0 (was
+        2.11.0). The backend key moves with it — this image is
+        `flagos-base-tsingmicro-tsm5.6.3`, and the 260610164501 line is not
+        rebuilt.
+      - `Tsm_multimedia` joins the installed SDK packages, alongside the
+        runtime, validation suite, CCL and profiler.
+      - The TX8 compiler dependencies are the 20261125 set and LLVM is 23.
     reason_zh: |-
-      - 仅为携带新的全栈 tag 而重建；本层无任何改动。
+      - SDK 线升级到 TSM 5.6.3.1112，解释器与 torch 都换了：python 3.12（原 3.10），torch 2.13.0（原 2.11.0）。backend key 随之改变——本镜像为 `flagos-base-tsingmicro-tsm5.6.3`，260610164501 那条线不再重建。
+      - 安装的 SDK 包新增 `Tsm_multimedia`，与 runtime、validation suite、CCL、profiler 并列。
+      - TX8 编译器依赖为 20261125 版本，LLVM 为 23。
     upstream_prs: []
 - tag: 2.2.0
   entries:

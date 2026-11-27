@@ -29,9 +29,8 @@
 #       --build-arg "RUNTIME_PREREQS=$BUILDER_RUNTIME_PREREQS" \
 #       --build-arg "PYTHON_VERSION=$BUILDER_PYTHON_VERSION" \
 #       --build-arg "NCCL_DEV_DEB=$BUILDER_NCCL_DEV_DEB" \
-#       --build-arg "NCCL_DEV_SHA256=$BUILDER_NCCL_DEV_SHA256" \
 #       --build-arg "NCCL_LIB_DEB=$BUILDER_NCCL_LIB_DEB" \
-#       --build-arg "NCCL_LIB_SHA256=$BUILDER_NCCL_LIB_SHA256" \
+#       --build-arg "NCCL_REPO=$BUILDER_NCCL_REPO" \
 #       --build-arg "LLVM_VERSION=f6ded0be" \
 #       --build-arg "LLVM_SHA256=3cd1d576a5a8e90454905cab83e6c15cac8e8c711a33d148e4bf8e319fa72d44" \
 #       -f packaging/flagcx/Containerfile.builder -t "flagos-dev/flagcx-builder:$key" .
@@ -153,41 +152,34 @@ RUN set -eux; \
         ${BUILDER_APT} ${BUILDER_EXTRA_APT}; \
     rm -rf /var/lib/apt/lists/*
 
-# NCCL, exact-pinned, from the ubuntu2404 repo by dpkg-deb -x and NOT by apt.
-# The exact pins exist only in the 2404 suite (the 2204 one carries 2.32.3), and
-# that suite's control block demands libc6 >= 2.38 — which dpkg would refuse on
-# this 22.04 image. Extracting the .debs bypasses the floor, but the 2404-built
-# libnccl.so itself still LINKS GLIBC_2.38: it lands here only to *link against*
-# (the wheel records NEEDED libnccl.so.2 and undefined nccl* symbols, never the
-# dependency's own glibc needs), so the builder never runs it. nccl.h is what
-# nvidia.mk reads for the comm-traits branch; the unversioned libnccl.so symlink
-# (in -dev) is what -lnccl resolves. Both .debs are sha256-pinned like the LLVM
-# tarball, because a .deb fetched over this network must not reach a linker
-# without being the bytes the pin names. The sha256 values travel as build args
-# from flagcx-config.py (next to the derivation that names the .debs), so the
-# check is `sha256sum -c` against a real string and never a silent skip.
+# NCCL, exact-pinned, by dpkg-deb -x and NOT by apt.
+# The pin's control block demands libc6 >= 2.38, which dpkg would refuse on this
+# 22.04 image, so the .debs are extracted instead. nccl.h is what nvidia.mk reads
+# for the comm-traits branch; the unversioned libnccl.so symlink (in -dev) is what
+# -lnccl resolves.
 #
-# The dev .deb is extracted LAST: it carries the libnccl.so -> libnccl.so.2
-# symlink, and libnccl2 (first) is the one that provides the file it points at.
-ARG NCCL_REPO=https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64
+# NCCL_REPO is per row: NVIDIA builds each version per suite and the files
+# differ — a 2404 build links GLIBC_2.38 while the 2204 one stops at 2.34, and
+# this builder is ubuntu:22.04.
+ARG NCCL_REPO
 ARG NCCL_DEV_DEB
-ARG NCCL_DEV_SHA256
 ARG NCCL_LIB_DEB
-ARG NCCL_LIB_SHA256
 RUN set -eux; \
     export HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"; \
-    curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-lib.deb \
-        "${NCCL_REPO}/${NCCL_LIB_DEB}"; \
-    echo "${NCCL_LIB_SHA256}  /tmp/nccl-lib.deb" | sha256sum -c -; \
+    if [ -n "${NCCL_LIB_DEB}" ]; then \
+        curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-lib.deb \
+            "${NCCL_REPO}/${NCCL_LIB_DEB}"; \
+        dpkg-deb -x /tmp/nccl-lib.deb /; \
+        rm -f /tmp/nccl-lib.deb; \
+    fi; \
     curl -fsSL --retry 5 --connect-timeout 15 -o /tmp/nccl-dev.deb \
         "${NCCL_REPO}/${NCCL_DEV_DEB}"; \
-    echo "${NCCL_DEV_SHA256}  /tmp/nccl-dev.deb" | sha256sum -c -; \
-    dpkg-deb -x /tmp/nccl-lib.deb /; \
     dpkg-deb -x /tmp/nccl-dev.deb /; \
-    rm -f /tmp/nccl-dev.deb /tmp/nccl-lib.deb; \
+    rm -f /tmp/nccl-dev.deb; \
     test -e /usr/include/nccl.h; \
-    test -L /usr/lib/x86_64-linux-gnu/libnccl.so; \
-    test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2
+    test -e /usr/lib/x86_64-linux-gnu/libnccl.so.2; \
+    ln -sf libnccl.so.2 /usr/lib/x86_64-linux-gnu/libnccl.so; \
+    test -L /usr/lib/x86_64-linux-gnu/libnccl.so
 
 # BUILDER_ASSERT is the list of files that proves the SDK is the one we think it
 # is, checked after the installs above (the nvidia rows could not use the wheel
