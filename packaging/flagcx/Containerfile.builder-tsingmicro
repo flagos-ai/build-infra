@@ -120,19 +120,26 @@ ENV LD_LIBRARY_PATH="/usr/local/kuiper/lib:/usr/local/kuiper/tsm8-profiler/lib"
 # install the runtime's deps list makes.
 ENV VIRTUAL_ENV=/flagos \
     PATH="/flagos/bin:${PATH}"
+# `_installed` is what makes a failed install FAIL. Without it the loop's last
+# command is the sleep, so three dead attempts exit 0, the layer is cached as
+# though torch were in it, and the probe below only reports a missing module.
 RUN set -eux; \
     python${PYTHON_VERSION} -m venv /flagos; \
     /flagos/bin/pip install --no-cache-dir --upgrade pip; \
     /flagos/bin/pip install --no-cache-dir --index-url "${EXTRA_PYPI}" \
         ${RUNTIME_PREREQS} ${NUMPY_PIN} wheel packaging; \
+    _installed=1; \
     for i in 1 2 3; do \
-        PIP_INDEX_URL="${EXTRA_PYPI}" \
-        PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
-        PIP_TRUSTED_HOST=resource.flagos.net \
-        /flagos/bin/pip install --no-cache-dir --pre \
-            "${TORCH_PIN}" ${TORCH_TXDA_PIN} ${TXOPS_PIN} && break; \
+        if PIP_INDEX_URL="${EXTRA_PYPI}" \
+           PIP_EXTRA_INDEX_URL="${VENDOR_PYPI}" \
+           PIP_TRUSTED_HOST=resource.flagos.net \
+           /flagos/bin/pip install --no-cache-dir --pre \
+               "${TORCH_PIN}" ${TORCH_TXDA_PIN} ${TXOPS_PIN}; then \
+            _installed=0; break; \
+        fi; \
         echo "torch install attempt $i failed, retrying in 10s..."; sleep 10; \
-    done
+    done; \
+    [ "${_installed}" -eq 0 ] || { echo "ERROR: torch/torch_txda/txops install failed after 3 attempts" >&2; exit 1; }
 
 # The probe the wheel build stands in for. `import torch` is pure-CPU and safe
 # device-less; `import txops` is the binding import (libtxdnn + pytxdnn, no
