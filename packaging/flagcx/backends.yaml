@@ -830,7 +830,13 @@ sunrise-tangrt1.2.0:
     containerfile: Containerfile.builder-sunrise
     sdk_version: "v1.2.0"
 
-tsingmicro-tsm260610:
+# Not migrated to TSM 5.6.3.1112 yet: Containerfile.builder-tsingmicro still
+# installs the 260610 SDK and torch 2.11, while the 5.6.3 runtime is py3.12 /
+# torch 2.13. The row keeps its key in step with the runtime matrix so the
+# registry and the matrix name the same backend, but its channels stay off
+# until the builder moves (the runtime's flagcx==0.14.1+tsm5.6.3 pin keeps the
+# wheel already published).
+tsingmicro-tsm5.6.3:
   vendor: tsm
   make_flag: USE_TSM
   arch: amd64
@@ -841,16 +847,16 @@ tsingmicro-tsm260610:
   vendor_libs: [tccl, hpgr]
   assert: [/usr/local/kuiper/include/tccl.h, /usr/local/kuiper/include/tx_runtime.h]
   vendor_lib_dirs: [/usr/local/kuiper/lib]
-  deb: {enabled: true, default_for_vendor: true}
+  deb: {enabled: false, default_for_vendor: true}
   # The SDK is a tarball and portable; the one .deb the image installs is
   # libfmt8, and openEuler 24.03's own fmt-8.1.1 provides the same
   # libfmt.so.8 soname, so that row needs no .deb at all. Checked 2026-10-17:
   # fedora 43 ships fmt 11 (libfmt.so.11, a different soname) and el9 has no
   # fmt in its base repositories, so oe2403 is the suite this builds for.
-  rpm: {enabled: true, sdk: filestore, suites: [openeuler24.03]}
-  wheel: {enabled: true}
+  rpm: {enabled: false, sdk: filestore, suites: [openeuler24.03], blocked_by: sdk-line-not-migrated}
+  wheel: {enabled: false}
   builder:
-    enabled: true
+    enabled: false
     containerfile: Containerfile.builder-tsingmicro
     sdk_version: "260610164501"
 
