@@ -1215,16 +1215,28 @@ wheels:
       W7900) on AMD ROCm.
     notes: 与上面那条 TE-FL 派发层不同，这个是 amd 原生的 TransformerEngine 本体。由 ROCm/TransformerEngine
       的 v2.19_rocm 源码编译，只含 gfx1100 kernel；AOTriton 融合注意力镜像也是源码编出来的（ROCm 只发布 gfx942/gfx950
-      预编镜像）。运行时必须设 NVTE_GEMM_BACKEND=TRITON——hipBLASLt 在 gfx1100 上缺 bias 梯度融合的 wgrad kernel，默认后端反向会失败。
-      FP8/MXFP8 不可用，RDNA3 没有 FP8 矩阵核。本地标签 +5035366 是上游 commit 前缀。
-    notes_en: "This is amd-native TransformerEngine proper, not the TE-FL dispatch
+      预编镜像）。运行时必须设 NVTE_GEMM_BACKEND=TRITON——hipBLASLt 在 gfx1100 上缺 bias 梯度融合的 wgrad
+      kernel，默认后端反向会失败。 FP8/MXFP8 不可用，RDNA3 没有 FP8 矩阵核。本地标签 +5035366 是上游 commit 前缀。
+    notes_en: This is amd-native TransformerEngine proper, not the TE-FL dispatch
       layer pinned on the previous entry. Source-built from ROCm/TransformerEngine
       v2.19_rocm with gfx1100 kernels only; the AOTriton fused-attention images are
       built from source too (ROCm publishes prebuilt images for gfx942/gfx950 only).
       Set NVTE_GEMM_BACKEND=TRITON at runtime — hipBLASLt has no bias-gradient-fused
       wgrad kernel for gfx1100, so the default backend fails backward. FP8/MXFP8 are
       unavailable — RDNA3 has no FP8 matrix core. The +5035366 local segment is the
-      upstream commit prefix."
+      upstream commit prefix.
+    python: cp312
+    os: linux
+    arch: linux_x86_64
+- name: transformer-engine-amd
+  short_name: transformer-engine-amd
+  versions:
+  - version: 2.19.0+5035366
+    pypi_index: flagos-pypi-amd
+    desc_zh: ''
+    desc_en: ''
+    notes: ''
+    notes_en: ''
     python: cp312
     os: linux
     arch: linux_x86_64
