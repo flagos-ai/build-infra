@@ -267,7 +267,7 @@ vendors:
     # a later stack version bump must not be read as covering this line.
     # Why and what replaced it: docs/vendors/nvidia.md.
     cuda12.8:
-      enabled: false
+      enabled: true
       extras: nvidia-cuda128
       hardware: ["NVIDIA H20"]   # TODO: add other validated NVIDIA GPUs
       driver: "610.43.02"
