@@ -244,6 +244,11 @@ nvidia-cuda12.8:
   builder:
     enabled: true
     containerfile: Containerfile.builder-nvidia
+    # The 2204 suite, not the 2404 default: NVIDIA builds each NCCL version per
+    # suite and the 2404 one links GLIBC_2.38, which this ubuntu:22.04 builder
+    # cannot load — verification failed on exactly that (`libnccl.so.2 requires
+    # GLIBC_2.38`). The 2204 build stops at 2.34.
+    nccl_repo: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64
     extra_apt: [libcurand-dev-12-8, cuda-cccl-12-8, libcublas-dev-12-8, libcusparse-dev-12-8, libcusolver-dev-12-8, libcufft-dev-12-8]
   # This row's .so is built against NCCL 2.25, so its .bc takes the same Default
   # branch — the two have to agree, and nothing in the bitcode Makefile reads
