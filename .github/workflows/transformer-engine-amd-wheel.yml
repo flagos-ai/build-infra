@@ -98,6 +98,22 @@ jobs:
       - name: Checkout build-infra
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Login to Harbor
+        env:
+          HARBOR_USER: ${{ secrets.HARBOR_USER }}
+          HARBOR_PW: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            if printf '%s' "$HARBOR_PW" | docker login harbor.baai.ac.cn -u "$HARBOR_USER" --password-stdin; then
+              exit 0
+            fi
+            echo "Harbor login attempt $i failed, retrying..."
+            sleep 30
+          done
+          echo "::error::Harbor login failed after 3 attempts"
+          exit 1
+
       - name: Build the wheel image
         working-directory: packaging/transformer-engine-amd
         env:
