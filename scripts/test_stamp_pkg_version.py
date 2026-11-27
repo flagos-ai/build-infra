@@ -54,13 +54,18 @@ class StampPkgVersionTest(unittest.TestCase):
         self.assertEqual(compute_deb_version("5.3.5-1", rel, strict_pep440=True), "5.4.0~rc0.post1-1")
         rel_dev, _ = select_release_version("main", False, requested="5.5.0.dev1", strict_pep440=True)
         deb_dev = compute_deb_version("5.4.0-1", rel_dev, strict_pep440=True)
-        self.assertEqual(deb_dev, "5.5.0~dev1-1")
-        # Verify dpkg ordering matches PEP 440 ordering (dev < rc < final) and round-trips to wheel.
-        subprocess.check_call(["dpkg", "--compare-versions", deb_dev, "lt", "5.5.0~rc1-1"])
-        subprocess.check_call(["dpkg", "--compare-versions", "5.5.0~rc1-1", "lt", "5.5.0-1"])
+        self.assertEqual(deb_dev, "5.5.0~~dev1-1")
+        deb_a_dev = compute_deb_version("5.4.0-1", "5.5.0a1.dev1", strict_pep440=True)
+        deb_a = compute_deb_version("5.4.0-1", "5.5.0a1", strict_pep440=True)
+        deb_b = compute_deb_version("5.4.0-1", "5.5.0b1", strict_pep440=True)
+        deb_rc = compute_deb_version("5.4.0-1", "5.5.0rc1", strict_pep440=True)
+        chain = [deb_dev, deb_a_dev, deb_a, deb_b, deb_rc, "5.5.0-1"]
+        for lo, hi in zip(chain, chain[1:]):
+            subprocess.check_call(["dpkg", "--compare-versions", lo, "lt", hi])
         subprocess.check_call(["dpkg", "--compare-versions", "1.0~rc1-1", "lt", "1.0-1"])
-        wheel_ver = re.sub(r"~", "", re.sub(r"~dev", ".dev", deb_dev.rsplit("-", 1)[0]))
-        self.assertEqual(wheel_ver, "5.5.0.dev1")
+        for deb_v, expected_w in ((deb_dev, "5.5.0.dev1"), (deb_a_dev, "5.5.0a1.dev1")):
+            wheel_ver = re.sub(r"~", "", re.sub(r"~~dev", ".dev", deb_v.rsplit("-", 1)[0]))
+            self.assertEqual(wheel_ver, expected_w)
         for bad in ("v5.3.0-rc0.1", "5.5.0-~rc1", "v5.4.0-exp"):
             with self.assertRaises(ValueError):
                 select_release_version(bad, True, strict_pep440=True)

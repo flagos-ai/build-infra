@@ -82,7 +82,7 @@ def compute_deb_version(
     clean_rel = release.lstrip("v")
     if strict_pep440:
         upstream = re.sub(r"(?<!~)[-.]?(a|b|rc)", r"~\1", clean_rel)
-        upstream = re.sub(r"\.dev(\d+)$", r"~dev\1", upstream)
+        upstream = re.sub(r"\.dev(\d+)$", r"~~dev\1", upstream)
     else:
         upstream = re.sub(r"(?<!~)[-.]?rc", "~rc", clean_rel)
 
