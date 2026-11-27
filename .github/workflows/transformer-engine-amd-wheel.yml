@@ -1,0 +1,215 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: TransformerEngine AMD Wheel
+
+# Build an amd-native TransformerEngine wheel from the ROCm fork and
+# (optionally) upload it to flagos-pypi-amd.
+#
+# WHY THIS EXISTS: no prebuilt TE wheel works on gfx1100 (RDNA3,
+# W7900). ROCm's manylinux mirror ships transformer_engine_rocm built
+# for CDNA only -- the .hip_fatbin carries gfx942/gfx950 and the wheel
+# dies on this hardware with "no kernel image is available". The
+# per-gfx devrelease indexes publish no TE at all. So TE is
+# source-built here the way hygon / metax / kunlunxin already do it.
+#
+# Build machine = the amd runner: the runtime image is cached there
+# and so is /opt/triton, which AOTriton's kernel-image build reuses.
+# No GPU is needed -- pure compilation. The Containerfile's own gates
+# (gfx1100 kernels in the fatbin, aotriton images in the wheel,
+# import smoke, FP8-still-unavailable assertion) fail `docker build`,
+# so a broken wheel never reaches the extract/upload steps.
+#
+# KNOWN LIMITS of the artifact, both asserted or documented in the
+# Containerfile:
+#   - FP8 / MXFP8 do not work on RDNA3 (no FP8 matrix core).
+#   - Consumers must set NVTE_GEMM_BACKEND=TRITON: hipBLASLt has no
+#     bias-gradient-fused wgrad kernel for gfx1100 and the default
+#     backend fails TransformerLayer backward.
+#
+# Uploads are manual, no schedule.
+
+on:
+  workflow_dispatch:
+    inputs:
+      te_ref:
+        description: 'ROCm/TransformerEngine ref to build (branch or tag)'
+        type: string
+        default: v2.19_rocm
+      builder_image:
+        description: 'published builder image (blank = the stack-version builder tag)'
+        type: string
+        default: ''
+      stack_version:
+        description: 'stack version used to derive the default builder tag'
+        type: string
+        default: '2.3.0'
+      base_image:
+        description: 'override the builder base image (blank = use the published builder as-is)'
+        type: string
+        default: ''
+      upload:
+        description: 'upload the wheel to the internal PyPI'
+        type: boolean
+        default: false
+      pypi_repo:
+        description: 'Nexus PyPI repo (default flagos-pypi-amd)'
+        type: string
+        default: flagos-pypi-amd
+
+defaults:
+  run:
+    shell: bash
+
+# Deny everything by default; the jobs that need more ask for it
+# themselves (record-wheel-info declares contents: write).
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this workflow
+    # manually; see .github/actions/check-trigger-author for the check.
+    # actions/checkout is required: local composite actions are resolved from
+    # the workspace, so the repo must exist before the action step runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    # The amd runner: the runtime image this builds on is cached there.
+    runs-on: [self-hosted, amd]
+    env:
+      IMAGE: te-amd-wheel:${{ github.run_id }}
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build the wheel image
+        working-directory: packaging/transformer-engine-amd
+        env:
+          TE_REF: ${{ inputs.te_ref }}
+          BUILDER_IMAGE: ${{ inputs.builder_image }}
+        run: |
+          set -euo pipefail
+          # Starts from the published builder stage (TransformerEngine AMD
+          # Builder), which already carries the apt toolchain, the ROCm dev
+          # headers and the pip mirror config. Pass --build-arg BASE_IMAGE only
+          # when the builder must be rebuilt from a different runtime image.
+          # The gates live inside this build: an arch regression, a missing
+          # aotriton image, or an import failure all fail here.
+          build_args=(--build-arg BUILDER_IMAGE="${BUILDER_IMAGE:-harbor.baai.ac.cn/flagos-builder/flagos-transformer-engine-builder-amd:${{ inputs.stack_version }}}")
+          if [ -n "${{ inputs.base_image }}" ]; then
+            build_args+=(--build-arg BASE_IMAGE="${{ inputs.base_image }}")
+          fi
+          docker build "${build_args[@]}" \
+            --build-arg TE_REF="${TE_REF}" \
+            -t "$IMAGE" \
+            -f Containerfile .
+
+      # Host-side copy for inspection/debugging; the upload step reads
+      # /wheels from the image directly and does not use this directory.
+      - name: Extract the wheel
+        working-directory: packaging/transformer-engine-amd
+        run: |
+          set -euo pipefail
+          rm -rf wheels && mkdir -p wheels
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/wheels/." wheels/
+          docker rm "$cid" >/dev/null
+          ls -la wheels/*.whl
+
+      # Upload only when explicitly requested (default false so a manual build
+      # from a branch is safe). The wheel is published as-is -- the build gates
+      # already vetted it.
+      - name: Upload to internal PyPI
+        if: ${{ inputs.upload }}
+        env:
+          NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXUS_TOKEN:-}" ]; then
+            echo "ERROR: NEXUS_TOKEN secret is empty or unset" >&2
+            exit 1
+          fi
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-amd}"
+          # Upload FROM INSIDE the build image: the wheel and the
+          # python3/pip/twine toolchain both live in $IMAGE, so no host python
+          # is needed. The secret travels via `-e NEXUS_TOKEN` (inherits the
+          # step env) so it never appears in a process list or image layer.
+          echo ">>> uploading $(docker run --rm "$IMAGE" sh -c 'ls /wheels/*.whl' | tr '\n' ' ') to ${pypi_repo}"
+          docker run --rm \
+            -e NEXUS_TOKEN \
+            -e pypi_repo="${pypi_repo}" \
+            "$IMAGE" \
+            bash -euo pipefail -c '
+              # pkginfo >=1.11 reads the Metadata-Version 2.4 that
+              # setuptools >=77 stamps; older pkginfo aborts the upload
+              # with "Metadata is missing required fields: Name, Version".
+              python3 -m pip install --quiet \
+                --index-url "https://mirrors.aliyun.com/pypi/simple" \
+                --upgrade twine pkginfo
+              export TWINE_USERNAME="${NEXUS_TOKEN%%:*}"
+              export TWINE_PASSWORD="${NEXUS_TOKEN#*:}"
+              python3 -m twine upload \
+                --repository-url "https://resource.flagos.net/repository/${pypi_repo}/" \
+                --non-interactive \
+                /wheels/*.whl
+            '
+
+      - name: Record the publish event in the manifest
+        if: ${{ inputs.upload }}
+        run: |
+          set -euo pipefail
+          # Same derivation as the upload step's (its shell does not survive
+          # into this step).
+          pypi_repo="${{ inputs.pypi_repo }}"
+          pypi_repo="${pypi_repo:-flagos-pypi-amd}"
+          mkdir -p .wheel-info
+          for w in packaging/transformer-engine-amd/wheels/*.whl; do
+            printf '%s\t%s\t%s\t%s\n' "transformer-engine-amd" "" "${pypi_repo}" \
+              "$(basename "$w")" >> .wheel-info/manifest.tsv
+          done
+
+      - name: Upload the manifest
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: wheel-info-manifest-${{ github.run_id }}
+          path: .wheel-info/manifest.tsv
+          if-no-files-found: error
+
+      - name: Clean up the build image
+        if: ${{ always() }}
+        run: docker rmi "$IMAGE" 2>/dev/null || true
+
+  # Records what the publish steps above uploaded; the job body is shared --
+  # see record-wheel-info.yml. One committer per run is what keeps a fan-out
+  # dispatch from racing on packaging/packages.yaml.
+  record-wheel-info:
+    needs: build
+    # always(): the manifest left by a publish step that failed mid-way is
+    # still the record of what did get uploaded, and a skipped needs-job must
+    # not read as success here. The gate keeps this job off a run that
+    # published nothing.
+    if: ${{ always() && inputs.upload && !cancelled() }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/record-wheel-info.yml
+    with:
+      workflow: transformer-engine-amd

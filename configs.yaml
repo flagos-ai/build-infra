@@ -227,6 +227,17 @@ vendors:
           ROCM_PATH: /opt/rocm
           PATH: /opt/rocm/bin:$PATH
           LD_LIBRARY_PATH: /opt/rocm/lib
+        runtime:
+          # TransformerEngine's default GEMM backend is hipBLASLt, and on
+          # gfx1100 it has no bias-gradient-fused wgrad kernel: a
+          # TransformerLayer backward dies with "Unable to find any suitable
+          # algorithms" in layernorm_linear.py's wgrad_gemm (the same call
+          # without `bias` is fine). TE's own Triton GEMM backend clears it
+          # (finite-difference gradcheck rel_err ~2e-06), and it works under
+          # this image's default flagtree compiler as well as /opt/triton --
+          # both were checked on the W7900 node. Baked in rather than left to
+          # every consumer to remember; see docs/vendors/amd.md.
+          NVTE_GEMM_BACKEND: TRITON
       deps:
         - torch==2.13.0+rocm7.2
         - torchaudio==2.11.0+rocm7.2

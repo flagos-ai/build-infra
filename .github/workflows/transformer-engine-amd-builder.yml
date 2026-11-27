@@ -1,0 +1,130 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: TransformerEngine AMD Builder
+
+# Publishes the `--target builder` stage of packaging/transformer-engine-amd:
+# the build machine, holding everything that does NOT depend on the TE ref --
+# the apt toolchain (build-essential, cmake, git, curl), the ROCm dev headers
+# (roctracer-dev), pkg-config/liblzma and the pip mirror config.
+#
+# Why this exists: the base is the amd RUNTIME image, which is a runtime --
+# hipcc is present but gcc/cmake/git are not. Without this stage every wheel
+# build reinstalls ~98 apt packages (build-essential + cmake + git + icu +
+# curl and their transitive deps) from scratch. Same shape as
+# packaging/flagtree + flagtree-builder.yml.
+#
+# Not a wheel publisher: no stage here compiles the ref, so nothing on this
+# line produces a wheel. The wheel line owns that and starts FROM this image.
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'push the builder image to Harbor'
+        type: boolean
+        default: false
+      tag:
+        description: 'image tag (default: the stack version from configs.yaml)'
+        type: string
+        default: ''
+
+concurrency:
+  group: transformer-engine-amd-builder
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    # Only accounts listed in .github/builders.txt may trigger this manually.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/check-trigger-author
+
+  build:
+    needs: authorize
+    # The amd runner: the runtime image this stage starts from is cached there.
+    runs-on: [self-hosted, amd]
+    env:
+      IMAGE_NAME: flagos-transformer-engine-builder-amd
+    steps:
+      - name: Checkout build-infra
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Resolve the tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG}"
+          if [ -z "${tag}" ]; then
+            # The stack version, not a date: the builder is a property of the
+            # amd line's base image, and that image carries this tag.
+            tag=$(python3 -c "import yaml;print(yaml.safe_load(open('configs.yaml'))['version'])")
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "image=harbor.baai.ac.cn/flagos-builder/${IMAGE_NAME}:${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the builder stage
+        working-directory: packaging/transformer-engine-amd
+        run: |
+          set -euo pipefail
+          docker build \
+            --target builder \
+            -t "${{ steps.tag.outputs.image }}" \
+            -f Containerfile .
+
+      # The stage's contract: the wheel build starts here and assumes these
+      # exist. A stage that lost one of them fails loudly here rather than
+      # three minutes into a wheel build.
+      - name: Verify the stage carries what the wheel build needs
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint bash "${{ steps.tag.outputs.image }}" -euo pipefail -c '
+            for t in gcc g++ cmake git curl ninja pkg-config; do
+              command -v "$t" >/dev/null || { echo "missing: $t" >&2; exit 1; }
+            done
+            test -f /opt/rocm/include/roctracer/roctx.h
+            test -f /usr/include/lzma.h
+            test -x /opt/rocm/bin/hipcc
+            test -d /opt/triton/triton
+            test -f /etc/pip.conf
+            echo "builder stage OK"
+          '
+
+      # Publish the grade. Deploying (writing to Harbor) only when asked.
+      - name: Login to Harbor
+        if: ${{ inputs.push }}
+        env:
+          HARBOR_TOKEN: ${{ secrets.NEXUS_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${HARBOR_TOKEN#*:}" \
+            | docker login harbor.baai.ac.cn -u "${HARBOR_TOKEN%%:*}" --password-stdin
+
+      - name: Push the builder image
+        if: ${{ inputs.push }}
+        run: docker push "${{ steps.tag.outputs.image }}"
+
+      - name: Clean up the local image
+        if: ${{ always() }}
+        run: docker rmi "${{ steps.tag.outputs.image }}" 2>/dev/null || true

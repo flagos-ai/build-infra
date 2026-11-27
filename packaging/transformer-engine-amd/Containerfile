@@ -1,0 +1,394 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================
+# TransformerEngine wheel builder (amd / rocm7.2.4 only)
+#
+# Builds a source-compiled TransformerEngine wheel for the RDNA3
+# target (gfx1100, Radeon PRO W7900). AMD ships no native TE wheel
+# for RDNA: the ROCm manylinux mirror's transformer_engine_rocm
+# (repo.radeon.com/rocm/manylinux/rocm-rel-*/) is compiled for
+# CDNA only -- its .hip_fatbin carries gfx942/gfx950 and nothing
+# else -- so it dies on this hardware with
+#   no kernel image is available for execution on the device
+# `rocm.frameworks-devreleases.amd.com/whl/` splits indexes per gfx
+# family (gfx110X-all, ...) but publishes no TE at all. Hence a
+# self-built wheel, mirroring what hygon / metax / kunlunxin do.
+#
+# Two build passes, and both are required:
+#
+#   1. TransformerEngine proper. NVTE_ROCM_ARCH=gfx1100 is the only
+#      knob that matters -- build_tools/rocm_utils.cmake defaults to
+#      "gfx942 gfx950" but accepts a comma-separated list verbatim.
+#      Two accelerators drop out on their own, neither is a failure:
+#        - HipKittens GEMM: gemm/kittens/CMakeLists.txt has
+#          KITTENS_SUPPORTED_ARCHS "gfx942 gfx950" and prints
+#          "disabled" without gating the build.
+#        - CK fused attention: gated off here (NVTE_FUSED_ATTN_CK=0).
+#          Its build runs `qola checkout`, which clones ROCm/aiter --
+#          tens of minutes on this network for a path gfx1100 does
+#          not need.
+#
+#   2. AOTriton kernel images. setting USE_FUSED_ATTN_AOTRITON_BUILD_GPU_KERNELS
+#      does NOT build images: transformer_engine/common/aotriton/
+#      CMakeLists.txt hardcodes -DAOTRITON_NOIMAGE_MODE=ON, so only the
+#      C++ shim is built and the download list (amd-gfx942 / amd-gfx950,
+#      sha256-pinned) never matches gfx1100. Without images the fused
+#      attention call fails at runtime with hipErrorInvalidValue. So
+#      AOTriton is configured separately here and its
+#      `aotriton.images/amd-gfx11xx/` tree is copied into the package
+#      before the wheel is repacked.
+#
+#    AOTRITON_INHERIT_SYSTEM_SITE_TRITON=ON matters: without it
+#    AOTriton builds its own triton from third_party/triton, which
+#    takes most of an hour and is pointless when the runtime image
+#    already ships one at /opt/triton. Its venv is created with
+#    --system-site-packages so the inherited triton is importable.
+#    write_image_signature.py then calls
+#    importlib.metadata.version("triton"), and the wheel at
+#    /opt/triton installs under the name `triton-rocm` -- so a
+#    `triton` dist-info alias is written first. That alias is the
+#    only fabrication in this file; the package it points at is the
+#    real /opt/triton tree.
+#
+# Runtime facts this wheel carries (amd-rocm7.2.4, verified on a
+# W7900 node):
+#
+#   - FP8 / MXFP8 do NOT work: RDNA3 has no FP8 matrix core. TE's
+#     _compute_fp8_support() allows (9,4) (9,5) (12,5) only, and
+#     torch._scaled_mm refuses gfx1100 at the framework layer too.
+#     Nothing in this image can change that.
+#   - Set NVTE_GEMM_BACKEND=TRITON when running TE on gfx1100.
+#     hipBLASLt has no bias-gradient-fused wgrad kernel for RDNA3,
+#     so a TransformerLayer backward on the default backend dies with
+#     "Unable to find any suitable algorithms" in
+#     layernorm_linear.py's wgrad_gemm. The Triton GEMM backend is
+#     TE's own path and clears that (finite-difference gradcheck
+#     rel_err ~2e-06).
+#
+# Build machine = the amd runner (the runtime image is cached there,
+# and /opt/triton with it). No GPU is required: this is pure
+# compilation. The gates below (wheel shape, gfx1100 kernels in the
+# fatbin, aotriton images present, import smoke) fail `docker build`,
+# so a broken wheel never reaches the upload step.
+#
+# Typical invocation (upload side: .github/workflows/transformer-engine-amd-wheel.yml):
+#   docker build -t te-amd-wheel:build \
+#     --build-arg TE_REF=v2.19_rocm \
+#     packaging/transformer-engine-amd/
+#   cid=$(docker create te-amd-wheel:build)
+#   docker cp "$cid:/wheels/." /tmp/te-wheels/ && docker rm "$cid"
+#
+# Revision history:
+#   2026-11-26   Initial: first amd-native TE wheel (v2.19_rocm,
+#                gfx1100, AOTriton images built from source).
+# ============================================================
+
+ARG BASE_IMAGE=harbor.baai.ac.cn/flagos-runtime/flagos-runtime-amd-rocm7.2.4:2.3.0
+# The published builder stage (this file's `--target builder`, pushed by
+# .github/workflows/transformer-engine-amd-builder.yml). It carries the apt
+# toolchain and the pinned source tree; the wheel build below starts from it.
+# Defaults to the runtime image so a bare `docker build` still works, but the
+# wheel workflow always passes the published builder.
+ARG BUILDER_IMAGE=${BASE_IMAGE}
+
+# ============================================================
+# builder: everything that does not depend on the TE ref
+#
+# Kept as its own stage and published separately, the same way
+# packaging/flagtree does it. The runtime image is a runtime -- it has
+# hipcc but no gcc/cmake/git/curl, and installing them here once beats
+# installing build-essential + cmake + git + icu + curl (+ ~90
+# transitive packages) again in every wheel build.
+# ============================================================
+FROM ${BASE_IMAGE} AS builder
+
+# Public packages come from the aliyun mirror (never pypi.org).
+ARG EXTRA_PYPI="https://mirrors.aliyun.com/pypi/simple"
+
+ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn,.github.com"
+
+# AOTriton (and TE's own ExternalProject for it) creates a venv and runs
+# pip inside it for requirements.txt. That inner pip inherits neither the
+# --index-url given to the outer one nor any other command-line flag, and
+# the default index is unreachable from this network -- the install hangs
+# on connect for tens of minutes instead of failing. A pip.conf baked
+# into the builder is the only hook every invocation sees.
+RUN mkdir -p /etc/pip && printf '[global]\nindex-url = %s\n' "${EXTRA_PYPI}" > /etc/pip.conf
+ENV PIP_CONFIG_FILE=/etc/pip.conf
+
+# `wheel` is not in the runtime image, and the repack step (see "Package"
+# below) runs `python3 -m wheel pack` to rebuild RECORD after the aotriton
+# images are added. A build tool, so it belongs in the builder stage.
+RUN python3 -m pip install --no-cache-dir --index-url "${EXTRA_PYPI}" wheel
+
+# The runtime image is a runtime, not a devel box: hipcc is there
+# (rocm/bin) but neither a host toolchain nor the headers
+# libtransformer_engine needs. roctracer-dev is the header that matters --
+# common/nvtx_hip.h includes <roctracer/roctx.h>, which the roctracer
+# runtime package does not carry. pkg-config + liblzma-dev are what
+# AOTriton's FindPkgConfig step looks for.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      --no-install-recommends \
+      build-essential \
+      cmake \
+      git \
+      curl \
+      ca-certificates \
+      python3-dev \
+      pkg-config \
+      liblzma-dev \
+      roctracer-dev \
+      ninja-build \
+    && rm -rf /var/lib/apt/lists/*
+
+# AOTriton's kernel-image build is a couple of hours of triton compiles;
+# keep it off the job timeout rather than at AOTriton's default.
+ARG AOTRITON_GPU_BUILD_TIMEOUT=0
+ENV AOTRITON_GPU_BUILD_TIMEOUT=${AOTRITON_GPU_BUILD_TIMEOUT}
+
+# Where the runtime image keeps its triton side install. TE builds against
+# whatever torch the runtime ships; triton is only needed to generate
+# AOTriton's kernel images.
+ARG TRITON_PATH=/opt/triton
+ENV TRITON_PATH=${TRITON_PATH}
+
+WORKDIR /src
+
+# No source here: the ref is a property of the wheel, not of the
+# environment, so it is fetched in the wheel stage below. That keeps this
+# stage publishable once and reusable across TE bumps.
+
+# ============================================================
+# final: fetch the ref, build TE + AOTriton, repack, gate
+# ============================================================
+FROM builder AS final
+
+# Upstream ref. The ROCm fork carries the hipified sources and the
+# ROCm-only CMake paths; NVIDIA's tags do not build on HIP without
+# hipify plus edits.
+ARG TE_REF=v2.19_rocm
+
+# Target gfx. gfx1100 is the W7900 (RDNA3); the aotriton arch uses
+# AOTriton's own `_mod0` suffix convention.
+ARG NVTE_ROCM_ARCH=gfx1100
+ARG AOTRITON_ARCH=gfx1100_mod0
+
+ENV NO_PROXY=".aliyun.com,.flagos.net,.baai.ac.cn,.github.com"
+
+# --- Source ----------------------------------------------------
+
+# Submodules are fetched as tarballs, not `git submodule update`:
+# composable_kernel and cutlass are large enough that a shallow clone
+# over this network fails with `early EOF` / `invalid pack` often
+# enough to be unusable, and AOTriton's own `qola checkout` clones
+# ROCm/aiter the same way. codeload serves the same pinned commits in
+# one request each.
+#
+# Every commit below is the one v2.19_rocm pins in its tree; they are
+# spelled out (rather than read back from git) so the fetch is one
+# deterministic request per submodule.
+ARG CK_COMMIT=0d18f4fc05a31890e5ee365cfc15d82e1ba94669
+ARG CUTLASS_COMMIT=57e3cfb47a2d9e0d46eb6335c3dc411498efa198
+ARG HIPIFY_COMMIT=ade152dafe55b65363d2dbdec889bfe8932712d2
+
+RUN mkdir -p /src /wheels /out \
+    && cd /src \
+    && git clone --depth 1 -b "${TE_REF}" \
+         https://github.com/ROCm/TransformerEngine.git te \
+    && cd te \
+    && git submodule update --init --depth 1 \
+         3rdparty/aotriton 3rdparty/ck_jit 3rdparty/hipkittens \
+         3rdparty/QoLA 3rdparty/googletest 3rdparty/nccl-extensions \
+    && for pair in \
+         "composable_kernel ${CK_COMMIT}" \
+         "cutlass ${CUTLASS_COMMIT}" \
+         "hipify_torch ${HIPIFY_COMMIT}" ; do \
+         set -- ${pair}; \
+         name=$1; sha=$2; \
+         url=$(git config -f .gitmodules --get "submodule.3rdparty/${name}.url"); \
+         repo=$(echo "${url}" | sed -e 's#^https://github.com/##' -e 's#\.git$##'); \
+         rm -rf "3rdparty/${name}"; mkdir -p "3rdparty/${name}"; \
+         curl -fsSL "https://codeload.github.com/${repo}/tar.gz/${sha}" \
+           | tar xz -C "3rdparty/${name}" --strip-components=1; \
+         test -n "$(ls -A "3rdparty/${name}")"; \
+       done \
+    && test -f 3rdparty/composable_kernel/CMakeLists.txt \
+    && test -f 3rdparty/cutlass/CMakeLists.txt \
+    && test -f 3rdparty/hipify_torch/hipify_torch/__init__.py \
+    && test -f transformer_engine/common/aotriton/CMakeLists.txt
+
+# --- AOTriton kernel images (pass 2) ---------------------------
+
+# Built before TE so the images are already on disk when TE's own
+# build runs. AOTriton's CMakeLists creates a venv; with
+# --system-site-packages the inherited /opt/triton is importable, but
+# importlib.metadata still cannot find a distribution named `triton`
+# (the /opt/triton wheel installs as `triton-rocm`). The alias below
+# is a copy of that dist-info with Name rewritten -- the package it
+# describes is the real one.
+RUN python3 -m pip install --no-cache-dir \
+      --index-url "${EXTRA_PYPI}" \
+      -r /src/te/3rdparty/aotriton/requirements.txt \
+    && D="${TRITON_PATH}/triton-$(python3 -c 'import triton;print(triton.__version__)').dist-info" \
+    && mkdir -p "${D}" \
+    && sed -e 's/^Name: *triton-rocm$/Name: triton/' \
+         "${TRITON_PATH}"/triton_rocm-*.dist-info/METADATA > "${D}/METADATA" \
+    && echo triton > "${D}/top_level.txt" \
+    && cp "${TRITON_PATH}"/triton_rocm-*.dist-info/WHEEL "${D}/WHEEL" \
+    && touch "${D}/INSTALLER" \
+    && PYTHONPATH="${TRITON_PATH}" python3 -c \
+         'import importlib.metadata as m; print("triton ->", m.version("triton"))' \
+    && PYTHONPATH="${TRITON_PATH}" cmake -S /src/te/3rdparty/aotriton \
+         -B /src/aotriton-build \
+         -DCMAKE_INSTALL_PREFIX=/src/aotriton-install \
+         -DCMAKE_BUILD_TYPE=Release \
+         -DAOTRITON_TARGET_ARCH="${AOTRITON_ARCH}" \
+         -DAOTRITON_OVERRIDE_TARGET_GPUS="${AOTRITON_ARCH}" \
+         -DAOTRITON_GPU_BUILD_TIMEOUT="${AOTRITON_GPU_BUILD_TIMEOUT}" \
+         -DAOTRITON_NO_PYTHON=ON \
+         -DAOTRITON_INHERIT_SYSTEM_SITE_TRITON=ON \
+         -DAOTRITON_NAME_SUFFIX=_TEprivate \
+         -G Ninja \
+    && PYTHONPATH="${TRITON_PATH}" cmake --build /src/aotriton-build --parallel "$(nproc)" \
+    && PYTHONPATH="${TRITON_PATH}" cmake --install /src/aotriton-build \
+    && test -d /src/aotriton-install/lib/aotriton.images/amd-gfx11xx \
+    && test -f /src/aotriton-install/lib/aotriton.images/amd-gfx11xx/__signature__
+
+# --- TransformerEngine (pass 1) --------------------------------
+
+# NVTE_SKIP_SUBMODULE_CHECKS_DURING_BUILD: setup.py asserts every
+# submodule sits on its pinned commit; composable_kernel and cutlass
+# came from tarballs and carry no git metadata.
+# NVTE_FUSED_ATTN_CK=0: CK's build clones ROCm/aiter through QoLA.
+# MAX_JOBS is bounded by the runner's real core count, not nproc's
+# container view, because the hip compiles are memory-hungry.
+RUN cd /src/te \
+    && NVTE_ROCM_ARCH="${NVTE_ROCM_ARCH}" \
+       NVTE_FRAMEWORK=pytorch \
+       NVTE_SKIP_SUBMODULE_CHECKS_DURING_BUILD=1 \
+       NVTE_FUSED_ATTN_CK=0 \
+       PYTORCH_ROCM_ARCH="${NVTE_ROCM_ARCH}" \
+       MAX_JOBS="${MAX_JOBS:-32}" \
+       ROCM_PATH=/opt/rocm \
+       python3 setup.py bdist_wheel -d /out/wheels
+
+# --- Package: add the aotriton images, repack -------------------
+
+# The TE wheel installs transformer_engine/lib/*.so but no images;
+# the fused-attention path looks for them under transformer_engine/
+# lib/aotriton.images. Adding them means repacking: unpack the built
+# wheel, drop the images in, regenerate RECORD. The result replaces
+# the pass-1 wheel so exactly one artifact leaves this image.
+RUN mkdir -p /out/unpacked \
+    && cd /out/unpacked \
+    && python3 -m zipfile -e /out/wheels/transformer_engine-*.whl . \
+    && D=$(echo transformer_engine-*.dist-info) \
+    && mkdir -p transformer_engine/lib \
+    && cp -a /src/aotriton-install/lib/aotriton.images transformer_engine/lib/ \
+    && cp -a /src/aotriton-install/lib/libaotriton_TEprivate_v2.so* transformer_engine/lib/ \
+    && rm -f "${D}/RECORD" \
+    && python3 -m wheel pack --dest-dir /wheels . \
+    && rm -f /out/wheels/transformer_engine-*.whl
+
+# --- Runtime deps ----------------------------------------------
+
+# TE imports pydantic/einops/onnx at module load (common/recipe and the
+# quantizer helpers), none of which the runtime image carries. Installed
+# BEFORE the gates, which import TE -- and kept in the image rather than
+# left to the consumer so the gates exercise the same closure the app
+# images will get.
+RUN python3 -m pip install --no-cache-dir \
+      --index-url "${EXTRA_PYPI}" \
+      pydantic einops onnx onnxscript importlib-metadata
+
+# --- Gates -----------------------------------------------------
+
+# Four checks, each one a failure mode that has already happened in
+# this line's development:
+#   1. the fatbin really carries gfx1100 kernels (an arch default
+#      slipping back to gfx942/950 is silent otherwise),
+#   2. the aotriton images made it into the wheel (attention would
+#      fail at runtime, not build time),
+#   3. the wheel imports,
+#   4. TE's own FP8 gate reports gfx1100 as unsupported -- asserting
+#      the known-limitation so a later "fix" that claims FP8 works on
+#      this chip has to come with evidence.
+RUN python3 - <<'PY'
+import glob, os, subprocess, sys, zipfile
+
+wheels = sorted(glob.glob("/wheels/transformer_engine-*.whl"))
+assert len(wheels) == 1, "expected exactly one wheel, got %r" % wheels
+wheel = wheels[0]
+print("wheel:", os.path.basename(wheel))
+
+with zipfile.ZipFile(wheel) as z:
+    names = z.namelist()
+
+    # 1) gfx1100 kernels compiled in, and no CDNA-only wheel sneaked in
+    so = [n for n in names if n.endswith("libtransformer_engine.so")]
+    assert so, "libtransformer_engine.so missing from wheel"
+    z.extract(so[0], "/tmp/gate")
+    out = subprocess.run(
+        ["strings", "-a", "-n", "8", os.path.join("/tmp/gate", so[0])],
+        capture_output=True, text=True).stdout
+    archs = sorted({l for l in out.splitlines()
+                    if l.startswith("amdgcn-amd-amdhsa--gfx")})
+    print("fatbin arches:", archs)
+    assert archs == ["amdgcn-amd-amdhsa--gfx1100"], \
+        "expected gfx1100 only, got %r" % archs
+
+    # 2) aotriton images present
+    imgs = [n for n in names if "/lib/aotriton.images/" in n]
+    assert imgs, "aotriton.images missing from wheel"
+    sig = [n for n in imgs if n.endswith("__signature__")]
+    assert sig, "aotriton __signature__ missing from wheel"
+    print("aotriton images:", len(imgs), "entries")
+
+    # 3) FP8 is not supported on gfx1100, and this wheel still says so.
+    # Static check on purpose: the runtime check (is_fp8_available())
+    # asks the device for its architecture and `docker build` has no GPU.
+    # The hardware reason is RDNA3's lack of an FP8 matrix core -- see
+    # docs/vendors/amd.md for the on-node record; what this asserts is
+    # that the wheel has not started claiming otherwise.
+    src = z.read("transformer_engine/pytorch/quantization.py").decode()
+    flat = " ".join(src.split())
+    assert "(9, 4), (9, 5), (12, 5)" in flat, \
+        "TE's FP8 architecture check changed; re-check whether FP8 now " \
+        "claims to work on gfx1100"
+    print("FP8 is not supported on gfx1100 (as expected)")
+
+subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps",
+                "--force-reinstall", wheel], check=True)
+print("gates OK")
+PY
+
+# --- Smoke -----------------------------------------------------
+
+# Import the installed wheel. Runs after the gates; the deps it needs are
+# installed above them.
+#
+# PYTHONPATH is set for this RUN only. TE's triton_kernels package imports
+# `triton` at module load and this image keeps triton as a side install at
+# /opt/triton; a consumer activates it the same way (the `compiler` helper
+# puts it on PYTHONPATH). Setting it as an ENV would make triton
+# unconditionally importable and change the image's flagtree-default
+# semantics, so it stays scoped to this check.
+RUN PYTHONPATH="${TRITON_PATH}" python3 - <<'PY'
+import torch, transformer_engine
+from transformer_engine.pytorch import Linear, LayerNorm, TransformerLayer
+print('transformer_engine', transformer_engine.__version__, 'import OK')
+print('gcnArchName', torch.cuda.get_device_properties(0).gcnArchName
+      if torch.cuda.is_available() else 'no device at build time')
+PY
