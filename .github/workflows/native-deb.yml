@@ -16,25 +16,12 @@ name: Native Deb Package
 
 # Build .deb packages containing compiled code from a component repository's
 # own packaging definition, and publish them to the FlagOS apt repositories.
-# The native sibling of noarch-deb.yml.
+# The native sibling of noarch-deb.yml, and the deb sibling of native-rpm.yml.
 #
-# Why these are not in noarch-deb.yml, given the pipeline looks the same: what
-# it means to verify the package is different, and verification is the gate
-# publishing depends on. There, the question is whether the Python module tree
-# is complete -- a directory of .py files with no __init__.py installs cleanly
-# and is absent at runtime. Here, the module-tree assertion would fail outright
-# (these ship no Python tree) and would not ask the question that matters: does
-# the library load, and does what it links against resolve.
-#
-# The key is a package class, not a repository. FlagTensor builds
-# python3-flagtensor (Architecture: all) alongside its native packages, but
-# all of them come from one build that needs libtriton-jit, so it is here.
-#
-# FlagGems is the case that does not come here. Its C++ operators are built
-# per vendor across seven or eight backends, which is a matrix like
-# flagcx-deb.yml's rather than the single build per target this workflow
-# assumes -- so flaggems-deb.yml stays as the home for that line when those
-# operators are packaged, and this workflow does not try to absorb it.
+# One build per distribution suite rather than one shared build: each suite
+# links against its own system Python and C++ runtime with no external PPA, and
+# stamps +<id><version_id> onto the package revision so each repository serves
+# an ABI-matched build.
 #
 # Dispatch-only: a .deb is a release artifact, nothing here is worth running on
 # a push.
@@ -64,12 +51,12 @@ on:
           - flagtree-cpu
       ref:
         description: >-
-          git ref to build. Leave empty to use the ref this target is pinned to
-          below. A tag is preferred: a branch head moves under later
-          cherry-picks, so the same dispatch would not build the same source
-          twice. Or `pull/<N>`: the head of that pull request, to run a
-          packaging change through this workflow before it is merged (verify
-          only; such a build can not be published).
+          git ref to build. Leave empty to use the ref this target is pinned to.
+          A tag is preferred: a branch head moves under later cherry-picks, so
+          the same dispatch would not build the same source twice. Or
+          `pull/<N>`: the head of that pull request, to run a packaging change
+          through this workflow before it is merged (verify only; such a build
+          can not be published).
         type: string
         default: ''
       version:
@@ -81,17 +68,15 @@ on:
         default: ''
       suites:
         description: >-
-          apt suites to publish into, space-separated. Leave empty to use the
-          suites this target is valid for -- which is not every suite: a
-          compiled package belongs only where what it links against resolves.
+          apt suites to publish into, space-separated (ubuntu22.04 ubuntu24.04).
+          Leave empty to publish into every suite this target was built and
+          verified for.
         type: string
         default: ''
       arches:
         description: >-
           Debian architectures to build, space-separated (amd64 arm64). Leave
-          empty to build every architecture this target is valid for -- which
-          is not every architecture: a compiled package can only be built where
-          its build inputs are published for that architecture.
+          empty to build every architecture this target is valid for.
         type: string
         default: ''
       verify:
@@ -108,200 +93,148 @@ env:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        # Only the architecture here. The suite is a property of the target
-        # (see the table below) and the base image follows from it; what this
-        # dimension decides is the machine, because a .deb for arm64 has to be
-        # built on arm64. A target not valid for a row's architecture skips it
-        # rather than building something that was never shown to work there.
-        arch: [amd64, arm64]
-    # GitHub-hosted arm64 runners. This repository is public, so they are free
-    # and need no addition to the self-hosted pool.
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     outputs:
       built_sha: ${{ steps.clone.outputs.sha }}
-      suites: ${{ steps.cfg.outputs.suites }}
-      verify_image: ${{ steps.cfg.outputs.verify_image }}
-      flagos_apt: ${{ steps.cfg.outputs.flagos_apt }}
-      ppa: ${{ steps.cfg.outputs.ppa }}
+      deps: ${{ steps.cfg.outputs.deps }}
       publish_runs_on: ${{ steps.cfg.outputs.publish_runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ubuntu22.04, ubuntu24.04]
+        arch: [amd64, arm64]
     steps:
       - name: Resolve the target
         id: cfg
         env:
           TARGET: ${{ inputs.target }}
+          SUITE: ${{ matrix.suite }}
+          SUITES_REQ: ${{ inputs.suites }}
           ARCH: ${{ matrix.arch }}
           ARCHES: ${{ inputs.arches }}
         run: |
           set -euo pipefail
-          # Per target: repository, build script, the ref and version the
-          # release manifest pins it to, the suites the package is valid for,
-          # and the image to verify in.
-          #
-          # `suites` is per target and not a global default because a compiled
-          # package is not portable across releases the way an
-          # Architecture: all one is. libtriton-jit depends on libpython3.12,
-          # which Ubuntu 24.04 provides (as libpython3.12t64, which Provides:
-          # libpython3.12) and 22.04 does not carry at all -- publishing it
-          # into 22.04 would put a package there that cannot be installed.
-          # Verified both ways before this list was written.
           outdir=debian-packages
-          # base: the build image, passed to the script as its argument.
-          # deps: FlagOS packages the build needs, fetched from the target's
-          # own apt repository into packaging/debian/local-deps/.
-          base=''
-          # script_arg: one positional argument for the build script, for a
-          # repository whose script packages more than one thing. Empty for
-          # every target whose script takes none.
           script_arg=''
           deps=''
-          ppa=''
-          # publish_runs_on: where the upload job runs. The hosted runners
-          # reach Nexus at tens of KB/s and the connection drops after about
-          # an hour, which a 263 MB FlagTree deb does not survive; the
-          # self-hosted runner already pushes FlagTree wheels there.
           publish_runs_on='["ubuntu-latest"]'
-          # arches: the architectures this target's build inputs exist for --
-          # not the architectures its source supports. An amd64-only entry is a
-          # statement about what is missing, named at the target.
           arches=amd64
           case "${TARGET}" in
             libtriton_jit)
               repo=libtriton_jit
               script=packaging/debian/build-helpers/build-libtriton-jit.sh
+              base_arg=flag
               ref=master
               ver=''
-              suites=ubuntu24.04
-              image=ubuntu:24.04
-              # amd64 only, and not because of the source: debian/control
-              # already says `Architecture: amd64 arm64` and every input of
-              # the build image exists for arm64 except the two wheels it
-              # installs -- flagos-pypi-nvidia publishes torch 2.10.0+cu128 and
-              # triton 3.6.0 for x86_64 alone, while upstream has both for
-              # aarch64. Add arm64 here once the index carries them.
-              ;;
+              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
+              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
             FlagTree)
               repo=FlagTree
               script=packaging/debian/build-helpers/build-flagtree.sh
-              # GA tag at the tip of 0.7.0-rc2-triton3.6; the "+triton3.6"
-              # local label is not a package version, so ver is spelled out.
+              base_arg='env'
+              # Tag 0.7.0+triton3.6 predates FlagTree#1417, where debian/rules
+              # learned to probe --break-system-packages for Ubuntu 22.04's
+              # pip 22.0.2; keep 22.04 disabled until a release tag carries it.
               ref=0.7.0+triton3.6
               ver=0.7.0
+              require_tag_publish=true
               outdir=dist/output
-              suites=ubuntu24.04
-              image=ubuntu:24.04
+              image_ubuntu2204=
+              image_ubuntu2404=ubuntu:24.04
               publish_runs_on='["self-hosted", "h20"]' ;;
             FlagTree-metax|FlagTree-amd|FlagTree-enflame|FlagTree-ppu|FlagTree-tileir|FlagTree-hcu|FlagTree-mthreads|FlagTree-tsingmicro|FlagTree-xpu)
-              # The other package class out of FlagTree: python3-flagtree-<vendor>
-              # assembled from the wheel the vendor's delivery workflow has
-              # already published to flagos-pypi-<vendor>, where the FlagTree
-              # target above compiles its own. The script takes the backend as
-              # its argument and reads everything vendor-specific from the
-              # repository's packaging/backends.conf; the suite is repeated
-              # here because this step runs before the clone and the suite
-              # decides which repository the package is published into.
-              # One target per vendor rather than one target with a backend
-              # dimension, like FlagTree-ascend in native-rpm.yml: the suites
-              # differ, and a dispatch publishes one package class.
               repo=FlagTree
               script=packaging/debian/build-helpers/build-flagtree.sh
+              base_arg='env'
               script_arg=${TARGET#FlagTree-}
               outdir=dist/output
-              # The per-vendor rows landed with flagos-ai/FlagTree#1417 after
-              # the 0.7.0 tag, so no tag carries them yet; the version comes
-              # from the changelog on main until one does.
               ref=main
               ver=''
-              # Each vendor's wheel is built against one Ubuntu's toolchain
-              # and Python, which is the one its row in backends.conf names.
               case "${script_arg}" in
                 hcu|mthreads|tsingmicro|xpu)
-                  suites=ubuntu22.04
-                  image=ubuntu:22.04 ;;
+                  image_ubuntu2204=ubuntu:22.04
+                  image_ubuntu2404= ;;
                 *)
-                  suites=ubuntu24.04
-                  image=ubuntu:24.04 ;;
+                  image_ubuntu2204=
+                  image_ubuntu2404=ubuntu:24.04 ;;
               esac
               publish_runs_on='["self-hosted", "h20"]' ;;
             FlagDNN)
               repo=FlagDNN
               script=packaging/debian/build-helpers/build-flag-dnn.sh
-              ref=v0.3.0
-              ver=v0.3.0
-              # amd64 until libtriton-jit-nvidia is published for arm64: the
-              # build installs it from the apt repository below.
-              # Depends on libpython3.12 and libtriton-jit-nvidia, both 24.04-only.
-              base=nvidia/cuda:12.8.0-devel-ubuntu24.04
+              base_arg=arg
+              ref=master
+              ver=''
+              require_tag_publish=true
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
-              suites=ubuntu24.04
-              image=ubuntu:24.04 ;;
+              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
+              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
             FlagTensor)
               repo=FlagTensor
               script=packaging/debian/build-helpers/build-flagtensor.sh
-              # amd64 for the same reason as FlagDNN.
-              # The deb build image bootstraps pip with get-pip.py, which the
-              # deadsnakes python3.12 now refuses under PEP 668; no ref builds
-              # until FlagTensor#29 is in a release.
-              ref=v0.3.0
-              ver=v0.3.0
-              base=nvidia/cuda:12.8.0-devel-ubuntu24.04
+              base_arg=arg
+              ref=main
+              ver=''
+              require_tag_publish=true
               deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
-              suites=ubuntu24.04
-              image=ubuntu:24.04 ;;
+              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
+              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
             FlagFFT)
               repo=FlagFFT
               script=packaging/debian/build-helpers/build-flagfft.sh
-              ref=v0.2.0
-              ver=v0.2.0
-              # Depends on python3.12, which 22.04 gets from deadsnakes (its
-              # control file says so).
-              ppa=ppa:deadsnakes/ppa
-              suites=ubuntu22.04
-              image=ubuntu:22.04 ;;
+              base_arg=flag
+              ref=main
+              ver=''
+              require_tag_publish=true
+              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
+              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
             flagtree-cpu)
               repo=flagtree-cpu
               script=packaging/debian/build-helpers/build-flagtree-cpu.sh
+              base_arg='env'
               outdir=dist/output
-              # The CPU backend needs no vendor SDK and no accelerator, so it
-              # is the one native target that builds on both architectures from
-              # the distribution alone. It builds LLVM, which takes about two
-              # hours on a hosted arm64 runner.
               arches='amd64 arm64'
               ref=main
               ver=''
-              # Packaging lands with flagos-ai/flagtree-cpu#8; until then this
-              # target builds only from `pull/8`, which cannot be published.
-              suites=ubuntu24.04
-              image=ubuntu:24.04 ;;
+              image_ubuntu2204=
+              image_ubuntu2404=ubuntu:24.04 ;;
             *)
               echo "::error::unknown target '${TARGET}'"; exit 1 ;;
           esac
+
+          case "${SUITE}" in
+            ubuntu22.04) codename=jammy ;;
+            ubuntu24.04) codename=noble ;;
+            *) echo "::error::no codename for '${SUITE}'"; exit 1 ;;
+          esac
+
           {
             echo "repo_url=https://github.com/flagos-ai/${repo}.git"
             echo "script=${script}"
+            echo "base_arg=${base_arg}"
             echo "outdir=${outdir}"
-            echo "base=${base}"
             echo "script_arg=${script_arg}"
             echo "deps=${deps}"
-            echo "ppa=${ppa}"
             echo "publish_runs_on=${publish_runs_on}"
-            if [ -n "${deps}" ]; then
-              case "${suites}" in
-                ubuntu22.04) echo "flagos_apt=${NEXUS_REPO_BASE}/flagos-apt-${suites} jammy main" ;;
-                ubuntu24.04) echo "flagos_apt=${NEXUS_REPO_BASE}/flagos-apt-${suites} noble main" ;;
-              esac
-            fi
             echo "default_ref=${ref}"
             echo "default_version=${ver}"
-            echo "suites=${suites}"
+            echo "require_tag_publish=${require_tag_publish:-false}"
             echo "arches=${arches}"
-            echo "verify_image=${image}"
+            echo "codename=${codename}"
           } >> "$GITHUB_OUTPUT"
 
-          # An override may narrow the architecture list but never widen it --
-          # same rule as the suites above, for the same reason.
+          valid_suites=""
+          [ -n "${image_ubuntu2204}" ] && valid_suites="ubuntu22.04"
+          [ -n "${image_ubuntu2404}" ] && valid_suites="${valid_suites:+$valid_suites }ubuntu24.04"
+          for s in ${SUITES_REQ:-}; do
+            case " ${valid_suites} " in
+              *" ${s} "*) ;;
+              *)
+                echo "::error::'${s}' is not a suite ${TARGET} is valid for (${valid_suites})"
+                exit 1 ;;
+            esac
+          done
+
           for a in ${ARCHES:-}; do
             case " ${arches} " in
               *" ${a} "*) ;;
@@ -315,31 +248,37 @@ jobs:
             *) echo "build_arch=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
+          selected_image=""
+          case " ${SUITES_REQ:-${valid_suites}} " in
+            *" ${SUITE} "*)
+              case "${SUITE}" in
+                ubuntu22.04) selected_image="${image_ubuntu2204}" ;;
+                ubuntu24.04) selected_image="${image_ubuntu2404}" ;;
+              esac ;;
+          esac
+          echo "base_image=${selected_image}" >> "$GITHUB_OUTPUT"
+
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
         env:
-          REQUESTED: ${{ inputs.suites }}
-          VALID: ${{ steps.cfg.outputs.suites }}
+          SUITES: ${{ inputs.suites }}
         run: |
           set -euo pipefail
           if [ "${{ inputs.verify }}" != "true" ]; then
             echo "::error::publish requires verify - an unverified package must not reach the repository"
             exit 1
           fi
-          # An override may narrow the target's suites but never widen them:
-          # the list above is where the package was shown to install, and a
-          # dispatch is not the place to decide it belongs somewhere else.
-          for suite in ${REQUESTED:-}; do
-            case " ${VALID} " in
+          BUILT="ubuntu22.04 ubuntu24.04"
+          for suite in ${SUITES:-}; do
+            case " ${BUILT} " in
               *" ${suite} "*) ;;
               *)
-                echo "::error::'${suite}' is not a suite ${{ inputs.target }} is valid for (${VALID})"
+                echo "::error::'${suite}' is not built by this workflow (${BUILT})"
                 exit 1 ;;
             esac
           done
-          echo "Publishing into: ${REQUESTED:-${VALID}}"
+          echo "Publish targets: ${SUITES:-${BUILT}}"
 
-      # Only for scripts/clone-ref.sh; the component source goes under src/.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           sparse-checkout: |
@@ -352,6 +291,7 @@ jobs:
         env:
           REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
           PUBLISH: ${{ inputs.publish }}
+          REQUIRE_TAG_PUBLISH: ${{ steps.cfg.outputs.require_tag_publish }}
         run: |
           set -euo pipefail
           if [[ "${REF}" == pull/* && "${PUBLISH}" == "true" ]]; then
@@ -363,14 +303,15 @@ jobs:
           sha=$(git rev-parse HEAD)
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "ref=${REF}" >> "$GITHUB_OUTPUT"
-          # Whether this ref is a tag decides whether a version may be derived
-          # from it. Branch names are version-shaped too, and a branch head
-          # moves, so its name is not a version.
           tag_sha=$(git rev-parse -q --verify "refs/tags/${REF}^{commit}" || true)
           if [ -n "$tag_sha" ] && [ "$tag_sha" = "$sha" ]; then
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            if [ "${PUBLISH}" = "true" ] && [ "${REQUIRE_TAG_PUBLISH}" = "true" ]; then
+              echo "::error::${{ inputs.target }} requires a release tag when publish=true (got non-tag ref '${REF}'); cut and pass a tag first"
+              exit 1
+            fi
             echo "::warning::${REF} is a branch, not a tag - this build is not reproducible by ref name alone"
           fi
           echo "Built ${REF} = ${sha}"
@@ -393,33 +334,29 @@ jobs:
             --pinned "${PINNED}"
           head -1 packaging/debian/changelog
 
-      - name: Skip an architecture this target is not valid for
-        if: ${{ steps.cfg.outputs.build_arch != 'true' }}
+      - name: Skip a row this target is not built for
+        if: ${{ steps.cfg.outputs.base_image == '' || steps.cfg.outputs.build_arch != 'true' }}
         run: |
-          echo "::notice::${{ inputs.target }} is not built for ${{ matrix.arch }} (valid: ${{ steps.cfg.outputs.arches }})"
+          if [ -z "${{ steps.cfg.outputs.base_image }}" ]; then
+            echo "::notice::${{ inputs.target }} is not built for ${{ matrix.suite }}; skipping"
+          else
+            echo "::notice::${{ inputs.target }} is not built for ${{ matrix.arch }} (valid: ${{ steps.cfg.outputs.arches }})"
+          fi
 
-      - name: Fetch FlagOS build dependencies
-        if: ${{ steps.cfg.outputs.build_arch == 'true' && steps.cfg.outputs.deps != '' }}
+      - name: Fetch FlagOS build dependencies for ${{ matrix.suite }}
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' && steps.cfg.outputs.deps != '' }}
         working-directory: src
         env:
           DEPS: ${{ steps.cfg.outputs.deps }}
-          SUITE: ${{ steps.cfg.outputs.suites }}
+          SUITE: ${{ matrix.suite }}
+          CODENAME: ${{ steps.cfg.outputs.codename }}
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          case "${SUITE}" in
-            ubuntu22.04) codename=jammy ;;
-            ubuntu24.04) codename=noble ;;
-            *) echo "::error::no codename for '${SUITE}'"; exit 1 ;;
-          esac
           base="${NEXUS_REPO_BASE}/flagos-apt-${SUITE}"
-          # This architecture's index: a compiled dependency exists per
-          # architecture, and binary-amd64 on an arm64 build would fetch a
-          # package dpkg then refuses to install.
-          curl -fsSL "${base}/dists/${codename}/main/binary-${ARCH}/Packages" -o Packages
+          curl -fsSL "${base}/dists/${CODENAME}/main/binary-${ARCH}/Packages" -o Packages
           mkdir -p packaging/debian/local-deps
           for dep in ${DEPS}; do
-            # The newest version of each, by dpkg's own ordering.
             best=''; bestver=''
             while IFS='|' read -r ver file; do
               if [ -z "$bestver" ] || dpkg --compare-versions "$ver" gt "$bestver"; then
@@ -434,79 +371,93 @@ jobs:
           done
           rm Packages
 
-      - name: Build the .deb packages
-        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+      - name: Build the .deb packages for ${{ matrix.suite }} on ${{ matrix.arch }}
+        id: build
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         working-directory: src
         env:
+          BASE_IMAGE: ${{ steps.cfg.outputs.base_image }}
           SCRIPT_ARG: ${{ steps.cfg.outputs.script_arg }}
         run: |
           set -euo pipefail
-          # ${VAR:+"${VAR}"} so a target without a script argument passes
-          # none, rather than an empty positional the script would read as one.
-          bash "${{ steps.cfg.outputs.script }}" ${{ steps.cfg.outputs.base }} ${SCRIPT_ARG:+"${SCRIPT_ARG}"}
-          # Every package, not the first one: these builds produce a runtime
-          # and a -dev package, and taking one would silently drop the other.
+          case "${{ steps.cfg.outputs.base_arg }}" in
+            flag) bash "${{ steps.cfg.outputs.script }}" --base-image "${BASE_IMAGE}" ${SCRIPT_ARG:+"${SCRIPT_ARG}"} ;;
+            env)  DEB_BASE_IMAGE="${BASE_IMAGE}" bash "${{ steps.cfg.outputs.script }}" ${SCRIPT_ARG:+"${SCRIPT_ARG}"} ;;
+            arg)  bash "${{ steps.cfg.outputs.script }}" "${BASE_IMAGE}" ${SCRIPT_ARG:+"${SCRIPT_ARG}"} ;;
+            *)    echo "::error::unknown base_arg"; exit 1 ;;
+          esac
           mapfile -t debs < <(find "${{ steps.cfg.outputs.outdir }}" -name '*.deb' | sort)
           [ "${#debs[@]}" -gt 0 ] || { echo "::error::the build produced no .deb"; exit 1; }
+          mkdir -p out && cp "${debs[@]}" out/
+          echo "${{ matrix.suite }}" > out/SUITE
           echo "Built ${#debs[@]} package(s):"
           for d in "${debs[@]}"; do
             echo ">>> $(basename "$d")"
             dpkg-deb -f "$d" Package Version Architecture Depends
           done
 
-      - name: Record built architecture manifest
-        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+      - name: Record built row manifest
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         run: |
           mkdir -p built-manifest
-          echo "${{ matrix.arch }} ${{ steps.clone.outputs.sha }}" > "built-manifest/BUILT_${{ matrix.arch }}"
+          echo "${{ matrix.suite }} ${{ matrix.arch }} ${{ steps.clone.outputs.sha }}" > "built-manifest/BUILT_${{ matrix.suite }}_${{ matrix.arch }}"
 
-      - name: Upload built architecture manifest
-        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+      - name: Upload built row manifest
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: ${{ inputs.target }}-deb-built-${{ matrix.arch }}
-          path: built-manifest/BUILT_${{ matrix.arch }}
+          name: ${{ inputs.target }}-deb-built-${{ matrix.suite }}-${{ matrix.arch }}
+          path: built-manifest/BUILT_${{ matrix.suite }}_${{ matrix.arch }}
           retention-days: 7
 
       - name: Upload the .deb packages
-        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: ${{ inputs.target }}-deb-${{ matrix.arch }}
-          path: src/${{ steps.cfg.outputs.outdir }}/*.deb
+          name: ${{ inputs.target }}-deb-${{ matrix.suite }}-${{ matrix.arch }}
+          path: |
+            src/out/*.deb
+            src/out/SUITE
           retention-days: 7
 
   verify:
     needs: build
     if: ${{ inputs.verify }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
+        suite: [ubuntu22.04, ubuntu24.04]
         arch: [amd64, arm64]
-    # The package has to be installed on the architecture it was built for,
-    # so this job follows the build's runner choice.
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+        include:
+          - suite: ubuntu22.04
+            image: ubuntu:22.04
+            codename: jammy
+          - suite: ubuntu24.04
+            image: ubuntu:24.04
+            codename: noble
     steps:
       - name: Clean workspace artifacts
         run: rm -rf pkg built-manifest
 
-      - name: Download built architecture manifests
+      - name: Download built row manifests
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: ${{ inputs.target }}-deb-built-*
           path: built-manifest
           merge-multiple: true
 
-      - name: Check whether ${{ matrix.arch }} was built
+      - name: Check whether ${{ matrix.suite }} ${{ matrix.arch }} was built
         id: expect
         run: |
           set -euo pipefail
-          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no architecture produced a package - nothing was verified"; exit 1; }
-          if [ -f "built-manifest/BUILT_${{ matrix.arch }}" ]; then
+          compgen -G "built-manifest/BUILT_*" > /dev/null \
+            || { echo "::error::no suite produced a package - nothing was verified"; exit 1; }
+          if [ -f "built-manifest/BUILT_${{ matrix.suite }}_${{ matrix.arch }}" ]; then
             echo "built=true" >> "$GITHUB_OUTPUT"
           else
             echo "built=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::nothing was built for ${{ matrix.arch }}"
+            echo "::notice::nothing was built for ${{ matrix.suite }} ${{ matrix.arch }}"
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -519,23 +470,18 @@ jobs:
         if: ${{ steps.expect.outputs.built == 'true' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: ${{ inputs.target }}-deb-${{ matrix.arch }}
+          name: ${{ inputs.target }}-deb-${{ matrix.suite }}-${{ matrix.arch }}
           path: pkg
 
-      - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
+      - name: Install and check in a clean ${{ matrix.image }}
         if: ${{ steps.expect.outputs.built == 'true' }}
         env:
-          FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
+          FLAGOS_APT: ${{ needs.build.outputs.deps != '' && format('{0}/flagos-apt-{1} {2} main', env.NEXUS_REPO_BASE, matrix.suite, matrix.codename) || '' }}
           FLAGOS_APT_KEY: https://resource.flagos.net/repository/apt-keys/pub/flagos-apt-public-key.asc
-          PPA: ${{ needs.build.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -v "$PWD/scripts/verify-elf-links.sh:/verify-elf-links.sh:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -v "$PWD/scripts/verify-elf-links.sh:/verify-elf-links.sh:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e DEBIAN_FRONTEND=noninteractive ${{ matrix.image }} bash -c '
             set -e
-            if [ -n "${PPA:-}" ]; then
-              apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
-              add-apt-repository -y "${PPA}" > /dev/null
-            fi
             if [ -n "${FLAGOS_APT:-}" ]; then
               apt-get update -qq && apt-get install -y -qq ca-certificates curl > /dev/null
               install -d -m 0755 /etc/apt/keyrings
@@ -550,16 +496,17 @@ jobs:
 
       - name: Attest verified .deb packages
         if: ${{ steps.expect.outputs.built == 'true' }}
-        run: echo "${{ matrix.arch }}" > "pkg/VERIFIED_${{ matrix.arch }}"
+        run: echo "${{ matrix.suite }} ${{ matrix.arch }}" > "pkg/VERIFIED_${{ matrix.suite }}_${{ matrix.arch }}"
 
       - name: Upload verified .deb packages
         if: ${{ steps.expect.outputs.built == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: verified-${{ inputs.target }}-deb-${{ matrix.arch }}
+          name: verified-${{ inputs.target }}-deb-${{ matrix.suite }}-${{ matrix.arch }}
           path: |
             pkg/*.deb
-            pkg/VERIFIED_${{ matrix.arch }}
+            pkg/SUITE
+            pkg/VERIFIED_${{ matrix.suite }}_${{ matrix.arch }}
           retention-days: 7
 
   publish:
@@ -570,7 +517,7 @@ jobs:
       - name: Clean workspace artifacts
         run: rm -rf pkg built-manifest
 
-      - name: Download built architecture manifests
+      - name: Download built row manifests
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: ${{ inputs.target }}-deb-built-*
@@ -582,39 +529,58 @@ jobs:
         with:
           pattern: verified-${{ inputs.target }}-deb-*
           path: pkg
-          merge-multiple: true
+          merge-multiple: false
 
-      - name: Verify every built architecture passed verification
+      - name: Verify every built row passed verification
+        env:
+          SUITES: ${{ inputs.suites }}
         run: |
           set -euo pipefail
-          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no built manifest found"; exit 1; }
+          compgen -G "built-manifest/BUILT_*" > /dev/null \
+            || { echo "::error::no built manifest found"; exit 1; }
           expected_sha=""
           for f in built-manifest/BUILT_*; do
-            read -r arch bsha < "$f"
+            read -r bsuite barch bsha < "$f"
+            if [ -n "${SUITES:-}" ]; then
+              case " ${SUITES} " in *" ${bsuite} "*) ;; *) continue ;; esac
+            fi
             if [ -n "$expected_sha" ] && [ "$bsha" != "$expected_sha" ]; then
-              echo "::error::built architectures resolved to different commits ($expected_sha vs $bsha)"
+              echo "::error::built rows resolved to different commits ($expected_sha vs $bsha)"
               exit 1
             fi
             expected_sha="$bsha"
-            [ -f "pkg/VERIFIED_${arch}" ] || { echo "::error::architecture '${arch}' was built but has no verification attestation"; exit 1; }
+            found=$(find pkg -name "VERIFIED_${bsuite}_${barch}" -print -quit)
+            [ -n "$found" ] || { echo "::error::${bsuite} ${barch} was built but has no verification attestation"; exit 1; }
           done
 
       - name: Publish to the apt repositories
         env:
           NEXUS_TOKEN: ${{ secrets.NEXUS_TOKEN }}
-          SUITES: ${{ inputs.suites || needs.build.outputs.suites }}
+          SUITES: ${{ inputs.suites }}
         run: |
           set -euo pipefail
           if [ -z "${NEXUS_TOKEN:-}" ]; then
             echo "::error::NEXUS_TOKEN secret is empty or unset"
             exit 1
           fi
-          mapfile -t debs < <(find pkg -name '*.deb' | sort)
-          [ "${#debs[@]}" -gt 0 ] || { echo "::error::no .deb to publish"; exit 1; }
-          echo "Publishing ${#debs[@]} package(s) built from ${{ needs.build.outputs.built_sha }}"
+          echo "Publishing packages built from ${{ needs.build.outputs.built_sha }}"
           uploaded=0
           attempted=0
+          mapfile -t markers < <(find pkg -name SUITE | sort)
+          [ "${#markers[@]}" -gt 0 ] || { echo "::error::no package directory under pkg/"; exit 1; }
+          if [ -z "${SUITES:-}" ]; then
+            SUITES=$(cat "${markers[@]}" | sort -u | tr '\n' ' ')
+          fi
           for suite in ${SUITES}; do
+            debs=()
+            for m in "${markers[@]}"; do
+              [ "$(cat "$m")" = "${suite}" ] || continue
+              mapfile -t -O "${#debs[@]}" debs < <(find "$(dirname "$m")" -name '*.deb' | sort)
+            done
+            if [ "${#debs[@]}" -eq 0 ]; then
+              echo "::error::nothing was built for '${suite}' - it failed or was skipped"
+              exit 1
+            fi
             repo="${NEXUS_REPO_BASE}/flagos-apt-${suite}/"
             for deb in "${debs[@]}"; do
               attempted=$((attempted + 1))
@@ -629,15 +595,10 @@ jobs:
               fi
             done
           done
-          # A 2xx only says the upload was accepted; zero successes means the
-          # token or the repository is misconfigured, and silence would hide it.
           if [ "$uploaded" -eq 0 ]; then
             echo "::error::no suite accepted the upload"
             exit 1
           fi
-          # A partial success is worse than none: some packages are in the
-          # repository and others are not, so a -dev package can be installable
-          # while the runtime it needs is absent.
           if [ "$uploaded" -ne "$attempted" ]; then
             echo "::error::published ${uploaded} of ${attempted} upload(s)"
             exit 1
