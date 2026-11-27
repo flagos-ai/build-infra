@@ -58,6 +58,7 @@ CASES = [
     ('nonhost-sym',  ['fxnonhostsym'],                 False, 'has undefined symbols'),
     ('sib-samesym',  ['fxsibsamesym'],                 False, 'has undefined symbols'),
     ('split-hosts',  ['fxsplitplug'],                  False, 'has undefined symbols'),
+    ('symver-miss',  ['fxsymver'],                     False, 'symbol version mismatch'),
 ]
 
 BUILD_LIBS = r"""
@@ -102,6 +103,15 @@ cc libfxpubcaller.so.1 pubcaller.c
 gcc -shared -fPIC -o fxbadplug.so pubcaller.c
 cc libfxsibhost.so.1   sibhost.c   -ldl
 gcc -shared -fPIC -o fxsplitplug.so splitplug.c
+mkdir -p v2
+echo 'FXVER_1.0 { global: fx_v1; local: *; };' > ver1.map
+echo 'FXVER_1.0 { global: fx_v1; local: *; }; FXVER_2.0 { global: fx_v2; } FXVER_1.0;' > ver2.map
+echo 'int fx_v1(void){return 1;}' > ver1.c
+echo 'int fx_v1(void){return 1;} int fx_v2(void){return 2;}' > ver2.c
+echo 'int fx_v2(void); int fx_use_v2(void){return fx_v2();}' > symver.c
+cc libfxver.so.1       ver1.c      -Wl,--version-script,ver1.map
+gcc -shared -fPIC -o v2/libfxver.so.1 -Wl,-soname,libfxver.so.1 ver2.c -Wl,--version-script,ver2.map
+cc libfxsymver.so.1    symver.c    -Lv2 -l:libfxver.so.1
 """
 
 
@@ -141,6 +151,8 @@ def packages(libdir):
         'fxsplitplug':  ([('libfxhost.so.1', libdir),
                           ('libfxsibhost.so.1', libdir),
                           ('fxsplitplug.so', '/opt/fxsplit/plugins')], [], '', ''),
+        'fxsymver':     ([('libfxver.so.1', libdir),
+                          ('libfxsymver.so.1', libdir)], [], '', ''),
     }
 
 
@@ -191,13 +203,19 @@ def docker(image, script, mounts=()):
 
 
 def verify_script(workflow):
-    # Validate outer step syntax with bash -n, then extract the inner docker-run body.
+    # Validate outer step syntax, helper script syntax, and inner docker-run body.
+    helper = ROOT / 'scripts/verify-elf-links.sh'
+    helper_check = subprocess.run(['bash', '-n', str(helper)], capture_output=True, text=True)
+    if helper_check.returncode != 0:
+        sys.exit(f'scripts/verify-elf-links.sh failed bash -n:\n{helper_check.stderr}')
     doc = yaml.safe_load((ROOT / f'.github/workflows/{workflow}.yml').read_text())
     runs = [s['run'] for s in doc['jobs']['verify']['steps']
             if 'docker run' in s.get('run', '')]
     if len(runs) != 1:
         sys.exit(f'{workflow}: expected one docker-run step in verify, found {len(runs)}')
     run = runs[0]
+    if 'scripts/verify-elf-links.sh:/verify-elf-links.sh:ro' not in run:
+        sys.exit(f'{workflow}: verify docker-run step does not mount scripts/verify-elf-links.sh')
     outer_check = subprocess.run(
         ['bash', '-n'],
         input=re.sub(r'\$\{\{[^}]+\}\}', 'placeholder', run),
@@ -222,6 +240,7 @@ def main(selected):
     failures = 0
     work = pathlib.Path(tempfile.mkdtemp(prefix='verify-selftest-'))
     built = {}
+    helper = ROOT / 'scripts/verify-elf-links.sh'
     try:
         for workflow in selected:
             kind, image = WORKFLOWS[workflow]
@@ -241,7 +260,8 @@ def main(selected):
                 case_dir.mkdir()
                 for p in pkgs:
                     shutil.copy(built[kind] / f'{p}.{kind}', case_dir)
-                r = docker(image, script, [(case_dir, '/pkg', 'ro')])
+                r = docker(image, script,
+                           [(case_dir, '/pkg', 'ro'), (helper, '/verify-elf-links.sh', 'ro')])
                 output = r.stdout + r.stderr
                 ok = (r.returncode == 0) == should_pass and marker in output
                 print(f"{'PASS' if ok else 'FAIL'}  {workflow:11} {case:12} "

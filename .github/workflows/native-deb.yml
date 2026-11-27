@@ -509,6 +509,12 @@ jobs:
             echo "::notice::nothing was built for ${{ matrix.arch }}"
           fi
 
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        with:
+          sparse-checkout: scripts/verify-elf-links.sh
+          sparse-checkout-cone-mode: false
+
       - name: Download the .deb packages
         if: ${{ steps.expect.outputs.built == 'true' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -524,15 +530,12 @@ jobs:
           PPA: ${{ needs.build.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -v "$PWD/scripts/verify-elf-links.sh:/verify-elf-links.sh:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
             set -e
             if [ -n "${PPA:-}" ]; then
               apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
               add-apt-repository -y "${PPA}" > /dev/null
             fi
-            # A package that depends on another FlagOS package gets the FlagOS
-            # repository it will be published to, and nothing else -- added the
-            # way a user adds it, signature checked against the published key.
             if [ -n "${FLAGOS_APT:-}" ]; then
               apt-get update -qq && apt-get install -y -qq ca-certificates curl > /dev/null
               install -d -m 0755 /etc/apt/keyrings
@@ -540,166 +543,9 @@ jobs:
               echo "deb [signed-by=/etc/apt/keyrings/flagos.asc] ${FLAGOS_APT}" > /etc/apt/sources.list.d/flagos.list
             fi
             apt-get update -qq
-            # Installing the files themselves is the test: apt has to satisfy
-            # their own Depends from the distribution alone. All of them, so a
-            # -dev package whose runtime dependency is unsatisfiable fails here
-            # rather than in a user'"'"'s terminal.
             apt-get install -y -qq /pkg/*.deb
             apt-get install -y -qq binutils > /dev/null
-
-            checked=0
-            is_public_dir() {
-              case "$1" in
-                /lib|/lib64|/usr/lib|/usr/lib64) return 0 ;;
-                /lib/*-linux-gnu*|/usr/lib/*-linux-gnu*)
-                  _sub=${1#/usr}; _sub=${_sub#/lib/}
-                  case "$_sub" in */*) return 1 ;; *) return 0 ;; esac ;;
-                *) return 1 ;;
-              esac
-            }
-            host_governs_plugin() {
-              if is_public_dir "$1"; then return 0; fi
-              case "$2/" in "$1/"*) return 0 ;; esac
-              _hp=$(dirname "$1"); _hb=$(basename "$1")
-              case "$_hb:$2/" in _C:"$_hp/"*|lib:"$_hp/"*) return 0 ;; esac
-              return 1
-            }
-            needed_dirs_for() {
-              _queue="$1"; _seen=""; _dirs=""
-              while [ -n "$_queue" ]; do
-                _cur=${_queue%% *}
-                if [ "$_cur" = "$_queue" ]; then _queue=""; else _queue=${_queue#* }; fi
-                case " $_seen " in *" $_cur "*) continue ;; esac
-                _seen="$_seen $_cur"
-                for _soname in $(readelf -d "$_cur" 2>/dev/null | grep "(NEEDED)" | sed -E "s/.*\[([^]]+)\].*/\1/"); do
-                  for _cand in $pkg_sos; do
-                    if [ "$(basename "$_cand")" = "$_soname" ]; then
-                      _cdir=$(dirname "$(readlink -f "$_cand")")
-                      _dirs="${_dirs:+$_dirs:}$_cdir"
-                      _queue="${_queue:+$_queue }$_cand"
-                    fi
-                  done
-                done
-              done
-              printf "%s" "$_dirs"
-            }
-            # One -f per file: dpkg-deb -W over a glob reports only the last
-            # one, which silently narrowed this loop to the -dev package --
-            # where the .so is a symlink owned by the runtime package, so the
-            # check then found no library at all and failed a sound build.
-            for pkg in $(for d in /pkg/*.deb; do dpkg-deb -f "$d" Package; done); do
-              pkg_sos=$(dpkg -L "$pkg" | grep -E "\.so($|\.)" | while read -r s; do [ -f "$s" ] && echo "$s"; done || true)
-              # Only libraries that dynamically import dlopen can act as
-              # RTLD_GLOBAL plugin hosts; sibling backends or unrelated
-              # libraries never mask missing symbols.
-              loadable_hosts=""
-              unpreload_hosts=""
-              for h in $pkg_sos; do
-                case "$(basename "$h")" in *.cpython-*.so) continue ;; esac
-                nm -D -u "$h" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//" | grep -qx "dlopen" || continue
-                h_dirs=$(needed_dirs_for "$h")
-                if ! LD_LIBRARY_PATH="$h_dirs" ldd "$h" 2>&1 | grep -q "not found" \
-                   && ! LD_LIBRARY_PATH="$h_dirs" ldd -r "$h" 2>&1 | grep -vE "undefined symbol: _?Py" | grep -q "undefined symbol"; then
-                  loadable_hosts="${loadable_hosts:+$loadable_hosts }$h"
-                else
-                  unpreload_hosts="${unpreload_hosts:+$unpreload_hosts }$h"
-                fi
-              done
-
-              for so in $pkg_sos; do
-                checked=$((checked + 1))
-                real_so=$(readlink -f "$so")
-                so_dir=$(dirname "$real_so")
-                # Libraries placed directly in a system loader directory (never
-                # a subdirectory beneath it) are public entry points: consumers
-                # resolve only DT_NEEDED and RUNPATH, never sibling directories.
-                if is_public_dir "$so_dir"; then is_public=1; else is_public=0; fi
-                owner=$(dpkg -S "$real_so" | head -1 | cut -d: -f1)
-                depends=$(dpkg-query -W -f="\${Depends}" "$owner" | tr ",|" "\n\n" | sed -E "s/^ +//; s/[ (:].*//")
-                env_missing=0
-                for lib in $(ldd "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  provider=$(dpkg -S "*/$lib" 2>/dev/null | head -1 | cut -d: -f1 || true)
-                  if [ "$provider" = "$owner" ]; then
-                    if [ "$is_public" -eq 1 ]; then
-                      echo "$(basename "$so"): $lib is shipped by $owner outside the loader path, and $(basename "$so") has no RUNPATH to reach it"
-                      exit 1
-                    fi
-                    echo "  $(basename "$so"): $lib shipped by the package itself"
-                  elif [ -n "$provider" ] && ! printf "%s\n" "$depends" | grep -qx "$provider"; then
-                    echo "$(basename "$so"): $lib is provided by an installed package ($provider) but not declared"
-                    exit 1
-                  else
-                    echo "  $(basename "$so"): $lib left to the environment"
-                    env_missing=$((env_missing + 1))
-                  fi
-                done
-
-                if [ "$env_missing" -gt 0 ]; then
-                  echo "  $(basename "$so"): $env_missing left to the environment, symbols not checked"
-                elif [ "$is_public" -eq 1 ]; then
-                  if undefined=$(ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | awk "{print \$3}"); [ -n "$undefined" ]; then
-                    echo "$(basename "$so") has undefined symbols:"
-                    printf "%s\n" "$undefined" | head -5
-                    exit 1
-                  else
-                    echo "  $(basename "$so"): links resolve"
-                  fi
-                else
-                  so_dirs=$(needed_dirs_for "$so")
-                  defined_unpreload="/tmp/defined-unpreload-$$"
-                  : > "$defined_unpreload"
-                  for h in $unpreload_hosts; do
-                    h_real=$(readlink -f "$h")
-                    [ "$h_real" = "$real_so" ] && continue
-                    if host_governs_plugin "$(dirname "$h_real")" "$so_dir"; then
-                      nm -D --defined-only "$h" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//" >> "$defined_unpreload"
-                    fi
-                  done
-                  sort -u -o "$defined_unpreload" "$defined_unpreload"
-                  gov_hosts=""
-                  for h in $loadable_hosts; do
-                    h_real=$(readlink -f "$h")
-                    [ "$h_real" = "$real_so" ] && continue
-                    if host_governs_plugin "$(dirname "$h_real")" "$so_dir"; then
-                      gov_hosts="${gov_hosts:+$gov_hosts }$h"
-                    fi
-                  done
-                  resolved=0
-                  undefined=""
-                  if [ -n "$gov_hosts" ]; then
-                    for h in $gov_hosts; do
-                      hd=$(needed_dirs_for "$h")
-                      try_dirs="${so_dirs}${hd:+:${hd}}"
-                      try_dirs="${try_dirs#:}"
-                      cand_undef=$(LD_PRELOAD="$h" LD_LIBRARY_PATH="$try_dirs" ldd -r "$so" 2>&1 \
-                                   | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
-                                   | awk "{print \$3}" | grep -vxF -f "$defined_unpreload" || true)
-                      if [ -z "$cand_undef" ]; then
-                        resolved=1
-                        undefined=""
-                        break
-                      fi
-                      undefined="$cand_undef"
-                    done
-                  else
-                    undefined=$(LD_LIBRARY_PATH="$so_dirs" ldd -r "$so" 2>&1 \
-                                | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
-                                | awk "{print \$3}" | grep -vxF -f "$defined_unpreload" || true)
-                    [ -z "$undefined" ] && resolved=1
-                  fi
-                  rm -f "$defined_unpreload"
-                  if [ "$resolved" -eq 0 ]; then
-                    echo "$(basename "$so") has undefined symbols:"
-                    printf "%s\n" "$undefined" | head -5
-                    exit 1
-                  else
-                    echo "  $(basename "$so"): links resolve"
-                  fi
-                fi
-              done
-            done
-            test "$checked" -gt 0 || { echo "no shared library shipped - is this a native package?"; exit 1; }
-            echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
+            bash /verify-elf-links.sh --format deb /pkg
           '
 
       - name: Attest verified .deb packages
