@@ -615,6 +615,15 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
+  - version: flagcx==0.14.1+tsm5.6.3
+    pypi_index: flagos-pypi-tsingmicro
+    desc_zh: 面向清微智能（TsingMicro）TSM 5.6.3 的 FlagCX 集合通信安装包。
+    desc_en: FlagCX collective-communication wheel for TsingMicro TSM 5.6.3.
+    notes: ''
+    notes_en: ''
+    python: cp312
+    os: linux
+    arch: linux_x86_64
 - name: vllm
   short_name: vLLM (repacked)
   versions:
