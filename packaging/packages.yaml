@@ -1228,18 +1228,6 @@ wheels:
     python: cp312
     os: linux
     arch: linux_x86_64
-- name: transformer-engine-amd
-  short_name: transformer-engine-amd
-  versions:
-  - version: 2.19.0+5035366
-    pypi_index: flagos-pypi-amd
-    desc_zh: ''
-    desc_en: ''
-    notes: ''
-    notes_en: ''
-    python: cp312
-    os: linux
-    arch: linux_x86_64
 sources:
 - name: flagtree
   short_name: FlagTree

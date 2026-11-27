@@ -173,8 +173,11 @@ jobs:
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-amd}"
           mkdir -p .wheel-info
+          # The first field is the catalog package name, not this line's. The
+          # wheel is `transformer_engine`; naming it after the workflow creates
+          # a second, undescribed catalog entry for the same distribution.
           for w in packaging/transformer-engine-amd/wheels/*.whl; do
-            printf '%s\t%s\t%s\t%s\n' "transformer-engine-amd" "" "${pypi_repo}" \
+            printf '%s\t%s\t%s\t%s\n' "transformer_engine" "" "${pypi_repo}" \
               "$(basename "$w")" >> .wheel-info/manifest.tsv
           done
 
