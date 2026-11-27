@@ -238,15 +238,20 @@ RUN mkdir -p /src /wheels /out \
 # (the /opt/triton wheel installs as `triton-rocm`). The alias below
 # is a copy of that dist-info with Name rewritten -- the package it
 # describes is the real one.
+# The version comes from the dist-info's own name: reading it with
+# `import triton` would need PYTHONPATH, and this step must not depend on the
+# alias it is about to create.
 RUN python3 -m pip install --no-cache-dir \
       --index-url "${EXTRA_PYPI}" \
       -r /src/te/3rdparty/aotriton/requirements.txt \
-    && D="${TRITON_PATH}/triton-$(python3 -c 'import triton;print(triton.__version__)').dist-info" \
+    && SRC=$(ls -d "${TRITON_PATH}"/triton_rocm-*.dist-info) \
+    && ver="${SRC##*/triton_rocm-}" \
+    && D="${TRITON_PATH}/triton-${ver%.dist-info}.dist-info" \
     && mkdir -p "${D}" \
     && sed -e 's/^Name: *triton-rocm$/Name: triton/' \
-         "${TRITON_PATH}"/triton_rocm-*.dist-info/METADATA > "${D}/METADATA" \
+         "${SRC}/METADATA" > "${D}/METADATA" \
     && echo triton > "${D}/top_level.txt" \
-    && cp "${TRITON_PATH}"/triton_rocm-*.dist-info/WHEEL "${D}/WHEEL" \
+    && cp "${SRC}/WHEEL" "${D}/WHEEL" \
     && touch "${D}/INSTALLER" \
     && PYTHONPATH="${TRITON_PATH}" python3 -c \
          'import importlib.metadata as m; print("triton ->", m.version("triton"))' \
