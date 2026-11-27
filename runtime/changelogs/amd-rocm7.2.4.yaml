@@ -41,7 +41,7 @@ tags:
       2e-06，且在本镜像默认的 flagtree 编译器与 /opt/triton 旁路安装下均可用。
       烘焙进镜像，免去每个使用方各自设置。镜像其余内容不变。
     upstream_prs: []
-    date: ''
+    date: '2026-11-27T02:10:24.030Z'
   - reason: >-
       The image carries this backend's daily-line distribution name, so
       `-e FLAGTREE_VERSION=latest` resolves on it: the container starts on the
