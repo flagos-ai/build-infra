@@ -454,6 +454,20 @@ jobs:
             dpkg-deb -f "$d" Package Version Architecture Depends
           done
 
+      - name: Record built architecture manifest
+        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+        run: |
+          mkdir -p built-manifest
+          echo "${{ matrix.arch }} ${{ steps.clone.outputs.sha }}" > "built-manifest/BUILT_${{ matrix.arch }}"
+
+      - name: Upload built architecture manifest
+        if: ${{ steps.cfg.outputs.build_arch == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ inputs.target }}-deb-built-${{ matrix.arch }}
+          path: built-manifest/BUILT_${{ matrix.arch }}
+          retention-days: 7
+
       - name: Upload the .deb packages
         if: ${{ steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -473,37 +487,55 @@ jobs:
     # so this job follows the build's runner choice.
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
+      - name: Clean workspace artifacts
+        run: rm -rf pkg built-manifest
+
+      - name: Download built architecture manifests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: ${{ inputs.target }}-deb-built-*
+          path: built-manifest
+          merge-multiple: true
+
+      - name: Check whether ${{ matrix.arch }} was built
+        id: expect
+        run: |
+          set -euo pipefail
+          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no architecture produced a package - nothing was verified"; exit 1; }
+          if [ -f "built-manifest/BUILT_${{ matrix.arch }}" ]; then
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::nothing was built for ${{ matrix.arch }}"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        with:
+          sparse-checkout: scripts/verify-elf-links.sh
+          sparse-checkout-cone-mode: false
+
       - name: Download the .deb packages
-        id: fetch
-        continue-on-error: true
+        if: ${{ steps.expect.outputs.built == 'true' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ${{ inputs.target }}-deb-${{ matrix.arch }}
           path: pkg
 
-      # An architecture the build skipped has no artifact. That is not a
-      # failure here, but it must not read as a passing verification either.
-      - name: Note an architecture with no package
-        if: ${{ steps.fetch.outcome == 'failure' }}
-        run: echo "::notice::nothing was built for ${{ matrix.arch }}"
-
       - name: Install and check in a clean ${{ needs.build.outputs.verify_image }}
-        if: ${{ steps.fetch.outcome == 'success' }}
+        if: ${{ steps.expect.outputs.built == 'true' }}
         env:
           FLAGOS_APT: ${{ needs.build.outputs.flagos_apt }}
           FLAGOS_APT_KEY: https://resource.flagos.net/repository/apt-keys/pub/flagos-apt-public-key.asc
           PPA: ${{ needs.build.outputs.ppa }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -v "$PWD/scripts/verify-elf-links.sh:/verify-elf-links.sh:ro" -e FLAGOS_APT -e FLAGOS_APT_KEY -e PPA -e DEBIAN_FRONTEND=noninteractive ${{ needs.build.outputs.verify_image }} bash -c '
             set -e
             if [ -n "${PPA:-}" ]; then
               apt-get update -qq && apt-get install -y -qq software-properties-common > /dev/null
               add-apt-repository -y "${PPA}" > /dev/null
             fi
-            # A package that depends on another FlagOS package gets the FlagOS
-            # repository it will be published to, and nothing else -- added the
-            # way a user adds it, signature checked against the published key.
             if [ -n "${FLAGOS_APT:-}" ]; then
               apt-get update -qq && apt-get install -y -qq ca-certificates curl > /dev/null
               install -d -m 0755 /etc/apt/keyrings
@@ -511,91 +543,61 @@ jobs:
               echo "deb [signed-by=/etc/apt/keyrings/flagos.asc] ${FLAGOS_APT}" > /etc/apt/sources.list.d/flagos.list
             fi
             apt-get update -qq
-            # Installing the files themselves is the test: apt has to satisfy
-            # their own Depends from the distribution alone. All of them, so a
-            # -dev package whose runtime dependency is unsatisfiable fails here
-            # rather than in a user'"'"'s terminal.
             apt-get install -y -qq /pkg/*.deb
             apt-get install -y -qq binutils > /dev/null
-
-            checked=0
-            # One -f per file: dpkg-deb -W over a glob reports only the last
-            # one, which silently narrowed this loop to the -dev package --
-            # where the .so is a symlink owned by the runtime package, so the
-            # check then found no library at all and failed a sound build.
-            for pkg in $(for d in /pkg/*.deb; do dpkg-deb -f "$d" Package; done); do
-              # What the package itself exports. A backend plugin takes its
-              # MLIR symbols from the libtriton.so that loads it, in the same
-              # package; the loader never walks that edge, so ldd reports the
-              # symbols undefined although the package resolves them itself.
-              # nm prints a versioned symbol as name@@version; ldd names the
-              # symbol alone.
-              dpkg -L "$pkg" | grep -E "\.so($|\.)" | while read -r s; do
-                [ -f "$s" ] && nm -D --defined-only "$s" 2>/dev/null | awk "{print \$NF}" | sed "s/@.*//"
-              done | sort -u > /tmp/defined-by-package
-              for so in $(dpkg -L "$pkg" | grep -E "\.so($|\.)" || true); do
-                [ -f "$so" ] || continue
-                checked=$((checked + 1))
-                # ldd -r reports what the loader cannot resolve. Libraries the
-                # package deliberately leaves to the environment are expected
-                # to be missing here -- the GPU driver comes from the host and
-                # torch from pip, neither is a Debian dependency and neither
-                # can be in the container. What is not expected is a missing
-                # library that some installed package does provide: that means
-                # the dependency was not declared, and the package would fail
-                # on a machine that happens not to have it.
-                missing=0
-                # Declared by the package that ships the ELF, not by a -dev
-                # package whose .so is only a symlink to it.
-                owner=$(dpkg -S "$(readlink -f "$so")" | head -1 | cut -d: -f1)
-                depends=$(dpkg-query -W -f="\${Depends}" "$owner" | tr ",|" "\n\n" | sed -E "s/^ +//; s/[ (:].*//")
-                for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  provider=$(dpkg -S "*/$lib" 2>/dev/null | head -1 | cut -d: -f1)
-                  if [ "$provider" = "$owner" ]; then
-                    # Shipped next to the library that needs it, outside the
-                    # loader path; whoever loads the package finds it by rpath.
-                    echo "  $(basename "$so"): $lib shipped by the package itself"
-                  elif [ -n "$provider" ] && ! printf "%s\n" "$depends" | grep -qx "$provider"; then
-                    echo "$(basename "$so"): $lib is provided by an installed package but not declared"
-                    exit 1
-                  else
-                    echo "  $(basename "$so"): $lib left to the environment"
-                  fi
-                  missing=$((missing + 1))
-                done
-                # A missing library takes every symbol it defines with it, so this
-                # only means anything once they are all present.
-                if [ "$missing" -gt 0 ]; then
-                  echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
-                # Python extension modules leave Py*/_Py* to the interpreter,
-                # and a plugin leaves what its host in the same package exports.
-                elif undefined=$(ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" \
-                                   | awk "{print \$3}" | grep -vxF -f /tmp/defined-by-package); [ -n "$undefined" ]; then
-                  echo "$(basename "$so") has undefined symbols:"
-                  printf "%s\n" "$undefined" | head -5
-                  exit 1
-                else
-                  echo "  $(basename "$so"): links resolve"
-                fi
-              done
-            done
-            test "$checked" -gt 0 || { echo "no shared library shipped - is this a native package?"; exit 1; }
-            echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
+            bash /verify-elf-links.sh --format deb /pkg
           '
+
+      - name: Attest verified .deb packages
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        run: echo "${{ matrix.arch }}" > "pkg/VERIFIED_${{ matrix.arch }}"
+
+      - name: Upload verified .deb packages
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: verified-${{ inputs.target }}-deb-${{ matrix.arch }}
+          path: |
+            pkg/*.deb
+            pkg/VERIFIED_${{ matrix.arch }}
+          retention-days: 7
 
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
     runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
-      # Every architecture that built, into one directory: an apt suite serves
-      # all of them from the same repository, and the upload is per file.
-      - name: Download the .deb packages
+      - name: Clean workspace artifacts
+        run: rm -rf pkg built-manifest
+
+      - name: Download built architecture manifests
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          pattern: ${{ inputs.target }}-deb-*
+          pattern: ${{ inputs.target }}-deb-built-*
+          path: built-manifest
+          merge-multiple: true
+
+      - name: Download verified .deb packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: verified-${{ inputs.target }}-deb-*
           path: pkg
           merge-multiple: true
+
+      - name: Verify every built architecture passed verification
+        run: |
+          set -euo pipefail
+          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no built manifest found"; exit 1; }
+          expected_sha=""
+          for f in built-manifest/BUILT_*; do
+            read -r arch bsha < "$f"
+            if [ -n "$expected_sha" ] && [ "$bsha" != "$expected_sha" ]; then
+              echo "::error::built architectures resolved to different commits ($expected_sha vs $bsha)"
+              exit 1
+            fi
+            expected_sha="$bsha"
+            [ -f "pkg/VERIFIED_${arch}" ] || { echo "::error::architecture '${arch}' was built but has no verification attestation"; exit 1; }
+          done
 
       - name: Publish to the apt repositories
         env:

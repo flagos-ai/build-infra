@@ -116,6 +116,8 @@ jobs:
         id: cfg
         env:
           TARGET: ${{ inputs.target }}
+          SUITE: ${{ matrix.suite }}
+          SUITES_REQ: ${{ inputs.suites }}
           ARCH: ${{ matrix.arch }}
           ARCHES: ${{ inputs.arches }}
         run: |
@@ -303,11 +305,28 @@ jobs:
           # target has no image for that distribution and the row is skipped --
           # so this has to be emitted, or every row skips and the run reports
           # success having built nothing.
-          case "${{ matrix.suite }}" in
-            fedora43)       echo "base_image=${image_fedora43}" >> "$GITHUB_OUTPUT" ;;
-            openeuler24.03) echo "base_image=${image_openeuler2403}" >> "$GITHUB_OUTPUT" ;;
-            rhel9)          echo "base_image=${image_rhel9}" >> "$GITHUB_OUTPUT" ;;
+          valid_suites=""
+          [ -n "${image_fedora43}" ] && valid_suites="fedora43"
+          [ -n "${image_openeuler2403}" ] && valid_suites="${valid_suites:+$valid_suites }openeuler24.03"
+          [ -n "${image_rhel9}" ] && valid_suites="${valid_suites:+$valid_suites }rhel9"
+          for s in ${SUITES_REQ:-}; do
+            case " ${valid_suites} " in
+              *" ${s} "*) ;;
+              *)
+                echo "::error::'${s}' is not a suite ${TARGET} is valid for (${valid_suites})"
+                exit 1 ;;
+            esac
+          done
+          selected_image=""
+          case " ${SUITES_REQ:-${valid_suites}} " in
+            *" ${SUITE} "*)
+              case "${SUITE}" in
+                fedora43)       selected_image="${image_fedora43}" ;;
+                openeuler24.03) selected_image="${image_openeuler2403}" ;;
+                rhel9)          selected_image="${image_rhel9}" ;;
+              esac ;;
           esac
+          echo "base_image=${selected_image}" >> "$GITHUB_OUTPUT"
 
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
@@ -464,6 +483,20 @@ jobs:
             rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$r" 2>/dev/null || true
           done
 
+      - name: Record built row manifest
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
+        run: |
+          mkdir -p built-manifest
+          echo "${{ matrix.suite }} ${{ matrix.arch }} ${{ steps.clone.outputs.sha }}" > "built-manifest/BUILT_${{ matrix.suite }}_${{ matrix.arch }}"
+
+      - name: Upload built row manifest
+        if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ inputs.target }}-rpm-built-${{ matrix.suite }}-${{ matrix.arch }}
+          path: built-manifest/BUILT_${{ matrix.suite }}_${{ matrix.arch }}
+          retention-days: 7
+
       - name: Upload the .rpm packages
         if: ${{ steps.cfg.outputs.base_image != '' && steps.cfg.outputs.build_arch == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -477,15 +510,12 @@ jobs:
   verify:
     needs: build
     if: ${{ inputs.verify }}
-    # The package has to be installed on the architecture it was built for,
-    # so this job follows the build's runner choice.
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
         suite: [fedora43, openeuler24.03, rhel9]
         arch: [x86_64, aarch64]
-        # Per suite, added to every architecture row of that suite.
         include:
           - suite: fedora43
             image: fedora:43
@@ -493,119 +523,123 @@ jobs:
             image: openeuler/openeuler:24.03-lts
           - suite: rhel9
             image: rockylinux:9
-            # fmt lives in EPEL on el9, as it does for any RHEL 9 user.
             repos: epel-release
     steps:
+      - name: Clean workspace artifacts
+        run: rm -rf pkg built-manifest
+
+      - name: Download built row manifests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: ${{ inputs.target }}-rpm-built-*
+          path: built-manifest
+          merge-multiple: true
+
+      - name: Check whether ${{ matrix.suite }} ${{ matrix.arch }} was built
+        id: expect
+        run: |
+          set -euo pipefail
+          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no suite produced a package - nothing was verified"; exit 1; }
+          if [ -f "built-manifest/BUILT_${{ matrix.suite }}_${{ matrix.arch }}" ]; then
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::nothing was built for ${{ matrix.suite }} ${{ matrix.arch }}"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        with:
+          sparse-checkout: scripts/verify-elf-links.sh
+          sparse-checkout-cone-mode: false
+
       - name: Download the .rpm packages
-        id: fetch
-        continue-on-error: true
+        if: ${{ steps.expect.outputs.built == 'true' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ${{ inputs.target }}-rpm-${{ matrix.suite }}-${{ matrix.arch }}
           path: pkg
 
-      - name: Note a row with no package
-        if: ${{ steps.fetch.outcome == 'failure' }}
-        run: |
-          # A suite with no package is expected only when the target has no
-          # base image for it. Any other cause -- a build that failed, or a
-          # configuration that emits no image at all -- must not read as a
-          # verified run, which is how a bug that skipped every suite once
-          # reported success having built nothing.
-          if [ -n "${{ needs.build.outputs.any_built }}" ]; then
-            echo "::notice::nothing was built for ${{ matrix.suite }} ${{ matrix.arch }}"
-          else
-            echo "::error::no suite produced a package - nothing was verified"
-            exit 1
-          fi
-
       - name: Install and check in a clean ${{ matrix.image }}
-        if: ${{ steps.fetch.outcome == 'success' }}
+        if: ${{ steps.expect.outputs.built == 'true' }}
         env:
           REPOS: ${{ matrix.repos }}
-          # A package that depends on another FlagOS package gets the FlagOS
-          # repository it will be published to.
           FLAGOS_YUM: ${{ needs.build.outputs.deps != '' && format('{0}/flagos-yum-{1}', env.NEXUS_REPO_BASE, matrix.suite) || '' }}
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD/pkg:/pkg:ro" -e REPOS -e FLAGOS_YUM ${{ matrix.image }} bash -c '
+          docker run --rm -v "$PWD/pkg:/pkg:ro" -v "$PWD/scripts/verify-elf-links.sh:/verify-elf-links.sh:ro" -e REPOS -e FLAGOS_YUM ${{ matrix.image }} bash -c '
             set -e
             if [ -n "${REPOS:-}" ]; then
               dnf install -y -q ${REPOS}
-              # EPEL packages assume CRB is enabled alongside.
               case " ${REPOS} " in *" epel-release "*) dnf config-manager --set-enabled crb 2>/dev/null || true ;; esac
             fi
             if [ -n "${FLAGOS_YUM:-}" ]; then
               printf "[flagos]\nname=FlagOS\nbaseurl=%s\nenabled=1\ngpgcheck=0\n" "${FLAGOS_YUM}" > /etc/yum.repos.d/flagos.repo
             fi
-            # Installing the files themselves is the test: dnf has to satisfy
-            # their own Requires from the distribution and the repositories its
-            # row names, nothing else. All of them, so a -devel package whose
-            # runtime is unsatisfiable fails here rather than in a user'"'"'s
-            # terminal.
             dnf install -y -q --setopt=install_weak_deps=False /pkg/*.rpm
             dnf install -y -q binutils > /dev/null 2>&1 || true
-
-            checked=0
-            for pkg in $(rpm -qp --qf "%{NAME}\n" /pkg/*.rpm | sort -u); do
-              for so in $(rpm -ql "$pkg" | grep -E "\.so($|\.)" || true); do
-                [ -f "$so" ] || continue
-                checked=$((checked + 1))
-                # A library the package deliberately leaves to the environment
-                # -- the GPU driver from the host, torch from pip -- cannot be
-                # present in a clean container and is not a defect. A library
-                # that some installed package does provide, and this one did
-                # not declare, is: it works where it happens to be present and
-                # fails elsewhere.
-                missing=0
-                # Declared by the package that ships the ELF, not by a -devel
-                # package whose .so is only a symlink to it.
-                owner=$(rpm -qf "$(readlink -f "$so")")
-                for lib in $(ldd -r "$so" 2>&1 | grep "not found" | awk "{print \$1}"); do
-                  if rpm -q --whatprovides "${lib}()(64bit)" > /dev/null 2>&1 \
-                     && ! rpm -q --requires "$owner" | grep -qF "${lib}()"; then
-                    echo "$(basename "$so"): $lib is provided by an installed package but not declared"
-                    exit 1
-                  fi
-                  echo "  $(basename "$so"): $lib left to the environment"
-                  missing=$((missing + 1))
-                done
-                # A missing library takes every symbol it defines with it, so this
-                # only means anything once they are all present.
-                if [ "$missing" -gt 0 ]; then
-                  echo "  $(basename "$so"): $missing left to the environment, symbols not checked"
-                # Python extension modules leave Py*/_Py* to the interpreter.
-                elif ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -qvE "undefined symbol: _?Py"; then
-                  echo "$(basename "$so") has undefined symbols:"
-                  ldd -r "$so" 2>&1 | grep "undefined symbol" | grep -vE "undefined symbol: _?Py" | head -5
-                  exit 1
-                else
-                  echo "  $(basename "$so"): links resolve"
-                fi
-              done
-            done
-            test "$checked" -gt 0 || { echo "no shared library shipped - is this a native package?"; exit 1; }
-            echo "OK: $checked shared librar(y|ies) checked, nothing undeclared"
+            bash /verify-elf-links.sh --format rpm /pkg
           '
+
+      - name: Attest verified .rpm packages
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        run: echo "${{ matrix.suite }} ${{ matrix.arch }}" > "pkg/VERIFIED_${{ matrix.suite }}_${{ matrix.arch }}"
+
+      - name: Upload verified .rpm packages
+        if: ${{ steps.expect.outputs.built == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: verified-${{ inputs.target }}-rpm-${{ matrix.suite }}-${{ matrix.arch }}
+          path: |
+            pkg/*.rpm
+            pkg/SUITE
+            pkg/VERIFIED_${{ matrix.suite }}_${{ matrix.arch }}
+          retention-days: 7
 
   publish:
     needs: [build, verify]
     if: ${{ inputs.publish }}
     runs-on: ${{ fromJSON(needs.build.outputs.publish_runs_on) }}
     steps:
-      # The action rather than `gh run download`: the self-hosted runners
-      # carry no gh CLI. Where it puts the files depends on how many artifacts
-      # the pattern matched: several each get a directory named after them,
-      # a lone one is extracted straight into `pkg`. A target with one valid
-      # row -- FlagTree-ascend, openEuler 24.03 on aarch64 alone -- is the lone
-      # case, so the step below reads the suite from the SUITE file the build
-      # wrote into the artifact and never from a directory name.
-      - name: Download the .rpm packages
+      - name: Clean workspace artifacts
+        run: rm -rf pkg built-manifest
+
+      - name: Download built row manifests
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          pattern: ${{ inputs.target }}-rpm-*
+          pattern: ${{ inputs.target }}-rpm-built-*
+          path: built-manifest
+          merge-multiple: true
+
+      # Only verified-* artifacts are downloaded here, and every built row in
+      # the selected suites must present its VERIFIED marker before upload.
+      - name: Download verified .rpm packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: verified-${{ inputs.target }}-rpm-*
           path: pkg
           merge-multiple: false
+
+      - name: Verify every built row passed verification
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          set -euo pipefail
+          compgen -G "built-manifest/BUILT_*" > /dev/null             || { echo "::error::no built manifest found"; exit 1; }
+          expected_sha=""
+          for f in built-manifest/BUILT_*; do
+            read -r bsuite barch bsha < "$f"
+            if [ -n "${SUITES:-}" ]; then
+              case " ${SUITES} " in *" ${bsuite} "*) ;; *) continue ;; esac
+            fi
+            if [ -n "$expected_sha" ] && [ "$bsha" != "$expected_sha" ]; then
+              echo "::error::built rows resolved to different commits ($expected_sha vs $bsha)"
+              exit 1
+            fi
+            expected_sha="$bsha"
+            found=$(find pkg -name "VERIFIED_${bsuite}_${barch}" -print -quit)
+            [ -n "$found" ] || { echo "::error::${bsuite} ${barch} was built but has no verification attestation"; exit 1; }
+          done
 
       - name: Publish to the yum repositories
         env:
