@@ -165,10 +165,11 @@ playbook (`docs/release-workbook.md`) references the display names.
 | `flaggems-vllm-wheel.yml` | Daily (01:27 UTC) + manual FlagGems-vllm wheel build → `flagos-pypi-daily`; static pyproject version, so a dev build is dated by `packaging/flaggems-vllm/build.sh` (see its `README.md`) |
 | `flagtree-wheel-daily.yml` | Daily (01:37 UTC) + manual FlagTree wheel per backend → `flagos-pypi-daily` as `flagtree-<backend>`, one matrix row per `daily:`-enabled entry in `packaging/flagtree/backends.yaml`, on that backend's published builder stage (see `packaging/flagtree/README.md`) |
 | `flagtree-builder.yml` | Publishes `--target builder` of every `packaging/flagtree` Containerfile that has one, one matrix row per backend in `packaging/flagtree/backends.yaml`; the daily builds the wheel on top of it |
+| `transformer-engine-amd-builder.yml` | Publishes `--target builder` of `packaging/transformer-engine-amd` — the amd TE build machine (apt toolchain, ROCm dev headers, pip mirror), so the wheel build does not reinstall it from scratch |
 | `flaggems-release.yml` | FlagGems release wheels: python + cpp wheels → all vendor indexes, `update-config` PR |
 | `te-fl-release.yml` | TransformerEngine-FL dispatch-layer wheel (pure-Python, `TE_FL_SKIP_CUDA=1`) → every non-NVIDIA vendor index + daily (see `packaging/transformer-engine/DESIGN.md`) |
 | `native-deb.yml` / `native-rpm.yml` / `noarch-deb.yml` / `noarch-rpm.yml` | Component repos' deb/rpm release paths to the Nexus repositories |
-| `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `sglang-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `flaglibs-wheel.yml`, `flagos-compressor-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes (`flagtree-wheel.yml` is manual-only; the daily line is its own file) |
+| `sglang-wheel.yml`, `vllm-wheel.yml`, `vllm-plugin-wheel.yml`, `sglang-plugin-wheel.yml`, `flagtree-wheel.yml`, `flash-attn-wheel.yml`, `transformer-engine-amd-wheel.yml`, `flaglibs-wheel.yml`, `flagos-compressor-wheel.yml` | Per-component wheel builds to the vendor PyPI indexes (`flagtree-wheel.yml` is manual-only; the daily line is its own file) |
 | `flaggems-deb.yml` | FlagGems `.deb` release path |
 | `wheel-uploader.yml` | Publishes the uploader image (`packaging/upload/`) that every wheel-uploading workflow runs twine in |
 | `record-wheel-info.yml` | Records a release's `pypi_index`/`python`/`os`/`arch` into `packaging/packages.yaml` (see `docs/wheel-info.md`) |
