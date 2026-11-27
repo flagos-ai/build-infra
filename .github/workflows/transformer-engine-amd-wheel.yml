@@ -14,31 +14,11 @@
 
 name: TransformerEngine AMD Wheel
 
-# Build an amd-native TransformerEngine wheel from the ROCm fork and
-# (optionally) upload it to flagos-pypi-amd.
-#
-# WHY THIS EXISTS: no prebuilt TE wheel works on gfx1100 (RDNA3,
-# W7900). ROCm's manylinux mirror ships transformer_engine_rocm built
-# for CDNA only -- the .hip_fatbin carries gfx942/gfx950 and the wheel
-# dies on this hardware with "no kernel image is available". The
-# per-gfx devrelease indexes publish no TE at all. So TE is
-# source-built here the way hygon / metax / kunlunxin already do it.
-#
-# Build machine = the amd runner: the runtime image is cached there
-# and so is /opt/triton, which AOTriton's kernel-image build reuses.
-# No GPU is needed -- pure compilation. The Containerfile's own gates
-# (gfx1100 kernels in the fatbin, aotriton images in the wheel,
-# import smoke, FP8-still-unavailable assertion) fail `docker build`,
-# so a broken wheel never reaches the extract/upload steps.
-#
-# KNOWN LIMITS of the artifact, both asserted or documented in the
-# Containerfile:
-#   - FP8 / MXFP8 do not work on RDNA3 (no FP8 matrix core).
-#   - Consumers must set NVTE_GEMM_BACKEND=TRITON: hipBLASLt has no
-#     bias-gradient-fused wgrad kernel for gfx1100 and the default
-#     backend fails TransformerLayer backward.
-#
-# Uploads are manual, no schedule.
+# amd-native TransformerEngine wheel from the ROCm fork. No prebuilt TE
+# carries gfx1100 kernels; the sources checked and the artifact's limits
+# (no FP8; consumers must set NVTE_GEMM_BACKEND=TRITON) are in
+# docs/vendors/amd.md. The Containerfile's gates fail `docker build`, so a
+# broken wheel never reaches the extract/upload steps.
 
 on:
   workflow_dispatch:
@@ -121,12 +101,8 @@ jobs:
           BUILDER_IMAGE: ${{ inputs.builder_image }}
         run: |
           set -euo pipefail
-          # Starts from the published builder stage (TransformerEngine AMD
-          # Builder), which already carries the apt toolchain, the ROCm dev
-          # headers and the pip mirror config. Pass --build-arg BASE_IMAGE only
-          # when the builder must be rebuilt from a different runtime image.
-          # The gates live inside this build: an arch regression, a missing
-          # aotriton image, or an import failure all fail here.
+          # BASE_IMAGE is only for rebuilding the builder from a different
+          # runtime image; the published stage is used as-is otherwise.
           build_args=(--build-arg BUILDER_IMAGE="${BUILDER_IMAGE:-harbor.baai.ac.cn/flagos-builder/flagos-transformer-engine-builder-amd:${{ inputs.stack_version }}}")
           if [ -n "${{ inputs.base_image }}" ]; then
             build_args+=(--build-arg BASE_IMAGE="${{ inputs.base_image }}")
@@ -136,8 +112,7 @@ jobs:
             -t "$IMAGE" \
             -f Containerfile .
 
-      # Host-side copy for inspection/debugging; the upload step reads
-      # /wheels from the image directly and does not use this directory.
+      # Host-side copy for inspection; the upload reads /wheels from the image.
       - name: Extract the wheel
         working-directory: packaging/transformer-engine-amd
         run: |
@@ -148,9 +123,7 @@ jobs:
           docker rm "$cid" >/dev/null
           ls -la wheels/*.whl
 
-      # Upload only when explicitly requested (default false so a manual build
-      # from a branch is safe). The wheel is published as-is -- the build gates
-      # already vetted it.
+      # Off by default: a manual build from a branch publishes nothing.
       - name: Upload to internal PyPI
         if: ${{ inputs.upload }}
         env:
@@ -163,10 +136,8 @@ jobs:
           fi
           pypi_repo="${{ inputs.pypi_repo }}"
           pypi_repo="${pypi_repo:-flagos-pypi-amd}"
-          # Upload FROM INSIDE the build image: the wheel and the
-          # python3/pip/twine toolchain both live in $IMAGE, so no host python
-          # is needed. The secret travels via `-e NEXUS_TOKEN` (inherits the
-          # step env) so it never appears in a process list or image layer.
+          # upload from inside the image (it carries the wheel and twine); the
+          # secret is passed by env so it lands in no process list or layer.
           echo ">>> uploading $(docker run --rm "$IMAGE" sh -c 'ls /wheels/*.whl' | tr '\n' ' ') to ${pypi_repo}"
           docker run --rm \
             -e NEXUS_TOKEN \

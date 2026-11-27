@@ -14,19 +14,11 @@
 
 name: TransformerEngine AMD Builder
 
-# Publishes the `--target builder` stage of packaging/transformer-engine-amd:
-# the build machine, holding everything that does NOT depend on the TE ref --
-# the apt toolchain (build-essential, cmake, git, curl), the ROCm dev headers
-# (roctracer-dev), pkg-config/liblzma and the pip mirror config.
-#
-# Why this exists: the base is the amd RUNTIME image, which is a runtime --
-# hipcc is present but gcc/cmake/git are not. Without this stage every wheel
-# build reinstalls ~98 apt packages (build-essential + cmake + git + icu +
-# curl and their transitive deps) from scratch. Same shape as
-# packaging/flagtree + flagtree-builder.yml.
-#
-# Not a wheel publisher: no stage here compiles the ref, so nothing on this
-# line produces a wheel. The wheel line owns that and starts FROM this image.
+# Publishes the `--target builder` stage of packaging/transformer-engine-amd.
+# The amd runtime image carries hipcc but no gcc/cmake/git, so without this
+# stage every wheel build reinstalls ~98 apt packages; same shape as
+# packaging/flagtree + flagtree-builder.yml. Nothing here compiles the ref --
+# the wheel line owns that and starts FROM this image.
 
 on:
   workflow_dispatch:
@@ -111,7 +103,6 @@ jobs:
             echo "builder stage OK"
           '
 
-      # Publish the grade. Deploying (writing to Harbor) only when asked.
       - name: Login to Harbor
         if: ${{ inputs.push }}
         env:
