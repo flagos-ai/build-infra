@@ -78,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deb_name: ${{ steps.build.outputs.deb_name }}
+      built_sha: ${{ steps.clone.outputs.sha }}
     steps:
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
@@ -107,7 +108,9 @@ jobs:
       # Only for scripts/clone-ref.sh; the FlagGems source goes under src/.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          sparse-checkout: scripts/clone-ref.sh
+          sparse-checkout: |
+            scripts/clone-ref.sh
+            scripts/stamp_pkg_version.py
           sparse-checkout-cone-mode: false
 
       - name: Clone FlagGems at ${{ inputs.flaggems_ref }}
@@ -123,9 +126,12 @@ jobs:
           fi
           scripts/clone-ref.sh "${FLAGGEMS_REPO}" "${REF}" src
           cd src
-          echo "Building $(git rev-parse --short HEAD) of ${{ inputs.flaggems_ref }}"
+          sha=$(git rev-parse HEAD)
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "ref=${{ inputs.flaggems_ref }}" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/${{ inputs.flaggems_ref }}" >/dev/null; then
+          echo "Built ${{ inputs.flaggems_ref }} = ${sha}"
+          tag_sha=$(git rev-parse -q --verify "refs/tags/${REF}^{commit}" || true)
+          if [ -n "$tag_sha" ] && [ "$tag_sha" = "$sha" ]; then
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
@@ -142,58 +148,13 @@ jobs:
           REF: ${{ steps.clone.outputs.ref }}
           REF_IS_TAG: ${{ steps.clone.outputs.is_tag }}
           REQUESTED: ${{ inputs.version }}
-          # Only applies when this dispatch left `ref` at the pinned default.
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import os, re, sys
-
-          path = "packaging/debian/changelog"
-          head = open(path, encoding="utf-8").readline().rstrip("\n")
-          m = re.match(r"^(\S+) \(([^)]+)\)(.*)$", head)
-          if not m:
-              sys.exit(f"::error::cannot parse changelog first line: {head}")
-          source, current, rest = m.groups()
-
-          ref = os.environ["REF"]
-          requested = os.environ["REQUESTED"].strip()
-          pinned = ""
-          if requested:
-              upstream, why = requested, "requested by this dispatch"
-          elif pinned:
-              upstream, why = pinned, "pinned for this component"
-          elif (os.environ["REF_IS_TAG"] == "true"
-                and re.match(r"^v?\d+(\.\d+)*(-rc\d+)?(\.post\d+)?$", ref)):
-              # v0.3.0-rc2.post1 -> 0.3.0~rc2.post1. "~" sorts below the bare
-              # release, so a pre-release never shadows the final one; "-"
-              # would sort above it and block the upgrade.
-              #
-              # noarch-rpm.yml reaches the same end by a different route: rpm
-              # honours "~" too, but these specs feed Version into
-              # %pyproject_wheel, and "~" is not a valid PEP 440 version, so
-              # the qualifier goes in Release there instead. Debian has no
-              # such constraint -- dpkg never hands this string to Python.
-              upstream, why = re.sub(r"-rc", "~rc", ref.lstrip("v")), f"derived from tag {ref}"
-          else:
-              print(f"Keeping the changelog version {current}: {ref} is not a version tag."
-                    " Pass `version` to stamp a release version explicitly.")
-              sys.exit(0)
-
-          new = f"{upstream}-1"
-          if new == current:
-              print(f"Changelog already at {current}; nothing to stamp")
-              sys.exit(0)
-
-          # The packaging metadata in component repositories drifts from the
-          # release line it is cut on, and the version in this file is what
-          # apt sees. Overriding it here keeps the published package honest
-          # while that drift is fixed upstream; the rewrite is printed so the
-          # build log always says what was shipped and why.
-          print(f"::notice::stamping {source} {current} -> {new} ({why})")
-          body = open(path, encoding="utf-8").read()
-          open(path, "w", encoding="utf-8").write(
-              body.replace(f"{source} ({current})", f"{source} ({new})", 1))
-          PY
+          python3 "${GITHUB_WORKSPACE}/scripts/stamp_pkg_version.py" deb packaging/debian/changelog \
+            --ref "${REF}" \
+            --is-tag "${REF_IS_TAG}" \
+            --requested "${REQUESTED}" \
+            --pep440
           head -1 packaging/debian/changelog
 
       - name: Derive the wheel version from the changelog
@@ -212,7 +173,7 @@ jobs:
           head=$(head -1 packaging/debian/changelog)
           deb_version=$(sed -E 's/^[^ ]+ \(([^)]+)\).*$/\1/' <<<"$head")
           upstream=${deb_version%-*}
-          wheel_version=${upstream//\~/}
+          wheel_version=$(sed -E 's/~~dev/.dev/g; s/~//g' <<<"$upstream")
           if ! grep -Eq '^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?(\.post[0-9]+)?(\.dev[0-9]+)?$' <<<"$wheel_version"; then
             echo "::error::changelog version ${deb_version} does not map to a PEP 440 version (got ${wheel_version})"
             exit 1
@@ -350,6 +311,7 @@ jobs:
             exit 1
           fi
           deb=$(ls pkg/*.deb | head -1)
+          echo "Publishing $(basename "$deb") built from ${{ needs.build.outputs.built_sha }}"
           uploaded=0
           attempted=0
           for suite in ${SUITES}; do
