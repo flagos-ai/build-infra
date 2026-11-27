@@ -104,6 +104,15 @@ jobs:
         suite: [ubuntu22.04, ubuntu24.04]
         arch: [amd64, arm64]
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: |
+            packaging/syspkg-targets.yaml
+            scripts/clone-ref.sh
+            scripts/resolve_pkg_target.py
+            scripts/stamp_pkg_version.py
+          sparse-checkout-cone-mode: false
+
       - name: Resolve the target
         id: cfg
         env:
@@ -112,184 +121,34 @@ jobs:
           SUITES_REQ: ${{ inputs.suites }}
           ARCH: ${{ matrix.arch }}
           ARCHES: ${{ inputs.arches }}
+          REF_REQ: ${{ inputs.ref }}
         run: |
           set -euo pipefail
-          outdir=debian-packages
-          script_arg=''
-          deps=''
-          publish_runs_on='["ubuntu-latest"]'
-          arches=amd64
-          case "${TARGET}" in
-            libtriton_jit)
-              repo=libtriton_jit
-              script=packaging/debian/build-helpers/build-libtriton-jit.sh
-              base_arg=flag
-              ref=master
-              ver=''
-              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
-              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
-            FlagTree)
-              repo=FlagTree
-              script=packaging/debian/build-helpers/build-flagtree.sh
-              base_arg='env'
-              # Tag 0.7.0+triton3.6 predates FlagTree#1417, where debian/rules
-              # learned to probe --break-system-packages for Ubuntu 22.04's
-              # pip 22.0.2; keep 22.04 disabled until a release tag carries it.
-              ref=0.7.0+triton3.6
-              ver=0.7.0
-              require_tag_publish=true
-              outdir=dist/output
-              image_ubuntu2204=
-              image_ubuntu2404=ubuntu:24.04
-              publish_runs_on='["self-hosted", "h20"]' ;;
-            FlagTree-metax|FlagTree-amd|FlagTree-enflame|FlagTree-ppu|FlagTree-tileir|FlagTree-hcu|FlagTree-mthreads|FlagTree-tsingmicro|FlagTree-xpu)
-              repo=FlagTree
-              script=packaging/debian/build-helpers/build-flagtree.sh
-              base_arg='env'
-              script_arg=${TARGET#FlagTree-}
-              outdir=dist/output
-              ref=main
-              ver=''
-              case "${script_arg}" in
-                hcu|mthreads|tsingmicro|xpu)
-                  image_ubuntu2204=ubuntu:22.04
-                  image_ubuntu2404= ;;
-                *)
-                  image_ubuntu2204=
-                  image_ubuntu2404=ubuntu:24.04 ;;
-              esac
-              publish_runs_on='["self-hosted", "h20"]' ;;
-            FlagDNN)
-              repo=FlagDNN
-              script=packaging/debian/build-helpers/build-flag-dnn.sh
-              base_arg=arg
-              ref=master
-              ver=''
-              require_tag_publish=true
-              deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
-              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
-              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
-            FlagTensor)
-              repo=FlagTensor
-              script=packaging/debian/build-helpers/build-flagtensor.sh
-              base_arg=arg
-              ref=main
-              ver=''
-              require_tag_publish=true
-              deps='libtriton-jit-nvidia libtriton-jit-nvidia-dev'
-              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
-              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
-            FlagFFT)
-              repo=FlagFFT
-              script=packaging/debian/build-helpers/build-flagfft.sh
-              base_arg=flag
-              ref=main
-              ver=''
-              require_tag_publish=true
-              image_ubuntu2204=nvidia/cuda:12.8.0-devel-ubuntu22.04
-              image_ubuntu2404=nvidia/cuda:12.8.0-devel-ubuntu24.04 ;;
-            flagtree-cpu)
-              repo=flagtree-cpu
-              script=packaging/debian/build-helpers/build-flagtree-cpu.sh
-              base_arg='env'
-              outdir=dist/output
-              arches='amd64 arm64'
-              ref=main
-              ver=''
-              image_ubuntu2204=
-              image_ubuntu2404=ubuntu:24.04 ;;
-            *)
-              echo "::error::unknown target '${TARGET}'"; exit 1 ;;
-          esac
-
-          case "${SUITE}" in
-            ubuntu22.04) codename=jammy ;;
-            ubuntu24.04) codename=noble ;;
-            *) echo "::error::no codename for '${SUITE}'"; exit 1 ;;
-          esac
-
-          {
-            echo "repo_url=https://github.com/flagos-ai/${repo}.git"
-            echo "script=${script}"
-            echo "base_arg=${base_arg}"
-            echo "outdir=${outdir}"
-            echo "script_arg=${script_arg}"
-            echo "deps=${deps}"
-            echo "publish_runs_on=${publish_runs_on}"
-            echo "default_ref=${ref}"
-            echo "default_version=${ver}"
-            echo "require_tag_publish=${require_tag_publish:-false}"
-            echo "arches=${arches}"
-            echo "codename=${codename}"
-          } >> "$GITHUB_OUTPUT"
-
-          valid_suites=""
-          [ -n "${image_ubuntu2204}" ] && valid_suites="ubuntu22.04"
-          [ -n "${image_ubuntu2404}" ] && valid_suites="${valid_suites:+$valid_suites }ubuntu24.04"
-          for s in ${SUITES_REQ:-}; do
-            case " ${valid_suites} " in
-              *" ${s} "*) ;;
-              *)
-                echo "::error::'${s}' is not a suite ${TARGET} is valid for (${valid_suites})"
-                exit 1 ;;
-            esac
-          done
-
-          for a in ${ARCHES:-}; do
-            case " ${arches} " in
-              *" ${a} "*) ;;
-              *)
-                echo "::error::'${a}' is not an architecture ${TARGET} is valid for (${arches})"
-                exit 1 ;;
-            esac
-          done
-          case " ${ARCHES:-${arches}} " in
-            *" ${ARCH} "*) echo "build_arch=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "build_arch=false" >> "$GITHUB_OUTPUT" ;;
-          esac
-
-          selected_image=""
-          case " ${SUITES_REQ:-${valid_suites}} " in
-            *" ${SUITE} "*)
-              case "${SUITE}" in
-                ubuntu22.04) selected_image="${image_ubuntu2204}" ;;
-                ubuntu24.04) selected_image="${image_ubuntu2404}" ;;
-              esac ;;
-          esac
-          echo "base_image=${selected_image}" >> "$GITHUB_OUTPUT"
+          python3 scripts/resolve_pkg_target.py native deb \
+            --target "${TARGET}" \
+            --suite "${SUITE}" \
+            --arch "${ARCH}" \
+            --suites-req "${SUITES_REQ}" \
+            --arches-req "${ARCHES}" \
+            --ref "${REF_REQ}"
 
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
         env:
           SUITES: ${{ inputs.suites }}
+          VALID_SUITES: ${{ steps.cfg.outputs.valid_suites }}
         run: |
           set -euo pipefail
           if [ "${{ inputs.verify }}" != "true" ]; then
             echo "::error::publish requires verify - an unverified package must not reach the repository"
             exit 1
           fi
-          BUILT="ubuntu22.04 ubuntu24.04"
-          for suite in ${SUITES:-}; do
-            case " ${BUILT} " in
-              *" ${suite} "*) ;;
-              *)
-                echo "::error::'${suite}' is not built by this workflow (${BUILT})"
-                exit 1 ;;
-            esac
-          done
-          echo "Publish targets: ${SUITES:-${BUILT}}"
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          sparse-checkout: |
-            scripts/clone-ref.sh
-            scripts/stamp_pkg_version.py
-          sparse-checkout-cone-mode: false
+          echo "Publish targets: ${SUITES:-${VALID_SUITES}}"
 
       - name: Clone ${{ inputs.target }}
         id: clone
         env:
-          REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+          REF: ${{ steps.cfg.outputs.effective_ref }}
           PUBLISH: ${{ inputs.publish }}
           REQUIRE_TAG_PUBLISH: ${{ steps.cfg.outputs.require_tag_publish }}
         run: |

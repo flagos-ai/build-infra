@@ -1,0 +1,392 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Declarative target catalog for FlagOS DEB and RPM release workflows
+# (noarch-deb, noarch-rpm, native-deb, native-rpm).
+#
+# Rules (see docs/agent-protocol.md section 1.1):
+#   - Facts only, no workflow logic.
+#   - `default_ref` pins an immutable release tag, or stays empty ("") when no
+#     release tag carries the packaging definition yet (callers must pass
+#     `inputs.ref` explicitly to verify a branch or candidate commit).
+
+apt_suites:
+  ubuntu22.04:
+    codename: jammy
+    verify_image: ubuntu:22.04
+  ubuntu24.04:
+    codename: noble
+    verify_image: ubuntu:24.04
+
+rpm_suites:
+  fedora43:
+    verify_image: fedora:43
+  openeuler24.03:
+    verify_image: openeuler/openeuler:24.03-lts
+  rhel9:
+    verify_image: rockylinux:9
+    repos: epel-release
+
+noarch:
+  FlagGems:
+    repo: FlagGems
+    default_ref: v5.4.0
+    default_version: 5.4.0
+    rpm:
+      dockerfile: packaging/rpm/dockerfiles/Dockerfile.rpm
+      spec: packaging/rpm/specs/flag-gems.spec
+
+  FlagAudio:
+    repo: FlagAudio
+    default_ref: v0.3.0
+    default_version: 0.3.0
+    deb:
+      script: packaging/debian/build-helpers/build-flag-audio.sh
+    rpm:
+      dockerfile: packaging/rpm/dockerfiles/Dockerfile.rpm
+      spec: packaging/rpm/specs/flag-audio.spec
+
+  FlagSparse:
+    repo: FlagSparse
+    default_ref: v0.3.0
+    default_version: 0.3.0
+    deb:
+      # v0.3.0 uses PEP 639 license string rejected by Ubuntu 22.04/24.04 setuptools (FlagSparse#110).
+      default_ref: v0.3.0-rc2.post1
+      default_version: 0.3.0~rc2.post1
+      script: packaging/debian/build-helpers/build-flagsparse.sh
+    rpm:
+      dockerfile: packaging/rpm/dockerfiles/Dockerfile.rpm
+      spec: packaging/rpm/specs/flagsparse.spec
+
+  FlagAttention:
+    repo: FlagAttention
+    default_ref: v0.4.0
+    default_version: 0.4.0
+    deb:
+      script: packaging/debian/build-helpers/build-flag-attention.sh
+    rpm:
+      dockerfile: packaging/rpm/dockerfiles/Dockerfile.rpm
+      spec: packaging/rpm/specs/flag-attention.spec
+
+  FlagBLAS:
+    repo: FlagBLAS
+    default_ref: v0.3.0
+    default_version: 0.3.0
+    deb:
+      script: packaging/debian/build-helpers/build-flag-blas.sh
+    rpm:
+      dockerfile: packaging/rpm/dockerfiles/Dockerfile.rpm
+      spec: packaging/rpm/specs/flag-blas.spec
+
+  FlagGems-sglang:
+    repo: FlagGems-sglang
+    default_ref: v0.1.0
+    default_version: 0.1.0
+    deb:
+      script: packaging/debian/build-helpers/build-flaggems-sglang.sh
+    rpm:
+      dockerfile: packaging/rpm/dockerfiles/Dockerfile.rpm
+      spec: packaging/rpm/specs/flaggems-sglang.spec
+
+native:
+  libtriton_jit:
+    repo: libtriton_jit
+    default_ref: ""
+    default_version: ""
+    deb:
+      script: packaging/debian/build-helpers/build-libtriton-jit.sh
+      base_arg: flag
+      outdir: debian-packages
+      arches: [amd64]
+      images:
+        ubuntu22.04: nvidia/cuda:12.8.0-devel-ubuntu22.04
+        ubuntu24.04: nvidia/cuda:12.8.0-devel-ubuntu24.04
+    rpm:
+      script: packaging/rpm/build-rpm.sh
+      base_arg: flag
+      spec: packaging/rpm/libtriton-jit.spec
+      outdir: rpm-packages
+      arches: [x86_64]
+      images:
+        rhel9: nvidia/cuda:12.6.0-devel-rockylinux9
+
+  FlagTree:
+    repo: FlagTree
+    default_ref: 0.7.0+triton3.6
+    default_version: 0.7.0
+    require_tag_publish: true
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      outdir: dist/output
+      arches: [amd64]
+      # Tag 0.7.0+triton3.6 predates FlagTree#1417 (Ubuntu 22.04 pip flag probe).
+      images:
+        ubuntu24.04: ubuntu:24.04
+    rpm:
+      script: packaging/rpm/helpers/build-flagtree-rpm.sh
+      base_arg: env
+      spec: packaging/rpm/specs/flagtree.spec
+      outdir: dist-rpm/output
+      arches: [x86_64]
+      images:
+        fedora43: fedora:43
+        openeuler24.03: openeuler/openeuler:24.03-lts
+
+  FlagTree-ascend:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    rpm:
+      script: packaging/rpm/helpers/build-flagtree-rpm.sh
+      base_arg: env
+      script_arg: ascend
+      spec: packaging/rpm/specs/flagtree.spec
+      outdir: dist-rpm/output
+      arches: [aarch64]
+      images:
+        openeuler24.03: openeuler/openeuler:24.03-lts
+
+  FlagTree-metax:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: metax
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu24.04: ubuntu:24.04
+
+  FlagTree-amd:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: amd
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu24.04: ubuntu:24.04
+
+  FlagTree-enflame:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: enflame
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu24.04: ubuntu:24.04
+
+  FlagTree-ppu:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: ppu
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu24.04: ubuntu:24.04
+
+  FlagTree-tileir:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: tileir
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu24.04: ubuntu:24.04
+
+  FlagTree-hcu:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: hcu
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu22.04: ubuntu:22.04
+
+  FlagTree-mthreads:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: mthreads
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu22.04: ubuntu:22.04
+
+  FlagTree-tsingmicro:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: tsingmicro
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu22.04: ubuntu:22.04
+
+  FlagTree-xpu:
+    repo: FlagTree
+    default_ref: ""
+    default_version: ""
+    publish_runs_on: ["self-hosted", "h20"]
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree.sh
+      base_arg: env
+      script_arg: xpu
+      outdir: dist/output
+      arches: [amd64]
+      images:
+        ubuntu22.04: ubuntu:22.04
+
+  FlagDNN:
+    repo: FlagDNN
+    default_ref: v0.3.0
+    default_version: 0.3.0
+    require_tag_publish: true
+    deb:
+      # Packaging on Ubuntu 22.04/24.04 lands after v0.3.0; pass inputs.ref until next tag.
+      default_ref: ""
+      default_version: ""
+      script: packaging/debian/build-helpers/build-flag-dnn.sh
+      base_arg: arg
+      outdir: debian-packages
+      arches: [amd64]
+      deps: [libtriton-jit-nvidia, libtriton-jit-nvidia-dev]
+      images:
+        ubuntu22.04: nvidia/cuda:12.8.0-devel-ubuntu22.04
+        ubuntu24.04: nvidia/cuda:12.8.0-devel-ubuntu24.04
+    rpm:
+      script: packaging/rpm/build-flag-dnn-rpm.sh
+      base_arg: arg
+      spec: packaging/rpm/specs/flag-dnn.spec
+      outdir: rpm-packages
+      arches: [x86_64]
+      deps: [libtriton-jit-nvidia, libtriton-jit-nvidia-devel]
+      images:
+        fedora43: fedora:43
+        openeuler24.03: openeuler/cuda:13.0.0-oe2403lts
+        rhel9: nvidia/cuda:12.6.0-devel-rockylinux9
+
+  FlagTensor:
+    repo: FlagTensor
+    default_ref: v0.3.0
+    default_version: 0.3.0
+    require_tag_publish: true
+    deb:
+      default_ref: ""
+      default_version: ""
+      script: packaging/debian/build-helpers/build-flagtensor.sh
+      base_arg: arg
+      outdir: debian-packages
+      arches: [amd64]
+      deps: [libtriton-jit-nvidia, libtriton-jit-nvidia-dev]
+      images:
+        ubuntu22.04: nvidia/cuda:12.8.0-devel-ubuntu22.04
+        ubuntu24.04: nvidia/cuda:12.8.0-devel-ubuntu24.04
+    rpm:
+      script: packaging/rpm/build-flagtensor-rpm.sh
+      base_arg: arg
+      spec: packaging/rpm/specs/flagtensor.spec
+      outdir: rpm-packages
+      arches: [x86_64]
+      deps: [libtriton-jit-nvidia, libtriton-jit-nvidia-devel]
+      images:
+        fedora43: fedora:43
+        openeuler24.03: openeuler/cuda:13.0.0-oe2403lts
+        rhel9: nvidia/cuda:12.6.0-devel-rockylinux9
+
+  FlagFFT:
+    repo: FlagFFT
+    default_ref: v0.2.0
+    default_version: 0.2.0
+    require_tag_publish: true
+    deb:
+      default_ref: ""
+      default_version: ""
+      script: packaging/debian/build-helpers/build-flagfft.sh
+      base_arg: flag
+      outdir: debian-packages
+      arches: [amd64]
+      images:
+        ubuntu22.04: nvidia/cuda:12.8.0-devel-ubuntu22.04
+        ubuntu24.04: nvidia/cuda:12.8.0-devel-ubuntu24.04
+    rpm:
+      script: packaging/rpm/build-flagfft-rpm.sh
+      base_arg: flag
+      spec: packaging/rpm/specs/flagfft.spec
+      outdir: rpm-packages
+      arches: [x86_64]
+      base_pkgs: [nlohmann-json-devel, python3-wheel]
+      images:
+        openeuler24.03: openeuler/cuda:13.0.0-oe2403lts
+
+  flagtree-cpu:
+    repo: flagtree-cpu
+    default_ref: ""
+    default_version: ""
+    deb:
+      script: packaging/debian/build-helpers/build-flagtree-cpu.sh
+      base_arg: env
+      outdir: dist/output
+      arches: [amd64, arm64]
+      images:
+        ubuntu22.04: ubuntu:22.04
+        ubuntu24.04: ubuntu:24.04
+    rpm:
+      script: packaging/rpm/helpers/build-flagtree-cpu-rpm.sh
+      base_arg: env
+      spec: packaging/rpm/specs/flagtree-cpu.spec
+      outdir: dist-rpm/output
+      arches: [x86_64, aarch64]
+      images:
+        fedora43: fedora:43
+        openeuler24.03: openeuler/openeuler:24.03-lts

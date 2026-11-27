@@ -87,47 +87,25 @@ jobs:
       deb_name: ${{ steps.build.outputs.deb_name }}
       built_sha: ${{ steps.clone.outputs.sha }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: |
+            packaging/syspkg-targets.yaml
+            scripts/clone-ref.sh
+            scripts/resolve_pkg_target.py
+            scripts/stamp_pkg_version.py
+          sparse-checkout-cone-mode: false
+
       - name: Resolve the component
         id: cfg
         env:
           COMPONENT: ${{ inputs.component }}
+          REF_REQ: ${{ inputs.ref }}
         run: |
           set -euo pipefail
-          # Per component: build script, and the ref and version the current
-          # release manifest (release-2.2) pins it to. `ver` is the manifest
-          # tag rewritten for Debian (v0.3.0-rc2.post1 -> 0.3.0~rc2.post1);
-          # it is applied only when this table's ref is used, so overriding
-          # `ref` on a dispatch does not silently ship the manifest's version
-          # number.
-          #
-          # post<N> tags are verification snapshots, not releases: the pins
-          # are the release tags.
-          case "${COMPONENT}" in
-            FlagAudio)
-              script=build-flag-audio.sh;     ref=v0.3.0; ver=0.3.0 ;;
-            FlagSparse)
-              # v0.3.0 declares its license in the PEP 639 string form, which
-              # the setuptools in ubuntu 22.04/24.04 rejects (FlagSparse#110);
-              # stay on the last tag that builds until a release carries the fix.
-              script=build-flagsparse.sh;     ref=v0.3.0-rc2.post1; ver=0.3.0~rc2.post1 ;;
-            FlagAttention)
-              script=build-flag-attention.sh; ref=v0.4.0; ver=0.4.0 ;;
-            FlagBLAS)
-              script=build-flag-blas.sh;      ref=v0.3.0; ver=0.3.0 ;;
-            FlagGems-sglang)
-              # The packaging definition landed after v0.1.0, so the pinned
-              # release tag does not build yet; the first release tag cut
-              # from master after it does. Until then dispatch with `ref`.
-              script=build-flaggems-sglang.sh; ref=v0.1.0; ver=0.1.0 ;;
-            *)
-              echo "::error::unknown component '${COMPONENT}'"; exit 1 ;;
-          esac
-          {
-            echo "repo_url=https://github.com/flagos-ai/${COMPONENT}.git"
-            echo "script=packaging/debian/build-helpers/${script}"
-            echo "default_ref=${ref}"
-            echo "default_version=${ver}"
-          } >> "$GITHUB_OUTPUT"
+          python3 scripts/resolve_pkg_target.py noarch deb \
+            --target "${COMPONENT}" \
+            --ref "${REF_REQ}"
 
       - name: Refuse to publish what was not verified
         if: ${{ inputs.publish }}
@@ -150,18 +128,10 @@ jobs:
           done
           echo "Publish targets are all covered by verification: ${SUITES}"
 
-      # Only for scripts/clone-ref.sh; the component source goes under src/.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          sparse-checkout: |
-            scripts/clone-ref.sh
-            scripts/stamp_pkg_version.py
-          sparse-checkout-cone-mode: false
-
       - name: Clone ${{ inputs.component }}
         id: clone
         env:
-          REF: ${{ inputs.ref || steps.cfg.outputs.default_ref }}
+          REF: ${{ steps.cfg.outputs.effective_ref }}
           PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
