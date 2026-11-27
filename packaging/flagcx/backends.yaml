@@ -201,7 +201,12 @@ nvidia-cuda12.8:
   # DEVICE_LINK is `-lcudart -lcuda`: -lcuda is the driver, whose stub ships in
   # lib64/stubs and is on no -L the Makefile passes — cuda-nvcc brings the file
   # but not the path, so LIBRARY_PATH is what puts it there.
-  apt: [cuda-nvcc-12-8, libnccl-dev=2.25.1-1+cuda12.8]
+  # libnccl2 is pinned too, though only the header is needed to compile: the
+  # wheel channel builds on a bare ubuntu:22.04 builder that carries no NCCL at
+  # all, and the Containerfile only extracts the lib .deb when the row names one
+  # — unpinned, the builder reached its `test -e libnccl.so.2` and stopped.
+  # The NGC base the deb and rpm channels use already holds this exact version.
+  apt: [cuda-nvcc-12-8, libnccl-dev=2.25.1-1+cuda12.8, libnccl2=2.25.1-1+cuda12.8]
   make_env:
     DEVICE_HOME: /usr/local/cuda
     CCL_HOME: /usr
