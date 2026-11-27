@@ -289,13 +289,13 @@ native:
 
   FlagDNN:
     repo: FlagDNN
-    default_ref: v0.3.0
-    default_version: 0.3.0
+    # Tag v0.3.0 predates both the Ubuntu 22.04/24.04 DEB recipe and the
+    # Fedora 43 / openEuler 24.03 RPM recipe (FlagDNN#26); pass inputs.ref
+    # explicitly until the next release tag is cut.
+    default_ref: ""
+    default_version: ""
     require_tag_publish: true
     deb:
-      # Packaging on Ubuntu 22.04/24.04 lands after v0.3.0; pass inputs.ref until next tag.
-      default_ref: ""
-      default_version: ""
       script: packaging/debian/build-helpers/build-flag-dnn.sh
       base_arg: arg
       outdir: debian-packages
@@ -318,12 +318,13 @@ native:
 
   FlagTensor:
     repo: FlagTensor
-    default_ref: v0.3.0
-    default_version: 0.3.0
+    # Tag v0.3.0 predates both the Ubuntu 22.04/24.04 DEB recipe and the
+    # Fedora 43 / openEuler 24.03 RPM recipe (FlagTensor#35); pass inputs.ref
+    # explicitly until the next release tag is cut.
+    default_ref: ""
+    default_version: ""
     require_tag_publish: true
     deb:
-      default_ref: ""
-      default_version: ""
       script: packaging/debian/build-helpers/build-flagtensor.sh
       base_arg: arg
       outdir: debian-packages
@@ -346,12 +347,12 @@ native:
 
   FlagFFT:
     repo: FlagFFT
-    default_ref: v0.2.0
-    default_version: 0.2.0
+    # Tag v0.2.0 predates the bundled triton_jit nlohmann-json 3.10.5 patch;
+    # pass inputs.ref explicitly until the next release tag is cut.
+    default_ref: ""
+    default_version: ""
     require_tag_publish: true
     deb:
-      default_ref: ""
-      default_version: ""
       script: packaging/debian/build-helpers/build-flagfft.sh
       base_arg: flag
       outdir: debian-packages
