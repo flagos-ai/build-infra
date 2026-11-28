@@ -17,6 +17,7 @@
 
 ### Major Python packages
 
+- `amdsmi==7.0.2`
 - `apex==1.7.0+dtk2610.torch2130.2610221147.gfa848d`
 - `flag_gems==5.4.0`
 - `flagcx==0.14.1+dtk2610`
@@ -34,7 +35,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ### Choosing a FlagTree version
 
-To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.1a1+hcu3.6` form to pin one build.
 
 ### Choosing a FlagGems version
 

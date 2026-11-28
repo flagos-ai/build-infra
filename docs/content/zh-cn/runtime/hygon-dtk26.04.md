@@ -39,16 +39,17 @@ title: "hygon-dtk26.04"
 
 ### 主要 Python 软件包
 
-- `apex==1.7.0+das.opt1.dtk2604.torch290`
+- `amdsmi==7.0.2`
+- `apex==1.7.0+dtk2604.torch2100.2609201739.g9783d4`
 - `flag_gems==5.4.0`
-- `flagcx==0.14.0+dtk2604`
-- `flagtree==0.7.0+hcu3.6`
-- `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
+- `flagcx==0.14.1+dtk2604`
+- `flagtree==0.7.1a1+hcu3.6`
+- `flash_attn==2.8.3+das185.dtk2604.torch2100.2608132155.g9febea`
 - `numpy==1.26.4`
-- `torch==2.9.0+das.opt1.dtk2604`
-- `torchaudio==2.9.0+das.opt1.dtk2604.torch290.202604011034.geaa9e4`
-- `torchvision==0.24.0+das.opt1.dtk2604.torch290`
-- <span class="muted"><code class="plain">triton==3.5.1+das.opt1.dtk2604.torch290</code></span>
+- `torch==2.10.0+das.opt1.dtk2604.2608131652.g28498c`
+- `torchaudio==2.10.0+das.opt1.dtk2604.torch2100.2609021532.gdf6f74`
+- `torchvision==0.25.0+das185.dtk2604.torch2100.2608130858.gdcd044`
+- <span class="muted"><code class="plain">triton==3.6.0+das185.dtk2604.torch2100.2608131719.gb796b1</code></span>
 
 ### 切换编译器
 
@@ -56,7 +57,7 @@ title: "hygon-dtk26.04"
 
 ### 指定 FlagTree 版本
 
-如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。
+如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.1a1+hcu3.6` 可精确指定某个构建。
 
 ### 指定 FlagGems 版本
 
@@ -96,6 +97,11 @@ hy-smi
 ## 更新日志
 
 ### 2.3.0
+
+*2026-11-25 13:08:10*
+
+apex 回到本线，pin 为 1.7.0+dtk2604.torch2100.2609201739.g9783d4：索引上已有
+cp310/torch2100 构建，依赖列表当初略去它的理由不再成立。镜像其余内容不变。
 
 *2026-11-24 15:55:52*
 
