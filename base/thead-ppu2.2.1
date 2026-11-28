@@ -1,0 +1,38 @@
+# Base image for T-Head PPU 2.2.1 on Ubuntu 24.04.
+#
+# Vendored, not installed: T-Head ships the PPU SDK only inside their own
+# images — no installer, no tarball. This is the official 灵骏 base image,
+# which carries PPU_SDK v2.2.1 at /usr/local/PPU_SDK (ppu-smi, CUDA-compat
+# headers, CUDA 13.0, HGGC) and no torch/triton — the runtime venv owns the
+# Python stack, as on every backend.
+#
+# The 2.1.0 line vendors their PAI-DSW training image instead; that is a
+# different registry and a different SDK, so the two lines are not
+# interchangeable.
+
+FROM egslingjun-registry.cn-wulanchabu.cr.aliyuncs.com/egslingjun/ppu:sdk2.2.1-cuda13.0-ubuntu24-py312-20261123
+
+LABEL org.opencontainers.image.authors="FlagOS contributors"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The vendor image's ENTRYPOINT is /opt/fly-tiger/entrypoint.sh; FlagOS images
+# are entered directly, so clear it.
+ENTRYPOINT []
+CMD ["bash"]
+
+# The image sets no /etc/pip.conf, so a bare `pip install` would reach the
+# default index; point it at the stack mirror the other backends use.
+ENV PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+
+# cmake: the vendor image ships the compiler but not cmake, and the app layer
+# and C++ extension builds need it. libpython3-dev: no Python.h, so extensions
+# cannot build against the vendor python. libjpeg-turbo8: torchvision's
+# image.so links libjpeg.so.8 for its JPEG codecs.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      cmake libpython3-dev libjpeg-turbo8 libpng16-16t64 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app

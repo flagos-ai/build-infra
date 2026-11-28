@@ -1,0 +1,43 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+
+image: flagos-base-thead-ppu2.2.1
+tags:
+- tag: 2.3.0
+  entries:
+  - date: ''
+    reason: |-
+      - First delivery: T-Head PPU 2.2.1 on Ubuntu 24.04, x86_64.
+      - The layer is vendored, not installed: T-Head ships the PPU SDK only
+        inside their own images. This line takes the official 灵骏 SDK image
+        (`egslingjun/ppu:sdk2.2.1-cuda13.0-ubuntu24-py312`), which is a
+        different registry and a different SDK from the 2.1.0 line's PAI-DSW
+        training image — the two lines are not interchangeable.
+      - The vendor image sets no pip index, so `PIP_INDEX_URL` points at the
+        stack mirror. cmake, libpython3-dev and the two codec libraries
+        (libjpeg-turbo8, libpng16-16t64) are added: the image ships the
+        compiler but none of them, and the app layer, C++ extensions and
+        torchvision.io need them.
+    reason_zh: |-
+      - 首次交付：T-Head PPU 2.2.1，Ubuntu 24.04，x86_64。
+      - 本层是「直接引用」而非安装：平头哥只在自家镜像里提供 PPU SDK。本线取用
+        官方灵骏 SDK 镜像（`egslingjun/ppu:sdk2.2.1-cuda13.0-ubuntu24-py312`），
+        它与 2.1.0 线所用的 PAI-DSW 训练镜像属于不同 registry、不同 SDK，
+        两条线不可互换。
+      - 厂商镜像未设置 pip 索引，故将 `PIP_INDEX_URL` 指向栈镜像站。另补 cmake、
+        libpython3-dev 与两个编解码库（libjpeg-turbo8、libpng16-16t64）：厂商镜像
+        只带编译器，这几样都没有，而应用层、C++ 扩展与 torchvision.io 都需要。
+    upstream_prs: []

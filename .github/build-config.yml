@@ -88,6 +88,7 @@ runners:
     mthreads-musa5.3.0: [self-hosted, musa530]
     sunrise-tangrt1.2.0: [self-hosted, sunrise]
     thead-ppu2.1.0: [self-hosted, thead]
+    thead-ppu2.2.1: [self-hosted, thead]
     tsingmicro-tsm5.6.3: [self-hosted, tsingmicro]
 
 # `docker run` flags needed to expose each vendor's accelerator to a container.
