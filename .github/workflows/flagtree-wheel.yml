@@ -48,6 +48,7 @@ on:
           - hcu-dtk2610
           - mthreads-musa5.3.0
           - tsingmicro
+          - kunlunxin
           - ascend-cann9.0.0
           - ascend-cann9.2.1
           - ascend-cann8.5.0
@@ -134,6 +135,7 @@ jobs:
             hcu-dtk2610)  backend="hygon-dtk26.10";         in_base=no  ;;
             mthreads-musa5.3.0) backend="mthreads-musa5.3.0"; in_base=no  ;;
             tsingmicro)   backend="tsingmicro-tsm5.6.3";  in_base=no  ;;
+            kunlunxin)    backend="kunlunxin-xre5.37.1";  in_base=no  ;;
           esac
           if [ -z "$backend" ]; then
             echo 'runson=["self-hosted","h20"]' >> "$GITHUB_OUTPUT"
