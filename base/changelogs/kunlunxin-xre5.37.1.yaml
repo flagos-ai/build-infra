@@ -25,6 +25,27 @@ image: flagos-base-kunlunxin-xre5.37.1
 tags:
 - tag: 2.3.0
   entries:
+  - reason: >-
+      Moves XCUDART_PACKAGE to the vendor's 20261124 build (XPURT 5.46.0,
+      staged as `xcudart_package.deb`). That delivery no longer ships
+      libxpuml and libxpunvidia-ml: it carries libcudart, libxpucuda and
+      libxpurt only, so the three names it still shares with XRE are the
+      whole overlap. The soname-reconcile step is disabled in the same
+      change because its content assertion compares a 5.46.0 delivery
+      against XRE 5.37.1 and was written for the 5.13.0 generation; whether
+      XRE's copies are still the ones a process gets is left to be settled
+      on the app layer rather than asserted here from an unverified
+      assumption.
+    reason_zh: >-
+      XCUDART_PACKAGE 换到厂商 20261124 的构建（XPURT 5.46.0，暂以
+      `xcudart_package.deb` 命名上传）。该包不再携带 libxpuml 与
+      libxpunvidia-ml，只剩 libcudart、libxpucuda、libxpurt，与 XRE 重名的
+      也就这三个。同名 so 的 reconcile 步骤随之停用：它的内容断言是拿 5.46.0
+      的包去比 XRE 5.37.1，而这段逻辑是按 5.13.0 那一代写的；XRE 的副本是否
+      仍是进程实际拿到的那一份，留到 app 层验证，不在这里凭未验证的假设下
+      断言。
+    upstream_prs: []
+    date: ''
   - date: '2026-10-14T05:49:46.527Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.

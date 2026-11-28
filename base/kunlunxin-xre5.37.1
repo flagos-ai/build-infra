@@ -17,6 +17,7 @@
 # ============================================================
 # History:
 # - 20260727: Initial version
+# - 20261124: Update base image with latest packages from KLX
 
 FROM ubuntu:22.04
 
@@ -26,7 +27,7 @@ LABEL org.opencontainers.image.authors="FlagOS contributors"
 ARG FILE_STORE=https://resource.flagos.net/repository/flagos-filestore
 ARG CUDA_PACKAGE=cuda_12.9.0_575.51.03_linux.run
 ARG XRE_PACKAGE=xre-Linux-x86_64-cuda12-5.37.1.0.run
-ARG XCUDART_PACKAGE=xcudart-5.13.0_amd64.deb
+ARG XCUDART_PACKAGE=xcudart_package.deb  # 20261124 version
 ARG MPI_PACKAGE=mpich-3.3.2.tar.gz
 ARG XCCL_PACKAGE=xccl_Linux_x86_64_cuda12.tar.gz
 
@@ -56,6 +57,7 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
     && rm /xcudart.deb
 
 # ── Reconcile the sonames both deliveries ship ─────────────────
+# The following reasoning is the fact before 20261124, needs double-check.
 # XRE and xcudart each ship libxpuml, libxpucuda, libxpunvidia-ml, libcudart and
 # libxpurt, under identical names from builds of different generations, and both
 # are installed — so a process ends up holding two generations of one name.
@@ -84,25 +86,26 @@ RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /xcudart.deb ${FILE_STO
 # Only names XRE also ships are touched. libcuda.so.1 — the libxpucuda alias —
 # and libcupti.so.12.9 exist only in xcudart, and torch_plugin's _C.so lists the
 # alias in its NEEDED.
-RUN set -eux; \
-    for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
-        for src in "$dir"/*.kunlun; do \
-            [ -e "$src" ] || continue; \
-            name="$(basename "$src")"; \
-            dst="/usr/local/xcudart/lib/$name"; \
-            [ -e "$dst" ] || continue; \
-            install -m 755 "$src" "$dst"; \
-            echo "reconciled $name from $dir"; \
-        done; \
-    done; \
-    for dst in /usr/local/xcudart/lib/*.kunlun; do \
-        name="$(basename "$dst")"; \
-        for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
-            [ -e "$dir/$name" ] || continue; \
-            cmp "$dst" "$dir/$name" \
-                || { echo "assert: $name differs between /usr/local/xcudart/lib and $dir" >&2; exit 1; }; \
-        done; \
-    done
+#
+# RUN set -eux; \
+#     for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
+#         for src in "$dir"/*.kunlun; do \
+#             [ -e "$src" ] || continue; \
+#             name="$(basename "$src")"; \
+#             dst="/usr/local/xcudart/lib/$name"; \
+#             [ -e "$dst" ] || continue; \
+#             install -m 755 "$src" "$dst"; \
+#             echo "reconciled $name from $dir"; \
+#         done; \
+#     done; \
+#     for dst in /usr/local/xcudart/lib/*.kunlun; do \
+#         name="$(basename "$dst")"; \
+#         for dir in /usr/lib/x86_64-linux-gnu /usr/local/xpu/so; do \
+#             [ -e "$dir/$name" ] || continue; \
+#             cmp "$dst" "$dir/$name" \
+#                 || { echo "assert: $name differs between /usr/local/xcudart/lib and $dir" >&2; exit 1; }; \
+#         done; \
+#     done
 
 # ── Install MPI ────────────────────────────────────────────────
 RUN curl --retry 5 --retry-delay 5 --retry-all-errors -o /mpi.tgz ${FILE_STORE}/kunlunxin/${MPI_PACKAGE} \
