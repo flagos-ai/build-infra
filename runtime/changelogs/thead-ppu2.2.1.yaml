@@ -23,8 +23,8 @@ tags:
   entries:
   - date: ''
     reason: |-
-      - First delivery on the PPU SDK 2.2.1 base: python 3.12, torch
-        2.10.0+v0.3.0.ppu2.2.1, FlagGems 5.4.0 and FlagTree 0.7.0+ppu3.6.
+      - First delivery on the PPU SDK 2.2.1 base: python 3.12, torch 2.13.0,
+        FlagGems 5.4.0 and FlagTree 0.7.0+ppu3.6.
       - No triton fallback compiler yet: the 2.2.x builds on the vendor index
         are labelled ppu2.2.0, and FlagTree is the default compiler either way.
       - torchvision and torchaudio are not installed: every candidate the

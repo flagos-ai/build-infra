@@ -1447,8 +1447,9 @@ vendors:
       # No triton pin yet: the 2.2.x builds on the vendor index are labelled
       # ppu2.2.0, and FlagTree is the default compiler either way.
       deps:
-        # The variant the vendor's selector resolves on this SDK line.
-        - torch==2.10.0+v0.3.0.ppu2.2.1
+        # The variant the vendor's selector resolves on this SDK line; the
+        # wheel it builds reports the bare version, so the pin names that.
+        - torch==2.13.0
         # torchvision/torchaudio are absent: every candidate the selector
         # tries -- including the ppu2.2.1-labelled torchvision 0.24.0 -- is
         # rejected as incompatible with SDK 2.2.1. Re-add when the vendor
