@@ -1474,6 +1474,8 @@ vendors:
         # The installed flagcx, not the copy triton/_C bundles: FlagTree prefers
         # the package's libflagcx.so, and a local label needs an exact pin.
         - flagcx==0.14.1+tsm5.6.3
+      deps_app:
+        vllm0.24.0: []
       sdk:
         - TSM Runtime 5.6.3.1112             # Tsm_runtime_5.6.3.1112_x86_64_installer.run
         - TSM Validation Suite 5.6.3.1112    # Tsm_validation_suite_5.6.3.1112_x86_64_installer.run
