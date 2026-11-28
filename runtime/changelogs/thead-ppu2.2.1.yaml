@@ -1,0 +1,44 @@
+# Copyright 2026 FlagOS Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Per-image changelog; schema and rules: docs/changelog.md.
+# `date` is backfilled by runtime-image.yml after the push -- never hand-typed.
+# `reason` is written in English and Chinese (`reason_zh`); both are
+# required on a new entry and both are published beside the image.
+
+image: flagos-runtime-thead-ppu2.2.1
+tags:
+- tag: 2.3.0
+  entries:
+  - date: ''
+    reason: |-
+      - First delivery on the PPU SDK 2.2.1 base: python 3.12, torch
+        2.10.0+v0.3.0.ppu2.2.1, FlagGems 5.4.0 and FlagTree 0.7.0+ppu3.6.
+      - No triton fallback compiler yet: the 2.2.x builds on the vendor index
+        are labelled ppu2.2.0, and FlagTree is the default compiler either way.
+      - torchvision and torchaudio are not installed: every candidate the
+        vendor's selector tries, including the ppu2.2.1-labelled torchvision
+        0.24.0, is rejected as incompatible with SDK 2.2.1.
+      - Nothing is shared with `flagos-runtime-thead-ppu2.1.0` — that line
+        builds on the PAI-DSW training image and carries its own SDK.
+    reason_zh: |-
+      - 在 PPU SDK 2.2.1 base 上的首次交付：python 3.12、torch
+        2.10.0+v0.3.0.ppu2.2.1、FlagGems 5.4.0、FlagTree 0.7.0+ppu3.6。
+      - 暂不带 triton 回退编译器：厂商索引上 2.2.x 的构建都标着 ppu2.2.0，且
+        FlagTree 本就是默认编译器。
+      - 不安装 torchvision 与 torchaudio：厂商选择器尝试的每个候选——包括带
+        ppu2.2.1 标签的 torchvision 0.24.0——都被判为与 SDK 2.2.1 不兼容。
+      - 与 `flagos-runtime-thead-ppu2.1.0` 不共享任何内容：那条线基于 PAI-DSW
+        训练镜像，带的是另一套 SDK。
+    upstream_prs: []
