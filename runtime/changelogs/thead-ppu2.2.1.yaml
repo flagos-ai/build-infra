@@ -27,9 +27,10 @@ tags:
         FlagGems 5.4.0 and FlagTree 0.7.0+ppu3.6.
       - No triton fallback compiler yet: the 2.2.x builds on the vendor index
         are labelled ppu2.2.0, and FlagTree is the default compiler either way.
-      - torchvision and torchaudio are not installed: every candidate the
-        vendor's selector tries, including the ppu2.2.1-labelled torchvision
-        0.24.0, is rejected as incompatible with SDK 2.2.1.
+      - torchvision 0.28.0 and torchaudio 2.11.0 come from the vendor index
+        alongside torch: the multimodal path needs torchvision's transforms,
+        and both resolve only against torch 2.13 — with 2.10 the selector
+        rejected every candidate.
       - Nothing is shared with `flagos-runtime-thead-ppu2.1.0` — that line
         builds on the PAI-DSW training image and carries its own SDK.
     reason_zh: |-

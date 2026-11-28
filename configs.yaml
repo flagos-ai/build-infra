@@ -1448,12 +1448,14 @@ vendors:
       # ppu2.2.0, and FlagTree is the default compiler either way.
       deps:
         # The variant the vendor's selector resolves on this SDK line; the
-        # wheel it builds reports the bare version, so the pin names that.
+        # wheels it builds report bare versions, so the pins name those.
         - torch==2.13.0
-        # torchvision/torchaudio are absent: every candidate the selector
-        # tries -- including the ppu2.2.1-labelled torchvision 0.24.0 -- is
-        # rejected as incompatible with SDK 2.2.1. Re-add when the vendor
-        # publishes a build it accepts.
+        # The multimodal path needs torchvision (vLLM decodes and transforms
+        # images through it). Both resolve only against torch 2.13 here: with
+        # torch 2.10 the selector rejected every candidate, including the
+        # ppu2.2.1-labelled torchvision 0.24.0.
+        - torchvision==0.28.0
+        - torchaudio==2.11.0
         - numpy==1.26.4
       sdk:
         - PPU SDK 2.2.1 (x86_64)
