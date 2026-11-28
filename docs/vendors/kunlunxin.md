@@ -13,6 +13,9 @@ backend key：`kunlunxin-xre5.37.1`。芯片 P800 OAM，SDK 叫 XRE，FlagTree �
 - **镜像内同名 so 互相遮蔽**：XRE 与 xcudart 都在同名 soname 下装了
   `libxpuml` / `libxpucuda` / `libxpunvidia-ml` / `libcudart` / `libxpurt`，但来自不同代际；
   进程拿到哪一份取决于**加载路径**，必须让 XRE 的版本赢（判据是内容而不是版本号）。
+  20261124 的 xcudart（XPURT 5.46.0）只带 `libcudart`/`libxpucuda`/`libxpurt` 三个，
+  与 XRE 的重名收窄到这三个；base 镜像里那步 reconcile **已停用**，XRE 是否仍是
+  实际被加载的那份，尚未验证（见 `base/changelogs/kunlunxin-xre5.37.1.yaml` 的待发布条目）。
 - flags 原文见 `.github/build-config.yml` `run.vendors.kunlunxin`。
 
 ## 供应商工具链（跨厂商结论在此严重失效）
