@@ -37,7 +37,7 @@ image: vllm0.24.0-tsingmicro-tsm5.6.3
 tags:
 - tag: 2.3.0-0.3.0
   entries:
-  - date: ''
+  - date: '2026-11-28T08:16:36.783Z'
     reason: |-
       - First delivery of this app on the TSM 5.6.3.1112 line, which is a
         different interpreter and torch from the 260610 line: python 3.12 and

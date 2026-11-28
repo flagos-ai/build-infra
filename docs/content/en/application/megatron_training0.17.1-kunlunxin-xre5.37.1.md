@@ -35,7 +35,7 @@ title: "megatron_training0.17.1-kunlunxin-xre5.37.1"
 
 ### Python
 
-3.10
+3.12
 
 ### Application package
 

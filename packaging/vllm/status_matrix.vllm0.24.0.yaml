@@ -125,4 +125,5 @@ backends:
     image_tag: "2.3.0-0.3.0"
   tsingmicro-tsm5.6.3:
     deps_app: true
-    launch_docs: false
+    launch_docs: true
+    image_tag: "2.3.0-0.3.0"

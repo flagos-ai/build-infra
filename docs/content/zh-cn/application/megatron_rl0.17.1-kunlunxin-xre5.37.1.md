@@ -35,7 +35,7 @@ title: "megatron_rl0.17.1-kunlunxin-xre5.37.1"
 
 ### Python
 
-3.10
+3.12
 
 ### 应用软件包
 
