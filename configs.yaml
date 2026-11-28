@@ -1446,9 +1446,7 @@ vendors:
       flagtree: flagtree==0.7.0+tsingmicro3.6
       flagtree_daily: flagtree-tsingmicro
       system_dpkg:
-        # libfmt8 is a system-level dependency for torch_txda (links
-        # libfmt.so.8). Ubuntu 24.04 ships libfmt9, so we install the
-        # 22.04 .deb via dpkg. It is NOT an SDK component.
+        # libfmt8 is a dependency for torch_txda but Ubuntu 24.04 ships libfmt9
         - libfmt8
       env:
         base:
@@ -1464,6 +1462,8 @@ vendors:
         runtime:
           USE_TORCH_XLA: "0"
           TORCH_COMPILE_DISABLE: "1"
+          # 2 is high precision; the default 0 is high performance.
+          PRECISION_MODE: "2"
       deps:
         - torch==2.13.0+cpu
         - torchvision==0.28.0+cpu
