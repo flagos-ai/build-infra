@@ -13,7 +13,7 @@
 
 ### Python
 
-3.10
+3.12
 
 ### Application package
 
