@@ -21,7 +21,7 @@ image: flagos-runtime-tsingmicro-tsm5.6.3
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-11-28T04:17:56.909Z'
     reason: |-
       - Rebuilt on the TSM 5.6.3.1112 base: python 3.12 (was 3.10), torch
         2.13.0 (was 2.11.0), flagcx 0.14.1+tsm5.6.3. The backend key moves to
