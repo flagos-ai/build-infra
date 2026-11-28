@@ -106,6 +106,7 @@ BACKENDS = [
     "sunrise-tangrt1.2.0",
     "thead-ppu2.1.0",
     "tsingmicro-tsm260610",
+    "tsingmicro-tsm5.6.3",
 ]
 
 # Chinese vendor display names for the matrix vendor column (same mapping the
