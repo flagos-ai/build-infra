@@ -39,6 +39,7 @@ title: "hygon-dtk26.10"
 
 ### 主要 Python 软件包
 
+- `amdsmi==7.0.2`
 - `apex==1.7.0+dtk2610.torch2130.2610221147.gfa848d`
 - `flag_gems==5.4.0`
 - `flagcx==0.14.1+dtk2610`
@@ -56,7 +57,7 @@ title: "hygon-dtk26.10"
 
 ### 指定 FlagTree 版本
 
-如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.0+<后端>3.6` 可精确指定某个构建。
+如需使用上述之外的 FlagTree 版本，给 `docker run` 传入 `-e FLAGTREE_VERSION=<版本>`，或容器运行中执行 `compiler flagtree <版本>`：该版本会在应用启动前安装到 `/opt/flagtree`，无需重建镜像。写全 `0.7.1a1+hcu3.6` 可精确指定某个构建。
 
 ### 指定 FlagGems 版本
 

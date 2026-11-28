@@ -17,16 +17,17 @@
 
 ### Major Python packages
 
-- `apex==1.7.0+das.opt1.dtk2604.torch290`
+- `amdsmi==7.0.2`
+- `apex==1.7.0+dtk2604.torch2100.2609201739.g9783d4`
 - `flag_gems==5.4.0`
-- `flagcx==0.14.0+dtk2604`
-- `flagtree==0.7.0+hcu3.6`
-- `flash_attn==2.8.3+das.opt1.dtk2604.torch290`
+- `flagcx==0.14.1+dtk2604`
+- `flagtree==0.7.1a1+hcu3.6`
+- `flash_attn==2.8.3+das185.dtk2604.torch2100.2608132155.g9febea`
 - `numpy==1.26.4`
-- `torch==2.9.0+das.opt1.dtk2604`
-- `torchaudio==2.9.0+das.opt1.dtk2604.torch290.202604011034.geaa9e4`
-- `torchvision==0.24.0+das.opt1.dtk2604.torch290`
-- `triton==3.5.1+das.opt1.dtk2604.torch290` *(alternative)*
+- `torch==2.10.0+das.opt1.dtk2604.2608131652.g28498c`
+- `torchaudio==2.10.0+das.opt1.dtk2604.torch2100.2609021532.gdf6f74`
+- `torchvision==0.25.0+das185.dtk2604.torch2100.2608130858.gdcd044`
+- `triton==3.6.0+das185.dtk2604.torch2100.2608131719.gb796b1` *(alternative)*
 
 ### Switch compiler
 
@@ -34,7 +35,7 @@ This image includes both FlagTree (default) and Triton. To switch, run `compiler
 
 ### Choosing a FlagTree version
 
-To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.0+<backend>3.6` form to pin one build.
+To use a FlagTree version other than the one above, pass `-e FLAGTREE_VERSION=<version>` to `docker run`, or run `compiler flagtree <version>` in a running container: the wheel is installed into `/opt/flagtree` before the application starts, so no rebuild is needed. Write the full `0.7.1a1+hcu3.6` form to pin one build.
 
 ### Choosing a FlagGems version
 
@@ -74,6 +75,12 @@ hy-smi
 ## Changelog
 
 ### 2.3.0
+
+*2026-11-25 13:08:10*
+
+apex returns to this line at 1.7.0+dtk2604.torch2100.2609201739.g9783d4:
+the index now carries a cp310/torch2100 build, so the reason the deps list
+left it out no longer holds. Nothing else about the image changes.
 
 *2026-11-24 15:55:52*
 
