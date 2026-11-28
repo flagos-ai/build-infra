@@ -26,8 +26,10 @@ tags:
       - First delivery on the PPU SDK 2.2.1 base: python 3.12, torch 2.13.0,
         torchvision 0.28.0, torchaudio 2.11.0, FlagGems 5.4.0 and FlagTree
         0.7.0+ppu3.6.
-      - No triton fallback compiler: the vendor's 2.2.x builds are labelled
-        ppu2.2.0, and FlagTree is the default compiler either way.
+      - Triton is the fallback compiler and what an upper-layer
+        `Requires-Dist: triton` resolves to: 3.7.1 installs as
+        3.7.1+v0.1.0.ppu2.2.0 and coexists with torch 2.13.0. FlagTree stays
+        the default compiler.
       - torchvision is what the multimodal path decodes and transforms images
         through; it and torchaudio resolve only against torch 2.13 here —
         paired with 2.10 the vendor's selector rejected every candidate.
@@ -35,8 +37,9 @@ tags:
       - 在 PPU SDK 2.2.1 base 上的首次交付：python 3.12、torch 2.13.0、
         torchvision 0.28.0、torchaudio 2.11.0、FlagGems 5.4.0、FlagTree
         0.7.0+ppu3.6。
-      - 不带 triton 回退编译器：厂商 2.2.x 的构建都标着 ppu2.2.0，且 FlagTree
-        本就是默认编译器。
+      - triton 是回退编译器，也是上层包 `Requires-Dist: triton` 的解析目标：
+        3.7.1 安装后为 3.7.1+v0.1.0.ppu2.2.0，与 torch 2.13.0 共存。默认编译器
+        仍是 FlagTree。
       - 多模态路径对图像的解码与变换都经由 torchvision；它和 torchaudio 在
         本线只有配 torch 2.13 才能解析——配 2.10 时厂商选择器拒绝了所有候选。
     upstream_prs: []

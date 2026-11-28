@@ -1444,8 +1444,10 @@ vendors:
       python: "3.12"
       flagtree: flagtree==0.7.0+ppu3.6
       flagtree_daily: flagtree-ppu
-      # No triton pin yet: the 2.2.x builds on the vendor index are labelled
-      # ppu2.2.0, and FlagTree is the default compiler either way.
+      # The fallback compiler, and what an upper-layer `Requires-Dist: triton`
+      # resolves to: 3.7.1 installs as 3.7.1+v0.1.0.ppu2.2.0 and coexists with
+      # torch 2.13.0. FlagTree stays the default compiler.
+      triton: triton==3.7.1
       deps:
         # The variant the vendor's selector resolves on this SDK line; the
         # wheels it builds report bare versions, so the pins name those.
