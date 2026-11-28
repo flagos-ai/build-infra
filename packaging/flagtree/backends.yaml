@@ -387,7 +387,7 @@ backends:
     disk_min_gb: 60
     builder:
       verify:
-        python: "3.10"
+        python: "3.12"
         commands: [git, cmake, ninja, make, wget, curl]
         files:
           - /root/.triton/json/include/nlohmann/json.hpp
@@ -425,9 +425,9 @@ backends:
       dist_name: flagtree-kunlunxin
       version_base: "0.7.1"
       ref: main
-      # cp310: the 22.04 system interpreter, like sunrise, hcu, mthreads and
-      # tsingmicro.
-      wheel_tag: cp310-cp310-linux_x86_64
+      # cp312: the runtime's interpreter (configs.yaml pins python 3.12), so the
+      # wheel has to be cp312 to install there. deadsnakes, like tsingmicro.
+      wheel_tag: cp312-cp312-linux_x86_64
 
   ppu:
     containerfile: ppu
