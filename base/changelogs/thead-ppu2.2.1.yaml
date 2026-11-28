@@ -18,7 +18,7 @@ image: flagos-base-thead-ppu2.2.1
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-11-28T13:36:34.385Z'
     reason: |-
       - First delivery: T-Head PPU 2.2.1 on Ubuntu 24.04, x86_64.
       - The layer is vendored, not installed: T-Head ships the PPU SDK only
