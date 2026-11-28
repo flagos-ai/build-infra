@@ -13,9 +13,10 @@
 # limitations under the License.
 
 # Build a FlagTree xpu (Kunlunxin) wheel on Ubuntu 22.04 (glibc 2.35, gcc 11.4)
-# with the 22.04 system python 3.10, which is what configs.yaml pins for
-# kunlunxin-xre5.37.1. The runtime is 24.04, and building for 22.04 only has to
-# import there -- the direction glibc compatibility runs in.
+# with python 3.12 from deadsnakes, which is the interpreter the runtime's
+# venv is built on (configs.yaml pins 3.12 for kunlunxin-xre5.37.1; a cp310
+# wheel will not install there). The runtime is 24.04, and building for 22.04
+# only has to import there -- the direction glibc compatibility runs in.
 #   docker build --target builder -t flagtree-builder-kunlunxin:ci -f kunlunxin .
 #   docker build -t flagtree-kunlunxin:0.7.1a1 -f kunlunxin .
 
@@ -56,13 +57,20 @@ RUN set -eu; \
         exit 0; \
     fi; \
     apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates git wget curl binutils \
+        ca-certificates gnupg git wget curl binutils \
         build-essential cmake ninja-build \
         zlib1g zlib1g-dev libxml2 libxml2-dev nlohmann-json3-dev \
-        python3.10 python3.10-dev python3.10-venv python3-pip \
+    && curl -fsSL \
+         "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+         | gpg --dearmor -o /etc/apt/trusted.gpg.d/deadsnakes.gpg \
+    && echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
+         > /etc/apt/sources.list.d/deadsnakes.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.12 python3.12-dev python3.12-venv \
     && rm -rf /var/lib/apt/lists/* \
     && printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\n' > /etc/pip.conf \
-    && python3.10 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --no-cache-dir --upgrade pip wheel setuptools \
     && mkdir -p /root/.flagtree/xpu /root/.triton \
     && cd /tmp \
     && for f in "${LLVM_TRUST_TARBALL}" "${LLVM_PUB_TARBALL}" "${LLVM19_TARBALL}" \
@@ -174,8 +182,8 @@ RUN git config --global http.version HTTP/1.1 \
     && printf '[metadata]\nproject_urls =\n    Source-Commit = https://github.com/flagos-ai/flagtree/commit/%s\n' \
          "${sha8}" > /opt/flagtree/setup.cfg \
     && cd /opt/flagtree \
-    && python3.10 -m pip install --no-cache-dir -r python/requirements.txt \
-    && python3.10 -m pip install --no-cache-dir "pybind11==${PYBIND11_SPEC}" \
+    && python3.12 -m pip install --no-cache-dir -r python/requirements.txt \
+    && python3.12 -m pip install --no-cache-dir "pybind11==${PYBIND11_SPEC}" \
     && export FLAGTREE_BACKEND=xpu \
     && export FLAGTREE_WHEEL_VERSION="${FLAGTREE_WHEEL_VERSION}" \
     && export FLAGTREE_WHEEL_NAME="${FLAGTREE_WHEEL_NAME}" \
@@ -183,7 +191,7 @@ RUN git config --global http.version HTTP/1.1 \
     && export MAX_JOBS="${MAX_JOBS}" \
     && rm -rf /opt/flagtree/.git \
     && for i in 1 2 3 4 5; do \
-         python3.10 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
+         python3.12 -m pip wheel . --no-build-isolation --no-deps -w /wheels -v && break; \
          echo ">>> wheel build attempt $i failed, retrying in 10s..."; sleep 10; \
        done \
     && ls -la /wheels/*.whl
@@ -204,8 +212,8 @@ RUN printf '%s\n' \
       'if "git" in ver:' \
       '    print("FAIL: dirty wheel version " + ver + " (expected clean, no git-sha suffix)")' \
       '    sys.exit(1)' \
-      'if "cp310" not in name:' \
-      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp310)")' \
+      'if "cp312" not in name:' \
+      '    print("FAIL: unexpected wheel tag in " + name + " (expected cp312)")' \
       '    sys.exit(1)' \
       'print("OK: wheel " + name + " version " + ver)' \
       '' \
@@ -282,14 +290,14 @@ RUN printf '%s\n' \
       '    sys.exit(1)' \
       'print("OK: libtriton.so and pybind11 " + pybind11.__version__ + " agree on internals v" + want.decode())' \
     > /tmp/gate.py \
-    && PYBIND11_SPEC="${PYBIND11_SPEC}" python3.10 /tmp/gate.py
+    && PYBIND11_SPEC="${PYBIND11_SPEC}" python3.12 /tmp/gate.py
 
 # Smoke test: install the freshly built wheel and assert the two things the
 # version pin and the setup.cfg carrier are for. The xpu driver imports torch,
 # and looks for libxpurt.so, inside its methods rather than at module scope, so
 # an import here reaches the backend without an XPU device.
-RUN python3.10 -m pip install --no-cache-dir /wheels/*.whl \
-    && python3.10 -c "\
+RUN python3.12 -m pip install --no-cache-dir /wheels/*.whl \
+    && python3.12 -c "\
 import importlib.metadata as md, triton;\
 from triton.backends import backends;\
 print('OK', md.version('${FLAGTREE_WHEEL_NAME}'), 'triton', triton.__version__, 'backends', sorted(backends));\
