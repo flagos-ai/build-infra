@@ -94,6 +94,10 @@ xpu-smi
 
 ### 2.3.0
 
+*2026-11-28 06:37:01*
+
+XCUDART_PACKAGE 换到厂商 20261124 的构建（XPURT 5.46.0，暂以 `xcudart_package.deb` 命名上传）。该包不再携带 libxpuml 与 libxpunvidia-ml，只剩 libcudart、libxpucuda、libxpurt，与 XRE 重名的 也就这三个。同名 so 的 reconcile 步骤随之停用：它的内容断言是拿 5.46.0 的包去比 XRE 5.37.1，而这段逻辑是按 5.13.0 那一代写的；XRE 的副本是否 仍是进程实际拿到的那一份，留到 app 层验证，不在这里凭未验证的假设下 断言。
+
 *2026-10-14 05:49:46*
 
 - 仅为携带新的全栈 tag 而重建；本层无任何改动。
