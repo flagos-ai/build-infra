@@ -72,6 +72,10 @@ xpu-smi
 
 ### 2.3.0
 
+*2026-11-28 06:37:01*
+
+Moves XCUDART_PACKAGE to the vendor's 20261124 build (XPURT 5.46.0, staged as `xcudart_package.deb`). That delivery no longer ships libxpuml and libxpunvidia-ml: it carries libcudart, libxpucuda and libxpurt only, so the three names it still shares with XRE are the whole overlap. The soname-reconcile step is disabled in the same change because its content assertion compares a 5.46.0 delivery against XRE 5.37.1 and was written for the 5.13.0 generation; whether XRE's copies are still the ones a process gets is left to be settled on the app layer rather than asserted here from an unverified assumption.
+
 *2026-10-14 05:49:46*
 
 - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.

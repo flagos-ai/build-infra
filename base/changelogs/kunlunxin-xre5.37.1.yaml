@@ -45,7 +45,7 @@ tags:
       仍是进程实际拿到的那一份，留到 app 层验证，不在这里凭未验证的假设下
       断言。
     upstream_prs: []
-    date: ''
+    date: '2026-11-28T06:37:01.794Z'
   - date: '2026-10-14T05:49:46.527Z'
     reason: |-
       - Rebuilt to carry the new stack-wide tag; nothing in this layer changed.
