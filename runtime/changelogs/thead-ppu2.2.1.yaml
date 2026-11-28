@@ -24,22 +24,19 @@ tags:
   - date: ''
     reason: |-
       - First delivery on the PPU SDK 2.2.1 base: python 3.12, torch 2.13.0,
-        FlagGems 5.4.0 and FlagTree 0.7.0+ppu3.6.
-      - No triton fallback compiler yet: the 2.2.x builds on the vendor index
-        are labelled ppu2.2.0, and FlagTree is the default compiler either way.
-      - torchvision 0.28.0 and torchaudio 2.11.0 come from the vendor index
-        alongside torch: the multimodal path needs torchvision's transforms,
-        and both resolve only against torch 2.13 — with 2.10 the selector
-        rejected every candidate.
-      - Nothing is shared with `flagos-runtime-thead-ppu2.1.0` — that line
-        builds on the PAI-DSW training image and carries its own SDK.
+        torchvision 0.28.0, torchaudio 2.11.0, FlagGems 5.4.0 and FlagTree
+        0.7.0+ppu3.6.
+      - No triton fallback compiler: the vendor's 2.2.x builds are labelled
+        ppu2.2.0, and FlagTree is the default compiler either way.
+      - torchvision is what the multimodal path decodes and transforms images
+        through; it and torchaudio resolve only against torch 2.13 here —
+        paired with 2.10 the vendor's selector rejected every candidate.
     reason_zh: |-
-      - 在 PPU SDK 2.2.1 base 上的首次交付：python 3.12、torch
-        2.10.0+v0.3.0.ppu2.2.1、FlagGems 5.4.0、FlagTree 0.7.0+ppu3.6。
-      - 暂不带 triton 回退编译器：厂商索引上 2.2.x 的构建都标着 ppu2.2.0，且
-        FlagTree 本就是默认编译器。
-      - 不安装 torchvision 与 torchaudio：厂商选择器尝试的每个候选——包括带
-        ppu2.2.1 标签的 torchvision 0.24.0——都被判为与 SDK 2.2.1 不兼容。
-      - 与 `flagos-runtime-thead-ppu2.1.0` 不共享任何内容：那条线基于 PAI-DSW
-        训练镜像，带的是另一套 SDK。
+      - 在 PPU SDK 2.2.1 base 上的首次交付：python 3.12、torch 2.13.0、
+        torchvision 0.28.0、torchaudio 2.11.0、FlagGems 5.4.0、FlagTree
+        0.7.0+ppu3.6。
+      - 不带 triton 回退编译器：厂商 2.2.x 的构建都标着 ppu2.2.0，且 FlagTree
+        本就是默认编译器。
+      - 多模态路径对图像的解码与变换都经由 torchvision；它和 torchaudio 在
+        本线只有配 torch 2.13 才能解析——配 2.10 时厂商选择器拒绝了所有候选。
     upstream_prs: []
