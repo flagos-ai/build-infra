@@ -21,7 +21,7 @@ image: flagos-runtime-thead-ppu2.2.1
 tags:
 - tag: 2.3.0
   entries:
-  - date: ''
+  - date: '2026-11-28T14:43:48.157Z'
     reason: |-
       - First delivery on the PPU SDK 2.2.1 base: python 3.12, torch 2.13.0,
         torchvision 0.28.0, torchaudio 2.11.0, FlagGems 5.4.0 and FlagTree
