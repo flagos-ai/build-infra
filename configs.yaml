@@ -1436,6 +1436,27 @@ vendors:
       sdk:
         - PPU SDK 2.1.0 (x86_64)
 
+    ppu2.2.1:
+      extras: thead
+      hardware: ["T-Head ZW810E"]
+      driver: "1.3.2"
+      platform: "Aliyun PAI-DSW"
+      python: "3.12"
+      flagtree: flagtree==0.7.0+ppu3.6
+      flagtree_daily: flagtree-ppu
+      # No triton pin yet: the 2.2.x builds on the vendor index are labelled
+      # ppu2.2.0, and FlagTree is the default compiler either way.
+      deps:
+        # The variant the vendor's selector resolves on this SDK line.
+        - torch==2.10.0+v0.3.0.ppu2.2.1
+        # torchvision/torchaudio are absent: every candidate the selector
+        # tries -- including the ppu2.2.1-labelled torchvision 0.24.0 -- is
+        # rejected as incompatible with SDK 2.2.1. Re-add when the vendor
+        # publishes a build it accepts.
+        - numpy==1.26.4
+      sdk:
+        - PPU SDK 2.2.1 (x86_64)
+
   tsingmicro:
     tsm5.6.3:
       extras: tsingmicro
